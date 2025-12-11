@@ -31,12 +31,12 @@ async function buildBackend() {
   console.log('Building Python backend with PyInstaller');
   console.log('========================================\n');
 
-  // Detect Python command (prefer python3 over python for Python 3.11+)
-  let pythonCmd = 'python3';
+  // Detect Python command (prefer python for conda environments)
+  let pythonCmd = 'python';
   try {
-    await execPromise('python3 --version');
+    await execPromise('python --version');
   } catch {
-    pythonCmd = 'python';
+    pythonCmd = 'python3';
   }
 
   // Check Python version

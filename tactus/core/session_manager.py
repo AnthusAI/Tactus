@@ -5,7 +5,7 @@ Manages conversation histories with filtering capabilities for
 token budgets, message limits, and custom filters.
 """
 
-from typing import Any, Callable, Optional
+from typing import Any, Optional
 
 try:
     from pydantic_ai.messages import ModelMessage

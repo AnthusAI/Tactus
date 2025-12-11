@@ -249,10 +249,6 @@ class LuaSandbox:
         """Get a value from Lua global scope."""
         return self.lua.globals()[name]
 
-    def set_global(self, name: str, value: Any):
-        """Set a value in Lua global scope."""
-        self.lua.globals()[name] = value
-
     def create_lua_table(self, python_dict: Optional[Dict[str, Any]] = None) -> Any:
         """
         Create a Lua table from a Python dictionary.

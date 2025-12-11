@@ -3,7 +3,6 @@ Tactus IDE Backend Server.
 
 Provides HTTP-based LSP server for the Tactus IDE.
 """
-import os
 import logging
 from pathlib import Path
 from flask import Flask, request, jsonify
@@ -11,7 +10,7 @@ from flask_cors import CORS
 from typing import Dict, Any, List, Optional
 
 from tactus.validation.validator import TactusValidator, ValidationMode
-from tactus.core.registry import ValidationResult, ValidationMessage
+from tactus.core.registry import ValidationMessage
 
 logger = logging.getLogger(__name__)
 

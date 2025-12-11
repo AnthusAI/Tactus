@@ -13,7 +13,7 @@ import logging
 import time
 from typing import Dict, Any, Optional
 
-from tactus.core.registry import ProcedureRegistry, RegistryBuilder, ValidationResult
+from tactus.core.registry import ProcedureRegistry, RegistryBuilder
 from tactus.core.dsl_stubs import create_dsl_stubs, lua_table_to_dict
 from tactus.core.template_resolver import TemplateResolver
 from tactus.core.session_manager import SessionManager
@@ -861,7 +861,7 @@ class TactusRuntime:
         if not result.valid:
             error_messages = [f"  - {err.message}" for err in result.errors]
             raise TactusRuntimeError(
-                f"DSL validation failed:\n" + "\n".join(error_messages)
+                "DSL validation failed:\n" + "\n".join(error_messages)
             )
         
         for warning in result.warnings:

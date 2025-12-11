@@ -6,7 +6,7 @@ procedure declarations from .tactus.lua files.
 """
 
 from enum import Enum
-from typing import Any, Callable, Optional, Union
+from typing import Any, Optional, Union
 
 from pydantic import BaseModel, Field, ValidationError
 

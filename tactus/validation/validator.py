@@ -9,7 +9,7 @@ Validates .tactus.lua files using ANTLR parser:
 
 import logging
 from enum import Enum
-from typing import List, Optional
+from typing import List
 
 from antlr4 import InputStream, CommonTokenStream
 from .generated.LuaLexer import LuaLexer
