@@ -522,7 +522,7 @@ class TactusRuntime:
             else:
                 default = field_def.get("default", None)
                 field = (
-                    Field(default=default, description=description)
+                    Field(default=default, description=description)  # noqa: F821
                     if description
                     else Field(default=default)  # noqa: F821
                 )
