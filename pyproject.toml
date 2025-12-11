@@ -34,6 +34,7 @@ dependencies = [
     "rich>=13.9.4",
     "typer",
     "dotyaml>=0.1.0",
+    "antlr4-python3-runtime==4.13.1",
 ]
 
 [project.optional-dependencies]
@@ -45,6 +46,7 @@ dev = [
     "black",
     "ruff",
     "python-semantic-release>=9.0.0",
+    "antlr4-tools>=0.2.1",
 ]
 
 [project.scripts]

@@ -1,0 +1,228 @@
+/**
+ * Main editor component for Tactus IDE.
+ * 
+ * Uses hybrid validation:
+ * 1. TypeScript parser for instant syntax validation
+ * 2. Python LSP for semantic intelligence
+ */
+import React, { useEffect, useRef, useState } from 'react';
+import * as monaco from 'monaco-editor';
+import { LSPClientHTTP as LSPClient, LSPDiagnostic } from './LSPClientHTTP';
+import { TactusValidator } from './validation/TactusValidator';
+import { registerTactusLanguage } from './TactusLanguage';
+
+interface EditorProps {
+  initialValue?: string;
+  onValueChange?: (value: string) => void;
+}
+
+export const Editor: React.FC<EditorProps> = ({ initialValue = '', onValueChange }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const editorRef = useRef<monaco.editor.IStandaloneCodeEditor>();
+  const modelRef = useRef<monaco.editor.ITextModel>();
+  const lspClient = useRef<LSPClient>();
+  const tsValidator = useRef(new TactusValidator());
+  const lspTimer = useRef<NodeJS.Timeout>();
+  const [lspConnected, setLspConnected] = useState(false);
+  const isDisposedRef = useRef(false);
+  const onValueChangeRef = useRef(onValueChange);
+  
+  // Update the callback ref when it changes
+  useEffect(() => {
+    onValueChangeRef.current = onValueChange;
+  }, [onValueChange]);
+  
+  // Handle initialValue changes (e.g., loading a new file)
+  useEffect(() => {
+    if (editorRef.current && initialValue !== undefined) {
+      const currentValue = editorRef.current.getValue();
+      if (currentValue !== initialValue) {
+        editorRef.current.setValue(initialValue);
+      }
+    }
+  }, [initialValue]);
+  
+  useEffect(() => {
+    if (!containerRef.current) return;
+    
+    // Register Tactus language
+    registerTactusLanguage();
+    
+    // Initialize Monaco
+    const editor = monaco.editor.create(containerRef.current, {
+      value: initialValue || '',
+      language: 'tactus-lua',
+      theme: 'tactus-dark',
+      automaticLayout: true,
+      minimap: { enabled: true },
+      fontSize: 14,
+      lineNumbers: 'on',
+      roundedSelection: false,
+      scrollBeyondLastLine: false,
+      readOnly: false,
+      cursorStyle: 'line',
+      wordWrap: 'on',
+      // Disable features that cause async model access during disposal
+      quickSuggestions: false,
+      inlineSuggest: { enabled: false }
+    });
+    
+    editorRef.current = editor;
+    modelRef.current = editor.getModel() || undefined;
+    isDisposedRef.current = false;
+    
+    // Connect LSP client to backend (uses env var or default)
+    try {
+      lspClient.current = new LSPClient();
+      
+      // Handle LSP diagnostics (semantic errors)
+      lspClient.current.onDiagnostics((diagnostics: LSPDiagnostic[]) => {
+        if (isDisposedRef.current) return;
+        
+        const model = modelRef.current;
+        if (model && !model.isDisposed()) {
+          const markers = diagnostics.map(diag => ({
+            severity: diag.severity === 1 
+              ? monaco.MarkerSeverity.Error 
+              : monaco.MarkerSeverity.Warning,
+            startLineNumber: diag.range.start.line + 1,
+            startColumn: diag.range.start.character + 1,
+            endLineNumber: diag.range.end.line + 1,
+            endColumn: diag.range.end.character + 1,
+            message: diag.message,
+            source: 'tactus-lsp'
+          }));
+          
+          monaco.editor.setModelMarkers(model, 'tactus-semantic', markers);
+        }
+      });
+      
+      // Send initial document
+      lspClient.current.didOpen('file:///untitled.tactus.lua', initialValue);
+      setLspConnected(true);
+    } catch (error) {
+      console.warn('LSP client connection failed, running in offline mode:', error);
+      setLspConnected(false);
+    }
+    
+    // On content change: hybrid validation
+    editor.onDidChangeModelContent(() => {
+      if (isDisposedRef.current || !editorRef.current) return;
+      
+      const code = editorRef.current.getValue();
+      
+      // Notify parent
+      if (onValueChangeRef.current) {
+        onValueChangeRef.current(code);
+      }
+      
+      // Layer 1: Instant TypeScript validation (< 10ms)
+      try {
+        const syntaxResult = tsValidator.current.validate(code, 'quick');
+        const model = modelRef.current;
+        
+        if (model && !model.isDisposed()) {
+          // Show syntax errors immediately
+          const markers = syntaxResult.errors.map(err => ({
+            severity: monaco.MarkerSeverity.Error,
+            startLineNumber: err.location?.[0] || 1,
+            startColumn: err.location?.[1] || 1,
+            endLineNumber: err.location?.[0] || 1,
+            endColumn: (err.location?.[1] || 1) + 10,
+            message: err.message,
+            source: 'tactus-syntax'
+          }));
+          
+          if (markers.length > 0) {
+            console.log('Syntax errors found:', markers);
+          }
+          
+          monaco.editor.setModelMarkers(model, 'tactus-syntax', markers);
+        }
+      } catch (error) {
+        console.error('TypeScript validation error:', error);
+      }
+      
+      // Layer 2: Debounced LSP validation (semantic, 300ms)
+      if (lspClient.current && lspConnected && !isDisposedRef.current) {
+        clearTimeout(lspTimer.current);
+        lspTimer.current = setTimeout(() => {
+          if (!isDisposedRef.current) {
+            lspClient.current?.didChange(code);
+          }
+        }, 300);
+      }
+    });
+    
+    // Cleanup
+    return () => {
+      // Set disposed flag first to prevent new operations
+      isDisposedRef.current = true;
+      
+      // Clear any pending timers
+      if (lspTimer.current) {
+        clearTimeout(lspTimer.current);
+        lspTimer.current = undefined;
+      }
+      
+      // Disconnect LSP client
+      if (lspClient.current) {
+        try {
+          lspClient.current.didClose();
+          lspClient.current.disconnect();
+        } catch (e) {
+          // Ignore errors during cleanup
+        }
+        lspClient.current = undefined;
+      }
+      
+      // Clear markers before disposing (check both model and editor)
+      try {
+        const model = modelRef.current;
+        if (model && !model.isDisposed()) {
+          monaco.editor.setModelMarkers(model, 'tactus-syntax', []);
+          monaco.editor.setModelMarkers(model, 'tactus-semantic', []);
+        }
+      } catch (e) {
+        // Model might already be disposed, ignore
+      }
+      
+      // Dispose editor (this also disposes the model)
+      try {
+        if (editorRef.current) {
+          editorRef.current.dispose();
+          editorRef.current = undefined;
+        }
+      } catch (e) {
+        // Ignore errors during disposal
+      }
+      
+      modelRef.current = undefined;
+    };
+  }, []); // Empty deps - only run once on mount
+  
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div style={{ 
+        padding: '8px', 
+        background: '#1e1e1e', 
+        color: '#cccccc',
+        borderBottom: '1px solid #333',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px'
+      }}>
+        <span style={{ fontWeight: 'bold' }}>Tactus IDE</span>
+        <span style={{ fontSize: '12px', opacity: 0.7 }}>
+          {lspConnected ? '● LSP Connected' : '○ Offline Mode'}
+        </span>
+        <span style={{ fontSize: '12px', opacity: 0.7, marginLeft: 'auto' }}>
+          Hybrid Validation: TypeScript (instant) + LSP (semantic)
+        </span>
+      </div>
+      <div ref={containerRef} style={{ flex: 1 }} />
+    </div>
+  );
+};
+
+

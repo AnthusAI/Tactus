@@ -272,12 +272,11 @@ class AgentPrimitive:
                 response_data = result.response.model_dump()
             elif hasattr(result.response, "dict"):
                 response_data = result.response.dict()
+            elif hasattr(result.response, "__dict__"):
+                # Use vars() instead of dict() for objects with __dict__
+                response_data = vars(result.response)
             else:
-                response_data = (
-                    dict(result.response)
-                    if hasattr(result.response, "__dict__")
-                    else result.response
-                )
+                response_data = result.response
             logger.debug(f"Agent '{self.name}' returned structured data: {type(response_data)}")
             return response_data
         else:
@@ -333,3 +332,5 @@ class AgentPrimitive:
 
     def __repr__(self) -> str:
         return f"AgentPrimitive('{self.name}', {len(self.message_history)} messages)"
+
+

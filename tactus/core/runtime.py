@@ -2,7 +2,7 @@
 Tactus Runtime - Main execution engine for Lua-based workflows.
 
 Orchestrates:
-1. YAML parsing and validation
+1. Lua DSL parsing and validation (via registry)
 2. Lua sandbox setup
 3. Primitive injection
 4. Agent configuration with LLMs and tools (optional)
@@ -13,7 +13,10 @@ import logging
 import time
 from typing import Dict, Any, Optional
 
-from tactus.core.yaml_parser import ProcedureYAMLParser, ProcedureConfigError
+from tactus.core.registry import ProcedureRegistry, RegistryBuilder, ValidationResult
+from tactus.core.dsl_stubs import create_dsl_stubs, lua_table_to_dict
+from tactus.core.template_resolver import TemplateResolver
+from tactus.core.session_manager import SessionManager
 from tactus.core.lua_sandbox import LuaSandbox, LuaSandboxError
 from tactus.core.output_validator import OutputValidator, OutputValidationError
 from tactus.core.execution_context import BaseExecutionContext
@@ -21,6 +24,13 @@ from tactus.core.exceptions import ProcedureWaitingForHuman, TactusRuntimeError
 from tactus.protocols.storage import StorageBackend
 from tactus.protocols.hitl import HITLHandler
 from tactus.protocols.chat_recorder import ChatRecorder
+
+# For backwards compatibility with YAML
+try:
+    from tactus.core.yaml_parser import ProcedureYAMLParser, ProcedureConfigError
+except ImportError:
+    ProcedureYAMLParser = None
+    ProcedureConfigError = TactusRuntimeError
 
 # Import primitives
 from tactus.primitives.state import StatePrimitive
@@ -78,9 +88,12 @@ class TactusRuntime:
         self.openai_api_key = openai_api_key
 
         # Will be initialized during setup
-        self.config: Optional[Dict[str, Any]] = None
+        self.config: Optional[Dict[str, Any]] = None  # Legacy YAML support
+        self.registry: Optional[ProcedureRegistry] = None  # New DSL registry
         self.lua_sandbox: Optional[LuaSandbox] = None
         self.output_validator: Optional[OutputValidator] = None
+        self.template_resolver: Optional[TemplateResolver] = None
+        self.session_manager: Optional[SessionManager] = None
 
         # Execution context
         self.execution_context: Optional[BaseExecutionContext] = None
@@ -105,14 +118,15 @@ class TactusRuntime:
         logger.info(f"TactusRuntime initialized for procedure {procedure_id}")
 
     async def execute(
-        self, yaml_config: str, context: Optional[Dict[str, Any]] = None
+        self, source: str, context: Optional[Dict[str, Any]] = None, format: str = "yaml"
     ) -> Dict[str, Any]:
         """
-        Execute a Lua-based workflow.
+        Execute a workflow (Lua DSL or legacy YAML format).
 
         Args:
-            yaml_config: YAML configuration string
+            source: Lua DSL source code (.tactus.lua) or YAML config (legacy)
             context: Optional context dict with pre-loaded data (can override params)
+            format: Source format - "lua" (default) or "yaml" (legacy)
 
         Returns:
             Execution results dict with:
@@ -130,10 +144,45 @@ class TactusRuntime:
         self.context = context or {}  # Store context for param merging
 
         try:
-            # 1. Parse YAML configuration
-            logger.info("Step 1: Parsing YAML configuration")
-            self.config = ProcedureYAMLParser.parse(yaml_config)
-            logger.info(f"Loaded procedure: {self.config['name']} v{self.config['version']}")
+            # 0. Setup Lua sandbox FIRST (needed for both YAML and Lua DSL)
+            logger.info("Step 0: Setting up Lua sandbox")
+            self.lua_sandbox = LuaSandbox()
+            
+            # 0b. For Lua DSL, inject placeholder primitives BEFORE parsing
+            # so they're available in the procedure function's closure
+            if format == "lua":
+                logger.debug("Pre-injecting placeholder primitives for Lua DSL parsing")
+                # Import here to avoid issues with YAML format
+                from tactus.primitives.log import LogPrimitive as LuaLogPrimitive
+                from tactus.primitives.state import StatePrimitive as LuaStatePrimitive
+                from tactus.primitives.tool import ToolPrimitive as LuaToolPrimitive
+                # Create minimal primitives that don't need full config
+                placeholder_log = LuaLogPrimitive(procedure_id=self.procedure_id)
+                placeholder_state = LuaStatePrimitive()
+                placeholder_tool = LuaToolPrimitive()
+                placeholder_params = {}  # Empty params dict
+                self.lua_sandbox.inject_primitive("Log", placeholder_log)
+                self.lua_sandbox.inject_primitive("State", placeholder_state)  # Capital S
+                self.lua_sandbox.inject_primitive("state", placeholder_state)  # lowercase s
+                self.lua_sandbox.inject_primitive("Tool", placeholder_tool)
+                self.lua_sandbox.inject_primitive("params", placeholder_params)
+            
+            # 1. Parse configuration (Lua DSL or YAML)
+            if format == "lua":
+                logger.info("Step 1: Parsing Lua DSL configuration")
+                self.registry = self._parse_declarations(source)
+                logger.info(
+                    f"Loaded procedure: {self.registry.procedure_name} v{self.registry.version}"
+                )
+                # Convert registry to config dict for compatibility
+                self.config = self._registry_to_config(self.registry)
+            else:
+                # Legacy YAML support
+                logger.info("Step 1: Parsing YAML configuration (legacy)")
+                if ProcedureYAMLParser is None:
+                    raise TactusRuntimeError("YAML support not available - use Lua DSL format")
+                self.config = ProcedureYAMLParser.parse(source)
+                logger.info(f"Loaded procedure: {self.config['name']} v{self.config['version']}")
 
             # 2. Setup output validator
             logger.info("Step 2: Setting up output validator")
@@ -144,13 +193,20 @@ class TactusRuntime:
                     f"Output schema has {len(output_schema)} fields: {list(output_schema.keys())}"
                 )
 
-            # 3. Setup Lua sandbox
-            logger.info("Step 3: Setting up Lua sandbox")
-            self.lua_sandbox = LuaSandbox()
-
+            # 3. Lua sandbox is already set up in step 0
+            # (keeping this comment for step numbering consistency)
+            
             # 4. Initialize primitives
             logger.info("Step 4: Initializing primitives")
             await self._initialize_primitives()
+            
+            # 4b. Initialize template resolver and session manager
+            self.template_resolver = TemplateResolver(
+                params=context or {},
+                state={},  # Will be updated dynamically
+            )
+            self.session_manager = SessionManager()
+            logger.debug("Template resolver and session manager initialized")
 
             # 5. Start chat session if recorder available
             if self.chat_recorder:
@@ -548,7 +604,7 @@ class TactusRuntime:
                 if param_name in self.context:
                     param_values[param_name] = self.context[param_name]
             self.lua_sandbox.set_global("params", param_values)
-            logger.debug(f"Injected params: {param_values}")
+            logger.info(f"Injected params into Lua sandbox: {param_values}")
 
         # Inject shared primitives
         if self.state_primitive:
@@ -630,18 +686,36 @@ class TactusRuntime:
         Returns:
             Result from Lua procedure execution
         """
-        procedure_code = self.config["procedure"]
+        if self.registry and self.registry.procedure_function:
+            # New DSL: call the stored procedure function
+            logger.debug("Executing procedure function from registry")
+            try:
+                # The procedure function is already a Lua function reference
+                # Call it directly
+                result = self.registry.procedure_function()
+                
+                # Convert Lua table result to Python dict if needed
+                if result is not None and hasattr(result, "items"):
+                    result = lua_table_to_dict(result)
+                
+                logger.info("Procedure execution completed successfully")
+                return result
+            except Exception as e:
+                logger.error(f"Procedure execution failed: {e}")
+                raise LuaSandboxError(f"Procedure execution failed: {e}")
+        else:
+            # Legacy YAML: execute procedure code string
+            procedure_code = self.config["procedure"]
+            logger.debug(f"Executing procedure code ({len(procedure_code)} bytes)")
 
-        logger.debug(f"Executing procedure code ({len(procedure_code)} bytes)")
+            try:
+                result = self.lua_sandbox.execute(procedure_code)
+                logger.info("Procedure execution completed successfully")
+                return result
 
-        try:
-            result = self.lua_sandbox.execute(procedure_code)
-            logger.info("Procedure execution completed successfully")
-            return result
-
-        except LuaSandboxError as e:
-            logger.error(f"Procedure execution failed: {e}")
-            raise
+            except LuaSandboxError as e:
+                logger.error(f"Procedure execution failed: {e}")
+                raise
 
     def _process_template(self, template: str, context: Dict[str, Any]) -> str:
         """
@@ -752,3 +826,155 @@ class TactusRuntime:
         if self.stop_primitive:
             return self.stop_primitive.requested()
         return False
+
+    def _parse_declarations(self, source: str) -> ProcedureRegistry:
+        """
+        Execute .tactus.lua to collect declarations.
+        
+        Args:
+            source: Lua DSL source code
+            
+        Returns:
+            ProcedureRegistry with all declarations
+            
+        Raises:
+            TactusRuntimeError: If validation fails
+        """
+        builder = RegistryBuilder()
+        
+        # Use the existing sandbox so procedure functions have access to primitives
+        sandbox = self.lua_sandbox
+        
+        # Inject DSL stubs
+        stubs = create_dsl_stubs(builder)
+        for name, stub in stubs.items():
+            sandbox.set_global(name, stub)
+        
+        # Execute file - declarations self-register
+        try:
+            sandbox.execute(source)
+        except LuaSandboxError as e:
+            raise TactusRuntimeError(f"Failed to parse DSL: {e}")
+        
+        # Validate and return registry
+        result = builder.validate()
+        if not result.valid:
+            error_messages = [f"  - {err.message}" for err in result.errors]
+            raise TactusRuntimeError(
+                f"DSL validation failed:\n" + "\n".join(error_messages)
+            )
+        
+        for warning in result.warnings:
+            logger.warning(warning.message)
+        
+        return result.registry
+
+    def _registry_to_config(self, registry: ProcedureRegistry) -> Dict[str, Any]:
+        """
+        Convert registry to legacy config dict format for compatibility.
+        
+        Args:
+            registry: ProcedureRegistry
+            
+        Returns:
+            Config dict in YAML format
+        """
+        config = {
+            "name": registry.procedure_name,
+            "version": registry.version,
+            "description": registry.description,
+        }
+        
+        # Convert parameters
+        if registry.parameters:
+            config["params"] = {}
+            for name, param in registry.parameters.items():
+                config["params"][name] = {
+                    "type": param.parameter_type.value,
+                    "required": param.required,
+                }
+                if param.default is not None:
+                    config["params"][name]["default"] = param.default
+                if param.description:
+                    config["params"][name]["description"] = param.description
+                if param.enum:
+                    config["params"][name]["enum"] = param.enum
+        
+        # Convert outputs
+        if registry.outputs:
+            config["outputs"] = {}
+            for name, output in registry.outputs.items():
+                config["outputs"][name] = {
+                    "type": output.field_type.value,
+                    "required": output.required,
+                }
+                if output.description:
+                    config["outputs"][name]["description"] = output.description
+        
+        # Convert agents
+        if registry.agents:
+            config["agents"] = {}
+            for name, agent in registry.agents.items():
+                config["agents"][name] = {
+                    "provider": agent.provider,
+                    "model": agent.model,
+                    "system_prompt": agent.system_prompt,
+                    "tools": agent.tools,
+                    "max_turns": agent.max_turns,
+                }
+                if agent.initial_message:
+                    config["agents"][name]["initial_message"] = agent.initial_message
+                if agent.output:
+                    config["agents"][name]["output_schema"] = {
+                        field_name: {
+                            "type": field.field_type.value,
+                            "required": field.required,
+                        }
+                        for field_name, field in agent.output.fields.items()
+                    }
+                if agent.session:
+                    config["agents"][name]["session"] = {
+                        "source": agent.session.source,
+                        "filter": agent.session.filter,
+                    }
+        
+        # Convert HITL points
+        if registry.hitl_points:
+            config["hitl"] = {}
+            for name, hitl in registry.hitl_points.items():
+                config["hitl"][name] = {
+                    "type": hitl.hitl_type,
+                    "message": hitl.message,
+                }
+                if hitl.timeout:
+                    config["hitl"][name]["timeout"] = hitl.timeout
+                if hitl.default is not None:
+                    config["hitl"][name]["default"] = hitl.default
+                if hitl.options:
+                    config["hitl"][name]["options"] = hitl.options
+        
+        # Convert stages
+        if registry.stages:
+            config["stages"] = registry.stages
+        
+        # Convert prompts
+        if registry.prompts:
+            config["prompts"] = registry.prompts
+        if registry.return_prompt:
+            config["return_prompt"] = registry.return_prompt
+        if registry.error_prompt:
+            config["error_prompt"] = registry.error_prompt
+        if registry.status_prompt:
+            config["status_prompt"] = registry.status_prompt
+        
+        # Add default provider/model
+        if registry.default_provider:
+            config["default_provider"] = registry.default_provider
+        if registry.default_model:
+            config["default_model"] = registry.default_model
+        
+        # The procedure code will be executed separately
+        # Store a placeholder for compatibility
+        config["procedure"] = "-- Procedure function stored in registry"
+        
+        return config

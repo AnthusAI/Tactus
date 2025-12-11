@@ -261,3 +261,5 @@ def step_impl(context):
 def step_impl(context):
     duration = _log_state(context)["op_end"] - _log_state(context)["op_start"]
     assert duration >= 0.5
+
+
