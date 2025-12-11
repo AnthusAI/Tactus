@@ -51,6 +51,11 @@ def step_impl(context):
     """Execute the procedure from the example file."""
     import asyncio
 
+    # Skip if no OpenAI API key is available (CI environment)
+    if not os.environ.get("OPENAI_API_KEY"):
+        context.scenario.skip("Skipping: OPENAI_API_KEY not set (CI environment)")
+        return
+
     # Determine format
     is_lua_dsl = context.example_file.suffix == ".lua" or ".tactus" in context.example_file.suffixes
     format_type = "lua" if is_lua_dsl else "yaml"
