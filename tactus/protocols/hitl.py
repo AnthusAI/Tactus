@@ -17,11 +17,7 @@ class HITLHandler(Protocol):
     This allows Tactus to work with any UI or interaction system.
     """
 
-    def request_interaction(
-        self,
-        procedure_id: str,
-        request: HITLRequest
-    ) -> HITLResponse:
+    def request_interaction(self, procedure_id: str, request: HITLRequest) -> HITLResponse:
         """
         Request human interaction (blocking).
 
@@ -46,11 +42,7 @@ class HITLHandler(Protocol):
         """
         ...
 
-    def check_pending_response(
-        self,
-        procedure_id: str,
-        message_id: str
-    ) -> Optional[HITLResponse]:
+    def check_pending_response(self, procedure_id: str, message_id: str) -> Optional[HITLResponse]:
         """
         Check if there's a response to a pending HITL request.
 
@@ -66,11 +58,7 @@ class HITLHandler(Protocol):
         """
         ...
 
-    def cancel_pending_request(
-        self,
-        procedure_id: str,
-        message_id: str
-    ) -> None:
+    def cancel_pending_request(self, procedure_id: str, message_id: str) -> None:
         """
         Cancel a pending HITL request.
 

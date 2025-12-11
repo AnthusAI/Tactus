@@ -63,11 +63,11 @@ class RetryPrimitive:
         # Convert Lua tables to Python dicts if needed
         opts = self._convert_lua_to_python(options) or {}
 
-        max_attempts = opts.get('max_attempts', 3)
-        initial_delay = opts.get('initial_delay', 1.0)
-        max_delay = opts.get('max_delay', 60.0)
-        backoff_factor = opts.get('backoff_factor', 2.0)
-        on_error = opts.get('on_error')
+        max_attempts = opts.get("max_attempts", 3)
+        initial_delay = opts.get("initial_delay", 1.0)
+        max_delay = opts.get("max_delay", 60.0)
+        backoff_factor = opts.get("backoff_factor", 2.0)
+        on_error = opts.get("on_error")
 
         attempt = 0
         delay = initial_delay
@@ -91,12 +91,14 @@ class RetryPrimitive:
                 # Call error callback if provided
                 if on_error and callable(on_error):
                     try:
-                        on_error({
-                            'attempt': attempt,
-                            'max_attempts': max_attempts,
-                            'error': str(e),
-                            'delay': delay
-                        })
+                        on_error(
+                            {
+                                "attempt": attempt,
+                                "max_attempts": max_attempts,
+                                "error": str(e),
+                                "delay": delay,
+                            }
+                        )
                     except Exception as callback_error:
                         logger.error(f"Error callback failed: {callback_error}")
 
@@ -133,11 +135,11 @@ class RetryPrimitive:
             from lupa import lua_type
 
             # Check if it's a Lua table
-            if lua_type(value) == 'table':
+            if lua_type(value) == "table":
                 result = {}
                 for k, v in value.items():
                     # Convert key and value recursively
-                    py_key = self._convert_lua_to_python(k) if lua_type(k) == 'table' else k
+                    py_key = self._convert_lua_to_python(k) if lua_type(k) == "table" else k
                     py_value = self._convert_lua_to_python(v)
                     result[py_key] = py_value
                 return result

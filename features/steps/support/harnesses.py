@@ -28,7 +28,9 @@ def parse_literal(text: str) -> Any:
         raise AssertionError(f"Unable to parse literal '{text}': {exc}") from exc
 
 
-def table_to_dict(table, key_field: str = "parameter", value_field: str = "value") -> Dict[str, str]:
+def table_to_dict(
+    table, key_field: str = "parameter", value_field: str = "value"
+) -> Dict[str, str]:
     """Convert a Behave table into a dictionary."""
     if table is None:
         return {}
@@ -73,11 +75,7 @@ class SafeExpressionEvaluator:
         self.functions = {"len": len, "min": min, "max": max}
 
     def evaluate(self, expression: str, variables: Dict[str, Any]) -> Any:
-        normalized = (
-            expression.replace("AND", "and")
-            .replace("OR", "or")
-            .replace("NOT", "not")
-        )
+        normalized = expression.replace("AND", "and").replace("OR", "or").replace("NOT", "not")
         tree = ast.parse(normalized, mode="eval")
         return self._eval(tree.body, variables)
 
@@ -333,7 +331,9 @@ class StageTracker:
 
     def set_child_completion(self, parent: str):
         parent_stage = self._get(parent)
-        completed = sum(1 for child in parent_stage.children if self._get(child).status == "completed")
+        completed = sum(
+            1 for child in parent_stage.children if self._get(child).status == "completed"
+        )
         total = max(len(parent_stage.children), 1)
         parent_stage.progress = completed / total * 100
 
@@ -463,7 +463,9 @@ class FakeSessionStore:
     def __init__(self):
         self.sessions: Dict[str, SessionRecord] = {}
 
-    def start_session(self, context: Dict[str, Any], metadata: Optional[Dict[str, Any]] = None) -> str:
+    def start_session(
+        self, context: Dict[str, Any], metadata: Optional[Dict[str, Any]] = None
+    ) -> str:
         session_id = str(uuid4())
         self.sessions[session_id] = SessionRecord(
             session_id=session_id,

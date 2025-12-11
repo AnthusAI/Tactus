@@ -36,6 +36,7 @@ class LogPrimitive:
         """Format log message with context."""
         if context:
             import json
+
             # Convert Lua tables to Python dicts
             context_dict = self._lua_to_python(context)
             context_str = json.dumps(context_dict, indent=2)
@@ -45,12 +46,12 @@ class LogPrimitive:
     def _lua_to_python(self, obj: Any) -> Any:
         """Convert Lua objects to Python equivalents recursively."""
         # Check if it's a Lua table
-        if hasattr(obj, 'items'):  # Lua table with dict-like interface
+        if hasattr(obj, "items"):  # Lua table with dict-like interface
             return {self._lua_to_python(k): self._lua_to_python(v) for k, v in obj.items()}
-        elif hasattr(obj, '__iter__') and not isinstance(obj, (str, bytes)):  # Lua array
+        elif hasattr(obj, "__iter__") and not isinstance(obj, (str, bytes)):  # Lua array
             try:
                 return [self._lua_to_python(v) for v in obj]
-            except:
+            except Exception:  # noqa: E722
                 # If iteration fails, return as-is
                 return obj
         else:

@@ -22,24 +22,18 @@ class ProcedureMetadata(BaseModel):
 
     procedure_id: str = Field(..., description="Unique procedure identifier")
     checkpoints: Dict[str, CheckpointData] = Field(
-        default_factory=dict,
-        description="Map of checkpoint names to checkpoint data"
+        default_factory=dict, description="Map of checkpoint names to checkpoint data"
     )
-    state: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="Mutable state dictionary"
-    )
+    state: Dict[str, Any] = Field(default_factory=dict, description="Mutable state dictionary")
     lua_state: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="Lua-specific state (preserved across execution)"
+        default_factory=dict, description="Lua-specific state (preserved across execution)"
     )
     status: str = Field(
         default="RUNNING",
-        description="Current procedure status (RUNNING, WAITING_FOR_HUMAN, COMPLETED, FAILED)"
+        description="Current procedure status (RUNNING, WAITING_FOR_HUMAN, COMPLETED, FAILED)",
     )
     waiting_on_message_id: Optional[str] = Field(
-        default=None,
-        description="Message ID if procedure is waiting for human response"
+        default=None, description="Message ID if procedure is waiting for human response"
     )
 
     model_config = {"arbitrary_types_allowed": True}
@@ -59,25 +53,18 @@ class HITLRequest(BaseModel):
     """Request for human interaction."""
 
     request_type: str = Field(
-        ...,
-        description="Type of interaction: 'approval', 'input', 'review', 'escalation'"
+        ..., description="Type of interaction: 'approval', 'input', 'review', 'escalation'"
     )
     message: str = Field(..., description="Message to display to the human")
     timeout_seconds: Optional[int] = Field(
-        default=None,
-        description="Timeout in seconds (None = wait forever)"
+        default=None, description="Timeout in seconds (None = wait forever)"
     )
-    default_value: Any = Field(
-        default=None,
-        description="Default value to return on timeout"
-    )
+    default_value: Any = Field(default=None, description="Default value to return on timeout")
     options: Optional[list[Dict[str, Any]]] = Field(
-        default=None,
-        description="Options for review requests (list of {label, type} dicts)"
+        default=None, description="Options for review requests (list of {label, type} dicts)"
     )
     metadata: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="Additional context and metadata"
+        default_factory=dict, description="Additional context and metadata"
     )
 
     model_config = {"arbitrary_types_allowed": True}
@@ -86,20 +73,24 @@ class HITLRequest(BaseModel):
 class ChatMessage(BaseModel):
     """A message in a chat session."""
 
-    role: str = Field(
-        ...,
-        description="Message role: USER, ASSISTANT, SYSTEM, TOOL"
-    )
+    role: str = Field(..., description="Message role: USER, ASSISTANT, SYSTEM, TOOL")
     content: str = Field(..., description="Message content")
     message_type: str = Field(default="MESSAGE", description="Type of message")
-    tool_name: Optional[str] = Field(default=None, description="Tool name if this is a tool message")
-    tool_parameters: Optional[Dict[str, Any]] = Field(default=None, description="Tool call parameters")
-    tool_response: Optional[Dict[str, Any]] = Field(default=None, description="Tool response data")
-    parent_message_id: Optional[str] = Field(default=None, description="Parent message ID for threading")
-    human_interaction: Optional[str] = Field(
-        default=None,
-        description="Human interaction type (PENDING_APPROVAL, RESPONSE, etc.)"
+    tool_name: Optional[str] = Field(
+        default=None, description="Tool name if this is a tool message"
     )
-    metadata: Optional[Dict[str, Any]] = Field(default=None, description="Additional message metadata")
+    tool_parameters: Optional[Dict[str, Any]] = Field(
+        default=None, description="Tool call parameters"
+    )
+    tool_response: Optional[Dict[str, Any]] = Field(default=None, description="Tool response data")
+    parent_message_id: Optional[str] = Field(
+        default=None, description="Parent message ID for threading"
+    )
+    human_interaction: Optional[str] = Field(
+        default=None, description="Human interaction type (PENDING_APPROVAL, RESPONSE, etc.)"
+    )
+    metadata: Optional[Dict[str, Any]] = Field(
+        default=None, description="Additional message metadata"
+    )
 
     model_config = {"arbitrary_types_allowed": True}

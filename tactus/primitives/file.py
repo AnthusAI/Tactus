@@ -9,9 +9,8 @@ Provides:
 """
 
 import logging
-import os
 from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +58,7 @@ class FilePrimitive:
 
         try:
             logger.debug(f"Reading file: {file_path}")
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
             logger.info(f"Read {len(content)} bytes from {file_path}")
             return content
@@ -100,7 +99,7 @@ class FilePrimitive:
             file_path.parent.mkdir(parents=True, exist_ok=True)
 
             logger.debug(f"Writing to file: {file_path}")
-            with open(file_path, 'w', encoding='utf-8') as f:
+            with open(file_path, "w", encoding="utf-8") as f:
                 f.write(content)
 
             logger.info(f"Wrote {len(content)} bytes to {file_path}")

@@ -27,7 +27,7 @@ def _handler(context) -> InMemoryLogHandler:
     return _log_state(context)["handler"]
 
 
-@given('the log primitive is initialized')
+@given("the log primitive is initialized")
 def step_impl(context):
     state = _log_state(context)
     procedure_id = "test_procedure"
@@ -66,79 +66,79 @@ def step_impl(context, message, level):
         log.error(message)
 
 
-@then('all messages should be recorded')
+@then("all messages should be recorded")
 def step_impl(context):
     assert len(_handler(context).records) >= 4
 
 
-@then('each should have the correct level')
+@then("each should have the correct level")
 def step_impl(context):
     levels = [record.levelname for record in _handler(context).records[-4:]]
     assert levels == ["INFO", "DEBUG", "WARNING", "ERROR"]
 
 
-@when('I log with context:')
+@when("I log with context:")
 def step_impl(context):
     payload = parse_key_value_table(context.table)
     _log(context).info("Structured log", payload)
     _log_state(context)["last_context"] = payload
 
 
-@then('the log entry should include all context fields')
+@then("the log entry should include all context fields")
 def step_impl(context):
     record = _handler(context).records[-1]
     for key in _log_state(context)["last_context"]:
         assert key in record.getMessage()
 
 
-@then('it should be queryable by any field')
+@then("it should be queryable by any field")
 def step_impl(context):
     payload = _log_state(context)["last_context"]
     for value in payload.values():
         assert str(value) in _handler(context).records[-1].getMessage()
 
 
-@given('log level is set to WARN')
+@given("log level is set to WARN")
 def step_impl(context):
     _log_state(context)["logger"].setLevel(logging.WARN)
 
 
-@then('only WARN and higher should be captured')
+@then("only WARN and higher should be captured")
 def step_impl(context):
     levels = [record.levelname for record in _handler(context).records]
     assert all(level in {"WARNING", "ERROR", "CRITICAL"} for level in levels)
 
 
-@then('DEBUG and INFO should be filtered out')
+@then("DEBUG and INFO should be filtered out")
 def step_impl(context):
     levels = [record.levelname for record in _handler(context).records]
     assert "DEBUG" not in levels and "INFO" not in levels
 
 
-@given('a multi-step workflow')
+@given("a multi-step workflow")
 def step_impl(context):
     _log_state(context)["workflow_steps"] = ["ingest", "train", "evaluate"]
 
 
-@when('I log progress at each step')
+@when("I log progress at each step")
 def step_impl(context):
     for step_name in _log_state(context)["workflow_steps"]:
         _log(context).info(f"Step {step_name} completed", {"step": step_name})
 
 
-@then('I should be able to track workflow execution')
+@then("I should be able to track workflow execution")
 def step_impl(context):
     messages = [record.getMessage() for record in _handler(context).records]
     for step_name in _log_state(context)["workflow_steps"]:
         assert any(step_name in message for message in messages)
 
 
-@then('see which steps completed successfully')
+@then("see which steps completed successfully")
 def step_impl(context):
     assert len(_handler(context).records) >= len(_log_state(context)["workflow_steps"])
 
 
-@when('an error occurs in the workflow')
+@when("an error occurs in the workflow")
 def step_impl(context):
     state = _log_state(context)
     try:
@@ -147,7 +147,7 @@ def step_impl(context):
         state["error"] = exc
 
 
-@when('I log the exception with traceback')
+@when("I log the exception with traceback")
 def step_impl(context):
     error = _log_state(context)["error"]
     metadata = {
@@ -160,14 +160,14 @@ def step_impl(context):
     _log(context).error("Workflow failed", metadata)
 
 
-@then('the log should include:')
+@then("the log should include:")
 def step_impl(context):
     fields = [row["field"] for row in context.table]
     metadata = _log_state(context)["captured_exception"]
     assert all(field in metadata for field in fields)
 
 
-@given('a custom formatter that outputs JSON')
+@given("a custom formatter that outputs JSON")
 def step_impl(context):
     logger = _log_state(context)["logger"]
     logger.handlers.clear()
@@ -187,26 +187,26 @@ def step_impl(context):
     _log_state(context)["handler"] = handler
 
 
-@when('I log messages')
+@when("I log messages")
 def step_impl(context):
     _log(context).info("JSON log entry")
 
 
-@then('each log entry should be valid JSON')
+@then("each log entry should be valid JSON")
 def step_impl(context):
     handler = _handler(context)
     for record in handler.records:
         json.loads(handler.format(record))
 
 
-@then('include timestamp, level, and message')
+@then("include timestamp, level, and message")
 def step_impl(context):
     handler = _handler(context)
     payload = json.loads(handler.format(handler.records[-1]))
     assert {"timestamp", "level", "message"}.issubset(payload.keys())
 
 
-@given('multiple executions of the same workflow')
+@given("multiple executions of the same workflow")
 def step_impl(context):
     state = _log_state(context)
     state["aggregated_logs"] = [
@@ -222,42 +222,42 @@ def step_impl(context, procedure_id):
     context.filtered_logs = [log for log in logs if log["procedure_id"] == procedure_id]
 
 
-@then('I should see all log entries')
+@then("I should see all log entries")
 def step_impl(context):
     assert len(context.filtered_logs) >= 1
 
 
-@then('they should be chronologically ordered')
+@then("they should be chronologically ordered")
 def step_impl(context):
     timestamps = [entry["timestamp"] for entry in context.filtered_logs]
     assert timestamps == sorted(timestamps)
 
 
-@when('I log operation start time')
+@when("I log operation start time")
 def step_impl(context):
     _log_state(context)["op_start"] = time.perf_counter()
     _log(context).info("Operation started", {"ts": _log_state(context)["op_start"]})
 
 
-@when('execute an operation')
+@when("execute an operation")
 def step_impl(context):
     _log_state(context)["op_duration"] = 0.5
 
 
-@when('log operation end time')
+@when("log operation end time")
 def step_impl(context):
     end = _log_state(context)["op_start"] + _log_state(context)["op_duration"]
     _log(context).info("Operation ended", {"ts": end})
     _log_state(context)["op_end"] = end
 
 
-@then('I can calculate operation duration')
+@then("I can calculate operation duration")
 def step_impl(context):
     duration = _log_state(context)["op_end"] - _log_state(context)["op_start"]
     assert abs(duration - _log_state(context)["op_duration"]) < 1e-6
 
 
-@then('identify performance bottlenecks')
+@then("identify performance bottlenecks")
 def step_impl(context):
     duration = _log_state(context)["op_end"] - _log_state(context)["op_start"]
     assert duration >= 0.5

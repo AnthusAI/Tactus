@@ -5,7 +5,7 @@ Provides integration with MCP servers to load and convert tools for use with Pyd
 """
 
 import logging
-from typing import List, Any, Optional, Dict, Callable
+from typing import List, Any, Optional, Dict
 from pydantic import create_model, Field
 from pydantic_ai import Tool
 
@@ -44,13 +44,15 @@ class PydanticAIMCPAdapter:
         try:
             # Query MCP server for available tools
             # Common MCP client interface: list_tools() or get_tools()
-            if hasattr(self.mcp_client, 'list_tools'):
+            if hasattr(self.mcp_client, "list_tools"):
                 mcp_tools = await self.mcp_client.list_tools()
-            elif hasattr(self.mcp_client, 'get_tools'):
+            elif hasattr(self.mcp_client, "get_tools"):
                 mcp_tools = await self.mcp_client.get_tools()
             else:
                 # Try calling as a method that returns tools
-                logger.warning("MCP client doesn't have list_tools() or get_tools(), trying direct call")
+                logger.warning(
+                    "MCP client doesn't have list_tools() or get_tools(), trying direct call"
+                )
                 mcp_tools = await self.mcp_client() if callable(self.mcp_client) else []
         except Exception as e:
             logger.error(f"Failed to load tools from MCP server: {e}", exc_info=True)
@@ -70,7 +72,10 @@ class PydanticAIMCPAdapter:
                 if tool:
                     pydantic_tools.append(tool)
             except Exception as e:
-                logger.error(f"Failed to convert MCP tool {getattr(mcp_tool, 'name', 'unknown')}: {e}", exc_info=True)
+                logger.error(
+                    f"Failed to convert MCP tool {getattr(mcp_tool, 'name', 'unknown')}: {e}",
+                    exc_info=True,
+                )
 
         logger.info(f"Converted {len(pydantic_tools)} tools to Pydantic AI format")
         return pydantic_tools
@@ -86,8 +91,16 @@ class PydanticAIMCPAdapter:
             pydantic_ai.Tool instance or None if conversion fails
         """
         # Extract tool metadata
-        tool_name = getattr(mcp_tool, 'name', None) or mcp_tool.get('name') if isinstance(mcp_tool, dict) else None
-        tool_description = getattr(mcp_tool, 'description', None) or mcp_tool.get('description', '') if isinstance(mcp_tool, dict) else ''
+        tool_name = (
+            getattr(mcp_tool, "name", None) or mcp_tool.get("name")
+            if isinstance(mcp_tool, dict)
+            else None
+        )
+        tool_description = (
+            getattr(mcp_tool, "description", None) or mcp_tool.get("description", "")
+            if isinstance(mcp_tool, dict)
+            else ""
+        )
 
         if not tool_name:
             logger.warning(f"MCP tool missing name: {mcp_tool}")
@@ -95,11 +108,11 @@ class PydanticAIMCPAdapter:
 
         # Extract inputSchema (JSON Schema)
         input_schema = None
-        if hasattr(mcp_tool, 'inputSchema'):
+        if hasattr(mcp_tool, "inputSchema"):
             input_schema = mcp_tool.inputSchema
-        elif isinstance(mcp_tool, dict) and 'inputSchema' in mcp_tool:
-            input_schema = mcp_tool['inputSchema']
-        elif hasattr(mcp_tool, 'parameters'):
+        elif isinstance(mcp_tool, dict) and "inputSchema" in mcp_tool:
+            input_schema = mcp_tool["inputSchema"]
+        elif hasattr(mcp_tool, "parameters"):
             # Some MCP implementations use 'parameters' instead of 'inputSchema'
             input_schema = mcp_tool.parameters
 
@@ -108,9 +121,13 @@ class PydanticAIMCPAdapter:
             try:
                 args_model = self._json_schema_to_pydantic_model(input_schema, tool_name)
             except Exception as e:
-                logger.error(f"Failed to create Pydantic model for tool '{tool_name}': {e}", exc_info=True)
+                logger.error(
+                    f"Failed to create Pydantic model for tool '{tool_name}': {e}", exc_info=True
+                )
                 # Fallback: create a simple model that accepts any dict
-                args_model = create_model(f"{tool_name}Args", **{"args": (Dict[str, Any], Field(default={}))})
+                args_model = create_model(
+                    f"{tool_name}Args", **{"args": (Dict[str, Any], Field(default={}))}
+                )
         else:
             # No schema - create empty model
             args_model = create_model(f"{tool_name}Args")
@@ -127,34 +144,36 @@ class PydanticAIMCPAdapter:
                 Tool result as string
             """
             # Convert Pydantic model to dict for MCP call
-            if hasattr(args, 'model_dump'):
+            if hasattr(args, "model_dump"):
                 args_dict = args.model_dump()
-            elif hasattr(args, 'dict'):
+            elif hasattr(args, "dict"):
                 args_dict = args.dict()
             else:
-                args_dict = dict(args) if hasattr(args, '__dict__') else {}
+                args_dict = dict(args) if hasattr(args, "__dict__") else {}
 
             logger.info(f"Executing MCP tool '{tool_name}' with args: {args_dict}")
 
             try:
                 # Call MCP tool - common interface: call_tool(name, args) or tool.execute(args)
-                if hasattr(self.mcp_client, 'call_tool'):
+                if hasattr(self.mcp_client, "call_tool"):
                     result = await self.mcp_client.call_tool(tool_name, args_dict)
-                elif hasattr(self.mcp_client, 'call'):
+                elif hasattr(self.mcp_client, "call"):
                     result = await self.mcp_client.call(tool_name, args_dict)
-                elif hasattr(mcp_tool, 'execute'):
+                elif hasattr(mcp_tool, "execute"):
                     result = await mcp_tool.execute(args_dict)
                 else:
                     # Try calling as a method
                     if callable(mcp_tool):
                         result = await mcp_tool(**args_dict)
                     else:
-                        raise ValueError(f"Cannot execute MCP tool '{tool_name}': no callable interface found")
+                        raise ValueError(
+                            f"Cannot execute MCP tool '{tool_name}': no callable interface found"
+                        )
 
                 # Convert result to string
                 if isinstance(result, dict):
                     # MCP tools often return dict with 'content' or 'text' field
-                    result_str = result.get('content') or result.get('text') or str(result)
+                    result_str = result.get("content") or result.get("text") or str(result)
                 elif isinstance(result, list):
                     result_str = str(result)
                 else:
@@ -177,14 +196,14 @@ class PydanticAIMCPAdapter:
 
         # Create Pydantic AI Tool
         tool = Tool(
-            tool_wrapper,
-            name=tool_name,
-            description=tool_description or f"Tool: {tool_name}"
+            tool_wrapper, name=tool_name, description=tool_description or f"Tool: {tool_name}"
         )
 
         return tool
 
-    def _json_schema_to_pydantic_model(self, schema: Dict[str, Any], base_name: str = "Model") -> type:
+    def _json_schema_to_pydantic_model(
+        self, schema: Dict[str, Any], base_name: str = "Model"
+    ) -> type:
         """
         Convert JSON Schema to a Pydantic model.
 
@@ -234,7 +253,10 @@ class PydanticAIMCPAdapter:
             # Create Field with description if available
             field_description = field_schema.get("description", "")
             if field_description:
-                fields[field_name] = (python_type, Field(default=default_value, description=field_description))
+                fields[field_name] = (
+                    python_type,
+                    Field(default=default_value, description=field_description),
+                )
             else:
                 fields[field_name] = (python_type, Field(default=default_value))
 
@@ -243,7 +265,9 @@ class PydanticAIMCPAdapter:
         return create_model(model_name, **fields)
 
 
-def convert_mcp_tools_to_pydantic_ai(mcp_tools: List[Any], tool_primitive: Optional[Any] = None) -> List[Tool]:
+def convert_mcp_tools_to_pydantic_ai(
+    mcp_tools: List[Any], tool_primitive: Optional[Any] = None
+) -> List[Tool]:
     """
     Convert MCP tools to Pydantic AI Tool format.
 
@@ -259,5 +283,7 @@ def convert_mcp_tools_to_pydantic_ai(mcp_tools: List[Any], tool_primitive: Optio
     """
     # This function is kept for backward compatibility but requires an adapter
     # In practice, use PydanticAIMCPAdapter.load_tools() instead
-    logger.warning("convert_mcp_tools_to_pydantic_ai() is deprecated - use PydanticAIMCPAdapter instead")
+    logger.warning(
+        "convert_mcp_tools_to_pydantic_ai() is deprecated - use PydanticAIMCPAdapter instead"
+    )
     return []

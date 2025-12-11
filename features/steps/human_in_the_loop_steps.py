@@ -4,7 +4,6 @@ Step definitions for Human-in-the-Loop (HITL) feature.
 
 from behave import given, when, then
 from datetime import datetime, timezone
-import time
 
 from tactus.core.execution_context import BaseExecutionContext
 from tactus.adapters.memory import MemoryStorage
@@ -33,32 +32,28 @@ class MockHITLHandler:
         # Check for timeout
         if request.timeout_seconds is not None:
             # Simulate timeout if configured
-            if hasattr(self, 'simulate_timeout') and self.simulate_timeout:
+            if hasattr(self, "simulate_timeout") and self.simulate_timeout:
                 return HITLResponse(
                     value=request.default_value,
                     responded_at=datetime.now(timezone.utc),
-                    timed_out=True
+                    timed_out=True,
                 )
 
         # Return pre-configured response
-        if hasattr(self, 'next_response'):
+        if hasattr(self, "next_response"):
             value = self.next_response
         else:
             # Default responses based on request type
-            if request.request_type == 'approval':
+            if request.request_type == "approval":
                 value = True
-            elif request.request_type == 'input':
+            elif request.request_type == "input":
                 value = "Mock input"
-            elif request.request_type == 'review':
-                value = {'decision': 'approve', 'edited_artifact': None, 'feedback': ''}
+            elif request.request_type == "review":
+                value = {"decision": "approve", "edited_artifact": None, "feedback": ""}
             else:
                 value = None
 
-        return HITLResponse(
-            value=value,
-            responded_at=datetime.now(timezone.utc),
-            timed_out=False
-        )
+        return HITLResponse(value=value, responded_at=datetime.now(timezone.utc), timed_out=False)
 
     def check_pending_response(self, procedure_id: str, message_id: str):
         """Check for pending response."""
@@ -70,7 +65,7 @@ class MockHITLHandler:
             del self.pending_requests[procedure_id]
 
 
-@given('a Tactus workflow with HITL enabled')
+@given("a Tactus workflow with HITL enabled")
 def step_impl(context):
     """Initialize workflow with HITL handler."""
     context.procedure_id = "test_hitl_procedure"
@@ -79,11 +74,11 @@ def step_impl(context):
     context.execution_context = BaseExecutionContext(
         procedure_id=context.procedure_id,
         storage_backend=context.storage,
-        hitl_handler=context.hitl_handler
+        hitl_handler=context.hitl_handler,
     )
 
 
-@given('a CLI HITL handler is configured')
+@given("a CLI HITL handler is configured")
 def step_impl(context):
     """HITL handler is already configured in previous step."""
     assert context.hitl_handler is not None
@@ -97,41 +92,41 @@ def step_impl(context, message):
     # Don't execute yet - wait for human response setup
 
 
-@when('the human approves the request')
+@when("the human approves the request")
 def step_impl(context):
     """Human approves the request."""
     context.hitl_handler.set_response(True)
     # Now execute the approval request
-    context.approval_result = context.human.approve({'message': context.approval_message})
+    context.approval_result = context.human.approve({"message": context.approval_message})
 
 
-@when('the human rejects the request')
+@when("the human rejects the request")
 def step_impl(context):
     """Human rejects the request."""
     context.hitl_handler.set_response(False)
     # Execute the approval request
-    context.approval_result = context.human.approve({'message': context.approval_message})
+    context.approval_result = context.human.approve({"message": context.approval_message})
 
 
-@then('the workflow should continue')
+@then("the workflow should continue")
 def step_impl(context):
     """Verify workflow continues (no exception)."""
     assert True  # If we got here, workflow didn't crash
 
 
-@then('the approval result should be true')
+@then("the approval result should be true")
 def step_impl(context):
     """Verify approval result is true."""
     assert context.approval_result is True, f"Expected True, got {context.approval_result}"
 
 
-@then('the approval result should be false')
+@then("the approval result should be false")
 def step_impl(context):
     """Verify approval result is false."""
     assert context.approval_result is False, f"Expected False, got {context.approval_result}"
 
 
-@then('the workflow can handle the rejection')
+@then("the workflow can handle the rejection")
 def step_impl(context):
     """Verify workflow can handle rejection."""
     # In a real workflow, this would check that rejection logic executed
@@ -151,7 +146,7 @@ def step_impl(context, input_text):
     """Human provides input."""
     context.hitl_handler.set_response(input_text)
     # Now execute the input request
-    context.input_result = context.human.input({'message': context.input_prompt})
+    context.input_result = context.human.input({"message": context.input_prompt})
 
 
 @then('the workflow should receive "{expected}"')
@@ -160,14 +155,14 @@ def step_impl(context, expected):
     assert context.input_result == expected, f"Expected '{expected}', got '{context.input_result}'"
 
 
-@then('the workflow can use the input')
+@then("the workflow can use the input")
 def step_impl(context):
     """Verify workflow can use the input."""
     assert context.input_result is not None
     assert isinstance(context.input_result, str)
 
 
-@given('the workflow has generated a research report')
+@given("the workflow has generated a research report")
 def step_impl(context):
     """Set up context with generated report."""
     context.human = HumanPrimitive(context.execution_context)
@@ -185,40 +180,42 @@ def step_impl(context, message):
 def step_impl(context, option_str):
     """Set review options."""
     # Parse comma-separated options: "approve", "request_changes", "reject"
-    options = [opt.strip().strip('"') for opt in option_str.split(',')]
+    options = [opt.strip().strip('"') for opt in option_str.split(",")]
     context.review_options = options
 
 
 @when('the human selects "{decision}" with feedback "{feedback}"')
 def step_impl(context, decision, feedback):
     """Human selects option with feedback."""
-    context.hitl_handler.set_response({
-        'decision': decision,
-        'edited_artifact': context.report,
-        'feedback': feedback
-    })
+    context.hitl_handler.set_response(
+        {"decision": decision, "edited_artifact": context.report, "feedback": feedback}
+    )
     # Now execute the review request
-    context.review_result = context.human.review({
-        'message': context.review_message,
-        'artifact': context.report,
-        'options': context.review_options
-    })
+    context.review_result = context.human.review(
+        {
+            "message": context.review_message,
+            "artifact": context.report,
+            "options": context.review_options,
+        }
+    )
 
 
 @then('the workflow should receive decision "{expected_decision}"')
 def step_impl(context, expected_decision):
     """Verify workflow received expected decision."""
-    actual_decision = context.review_result.get('decision')
-    assert actual_decision == expected_decision, \
-        f"Expected decision '{expected_decision}', got '{actual_decision}'"
+    actual_decision = context.review_result.get("decision")
+    assert (
+        actual_decision == expected_decision
+    ), f"Expected decision '{expected_decision}', got '{actual_decision}'"
 
 
 @then('the workflow should receive feedback "{expected_feedback}"')
 def step_impl(context, expected_feedback):
     """Verify workflow received expected feedback."""
-    actual_feedback = context.review_result.get('feedback')
-    assert actual_feedback == expected_feedback, \
-        f"Expected feedback '{expected_feedback}', got '{actual_feedback}'"
+    actual_feedback = context.review_result.get("feedback")
+    assert (
+        actual_feedback == expected_feedback
+    ), f"Expected feedback '{expected_feedback}', got '{actual_feedback}'"
 
 
 @when('the workflow requests approval with message "{message}" and timeout {timeout:d} second')
@@ -230,14 +227,14 @@ def step_impl(context, message, timeout):
     # Don't execute yet - wait for human (non-)response
 
 
-@when('the human does not respond')
+@when("the human does not respond")
 def step_impl(context):
     """Human does not respond."""
     # Configure mock to simulate timeout
     context.hitl_handler.simulate_timeout = True
 
 
-@when('{seconds:d} seconds pass')
+@when("{seconds:d} seconds pass")
 def step_impl(context, seconds):
     """Simulate time passing."""
     # In testing, we don't actually wait
@@ -245,25 +242,25 @@ def step_impl(context, seconds):
     context.seconds_passed = seconds
 
 
-@then('the workflow should receive the default value false')
+@then("the workflow should receive the default value false")
 def step_impl(context):
     """Verify workflow received default value."""
     # Now execute with timeout
-    context.approval_result = context.human.approve({
-        'message': context.approval_message,
-        'timeout': context.timeout,
-        'default': False
-    })
-    assert context.approval_result is False, f"Expected False (default), got {context.approval_result}"
+    context.approval_result = context.human.approve(
+        {"message": context.approval_message, "timeout": context.timeout, "default": False}
+    )
+    assert (
+        context.approval_result is False
+    ), f"Expected False (default), got {context.approval_result}"
 
 
-@then('the workflow continues with the default')
+@then("the workflow continues with the default")
 def step_impl(context):
     """Verify workflow continues with default."""
     assert context.approval_result is False
 
 
-@given('the workflow encounters an unrecoverable error')
+@given("the workflow encounters an unrecoverable error")
 def step_impl(context):
     """Set up error scenario."""
     context.human = HumanPrimitive(context.execution_context)
@@ -283,7 +280,7 @@ def step_impl(context, severity):
     context.escalation_severity = severity
 
 
-@then('the workflow should pause')
+@then("the workflow should pause")
 def step_impl(context):
     """Verify workflow pauses (escalation blocks)."""
     # In testing, we simulate this by checking the request was created
@@ -291,27 +288,26 @@ def step_impl(context):
     context.escalation_paused = True
 
 
-@then('wait for human resolution')
+@then("wait for human resolution")
 def step_impl(context):
     """Verify waiting for human resolution."""
     # Escalation handler will wait - we verify the request was made
     assert context.escalation_paused
 
 
-@when('the human resolves the escalation')
+@when("the human resolves the escalation")
 def step_impl(context):
     """Human resolves the escalation."""
     # Configure mock to return from escalation
     context.hitl_handler.set_response(None)  # Escalation returns None
     # Now execute the escalation (which will immediately return in mock)
-    context.human.escalate({
-        'message': context.escalation_message,
-        'severity': context.escalation_severity
-    })
+    context.human.escalate(
+        {"message": context.escalation_message, "severity": context.escalation_severity}
+    )
     context.escalation_resolved = True
 
 
-@then('the workflow should resume')
+@then("the workflow should resume")
 def step_impl(context):
     """Verify workflow resumes after escalation."""
     assert context.escalation_resolved is True

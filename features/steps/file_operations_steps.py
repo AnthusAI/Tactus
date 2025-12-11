@@ -25,7 +25,7 @@ def _file(context) -> FilePrimitive:
     return _state(context)["file"]
 
 
-@given('the file primitive is initialized')
+@given("the file primitive is initialized")
 def step_impl(context):
     workspace = ensure_temp_dir(context)
     state = _state(context)
@@ -37,7 +37,7 @@ def step_impl(context):
     state["expected_file_count"] = 0
 
 
-@given('a temporary workspace directory')
+@given("a temporary workspace directory")
 def step_impl(context):
     ensure_temp_dir(context)
 
@@ -64,7 +64,7 @@ def step_impl(context, filename):
     context.file_content = _file(context).read(filename)
 
 
-@then('the content should match the original text')
+@then("the content should match the original text")
 def step_impl(context):
     expected = _state(context).get("last_written_content")
     assert context.file_content == expected
@@ -100,7 +100,7 @@ def step_impl(context, text, filename):
     state["last_written_content"] = new_content
 
 
-@then('the file should contain both lines:')
+@then("the file should contain both lines:")
 def step_impl(context):
     filename = _state(context).get("last_filename")
     expected = textwrap.dedent(context.text or "").strip()
@@ -114,7 +114,7 @@ def step_impl(context, filename):
     context.json_result = json.loads(content)
 
 
-@then('I should have a parsed object')
+@then("I should have a parsed object")
 def step_impl(context):
     assert isinstance(context.json_result, dict)
 
@@ -129,7 +129,7 @@ def step_impl(context, field, value):
     assert target == expected
 
 
-@given('a data structure:')
+@given("a data structure:")
 def step_impl(context):
     _state(context)["data_structure"] = {row["field"]: row["value"] for row in context.table}
 
@@ -143,14 +143,14 @@ def step_impl(context, filename):
     _file(context).write(filename, payload)
 
 
-@then('the file should contain valid JSON')
+@then("the file should contain valid JSON")
 def step_impl(context):
     filename = _state(context).get("last_filename")
     content = _file(context).read(filename)
     json.loads(content)
 
 
-@then('reading it back should give the same structure')
+@then("reading it back should give the same structure")
 def step_impl(context):
     filename = _state(context).get("last_filename")
     content = _file(context).read(filename)
@@ -167,12 +167,12 @@ def step_impl(context, filename):
         context.file_error = exc
 
 
-@then('a file not found error should be raised')
+@then("a file not found error should be raised")
 def step_impl(context):
     assert isinstance(context.file_error, FileNotFoundError)
 
 
-@then('the workflow can handle the error gracefully')
+@then("the workflow can handle the error gracefully")
 def step_impl(context):
     assert context.file_error is not None
 
@@ -198,13 +198,13 @@ def step_impl(context, folder):
     _state(context)["results"] = results
 
 
-@then('each file should be read and processed')
+@then("each file should be read and processed")
 def step_impl(context):
     expected = _state(context).get("expected_file_count", 0)
     assert len(_state(context)["results"]) == expected
 
 
-@then('results should be collected')
+@then("results should be collected")
 def step_impl(context):
     results = _state(context)["results"]
     assert all(bool(result) for result in results)

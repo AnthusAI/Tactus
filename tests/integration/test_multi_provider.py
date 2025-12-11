@@ -7,7 +7,6 @@ These tests require --real-api flag and appropriate credentials.
 
 import pytest
 import os
-from pathlib import Path
 
 from tactus.core.runtime import TactusRuntime
 from tactus.adapters.memory import MemoryStorage
@@ -109,26 +108,26 @@ async def test_bedrock_claude_sonnet(use_real_api: bool):
     """Test Bedrock with Claude 3.5 Sonnet."""
     if not use_real_api:
         pytest.skip("Bedrock tests require --real-api flag")
-    
-    if not os.environ.get('AWS_ACCESS_KEY_ID') or not os.environ.get('AWS_SECRET_ACCESS_KEY'):
+
+    if not os.environ.get("AWS_ACCESS_KEY_ID") or not os.environ.get("AWS_SECRET_ACCESS_KEY"):
         pytest.skip("AWS credentials not available")
-    
-    model = 'anthropic.claude-3-5-sonnet-20240620-v1:0'
-    
+
+    model = "anthropic.claude-3-5-sonnet-20240620-v1:0"
+
     runtime = TactusRuntime(
-        procedure_id=f"test-bedrock-sonnet",
+        procedure_id="test-bedrock-sonnet",
         storage_backend=MemoryStorage(),
         hitl_handler=None,
         chat_recorder=None,
         mcp_server=None,
-        openai_api_key=None  # Not needed for Bedrock
+        openai_api_key=None,  # Not needed for Bedrock
     )
-    
+
     yaml_config = create_bedrock_procedure_yaml(model)
-    result = await runtime.execute(yaml_config, context={'task': 'test task'})
-    
-    assert result['success'], f"Procedure failed: {result.get('error', 'Unknown error')}"
-    assert result['result']['completed'] is True
+    result = await runtime.execute(yaml_config, context={"task": "test task"})
+
+    assert result["success"], f"Procedure failed: {result.get('error', 'Unknown error')}"
+    assert result["result"]["completed"] is True
 
 
 @pytest.mark.asyncio
@@ -136,23 +135,21 @@ async def test_bedrock_claude_haiku(use_real_api: bool):
     """Test Bedrock with Claude 3.5 Haiku."""
     if not use_real_api:
         pytest.skip("Bedrock tests require --real-api flag")
-    
-    if not os.environ.get('AWS_ACCESS_KEY_ID') or not os.environ.get('AWS_SECRET_ACCESS_KEY'):
+
+    if not os.environ.get("AWS_ACCESS_KEY_ID") or not os.environ.get("AWS_SECRET_ACCESS_KEY"):
         pytest.skip("AWS credentials not available")
-    
-    model = 'anthropic.claude-3-5-haiku-20241022-v1:0'
-    
+
+    model = "anthropic.claude-3-5-haiku-20241022-v1:0"
+
     runtime = TactusRuntime(
-        procedure_id=f"test-bedrock-haiku",
-        storage_backend=MemoryStorage(),
-        openai_api_key=None
+        procedure_id="test-bedrock-haiku", storage_backend=MemoryStorage(), openai_api_key=None
     )
-    
+
     yaml_config = create_bedrock_procedure_yaml(model)
-    result = await runtime.execute(yaml_config, context={'task': 'test task'})
-    
-    assert result['success']
-    assert result['result']['completed'] is True
+    result = await runtime.execute(yaml_config, context={"task": "test task"})
+
+    assert result["success"]
+    assert result["result"]["completed"] is True
 
 
 @pytest.mark.asyncio
@@ -160,26 +157,26 @@ async def test_mixed_providers(use_real_api: bool):
     """Test procedure with both OpenAI and Bedrock agents."""
     if not use_real_api:
         pytest.skip("Mixed provider tests require --real-api flag")
-    
-    if not os.environ.get('OPENAI_API_KEY'):
+
+    if not os.environ.get("OPENAI_API_KEY"):
         pytest.skip("OpenAI API key not available")
-    
-    if not os.environ.get('AWS_ACCESS_KEY_ID') or not os.environ.get('AWS_SECRET_ACCESS_KEY'):
+
+    if not os.environ.get("AWS_ACCESS_KEY_ID") or not os.environ.get("AWS_SECRET_ACCESS_KEY"):
         pytest.skip("AWS credentials not available")
-    
+
     runtime = TactusRuntime(
         procedure_id="test-mixed-providers",
         storage_backend=MemoryStorage(),
-        openai_api_key=os.environ.get('OPENAI_API_KEY')
+        openai_api_key=os.environ.get("OPENAI_API_KEY"),
     )
-    
+
     yaml_config = create_mixed_provider_procedure_yaml()
-    result = await runtime.execute(yaml_config, context={'task': 'analyze data'})
-    
-    assert result['success']
-    assert 'worker_result' in result['result']
-    assert 'review_result' in result['result']
-    assert result['result']['providers_used'] == ['openai', 'bedrock']
+    result = await runtime.execute(yaml_config, context={"task": "analyze data"})
+
+    assert result["success"]
+    assert "worker_result" in result["result"]
+    assert "review_result" in result["result"]
+    assert result["result"]["providers_used"] == ["openai", "bedrock"]
 
 
 @pytest.mark.asyncio
@@ -187,10 +184,10 @@ async def test_default_provider_openai(use_real_api: bool):
     """Test that default_provider works correctly."""
     if not use_real_api:
         pytest.skip("Provider tests require --real-api flag")
-    
-    if not os.environ.get('OPENAI_API_KEY'):
+
+    if not os.environ.get("OPENAI_API_KEY"):
         pytest.skip("OpenAI API key not available")
-    
+
     yaml_config = """
 name: test_default_provider
 version: 1.0.0
@@ -214,15 +211,15 @@ procedure: |
   
   return {completed = true}
 """
-    
+
     runtime = TactusRuntime(
         procedure_id="test-default-provider",
         storage_backend=MemoryStorage(),
-        openai_api_key=os.environ.get('OPENAI_API_KEY')
+        openai_api_key=os.environ.get("OPENAI_API_KEY"),
     )
-    
+
     result = await runtime.execute(yaml_config)
-    assert result['success']
+    assert result["success"]
 
 
 @pytest.mark.asyncio
@@ -230,10 +227,10 @@ async def test_provider_override(use_real_api: bool):
     """Test that agent provider overrides default_provider."""
     if not use_real_api:
         pytest.skip("Provider tests require --real-api flag")
-    
-    if not os.environ.get('AWS_ACCESS_KEY_ID') or not os.environ.get('AWS_SECRET_ACCESS_KEY'):
+
+    if not os.environ.get("AWS_ACCESS_KEY_ID") or not os.environ.get("AWS_SECRET_ACCESS_KEY"):
         pytest.skip("AWS credentials not available")
-    
+
     yaml_config = """
 name: test_provider_override
 version: 1.0.0
@@ -259,12 +256,12 @@ procedure: |
   
   return {completed = true}
 """
-    
+
     runtime = TactusRuntime(
         procedure_id="test-provider-override",
         storage_backend=MemoryStorage(),
-        openai_api_key=None  # Not needed since we're using Bedrock
+        openai_api_key=None,  # Not needed since we're using Bedrock
     )
-    
+
     result = await runtime.execute(yaml_config)
-    assert result['success']
+    assert result["success"]

@@ -24,11 +24,7 @@ class ToolCall:
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for Lua access."""
-        return {
-            'name': self.name,
-            'args': self.args,
-            'result': self.result
-        }
+        return {"name": self.name, "args": self.args, "result": self.result}
 
     def __repr__(self) -> str:
         return f"ToolCall({self.name}, args={self.args})"
@@ -131,10 +127,7 @@ class ToolPrimitive:
         self._tool_calls.append(call)
         self._last_calls[tool_name] = call
 
-        logger.debug(
-            f"Tool call recorded: {tool_name} -> "
-            f"{len(self._tool_calls)} total calls"
-        )
+        logger.debug(f"Tool call recorded: {tool_name} -> " f"{len(self._tool_calls)} total calls")
 
     def get_all_calls(self) -> List[ToolCall]:
         """

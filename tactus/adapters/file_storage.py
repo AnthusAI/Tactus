@@ -5,13 +5,11 @@ Stores procedure metadata and checkpoints as JSON files on disk.
 """
 
 import json
-import os
 from pathlib import Path
 from typing import Any, Optional, Dict
 from datetime import datetime
 
 from tactus.protocols.models import ProcedureMetadata, CheckpointData
-from tactus.protocols.storage import StorageBackend
 
 
 class FileStorage:
@@ -43,7 +41,7 @@ class FileStorage:
             return {}
 
         try:
-            with open(file_path, 'r') as f:
+            with open(file_path, "r") as f:
                 return json.load(f)
         except (json.JSONDecodeError, IOError) as e:
             raise RuntimeError(f"Failed to read procedure file {file_path}: {e}")
@@ -53,7 +51,7 @@ class FileStorage:
         file_path = self._get_file_path(procedure_id)
 
         try:
-            with open(file_path, 'w') as f:
+            with open(file_path, "w") as f:
                 json.dump(data, f, indent=2, default=str)
         except (IOError, OSError) as e:
             raise RuntimeError(f"Failed to write procedure file {file_path}: {e}")
@@ -68,37 +66,37 @@ class FileStorage:
 
         # Convert stored checkpoint data back to CheckpointData objects
         checkpoints = {}
-        for name, ckpt_data in data.get('checkpoints', {}).items():
+        for name, ckpt_data in data.get("checkpoints", {}).items():
             checkpoints[name] = CheckpointData(
                 name=name,
-                result=ckpt_data['result'],
-                completed_at=datetime.fromisoformat(ckpt_data['completed_at'])
+                result=ckpt_data["result"],
+                completed_at=datetime.fromisoformat(ckpt_data["completed_at"]),
             )
 
         return ProcedureMetadata(
             procedure_id=procedure_id,
             checkpoints=checkpoints,
-            state=data.get('state', {}),
-            status=data.get('status', 'RUNNING'),
-            waiting_on_message_id=data.get('waiting_on_message_id')
+            state=data.get("state", {}),
+            status=data.get("status", "RUNNING"),
+            waiting_on_message_id=data.get("waiting_on_message_id"),
         )
 
     def save_procedure_metadata(self, metadata: ProcedureMetadata) -> None:
         """Save procedure metadata to file."""
         # Convert to serializable dict
         data = {
-            'procedure_id': metadata.procedure_id,
-            'checkpoints': {
+            "procedure_id": metadata.procedure_id,
+            "checkpoints": {
                 name: {
-                    'name': ckpt.name,
-                    'result': ckpt.result,
-                    'completed_at': ckpt.completed_at.isoformat()
+                    "name": ckpt.name,
+                    "result": ckpt.result,
+                    "completed_at": ckpt.completed_at.isoformat(),
                 }
                 for name, ckpt in metadata.checkpoints.items()
             },
-            'state': metadata.state,
-            'status': metadata.status,
-            'waiting_on_message_id': metadata.waiting_on_message_id
+            "state": metadata.state,
+            "status": metadata.status,
+            "waiting_on_message_id": metadata.waiting_on_message_id,
         }
 
         self._write_file(metadata.procedure_id, data)
@@ -107,9 +105,7 @@ class FileStorage:
         """Save a checkpoint."""
         metadata = self.load_procedure_metadata(procedure_id)
         metadata.checkpoints[name] = CheckpointData(
-            name=name,
-            result=result,
-            completed_at=datetime.now()
+            name=name, result=result, completed_at=datetime.now()
         )
         self.save_procedure_metadata(metadata)
 
@@ -186,10 +182,7 @@ class FileStorage:
         return metadata.waiting_on_message_id
 
     def update_procedure_status(
-        self,
-        procedure_id: str,
-        status: str,
-        waiting_on_message_id: Optional[str] = None
+        self, procedure_id: str, status: str, waiting_on_message_id: Optional[str] = None
     ) -> None:
         """Update procedure status."""
         metadata = self.load_procedure_metadata(procedure_id)

@@ -31,7 +31,7 @@ def example_files(examples_dir: Path):
 @pytest.fixture
 def example_runtime():
     """Fixture providing a configured TactusRuntime for examples.
-    
+
     Uses in-memory storage and no external dependencies (no MCP, no OpenAI).
     Suitable for testing examples that don't require external services.
     """
@@ -41,24 +41,25 @@ def example_runtime():
         hitl_handler=None,  # No HITL for basic examples
         chat_recorder=None,
         mcp_server=None,  # No MCP tools for basic examples
-        openai_api_key=None  # No LLM calls for basic examples
+        openai_api_key=None,  # No LLM calls for basic examples
     )
 
 
 @pytest.fixture
 def load_example(examples_dir: Path):
     """Load and parse an example procedure file.
-    
+
     Returns a function that takes an example file path and returns the parsed config.
     """
+
     def _load(example_file: Path) -> Dict[str, Any]:
         """Load and parse an example file."""
         if not example_file.is_absolute():
             example_file = examples_dir / example_file
         if not example_file.exists():
             raise FileNotFoundError(f"Example file not found: {example_file}")
-        
+
         yaml_content = example_file.read_text()
         return ProcedureYAMLParser.parse(yaml_content)
-    
+
     return _load

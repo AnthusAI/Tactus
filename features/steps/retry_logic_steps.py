@@ -45,7 +45,7 @@ def _retry_state(context):
     return context.retry_state
 
 
-@given('the retry primitive is initialized')
+@given("the retry primitive is initialized")
 def step_impl(context):
     state = _retry_state(context)
     state["primitive"] = RetryPrimitive()
@@ -81,72 +81,72 @@ def _run_retry(context, max_attempts=3, **options):
         state["error"] = exc
 
 
-@when('I execute an operation that succeeds')
+@when("I execute an operation that succeeds")
 def step_impl(context):
     state = _retry_state(context)
     state["operation"] = OperationBehavior(["success"])
     _run_retry(context, max_attempts=1)
 
 
-@then('it should succeed immediately')
+@then("it should succeed immediately")
 def step_impl(context):
     state = _retry_state(context)
     assert state["result"] == "success"
     assert state["operation"].attempts == 1
 
 
-@then('no retries should be attempted')
+@then("no retries should be attempted")
 def step_impl(context):
     state = _retry_state(context)
     assert state["operation"].attempts == 1
 
 
-@given('an operation that fails 2 times then succeeds')
+@given("an operation that fails 2 times then succeeds")
 def step_impl(context):
-    _retry_state(context)["operation"] = OperationBehavior(
-        [Exception("f1"), Exception("f2"), "ok"]
-    )
+    _retry_state(context)["operation"] = OperationBehavior([Exception("f1"), Exception("f2"), "ok"])
 
 
-@when('I execute with max_retries {attempts:d}')
+@when("I execute with max_retries {attempts:d}")
 def step_impl(context, attempts):
     _run_retry(context, max_attempts=attempts)
 
 
-@then('the operation should eventually succeed')
+@then("the operation should eventually succeed")
 def step_impl(context):
     state = _retry_state(context)
     assert state["result"] is not None
 
 
-@then('it should be attempted {count:d} times total')
+@then("it should be attempted {count:d} times total")
 def step_impl(context, count):
     assert _retry_state(context)["operation"].attempts == count
 
 
-@given('an operation that always fails')
+@given("an operation that always fails")
 def step_impl(context):
     _retry_state(context)["operation"] = OperationBehavior([Exception("boom")] * 5)
 
 
-@then('all retries should be exhausted')
+@then("all retries should be exhausted")
 def step_impl(context):
     state = _retry_state(context)
     assert state["result"] is None
     assert state["error"] is not None
 
 
-@then('a final error should be raised')
+@then("a final error should be raised")
 def step_impl(context):
     assert _retry_state(context)["error"] is not None
 
 
-@given('an operation that fails twice')
+@given("an operation that fails twice")
 def step_impl(context):
-    _retry_state(context)["operation"] = OperationBehavior([Exception("e1"), Exception("e2"), "done"])
+    _retry_state(context)["operation"] = OperationBehavior(
+        [Exception("e1"), Exception("e2"), "done"]
+    )
 
 
-@when('I execute with exponential backoff strategy')
+@when("I execute with exponential backoff strategy")
 def step_impl(context):
     state = _retry_state(context)
     state["retry_delays"].clear()
@@ -163,13 +163,13 @@ def step_impl(context):
     )
 
 
-@then('retry delays should increase: 1s, 2s, 4s')
+@then("retry delays should increase: 1s, 2s, 4s")
 def step_impl(context):
     delays = _retry_state(context)["retry_delays"]
     assert delays[:2] == [1, 2], f"delays={delays}"
 
 
-@given('operations that fail with different errors')
+@given("operations that fail with different errors")
 def step_impl(context):
     state = _retry_state(context)
     state["network_operation"] = OperationBehavior([NetworkError("timeout"), "ok"])
@@ -205,18 +205,18 @@ def step_impl(context):
     assert state["validation_operation"].attempts == 1
 
 
-@given('an operation that fails consistently')
+@given("an operation that fails consistently")
 def step_impl(context):
     _retry_state(context)["operation"] = OperationBehavior([Exception("fail")] * 10)
 
 
-@when('I execute with circuit breaker enabled')
+@when("I execute with circuit breaker enabled")
 def step_impl(context):
     state = _retry_state(context)
     state["circuit_breaker"] = CircuitBreaker()
 
 
-@when('failure threshold is {threshold:d}')
+@when("failure threshold is {threshold:d}")
 def step_impl(context, threshold):
     state = _retry_state(context)
     breaker = state["circuit_breaker"]
@@ -230,14 +230,14 @@ def step_impl(context, threshold):
     state["breaker"] = breaker
 
 
-@then('after {count:d} failures, the circuit should open')
+@then("after {count:d} failures, the circuit should open")
 def step_impl(context, count):
     state = _retry_state(context)
     assert state["breaker"].failures >= count
     assert state["breaker"].opened is True
 
 
-@then('subsequent calls should fail fast without attempting')
+@then("subsequent calls should fail fast without attempting")
 def step_impl(context):
     breaker = _retry_state(context)["breaker"]
     try:

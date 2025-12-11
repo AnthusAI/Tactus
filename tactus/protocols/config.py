@@ -18,67 +18,44 @@ class TactusConfig(BaseModel):
 
     # Storage backend
     storage_backend: str = Field(
-        default="memory",
-        description="Storage backend type: 'memory', 'file', or 'custom'"
+        default="memory", description="Storage backend type: 'memory', 'file', or 'custom'"
     )
     storage_options: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="Options passed to storage backend constructor"
+        default_factory=dict, description="Options passed to storage backend constructor"
     )
 
     # HITL handler
     hitl_handler: str = Field(
-        default="cli",
-        description="HITL handler type: 'cli', 'none', or 'custom'"
+        default="cli", description="HITL handler type: 'cli', 'none', or 'custom'"
     )
     hitl_options: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="Options passed to HITL handler constructor"
+        default_factory=dict, description="Options passed to HITL handler constructor"
     )
 
     # Chat recorder
     chat_recorder: Optional[str] = Field(
-        default=None,
-        description="Chat recorder type: None, 'memory', 'file', or 'custom'"
+        default=None, description="Chat recorder type: None, 'memory', 'file', or 'custom'"
     )
     chat_recorder_options: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="Options passed to chat recorder constructor"
+        default_factory=dict, description="Options passed to chat recorder constructor"
     )
 
     # LLM settings
-    openai_api_key: Optional[str] = Field(
-        default=None,
-        description="OpenAI API key for LLM calls"
-    )
-    default_model: str = Field(
-        default="gpt-4o",
-        description="Default LLM model to use"
-    )
-    llm_temperature: float = Field(
-        default=0.7,
-        description="Temperature for LLM calls"
-    )
+    openai_api_key: Optional[str] = Field(default=None, description="OpenAI API key for LLM calls")
+    default_model: str = Field(default="gpt-4o", description="Default LLM model to use")
+    llm_temperature: float = Field(default=0.7, description="Temperature for LLM calls")
 
     # Execution settings
-    max_iterations: int = Field(
-        default=100,
-        description="Maximum iterations before stopping"
-    )
+    max_iterations: int = Field(default=100, description="Maximum iterations before stopping")
     enable_checkpoints: bool = Field(
-        default=True,
-        description="Whether to enable checkpoint/resume"
+        default=True, description="Whether to enable checkpoint/resume"
     )
 
     # MCP server
     mcp_server_url: Optional[str] = Field(
-        default=None,
-        description="MCP server URL for tool loading"
+        default=None, description="MCP server URL for tool loading"
     )
-    mcp_tools: List[str] = Field(
-        default_factory=list,
-        description="List of MCP tools to load"
-    )
+    mcp_tools: List[str] = Field(default_factory=list, description="List of MCP tools to load")
 
 
 class ProcedureConfig(BaseModel):
@@ -95,44 +72,31 @@ class ProcedureConfig(BaseModel):
 
     # Parameters (inputs)
     params: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="Parameter definitions with types and defaults"
+        default_factory=dict, description="Parameter definitions with types and defaults"
     )
 
     # Outputs (schema)
     outputs: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="Output schema definitions with types and validation"
+        default_factory=dict, description="Output schema definitions with types and validation"
     )
 
     # Agents
-    agents: Dict[str, Any] = Field(
-        ...,
-        description="Agent definitions with prompts and tools"
-    )
+    agents: Dict[str, Any] = Field(..., description="Agent definitions with prompts and tools")
 
     # Procedure
-    procedure: str = Field(
-        ...,
-        description="Lua procedure code"
-    )
+    procedure: str = Field(..., description="Lua procedure code")
 
     # HITL declarations
-    hitl: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="Pre-defined HITL interactions"
-    )
+    hitl: Dict[str, Any] = Field(default_factory=dict, description="Pre-defined HITL interactions")
 
     # Stages (optional)
     stages: List[str] = Field(
-        default_factory=list,
-        description="Optional stage names for workflow progression"
+        default_factory=list, description="Optional stage names for workflow progression"
     )
 
     # Sub-procedures (future)
     procedures: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="Inline sub-procedure definitions (future feature)"
+        default_factory=dict, description="Inline sub-procedure definitions (future feature)"
     )
 
     model_config = {"arbitrary_types_allowed": True}

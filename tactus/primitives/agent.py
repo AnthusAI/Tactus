@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class AgentDeps:
     """Dependencies available to the agent's system prompt."""
+
     state_primitive: Any  # StatePrimitive instance
     context: Dict[str, Any]  # Procedure context
     system_prompt_template: str  # Template string for system prompt
@@ -49,7 +50,7 @@ class AgentPrimitive:
         output_schema_guidance: Optional[str] = None,
         chat_recorder: Optional[Any] = None,
         result_type: Optional[type] = None,
-        model_settings: Optional[Dict[str, Any]] = None
+        model_settings: Optional[Dict[str, Any]] = None,
     ):
         """
         Initialize agent primitive.
@@ -87,7 +88,7 @@ class AgentPrimitive:
             state_primitive=state_primitive,
             context=context,
             system_prompt_template=system_prompt_template,
-            output_schema_guidance=output_schema_guidance
+            output_schema_guidance=output_schema_guidance,
         )
 
         # Create "done" tool first so we can include it in the Agent constructor
@@ -96,14 +97,18 @@ class AgentPrimitive:
             if self.stop_primitive:
                 self.stop_primitive.request(reason if success else f"Failed: {reason}")
             if self.tool_primitive:
-                self.tool_primitive.record_call("done", {"reason": reason, "success": success}, "Done")
+                self.tool_primitive.record_call(
+                    "done", {"reason": reason, "success": success}, "Done"
+                )
             return f"Done: {reason} (success: {success})"
 
-        done_tool_instance = Tool(done_tool, name="done", description="Signal completion of the task")
-        
+        done_tool_instance = Tool(
+            done_tool, name="done", description="Signal completion of the task"
+        )
+
         # Combine all tools (MCP tools + done tool)
         all_tools = list(tools) + [done_tool_instance]
-        
+
         # Create Pydantic AI Agent with all tools
         # Pydantic AI will use OPENAI_API_KEY from environment by default
         # If we need to pass it explicitly, we would use:
@@ -112,10 +117,7 @@ class AgentPrimitive:
         # model_obj = OpenAIChatModel(model.split(':')[1], provider=OpenAIProvider(api_key=api_key))
         # For now, we assume OPENAI_API_KEY is set in environment
         self.agent = Agent(
-            model, 
-            deps_type=AgentDeps, 
-            tools=all_tools,
-            model_settings=model_settings
+            model, deps_type=AgentDeps, tools=all_tools, model_settings=model_settings
         )
 
         # Add dynamic system prompt
@@ -128,7 +130,7 @@ class AgentPrimitive:
             # Build template variables from state and context
             template_vars = {}
             if deps.state_primitive:
-                template_vars['state'] = deps.state_primitive.all()
+                template_vars["state"] = deps.state_primitive.all()
             if deps.context:
                 template_vars.update(deps.context)
 
@@ -137,20 +139,22 @@ class AgentPrimitive:
 
             class DotFormatter(Formatter):
                 def get_field(self, field_name, args, kwargs):
-                    parts = field_name.split('.')
+                    parts = field_name.split(".")
                     obj = kwargs
                     for part in parts:
                         if isinstance(obj, dict):
-                            obj = obj.get(part, '')
+                            obj = obj.get(part, "")
                         else:
-                            obj = getattr(obj, part, '')
+                            obj = getattr(obj, part, "")
                     return obj, field_name
 
             formatter = DotFormatter()
             try:
                 prompt = formatter.format(template, **template_vars)
             except (KeyError, AttributeError) as e:
-                logger.warning(f"Template variable error in system prompt: {e}, using template as-is")
+                logger.warning(
+                    f"Template variable error in system prompt: {e}, using template as-is"
+                )
                 prompt = template
 
             # Append output schema guidance if provided
@@ -163,7 +167,9 @@ class AgentPrimitive:
         self.message_history: List[ModelMessage] = []
         self._initialized = False
 
-        logger.info(f"AgentPrimitive '{name}' initialized with {len(all_tools)} tools (including 'done')")
+        logger.info(
+            f"AgentPrimitive '{name}' initialized with {len(all_tools)} tools (including 'done')"
+        )
 
     def turn(self) -> Optional[Any]:
         """
@@ -195,26 +201,25 @@ class AgentPrimitive:
             # we need to handle this carefully.
             try:
                 # Try to get the current event loop
-                loop = asyncio.get_running_loop()
+                _ = asyncio.get_running_loop()  # noqa: F841
                 # We're in an async context - run in a thread with new event loop
-                import concurrent.futures
                 import threading
-                
-                result_container = {'value': None, 'exception': None}
-                
+
+                result_container = {"value": None, "exception": None}
+
                 def run_in_thread():
                     try:
-                        result_container['value'] = asyncio.run(self._turn_async())
+                        result_container["value"] = asyncio.run(self._turn_async())
                     except Exception as e:
-                        result_container['exception'] = e
-                
+                        result_container["exception"] = e
+
                 thread = threading.Thread(target=run_in_thread)
                 thread.start()
                 thread.join()
-                
-                if result_container['exception']:
-                    raise result_container['exception']
-                return result_container['value']
+
+                if result_container["exception"]:
+                    raise result_container["exception"]
+                return result_container["value"]
             except RuntimeError:
                 # No event loop running - safe to use asyncio.run()
                 return asyncio.run(self._turn_async())
@@ -244,14 +249,12 @@ class AgentPrimitive:
                 user_input if user_input else "Continue",
                 deps=self.deps,
                 message_history=self.message_history,
-                output_type=self.result_type
+                output_type=self.result_type,
             )
         else:
             # First turn - start new conversation
             result = await self.agent.run(
-                self.initial_message or "Hello",
-                deps=self.deps,
-                output_type=self.result_type
+                self.initial_message or "Hello", deps=self.deps, output_type=self.result_type
             )
 
         # Update message history
@@ -265,17 +268,23 @@ class AgentPrimitive:
         # Extract response data
         if self.result_type:
             # Structured output - return as dict
-            if hasattr(result.response, 'model_dump'):
+            if hasattr(result.response, "model_dump"):
                 response_data = result.response.model_dump()
-            elif hasattr(result.response, 'dict'):
+            elif hasattr(result.response, "dict"):
                 response_data = result.response.dict()
             else:
-                response_data = dict(result.response) if hasattr(result.response, '__dict__') else result.response
+                response_data = (
+                    dict(result.response)
+                    if hasattr(result.response, "__dict__")
+                    else result.response
+                )
             logger.debug(f"Agent '{self.name}' returned structured data: {type(response_data)}")
             return response_data
         else:
             # Text output
-            response_text = result.response if isinstance(result.response, str) else str(result.response)
+            response_text = (
+                result.response if isinstance(result.response, str) else str(result.response)
+            )
             logger.debug(f"Agent '{self.name}' responded: {response_text[:100]}...")
             return response_text
 
@@ -291,30 +300,28 @@ class AgentPrimitive:
                 content = ""
                 role = "assistant"
 
-                if hasattr(message, 'parts'):
+                if hasattr(message, "parts"):
                     # Multi-part message
                     for part in message.parts:
-                        if hasattr(part, 'text'):
+                        if hasattr(part, "text"):
                             content += part.text
-                        elif hasattr(part, 'content'):
+                        elif hasattr(part, "content"):
                             content += str(part.content)
-                elif hasattr(message, 'content'):
+                elif hasattr(message, "content"):
                     content = str(message.content)
-                elif hasattr(message, 'text'):
+                elif hasattr(message, "text"):
                     content = message.text
 
                 # Determine role
-                if hasattr(message, 'role'):
+                if hasattr(message, "role"):
                     role = message.role
-                elif hasattr(message, 'source'):
+                elif hasattr(message, "source"):
                     role = message.source  # 'user' or 'assistant'
 
                 # Record via chat recorder
-                if hasattr(self.chat_recorder, 'record_message') and content:
+                if hasattr(self.chat_recorder, "record_message") and content:
                     self.chat_recorder.record_message(
-                        agent_name=self.name,
-                        role=role,
-                        content=content
+                        agent_name=self.name, role=role, content=content
                     )
         except Exception as e:
             logger.warning(f"Failed to record messages: {e}")

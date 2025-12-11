@@ -10,10 +10,8 @@ Provides:
 """
 
 import logging
-from typing import Any, Dict, Optional, List
+from typing import Any, Dict, Optional
 
-from tactus.protocols.hitl import HITLHandler
-from tactus.protocols.models import HITLRequest, HITLResponse
 
 logger = logging.getLogger(__name__)
 
@@ -26,11 +24,7 @@ class HumanPrimitive:
     actual human interactions (via CLI, web UI, API, etc.).
     """
 
-    def __init__(
-        self,
-        execution_context,
-        hitl_config: Optional[Dict[str, Any]] = None
-    ):
+    def __init__(self, execution_context, hitl_config: Optional[Dict[str, Any]] = None):
         """
         Initialize Human primitive.
 
@@ -47,7 +41,7 @@ class HumanPrimitive:
         if obj is None:
             return None
         # Check if it's a Lua table (has .items() but not a dict)
-        if hasattr(obj, 'items') and not isinstance(obj, dict):
+        if hasattr(obj, "items") and not isinstance(obj, dict):
             # Convert Lua table to dict
             result = {}
             for key, value in obj.items():
@@ -94,28 +88,28 @@ class HumanPrimitive:
         opts = self._convert_lua_to_python(options) or {}
 
         # Check for config reference
-        config_key = opts.get('config_key')
+        config_key = opts.get("config_key")
         if config_key and config_key in self.hitl_config:
             # Merge config with runtime options (runtime wins)
             config_opts = self.hitl_config[config_key].copy()
             config_opts.update(opts)
             opts = config_opts
 
-        message = opts.get('message', 'Approval requested')
-        context = opts.get('context', {})
-        timeout = opts.get('timeout')
-        default = opts.get('default', False)
+        message = opts.get("message", "Approval requested")
+        context = opts.get("context", {})
+        timeout = opts.get("timeout")
+        default = opts.get("default", False)
 
         logger.info(f"Human approval requested: {message[:50]}...")
 
         # Delegate to execution context's wait_for_human
         response = self.execution_context.wait_for_human(
-            request_type='approval',
+            request_type="approval",
             message=message,
             timeout_seconds=timeout,
             default_value=default,
             options=None,
-            metadata=context
+            metadata=context,
         )
 
         return response.value
@@ -150,27 +144,27 @@ class HumanPrimitive:
         opts = self._convert_lua_to_python(options) or {}
 
         # Check for config reference
-        config_key = opts.get('config_key')
+        config_key = opts.get("config_key")
         if config_key and config_key in self.hitl_config:
             config_opts = self.hitl_config[config_key].copy()
             config_opts.update(opts)
             opts = config_opts
 
-        message = opts.get('message', 'Input requested')
-        placeholder = opts.get('placeholder', '')
-        timeout = opts.get('timeout')
-        default = opts.get('default')
+        message = opts.get("message", "Input requested")
+        placeholder = opts.get("placeholder", "")
+        timeout = opts.get("timeout")
+        default = opts.get("default")
 
         logger.info(f"Human input requested: {message[:50]}...")
 
         # Delegate to execution context
         response = self.execution_context.wait_for_human(
-            request_type='input',
+            request_type="input",
             message=message,
             timeout_seconds=timeout,
             default_value=default,
             options=None,
-            metadata={'placeholder': placeholder}
+            metadata={"placeholder": placeholder},
         )
 
         return response.value
@@ -210,17 +204,17 @@ class HumanPrimitive:
         opts = self._convert_lua_to_python(options) or {}
 
         # Check for config reference
-        config_key = opts.get('config_key')
+        config_key = opts.get("config_key")
         if config_key and config_key in self.hitl_config:
             config_opts = self.hitl_config[config_key].copy()
             config_opts.update(opts)
             opts = config_opts
 
-        message = opts.get('message', 'Review requested')
-        artifact = opts.get('artifact')
-        options_list = opts.get('options', ['approve', 'reject'])
-        artifact_type = opts.get('artifact_type', 'artifact')
-        timeout = opts.get('timeout')
+        message = opts.get("message", "Review requested")
+        artifact = opts.get("artifact")
+        options_list = opts.get("options", ["approve", "reject"])
+        artifact_type = opts.get("artifact_type", "artifact")
+        timeout = opts.get("timeout")
 
         logger.info(f"Human review requested: {message[:50]}...")
 
@@ -231,26 +225,24 @@ class HumanPrimitive:
         formatted_options = []
         for opt in options_list:
             # If already a dict with label/type, use as-is
-            if isinstance(opt, dict) and 'label' in opt:
+            if isinstance(opt, dict) and "label" in opt:
                 formatted_options.append(opt)
             # Otherwise treat as string label, default to "action" type
             else:
-                formatted_options.append({
-                    'label': str(opt).title(),
-                    'type': 'action'
-                })
+                formatted_options.append({"label": str(opt).title(), "type": "action"})
 
         # Delegate to execution context
         response = self.execution_context.wait_for_human(
-            request_type='review',
+            request_type="review",
             message=message,
             timeout_seconds=timeout,
-            default_value={'decision': 'reject', 'edited_artifact': artifact_python, 'feedback': ''},
+            default_value={
+                "decision": "reject",
+                "edited_artifact": artifact_python,
+                "feedback": "",
+            },
             options=formatted_options,
-            metadata={
-                'artifact': artifact_python,
-                'artifact_type': artifact_type
-            }
+            metadata={"artifact": artifact_python, "artifact_type": artifact_type},
         )
 
         return response.value
@@ -277,8 +269,8 @@ class HumanPrimitive:
         # Convert Lua table to dict if needed
         opts = self._convert_lua_to_python(options) or {}
 
-        message = opts.get('message', 'Notification')
-        level = opts.get('level', 'info')
+        message = opts.get("message", "Notification")
+        level = opts.get("level", "info")
 
         logger.info(f"Human notification: [{level}] {message}")
 
@@ -317,34 +309,31 @@ class HumanPrimitive:
         opts = self._convert_lua_to_python(options) or {}
 
         # Check for config reference
-        config_key = opts.get('config_key')
+        config_key = opts.get("config_key")
         if config_key and config_key in self.hitl_config:
             # Merge config with runtime options (runtime wins)
             config_opts = self.hitl_config[config_key].copy()
             config_opts.update(opts)
             opts = config_opts
 
-        message = opts.get('message', 'Escalation required')
-        context = opts.get('context', {})
-        severity = opts.get('severity', 'error')
+        message = opts.get("message", "Escalation required")
+        context = opts.get("context", {})
+        severity = opts.get("severity", "error")
 
         logger.warning(f"Human escalation: {message[:50]}... (severity: {severity})")
 
         # Prepare metadata with severity and context
-        metadata = {
-            'severity': severity,
-            'context': context
-        }
+        metadata = {"severity": severity, "context": context}
 
         # Delegate to execution context
         # No timeout, no default - blocks until human resolves
         self.execution_context.wait_for_human(
-            request_type='escalation',
+            request_type="escalation",
             message=message,
             timeout_seconds=None,  # No timeout - wait indefinitely
-            default_value=None,     # No default - human must resolve
+            default_value=None,  # No default - human must resolve
             options=None,
-            metadata=metadata
+            metadata=metadata,
         )
 
         logger.info("Human escalation resolved - resuming workflow")

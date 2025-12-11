@@ -9,7 +9,6 @@ from abc import ABC, abstractmethod
 from typing import Any, Optional, Callable, List
 from datetime import datetime, timezone
 
-from tactus.core.exceptions import ProcedureWaitingForHuman
 from tactus.protocols.storage import StorageBackend
 from tactus.protocols.hitl import HITLHandler
 from tactus.protocols.models import HITLRequest, HITLResponse
@@ -45,7 +44,7 @@ class ExecutionContext(ABC):
         timeout_seconds: Optional[int],
         default_value: Any,
         options: Optional[List[dict]],
-        metadata: dict
+        metadata: dict,
     ) -> HITLResponse:
         """
         Suspend until human responds.
@@ -108,7 +107,7 @@ class BaseExecutionContext(ExecutionContext):
         self,
         procedure_id: str,
         storage_backend: StorageBackend,
-        hitl_handler: Optional[HITLHandler] = None
+        hitl_handler: Optional[HITLHandler] = None,
     ):
         """
         Initialize base execution context.
@@ -143,7 +142,7 @@ class BaseExecutionContext(ExecutionContext):
         timeout_seconds: Optional[int],
         default_value: Any,
         options: Optional[List[dict]],
-        metadata: dict
+        metadata: dict,
     ) -> HITLResponse:
         """
         Wait for human response using the configured HITL handler.
@@ -153,9 +152,7 @@ class BaseExecutionContext(ExecutionContext):
         if not self.hitl:
             # No HITL handler - return default immediately
             return HITLResponse(
-                value=default_value,
-                responded_at=datetime.now(timezone.utc),
-                timed_out=True
+                value=default_value, responded_at=datetime.now(timezone.utc), timed_out=True
             )
 
         # Create HITL request
@@ -165,7 +162,7 @@ class BaseExecutionContext(ExecutionContext):
             timeout_seconds=timeout_seconds,
             default_value=default_value,
             options=options,
-            metadata=metadata
+            metadata=metadata,
         )
 
         # Delegate to HITL handler (may raise ProcedureWaitingForHuman)
@@ -179,6 +176,7 @@ class BaseExecutionContext(ExecutionContext):
         may want scheduled resume mechanisms.
         """
         import time
+
         checkpoint_name = f"sleep_{datetime.now(timezone.utc).isoformat()}"
 
         # Check if we already slept
@@ -222,5 +220,6 @@ class InMemoryExecutionContext(BaseExecutionContext):
             hitl_handler: Optional HITL handler
         """
         from tactus.adapters.memory import MemoryStorage
+
         storage = MemoryStorage()
         super().__init__(procedure_id, storage, hitl_handler)

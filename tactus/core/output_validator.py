@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 class OutputValidationError(Exception):
     """Raised when workflow output doesn't match schema."""
+
     pass
 
 
@@ -29,11 +30,11 @@ class OutputValidator:
 
     # Type mapping from YAML to Python
     TYPE_MAP = {
-        'string': str,
-        'number': (int, float),
-        'boolean': bool,
-        'object': dict,
-        'array': list
+        "string": str,
+        "number": (int, float),
+        "boolean": bool,
+        "object": dict,
+        "array": list,
     }
 
     def __init__(self, output_schema: Optional[Dict[str, Any]] = None):
@@ -76,14 +77,14 @@ class OutputValidator:
             logger.debug("No output schema defined, skipping validation")
             if isinstance(output, dict):
                 return output
-            elif hasattr(output, 'items'):
+            elif hasattr(output, "items"):
                 # Lua table - convert to dict
                 return dict(output.items())
             else:
-                return {'result': output}
+                return {"result": output}
 
         # Convert Lua tables to dicts recursively
-        if hasattr(output, 'items') or isinstance(output, dict):
+        if hasattr(output, "items") or isinstance(output, dict):
             logger.debug("Converting Lua tables to Python dicts recursively")
             output = self._convert_lua_tables(output)
 
@@ -97,7 +98,7 @@ class OutputValidator:
 
         # Check required fields
         for field_name, field_def in self.schema.items():
-            is_required = field_def.get('required', False)
+            is_required = field_def.get("required", False)
 
             if is_required and field_name not in output:
                 errors.append(f"Required field '{field_name}' is missing")
@@ -108,7 +109,7 @@ class OutputValidator:
                 continue
 
             # Type checking
-            expected_type = field_def.get('type')
+            expected_type = field_def.get("type")
             if expected_type:
                 value = output[field_name]
                 if not self._check_type(value, expected_type):
@@ -150,8 +151,8 @@ class OutputValidator:
             return True
 
         # Handle Lua tables as dicts/arrays
-        if expected_type in ('object', 'array'):
-            if hasattr(value, 'items') or hasattr(value, '__iter__'):
+        if expected_type in ("object", "array"):
+            if hasattr(value, "items") or hasattr(value, "__iter__"):
                 return True
 
         return isinstance(value, python_type)
@@ -167,7 +168,7 @@ class OutputValidator:
             Converted object
         """
         # Handle Lua tables (have .items() method)
-        if hasattr(obj, 'items') and not isinstance(obj, dict):
+        if hasattr(obj, "items") and not isinstance(obj, dict):
             return {k: self._convert_lua_tables(v) for k, v in obj.items()}
 
         # Handle lists
@@ -185,19 +186,13 @@ class OutputValidator:
     def get_field_description(self, field_name: str) -> Optional[str]:
         """Get description for an output field."""
         if field_name in self.schema:
-            return self.schema[field_name].get('description')
+            return self.schema[field_name].get("description")
         return None
 
     def get_required_fields(self) -> List[str]:
         """Get list of required output fields."""
-        return [
-            name for name, def_ in self.schema.items()
-            if def_.get('required', False)
-        ]
+        return [name for name, def_ in self.schema.items() if def_.get("required", False)]
 
     def get_optional_fields(self) -> List[str]:
         """Get list of optional output fields."""
-        return [
-            name for name, def_ in self.schema.items()
-            if not def_.get('required', False)
-        ]
+        return [name for name, def_ in self.schema.items() if not def_.get("required", False)]

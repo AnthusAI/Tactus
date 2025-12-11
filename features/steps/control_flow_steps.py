@@ -2,8 +2,6 @@
 Control flow feature step definitions.
 """
 
-import re
-
 from behave import given, then, when
 
 from tactus.primitives.state import StatePrimitive
@@ -23,7 +21,7 @@ def _control_state(context):
     return context.control
 
 
-@given('the control primitive is initialized')
+@given("the control primitive is initialized")
 def step_impl(context):
     """Initialize control helpers used by the feature."""
     state = _ensure_state(context)
@@ -52,27 +50,27 @@ def step_impl(context, expression):
     control["branch"] = "then" if control["last_condition"] else "else"
 
 
-@then('the condition should be true')
+@then("the condition should be true")
 def step_impl(context):
     assert _control_state(context)["last_condition"] is True, "Expected condition to be true"
 
 
-@then('the condition should be false')
+@then("the condition should be false")
 def step_impl(context):
     assert _control_state(context)["last_condition"] is False, "Expected condition to be false"
 
 
-@then('the then-branch should execute')
+@then("the then-branch should execute")
 def step_impl(context):
     assert _control_state(context)["branch"] == "then", "Expected then-branch to run"
 
 
-@then('the else-branch should execute')
+@then("the else-branch should execute")
 def step_impl(context):
     assert _control_state(context)["branch"] == "else", "Expected else-branch to run"
 
 
-@then('nested logic should execute correctly')
+@then("nested logic should execute correctly")
 def step_impl(context):
     assert _control_state(context)["last_condition"] is True
 
@@ -87,13 +85,13 @@ def step_impl(context, key):
     control["stopped_at"] = None
 
 
-@then('each item should be processed')
+@then("each item should be processed")
 def step_impl(context):
     control = _control_state(context)
     assert control["iteration_count"] == len(control["processed_items"])
 
 
-@then('iteration count should be {count:d}')
+@then("iteration count should be {count:d}")
 def step_impl(context, count):
     assert _control_state(context)["iteration_count"] == count
 
@@ -120,12 +118,12 @@ def step_impl(context, key, condition):
     control["remaining_items"] = remaining
 
 
-@then('iteration should stop at {value:d}')
+@then("iteration should stop at {value:d}")
 def step_impl(context, value):
     assert _control_state(context)["stopped_at"] == value
 
 
-@then('remaining items should not be processed')
+@then("remaining items should not be processed")
 def step_impl(context):
     control = _control_state(context)
     assert len(control["remaining_items"]) > 0, "Expected remaining items to exist"

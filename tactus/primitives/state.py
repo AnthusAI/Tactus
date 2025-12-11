@@ -10,7 +10,7 @@ Provides:
 """
 
 import logging
-from typing import Any, Optional, Dict
+from typing import Any, Dict
 
 logger = logging.getLogger(__name__)
 
