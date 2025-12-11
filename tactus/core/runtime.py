@@ -1,0 +1,690 @@
+"""
+Tactus Runtime - Main execution engine for Lua-based workflows.
+
+Orchestrates:
+1. YAML parsing and validation
+2. Lua sandbox setup
+3. Primitive injection
+4. Agent configuration with LLMs and tools (optional)
+5. Workflow execution
+"""
+
+import logging
+import asyncio
+import time
+from typing import Dict, Any, Optional, List
+
+from tactus.core.yaml_parser import ProcedureYAMLParser, ProcedureConfigError
+from tactus.core.lua_sandbox import LuaSandbox, LuaSandboxError
+from tactus.core.output_validator import OutputValidator, OutputValidationError
+from tactus.core.execution_context import BaseExecutionContext
+from tactus.core.exceptions import ProcedureWaitingForHuman
+from tactus.protocols.storage import StorageBackend
+from tactus.protocols.hitl import HITLHandler
+from tactus.protocols.chat_recorder import ChatRecorder
+
+# Import primitives
+from tactus.primitives.state import StatePrimitive
+from tactus.primitives.control import IterationsPrimitive, StopPrimitive
+from tactus.primitives.tool import ToolPrimitive
+from tactus.primitives.human import HumanPrimitive
+from tactus.primitives.step import StepPrimitive, CheckpointPrimitive
+from tactus.primitives.log import LogPrimitive
+from tactus.primitives.stage import StagePrimitive
+from tactus.primitives.json import JsonPrimitive
+from tactus.primitives.retry import RetryPrimitive
+from tactus.primitives.file import FilePrimitive
+
+logger = logging.getLogger(__name__)
+
+# Import TactusRuntimeError from exceptions module
+from tactus.core.exceptions import TactusRuntimeError
+
+
+class TactusRuntime:
+    """
+    Main execution engine for Lua-based workflows.
+
+    Responsibilities:
+    - Parse and validate YAML configuration
+    - Setup sandboxed Lua environment
+    - Create and inject primitives
+    - Configure agents with LLMs and tools (if available)
+    - Execute Lua workflow code
+    - Return results
+    """
+
+    def __init__(
+        self,
+        procedure_id: str,
+        storage_backend: Optional[StorageBackend] = None,
+        hitl_handler: Optional[HITLHandler] = None,
+        chat_recorder: Optional[ChatRecorder] = None,
+        mcp_server = None,
+        openai_api_key: Optional[str] = None
+    ):
+        """
+        Initialize the Tactus runtime.
+
+        Args:
+            procedure_id: Unique procedure identifier
+            storage_backend: Storage backend for checkpoints and state
+            hitl_handler: Handler for human-in-the-loop interactions
+            chat_recorder: Optional chat recorder for conversation logging
+            mcp_server: Optional MCP server providing tools
+            openai_api_key: Optional OpenAI API key for LLMs
+        """
+        self.procedure_id = procedure_id
+        self.storage_backend = storage_backend
+        self.hitl_handler = hitl_handler
+        self.chat_recorder = chat_recorder
+        self.mcp_server = mcp_server
+        self.openai_api_key = openai_api_key
+
+        # Will be initialized during setup
+        self.config: Optional[Dict[str, Any]] = None
+        self.lua_sandbox: Optional[LuaSandbox] = None
+        self.output_validator: Optional[OutputValidator] = None
+
+        # Execution context
+        self.execution_context: Optional[BaseExecutionContext] = None
+
+        # Primitives (shared across all agents)
+        self.state_primitive: Optional[StatePrimitive] = None
+        self.iterations_primitive: Optional[IterationsPrimitive] = None
+        self.stop_primitive: Optional[StopPrimitive] = None
+        self.tool_primitive: Optional[ToolPrimitive] = None
+        self.human_primitive: Optional[HumanPrimitive] = None
+        self.step_primitive: Optional[StepPrimitive] = None
+        self.checkpoint_primitive: Optional[CheckpointPrimitive] = None
+        self.log_primitive: Optional[LogPrimitive] = None
+        self.stage_primitive: Optional[StagePrimitive] = None
+        self.json_primitive: Optional[JsonPrimitive] = None
+        self.retry_primitive: Optional[RetryPrimitive] = None
+        self.file_primitive: Optional[FilePrimitive] = None
+
+        # Agent primitives (one per agent)
+        self.agents: Dict[str, Any] = {}
+
+        logger.info(f"TactusRuntime initialized for procedure {procedure_id}")
+
+    async def execute(self, yaml_config: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Execute a Lua-based workflow.
+
+        Args:
+            yaml_config: YAML configuration string
+            context: Optional context dict with pre-loaded data (can override params)
+
+        Returns:
+            Execution results dict with:
+                - success: bool
+                - result: Any (return value from Lua workflow)
+                - state: Final state
+                - iterations: Number of iterations
+                - tools_used: List of tool names called
+                - error: Error message if failed
+
+        Raises:
+            TactusRuntimeError: If execution fails
+        """
+        session_id = None
+        self.context = context or {}  # Store context for param merging
+
+        try:
+            # 1. Parse YAML configuration
+            logger.info("Step 1: Parsing YAML configuration")
+            self.config = ProcedureYAMLParser.parse(yaml_config)
+            logger.info(f"Loaded procedure: {self.config['name']} v{self.config['version']}")
+
+            # 2. Setup output validator
+            logger.info("Step 2: Setting up output validator")
+            output_schema = self.config.get('outputs', {})
+            self.output_validator = OutputValidator(output_schema)
+            if output_schema:
+                logger.info(f"Output schema has {len(output_schema)} fields: {list(output_schema.keys())}")
+
+            # 3. Setup Lua sandbox
+            logger.info("Step 3: Setting up Lua sandbox")
+            self.lua_sandbox = LuaSandbox()
+
+            # 4. Initialize primitives
+            logger.info("Step 4: Initializing primitives")
+            await self._initialize_primitives()
+
+            # 5. Start chat session if recorder available
+            if self.chat_recorder:
+                logger.info("Step 5: Starting chat session")
+                session_id = await self.chat_recorder.start_session(context)
+                if session_id:
+                    logger.info(f"Chat session started: {session_id}")
+                else:
+                    logger.warning("Failed to create chat session - continuing without recording")
+
+            # 6. Create execution context
+            logger.info("Step 6: Creating execution context")
+            self.execution_context = BaseExecutionContext(
+                procedure_id=self.procedure_id,
+                storage_backend=self.storage_backend,
+                hitl_handler=self.hitl_handler
+            )
+            logger.debug("BaseExecutionContext created")
+
+            # 7. Initialize HITL and checkpoint primitives (require execution_context)
+            logger.info("Step 7: Initializing HITL and checkpoint primitives")
+            hitl_config = self.config.get('hitl', {})
+            self.human_primitive = HumanPrimitive(self.execution_context, hitl_config)
+            self.step_primitive = StepPrimitive(self.execution_context)
+            self.checkpoint_primitive = CheckpointPrimitive(self.execution_context)
+            self.log_primitive = LogPrimitive(procedure_id=self.procedure_id)
+            declared_stages = self.config.get('stages', [])
+            self.stage_primitive = StagePrimitive(declared_stages=declared_stages, lua_sandbox=self.lua_sandbox)
+            self.json_primitive = JsonPrimitive(lua_sandbox=self.lua_sandbox)
+            self.retry_primitive = RetryPrimitive()
+            self.file_primitive = FilePrimitive()
+            logger.debug("HITL and checkpoint primitives initialized")
+
+            # 8. Setup agents with LLMs and tools (if available)
+            if self.openai_api_key:
+                logger.info("Step 8: Setting up agents")
+                # Set OpenAI API key in environment for Pydantic AI
+                import os
+                if 'OPENAI_API_KEY' not in os.environ:
+                    os.environ['OPENAI_API_KEY'] = self.openai_api_key
+                await self._setup_agents(context or {})
+            else:
+                logger.info("Step 8: Skipping agent setup (no API key)")
+
+            # 9. Inject primitives into Lua
+            logger.info("Step 9: Injecting primitives into Lua environment")
+            self._inject_primitives()
+
+            # 10. Execute workflow (may raise ProcedureWaitingForHuman)
+            logger.info("Step 10: Executing Lua workflow")
+            workflow_result = self._execute_workflow()
+
+            # 11. Validate workflow output
+            logger.info("Step 11: Validating workflow output")
+            try:
+                validated_result = self.output_validator.validate(workflow_result)
+                logger.info("✓ Output validation passed")
+            except OutputValidationError as e:
+                logger.error(f"Output validation failed: {e}")
+                # Still continue but mark as validation failure
+                validated_result = workflow_result
+
+            # 12. Flush all queued chat recordings
+            if self.chat_recorder:
+                logger.info("Step 12: Flushing chat recordings")
+                # Flush agent messages if agents have flush capability
+                for agent_name, agent_primitive in self.agents.items():
+                    if hasattr(agent_primitive, 'flush_recordings'):
+                        await agent_primitive.flush_recordings()
+
+            # 13. End chat session
+            if self.chat_recorder and session_id:
+                await self.chat_recorder.end_session(session_id, status='COMPLETED')
+
+            # 14. Build final results
+            final_state = self.state_primitive.all() if self.state_primitive else {}
+            tools_used = [call.name for call in self.tool_primitive.get_all_calls()] if self.tool_primitive else []
+
+            logger.info(
+                f"Workflow execution complete: "
+                f"{self.iterations_primitive.current() if self.iterations_primitive else 0} iterations, "
+                f"{len(tools_used)} tool calls"
+            )
+
+            return {
+                'success': True,
+                'procedure_id': self.procedure_id,
+                'result': validated_result,
+                'state': final_state,
+                'iterations': self.iterations_primitive.current() if self.iterations_primitive else 0,
+                'tools_used': tools_used,
+                'stop_requested': self.stop_primitive.requested() if self.stop_primitive else False,
+                'stop_reason': self.stop_primitive.reason() if self.stop_primitive else None,
+                'session_id': session_id
+            }
+
+        except ProcedureWaitingForHuman as e:
+            logger.info(f"Procedure waiting for human: {e}")
+
+            # Flush recordings before exiting
+            if self.chat_recorder:
+                for agent_primitive in self.agents.values():
+                    if hasattr(agent_primitive, 'flush_recordings'):
+                        await agent_primitive.flush_recordings()
+
+            # Note: Procedure status updated by execution context
+            # Chat session stays active for resume
+
+            return {
+                'success': False,
+                'status': 'WAITING_FOR_HUMAN',
+                'procedure_id': self.procedure_id,
+                'pending_message_id': getattr(e, 'pending_message_id', None),
+                'message': str(e),
+                'session_id': session_id
+            }
+
+        except ProcedureConfigError as e:
+            logger.error(f"Configuration error: {e}")
+            # Flush recordings even on error
+            if self.chat_recorder and session_id:
+                try:
+                    await self.chat_recorder.end_session(session_id, status='FAILED')
+                except Exception as err:
+                    logger.warning(f"Failed to end chat session: {err}")
+
+            return {
+                'success': False,
+                'procedure_id': self.procedure_id,
+                'error': f"Configuration error: {e}"
+            }
+
+        except LuaSandboxError as e:
+            logger.error(f"Lua execution error: {e}")
+            # Flush recordings even on error
+            if self.chat_recorder and session_id:
+                try:
+                    await self.chat_recorder.end_session(session_id, status='FAILED')
+                except Exception as err:
+                    logger.warning(f"Failed to end chat session: {err}")
+
+            return {
+                'success': False,
+                'procedure_id': self.procedure_id,
+                'error': f"Lua execution error: {e}"
+            }
+
+        except Exception as e:
+            logger.error(f"Unexpected error: {e}", exc_info=True)
+            # Flush recordings even on error
+            if self.chat_recorder and session_id:
+                try:
+                    await self.chat_recorder.end_session(session_id, status='FAILED')
+                except Exception as err:
+                    logger.warning(f"Failed to end chat session: {err}")
+
+            return {
+                'success': False,
+                'procedure_id': self.procedure_id,
+                'error': f"Unexpected error: {e}"
+            }
+
+    async def _initialize_primitives(self):
+        """Initialize all primitive objects."""
+        self.state_primitive = StatePrimitive()
+        self.iterations_primitive = IterationsPrimitive()
+        self.stop_primitive = StopPrimitive()
+        self.tool_primitive = ToolPrimitive()
+
+        logger.debug("All primitives initialized")
+
+    async def _setup_agents(self, context: Dict[str, Any]):
+        """
+        Setup agent primitives with LLMs and tools using Pydantic AI.
+
+        Args:
+            context: Procedure context with pre-loaded data
+        """
+        # Get agent configurations
+        agents_config = self.config.get('agents', {})
+
+        if not agents_config:
+            raise TactusRuntimeError("No agents defined in configuration")
+
+        # Import agent primitive
+        try:
+            from tactus.primitives.agent import AgentPrimitive
+            from pydantic import create_model, Field
+        except ImportError as e:
+            logger.warning(f"Could not import AgentPrimitive: {e} - agents will not be available")
+            return
+
+        # Load tools from MCP server if available
+        all_pydantic_tools = []
+        if self.mcp_server:
+            # Connect to MCP server and get tools
+            async with self.mcp_server.connect({'name': f'Tactus Runtime for {self.procedure_id}'}) as mcp_client:
+                try:
+                    from tactus.adapters.mcp import PydanticAIMCPAdapter
+                except ImportError as e:
+                    logger.warning(f"Could not import MCP adapter: {e} - external tools will not be available")
+                else:
+                    # Create adapter with tool_primitive for recording
+                    adapter = PydanticAIMCPAdapter(mcp_client, tool_primitive=self.tool_primitive)
+                    all_pydantic_tools = await adapter.load_tools()
+
+                    logger.info(f"Loaded {len(all_pydantic_tools)} MCP tools as Pydantic AI tools")
+        else:
+            logger.info("No MCP server configured - agents will only have built-in tools")
+
+        # Prepare output schema guidance if defined
+        output_schema_guidance = None
+        if self.config.get('outputs'):
+            output_schema_guidance = self._format_output_schema_for_prompt()
+            logger.info("Prepared output schema guidance for agents")
+
+        # Setup each agent
+        for agent_name, agent_config in agents_config.items():
+            logger.info(f"Setting up agent: {agent_name}")
+
+            # Get agent prompts (initial_message needs template processing, system_prompt is dynamic)
+            system_prompt_template = agent_config['system_prompt']  # Keep as template for dynamic rendering
+            initial_message = self._process_template(agent_config['initial_message'], context)
+
+            # Determine model (from config or default)
+            model_name = agent_config.get('model', self.config.get('default_model', 'openai:gpt-4o'))
+            # Ensure model string format (add 'openai:' prefix if needed for OpenAI models)
+            if not ':' in model_name and model_name.startswith('gpt'):
+                model_name = f"openai:{model_name}"
+
+            # Filter tools for this agent
+            allowed_tool_names = agent_config.get('tools', [])
+            # Match tools by name (Pydantic AI Tool has a 'name' attribute)
+            filtered_tools = [
+                tool for tool in all_pydantic_tools
+                if hasattr(tool, 'name') and tool.name in allowed_tool_names
+            ]
+
+            logger.info(f"Agent '{agent_name}' has {len(filtered_tools)} tools: {allowed_tool_names}")
+
+            # Handle structured output if specified
+            result_type = None
+            if agent_config.get('output_schema'):
+                # Agent has its own output schema - create Pydantic model
+                output_schema = agent_config['output_schema']
+                try:
+                    result_type = self._create_output_model_from_schema(output_schema, f"{agent_name}Output")
+                    logger.info(f"Created structured output model for agent '{agent_name}'")
+                except Exception as e:
+                    logger.warning(f"Failed to create output model for agent '{agent_name}': {e}")
+            elif self.config.get('outputs'):
+                # Use procedure-level output schema
+                try:
+                    result_type = self._create_output_model_from_schema(
+                        self.config['outputs'],
+                        f"{agent_name}Output"
+                    )
+                    logger.info(f"Using procedure-level output schema for agent '{agent_name}'")
+                except Exception as e:
+                    logger.warning(f"Failed to create output model from procedure schema: {e}")
+
+            # Create AgentPrimitive
+            agent_primitive = AgentPrimitive(
+                name=agent_name,
+                system_prompt_template=system_prompt_template,
+                initial_message=initial_message,
+                model=model_name,
+                tools=filtered_tools,
+                tool_primitive=self.tool_primitive,
+                stop_primitive=self.stop_primitive,
+                iterations_primitive=self.iterations_primitive,
+                state_primitive=self.state_primitive,
+                context=context,
+                output_schema_guidance=output_schema_guidance,
+                chat_recorder=self.chat_recorder,
+                result_type=result_type
+            )
+
+            self.agents[agent_name] = agent_primitive
+
+            logger.info(f"Agent '{agent_name}' configured successfully with model '{model_name}'")
+
+    def _create_output_model_from_schema(self, output_schema: Dict[str, Any], model_name: str = "OutputModel") -> type:
+        """
+        Create a Pydantic model from output schema definition.
+
+        Args:
+            output_schema: Dictionary mapping field names to field definitions
+            model_name: Name for the generated model
+
+        Returns:
+            Pydantic model class
+        """
+        fields = {}
+        for field_name, field_def in output_schema.items():
+            field_type_str = field_def.get('type', 'string')
+            is_required = field_def.get('required', False)
+
+            # Map type strings to Python types
+            type_mapping = {
+                'string': str,
+                'integer': int,
+                'number': float,
+                'boolean': bool,
+                'array': list,
+                'object': dict,
+            }
+            python_type = type_mapping.get(field_type_str, str)
+
+            # Create Field with description if available
+            description = field_def.get('description', '')
+            if is_required:
+                field = Field(..., description=description) if description else Field(...)
+            else:
+                default = field_def.get('default', None)
+                field = Field(default=default, description=description) if description else Field(default=default)
+
+            fields[field_name] = (python_type, field)
+
+        return create_model(model_name, **fields)
+
+    def _inject_primitives(self):
+        """Inject all primitives into Lua global scope."""
+        # Inject params with default values, then override with context values
+        if 'params' in self.config:
+            params_config = self.config['params']
+            param_values = {}
+            # Start with defaults
+            for param_name, param_def in params_config.items():
+                if 'default' in param_def:
+                    param_values[param_name] = param_def['default']
+            # Override with context values
+            for param_name in params_config.keys():
+                if param_name in self.context:
+                    param_values[param_name] = self.context[param_name]
+            self.lua_sandbox.set_global("params", param_values)
+            logger.debug(f"Injected params: {param_values}")
+
+        # Inject shared primitives
+        if self.state_primitive:
+            self.lua_sandbox.inject_primitive("State", self.state_primitive)
+        if self.iterations_primitive:
+            self.lua_sandbox.inject_primitive("Iterations", self.iterations_primitive)
+        if self.stop_primitive:
+            self.lua_sandbox.inject_primitive("Stop", self.stop_primitive)
+        if self.tool_primitive:
+            self.lua_sandbox.inject_primitive("Tool", self.tool_primitive)
+
+        # Inject checkpoint primitives
+        if self.step_primitive:
+            self.lua_sandbox.inject_primitive("Step", self.step_primitive)
+        if self.checkpoint_primitive:
+            self.lua_sandbox.inject_primitive("Checkpoint", self.checkpoint_primitive)
+            logger.debug("Step and Checkpoint primitives injected")
+
+        # Inject HITL primitives
+        if self.human_primitive:
+            logger.info(f"Injecting Human primitive: {self.human_primitive}")
+            self.lua_sandbox.inject_primitive("Human", self.human_primitive)
+
+        if self.log_primitive:
+            logger.info(f"Injecting Log primitive: {self.log_primitive}")
+            self.lua_sandbox.inject_primitive("Log", self.log_primitive)
+
+        if self.stage_primitive:
+            logger.info(f"Injecting Stage primitive: {self.stage_primitive}")
+            # Create wrapper to map 'is' (reserved keyword in Python) to 'is_current'
+            class StageWrapper:
+                def __init__(self, stage_primitive):
+                    self._stage = stage_primitive
+
+                def __getattr__(self, name):
+                    if name == 'is':
+                        return self._stage.is_current
+                    return getattr(self._stage, name)
+
+            stage_wrapper = StageWrapper(self.stage_primitive)
+            self.lua_sandbox.inject_primitive("Stage", stage_wrapper)
+
+        if self.json_primitive:
+            logger.info(f"Injecting Json primitive: {self.json_primitive}")
+            self.lua_sandbox.inject_primitive("Json", self.json_primitive)
+
+        if self.retry_primitive:
+            logger.info(f"Injecting Retry primitive: {self.retry_primitive}")
+            self.lua_sandbox.inject_primitive("Retry", self.retry_primitive)
+
+        if self.file_primitive:
+            logger.info(f"Injecting File primitive: {self.file_primitive}")
+            self.lua_sandbox.inject_primitive("File", self.file_primitive)
+
+        # Inject Sleep function
+        def sleep_wrapper(seconds):
+            """Sleep for specified number of seconds."""
+            logger.info(f"Sleep({seconds}) - pausing execution")
+            time.sleep(seconds)
+            logger.info(f"Sleep({seconds}) - resuming execution")
+
+        self.lua_sandbox.set_global("Sleep", sleep_wrapper)
+        logger.info("Injected Sleep function")
+
+        # Inject agent primitives (capitalized names)
+        for agent_name, agent_primitive in self.agents.items():
+            # Capitalize first letter for Lua convention (Worker, Assistant, etc.)
+            lua_name = agent_name.capitalize()
+            self.lua_sandbox.inject_primitive(lua_name, agent_primitive)
+            logger.info(f"Injected agent primitive: {lua_name}")
+
+        logger.debug("All primitives injected into Lua sandbox")
+
+    def _execute_workflow(self) -> Any:
+        """
+        Execute the Lua procedure code.
+
+        Returns:
+            Result from Lua procedure execution
+        """
+        procedure_code = self.config['procedure']
+
+        logger.debug(f"Executing procedure code ({len(procedure_code)} bytes)")
+
+        try:
+            result = self.lua_sandbox.execute(procedure_code)
+            logger.info("Procedure execution completed successfully")
+            return result
+
+        except LuaSandboxError as e:
+            logger.error(f"Procedure execution failed: {e}")
+            raise
+
+    def _process_template(self, template: str, context: Dict[str, Any]) -> str:
+        """
+        Process a template string with variable substitution.
+
+        Args:
+            template: Template string with {variable} placeholders
+            context: Context dict with variable values
+
+        Returns:
+            Processed string with variables substituted
+        """
+        try:
+            # Build template variables from context (supports dot notation)
+            from string import Formatter
+
+            class DotFormatter(Formatter):
+                def get_field(self, field_name, args, kwargs):
+                    # Support dot notation like {params.topic}
+                    parts = field_name.split('.')
+                    obj = kwargs
+                    for part in parts:
+                        if isinstance(obj, dict):
+                            obj = obj.get(part, '')
+                        else:
+                            obj = getattr(obj, part, '')
+                    return obj, field_name
+
+            template_vars = {}
+
+            # Add context variables
+            if context:
+                template_vars.update(context)
+
+            # Add params from config with default values
+            if 'params' in self.config:
+                params = self.config['params']
+                param_values = {}
+                for param_name, param_def in params.items():
+                    if 'default' in param_def:
+                        param_values[param_name] = param_def['default']
+                template_vars['params'] = param_values
+
+            # Add state (for dynamic templates)
+            if self.state_primitive:
+                template_vars['state'] = self.state_primitive.all()
+
+            # Use dot-notation formatter
+            formatter = DotFormatter()
+            result = formatter.format(template, **template_vars)
+            return result
+
+        except KeyError as e:
+            logger.warning(f"Template variable {e} not found, using template as-is")
+            return template
+
+        except Exception as e:
+            logger.error(f"Error processing template: {e}")
+            return template
+
+    def _format_output_schema_for_prompt(self) -> str:
+        """
+        Format the output schema as guidance for LLM prompts.
+
+        Returns:
+            Formatted string describing expected outputs
+        """
+        outputs = self.config.get('outputs', {})
+        if not outputs:
+            return ""
+
+        lines = ["## Expected Output Format", ""]
+        lines.append("This workflow must return a structured result with the following fields:")
+        lines.append("")
+
+        # Format each output field
+        for field_name, field_def in outputs.items():
+            field_type = field_def.get('type', 'any')
+            is_required = field_def.get('required', False)
+            description = field_def.get('description', '')
+
+            req_marker = "**REQUIRED**" if is_required else "*optional*"
+            lines.append(f"- **{field_name}** ({field_type}) - {req_marker}")
+            if description:
+                lines.append(f"  {description}")
+            lines.append("")
+
+        lines.append("Note: The workflow orchestration code will extract and format these values from your tool calls and actions.")
+
+        return "\n".join(lines)
+
+    def get_state(self) -> Dict[str, Any]:
+        """Get current procedure state."""
+        if self.state_primitive:
+            return self.state_primitive.all()
+        return {}
+
+    def get_iteration_count(self) -> int:
+        """Get current iteration count."""
+        if self.iterations_primitive:
+            return self.iterations_primitive.current()
+        return 0
+
+    def is_stopped(self) -> bool:
+        """Check if procedure was stopped."""
+        if self.stop_primitive:
+            return self.stop_primitive.requested()
+        return False

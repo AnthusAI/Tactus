@@ -1,0 +1,74 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "tactus"
+version = "0.1.0"
+description = "Tactus: Lua-based DSL for agentic workflows"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "Anthus", email = "info@anthus.ai"}
+]
+keywords = ["ai", "agents", "workflows", "lua", "dsl", "llm"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    "lupa>=2.6",
+    "pyyaml",
+    "pydantic>=2.0",
+    "pydantic-ai",
+    "openai>=1.35.10",
+    "rich>=13.9.4",
+    "typer",
+    "dotyaml>=0.1.0",
+]
+
+[project.optional-dependencies]
+mcp = ["fastmcp>=2.3.5"]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "behave>=1.2.6",
+    "black",
+    "ruff",
+]
+
+[project.scripts]
+tactus = "tactus.cli.app:main"
+
+[project.urls]
+Homepage = "https://github.com/AnthusAI/Tactus"
+Documentation = "https://github.com/AnthusAI/Tactus/tree/main/docs"
+Repository = "https://github.com/AnthusAI/Tactus"
+Issues = "https://github.com/AnthusAI/Tactus/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["tactus"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"
+addopts = "-v --tb=short"
+
+[tool.black]
+line-length = 100
+target-version = ['py311']
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
