@@ -287,5 +287,3 @@ def step_impl(context):
 @then("resuming the main procedure should skip the completed sub-procedure")
 def step_impl(context):
     assert "checkpointed_sub" in _runtime(context).checkpoints
-
-

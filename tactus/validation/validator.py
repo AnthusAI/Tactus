@@ -24,19 +24,19 @@ logger = logging.getLogger(__name__)
 
 class ValidationMode(str, Enum):
     """Validation mode."""
-    
+
     QUICK = "quick"  # Fast syntax check only
-    FULL = "full"    # Full semantic validation
+    FULL = "full"  # Full semantic validation
 
 
 class TactusValidator:
     """
     Validates .tactus.lua files using ANTLR parser.
-    
+
     Uses formal Lua grammar for syntax validation and semantic
     visitor for DSL construct recognition.
     """
-    
+
     def validate(
         self,
         source: str,
@@ -44,59 +44,51 @@ class TactusValidator:
     ) -> ValidationResult:
         """
         Validate a .tactus.lua file using ANTLR parser.
-        
+
         Args:
             source: Lua DSL source code
             mode: Validation mode (quick or full)
-            
+
         Returns:
             ValidationResult with errors, warnings, and registry
         """
         errors: List[ValidationMessage] = []
         warnings: List[ValidationMessage] = []
         registry = None
-        
+
         try:
             # Phase 1: Lexical and syntactic analysis via ANTLR
             input_stream = InputStream(source)
             lexer = LuaLexer(input_stream)
             token_stream = CommonTokenStream(lexer)
             parser = LuaParser(token_stream)
-            
+
             # Attach error listener to collect syntax errors
             error_listener = TactusErrorListener()
             parser.removeErrorListeners()
             parser.addErrorListener(error_listener)
-            
+
             # Parse (start rule is 'start_' which expects chunk + EOF)
             tree = parser.start_()
-            
+
             # Check for syntax errors
             if error_listener.errors:
                 return ValidationResult(
-                    valid=False,
-                    errors=error_listener.errors,
-                    warnings=[],
-                    registry=None
+                    valid=False, errors=error_listener.errors, warnings=[], registry=None
                 )
-            
+
             # Quick mode: just syntax check
             if mode == ValidationMode.QUICK:
-                return ValidationResult(
-                    valid=True,
-                    errors=[],
-                    warnings=[],
-                    registry=None
-                )
-            
+                return ValidationResult(valid=True, errors=[], warnings=[], registry=None)
+
             # Phase 2: Semantic analysis (DSL validation)
             visitor = TactusDSLVisitor()
             visitor.visit(tree)
-            
+
             # Combine visitor errors
             errors = visitor.errors
             warnings = visitor.warnings
-            
+
             # Phase 3: Registry validation
             if not errors:
                 result = visitor.builder.validate()
@@ -105,14 +97,11 @@ class TactusValidator:
                 registry = result.registry if result.valid else None
             else:
                 registry = None
-            
+
             return ValidationResult(
-                valid=len(errors) == 0,
-                errors=errors,
-                warnings=warnings,
-                registry=registry
+                valid=len(errors) == 0, errors=errors, warnings=warnings, registry=registry
             )
-            
+
         except Exception as e:
             logger.error(f"Validation failed with unexpected error: {e}", exc_info=True)
             errors.append(
@@ -121,13 +110,8 @@ class TactusValidator:
                     message=f"Validation error: {e}",
                 )
             )
-            return ValidationResult(
-                valid=False,
-                errors=errors,
-                warnings=warnings,
-                registry=None
-            )
-    
+            return ValidationResult(valid=False, errors=errors, warnings=warnings, registry=None)
+
     def validate_file(
         self,
         file_path: str,
@@ -135,11 +119,11 @@ class TactusValidator:
     ) -> ValidationResult:
         """
         Validate a .tactus.lua file from disk.
-        
+
         Args:
             file_path: Path to .tactus.lua file
             mode: Validation mode
-            
+
         Returns:
             ValidationResult
         """
@@ -171,5 +155,3 @@ class TactusValidator:
                 warnings=[],
                 registry=None,
             )
-
-

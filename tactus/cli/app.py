@@ -125,7 +125,7 @@ def run(
 
     # Determine format based on extension
     file_format = "lua" if workflow_file.suffix == ".lua" else "yaml"
-    
+
     # Read workflow file
     source_content = workflow_file.read_text()
 
@@ -176,7 +176,12 @@ def run(
     )
 
     # Execute procedure
-    console.print(Panel(f"Running procedure: [bold]{workflow_file.name}[/bold] ({file_format} format)", style="blue"))
+    console.print(
+        Panel(
+            f"Running procedure: [bold]{workflow_file.name}[/bold] ({file_format} format)",
+            style="blue",
+        )
+    )
 
     try:
         result = asyncio.run(runtime.execute(source_content, context, format=file_format))
@@ -242,7 +247,7 @@ def validate(
 
     # Determine format based on extension
     file_format = "lua" if workflow_file.suffix == ".lua" else "yaml"
-    
+
     # Read workflow file
     source_content = workflow_file.read_text()
 
@@ -254,10 +259,10 @@ def validate(
             validator = TactusValidator()
             mode = ValidationMode.QUICK if quick else ValidationMode.FULL
             result = validator.validate(source_content, mode)
-            
+
             if result.valid:
                 console.print("\n[green]✓ DSL is valid[/green]\n")
-                
+
                 if result.registry:
                     # Convert registry to config dict for display
                     config = {
@@ -391,18 +396,18 @@ def ide(
 ):
     """
     Start the Tactus IDE with integrated backend and frontend.
-    
+
     The IDE provides a Monaco-based editor with syntax highlighting,
     validation, and LSP features for Tactus DSL files.
-    
+
     Examples:
-    
+
         # Start IDE (auto-detects available port)
         tactus ide
-        
+
         # Start on specific port
         tactus ide --port 5001
-        
+
         # Start without opening browser
         tactus ide --no-browser
     """
@@ -414,103 +419,103 @@ def ide(
     import http.server
     import socketserver
     from tactus.ide import create_app
-    
+
     setup_logging(verbose)
-    
+
     console.print(Panel("[bold blue]Starting Tactus IDE[/bold blue]", style="blue"))
-    
+
     # Find available port for backend
     def find_available_port(preferred_port=None):
         """Find an available port, preferring the specified port if available."""
         if preferred_port:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             try:
-                sock.bind(('127.0.0.1', preferred_port))
+                sock.bind(("127.0.0.1", preferred_port))
                 sock.close()
                 return preferred_port
             except OSError:
                 pass
-        
+
         # Let OS assign an available port
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.bind(('127.0.0.1', 0))
+        sock.bind(("127.0.0.1", 0))
         assigned_port = sock.getsockname()[1]
         sock.close()
         return assigned_port
-    
+
     backend_port = find_available_port(port or 5001)
     console.print(f"Backend port: [cyan]{backend_port}[/cyan]")
-    
+
     # Find available port for frontend
     frontend_port_actual = find_available_port(frontend_port)
     if frontend_port_actual != frontend_port:
-        console.print(f"[yellow]Note: Port {frontend_port} in use, using {frontend_port_actual}[/yellow]")
+        console.print(
+            f"[yellow]Note: Port {frontend_port} in use, using {frontend_port_actual}[/yellow]"
+        )
     console.print(f"Frontend port: [cyan]{frontend_port_actual}[/cyan]")
-    
+
     # Get paths
     project_root = Path(__file__).parent.parent.parent
     frontend_dir = project_root / "tactus-ide" / "frontend"
     dist_dir = frontend_dir / "dist"
-    
+
     # Check if frontend is built
     if not dist_dir.exists():
         console.print("\n[yellow]Frontend not built. Building now...[/yellow]")
-        
+
         if not frontend_dir.exists():
             console.print(f"[red]Error:[/red] Frontend directory not found: {frontend_dir}")
             raise typer.Exit(1)
-        
+
         # Set environment variable for backend URL
         env = os.environ.copy()
-        env['VITE_BACKEND_URL'] = f'http://localhost:{backend_port}'
-        
+        env["VITE_BACKEND_URL"] = f"http://localhost:{backend_port}"
+
         try:
             console.print("Running [cyan]npm run build[/cyan]...")
             result = subprocess.run(
-                ['npm', 'run', 'build'],
-                cwd=frontend_dir,
-                env=env,
-                capture_output=True,
-                text=True
+                ["npm", "run", "build"], cwd=frontend_dir, env=env, capture_output=True, text=True
             )
-            
+
             if result.returncode != 0:
                 console.print(f"[red]Build failed:[/red]\n{result.stderr}")
                 raise typer.Exit(1)
-            
+
             console.print("[green]✓ Frontend built successfully[/green]\n")
         except FileNotFoundError:
             console.print("[red]Error:[/red] npm not found. Please install Node.js and npm.")
             raise typer.Exit(1)
-    
+
     # Start backend server in thread
     def run_backend():
         app = create_app()
-        app.run(host='127.0.0.1', port=backend_port, debug=False, threaded=True, use_reloader=False)
-    
+        app.run(host="127.0.0.1", port=backend_port, debug=False, threaded=True, use_reloader=False)
+
     backend_thread = threading.Thread(target=run_backend, daemon=True)
     backend_thread.start()
     console.print(f"[green]✓ Backend server started on http://127.0.0.1:{backend_port}[/green]")
-    
+
     # Start frontend server in thread
     def run_frontend():
         os.chdir(dist_dir)
         handler = http.server.SimpleHTTPRequestHandler
-        
+
         # Suppress HTTP server logs unless verbose
         if not verbose:
             handler.log_message = lambda *args: None
-        
+
         with socketserver.TCPServer(("", frontend_port_actual), handler) as httpd:
             httpd.serve_forever()
-    
+
     frontend_thread = threading.Thread(target=run_frontend, daemon=True)
     frontend_thread.start()
-    console.print(f"[green]✓ Frontend server started on http://localhost:{frontend_port_actual}[/green]")
-    
+    console.print(
+        f"[green]✓ Frontend server started on http://localhost:{frontend_port_actual}[/green]"
+    )
+
     # Wait a moment for servers to start
     time.sleep(1)
-    
+
     # Open browser
     frontend_url = f"http://localhost:{frontend_port_actual}"
     if not no_browser:
@@ -518,9 +523,9 @@ def ide(
         webbrowser.open(frontend_url)
     else:
         console.print(f"\n[cyan]IDE available at: {frontend_url}[/cyan]")
-    
+
     console.print("\n[dim]Press Ctrl+C to stop the IDE[/dim]\n")
-    
+
     # Keep running until interrupted
     try:
         while True:

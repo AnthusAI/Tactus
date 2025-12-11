@@ -11,10 +11,10 @@ from typing import Any, Optional
 
 class TemplateResolver:
     """Resolves template variables in strings."""
-    
+
     # Pattern matches {namespace.key} or {namespace.key.nested}
-    TEMPLATE_PATTERN = re.compile(r'\{([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*)\}')
-    
+    TEMPLATE_PATTERN = re.compile(r"\{([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*)\}")
+
     def __init__(
         self,
         params: Optional[dict[str, Any]] = None,
@@ -26,7 +26,7 @@ class TemplateResolver:
     ):
         """
         Initialize template resolver with available namespaces.
-        
+
         Args:
             params: Input parameters
             state: Procedure state
@@ -43,17 +43,17 @@ class TemplateResolver:
             "prepared": prepared or {},
             "env": env or {},
         }
-    
+
     def resolve(self, template: str) -> str:
         """
         Resolve all template variables in a string.
-        
+
         Args:
             template: String with {namespace.key} markers
-            
+
         Returns:
             String with markers replaced by values
-            
+
         Example:
             >>> resolver = TemplateResolver(params={"topic": "AI"})
             >>> resolver.resolve("Research: {params.topic}")
@@ -61,7 +61,7 @@ class TemplateResolver:
         """
         if not template:
             return template
-        
+
         def replace_match(match):
             path = match.group(1)
             value = self._get_value(path)
@@ -69,29 +69,29 @@ class TemplateResolver:
                 # Keep the marker if value not found
                 return match.group(0)
             return str(value)
-        
+
         return self.TEMPLATE_PATTERN.sub(replace_match, template)
-    
+
     def _get_value(self, path: str) -> Any:
         """
         Get value from namespaces using dot notation.
-        
+
         Args:
             path: Dot-separated path like "params.topic" or "state.count"
-            
+
         Returns:
             Value at path, or None if not found
         """
         parts = path.split(".")
         if not parts:
             return None
-        
+
         # First part is the namespace
         namespace_name = parts[0]
         namespace = self.namespaces.get(namespace_name)
         if namespace is None:
             return None
-        
+
         # Navigate nested keys
         current = namespace
         for part in parts[1:]:
@@ -100,10 +100,10 @@ class TemplateResolver:
             else:
                 # Can't navigate further
                 return None
-            
+
             if current is None:
                 return None
-        
+
         return current
 
 
@@ -118,7 +118,7 @@ def resolve_template(
 ) -> str:
     """
     Convenience function to resolve a template string.
-    
+
     Args:
         template: String with {namespace.key} markers
         params: Input parameters
@@ -127,7 +127,7 @@ def resolve_template(
         context: Runtime context
         prepared: Agent prepare hook output
         env: Environment variables
-        
+
     Returns:
         Resolved string
     """
@@ -140,5 +140,3 @@ def resolve_template(
         env=env,
     )
     return resolver.resolve(template)
-
-

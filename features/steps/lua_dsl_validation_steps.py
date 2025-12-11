@@ -32,9 +32,7 @@ def step_impl(context):
     """Create a temporary Lua DSL file with given content."""
     context.lua_content = context.text
     # Create a temporary file
-    context.temp_file = tempfile.NamedTemporaryFile(
-        mode="w", suffix=".tactus.lua", delete=False
-    )
+    context.temp_file = tempfile.NamedTemporaryFile(mode="w", suffix=".tactus.lua", delete=False)
     context.temp_file.write(context.lua_content)
     context.temp_file.close()
     context.lua_file = Path(context.temp_file.name)
@@ -52,9 +50,7 @@ description("Test")
 agent("worker", {
     provider = "openai"
 """
-    context.temp_file = tempfile.NamedTemporaryFile(
-        mode="w", suffix=".tactus.lua", delete=False
-    )
+    context.temp_file = tempfile.NamedTemporaryFile(mode="w", suffix=".tactus.lua", delete=False)
     context.temp_file.write(context.lua_content)
     context.temp_file.close()
     context.lua_file = Path(context.temp_file.name)
@@ -159,7 +155,9 @@ def step_impl(context):
     """Assert that validation succeeded."""
     assert context.validation_error is None, f"Validation failed: {context.validation_error}"
     assert context.validation_result is not None, "Validation result is None"
-    assert context.validation_result.valid, f"Validation result indicates failure: {context.validation_result.errors}"
+    assert (
+        context.validation_result.valid
+    ), f"Validation result indicates failure: {context.validation_result.errors}"
 
 
 @then("validation should fail")
@@ -182,11 +180,13 @@ def step_impl(context, text):
         error_msg = " ".join(str(e.message) for e in context.validation_result.errors).lower()
     else:
         raise AssertionError("No error message found")
-    
+
     # Be flexible with exact wording - check for key terms
     search_terms = text.lower().split()
     matches = sum(1 for term in search_terms if term in error_msg)
-    assert matches >= len(search_terms) // 2 + 1, f"Expected terms from '{text}' in error message: {error_msg}"
+    assert (
+        matches >= len(search_terms) // 2 + 1
+    ), f"Expected terms from '{text}' in error message: {error_msg}"
 
 
 @then("the error should include a line number")
@@ -197,22 +197,26 @@ def step_impl(context):
     if context.validation_result and context.validation_result.errors:
         # Check if any error has location information
         has_location = any(
-            hasattr(e, 'location') and e.location is not None 
+            hasattr(e, "location") and e.location is not None
             for e in context.validation_result.errors
         )
         if has_location:
             return  # Pass - we have location info
-        
+
         # Otherwise check error messages for line number patterns
-        error_msg = " ".join(str(e.message) if hasattr(e, 'message') else str(e) for e in context.validation_result.errors)
+        error_msg = " ".join(
+            str(e.message) if hasattr(e, "message") else str(e)
+            for e in context.validation_result.errors
+        )
     elif context.validation_error:
         error_msg = str(context.validation_error)
     else:
         raise AssertionError("No error message found")
-    
+
     # ANTLR errors may not have explicit "line X" format, but the error itself indicates a syntax issue was detected
     # For now, just pass if we have a syntax error (the important thing is that validation failed)
     import re
+
     has_line_ref = re.search(r"line\s*:?\s*\d+|^\d+:|at input", error_msg, re.IGNORECASE)
     assert has_line_ref, f"No line reference found in error: {error_msg}"
 
@@ -272,7 +276,9 @@ def step_impl(context):
 def step_impl(context):
     """Assert that syntax was checked."""
     assert context.validation_result is not None
-    assert len(context.validation_result.errors) == 0 or all(e.level != "error" for e in context.validation_result.errors)
+    assert len(context.validation_result.errors) == 0 or all(
+        e.level != "error" for e in context.validation_result.errors
+    )
 
 
 @then("it should check semantic rules")
@@ -297,30 +303,31 @@ def step_impl(context):
     for filepath, result, error in context.validation_results:
         if error or (result and not result.valid):
             failures.append((filepath, error or result.errors))
-    
+
     assert len(failures) == 0, f"Validation failures: {failures}"
 
 
 @then("the command should succeed")
 def step_impl(context):
     """Assert that the CLI command succeeded."""
-    assert context.cli_returncode == 0, \
-        f"Command failed with code {context.cli_returncode}\nStdout: {context.cli_stdout}\nStderr: {context.cli_stderr}"
+    assert (
+        context.cli_returncode == 0
+    ), f"Command failed with code {context.cli_returncode}\nStdout: {context.cli_stdout}\nStderr: {context.cli_stderr}"
 
 
 @then("the command should fail")
 def step_impl(context):
     """Assert that the CLI command failed."""
-    assert context.cli_returncode != 0, \
-        f"Command unexpectedly succeeded\nStdout: {context.cli_stdout}"
+    assert (
+        context.cli_returncode != 0
+    ), f"Command unexpectedly succeeded\nStdout: {context.cli_stdout}"
 
 
 @then('the output should show "{text}"')
 def step_impl(context, text):
     """Assert that CLI output contains specific text."""
     output = context.cli_stdout + context.cli_stderr
-    assert text.lower() in output.lower(), \
-        f"Expected '{text}' in output:\n{output}"
+    assert text.lower() in output.lower(), f"Expected '{text}' in output:\n{output}"
 
 
 @then("the output should display procedure information")
@@ -328,8 +335,9 @@ def step_impl(context):
     """Assert that CLI output shows procedure information."""
     output = context.cli_stdout + context.cli_stderr
     # Check for common procedure info patterns
-    assert any(keyword in output.lower() for keyword in ["procedure", "name", "version"]), \
-        f"No procedure information in output:\n{output}"
+    assert any(
+        keyword in output.lower() for keyword in ["procedure", "name", "version"]
+    ), f"No procedure information in output:\n{output}"
 
 
 @then("the output should show the error location")
@@ -338,6 +346,7 @@ def step_impl(context):
     output = context.cli_stdout + context.cli_stderr
     # Check for line number or "at input" which indicates where the error occurred
     import re
+
     has_location = re.search(r"line\s*:?\s*\d+|at input|syntax error", output, re.IGNORECASE)
     assert has_location, f"No error location in output:\n{output}"
 
@@ -347,8 +356,9 @@ def step_impl(context):
     """Assert that CLI output provides helpful suggestions."""
     output = context.cli_stdout + context.cli_stderr
     # Check for helpful keywords
-    assert any(keyword in output.lower() for keyword in ["expected", "missing", "required", "error"]), \
-        f"No helpful suggestions in output:\n{output}"
+    assert any(
+        keyword in output.lower() for keyword in ["expected", "missing", "required", "error"]
+    ), f"No helpful suggestions in output:\n{output}"
 
 
 def after_scenario(context, scenario):
@@ -359,5 +369,3 @@ def after_scenario(context, scenario):
             context.lua_file.unlink()
         except Exception:
             pass
-
-

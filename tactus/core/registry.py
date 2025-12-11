@@ -274,15 +274,11 @@ class RegistryBuilder:
 
     def _add_error(self, message: str) -> None:
         """Add an error message."""
-        self.validation_messages.append(
-            ValidationMessage(level="error", message=message)
-        )
+        self.validation_messages.append(ValidationMessage(level="error", message=message))
 
     def _add_warning(self, message: str) -> None:
         """Add a warning message."""
-        self.validation_messages.append(
-            ValidationMessage(level="warning", message=message)
-        )
+        self.validation_messages.append(ValidationMessage(level="warning", message=message))
 
     def validate(self) -> ValidationResult:
         """Run all validations after declarations collected."""
@@ -293,9 +289,7 @@ class RegistryBuilder:
         if not self.registry.procedure_name:
             errors.append(ValidationMessage(level="error", message="name is required"))
         if not self.registry.procedure_function:
-            errors.append(
-                ValidationMessage(level="error", message="procedure is required")
-            )
+            errors.append(ValidationMessage(level="error", message="procedure is required"))
 
         # Agent validation
         for agent in self.registry.agents.values():
@@ -327,5 +321,3 @@ class RegistryBuilder:
             warnings=warnings,
             registry=self.registry if len(errors) == 0 else None,
         )
-
-

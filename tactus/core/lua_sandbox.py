@@ -160,7 +160,7 @@ class LuaSandbox:
         """
         self.lua.globals()[name] = primitive_obj
         logger.debug(f"Injected primitive '{name}' into Lua sandbox")
-    
+
     def set_global(self, name: str, value: Any):
         """
         Set a global variable in Lua.
@@ -182,7 +182,7 @@ class LuaSandbox:
         else:
             self.lua.globals()[name] = value
         logger.debug(f"Set global '{name}' in Lua sandbox")
-    
+
     def _dict_to_lua_table(self, d: dict):
         """Convert Python dict to Lua table recursively."""
         lua_table = self.lua.table()

@@ -22,5 +22,3 @@ def test_state_defaults():
     state = StatePrimitive()
     assert state.get("missing", "default") == "default"
     assert "missing" not in state._state
-
-

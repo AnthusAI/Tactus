@@ -17,5 +17,3 @@ from .harnesses import (  # noqa: F401
     parse_literal,
     table_to_dict,
 )
-
-

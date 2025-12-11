@@ -147,7 +147,7 @@ class TactusRuntime:
             # 0. Setup Lua sandbox FIRST (needed for both YAML and Lua DSL)
             logger.info("Step 0: Setting up Lua sandbox")
             self.lua_sandbox = LuaSandbox()
-            
+
             # 0b. For Lua DSL, inject placeholder primitives BEFORE parsing
             # so they're available in the procedure function's closure
             if format == "lua":
@@ -156,6 +156,7 @@ class TactusRuntime:
                 from tactus.primitives.log import LogPrimitive as LuaLogPrimitive
                 from tactus.primitives.state import StatePrimitive as LuaStatePrimitive
                 from tactus.primitives.tool import ToolPrimitive as LuaToolPrimitive
+
                 # Create minimal primitives that don't need full config
                 placeholder_log = LuaLogPrimitive(procedure_id=self.procedure_id)
                 placeholder_state = LuaStatePrimitive()
@@ -166,7 +167,7 @@ class TactusRuntime:
                 self.lua_sandbox.inject_primitive("state", placeholder_state)  # lowercase s
                 self.lua_sandbox.inject_primitive("Tool", placeholder_tool)
                 self.lua_sandbox.inject_primitive("params", placeholder_params)
-            
+
             # 1. Parse configuration (Lua DSL or YAML)
             if format == "lua":
                 logger.info("Step 1: Parsing Lua DSL configuration")
@@ -195,11 +196,11 @@ class TactusRuntime:
 
             # 3. Lua sandbox is already set up in step 0
             # (keeping this comment for step numbering consistency)
-            
+
             # 4. Initialize primitives
             logger.info("Step 4: Initializing primitives")
             await self._initialize_primitives()
-            
+
             # 4b. Initialize template resolver and session manager
             self.template_resolver = TemplateResolver(
                 params=context or {},
@@ -693,11 +694,11 @@ class TactusRuntime:
                 # The procedure function is already a Lua function reference
                 # Call it directly
                 result = self.registry.procedure_function()
-                
+
                 # Convert Lua table result to Python dict if needed
                 if result is not None and hasattr(result, "items"):
                     result = lua_table_to_dict(result)
-                
+
                 logger.info("Procedure execution completed successfully")
                 return result
             except Exception as e:
@@ -830,52 +831,50 @@ class TactusRuntime:
     def _parse_declarations(self, source: str) -> ProcedureRegistry:
         """
         Execute .tactus.lua to collect declarations.
-        
+
         Args:
             source: Lua DSL source code
-            
+
         Returns:
             ProcedureRegistry with all declarations
-            
+
         Raises:
             TactusRuntimeError: If validation fails
         """
         builder = RegistryBuilder()
-        
+
         # Use the existing sandbox so procedure functions have access to primitives
         sandbox = self.lua_sandbox
-        
+
         # Inject DSL stubs
         stubs = create_dsl_stubs(builder)
         for name, stub in stubs.items():
             sandbox.set_global(name, stub)
-        
+
         # Execute file - declarations self-register
         try:
             sandbox.execute(source)
         except LuaSandboxError as e:
             raise TactusRuntimeError(f"Failed to parse DSL: {e}")
-        
+
         # Validate and return registry
         result = builder.validate()
         if not result.valid:
             error_messages = [f"  - {err.message}" for err in result.errors]
-            raise TactusRuntimeError(
-                "DSL validation failed:\n" + "\n".join(error_messages)
-            )
-        
+            raise TactusRuntimeError("DSL validation failed:\n" + "\n".join(error_messages))
+
         for warning in result.warnings:
             logger.warning(warning.message)
-        
+
         return result.registry
 
     def _registry_to_config(self, registry: ProcedureRegistry) -> Dict[str, Any]:
         """
         Convert registry to legacy config dict format for compatibility.
-        
+
         Args:
             registry: ProcedureRegistry
-            
+
         Returns:
             Config dict in YAML format
         """
@@ -884,7 +883,7 @@ class TactusRuntime:
             "version": registry.version,
             "description": registry.description,
         }
-        
+
         # Convert parameters
         if registry.parameters:
             config["params"] = {}
@@ -899,7 +898,7 @@ class TactusRuntime:
                     config["params"][name]["description"] = param.description
                 if param.enum:
                     config["params"][name]["enum"] = param.enum
-        
+
         # Convert outputs
         if registry.outputs:
             config["outputs"] = {}
@@ -910,7 +909,7 @@ class TactusRuntime:
                 }
                 if output.description:
                     config["outputs"][name]["description"] = output.description
-        
+
         # Convert agents
         if registry.agents:
             config["agents"] = {}
@@ -937,7 +936,7 @@ class TactusRuntime:
                         "source": agent.session.source,
                         "filter": agent.session.filter,
                     }
-        
+
         # Convert HITL points
         if registry.hitl_points:
             config["hitl"] = {}
@@ -952,11 +951,11 @@ class TactusRuntime:
                     config["hitl"][name]["default"] = hitl.default
                 if hitl.options:
                     config["hitl"][name]["options"] = hitl.options
-        
+
         # Convert stages
         if registry.stages:
             config["stages"] = registry.stages
-        
+
         # Convert prompts
         if registry.prompts:
             config["prompts"] = registry.prompts
@@ -966,15 +965,15 @@ class TactusRuntime:
             config["error_prompt"] = registry.error_prompt
         if registry.status_prompt:
             config["status_prompt"] = registry.status_prompt
-        
+
         # Add default provider/model
         if registry.default_provider:
             config["default_provider"] = registry.default_provider
         if registry.default_model:
             config["default_model"] = registry.default_model
-        
+
         # The procedure code will be executed separately
         # Store a placeholder for compatibility
         config["procedure"] = "-- Procedure function stored in registry"
-        
+
         return config

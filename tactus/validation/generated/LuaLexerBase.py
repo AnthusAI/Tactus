@@ -4,6 +4,7 @@ from antlr4.Token import CommonToken
 import sys
 from typing import TextIO
 
+
 class LuaLexerBase(Lexer):
 
     def __init__(self, input: InputStream, output: TextIO = sys.stdout):
@@ -25,7 +26,7 @@ class LuaLexerBase(Lexer):
         while cs.LA(1) != 10 and cs.LA(1) != -1:  # '\n'
             self._interp.consume(cs)
 
-    def read_long_string(self, cs:InputStream, sep:int):
+    def read_long_string(self, cs: InputStream, sep: int):
         done = False
         self._interp.consume(cs)
 
@@ -43,7 +44,7 @@ class LuaLexerBase(Lexer):
                 else:
                     self._interp.consume(cs)
 
-    def skip_sep(self, cs:InputStream):
+    def skip_sep(self, cs: InputStream):
         count = 0
         s = cs.LA(1)
         self._interp.consume(cs)
@@ -64,5 +65,3 @@ class LuaLexerBase(Lexer):
     def IsLine1Col0(self):
         cs = self._input
         return cs.index == 1
-
-

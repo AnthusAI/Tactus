@@ -50,11 +50,11 @@ def step_impl(context, param_name, param_value):
 def step_impl(context):
     """Execute the procedure from the example file."""
     import asyncio
-    
+
     # Determine format
     is_lua_dsl = context.example_file.suffix == ".lua" or ".tactus" in context.example_file.suffixes
     format_type = "lua" if is_lua_dsl else "yaml"
-    
+
     # Create runtime
     context.runtime = TactusRuntime(
         procedure_id=f"test-{context.example_file.stem}",
@@ -64,10 +64,10 @@ def step_impl(context):
         mcp_server=None,
         openai_api_key=os.environ.get("OPENAI_API_KEY"),
     )
-    
+
     # Read file content
     file_content = context.example_file.read_text()
-    
+
     # Execute
     try:
         context.execution_result = asyncio.run(
@@ -84,10 +84,11 @@ def step_impl(context):
     """Assert that execution succeeded."""
     if context.execution_error:
         raise AssertionError(f"Execution failed with error: {context.execution_error}")
-    
+
     assert context.execution_result is not None, "No execution result"
-    assert context.execution_result.get("success") is True, \
-        f"Execution failed: {context.execution_result.get('error', 'Unknown error')}"
+    assert (
+        context.execution_result.get("success") is True
+    ), f"Execution failed: {context.execution_result.get('error', 'Unknown error')}"
 
 
 @then("the output should match the declared schema")
@@ -103,14 +104,15 @@ def step_impl(context):
 def step_impl(context, field_name, expected_value):
     """Assert that output contains a specific field with expected value."""
     assert context.execution_result is not None, "No execution result"
-    
+
     # Check in the 'result' sub-dictionary
     result_dict = context.execution_result.get("result", {})
-    assert field_name in result_dict, \
-        f"Field '{field_name}' not found in result: {list(result_dict.keys())}"
-    
+    assert (
+        field_name in result_dict
+    ), f"Field '{field_name}' not found in result: {list(result_dict.keys())}"
+
     actual_value = result_dict[field_name]
-    
+
     # Convert expected_value to appropriate type
     if expected_value.lower() == "true":
         expected_value = True
@@ -120,9 +122,8 @@ def step_impl(context, field_name, expected_value):
         expected_value = int(expected_value)
     else:
         # Remove quotes if present
-        expected_value = expected_value.strip('"\'')
-    
-    assert actual_value == expected_value, \
-        f"Field '{field_name}' has value {actual_value}, expected {expected_value}"
+        expected_value = expected_value.strip("\"'")
 
-
+    assert (
+        actual_value == expected_value
+    ), f"Field '{field_name}' has value {actual_value}, expected {expected_value}"

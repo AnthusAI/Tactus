@@ -18,12 +18,12 @@ from .registry import SessionConfiguration
 
 class SessionManager:
     """Manages per-agent message histories with filtering."""
-    
+
     def __init__(self):
         """Initialize session manager."""
         self.histories: dict[str, list[ModelMessage]] = {}
         self.shared_history: list[ModelMessage] = []
-    
+
     def get_history_for_agent(
         self,
         agent_name: str,
@@ -32,19 +32,19 @@ class SessionManager:
     ) -> list[ModelMessage]:
         """
         Get filtered message history for an agent.
-        
+
         Args:
             agent_name: Name of the agent
             session_config: Session configuration (source, filter)
             context: Runtime context for filter functions
-            
+
         Returns:
             List of messages for the agent
         """
         if session_config is None:
             # Default: own history, no filter
             return self.histories.get(agent_name, [])
-        
+
         # Determine source
         if session_config.source == "own":
             messages = self.histories.get(agent_name, [])
@@ -53,13 +53,13 @@ class SessionManager:
         else:
             # Another agent's history
             messages = self.histories.get(session_config.source, [])
-        
+
         # Apply filter if specified
         if session_config.filter:
             messages = self._apply_filter(messages, session_config.filter, context)
-        
+
         return messages
-    
+
     def add_message(
         self,
         agent_name: str,
@@ -68,7 +68,7 @@ class SessionManager:
     ) -> None:
         """
         Add a message to an agent's history.
-        
+
         Args:
             agent_name: Name of the agent
             message: Message to add
@@ -76,20 +76,20 @@ class SessionManager:
         """
         if agent_name not in self.histories:
             self.histories[agent_name] = []
-        
+
         self.histories[agent_name].append(message)
-        
+
         if also_shared:
             self.shared_history.append(message)
-    
+
     def clear_agent_history(self, agent_name: str) -> None:
         """Clear an agent's history."""
         self.histories[agent_name] = []
-    
+
     def clear_shared_history(self) -> None:
         """Clear shared history."""
         self.shared_history = []
-    
+
     def _apply_filter(
         self,
         messages: list[ModelMessage],
@@ -98,12 +98,12 @@ class SessionManager:
     ) -> list[ModelMessage]:
         """
         Apply declarative or function filter.
-        
+
         Args:
             messages: Messages to filter
             filter_spec: Filter specification (tuple or callable)
             context: Runtime context
-            
+
         Returns:
             Filtered messages
         """
@@ -115,14 +115,14 @@ class SessionManager:
                 # If filter fails, return unfiltered
                 print(f"Warning: Filter function failed: {e}")
                 return messages
-        
+
         # Otherwise it's a tuple (filter_type, filter_arg)
         if not isinstance(filter_spec, tuple) or len(filter_spec) < 2:
             return messages
-        
+
         filter_type = filter_spec[0]
         filter_arg = filter_spec[1]
-        
+
         if filter_type == "last_n":
             return self._filter_last_n(messages, filter_arg)
         elif filter_type == "token_budget":
@@ -138,7 +138,7 @@ class SessionManager:
         else:
             # Unknown filter type, return unfiltered
             return messages
-    
+
     def _filter_last_n(
         self,
         messages: list[ModelMessage],
@@ -146,7 +146,7 @@ class SessionManager:
     ) -> list[ModelMessage]:
         """Keep only the last N messages."""
         return messages[-n:] if n > 0 else []
-    
+
     def _filter_by_token_budget(
         self,
         messages: list[ModelMessage],
@@ -154,33 +154,33 @@ class SessionManager:
     ) -> list[ModelMessage]:
         """
         Filter messages to stay within token budget.
-        
+
         Uses a simple heuristic: ~4 characters per token.
         Keeps most recent messages that fit within budget.
         """
         if max_tokens <= 0:
             return []
-        
+
         # Rough estimate: 4 chars per token
         max_chars = max_tokens * 4
-        
+
         result = []
         current_chars = 0
-        
+
         # Work backwards from most recent
         for message in reversed(messages):
             # Estimate message size
             message_chars = self._estimate_message_chars(message)
-            
+
             if current_chars + message_chars > max_chars:
                 # Would exceed budget, stop here
                 break
-            
+
             result.insert(0, message)
             current_chars += message_chars
-        
+
         return result
-    
+
     def _filter_by_role(
         self,
         messages: list[ModelMessage],
@@ -188,7 +188,7 @@ class SessionManager:
     ) -> list[ModelMessage]:
         """Keep only messages with specified role."""
         return [m for m in messages if self._get_message_role(m) == role]
-    
+
     def _estimate_message_chars(self, message: ModelMessage) -> int:
         """Estimate character count of a message."""
         if isinstance(message, dict):
@@ -215,7 +215,7 @@ class SessionManager:
             except Exception:
                 # Fallback: convert to string
                 return len(str(message))
-    
+
     def _get_message_role(self, message: ModelMessage) -> str:
         """Get role from a message."""
         if isinstance(message, dict):
@@ -225,5 +225,3 @@ class SessionManager:
                 return getattr(message, "role", "")
             except Exception:
                 return ""
-
-

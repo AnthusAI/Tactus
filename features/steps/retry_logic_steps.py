@@ -247,5 +247,3 @@ def step_impl(context):
     else:
         context.circuit_error = None
     assert isinstance(context.circuit_error, RuntimeError)
-
-
