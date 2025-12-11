@@ -13,6 +13,8 @@ from pydantic import BaseModel, Field, ValidationError, create_model
 
 from tactus.core.runtime import TactusRuntime
 
+pytestmark = pytest.mark.integration
+
 
 def create_output_model_from_schema(
     output_schema: Dict[str, Any], model_name: str

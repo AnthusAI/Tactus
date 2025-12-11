@@ -10,6 +10,8 @@ from typer.testing import CliRunner
 
 from tactus.cli.app import app
 
+pytestmark = pytest.mark.integration
+
 
 @pytest.fixture
 def cli_runner():
