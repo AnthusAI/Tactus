@@ -161,6 +161,38 @@ class LuaSandbox:
         self.lua.globals()[name] = primitive_obj
         logger.debug(f"Injected primitive '{name}' into Lua sandbox")
 
+    def set_global(self, name: str, value: Any):
+        """
+        Set a global variable in Lua.
+
+        Args:
+            name: Name of the global variable
+            value: Value to set (can be Python object, dict, etc.)
+        """
+        # Convert Python dicts to Lua tables if needed
+        if isinstance(value, dict):
+            lua_table = self.lua.table()
+            for k, v in value.items():
+                if isinstance(v, dict):
+                    # Recursively convert nested dicts
+                    lua_table[k] = self._dict_to_lua_table(v)
+                else:
+                    lua_table[k] = v
+            self.lua.globals()[name] = lua_table
+        else:
+            self.lua.globals()[name] = value
+        logger.debug(f"Set global '{name}' in Lua sandbox")
+
+    def _dict_to_lua_table(self, d: dict):
+        """Convert Python dict to Lua table recursively."""
+        lua_table = self.lua.table()
+        for k, v in d.items():
+            if isinstance(v, dict):
+                lua_table[k] = self._dict_to_lua_table(v)
+            else:
+                lua_table[k] = v
+        return lua_table
+
     def execute(self, lua_code: str) -> Any:
         """
         Execute Lua code in the sandbox.
@@ -216,10 +248,6 @@ class LuaSandbox:
     def get_global(self, name: str) -> Any:
         """Get a value from Lua global scope."""
         return self.lua.globals()[name]
-
-    def set_global(self, name: str, value: Any):
-        """Set a value in Lua global scope."""
-        self.lua.globals()[name] = value
 
     def create_lua_table(self, python_dict: Optional[Dict[str, Any]] = None) -> Any:
         """

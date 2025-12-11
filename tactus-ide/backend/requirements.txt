@@ -1,0 +1,12 @@
+flask>=3.0.0
+flask-cors>=4.0.0
+flask-sse>=1.0.0
+redis>=5.0.0
+python-socketio>=5.10.0
+flask-socketio>=5.5.0
+eventlet>=0.33.0
+# Note: Tactus package requires Python 3.11+
+# Install tactus separately: pip install -e ../../.
+# Or use Python 3.11+ environment
+
+
