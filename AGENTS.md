@@ -7,6 +7,33 @@ This document provides guidelines for AI coding agents working on the Tactus pro
 - **[SPECIFICATION.md](SPECIFICATION.md)**: The official specification for the Tactus domain-specific language. Refer to this document for the definitive guide on DSL syntax, semantics, and behavior.
 - **[IMPLEMENTATION.md](IMPLEMENTATION.md)**: Maps the specification to the actual codebase implementation. Shows where each feature is implemented, what's complete, and what's missing relative to the specification. Use this to understand the current implementation status when working on features.
 
+## Multi-Model and Multi-Provider Support
+
+**IMPORTANT**: Tactus now supports multiple LLM providers and models:
+
+- **Providers**: `openai` and `bedrock` are supported
+- **Provider is REQUIRED**: Every agent must specify `provider:` (either directly or via `default_provider:` at procedure level)
+- **Multiple models**: Different agents can use different models (e.g., GPT-4o, GPT-4o-mini, Claude 3.5 Sonnet)
+- **Model parameters**: Supports model-specific parameters like `temperature`, `max_tokens`, `openai_reasoning_effort`
+
+Example:
+```yaml
+agents:
+  openai_agent:
+    provider: openai
+    model:
+      name: gpt-4o
+      temperature: 0.7
+    system_prompt: "..."
+    tools: [done]
+  
+  bedrock_agent:
+    provider: bedrock
+    model: anthropic.claude-3-5-sonnet-20240620-v1:0
+    system_prompt: "..."
+    tools: [done]
+```
+
 ## Production Readiness
 
 **IMPORTANT**: Tactus is **NOT** ready for production. It is in early development (Alpha status).

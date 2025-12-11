@@ -48,7 +48,8 @@ class AgentPrimitive:
         context: Dict[str, Any],
         output_schema_guidance: Optional[str] = None,
         chat_recorder: Optional[Any] = None,
-        result_type: Optional[type] = None
+        result_type: Optional[type] = None,
+        model_settings: Optional[Dict[str, Any]] = None
     ):
         """
         Initialize agent primitive.
@@ -67,6 +68,7 @@ class AgentPrimitive:
             output_schema_guidance: Optional output schema guidance text
             chat_recorder: Optional chat recorder
             result_type: Optional Pydantic model for structured output
+            model_settings: Optional dict of model-specific settings (temperature, top_p, etc.)
         """
         self.name = name
         self.system_prompt_template = system_prompt_template
@@ -109,7 +111,12 @@ class AgentPrimitive:
         # from pydantic_ai.providers.openai import OpenAIProvider
         # model_obj = OpenAIChatModel(model.split(':')[1], provider=OpenAIProvider(api_key=api_key))
         # For now, we assume OPENAI_API_KEY is set in environment
-        self.agent = Agent(model, deps_type=AgentDeps, tools=all_tools)
+        self.agent = Agent(
+            model, 
+            deps_type=AgentDeps, 
+            tools=all_tools,
+            model_settings=model_settings
+        )
 
         # Add dynamic system prompt
         @self.agent.system_prompt

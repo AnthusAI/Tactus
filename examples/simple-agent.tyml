@@ -14,6 +14,7 @@ outputs:
 
 agents:
   greeter:
+    provider: openai
     system_prompt: |
       You are a friendly assistant. When asked to greet someone, 
       provide a warm, friendly greeting. When you're done, call 

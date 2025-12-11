@@ -25,6 +25,7 @@ def example_workflow_file(tmp_path):
 version: 1.0.0
 agents:
   worker:
+    provider: openai
     system_prompt: "You are a test worker."
     initial_message: "Starting test."
 procedure: |
@@ -97,6 +98,7 @@ params:
     default: "World"
 agents:
   worker:
+    provider: openai
     system_prompt: "You are a test worker."
     initial_message: "Starting test."
 procedure: |

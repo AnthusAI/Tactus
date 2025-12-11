@@ -184,16 +184,15 @@ class TactusRuntime:
             self.file_primitive = FilePrimitive()
             logger.debug("HITL and checkpoint primitives initialized")
 
-            # 8. Setup agents with LLMs and tools (if available)
-            if self.openai_api_key:
-                logger.info("Step 8: Setting up agents")
-                # Set OpenAI API key in environment for Pydantic AI
-                import os
-                if 'OPENAI_API_KEY' not in os.environ:
-                    os.environ['OPENAI_API_KEY'] = self.openai_api_key
-                await self._setup_agents(context or {})
-            else:
-                logger.info("Step 8: Skipping agent setup (no API key)")
+            # 8. Setup agents with LLMs and tools
+            logger.info("Step 8: Setting up agents")
+            # Set OpenAI API key in environment if provided (for OpenAI agents)
+            import os
+            if self.openai_api_key and 'OPENAI_API_KEY' not in os.environ:
+                os.environ['OPENAI_API_KEY'] = self.openai_api_key
+            
+            # Always set up agents - they may use providers other than OpenAI (e.g., Bedrock)
+            await self._setup_agents(context or {})
 
             # 9. Inject primitives into Lua
             logger.info("Step 9: Injecting primitives into Lua environment")
@@ -375,11 +374,35 @@ class TactusRuntime:
             system_prompt_template = agent_config['system_prompt']  # Keep as template for dynamic rendering
             initial_message = self._process_template(agent_config['initial_message'], context)
 
-            # Determine model (from config or default)
-            model_name = agent_config.get('model', self.config.get('default_model', 'openai:gpt-4o'))
-            # Ensure model string format (add 'openai:' prefix if needed for OpenAI models)
-            if not ':' in model_name and model_name.startswith('gpt'):
-                model_name = f"openai:{model_name}"
+            # Provider is required - no defaults
+            provider_name = agent_config.get('provider') or self.config.get('default_provider')
+            if not provider_name:
+                raise ValueError(f"Agent '{agent_name}' must specify a 'provider' (either on the agent or as 'default_provider' in the procedure)")
+            
+            # Handle model - can be string or dict with settings
+            model_config = agent_config.get('model') or self.config.get('default_model') or 'gpt-4o'
+            model_settings = None
+            
+            if isinstance(model_config, dict):
+                # Model is a dict with name and settings
+                model_id = model_config.get('name')
+                # Extract settings (everything except 'name')
+                model_settings = {k: v for k, v in model_config.items() if k != 'name'}
+                if model_settings:
+                    logger.info(f"Agent '{agent_name}' using model settings: {model_settings}")
+            else:
+                # Model is a simple string
+                model_id = model_config
+            
+            # If model_id has a provider prefix AND no explicit provider was set, extract it
+            if ':' in model_id and not agent_config.get('provider') and not self.config.get('default_provider'):
+                prefix, model_id = model_id.split(':', 1)
+                provider_name = prefix
+            
+            # Construct the full model string for pydantic-ai
+            model_name = f"{provider_name}:{model_id}"
+            
+            logger.info(f"Agent '{agent_name}' using provider '{provider_name}' with model '{model_id}'")
 
             # Filter tools for this agent
             allowed_tool_names = agent_config.get('tools', [])
@@ -418,6 +441,7 @@ class TactusRuntime:
                 system_prompt_template=system_prompt_template,
                 initial_message=initial_message,
                 model=model_name,
+                model_settings=model_settings,
                 tools=filtered_tools,
                 tool_primitive=self.tool_primitive,
                 stop_primitive=self.stop_primitive,

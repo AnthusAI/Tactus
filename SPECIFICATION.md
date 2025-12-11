@@ -842,6 +842,127 @@ agents:
 
 When you declare an agent named `worker`, the primitive `Worker.turn()` becomes available in Lua.
 
+### Model Configuration
+
+Agents can specify which LLM model to use and configure model-specific parameters. The `model` field accepts either a simple string or a dictionary with settings.
+
+**Simple string format** (for default settings):
+
+```yaml
+agents:
+  greeter:
+    model: gpt-4o-mini
+    system_prompt: "You are a friendly greeter."
+    tools: [done]
+```
+
+**Dictionary format** (with custom settings):
+
+```yaml
+agents:
+  creative_writer:
+    model:
+      name: gpt-4o
+      temperature: 0.9
+      top_p: 0.95
+      max_tokens: 2000
+    system_prompt: "You are a creative writer."
+    tools: [done]
+```
+
+**Available model settings:**
+
+- **Standard parameters** (GPT-4 models):
+  - `temperature` (0.0-2.0): Controls randomness
+  - `top_p` (0.0-1.0): Nucleus sampling threshold
+  - `max_tokens`: Maximum tokens in response
+  - `presence_penalty`: Penalize repeated topics
+  - `frequency_penalty`: Penalize repeated tokens
+  - `seed`: For reproducible outputs
+  - `parallel_tool_calls`: Enable parallel tool execution
+
+- **Reasoning models** (o1, GPT-5):
+  - `openai_reasoning_effort`: `'low'`, `'medium'`, or `'high'`
+  - `max_tokens`: Maximum tokens in response
+  - Note: `temperature` and `top_p` are not supported on reasoning models
+
+**Example with multiple agents using different models:**
+
+```yaml
+agents:
+  analyst:
+    model:
+      name: gpt-5
+      openai_reasoning_effort: high
+      max_tokens: 4000
+    system_prompt: "Analyze the data carefully."
+    tools: [done]
+  
+  summarizer:
+    model:
+      name: gpt-4o-mini
+      temperature: 0.3
+      max_tokens: 500
+    system_prompt: "Summarize concisely."
+    tools: [done]
+```
+
+**Provider specification:**
+
+**IMPORTANT:** Every agent must specify a `provider:` (either directly on the agent or via `default_provider:` at the procedure level). Supported providers are `openai` and `bedrock`.
+
+```yaml
+agents:
+  openai_agent:
+    provider: openai
+    model: gpt-4o
+    system_prompt: "You are a helpful assistant."
+    tools: [done]
+  
+  bedrock_agent:
+    provider: bedrock
+    model: anthropic.claude-3-5-sonnet-20240620-v1:0
+    system_prompt: "You are a helpful assistant."
+    tools: [done]
+```
+
+**Using procedure-level defaults:**
+
+You can set `default_provider:` and `default_model:` at the procedure level to avoid repeating them:
+
+```yaml
+default_model: gpt-4o-mini
+default_provider: openai
+
+agents:
+  worker:
+    # Uses default_model and default_provider
+    system_prompt: "Process the task."
+    tools: [done]
+  
+  specialist:
+    model: gpt-4o  # Override just the model, still uses default_provider
+    system_prompt: "Handle complex reasoning."
+    tools: [done]
+```
+
+**Mixed providers in one procedure:**
+
+```yaml
+agents:
+  openai_agent:
+    provider: openai
+    model: gpt-4o-mini
+    system_prompt: "Fast processing with OpenAI."
+    tools: [done]
+  
+  bedrock_agent:
+    provider: bedrock
+    model: anthropic.claude-3-5-sonnet-20240620-v1:0
+    system_prompt: "Deep analysis with Claude."
+    tools: [done]
+```
+
 ---
 
 ## Invoking Procedures

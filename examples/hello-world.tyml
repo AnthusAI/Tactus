@@ -18,6 +18,7 @@ outputs:
 
 agents:
   worker:
+    provider: openai
     system_prompt: "You are a friendly worker"
     initial_message: "Hello! Starting procedure"
     tools: []

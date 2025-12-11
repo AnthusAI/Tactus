@@ -36,9 +36,11 @@ Tactus bridges this gap. It offers the **evolutionary potential** of "Agent as C
 ## Features
 
 - **Declarative Workflows**: Define agent workflows in YAML with embedded Lua code
+- **Multi-Provider Support**: Use OpenAI and AWS Bedrock models in the same workflow
+- **Multi-Model Support**: Different agents can use different models (GPT-4o, Claude, etc.)
 - **Pluggable Backends**: Storage, HITL, and chat recording via Pydantic protocols
 - **Human-in-the-Loop**: Built-in support for human approval, input, and review
-- **LLM Integration**: Works with OpenAI models via [pydantic-ai](https://github.com/pydantic/pydantic-ai)
+- **LLM Integration**: Works with OpenAI and Bedrock via [pydantic-ai](https://github.com/pydantic/pydantic-ai)
 - **Checkpointing**: Automatic workflow checkpointing and resume
 - **Standalone CLI**: Run workflows without any infrastructure
 - **Type-Safe**: Pydantic models throughout for validation and type safety
@@ -102,6 +104,86 @@ Run it:
 export OPENAI_API_KEY=your-key
 tactus run hello.yaml
 ```
+
+### Multi-Model and Multi-Provider Support
+
+Tactus supports multiple LLM providers and models. **Every agent must specify a `provider:`** (either directly or via `default_provider:` at the procedure level).
+
+**Supported providers:** `openai`, `bedrock`
+
+**Multiple OpenAI Models:**
+```yaml
+agents:
+  researcher:
+    provider: openai
+    model: gpt-4o  # Use GPT-4o for complex research
+    system_prompt: "Research the topic..."
+    tools: [done]
+  
+  summarizer:
+    provider: openai
+    model: gpt-4o-mini  # Use GPT-4o-mini for simple summarization
+    system_prompt: "Summarize the findings..."
+    tools: [done]
+```
+
+**Multiple Providers (OpenAI + Bedrock):**
+```yaml
+agents:
+  openai_analyst:
+    provider: openai
+    model: gpt-4o
+    system_prompt: "Analyze the data..."
+    tools: [done]
+  
+  bedrock_reviewer:
+    provider: bedrock
+    model: anthropic.claude-3-5-sonnet-20240620-v1:0
+    system_prompt: "Review the analysis..."
+    tools: [done]
+```
+
+**Model-Specific Parameters:**
+
+You can configure model-specific parameters like `temperature`, `max_tokens`, or `openai_reasoning_effort`:
+
+```yaml
+agents:
+  creative_writer:
+    provider: openai
+    model:
+      name: gpt-4o
+      temperature: 0.9  # Higher creativity
+      max_tokens: 2000
+    system_prompt: "Write creatively..."
+    tools: [done]
+  
+  reasoning_agent:
+    provider: openai
+    model:
+      name: gpt-5  # Reasoning model
+      openai_reasoning_effort: high
+      max_tokens: 4000
+    system_prompt: "Solve this complex problem..."
+    tools: [done]
+```
+
+**Configuration via `.tactus/config.yml`:**
+```yaml
+# OpenAI credentials
+openai_api_key: sk-...
+
+# AWS Bedrock credentials
+aws_access_key_id: AKIA...
+aws_secret_access_key: ...
+aws_default_region: us-east-1
+
+# Optional defaults
+default_provider: openai
+default_model: gpt-4o
+```
+
+See `examples/multi-model.tyml` and `examples/multi-provider.tyml` for complete examples.
 
 ## Architecture
 
