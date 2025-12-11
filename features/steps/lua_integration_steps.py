@@ -73,7 +73,7 @@ def _convert_lua_value(value):
             for key in value:
                 result_dict[key] = _convert_lua_value(value[key])
             return result_dict
-        except:
+        except Exception:  # noqa: E722
             # Fallback: return as is
             return value
     else:

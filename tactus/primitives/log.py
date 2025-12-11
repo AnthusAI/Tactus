@@ -51,7 +51,7 @@ class LogPrimitive:
         elif hasattr(obj, "__iter__") and not isinstance(obj, (str, bytes)):  # Lua array
             try:
                 return [self._lua_to_python(v) for v in obj]
-            except:
+            except Exception:  # noqa: E722
                 # If iteration fails, return as-is
                 return obj
         else:

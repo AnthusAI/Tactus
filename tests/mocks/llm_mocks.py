@@ -155,7 +155,7 @@ def create_mock_agent_patch(use_real_api: bool = False):
         return nullcontext()
 
     # Create a patch that intercepts Agent.run()
-    original_run = Agent.run
+    _ = Agent.run  # noqa: F841
 
     async def patched_run(
         self,

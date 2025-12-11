@@ -201,7 +201,7 @@ class AgentPrimitive:
             # we need to handle this carefully.
             try:
                 # Try to get the current event loop
-                loop = asyncio.get_running_loop()
+                _ = asyncio.get_running_loop()  # noqa: F841
                 # We're in an async context - run in a thread with new event loop
                 import threading
 

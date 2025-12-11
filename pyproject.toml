@@ -75,6 +75,9 @@ target-version = ['py311']
 line-length = 100
 target-version = "py311"
 
+[tool.ruff.lint.per-file-ignores]
+"features/steps/*.py" = ["F811"]  # Allow step_impl redefinition in behave steps
+
 [tool.semantic_release]
 version_toml = ["pyproject.toml:project.version"]
 version_variables = ["tactus/__init__.py:__version__"]

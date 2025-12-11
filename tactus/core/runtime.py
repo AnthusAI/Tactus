@@ -17,7 +17,7 @@ from tactus.core.yaml_parser import ProcedureYAMLParser, ProcedureConfigError
 from tactus.core.lua_sandbox import LuaSandbox, LuaSandboxError
 from tactus.core.output_validator import OutputValidator, OutputValidationError
 from tactus.core.execution_context import BaseExecutionContext
-from tactus.core.exceptions import ProcedureWaitingForHuman
+from tactus.core.exceptions import ProcedureWaitingForHuman, TactusRuntimeError
 from tactus.protocols.storage import StorageBackend
 from tactus.protocols.hitl import HITLHandler
 from tactus.protocols.chat_recorder import ChatRecorder
@@ -35,9 +35,6 @@ from tactus.primitives.retry import RetryPrimitive
 from tactus.primitives.file import FilePrimitive
 
 logger = logging.getLogger(__name__)
-
-# Import TactusRuntimeError from exceptions module
-from tactus.core.exceptions import TactusRuntimeError
 
 
 class TactusRuntime:
@@ -349,7 +346,7 @@ class TactusRuntime:
         # Import agent primitive
         try:
             from tactus.primitives.agent import AgentPrimitive
-            from pydantic import create_model, Field
+            from pydantic import create_model, Field  # noqa: F401
         except ImportError as e:
             logger.warning(f"Could not import AgentPrimitive: {e} - agents will not be available")
             return
@@ -519,18 +516,20 @@ class TactusRuntime:
             # Create Field with description if available
             description = field_def.get("description", "")
             if is_required:
-                field = Field(..., description=description) if description else Field(...)
+                field = (
+                    Field(..., description=description) if description else Field(...)
+                )  # noqa: F821
             else:
                 default = field_def.get("default", None)
                 field = (
-                    Field(default=default, description=description)
+                    Field(default=default, description=description)  # noqa: F821
                     if description
-                    else Field(default=default)
+                    else Field(default=default)  # noqa: F821
                 )
 
             fields[field_name] = (python_type, field)
 
-        return create_model(model_name, **fields)
+        return create_model(model_name, **fields)  # noqa: F821
 
     def _inject_primitives(self):
         """Inject all primitives into Lua global scope."""

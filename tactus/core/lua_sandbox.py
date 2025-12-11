@@ -142,7 +142,7 @@ class LuaSandbox:
                 # Support Python strftime formats
                 try:
                     return now.strftime(format_str)
-                except:
+                except Exception:  # noqa: E722
                     return now.strftime("%a %b %d %H:%M:%S %Y")
 
         # Create safe os table with only date function
@@ -270,7 +270,7 @@ class LuaSandbox:
             try:
                 for key in lua_table:
                     result[key] = lua_table[key]
-            except:
+            except Exception:  # noqa: E722
                 pass
 
         return result
