@@ -10,9 +10,8 @@ Orchestrates:
 """
 
 import logging
-import asyncio
 import time
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 
 from tactus.core.yaml_parser import ProcedureYAMLParser, ProcedureConfigError
 from tactus.core.lua_sandbox import LuaSandbox, LuaSandboxError
@@ -60,8 +59,8 @@ class TactusRuntime:
         storage_backend: Optional[StorageBackend] = None,
         hitl_handler: Optional[HITLHandler] = None,
         chat_recorder: Optional[ChatRecorder] = None,
-        mcp_server = None,
-        openai_api_key: Optional[str] = None
+        mcp_server=None,
+        openai_api_key: Optional[str] = None,
     ):
         """
         Initialize the Tactus runtime.
@@ -108,7 +107,9 @@ class TactusRuntime:
 
         logger.info(f"TactusRuntime initialized for procedure {procedure_id}")
 
-    async def execute(self, yaml_config: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    async def execute(
+        self, yaml_config: str, context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """
         Execute a Lua-based workflow.
 
@@ -139,10 +140,12 @@ class TactusRuntime:
 
             # 2. Setup output validator
             logger.info("Step 2: Setting up output validator")
-            output_schema = self.config.get('outputs', {})
+            output_schema = self.config.get("outputs", {})
             self.output_validator = OutputValidator(output_schema)
             if output_schema:
-                logger.info(f"Output schema has {len(output_schema)} fields: {list(output_schema.keys())}")
+                logger.info(
+                    f"Output schema has {len(output_schema)} fields: {list(output_schema.keys())}"
+                )
 
             # 3. Setup Lua sandbox
             logger.info("Step 3: Setting up Lua sandbox")
@@ -166,19 +169,21 @@ class TactusRuntime:
             self.execution_context = BaseExecutionContext(
                 procedure_id=self.procedure_id,
                 storage_backend=self.storage_backend,
-                hitl_handler=self.hitl_handler
+                hitl_handler=self.hitl_handler,
             )
             logger.debug("BaseExecutionContext created")
 
             # 7. Initialize HITL and checkpoint primitives (require execution_context)
             logger.info("Step 7: Initializing HITL and checkpoint primitives")
-            hitl_config = self.config.get('hitl', {})
+            hitl_config = self.config.get("hitl", {})
             self.human_primitive = HumanPrimitive(self.execution_context, hitl_config)
             self.step_primitive = StepPrimitive(self.execution_context)
             self.checkpoint_primitive = CheckpointPrimitive(self.execution_context)
             self.log_primitive = LogPrimitive(procedure_id=self.procedure_id)
-            declared_stages = self.config.get('stages', [])
-            self.stage_primitive = StagePrimitive(declared_stages=declared_stages, lua_sandbox=self.lua_sandbox)
+            declared_stages = self.config.get("stages", [])
+            self.stage_primitive = StagePrimitive(
+                declared_stages=declared_stages, lua_sandbox=self.lua_sandbox
+            )
             self.json_primitive = JsonPrimitive(lua_sandbox=self.lua_sandbox)
             self.retry_primitive = RetryPrimitive()
             self.file_primitive = FilePrimitive()
@@ -188,9 +193,10 @@ class TactusRuntime:
             logger.info("Step 8: Setting up agents")
             # Set OpenAI API key in environment if provided (for OpenAI agents)
             import os
-            if self.openai_api_key and 'OPENAI_API_KEY' not in os.environ:
-                os.environ['OPENAI_API_KEY'] = self.openai_api_key
-            
+
+            if self.openai_api_key and "OPENAI_API_KEY" not in os.environ:
+                os.environ["OPENAI_API_KEY"] = self.openai_api_key
+
             # Always set up agents - they may use providers other than OpenAI (e.g., Bedrock)
             await self._setup_agents(context or {})
 
@@ -217,16 +223,20 @@ class TactusRuntime:
                 logger.info("Step 12: Flushing chat recordings")
                 # Flush agent messages if agents have flush capability
                 for agent_name, agent_primitive in self.agents.items():
-                    if hasattr(agent_primitive, 'flush_recordings'):
+                    if hasattr(agent_primitive, "flush_recordings"):
                         await agent_primitive.flush_recordings()
 
             # 13. End chat session
             if self.chat_recorder and session_id:
-                await self.chat_recorder.end_session(session_id, status='COMPLETED')
+                await self.chat_recorder.end_session(session_id, status="COMPLETED")
 
             # 14. Build final results
             final_state = self.state_primitive.all() if self.state_primitive else {}
-            tools_used = [call.name for call in self.tool_primitive.get_all_calls()] if self.tool_primitive else []
+            tools_used = (
+                [call.name for call in self.tool_primitive.get_all_calls()]
+                if self.tool_primitive
+                else []
+            )
 
             logger.info(
                 f"Workflow execution complete: "
@@ -235,15 +245,17 @@ class TactusRuntime:
             )
 
             return {
-                'success': True,
-                'procedure_id': self.procedure_id,
-                'result': validated_result,
-                'state': final_state,
-                'iterations': self.iterations_primitive.current() if self.iterations_primitive else 0,
-                'tools_used': tools_used,
-                'stop_requested': self.stop_primitive.requested() if self.stop_primitive else False,
-                'stop_reason': self.stop_primitive.reason() if self.stop_primitive else None,
-                'session_id': session_id
+                "success": True,
+                "procedure_id": self.procedure_id,
+                "result": validated_result,
+                "state": final_state,
+                "iterations": (
+                    self.iterations_primitive.current() if self.iterations_primitive else 0
+                ),
+                "tools_used": tools_used,
+                "stop_requested": self.stop_primitive.requested() if self.stop_primitive else False,
+                "stop_reason": self.stop_primitive.reason() if self.stop_primitive else None,
+                "session_id": session_id,
             }
 
         except ProcedureWaitingForHuman as e:
@@ -252,19 +264,19 @@ class TactusRuntime:
             # Flush recordings before exiting
             if self.chat_recorder:
                 for agent_primitive in self.agents.values():
-                    if hasattr(agent_primitive, 'flush_recordings'):
+                    if hasattr(agent_primitive, "flush_recordings"):
                         await agent_primitive.flush_recordings()
 
             # Note: Procedure status updated by execution context
             # Chat session stays active for resume
 
             return {
-                'success': False,
-                'status': 'WAITING_FOR_HUMAN',
-                'procedure_id': self.procedure_id,
-                'pending_message_id': getattr(e, 'pending_message_id', None),
-                'message': str(e),
-                'session_id': session_id
+                "success": False,
+                "status": "WAITING_FOR_HUMAN",
+                "procedure_id": self.procedure_id,
+                "pending_message_id": getattr(e, "pending_message_id", None),
+                "message": str(e),
+                "session_id": session_id,
             }
 
         except ProcedureConfigError as e:
@@ -272,14 +284,14 @@ class TactusRuntime:
             # Flush recordings even on error
             if self.chat_recorder and session_id:
                 try:
-                    await self.chat_recorder.end_session(session_id, status='FAILED')
+                    await self.chat_recorder.end_session(session_id, status="FAILED")
                 except Exception as err:
                     logger.warning(f"Failed to end chat session: {err}")
 
             return {
-                'success': False,
-                'procedure_id': self.procedure_id,
-                'error': f"Configuration error: {e}"
+                "success": False,
+                "procedure_id": self.procedure_id,
+                "error": f"Configuration error: {e}",
             }
 
         except LuaSandboxError as e:
@@ -287,14 +299,14 @@ class TactusRuntime:
             # Flush recordings even on error
             if self.chat_recorder and session_id:
                 try:
-                    await self.chat_recorder.end_session(session_id, status='FAILED')
+                    await self.chat_recorder.end_session(session_id, status="FAILED")
                 except Exception as err:
                     logger.warning(f"Failed to end chat session: {err}")
 
             return {
-                'success': False,
-                'procedure_id': self.procedure_id,
-                'error': f"Lua execution error: {e}"
+                "success": False,
+                "procedure_id": self.procedure_id,
+                "error": f"Lua execution error: {e}",
             }
 
         except Exception as e:
@@ -302,14 +314,14 @@ class TactusRuntime:
             # Flush recordings even on error
             if self.chat_recorder and session_id:
                 try:
-                    await self.chat_recorder.end_session(session_id, status='FAILED')
+                    await self.chat_recorder.end_session(session_id, status="FAILED")
                 except Exception as err:
                     logger.warning(f"Failed to end chat session: {err}")
 
             return {
-                'success': False,
-                'procedure_id': self.procedure_id,
-                'error': f"Unexpected error: {e}"
+                "success": False,
+                "procedure_id": self.procedure_id,
+                "error": f"Unexpected error: {e}",
             }
 
     async def _initialize_primitives(self):
@@ -329,7 +341,7 @@ class TactusRuntime:
             context: Procedure context with pre-loaded data
         """
         # Get agent configurations
-        agents_config = self.config.get('agents', {})
+        agents_config = self.config.get("agents", {})
 
         if not agents_config:
             raise TactusRuntimeError("No agents defined in configuration")
@@ -346,11 +358,15 @@ class TactusRuntime:
         all_pydantic_tools = []
         if self.mcp_server:
             # Connect to MCP server and get tools
-            async with self.mcp_server.connect({'name': f'Tactus Runtime for {self.procedure_id}'}) as mcp_client:
+            async with self.mcp_server.connect(
+                {"name": f"Tactus Runtime for {self.procedure_id}"}
+            ) as mcp_client:
                 try:
                     from tactus.adapters.mcp import PydanticAIMCPAdapter
                 except ImportError as e:
-                    logger.warning(f"Could not import MCP adapter: {e} - external tools will not be available")
+                    logger.warning(
+                        f"Could not import MCP adapter: {e} - external tools will not be available"
+                    )
                 else:
                     # Create adapter with tool_primitive for recording
                     adapter = PydanticAIMCPAdapter(mcp_client, tool_primitive=self.tool_primitive)
@@ -362,7 +378,7 @@ class TactusRuntime:
 
         # Prepare output schema guidance if defined
         output_schema_guidance = None
-        if self.config.get('outputs'):
+        if self.config.get("outputs"):
             output_schema_guidance = self._format_output_schema_for_prompt()
             logger.info("Prepared output schema guidance for agents")
 
@@ -371,65 +387,79 @@ class TactusRuntime:
             logger.info(f"Setting up agent: {agent_name}")
 
             # Get agent prompts (initial_message needs template processing, system_prompt is dynamic)
-            system_prompt_template = agent_config['system_prompt']  # Keep as template for dynamic rendering
-            initial_message = self._process_template(agent_config['initial_message'], context)
+            system_prompt_template = agent_config[
+                "system_prompt"
+            ]  # Keep as template for dynamic rendering
+            initial_message = self._process_template(agent_config["initial_message"], context)
 
             # Provider is required - no defaults
-            provider_name = agent_config.get('provider') or self.config.get('default_provider')
+            provider_name = agent_config.get("provider") or self.config.get("default_provider")
             if not provider_name:
-                raise ValueError(f"Agent '{agent_name}' must specify a 'provider' (either on the agent or as 'default_provider' in the procedure)")
-            
+                raise ValueError(
+                    f"Agent '{agent_name}' must specify a 'provider' (either on the agent or as 'default_provider' in the procedure)"
+                )
+
             # Handle model - can be string or dict with settings
-            model_config = agent_config.get('model') or self.config.get('default_model') or 'gpt-4o'
+            model_config = agent_config.get("model") or self.config.get("default_model") or "gpt-4o"
             model_settings = None
-            
+
             if isinstance(model_config, dict):
                 # Model is a dict with name and settings
-                model_id = model_config.get('name')
+                model_id = model_config.get("name")
                 # Extract settings (everything except 'name')
-                model_settings = {k: v for k, v in model_config.items() if k != 'name'}
+                model_settings = {k: v for k, v in model_config.items() if k != "name"}
                 if model_settings:
                     logger.info(f"Agent '{agent_name}' using model settings: {model_settings}")
             else:
                 # Model is a simple string
                 model_id = model_config
-            
+
             # If model_id has a provider prefix AND no explicit provider was set, extract it
-            if ':' in model_id and not agent_config.get('provider') and not self.config.get('default_provider'):
-                prefix, model_id = model_id.split(':', 1)
+            if (
+                ":" in model_id
+                and not agent_config.get("provider")
+                and not self.config.get("default_provider")
+            ):
+                prefix, model_id = model_id.split(":", 1)
                 provider_name = prefix
-            
+
             # Construct the full model string for pydantic-ai
             model_name = f"{provider_name}:{model_id}"
-            
-            logger.info(f"Agent '{agent_name}' using provider '{provider_name}' with model '{model_id}'")
+
+            logger.info(
+                f"Agent '{agent_name}' using provider '{provider_name}' with model '{model_id}'"
+            )
 
             # Filter tools for this agent
-            allowed_tool_names = agent_config.get('tools', [])
+            allowed_tool_names = agent_config.get("tools", [])
             # Match tools by name (Pydantic AI Tool has a 'name' attribute)
             filtered_tools = [
-                tool for tool in all_pydantic_tools
-                if hasattr(tool, 'name') and tool.name in allowed_tool_names
+                tool
+                for tool in all_pydantic_tools
+                if hasattr(tool, "name") and tool.name in allowed_tool_names
             ]
 
-            logger.info(f"Agent '{agent_name}' has {len(filtered_tools)} tools: {allowed_tool_names}")
+            logger.info(
+                f"Agent '{agent_name}' has {len(filtered_tools)} tools: {allowed_tool_names}"
+            )
 
             # Handle structured output if specified
             result_type = None
-            if agent_config.get('output_schema'):
+            if agent_config.get("output_schema"):
                 # Agent has its own output schema - create Pydantic model
-                output_schema = agent_config['output_schema']
+                output_schema = agent_config["output_schema"]
                 try:
-                    result_type = self._create_output_model_from_schema(output_schema, f"{agent_name}Output")
+                    result_type = self._create_output_model_from_schema(
+                        output_schema, f"{agent_name}Output"
+                    )
                     logger.info(f"Created structured output model for agent '{agent_name}'")
                 except Exception as e:
                     logger.warning(f"Failed to create output model for agent '{agent_name}': {e}")
-            elif self.config.get('outputs'):
+            elif self.config.get("outputs"):
                 # Use procedure-level output schema
                 try:
                     result_type = self._create_output_model_from_schema(
-                        self.config['outputs'],
-                        f"{agent_name}Output"
+                        self.config["outputs"], f"{agent_name}Output"
                     )
                     logger.info(f"Using procedure-level output schema for agent '{agent_name}'")
                 except Exception as e:
@@ -450,14 +480,16 @@ class TactusRuntime:
                 context=context,
                 output_schema_guidance=output_schema_guidance,
                 chat_recorder=self.chat_recorder,
-                result_type=result_type
+                result_type=result_type,
             )
 
             self.agents[agent_name] = agent_primitive
 
             logger.info(f"Agent '{agent_name}' configured successfully with model '{model_name}'")
 
-    def _create_output_model_from_schema(self, output_schema: Dict[str, Any], model_name: str = "OutputModel") -> type:
+    def _create_output_model_from_schema(
+        self, output_schema: Dict[str, Any], model_name: str = "OutputModel"
+    ) -> type:
         """
         Create a Pydantic model from output schema definition.
 
@@ -470,27 +502,31 @@ class TactusRuntime:
         """
         fields = {}
         for field_name, field_def in output_schema.items():
-            field_type_str = field_def.get('type', 'string')
-            is_required = field_def.get('required', False)
+            field_type_str = field_def.get("type", "string")
+            is_required = field_def.get("required", False)
 
             # Map type strings to Python types
             type_mapping = {
-                'string': str,
-                'integer': int,
-                'number': float,
-                'boolean': bool,
-                'array': list,
-                'object': dict,
+                "string": str,
+                "integer": int,
+                "number": float,
+                "boolean": bool,
+                "array": list,
+                "object": dict,
             }
             python_type = type_mapping.get(field_type_str, str)
 
             # Create Field with description if available
-            description = field_def.get('description', '')
+            description = field_def.get("description", "")
             if is_required:
                 field = Field(..., description=description) if description else Field(...)
             else:
-                default = field_def.get('default', None)
-                field = Field(default=default, description=description) if description else Field(default=default)
+                default = field_def.get("default", None)
+                field = (
+                    Field(default=default, description=description)
+                    if description
+                    else Field(default=default)
+                )
 
             fields[field_name] = (python_type, field)
 
@@ -499,13 +535,13 @@ class TactusRuntime:
     def _inject_primitives(self):
         """Inject all primitives into Lua global scope."""
         # Inject params with default values, then override with context values
-        if 'params' in self.config:
-            params_config = self.config['params']
+        if "params" in self.config:
+            params_config = self.config["params"]
             param_values = {}
             # Start with defaults
             for param_name, param_def in params_config.items():
-                if 'default' in param_def:
-                    param_values[param_name] = param_def['default']
+                if "default" in param_def:
+                    param_values[param_name] = param_def["default"]
             # Override with context values
             for param_name in params_config.keys():
                 if param_name in self.context:
@@ -541,13 +577,14 @@ class TactusRuntime:
 
         if self.stage_primitive:
             logger.info(f"Injecting Stage primitive: {self.stage_primitive}")
+
             # Create wrapper to map 'is' (reserved keyword in Python) to 'is_current'
             class StageWrapper:
                 def __init__(self, stage_primitive):
                     self._stage = stage_primitive
 
                 def __getattr__(self, name):
-                    if name == 'is':
+                    if name == "is":
                         return self._stage.is_current
                     return getattr(self._stage, name)
 
@@ -592,7 +629,7 @@ class TactusRuntime:
         Returns:
             Result from Lua procedure execution
         """
-        procedure_code = self.config['procedure']
+        procedure_code = self.config["procedure"]
 
         logger.debug(f"Executing procedure code ({len(procedure_code)} bytes)")
 
@@ -623,13 +660,13 @@ class TactusRuntime:
             class DotFormatter(Formatter):
                 def get_field(self, field_name, args, kwargs):
                     # Support dot notation like {params.topic}
-                    parts = field_name.split('.')
+                    parts = field_name.split(".")
                     obj = kwargs
                     for part in parts:
                         if isinstance(obj, dict):
-                            obj = obj.get(part, '')
+                            obj = obj.get(part, "")
                         else:
-                            obj = getattr(obj, part, '')
+                            obj = getattr(obj, part, "")
                     return obj, field_name
 
             template_vars = {}
@@ -639,17 +676,17 @@ class TactusRuntime:
                 template_vars.update(context)
 
             # Add params from config with default values
-            if 'params' in self.config:
-                params = self.config['params']
+            if "params" in self.config:
+                params = self.config["params"]
                 param_values = {}
                 for param_name, param_def in params.items():
-                    if 'default' in param_def:
-                        param_values[param_name] = param_def['default']
-                template_vars['params'] = param_values
+                    if "default" in param_def:
+                        param_values[param_name] = param_def["default"]
+                template_vars["params"] = param_values
 
             # Add state (for dynamic templates)
             if self.state_primitive:
-                template_vars['state'] = self.state_primitive.all()
+                template_vars["state"] = self.state_primitive.all()
 
             # Use dot-notation formatter
             formatter = DotFormatter()
@@ -671,7 +708,7 @@ class TactusRuntime:
         Returns:
             Formatted string describing expected outputs
         """
-        outputs = self.config.get('outputs', {})
+        outputs = self.config.get("outputs", {})
         if not outputs:
             return ""
 
@@ -681,9 +718,9 @@ class TactusRuntime:
 
         # Format each output field
         for field_name, field_def in outputs.items():
-            field_type = field_def.get('type', 'any')
-            is_required = field_def.get('required', False)
-            description = field_def.get('description', '')
+            field_type = field_def.get("type", "any")
+            is_required = field_def.get("required", False)
+            description = field_def.get("description", "")
 
             req_marker = "**REQUIRED**" if is_required else "*optional*"
             lines.append(f"- **{field_name}** ({field_type}) - {req_marker}")
@@ -691,7 +728,9 @@ class TactusRuntime:
                 lines.append(f"  {description}")
             lines.append("")
 
-        lines.append("Note: The workflow orchestration code will extract and format these values from your tool calls and actions.")
+        lines.append(
+            "Note: The workflow orchestration code will extract and format these values from your tool calls and actions."
+        )
 
         return "\n".join(lines)
 

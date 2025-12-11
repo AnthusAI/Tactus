@@ -34,11 +34,7 @@ class CLIHITLHandler:
         self.console = console or Console()
         logger.info("CLIHITLHandler initialized")
 
-    def request_interaction(
-        self,
-        procedure_id: str,
-        request: HITLRequest
-    ) -> HITLResponse:
+    def request_interaction(self, procedure_id: str, request: HITLRequest) -> HITLResponse:
         """
         Request human interaction via CLI prompt.
 
@@ -57,18 +53,18 @@ class CLIHITLHandler:
             Panel(
                 request.message,
                 title=f"[bold]{request.request_type.upper()}[/bold]",
-                style="yellow"
+                style="yellow",
             )
         )
 
         # Handle based on request type
-        if request.request_type == 'approval':
+        if request.request_type == "approval":
             return self._handle_approval(request)
-        elif request.request_type == 'input':
+        elif request.request_type == "input":
             return self._handle_input(request)
-        elif request.request_type == 'review':
+        elif request.request_type == "review":
             return self._handle_review(request)
-        elif request.request_type == 'escalation':
+        elif request.request_type == "escalation":
             return self._handle_escalation(request)
         else:
             # Default: treat as input
@@ -79,16 +75,10 @@ class CLIHITLHandler:
         default = request.default_value if request.default_value is not None else False
 
         # Use rich Confirm for yes/no
-        approved = Confirm.ask(
-            "Approve?",
-            default=default,
-            console=self.console
-        )
+        approved = Confirm.ask("Approve?", default=default, console=self.console)
 
         return HITLResponse(
-            value=approved,
-            responded_at=datetime.now(timezone.utc),
-            timed_out=False
+            value=approved, responded_at=datetime.now(timezone.utc), timed_out=False
         )
 
     def _handle_input(self, request: HITLRequest) -> HITLResponse:
@@ -100,8 +90,8 @@ class CLIHITLHandler:
             # Display options
             self.console.print("\n[bold]Options:[/bold]")
             for i, option in enumerate(request.options, 1):
-                label = option.get('label', f"Option {i}")
-                description = option.get('description', '')
+                label = option.get("label", f"Option {i}")
+                description = option.get("description", "")
                 self.console.print(f"  {i}. [cyan]{label}[/cyan]")
                 if description:
                     self.console.print(f"     [dim]{description}[/dim]")
@@ -109,35 +99,27 @@ class CLIHITLHandler:
             # Get choice
             while True:
                 choice_str = Prompt.ask(
-                    "Select option (number)",
-                    default=default,
-                    console=self.console
+                    "Select option (number)", default=default, console=self.console
                 )
 
                 try:
                     choice = int(choice_str)
                     if 1 <= choice <= len(request.options):
                         selected = request.options[choice - 1]
-                        value = selected.get('value', selected.get('label'))
+                        value = selected.get("value", selected.get("label"))
                         break
                     else:
-                        self.console.print(f"[red]Invalid choice. Enter 1-{len(request.options)}[/red]")
+                        self.console.print(
+                            f"[red]Invalid choice. Enter 1-{len(request.options)}[/red]"
+                        )
                 except ValueError:
                     self.console.print("[red]Invalid input. Enter a number[/red]")
 
         else:
             # Free-form input
-            value = Prompt.ask(
-                "Enter value",
-                default=default,
-                console=self.console
-            )
+            value = Prompt.ask("Enter value", default=default, console=self.console)
 
-        return HITLResponse(
-            value=value,
-            responded_at=datetime.now(timezone.utc),
-            timed_out=False
-        )
+        return HITLResponse(value=value, responded_at=datetime.now(timezone.utc), timed_out=False)
 
     def _handle_review(self, request: HITLRequest) -> HITLResponse:
         """Handle review request."""
@@ -151,7 +133,7 @@ class CLIHITLHandler:
                 "Your decision",
                 choices=["1", "2", "3", "approve", "edit", "reject"],
                 default="1",
-                console=self.console
+                console=self.console,
             )
 
             if choice in ["1", "approve"]:
@@ -171,17 +153,9 @@ class CLIHITLHandler:
                 edited_artifact = None
                 break
 
-        value = {
-            'decision': decision,
-            'feedback': feedback,
-            'edited_artifact': edited_artifact
-        }
+        value = {"decision": decision, "feedback": feedback, "edited_artifact": edited_artifact}
 
-        return HITLResponse(
-            value=value,
-            responded_at=datetime.now(timezone.utc),
-            timed_out=False
-        )
+        return HITLResponse(value=value, responded_at=datetime.now(timezone.utc), timed_out=False)
 
     def _handle_escalation(self, request: HITLRequest) -> HITLResponse:
         """Handle escalation request."""
@@ -192,21 +166,13 @@ class CLIHITLHandler:
             "Press Enter to acknowledge and continue",
             default=True,
             show_default=False,
-            console=self.console
+            console=self.console,
         )
 
         # Escalation doesn't need a specific value
-        return HITLResponse(
-            value=None,
-            responded_at=datetime.now(timezone.utc),
-            timed_out=False
-        )
+        return HITLResponse(value=None, responded_at=datetime.now(timezone.utc), timed_out=False)
 
-    def check_pending_response(
-        self,
-        procedure_id: str,
-        message_id: str
-    ) -> Optional[HITLResponse]:
+    def check_pending_response(self, procedure_id: str, message_id: str) -> Optional[HITLResponse]:
         """
         Check for pending response (not used in CLI mode).
 
@@ -214,11 +180,7 @@ class CLIHITLHandler:
         """
         return None
 
-    def cancel_pending_request(
-        self,
-        procedure_id: str,
-        message_id: str
-    ) -> None:
+    def cancel_pending_request(self, procedure_id: str, message_id: str) -> None:
         """
         Cancel pending request (not used in CLI mode).
 

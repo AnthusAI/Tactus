@@ -14,13 +14,13 @@ def _ensure_state(context):
     return context.state
 
 
-@given('a fresh Tactus workflow environment')
+@given("a fresh Tactus workflow environment")
 def step_impl(context):
     """Initialize fresh workflow context."""
     context.workflow = {}
 
 
-@given('the state primitive is initialized')
+@given("the state primitive is initialized")
 def step_impl(context):
     """Initialize state primitive."""
     context.state = StatePrimitive()
@@ -123,7 +123,7 @@ def step_impl(context, key, item1, item2, item3):
     assert item3 in actual, f"{item3} not in list"
 
 
-@given('I am building an AI research workflow')
+@given("I am building an AI research workflow")
 def step_impl(context):
     """Set up research workflow context."""
     context.workflow_type = "ai_research"

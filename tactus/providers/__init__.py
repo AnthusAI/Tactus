@@ -9,4 +9,4 @@ from tactus.providers.base import ProviderConfig
 from tactus.providers.openai import OpenAIProvider
 from tactus.providers.bedrock import BedrockProvider
 
-__all__ = ['ProviderConfig', 'OpenAIProvider', 'BedrockProvider']
+__all__ = ["ProviderConfig", "OpenAIProvider", "BedrockProvider"]

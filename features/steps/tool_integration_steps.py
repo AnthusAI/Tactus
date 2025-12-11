@@ -17,7 +17,7 @@ def _tool_state(context):
     return context.tool_state
 
 
-@given('a Tactus workflow with MCP server configured')
+@given("a Tactus workflow with MCP server configured")
 def step_impl(context):
     state = _tool_state(context)
     state["server"] = FakeToolServer()
@@ -25,7 +25,7 @@ def step_impl(context):
     state["errors"] = []
 
 
-@given('the tool primitive is initialized')
+@given("the tool primitive is initialized")
 def step_impl(context):
     _tool_state(context)["primitive"] = ToolPrimitive()
 
@@ -63,19 +63,19 @@ def step_impl(context, name):
         context.agent_response = None
 
 
-@then('the tool should execute successfully')
+@then("the tool should execute successfully")
 def step_impl(context):
     assert context.tool_error is None, f"Unexpected tool error: {context.tool_error}"
     assert context.tool_result is not None, "Expected a tool result"
 
 
-@then('the result should contain weather data')
+@then("the result should contain weather data")
 def step_impl(context):
     result = context.tool_result or {}
     assert "temperature" in result and "conditions" in result
 
 
-@then('the tool call should fail')
+@then("the tool call should fail")
 def step_impl(context):
     assert context.tool_error is not None, "Expected tool call to fail"
 
@@ -108,7 +108,7 @@ def step_impl(context):
     context.paper_details = details
 
 
-@then('I should have detailed information for all papers')
+@then("I should have detailed information for all papers")
 def step_impl(context):
     assert len(context.paper_details) == len(context.paper_ids)
     for detail in context.paper_details:
@@ -137,12 +137,12 @@ def step_impl(context, timeout):
         context.workflow_timed_out = isinstance(exc, TimeoutError)
 
 
-@when('the tool takes longer than {seconds:d} seconds')
+@when("the tool takes longer than {seconds:d} seconds")
 def step_impl(context, seconds):
     _tool_state(context)["long_task_duration"] = seconds
 
 
-@then('the call should timeout')
+@then("the call should timeout")
 def step_impl(context):
     assert isinstance(context.tool_error, TimeoutError), "Expected timeout error"
 
@@ -158,7 +158,7 @@ def _parse_parameters(param_text: str) -> Dict[str, str]:
     return params
 
 
-@when('I call multiple tools in parallel:')
+@when("I call multiple tools in parallel:")
 def step_impl(context):
     state = _tool_state(context)
     calls = []
@@ -171,14 +171,14 @@ def step_impl(context):
         _record_call(state, call["tool"], call["params"], response["result"])
 
 
-@then('all tools should execute concurrently')
+@then("all tools should execute concurrently")
 def step_impl(context):
     results = context.parallel_results[0]["responses"]
     expected = _tool_state(context).get("parallel_call_count", 0)
     assert len(results) == expected
 
 
-@then('results should be collected when all complete')
+@then("results should be collected when all complete")
 def step_impl(context):
     responses = context.parallel_results[0]["responses"]
     assert all("result" in response for response in responses)

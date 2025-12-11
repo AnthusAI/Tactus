@@ -6,7 +6,7 @@ Implementations can use any storage backend (memory, files, databases, etc.).
 """
 
 from typing import Protocol, Optional, Any
-from tactus.protocols.models import ProcedureMetadata, CheckpointData
+from tactus.protocols.models import ProcedureMetadata
 
 
 class StorageBackend(Protocol):
@@ -45,10 +45,7 @@ class StorageBackend(Protocol):
         ...
 
     def update_procedure_status(
-        self,
-        procedure_id: str,
-        status: str,
-        waiting_on_message_id: Optional[str] = None
+        self, procedure_id: str, status: str, waiting_on_message_id: Optional[str] = None
     ) -> None:
         """
         Update procedure status (and optionally waiting message ID).
@@ -89,12 +86,7 @@ class StorageBackend(Protocol):
         """
         ...
 
-    def checkpoint_save(
-        self,
-        procedure_id: str,
-        name: str,
-        result: Any
-    ) -> None:
+    def checkpoint_save(self, procedure_id: str, name: str, result: Any) -> None:
         """
         Save a checkpoint.
 

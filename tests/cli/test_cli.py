@@ -6,7 +6,6 @@ commands work correctly and handle errors gracefully.
 """
 
 import pytest
-from pathlib import Path
 from typer.testing import CliRunner
 
 from tactus.cli.app import app
@@ -59,7 +58,7 @@ def test_cli_validate_invalid_yaml(cli_runner, tmp_path):
     """Test that validate command handles invalid YAML gracefully."""
     invalid_file = tmp_path / "invalid.tyml"
     invalid_file.write_text("invalid: yaml: content: [")
-    
+
     result = cli_runner.invoke(app, ["validate", str(invalid_file)])
     assert result.exit_code == 1
     assert "error" in result.stdout.lower() or "invalid" in result.stdout.lower()
@@ -110,9 +109,6 @@ outputs:
 """
     workflow_file = tmp_path / "params.tyml"
     workflow_file.write_text(workflow_content)
-    
-    result = cli_runner.invoke(
-        app,
-        ["run", str(workflow_file), "--param", "name=TestUser"]
-    )
+
+    result = cli_runner.invoke(app, ["run", str(workflow_file), "--param", "name=TestUser"])
     assert result.exit_code == 0

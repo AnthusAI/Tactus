@@ -14,6 +14,7 @@ from typing import Dict, Any, Optional
 try:
     import lupa
     from lupa import LuaRuntime
+
     LUPA_AVAILABLE = True
 except ImportError:
     LUPA_AVAILABLE = False
@@ -24,6 +25,7 @@ logger = logging.getLogger(__name__)
 
 class LuaSandboxError(Exception):
     """Raised when Lua sandbox setup or execution fails."""
+
     pass
 
 
@@ -33,15 +35,10 @@ class LuaSandbox:
     def __init__(self):
         """Initialize the Lua sandbox."""
         if not LUPA_AVAILABLE:
-            raise LuaSandboxError(
-                "lupa library not available. Install with: pip install lupa"
-            )
+            raise LuaSandboxError("lupa library not available. Install with: pip install lupa")
 
         # Create Lua runtime with safety restrictions
-        self.lua = LuaRuntime(
-            unpack_returned_tuples=True,
-            attribute_filter=self._attribute_filter
-        )
+        self.lua = LuaRuntime(unpack_returned_tuples=True, attribute_filter=self._attribute_filter)
 
         # Remove dangerous modules
         self._remove_dangerous_modules()
@@ -58,13 +55,20 @@ class LuaSandbox:
         This is called by lupa for all attribute access from Lua code.
         """
         # Block access to private/protected attributes
-        if attr_name.startswith('_'):
+        if attr_name.startswith("_"):
             raise AttributeError(f"Access to private attribute '{attr_name}' is not allowed")
 
         # Block access to certain dangerous methods
         blocked_methods = {
-            '__import__', '__loader__', '__spec__', '__builtins__',
-            'eval', 'exec', 'compile', 'open', '__subclasses__'
+            "__import__",
+            "__loader__",
+            "__spec__",
+            "__builtins__",
+            "eval",
+            "exec",
+            "compile",
+            "open",
+            "__subclasses__",
         }
 
         if attr_name in blocked_methods:
@@ -76,14 +80,14 @@ class LuaSandbox:
         """Remove dangerous Lua standard library modules."""
         # Remove modules that provide file system or system access
         dangerous_modules = [
-            'io',          # File I/O
-            'os',          # Operating system operations
-            'debug',       # Debug library (can break sandbox)
-            'package',     # Module loading
-            'dofile',      # Load and execute files
-            'loadfile',    # Load files
-            'load',        # Load code
-            'require',     # Require modules
+            "io",  # File I/O
+            "os",  # Operating system operations
+            "debug",  # Debug library (can break sandbox)
+            "package",  # Module loading
+            "dofile",  # Load and execute files
+            "loadfile",  # Load files
+            "load",  # Load code
+            "require",  # Require modules
         ]
 
         lua_globals = self.lua.globals()
@@ -99,28 +103,24 @@ class LuaSandbox:
         # (These are already available by default, just documenting them)
         safe_functions = {
             # Math
-            'math',        # Math library (safe)
-            'tonumber',    # Convert to number
-            'tostring',    # Convert to string
-
+            "math",  # Math library (safe)
+            "tonumber",  # Convert to number
+            "tostring",  # Convert to string
             # String operations
-            'string',      # String library
-
+            "string",  # String library
             # Table operations
-            'table',       # Table library
-            'pairs',       # Iterate over tables
-            'ipairs',      # Iterate over arrays
-            'next',        # Next element in table
-
+            "table",  # Table library
+            "pairs",  # Iterate over tables
+            "ipairs",  # Iterate over arrays
+            "next",  # Next element in table
             # Type checking
-            'type',        # Get type of value
-            'assert',      # Assertions
-            'error',       # Raise error
-            'pcall',       # Protected call (try/catch)
-
+            "type",  # Get type of value
+            "assert",  # Assertions
+            "error",  # Raise error
+            "pcall",  # Protected call (try/catch)
             # Other safe operations
-            'select',      # Select arguments
-            'unpack',      # Unpack table (Lua 5.1)
+            "select",  # Select arguments
+            "unpack",  # Unpack table (Lua 5.1)
         }
 
         # Just log what's available - no need to explicitly set
@@ -128,6 +128,7 @@ class LuaSandbox:
 
         # Add safe subset of os module (only date function for timestamps)
         from datetime import datetime
+
         def safe_date(format_str=None):
             """Safe implementation of os.date() for timestamp generation."""
             now = datetime.utcnow()
@@ -146,7 +147,7 @@ class LuaSandbox:
 
         # Create safe os table with only date function
         safe_os = self.lua.table(date=safe_date)
-        self.lua.globals()['os'] = safe_os
+        self.lua.globals()["os"] = safe_os
         logger.debug("Added safe os.date() function")
 
     def inject_primitive(self, name: str, primitive_obj: Any):

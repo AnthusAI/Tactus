@@ -8,7 +8,7 @@ Provides:
 
 import logging
 import json
-from typing import Any, Dict
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -122,7 +122,7 @@ class JsonPrimitive:
             from lupa import lua_type
 
             # Check if it's a Lua table
-            if lua_type(value) == 'table':
+            if lua_type(value) == "table":
                 # Try to determine if it's an array or dict
                 # Lua arrays have consecutive integer keys starting at 1
                 result = {}

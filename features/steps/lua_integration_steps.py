@@ -3,25 +3,25 @@ Step definitions for Lua Integration feature.
 """
 
 from behave import given, when, then
-from tactus.core.lua_sandbox import LuaSandbox, LuaSandboxError
+from tactus.core.lua_sandbox import LuaSandbox
 from tactus.primitives.state import StatePrimitive
 from tactus.core.execution_context import InMemoryExecutionContext
 
 
-@given('a Tactus workflow environment')
+@given("a Tactus workflow environment")
 def step_impl(context):
     """Initialize workflow environment."""
     context.procedure_id = "test_lua_procedure"
     context.execution_context = InMemoryExecutionContext(procedure_id=context.procedure_id)
 
 
-@given('a Lua sandbox is initialized')
+@given("a Lua sandbox is initialized")
 def step_impl(context):
     """Initialize Lua sandbox."""
     context.lua = LuaSandbox()
 
 
-@when('I execute Lua code:')
+@when("I execute Lua code:")
 def step_impl(context):
     """Execute Lua code from docstring."""
     lua_code = context.text
@@ -31,11 +31,12 @@ def step_impl(context):
         context.state = StatePrimitive()
     context.lua.inject_primitive("state", context.state)
 
-    if 'agent:' in lua_code and not context.lua.get_global('agent'):
+    if "agent:" in lua_code and not context.lua.get_global("agent"):
         # Create mock agent for testing
         class MockAgent:
             def call(self, prompt):
                 return f"Mock response to: {prompt}"
+
         context.lua.inject_primitive("agent", MockAgent())
 
     try:
@@ -50,7 +51,7 @@ def step_impl(context):
 
 def _convert_lua_value(value):
     """Recursively convert Lua values to Python types."""
-    if hasattr(value, '__class__') and 'LuaTable' in value.__class__.__name__:
+    if hasattr(value, "__class__") and "LuaTable" in value.__class__.__name__:
         # Check if it's an array (sequential integer keys starting from 1)
         try:
             # Try to iterate as a list
@@ -79,13 +80,13 @@ def _convert_lua_value(value):
         return value
 
 
-@then('the result should be {expected:d}')
+@then("the result should be {expected:d}")
 def step_impl(context, expected):
     """Verify result equals expected integer."""
     assert context.result == expected, f"Expected {expected}, got {context.result}"
 
 
-@given('primitives are available in Lua environment')
+@given("primitives are available in Lua environment")
 def step_impl(context):
     """Inject primitives into Lua environment."""
     # Create state primitive
@@ -95,7 +96,7 @@ def step_impl(context):
     context.lua.inject_primitive("state", context.state)
 
 
-@then('the result should be a Python dict')
+@then("the result should be a Python dict")
 def step_impl(context):
     """Verify result is a Python dictionary."""
     assert isinstance(context.result, dict), f"Expected dict, got {type(context.result)}"
@@ -130,40 +131,42 @@ def step_impl(context, module):
         context.result = None
 
 
-@then('the code should be blocked')
+@then("the code should be blocked")
 def step_impl(context):
     """Verify code was blocked."""
     # Either error was raised or result is nil/None
-    assert context.error is not None or context.result is None, \
-        "Expected code to be blocked"
+    assert context.error is not None or context.result is None, "Expected code to be blocked"
 
 
-@then('an error should be raised about restricted access')
+@then("an error should be raised about restricted access")
 def step_impl(context):
     """Verify error message mentions restricted access."""
     if context.error:
         error_msg = str(context.error).lower()
         # Check for various error indicators
-        assert any(keyword in error_msg for keyword in ['nil', 'attempt to call', 'restricted', 'not allowed', 'error']), \
-            f"Error message doesn't indicate restricted access: {error_msg}"
+        assert any(
+            keyword in error_msg
+            for keyword in ["nil", "attempt to call", "restricted", "not allowed", "error"]
+        ), f"Error message doesn't indicate restricted access: {error_msg}"
 
 
 @given('a Python function "{func_name}" is exported to Lua')
 def step_impl(context, func_name):
     """Export a Python function to Lua."""
+
     def multiply(a, b):
         return a * b
 
     context.lua.inject_primitive(func_name, multiply)
 
 
-@then('the result should be false')
+@then("the result should be false")
 def step_impl(context):
     """Verify result is false."""
     assert context.result is False, f"Expected False, got {context.result}"
 
 
-@then('no Python exception should be raised')
+@then("no Python exception should be raised")
 def step_impl(context):
     """Verify no Python exception was raised."""
     assert context.error is None, f"Unexpected exception: {context.error}"

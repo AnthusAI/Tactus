@@ -7,7 +7,6 @@ passed to the underlying LLM models.
 
 import pytest
 import os
-from pathlib import Path
 
 from tactus.core.runtime import TactusRuntime
 from tactus.adapters.memory import MemoryStorage
@@ -27,8 +26,10 @@ def require_real_api(use_real_api):
 @pytest.fixture(autouse=True)
 def require_openai_key():
     """All tests in this module require OPENAI_API_KEY."""
-    if not os.environ.get('OPENAI_API_KEY'):
-        pytest.fail("OPENAI_API_KEY environment variable not set. Integration tests require real API access.")
+    if not os.environ.get("OPENAI_API_KEY"):
+        pytest.fail(
+            "OPENAI_API_KEY environment variable not set. Integration tests require real API access."
+        )
 
 
 @pytest.mark.asyncio
@@ -59,28 +60,28 @@ procedure: |
   
   return { completed = true }
 """
-    
+
     runtime = TactusRuntime(
         procedure_id="test-temperature",
         storage_backend=MemoryStorage(),
         hitl_handler=None,
         chat_recorder=None,
         mcp_server=None,
-        openai_api_key=os.environ.get('OPENAI_API_KEY')
+        openai_api_key=os.environ.get("OPENAI_API_KEY"),
     )
-    
+
     result = await runtime.execute(yaml_config, context={})
-    
-    assert result['success'], f"Procedure failed: {result.get('error', 'Unknown error')}"
-    
+
+    assert result["success"], f"Procedure failed: {result.get('error', 'Unknown error')}"
+
     # Extract result
-    result_data = result['result']
+    result_data = result["result"]
     if isinstance(result_data, dict) and 1 in result_data:
         result_data = result_data[1]
-    if hasattr(result_data, 'items'):
+    if hasattr(result_data, "items"):
         result_data = dict(result_data.items())
-    
-    assert result_data['completed'] is True
+
+    assert result_data["completed"] is True
 
 
 @pytest.mark.asyncio
@@ -111,28 +112,28 @@ procedure: |
   
   return { completed = true }
 """
-    
+
     runtime = TactusRuntime(
         procedure_id="test-reasoning",
         storage_backend=MemoryStorage(),
         hitl_handler=None,
         chat_recorder=None,
         mcp_server=None,
-        openai_api_key=os.environ.get('OPENAI_API_KEY')
+        openai_api_key=os.environ.get("OPENAI_API_KEY"),
     )
-    
+
     result = await runtime.execute(yaml_config, context={})
-    
-    assert result['success'], f"Procedure failed: {result.get('error', 'Unknown error')}"
-    
+
+    assert result["success"], f"Procedure failed: {result.get('error', 'Unknown error')}"
+
     # Extract result
-    result_data = result['result']
+    result_data = result["result"]
     if isinstance(result_data, dict) and 1 in result_data:
         result_data = result_data[1]
-    if hasattr(result_data, 'items'):
+    if hasattr(result_data, "items"):
         result_data = dict(result_data.items())
-    
-    assert result_data['completed'] is True
+
+    assert result_data["completed"] is True
 
 
 @pytest.mark.asyncio
@@ -180,25 +181,25 @@ procedure: |
   
   return { completed = true }
 """
-    
+
     runtime = TactusRuntime(
         procedure_id="test-mixed",
         storage_backend=MemoryStorage(),
         hitl_handler=None,
         chat_recorder=None,
         mcp_server=None,
-        openai_api_key=os.environ.get('OPENAI_API_KEY')
+        openai_api_key=os.environ.get("OPENAI_API_KEY"),
     )
-    
+
     result = await runtime.execute(yaml_config, context={})
-    
-    assert result['success'], f"Procedure failed: {result.get('error', 'Unknown error')}"
-    
+
+    assert result["success"], f"Procedure failed: {result.get('error', 'Unknown error')}"
+
     # Extract result
-    result_data = result['result']
+    result_data = result["result"]
     if isinstance(result_data, dict) and 1 in result_data:
         result_data = result_data[1]
-    if hasattr(result_data, 'items'):
+    if hasattr(result_data, "items"):
         result_data = dict(result_data.items())
-    
-    assert result_data['completed'] is True
+
+    assert result_data["completed"] is True

@@ -8,19 +8,18 @@ from tactus.adapters.memory import MemoryStorage
 import math
 
 
-@given('a Tactus workflow with checkpointing enabled')
+@given("a Tactus workflow with checkpointing enabled")
 def step_impl(context):
     """Initialize workflow with checkpointing."""
     context.procedure_id = "test_procedure"
     context.storage = MemoryStorage()
     context.execution_context = BaseExecutionContext(
-        procedure_id=context.procedure_id,
-        storage_backend=context.storage
+        procedure_id=context.procedure_id, storage_backend=context.storage
     )
     context.execution_count = {}  # Track how many times operations execute
 
 
-@given('an in-memory storage backend')
+@given("an in-memory storage backend")
 def step_impl(context):
     """Storage backend is already initialized in previous step."""
     assert context.storage is not None
@@ -45,7 +44,7 @@ def step_impl(context, checkpoint_name):
     context.result = context.execution_context.step_run(checkpoint_name, compute_factorial)
 
 
-@then('the operation should execute')
+@then("the operation should execute")
 def step_impl(context):
     """Verify operation was executed (not cached)."""
     # Check that at least one operation was executed
@@ -53,7 +52,7 @@ def step_impl(context):
     assert total_executions > 0, "Expected operation to execute"
 
 
-@then('the result should be checkpointed')
+@then("the result should be checkpointed")
 def step_impl(context):
     """Verify result was saved to storage."""
     # The step_run should have saved it, we'll verify in next step
@@ -73,7 +72,7 @@ def step_impl(context, checkpoint_name, result):
     context.execution_count[checkpoint_name] = 0  # Reset execution counter
 
 
-@then('the operation should NOT execute')
+@then("the operation should NOT execute")
 def step_impl(context):
     """Verify operation was not executed (used cache)."""
     # Check that no new executions occurred
@@ -82,7 +81,7 @@ def step_impl(context):
     assert has_cached, "Expected at least one operation to use cached result"
 
 
-@then('the result should equal {expected:d} from cache')
+@then("the result should equal {expected:d} from cache")
 def step_impl(context, expected):
     """Verify result matches cached value."""
     assert context.result == expected, f"Expected {expected}, got {context.result}"
@@ -131,7 +130,7 @@ def step_impl(context, checkpoint_name):
     assert exists, f"Checkpoint {checkpoint_name} should exist"
 
 
-@when('I clear all checkpoints')
+@when("I clear all checkpoints")
 def step_impl(context):
     """Clear all checkpoints from storage."""
     context.storage.checkpoint_clear_all(context.procedure_id)
@@ -149,7 +148,7 @@ def step_impl(context, checkpoint_name):
     context.result = context.execution_context.step_run(checkpoint_name, compute)
 
 
-@then('the result should equal {expected:d}')
+@then("the result should equal {expected:d}")
 def step_impl(context, expected):
     """Verify result equals expected value."""
     assert context.result == expected, f"Expected {expected}, got {context.result}"

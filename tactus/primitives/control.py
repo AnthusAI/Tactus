@@ -57,9 +57,7 @@ class IterationsPrimitive:
         """
         exceeded = self._current_iteration >= max_iterations
         if exceeded:
-            logger.warning(
-                f"Iterations exceeded: {self._current_iteration} >= {max_iterations}"
-            )
+            logger.warning(f"Iterations exceeded: {self._current_iteration} >= {max_iterations}")
         return exceeded
 
     def increment(self) -> int:
@@ -157,10 +155,7 @@ class StopPrimitive:
         self._success = success
 
         log_level = logging.INFO if success else logging.WARNING
-        logger.log(
-            log_level,
-            f"Stop requested: {reason} (success={success})"
-        )
+        logger.log(log_level, f"Stop requested: {reason} (success={success})")
 
     def reset(self) -> None:
         """Reset stop state (mainly for testing)."""

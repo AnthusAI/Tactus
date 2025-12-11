@@ -18,9 +18,7 @@ class ChatRecorder(Protocol):
     """
 
     async def start_session(
-        self,
-        procedure_id: str,
-        context: Optional[Dict[str, Any]] = None
+        self, procedure_id: str, context: Optional[Dict[str, Any]] = None
     ) -> str:
         """
         Start a new chat session for a procedure.
@@ -52,11 +50,7 @@ class ChatRecorder(Protocol):
         """
         ...
 
-    async def end_session(
-        self,
-        session_id: str,
-        status: str = 'COMPLETED'
-    ) -> None:
+    async def end_session(self, session_id: str, status: str = "COMPLETED") -> None:
         """
         End a chat session.
 
@@ -70,9 +64,7 @@ class ChatRecorder(Protocol):
         ...
 
     async def get_session_messages(
-        self,
-        session_id: str,
-        limit: Optional[int] = None
+        self, session_id: str, limit: Optional[int] = None
     ) -> list[ChatMessage]:
         """
         Get messages from a session.

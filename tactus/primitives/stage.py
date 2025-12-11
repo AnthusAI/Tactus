@@ -82,11 +82,13 @@ class StagePrimitive:
         self._current_stage = stage
 
         # Record transition in history
-        self._history.append({
-            'from_stage': old_stage,
-            'to_stage': stage,
-            'timestamp': datetime.now(timezone.utc).isoformat()
-        })
+        self._history.append(
+            {
+                "from_stage": old_stage,
+                "to_stage": stage,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+        )
 
         logger.info(f"Stage transition: {old_stage} -> {stage}")
 
@@ -115,7 +117,9 @@ class StagePrimitive:
         try:
             current_index = self.declared_stages.index(self._current_stage)
         except ValueError:
-            raise ValueError(f"Current stage '{self._current_stage}' not in declared stages: {self.declared_stages}")
+            raise ValueError(
+                f"Current stage '{self._current_stage}' not in declared stages: {self.declared_stages}"
+            )
 
         # Check if there's a next stage
         if current_index >= len(self.declared_stages) - 1:

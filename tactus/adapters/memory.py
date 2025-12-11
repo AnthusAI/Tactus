@@ -9,7 +9,6 @@ from typing import Optional, Any, Dict
 from datetime import datetime, timezone
 
 from tactus.protocols.models import ProcedureMetadata, CheckpointData
-from tactus.core.exceptions import StorageError
 
 
 class MemoryStorage:
@@ -27,9 +26,7 @@ class MemoryStorage:
         """Load procedure metadata from memory."""
         if procedure_id not in self._procedures:
             # Create new metadata if doesn't exist
-            self._procedures[procedure_id] = ProcedureMetadata(
-                procedure_id=procedure_id
-            )
+            self._procedures[procedure_id] = ProcedureMetadata(procedure_id=procedure_id)
         return self._procedures[procedure_id]
 
     def save_procedure_metadata(self, metadata: ProcedureMetadata) -> None:
@@ -37,10 +34,7 @@ class MemoryStorage:
         self._procedures[metadata.procedure_id] = metadata
 
     def update_procedure_status(
-        self,
-        procedure_id: str,
-        status: str,
-        waiting_on_message_id: Optional[str] = None
+        self, procedure_id: str, status: str, waiting_on_message_id: Optional[str] = None
     ) -> None:
         """Update procedure status."""
         metadata = self.load_procedure_metadata(procedure_id)
@@ -59,18 +53,11 @@ class MemoryStorage:
         checkpoint = metadata.checkpoints.get(name)
         return checkpoint.result if checkpoint else None
 
-    def checkpoint_save(
-        self,
-        procedure_id: str,
-        name: str,
-        result: Any
-    ) -> None:
+    def checkpoint_save(self, procedure_id: str, name: str, result: Any) -> None:
         """Save a checkpoint."""
         metadata = self.load_procedure_metadata(procedure_id)
         metadata.checkpoints[name] = CheckpointData(
-            name=name,
-            result=result,
-            completed_at=datetime.now(timezone.utc)
+            name=name, result=result, completed_at=datetime.now(timezone.utc)
         )
         self.save_procedure_metadata(metadata)
 
@@ -92,8 +79,7 @@ class MemoryStorage:
 
         # Keep only checkpoints older than target
         metadata.checkpoints = {
-            k: v for k, v in metadata.checkpoints.items()
-            if v.completed_at < target_time
+            k: v for k, v in metadata.checkpoints.items() if v.completed_at < target_time
         }
         self.save_procedure_metadata(metadata)
 

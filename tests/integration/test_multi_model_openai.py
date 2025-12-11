@@ -9,8 +9,6 @@ Without --real-api flag, these tests will be skipped (integration tests require 
 
 import pytest
 import os
-from pathlib import Path
-from typing import Dict, Any
 
 from tactus.core.runtime import TactusRuntime
 from tactus.adapters.memory import MemoryStorage
@@ -22,20 +20,20 @@ pytestmark = pytest.mark.integration
 
 # List of OpenAI models to test (as specified in requirements)
 OPENAI_MODELS = [
-    'gpt-4o',
-    'gpt-4o-mini',
-    'gpt-4.1',
-    'gpt-4.1-mini',
-    'gpt-5',
-    'gpt-5-mini',
-    'gpt-5.1'
+    "gpt-4o",
+    "gpt-4o-mini",
+    "gpt-4.1",
+    "gpt-4.1-mini",
+    "gpt-5",
+    "gpt-5-mini",
+    "gpt-5.1",
 ]
 
 # GPT-4 models that support standard parameters
-GPT4_MODELS = ['gpt-4o', 'gpt-4o-mini', 'gpt-4.1', 'gpt-4.1-mini']
+GPT4_MODELS = ["gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini"]
 
 # Reasoning models that support reasoning_effort
-REASONING_MODELS = ['gpt-5', 'gpt-5-mini', 'gpt-5-nano', 'gpt-5.1']
+REASONING_MODELS = ["gpt-5", "gpt-5-mini", "gpt-5-nano", "gpt-5.1"]
 
 
 def create_simple_procedure_yaml(model: str, agent_name: str = "greeter") -> str:
@@ -141,8 +139,10 @@ def require_real_api(use_real_api):
 @pytest.fixture(autouse=True)
 def require_openai_key():
     """All tests in this module require OPENAI_API_KEY."""
-    if not os.environ.get('OPENAI_API_KEY'):
-        pytest.fail("OPENAI_API_KEY environment variable not set. Integration tests require real API access.")
+    if not os.environ.get("OPENAI_API_KEY"):
+        pytest.fail(
+            "OPENAI_API_KEY environment variable not set. Integration tests require real API access."
+        )
 
 
 @pytest.mark.asyncio
@@ -150,7 +150,7 @@ def require_openai_key():
 async def test_single_model_procedure(model: str):
     """
     Test that a procedure can use a specific OpenAI model.
-    
+
     This test verifies:
     1. Model can be specified in agent config
     2. Procedure executes successfully
@@ -163,27 +163,27 @@ async def test_single_model_procedure(model: str):
         hitl_handler=None,
         chat_recorder=None,
         mcp_server=None,
-        openai_api_key=os.environ.get('OPENAI_API_KEY')
+        openai_api_key=os.environ.get("OPENAI_API_KEY"),
     )
-    
+
     # Create and execute procedure
     yaml_config = create_simple_procedure_yaml(model)
-    result = await runtime.execute(yaml_config, context={'name': 'TestUser'})
-    
+    result = await runtime.execute(yaml_config, context={"name": "TestUser"})
+
     # Verify execution succeeded
-    assert result['success'], f"Procedure failed: {result.get('error', 'Unknown error')}"
-    
+    assert result["success"], f"Procedure failed: {result.get('error', 'Unknown error')}"
+
     # Extract result - Lua returns {1: <table>} for single return value
-    result_data = result['result']
+    result_data = result["result"]
     if isinstance(result_data, dict) and 1 in result_data:
         result_data = result_data[1]
-    
+
     # Convert Lua table to dict if needed
-    if hasattr(result_data, 'items'):
+    if hasattr(result_data, "items"):
         result_data = dict(result_data.items())
-    
-    assert result_data['completed'] is True
-    assert 'greeting' in result_data
+
+    assert result_data["completed"] is True
+    assert "greeting" in result_data
 
 
 @pytest.mark.asyncio
@@ -221,58 +221,58 @@ procedure: |
     greeting = Tool.last_call("done").args.reason
   }
 """
-    
+
     runtime = TactusRuntime(
         procedure_id="test-default-model",
         storage_backend=MemoryStorage(),
         hitl_handler=None,
         chat_recorder=None,
         mcp_server=None,
-        openai_api_key=os.environ.get('OPENAI_API_KEY')
+        openai_api_key=os.environ.get("OPENAI_API_KEY"),
     )
-    
-    result = await runtime.execute(yaml_config, context={'name': 'TestUser'})
-    
-    assert result['success'], f"Procedure failed: {result.get('error', 'Unknown error')}"
-    
+
+    result = await runtime.execute(yaml_config, context={"name": "TestUser"})
+
+    assert result["success"], f"Procedure failed: {result.get('error', 'Unknown error')}"
+
     # Extract result - Lua returns {1: <table>} for single return value
-    result_data = result['result']
+    result_data = result["result"]
     if isinstance(result_data, dict) and 1 in result_data:
         result_data = result_data[1]
-    if hasattr(result_data, 'items'):
+    if hasattr(result_data, "items"):
         result_data = dict(result_data.items())
-    
-    assert result_data['completed'] is True
+
+    assert result_data["completed"] is True
 
 
 @pytest.mark.asyncio
 async def test_multi_agent_different_models():
     """Test that different agents can use different models."""
-    yaml_config = create_multi_agent_procedure_yaml('gpt-4o-mini', 'gpt-4o')
-    
+    yaml_config = create_multi_agent_procedure_yaml("gpt-4o-mini", "gpt-4o")
+
     runtime = TactusRuntime(
         procedure_id="test-multi-agent",
         storage_backend=MemoryStorage(),
         hitl_handler=None,
         chat_recorder=None,
         mcp_server=None,
-        openai_api_key=os.environ.get('OPENAI_API_KEY')
+        openai_api_key=os.environ.get("OPENAI_API_KEY"),
     )
-    
-    result = await runtime.execute(yaml_config, context={'task': 'test task'})
-    
-    assert result['success'], f"Procedure failed: {result.get('error', 'Unknown error')}"
-    
+
+    result = await runtime.execute(yaml_config, context={"task": "test task"})
+
+    assert result["success"], f"Procedure failed: {result.get('error', 'Unknown error')}"
+
     # Extract result - Lua returns {1: <table>} for single return value
-    result_data = result['result']
+    result_data = result["result"]
     if isinstance(result_data, dict) and 1 in result_data:
         result_data = result_data[1]
-    if hasattr(result_data, 'items'):
+    if hasattr(result_data, "items"):
         result_data = dict(result_data.items())
-    
-    assert result_data['completed'] is True
-    assert 'worker_output' in result_data
-    assert 'reviewer_output' in result_data
+
+    assert result_data["completed"] is True
+    assert "worker_output" in result_data
+    assert "reviewer_output" in result_data
 
 
 @pytest.mark.asyncio
@@ -301,28 +301,28 @@ procedure: |
   
   return { completed = true }
 """
-    
+
     runtime = TactusRuntime(
         procedure_id="test-prefix",
         storage_backend=MemoryStorage(),
         hitl_handler=None,
         chat_recorder=None,
         mcp_server=None,
-        openai_api_key=os.environ.get('OPENAI_API_KEY')
+        openai_api_key=os.environ.get("OPENAI_API_KEY"),
     )
-    
+
     result = await runtime.execute(yaml_config, context={})
-    
-    assert result['success'], f"Procedure failed: {result.get('error', 'Unknown error')}"
-    
+
+    assert result["success"], f"Procedure failed: {result.get('error', 'Unknown error')}"
+
     # Extract result - Lua returns {1: <table>} for single return value
-    result_data = result['result']
+    result_data = result["result"]
     if isinstance(result_data, dict) and 1 in result_data:
         result_data = result_data[1]
-    if hasattr(result_data, 'items'):
+    if hasattr(result_data, "items"):
         result_data = dict(result_data.items())
-    
-    assert result_data['completed'] is True
+
+    assert result_data["completed"] is True
 
 
 @pytest.mark.asyncio
@@ -330,7 +330,7 @@ procedure: |
 async def test_gpt4_with_temperature_parameter(model: str):
     """
     Test GPT-4 models with temperature parameter.
-    
+
     Verifies that temperature setting is accepted and procedure executes.
     """
     yaml_config = f"""
@@ -359,28 +359,28 @@ procedure: |
   
   return {{{{ completed = true }}}}
 """
-    
+
     runtime = TactusRuntime(
         procedure_id=f"test-temp-{model}",
         storage_backend=MemoryStorage(),
         hitl_handler=None,
         chat_recorder=None,
         mcp_server=None,
-        openai_api_key=os.environ.get('OPENAI_API_KEY')
+        openai_api_key=os.environ.get("OPENAI_API_KEY"),
     )
-    
+
     result = await runtime.execute(yaml_config, context={})
-    
-    assert result['success'], f"Procedure failed: {result.get('error', 'Unknown error')}"
-    
+
+    assert result["success"], f"Procedure failed: {result.get('error', 'Unknown error')}"
+
     # Extract result
-    result_data = result['result']
+    result_data = result["result"]
     if isinstance(result_data, dict) and 1 in result_data:
         result_data = result_data[1]
-    if hasattr(result_data, 'items'):
+    if hasattr(result_data, "items"):
         result_data = dict(result_data.items())
-    
-    assert result_data['completed'] is True
+
+    assert result_data["completed"] is True
 
 
 @pytest.mark.asyncio
@@ -388,7 +388,7 @@ procedure: |
 async def test_reasoning_model_with_effort_parameter(model: str):
     """
     Test reasoning models with openai_reasoning_effort parameter.
-    
+
     Verifies that reasoning_effort setting is accepted and procedure executes.
     """
     yaml_config = f"""
@@ -417,35 +417,35 @@ procedure: |
   
   return {{{{ completed = true }}}}
 """
-    
+
     runtime = TactusRuntime(
         procedure_id=f"test-reasoning-{model}",
         storage_backend=MemoryStorage(),
         hitl_handler=None,
         chat_recorder=None,
         mcp_server=None,
-        openai_api_key=os.environ.get('OPENAI_API_KEY')
+        openai_api_key=os.environ.get("OPENAI_API_KEY"),
     )
-    
+
     result = await runtime.execute(yaml_config, context={})
-    
-    assert result['success'], f"Procedure failed: {result.get('error', 'Unknown error')}"
-    
+
+    assert result["success"], f"Procedure failed: {result.get('error', 'Unknown error')}"
+
     # Extract result
-    result_data = result['result']
+    result_data = result["result"]
     if isinstance(result_data, dict) and 1 in result_data:
         result_data = result_data[1]
-    if hasattr(result_data, 'items'):
+    if hasattr(result_data, "items"):
         result_data = dict(result_data.items())
-    
-    assert result_data['completed'] is True
+
+    assert result_data["completed"] is True
 
 
 @pytest.mark.asyncio
 async def test_nested_dict_model_format():
     """
     Test that nested dict model format (with parameters) works.
-    
+
     This is a quick test to verify the dict format is accepted and works.
     The test_gpt4_with_temperature_parameter tests already verify parameters work.
     """
@@ -474,25 +474,25 @@ procedure: |
   
   return { completed = true }
 """
-    
+
     runtime = TactusRuntime(
         procedure_id="test-dict-format",
         storage_backend=MemoryStorage(),
         hitl_handler=None,
         chat_recorder=None,
         mcp_server=None,
-        openai_api_key=os.environ.get('OPENAI_API_KEY')
+        openai_api_key=os.environ.get("OPENAI_API_KEY"),
     )
-    
+
     result = await runtime.execute(yaml_config, context={})
-    
-    assert result['success'], f"Procedure failed: {result.get('error', 'Unknown error')}"
-    
+
+    assert result["success"], f"Procedure failed: {result.get('error', 'Unknown error')}"
+
     # Extract result
-    result_data = result['result']
+    result_data = result["result"]
     if isinstance(result_data, dict) and 1 in result_data:
         result_data = result_data[1]
-    if hasattr(result_data, 'items'):
+    if hasattr(result_data, "items"):
         result_data = dict(result_data.items())
-    
-    assert result_data['completed'] is True
+
+    assert result_data["completed"] is True

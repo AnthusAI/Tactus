@@ -32,19 +32,19 @@ def _stage_id_by_name(tracker: StageTracker, name: str) -> str:
     return stage_id
 
 
-@given('stage and step primitives are initialized')
+@given("stage and step primitives are initialized")
 def step_impl(context):
     _stage_state(context)["tracker"] = StageTracker()
     if not hasattr(context, "state") or context.state is None:
         context.state = StatePrimitive()
 
 
-@given('a workflow with stages:')
+@given("a workflow with stages:")
 def step_impl(context):
     _tracker(context).define_stages(context.table)
 
 
-@given('a workflow with {count:d} stages')
+@given("a workflow with {count:d} stages")
 def step_impl(context, count):
     _tracker(context).define_numeric_stages(count)
 
@@ -54,7 +54,7 @@ def step_impl(context, stage_id):
     _tracker(context).begin_stage(stage_id)
 
 
-@when('I complete stage {index:d}')
+@when("I complete stage {index:d}")
 def step_impl(context, index):
     stage_id = f"stage{index}"
     tracker = _tracker(context)
@@ -62,7 +62,7 @@ def step_impl(context, index):
     tracker.complete_stage(stage_id)
 
 
-@when('I begin stage {index:d}')
+@when("I begin stage {index:d}")
 def step_impl(context, index):
     _tracker(context).begin_stage(f"stage{index}")
 
@@ -128,7 +128,7 @@ def step_impl(context, step_name, status):
     assert tracker.stages[tracker.current_stage].steps[step_name] == status
 
 
-@given('a stage with {total:d} steps')
+@given("a stage with {total:d} steps")
 def step_impl(context, total):
     tracker = _tracker(context)
     stage_id = "progress_stage"
@@ -137,14 +137,14 @@ def step_impl(context, total):
     _stage_state(context)["progress_total"] = total
 
 
-@when('{completed:d} steps are completed')
+@when("{completed:d} steps are completed")
 def step_impl(context, completed):
     tracker = _tracker(context)
     total = _stage_state(context)["progress_total"]
     tracker.set_progress(tracker.current_stage, completed, total)
 
 
-@then('stage progress should be {percent:d}%')
+@then("stage progress should be {percent:d}%")
 def step_impl(context, percent):
     tracker = _tracker(context)
     progress = tracker.stages[tracker.current_stage].progress
@@ -173,21 +173,21 @@ def step_impl(context, child):
     tracker.set_child_completion(_stage_state(context)["parent"])
 
 
-@then('parent stage progress should reflect child completion')
+@then("parent stage progress should reflect child completion")
 def step_impl(context):
     tracker = _tracker(context)
     parent = _stage_state(context)["parent"]
     assert tracker.stages[parent].progress == 50.0
 
 
-@then('parent should be 50% complete')
+@then("parent should be 50% complete")
 def step_impl(context):
     tracker = _tracker(context)
     parent = _stage_state(context)["parent"]
     assert tracker.stages[parent].progress == 50.0
 
 
-@then('step duration should be approximately {seconds:d} seconds')
+@then("step duration should be approximately {seconds:d} seconds")
 def step_impl(context, seconds):
     tracker = _tracker(context)
     last_step = list(tracker.step_timings[tracker.current_stage].keys())[-1]
@@ -196,7 +196,7 @@ def step_impl(context, seconds):
     assert duration <= seconds
 
 
-@then('I can identify slow steps')
+@then("I can identify slow steps")
 def step_impl(context):
     assert _tracker(context).step_timings
 
@@ -207,13 +207,13 @@ def step_impl(context, status):
     assert tracker.stages[tracker.current_stage].status == status
 
 
-@then('the failure reason should be recorded')
+@then("the failure reason should be recorded")
 def step_impl(context):
     tracker = _tracker(context)
     assert tracker.stages[tracker.current_stage].failure_reason is not None
 
 
-@then('I can retry the stage or skip to next stage')
+@then("I can retry the stage or skip to next stage")
 def step_impl(context):
     assert True
 
@@ -226,7 +226,11 @@ def step_impl(context, name):
     tracker.mark_failed(stage_id, "previous failure")
     context.workflow_config = {
         "steps": [
-            {"id": "resume_step", "action": "state.set", "params": {"key": "resume", "value": "done"}}
+            {
+                "id": "resume_step",
+                "action": "state.set",
+                "params": {"key": "resume", "value": "done"},
+            }
         ]
     }
 
@@ -237,30 +241,30 @@ def step_impl(context, name):
     assert tracker.current_stage == _stage_id_by_name(tracker, name)
 
 
-@then('completed stages should be skipped')
+@then("completed stages should be skipped")
 def step_impl(context):
     tracker = _tracker(context)
     skipped = [stage for stage in tracker.stages.values() if stage.status == "completed"]
     assert skipped or tracker.current_stage is not None
 
 
-@given('a long-running workflow')
+@given("a long-running workflow")
 def step_impl(context):
     _tracker(context).progress_updates.clear()
 
 
-@when('stages and steps complete')
+@when("stages and steps complete")
 def step_impl(context):
     tracker = _tracker(context)
     tracker.progress_updates.append("stage complete")
     tracker.progress_updates.append("step complete")
 
 
-@then('progress updates should be emitted')
+@then("progress updates should be emitted")
 def step_impl(context):
     assert len(_tracker(context).progress_updates) >= 2
 
 
-@then('external systems can monitor status')
+@then("external systems can monitor status")
 def step_impl(context):
     assert all(isinstance(event, str) for event in _tracker(context).progress_updates)
