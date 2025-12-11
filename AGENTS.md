@@ -51,6 +51,109 @@ agents:
 - Acknowledge limitations and incomplete features
 - Suggest improvements and note areas that need work
 
+## Parser Generation Requirements
+
+**IMPORTANT**: Tactus uses ANTLR4 to generate parsers from the Lua grammar for both Python and TypeScript.
+
+### Requirements for Parser Generation
+
+**Docker is REQUIRED** for generating parsers:
+- Parser generation uses ANTLR4 which requires Java
+- We use Docker to avoid requiring Java installation on developer machines
+- Docker image: `eclipse-temurin:17-jre`
+
+**When to regenerate parsers:**
+- Only when modifying the Lua grammar files
+- Generated parsers are committed to version control
+- End users don't need Docker or Java
+
+**How to regenerate parsers:**
+```bash
+# Ensure Docker is running
+make generate-parsers
+
+# Or generate individually:
+make generate-python-parser
+make generate-typescript-parser
+```
+
+**Generated files (committed to repo):**
+- `tactus/validation/generated/*.py` - Python parser
+- `tactus-ide/frontend/src/validation/generated/*.ts` - TypeScript parser
+
+## Tactus IDE Development
+
+When working on the Tactus IDE:
+
+### Architecture: Hybrid Validation
+
+The IDE uses a two-layer validation approach for optimal performance and user experience:
+
+**Layer 1: TypeScript Parser (Client-Side)**
+- Location: `tactus-ide/frontend/src/validation/`
+- ANTLR-generated from same `Lua.g4` grammar as Python parser
+- Purpose: Instant syntax validation (< 10ms)
+- Runs in browser, no backend needed
+- Provides immediate feedback as user types
+- Works offline
+
+**Layer 2: Python LSP (Backend)**
+- Location: `tactus-ide/backend/`
+- Uses existing `TactusValidator` from `tactus/validation/`
+- Purpose: Semantic validation and intelligence
+- Debounced (300ms) to reduce load
+- Provides completions, hover, signature help
+- Cross-reference validation
+
+### Why Hybrid?
+
+1. **Performance**: Syntax errors appear instantly (no network delay)
+2. **Offline**: Basic editing works without backend
+3. **Intelligence**: LSP adds semantic features when available
+4. **Scalability**: Reduces backend load (syntax is client-side)
+5. **User Experience**: No lag, no waiting for validation
+
+### Backend (Python LSP Server)
+- Location: `tactus-ide/backend/`
+- Uses existing `TactusValidator` from `tactus/validation/`
+- Implements LSP protocol for language intelligence
+- Flask server provides HTTP and WebSocket endpoints
+- Focus on semantic validation, not syntax (handled client-side)
+
+### Frontend (React + Monaco)
+- Location: `tactus-ide/frontend/`
+- Monaco Editor for code editing (same as VS Code)
+- TypeScript parser for instant syntax validation
+- LSP client communicates with Python backend via WebSocket
+- Can be packaged as Electron app
+
+### Testing IDE Features
+- TypeScript parser: `cd tactus-ide/frontend && npm test`
+- Backend LSP: `pytest tactus-ide/backend/` (when tests are added)
+- Integration: Test with example `.tactus.lua` files
+- Verify both layers work independently and together
+
+### Running the IDE
+
+```bash
+# Terminal 1: Backend
+cd tactus-ide/backend
+pip install -r requirements.txt
+python app.py
+
+# Terminal 2: Frontend
+cd tactus-ide/frontend
+npm install
+npm run dev
+```
+
+### Electron Packaging
+The IDE is designed to run as a desktop application:
+- Backend runs as subprocess or separate service
+- Frontend uses Electron's IPC for file operations
+- No dependency on browser-specific APIs
+- Hybrid validation works in Electron environment
+
 ## Testing Requirements
 
 Before declaring any change complete:
@@ -59,6 +162,7 @@ Before declaring any change complete:
 2. **Test the specific feature**: Create or update tests for new functionality
 3. **Verify imports**: Ensure all imports resolve correctly
 4. **Check for errors**: Run linters and fix any issues
+5. **Test parser changes**: If grammar modified, run `make test-parsers`
 
 ## Code Quality
 

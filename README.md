@@ -22,7 +22,7 @@ The path to Artificial Super Intelligence (ASI) lies in **Self-Evolving Agents**
 **The "Agent as Code" Advantage**
 For an agent to evolve, it must be able to modify itself. In traditional frameworks, logic is locked in compiled code or complex Python class hierarchies. Tactus takes a radical approach: **The entire agent is defined as data.**
 
-By defining the agent's prompts, tools, and logic in a transparent, editable DSL (YAML + Lua), Tactus makes the agent's own structure accessible to itself. This textual representation allows an agent to read, analyze, and *rewrite* its own definition, unlocking the potential for true self-evolution across all four dimensions.
+By defining the agent's prompts, tools, and logic in a transparent, editable Lua DSL, Tactus makes the agent's own structure accessible to itself. This textual representation allows an agent to read, analyze, and *rewrite* its own definition, unlocking the potential for true self-evolution across all four dimensions.
 
 ### 2. Production Reality: Control > Autonomy
 
@@ -35,7 +35,7 @@ Tactus bridges this gap. It offers the **evolutionary potential** of "Agent as C
 
 ## Features
 
-- **Declarative Workflows**: Define agent workflows in YAML with embedded Lua code
+- **Declarative Workflows**: Define agent workflows in pure Lua DSL
 - **Multi-Provider Support**: Use OpenAI and AWS Bedrock models in the same workflow
 - **Multi-Model Support**: Different agents can use different models (GPT-4o, Claude, etc.)
 - **Pluggable Backends**: Storage, HITL, and chat recording via Pydantic protocols
@@ -183,7 +183,7 @@ default_provider: openai
 default_model: gpt-4o
 ```
 
-See `examples/multi-model.tyml` and `examples/multi-provider.tyml` for complete examples.
+See `examples/multi-model.tactus.lua` for a complete example.
 
 ## Architecture
 
@@ -214,15 +214,82 @@ result = await runtime.execute(yaml_config, context)
 
 ```bash
 # Run a workflow
-tactus run workflow.yaml
-tactus run workflow.yaml --param task="Analyze data"
-# ...
+tactus run workflow.tactus.lua
+tactus run workflow.tactus.lua --param task="Analyze data"
+
+# Validate a workflow
+tactus validate workflow.tactus.lua
 ```
+
+## Tactus IDE
+
+Tactus includes a full-featured IDE for editing `.tactus.lua` files with instant feedback and intelligent code completion.
+
+### Features
+
+- **Instant syntax validation** - TypeScript parser provides immediate feedback (< 10ms)
+- **Semantic intelligence** - Python LSP server for completions and hover info
+- **Monaco Editor** - Same editor as VS Code
+- **Hybrid validation** - Fast client-side syntax + smart backend semantics
+- **Offline capable** - Basic editing works without backend
+- **Cross-platform** - Built with Electron for desktop support
+
+### Architecture: Hybrid Validation
+
+The IDE uses a two-layer validation approach for optimal performance:
+
+**Layer 1: TypeScript Parser (Client-Side, Instant)**
+- Validates syntax as you type (< 10ms)
+- Works offline, no backend needed
+- Shows syntax errors immediately
+- ANTLR-generated from same grammar as Python parser
+
+**Layer 2: Python LSP (Backend, Semantic)**
+- Provides intelligent completions
+- Hover documentation for agents, parameters, outputs
+- Cross-reference validation
+- Debounced (300ms) to reduce load
+
+This provides the best of both worlds: zero-latency syntax checking with intelligent semantic features.
+
+### Running the IDE
+
+```bash
+# Terminal 1: Start the backend LSP server
+cd tactus-ide/backend
+pip install -r requirements.txt
+python app.py  # Runs on port 5001
+
+# Terminal 2: Start the IDE frontend
+cd tactus-ide/frontend
+npm install
+npm run dev  # Runs on port 3000
+```
+
+Open http://localhost:3000 in your browser to use the IDE.
+
+**Note**: Backend uses port 5001 (not 5000) because macOS AirPlay Receiver uses port 5000.
+
+### Validation Layers in Action
+
+**Layer 1: TypeScript (Instant)**
+- Syntax errors (missing braces, parentheses)
+- Bracket matching
+- Basic structure validation
+- Works offline
+
+**Layer 2: Python LSP (Semantic)**
+- Missing required fields (e.g., agent without provider)
+- Cross-reference validation (e.g., undefined agent referenced)
+- Context-aware completions
+- Hover documentation
+- Signature help
 
 ## Documentation
 
 - [**Specification (DSL Reference)**](SPECIFICATION.md) - The official specification for the Tactus domain-specific language.
 - [**Implementation Guide**](IMPLEMENTATION.md) - Maps the specification to the actual codebase implementation. Shows where each feature is implemented, what's complete, and what's missing relative to the specification.
+- [**Testing Strategy**](TESTING.md) - Testing approach, frameworks, and guidelines for adding new tests.
 - [**Examples**](examples/) - Run additional example procedures to see Tactus in action
 - **Primitives Reference** (See `tactus/primitives/`)
 - **Storage Adapters** (See `tactus/adapters/`)
@@ -242,11 +309,38 @@ cd Tactus
 pip install -e ".[dev]"
 
 # Run tests
-pytest
+behave --summary  # BDD integration tests
+pytest tests/     # Unit tests
 
 # Run with coverage
 pytest --cov=tactus --cov-report=html
+
+# See TESTING.md for detailed testing documentation
 ```
+
+### Parser Generation
+
+Tactus uses ANTLR4 to generate parsers from the Lua grammar for validation.
+
+**Requirements:**
+- **Docker** (required only for regenerating parsers)
+- Generated parsers are committed to repo
+
+**When to regenerate:**
+- Only when modifying grammar files in `tactus/validation/grammar/`
+- Not needed for normal development
+
+**How to regenerate:**
+```bash
+# Ensure Docker is running
+make generate-parsers
+
+# Or individually:
+make generate-python-parser
+make generate-typescript-parser
+```
+
+See `tactus/validation/README.md` for detailed documentation.
 
 ## License
 

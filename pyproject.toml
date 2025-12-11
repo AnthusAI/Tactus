@@ -34,6 +34,7 @@ dependencies = [
     "rich>=13.9.4",
     "typer",
     "dotyaml>=0.1.0",
+    "antlr4-python3-runtime==4.13.1",
 ]
 
 [project.optional-dependencies]
@@ -45,6 +46,7 @@ dev = [
     "black",
     "ruff",
     "python-semantic-release>=9.0.0",
+    "antlr4-tools>=0.2.1",
 ]
 
 [project.scripts]
@@ -77,6 +79,9 @@ target-version = "py311"
 
 [tool.ruff.lint.per-file-ignores]
 "features/steps/*.py" = ["F811"]  # Allow step_impl redefinition in behave steps
+"tactus/validation/generated/*.py" = ["F401", "F403", "F405", "F811", "E711"]  # Ignore ANTLR generated code
+"tactus/validation/LuaLexerBase.py" = ["F401", "F403", "F405", "F811"]  # Ignore ANTLR base files
+"tactus/validation/LuaParserBase.py" = ["F401", "F403", "F405"]  # Ignore ANTLR base files
 
 [tool.semantic_release]
 version_toml = ["pyproject.toml:project.version"]

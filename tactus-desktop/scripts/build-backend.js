@@ -1,0 +1,85 @@
+import { exec } from 'child_process';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const BACKEND_DIR = path.join(__dirname, '../backend');
+const PROJECT_ROOT = path.join(__dirname, '../..');
+
+function execPromise(command, options = {}) {
+  return new Promise((resolve, reject) => {
+    console.log(`Running: ${command}`);
+    const child = exec(command, options, (error, stdout, stderr) => {
+      if (error) {
+        console.error(`Error: ${stderr}`);
+        reject(error);
+      } else {
+        resolve(stdout);
+      }
+    });
+
+    child.stdout?.on('data', (data) => process.stdout.write(data));
+    child.stderr?.on('data', (data) => process.stderr.write(data));
+  });
+}
+
+async function buildBackend() {
+  console.log('========================================');
+  console.log('Building Python backend with PyInstaller');
+  console.log('========================================\n');
+
+  // Detect Python command (prefer python for conda environments)
+  let pythonCmd = 'python';
+  try {
+    await execPromise('python --version');
+  } catch {
+    pythonCmd = 'python3';
+  }
+
+  // Check Python version
+  console.log('Checking Python version...');
+  const versionOutput = await execPromise(`${pythonCmd} --version`);
+  console.log(`Using: ${versionOutput.trim()}`);
+
+  // Check if PyInstaller is installed
+  try {
+    await execPromise(`${pythonCmd} -m pyinstaller --version`);
+  } catch (error) {
+    console.log('PyInstaller not found, installing...');
+    await execPromise(`${pythonCmd} -m pip install pyinstaller`);
+  }
+
+  // Install Tactus package in development mode
+  console.log('\nInstalling Tactus package...');
+  await execPromise(`${pythonCmd} -m pip install -e .`, { cwd: PROJECT_ROOT });
+
+  // Build frontend first (needed for PyInstaller bundle)
+  console.log('\nBuilding frontend for bundling...');
+  const frontendDir = path.join(PROJECT_ROOT, 'tactus-ide', 'frontend');
+  if (fs.existsSync(frontendDir)) {
+    try {
+      await execPromise('npm install', { cwd: frontendDir });
+      await execPromise('npm run build', { cwd: frontendDir });
+      console.log('Frontend built successfully');
+    } catch (error) {
+      console.warn('Warning: Frontend build failed, continuing anyway');
+    }
+  }
+
+  // Run PyInstaller
+  console.log('\nRunning PyInstaller...');
+  await execPromise(`${pythonCmd} -m pyinstaller tactus_backend.spec --clean`, { cwd: BACKEND_DIR });
+
+  console.log('\n========================================');
+  console.log('Backend built successfully!');
+  console.log(`Output: ${path.join(BACKEND_DIR, 'dist')}`);
+  console.log('========================================');
+}
+
+buildBackend().catch((error) => {
+  console.error('Build failed:', error);
+  process.exit(1);
+});

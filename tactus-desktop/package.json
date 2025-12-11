@@ -1,0 +1,71 @@
+{
+  "name": "tactus-desktop",
+  "version": "0.1.0",
+  "description": "Tactus IDE - Desktop Application",
+  "main": "dist/src/main.js",
+  "type": "module",
+  "author": "Anthus <info@anthus.ai>",
+  "license": "MIT",
+  "scripts": {
+    "dev": "tsc && electron dist/src/main.js",
+    "build": "tsc",
+    "build:frontend": "node scripts/build-frontend.js",
+    "build:backend": "node scripts/build-backend.js",
+    "build:all": "npm run build:frontend && npm run build:backend && npm run build",
+    "package:mac": "npm run build:all && electron-builder --mac",
+    "package:win": "npm run build:all && electron-builder --win",
+    "package:linux": "npm run build:all && electron-builder --linux",
+    "package:all": "npm run build:all && electron-builder --mac --win --linux"
+  },
+  "dependencies": {
+    "electron-log": "^5.0.1"
+  },
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1",
+    "typescript": "^5.3.3",
+    "@types/node": "^20.10.6"
+  },
+  "build": {
+    "appId": "ai.anthus.tactus-ide",
+    "productName": "Tactus IDE",
+    "directories": {
+      "buildResources": "resources",
+      "output": "dist-electron"
+    },
+    "files": [
+      "dist/**/*",
+      "frontend/dist/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "backend/dist",
+        "to": "backend",
+        "filter": ["**/*"]
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "icon": "resources/app-icon.icns",
+      "target": ["dmg"],
+      "artifactName": "${productName}-${version}-${os}.${ext}"
+    },
+    "win": {
+      "icon": "resources/app-icon.ico",
+      "target": ["nsis"],
+      "artifactName": "${productName}-Setup-${version}.${ext}"
+    },
+    "linux": {
+      "icon": "resources/app-icon.png",
+      "target": ["AppImage"],
+      "category": "Development",
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}
