@@ -517,14 +517,12 @@ class TactusRuntime:
             description = field_def.get("description", "")
             if is_required:
                 field = (
-                    Field(..., description=description) if description else Field(...)
-                )  # noqa: F821
+                    Field(..., description=description) if description else Field(...)  # noqa: F821
+                )
             else:
                 default = field_def.get("default", None)
                 field = (
-                    Field(default=default, description=description)  # noqa: F821
-                    if description
-                    else Field(default=default)  # noqa: F821
+                    Field(default=default, description=description) if description else Field(default=default)  # noqa: F821
                 )
 
             fields[field_name] = (python_type, field)
