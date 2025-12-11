@@ -8,22 +8,30 @@ Tactus implements the **"Give an Agent a Tool"** programming paradigm: instead o
 
 ## Philosophy & Research
 
-Tactus is built on two core insights into the future of AI software:
+Tactus is built on the convergence of two critical insights: the necessity of **Self-Evolution** for future intelligence, and the requirement for **Bounded Control** in present-day production.
 
-### 1. The "Give an Agent a Tool" Paradigm
-Traditional programming requires anticipating every edge case. Tactus shifts this burden by allowing you to define **capabilities (tools)** and **goals**, letting the agent figure out the execution details.
-> *"If you give an agent a tool, then nobody has to fish."*
-- **Read**: [Give an Agent a Tool](https://anth.us/blog/give-an-agent-a-tool/) (Anthus)
-- **Demo**: [AnthusAI/Give-an-Agent-a-Tool](https://github.com/AnthusAI/Give-an-Agent-a-Tool)
+### 1. The Substrate for Self-Evolution
+
+The path to Artificial Super Intelligence (ASI) lies in **Self-Evolving Agents**—systems that can adapt and improve their own components over time. A major 2025 survey, *[A Survey of Self-Evolving Agents](https://arxiv.org/abs/2507.21046)*, identifies four dimensions where evolution must occur:
+
+*   **Models**: Optimizing prompts and fine-tuning weights.
+*   **Memory**: Accumulating and refining experience.
+*   **Tools**: Creating and mastering new capabilities.
+*   **Architecture**: Rewriting the flow of logic and interaction.
+
+**The "Agent as Code" Advantage**
+For an agent to evolve, it must be able to modify itself. In traditional frameworks, logic is locked in compiled code or complex Python class hierarchies. Tactus takes a radical approach: **The entire agent is defined as data.**
+
+By defining the agent's prompts, tools, and logic in a transparent, editable DSL (YAML + Lua), Tactus makes the agent's own structure accessible to itself. This textual representation allows an agent to read, analyze, and *rewrite* its own definition, unlocking the potential for true self-evolution across all four dimensions.
 
 ### 2. Production Reality: Control > Autonomy
-Recent large-scale studies of agents in production reveal that successful systems rely on **constrained deployment**, **bounded autonomy**, and **human oversight** rather than open-ended "magic".
-- **Read**: [Measuring Agents in Production](https://arxiv.org/abs/2512.04123) (UC Berkeley, et al.)
 
-**Tactus aligns with these production realities:**
-- **Controllability**: Unlike black-box frameworks, Tactus uses Lua to define explicit, bounded control flow (loops, conditionals).
-- **Human-in-the-Loop**: First-class primitives (`Human.approve`, `Human.input`) are built into the core, not added as afterthoughts.
-- **Simplicity**: A lightweight DSL that prioritizes reliability over open-ended "self-planning".
+While evolution is the future, reliability is the present requirement. Research into deployed systems (*[Measuring Agents in Production](https://arxiv.org/abs/2512.04123)*) shows that successful agents rely on **constrained deployment** and **human oversight**, not open-ended "magic."
+
+Tactus bridges this gap. It offers the **evolutionary potential** of "Agent as Code" while enforcing the **production reliability** of a strict Lua runtime. You get:
+*   **Controllability**: Explicit loops and conditionals, not black-box planning.
+*   **Human-in-the-Loop**: First-class primitives for approval and oversight.
+*   **Bounded Autonomy**: The "Give an Agent a Tool" paradigm—defining capabilities and goals—within a controlled environment.
 
 ## Features
 
@@ -45,7 +53,7 @@ Recent large-scale studies of agents in production reveal that successful system
 pip install tactus
 ```
 
-### Your First Workflow: Giving an Agent a Tool
+### Your First Procedure: Hello and Done
 
 Here is a minimal example. We give the agent a single tool (`done`) and a goal ("Greet the user"). The agent decides when and how to call the tool.
 
