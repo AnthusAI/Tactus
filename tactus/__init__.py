@@ -5,7 +5,7 @@ Tactus provides a declarative workflow engine for AI agents with pluggable
 backends for storage, HITL, and chat recording.
 """
 
-__version__ = "0.0.0"
+__version__ = "0.1.0"
 
 # Core exports
 from tactus.core.runtime import TactusRuntime
@@ -18,7 +18,8 @@ from tactus.core.exceptions import (
 )
 
 # Protocol exports
-from tactus.protocols.storage import StorageBackend, ProcedureMetadata, CheckpointData
+from tactus.protocols.storage import StorageBackend, ProcedureMetadata
+from tactus.protocols.models import CheckpointData
 from tactus.protocols.hitl import HITLHandler, HITLRequest, HITLResponse
 from tactus.protocols.chat_recorder import ChatRecorder, ChatMessage
 from tactus.protocols.config import TactusConfig, ProcedureConfig
