@@ -497,6 +497,8 @@ class TactusRuntime:
         Returns:
             Pydantic model class
         """
+        from pydantic import create_model, Field  # noqa: F401
+
         fields = {}
         for field_name, field_def in output_schema.items():
             field_type_str = field_def.get("type", "string")

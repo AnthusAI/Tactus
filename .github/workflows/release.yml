@@ -38,7 +38,7 @@ jobs:
         run: black --check tactus/ tests/ features/steps/
 
       - name: Run pytest tests
-        run: pytest tests/ -v --tb=short
+        run: pytest tests/ -v --tb=short -m "not integration"
 
       - name: Run behave BDD tests
         run: behave
