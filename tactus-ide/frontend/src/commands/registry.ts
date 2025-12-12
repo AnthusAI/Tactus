@@ -111,14 +111,19 @@ export const RUN_COMMANDS: CommandGroup = {
       shortcut: 'Cmd+Shift+V',
     },
     {
-      id: 'run.validateAndRun',
-      label: 'Validate and Run',
-      shortcut: 'Cmd+Shift+R',
-    },
-    {
       id: 'run.run',
       label: 'Run',
       shortcut: 'Cmd+R',
+    },
+    {
+      id: 'run.test',
+      label: 'Test',
+      shortcut: 'Cmd+Shift+T',
+    },
+    {
+      id: 'run.evaluate',
+      label: 'Evaluate',
+      shortcut: 'Cmd+Shift+E',
     },
   ],
 };
@@ -129,4 +134,6 @@ export const ALL_COMMAND_GROUPS = [
   VIEW_COMMANDS,
   RUN_COMMANDS,
 ];
+
+
 

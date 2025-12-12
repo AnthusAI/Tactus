@@ -154,10 +154,25 @@ def _resolve_workspace_path(relative_path: str) -> Path:
     return target
 
 
-def create_app():
-    """Create and configure the Flask app."""
-    app = Flask(__name__)
+def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optional[str] = None):
+    """Create and configure the Flask app.
+
+    Args:
+        initial_workspace: Initial workspace directory. If not provided, uses current directory.
+        frontend_dist_dir: Path to frontend dist directory. If provided, serves frontend from Flask.
+    """
+    global WORKSPACE_ROOT
+
+    # Configure Flask to serve frontend static files if provided
+    if frontend_dist_dir:
+        app = Flask(__name__, static_folder=frontend_dist_dir, static_url_path='')
+    else:
+        app = Flask(__name__)
     CORS(app)
+
+    # Set initial workspace if provided
+    if initial_workspace:
+        WORKSPACE_ROOT = str(Path(initial_workspace).resolve())
 
     # Initialize LSP server
     lsp_server = LSPServer()
@@ -169,7 +184,9 @@ def create_app():
 
     @app.route("/api/workspace/cwd", methods=["GET"])
     def get_cwd():
-        """Get current working directory."""
+        """Get current working directory (returns the initial workspace if set)."""
+        if WORKSPACE_ROOT:
+            return jsonify({"cwd": WORKSPACE_ROOT})
         return jsonify({"cwd": str(Path.cwd())})
 
     @app.route("/api/workspace", methods=["GET", "POST"])
@@ -323,7 +340,7 @@ def create_app():
         """Validate Tactus procedure code."""
         data = request.json
         content = data.get("content")
-        file_path = data.get("path", "untitled.tactus.lua")
+        file_path = data.get("path", "untitled.tac")
         
         if content is None:
             return jsonify({"error": "Missing 'content' parameter"}), 400
@@ -442,7 +459,7 @@ def create_app():
                     
                     # Create storage backend
                     from pathlib import Path as PathLib
-                    storage_dir = str(PathLib(WORKSPACE_ROOT) / ".tactus" / "storage") if WORKSPACE_ROOT else "~/.tactus/storage"
+                    storage_dir = str(PathLib(WORKSPACE_ROOT) / ".tac" / "storage") if WORKSPACE_ROOT else "~/.tac/storage"
                     storage_backend = FileStorage(storage_dir=storage_dir)
                     
                     # Create runtime with log handler
@@ -623,6 +640,26 @@ def create_app():
             logger.error(f"Error handling LSP notification: {e}")
             return jsonify({"error": str(e)}), 500
 
+    # Serve frontend if dist directory is provided
+    if frontend_dist_dir:
+        @app.route("/")
+        def serve_frontend():
+            """Serve the frontend index.html."""
+            return app.send_static_file("index.html")
+
+        @app.route("/<path:path>")
+        def serve_static_or_frontend(path):
+            """Serve static files or index.html for client-side routing."""
+            # If the file exists, serve it
+            file_path = Path(frontend_dist_dir) / path
+            if file_path.exists() and file_path.is_file():
+                return app.send_static_file(path)
+            # Otherwise, serve index.html for client-side routing (unless it's an API call)
+            if not path.startswith("api/"):
+                return app.send_static_file("index.html")
+            # For API calls that don't match any route, return 404
+            return jsonify({"error": "Not found"}), 404
+
     return app
 
 
@@ -650,5 +687,7 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
 
 

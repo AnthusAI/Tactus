@@ -34,5 +34,5 @@ yarn-debug.log*
 yarn-error.log*
 
 # Tactus specific
-.tactus/config.yml
+.tac/config.yml
 progress.output

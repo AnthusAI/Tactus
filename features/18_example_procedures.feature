@@ -14,31 +14,33 @@ Feature: Example Procedures
 
     Examples: Lua DSL Examples
       | example_file                    |
-      | hello-world.tactus.lua          |
-      | state-management.tactus.lua     |
-      | with-parameters.tactus.lua      |
-      | simple-agent.tactus.lua         |
-      | multi-model.tactus.lua          |
+      | hello-world.tac              |
+      | state-management.tac         |
+      | with-parameters.tac          |
+      | simple-agent.tac             |
+      | multi-model.tac              |
 
   Scenario: Hello World example produces correct output
-    Given an example file "hello-world.tactus.lua"
+    Given an example file "hello-world.tac"
     When I execute the procedure
     Then the execution should succeed
     And the output should contain field "success" with value true
     And the output should contain field "count" with value 5
 
   Scenario: State Management example tracks count correctly
-    Given an example file "state-management.tactus.lua"
+    Given an example file "state-management.tac"
     When I execute the procedure
     Then the execution should succeed
     And the output should contain field "success" with value true
     And the output should contain field "count" with value 5
 
   Scenario: With Parameters example uses defaults
-    Given an example file "with-parameters.tactus.lua"
+    Given an example file "with-parameters.tac"
     When I execute the procedure
     Then the execution should succeed
     And the output should contain field "result" with value "Completed default task with 3 iterations"
+
+
 
 
 

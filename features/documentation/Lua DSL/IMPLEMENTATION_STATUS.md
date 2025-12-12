@@ -63,7 +63,7 @@ tests/validation/test_antlr_parser.py::TestANTLRParser::test_quick_vs_full_mode 
 The CLI now uses ANTLR validation:
 
 ```bash
-$ tactus validate examples/hello-world.tactus.lua
+$ tactus validate examples/hello-world.tac
 
 ✓ DSL is valid
 
@@ -154,7 +154,7 @@ make generate-typescript-parser
 ## Architecture Summary
 
 ```
-.tactus.lua file
+.tac file
       |
       ├─→ ANTLR Parser (validation, no execution)
       |        ↓
@@ -238,6 +238,8 @@ The Python ANTLR parser is **production-ready** and provides:
 - Comprehensive test coverage
 
 The TypeScript parser is **in progress** and requires additional work to resolve antlr4ts compatibility issues.
+
+
 
 
 

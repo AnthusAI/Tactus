@@ -27,7 +27,7 @@ export class LSPClientHTTP {
   private baseUrl: string;
   private messageId = 0;
   private diagnosticsHandler?: (diagnostics: LSPDiagnostic[]) => void;
-  private currentUri = 'file:///untitled.tactus.lua';
+  private currentUri = 'file:///untitled.tac';
   private version = 0;
   private isConnected = false;
   
@@ -190,6 +190,8 @@ export class LSPClientHTTP {
     }
   }
 }
+
+
 
 
 

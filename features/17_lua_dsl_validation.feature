@@ -7,7 +7,7 @@ Feature: Lua DSL Validation
     Given a Tactus validation environment
 
   Scenario: Valid Lua DSL file passes validation
-    Given a Lua DSL file "examples/simple-agent.tactus.lua"
+    Given a Lua DSL file "examples/simple-agent.tac"
     When I validate the file
     Then validation should succeed
     And it should recognize the procedure declaration
@@ -17,10 +17,6 @@ Feature: Lua DSL Validation
   Scenario: Invalid Lua syntax is detected
     Given a Lua DSL file with content:
       """
-      name("test_procedure")
-      version("1.0.0")
-      description("Test")
-      
       -- Missing closing brace
       agent("worker", {
         provider = "openai",
@@ -49,10 +45,6 @@ Feature: Lua DSL Validation
   Scenario: Missing required agent fields
     Given a Lua DSL file with content:
       """
-      name("test_procedure")
-      version("1.0.0")
-      description("Test")
-      
       agent("worker", {
         model = "gpt-4o",
         system_prompt = "Test",
@@ -66,10 +58,6 @@ Feature: Lua DSL Validation
   Scenario: Valid parameter declaration
     Given a Lua DSL file with content:
       """
-      name("test_procedure")
-      version("1.0.0")
-      description("Test")
-      
       parameter("topic", {
         type = "string",
         required = true,
@@ -94,10 +82,6 @@ Feature: Lua DSL Validation
   Scenario: Valid output declaration
     Given a Lua DSL file with content:
       """
-      name("test_procedure")
-      version("1.0.0")
-      description("Test")
-      
       output("result", {
         type = "string",
         required = true,
@@ -120,13 +104,13 @@ Feature: Lua DSL Validation
     And it should recognize 1 output declaration
 
   Scenario: Quick validation mode
-    Given a Lua DSL file "examples/simple-agent.tactus.lua"
+    Given a Lua DSL file "examples/simple-agent.tac"
     When I validate the file in quick mode
     Then validation should succeed
     And it should only check syntax
 
   Scenario: Full validation mode
-    Given a Lua DSL file "examples/simple-agent.tactus.lua"
+    Given a Lua DSL file "examples/simple-agent.tac"
     When I validate the file in full mode
     Then validation should succeed
     And it should check syntax
@@ -136,17 +120,17 @@ Feature: Lua DSL Validation
   Scenario: All example files validate successfully
     Given the example Lua DSL files:
       | file                            |
-      | simple-agent.tactus.lua         |
-      | hello-world.tactus.lua          |
-      | state-management.tactus.lua     |
-      | with-parameters.tactus.lua      |
-      | multi-model.tactus.lua          |
+      | simple-agent.tac             |
+      | hello-world.tac              |
+      | state-management.tac         |
+      | with-parameters.tac          |
+      | multi-model.tac              |
     When I validate each file
     Then all validations should succeed
 
   Scenario: CLI validation command for Lua DSL
-    Given a Lua DSL file "examples/simple-agent.tactus.lua"
-    When I run "tactus validate examples/simple-agent.tactus.lua"
+    Given a Lua DSL file "examples/simple-agent.tac"
+    When I run "tactus validate examples/simple-agent.tac"
     Then the command should succeed
     And the output should show "lua format"
     And the output should display procedure information
@@ -157,6 +141,8 @@ Feature: Lua DSL Validation
     Then the command should fail
     And the output should show the error location
     And the output should suggest how to fix it
+
+
 
 
 

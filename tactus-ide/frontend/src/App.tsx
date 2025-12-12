@@ -29,7 +29,8 @@ import {
   Bell,
   Play,
   CheckCircle,
-  PlayCircle,
+  TestTube,
+  BarChart2,
 } from 'lucide-react';
 import { registerCommandHandler, executeCommand, ALL_COMMAND_GROUPS } from './commands/registry';
 import { useEventStream } from './hooks/useEventStream';
@@ -261,7 +262,7 @@ export const App: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           content: fileContent,
-          path: currentFile || 'untitled.tactus.lua',
+          path: currentFile || 'untitled.tac',
         }),
       });
 
@@ -306,32 +307,15 @@ export const App: React.FC = () => {
     }
   }, [currentFile, fileContent]);
 
-  // Validate and run
-  const handleValidateAndRun = useCallback(async () => {
-    // First validate
-    try {
-      const response = await fetch(apiUrl('/api/validate'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          content: fileContent,
-          path: currentFile || 'untitled.tactus.lua',
-        }),
-      });
+  // Test (not yet implemented)
+  const handleTest = useCallback(async () => {
+    // TODO: Implement test functionality
+  }, []);
 
-      if (response.ok) {
-        const result = await response.json();
-        setValidationResult(result);
-        
-        // Only run if validation passed
-        if (result.valid) {
-          await handleRun();
-        }
-      }
-    } catch (error) {
-      console.error('Error validating:', error);
-    }
-  }, [handleRun, fileContent, currentFile]);
+  // Evaluate (not yet implemented)
+  const handleEvaluate = useCallback(async () => {
+    // TODO: Implement evaluate functionality
+  }, []);
 
   // Register command handlers
   useEffect(() => {
@@ -341,8 +325,9 @@ export const App: React.FC = () => {
     registerCommandHandler('view.toggleRightSidebar', () => setRightSidebarOpen((v) => !v));
     registerCommandHandler('run.validate', handleValidate);
     registerCommandHandler('run.run', handleRun);
-    registerCommandHandler('run.validateAndRun', handleValidateAndRun);
-  }, [handleOpenFolder, handleSave, handleValidate, handleRun, handleValidateAndRun]);
+    registerCommandHandler('run.test', handleTest);
+    registerCommandHandler('run.evaluate', handleEvaluate);
+  }, [handleOpenFolder, handleSave, handleValidate, handleRun, handleTest, handleEvaluate]);
 
   // Listen for Electron commands
   useEffect(() => {
@@ -442,13 +427,17 @@ export const App: React.FC = () => {
                 <CheckCircle className="h-3 w-3 mr-1" />
                 Validate
               </Button>
-              <Button size="sm" variant="ghost" onClick={handleValidateAndRun} className="h-7 text-xs">
-                <PlayCircle className="h-3 w-3 mr-1" />
-                Validate & Run
-              </Button>
               <Button size="sm" variant="ghost" onClick={handleRun} disabled={isRunning} className="h-7 text-xs">
                 <Play className="h-3 w-3 mr-1" />
                 {isRunning ? 'Running...' : 'Run'}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={handleTest} className="h-7 text-xs">
+                <TestTube className="h-3 w-3 mr-1" />
+                Test
+              </Button>
+              <Button size="sm" variant="ghost" onClick={handleEvaluate} className="h-7 text-xs">
+                <BarChart2 className="h-3 w-3 mr-1" />
+                Evaluate
               </Button>
               {runResult && (
                 <span className={`text-xs ml-2 ${runResult.success ? 'text-green-600' : 'text-red-600'}`}>
@@ -519,4 +508,6 @@ export const App: React.FC = () => {
     </div>
   );
 };
+
+
 

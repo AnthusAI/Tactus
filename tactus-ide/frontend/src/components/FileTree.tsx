@@ -35,7 +35,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({ entry, level, onFileSelect, selecte
 
   const isDirectory = entry.type === 'directory';
   const isSelected = selectedFile === entry.path;
-  const isTactusFile = entry.extension === '.lua' && entry.name.endsWith('.tactus.lua');
+  const isTactusFile = entry.extension === '.tac';
 
   const loadChildren = async () => {
     if (!isDirectory || children.length > 0) return;
@@ -180,4 +180,6 @@ export const FileTree: React.FC<FileTreeProps> = ({ workspaceRoot, workspaceName
     </ScrollArea>
   );
 };
+
+
 

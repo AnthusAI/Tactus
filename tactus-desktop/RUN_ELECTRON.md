@@ -74,10 +74,12 @@ npm run dev
 
 Once the Electron app is running:
 1. Use File → Open Folder (or Cmd+O) - this will show a **native folder picker**
-2. Select a folder with `.tactus.lua` files
+2. Select a folder with `.tac` files
 3. Navigate files in the tree
 4. Edit, validate, and run procedures
 5. All keyboard shortcuts work through the OS menu
 
 The Electron version provides the full native desktop experience!
+
+
 

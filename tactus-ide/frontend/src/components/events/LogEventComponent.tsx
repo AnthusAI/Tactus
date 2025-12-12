@@ -60,3 +60,5 @@ export const LogEventComponent: React.FC<LogEventComponentProps> = ({ event }) =
     </div>
   );
 };
+
+

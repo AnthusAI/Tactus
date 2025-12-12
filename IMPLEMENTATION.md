@@ -597,6 +597,73 @@ Defines interface for persistence.
 
 ---
 
+## BDD Testing Framework
+
+### Gherkin Integration (`tactus/testing/`)
+
+**Status**: ✅ **Fully Implemented**
+
+**Features:**
+- ✅ `specifications([[...]])` - Embed Gherkin text in procedure files
+- ✅ `step("text", function)` - Custom Lua step definitions
+- ✅ `evaluation({...})` - Evaluation configuration
+- ✅ Gherkin parser using `gherkin-official` library
+- ✅ Comprehensive built-in step library for Tactus primitives
+- ✅ Behave integration with programmatic API
+- ✅ Parallel execution using multiprocessing
+- ✅ Structured Pydantic results (no text parsing)
+- ✅ `tactus test` command - Run scenarios once
+- ✅ `tactus evaluate` command - Run scenarios N times for consistency
+- ✅ Consistency metrics (success rate, timing, flakiness detection)
+- ✅ Parser warnings for missing specifications
+- ✅ IDE integration via structured log events
+
+**Implementation:**
+- `tactus/testing/gherkin_parser.py` - Parse Gherkin to Pydantic models
+- `tactus/testing/models.py` - All result models
+- `tactus/testing/steps/registry.py` - Step pattern matching
+- `tactus/testing/steps/builtin.py` - Built-in step library
+- `tactus/testing/steps/custom.py` - Custom Lua steps
+- `tactus/testing/context.py` - Test context for step execution
+- `tactus/testing/behave_integration.py` - Generate .feature files and step definitions
+- `tactus/testing/test_runner.py` - Parallel test execution
+- `tactus/testing/evaluation_runner.py` - Multi-run consistency evaluation
+- `tactus/testing/events.py` - Structured log events for IDE
+
+**Built-in Steps:**
+- Tool steps: `the {tool} tool should be called`, `at least {n} times`, `with {param}={value}`
+- Stage steps: `the stage should be {stage}`, `transition from {s1} to {s2}`
+- State steps: `the state {key} should be {value}`, `should exist`
+- Completion steps: `should complete successfully`, `stop reason should contain {text}`
+- Iteration steps: `iterations should be less than {n}`, `between {min} and {max}`
+- Parameter steps: `the {param} parameter is {value}`
+
+**Evaluation Metrics:**
+- Success rate (% passed)
+- Mean/median/stddev duration
+- Consistency score (identical behavior across runs)
+- Flakiness detection (some pass, some fail)
+
+**Example:**
+```lua
+specifications([[
+Feature: Agent Workflow
+  Scenario: Completes task
+    Given the procedure has started
+    When the worker agent takes turns
+    Then the done tool should be called
+]])
+
+step("custom validation", function()
+  assert(State.get("count") > 5)
+end)
+```
+
+```bash
+tactus test procedure.tac
+tactus evaluate procedure.tac --runs 10
+```
+
 ## Missing Features Summary
 
 ### Critical Missing Features

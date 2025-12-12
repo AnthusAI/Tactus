@@ -32,7 +32,7 @@ Complete overhaul of the Tactus IDE to create a modern, VSCode-like development 
 ### 4. File Tree Component (`tactus-ide/frontend/src/components/FileTree.tsx`)
 - **Lazy Loading**: Directories load children on expansion
 - **Visual Indicators**: 
-  - `.tactus.lua` files show code icon in blue
+  - `.tac` files show code icon in blue
   - Folders show folder icon in yellow
   - Selected file highlighted
 - **Workspace Integration**: Automatically refreshes when workspace changes
@@ -153,4 +153,6 @@ All existing tests pass:
 4. **Hybrid Support**: Same codebase works in browser and Electron
 5. **shadcn/ui**: Modern, accessible components with Tailwind
 6. **AI-ready**: Chat sidebar prepared for future AI integration
+
+
 

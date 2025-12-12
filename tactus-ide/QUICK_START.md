@@ -41,12 +41,12 @@ npm start
 - **Electron**: File → Open Folder... (or Cmd+O)
 - **Browser**: File → Open Folder... → Enter absolute path
 
-The workspace folder should contain your `.tactus.lua` procedure files.
+The workspace folder should contain your `.tac` procedure files.
 
 ### 2. Navigate Files
 - Use the left sidebar file tree to browse your workspace
 - Click any file to open it in the Monaco editor
-- `.tactus.lua` files are marked with a blue code icon
+- `.tac` files are marked with a blue code icon
 
 ### 3. Edit and Save
 - Edit files in the Monaco editor
@@ -152,7 +152,7 @@ PORT=5002 tactus ide
 - LSP runs in "offline mode" if connection fails (syntax validation still works)
 
 ### Validation Fails
-- Ensure your `.tactus.lua` file has required fields: `name()`, `version()`, `procedure()`
+- Ensure your `.tac` file has required fields: `name()`, `version()`, `procedure()`
 - Check the Output drawer for specific error messages
 - Refer to SPECIFICATION.md for DSL syntax
 
@@ -182,7 +182,7 @@ Edit `tactus-ide/frontend/src/index.css` to customize colors:
 ## Next Steps
 
 1. Try the example procedures in `examples/`
-2. Create your own `.tactus.lua` files
+2. Create your own `.tac` files
 3. Explore the command registry in `src/commands/registry.ts`
 4. Customize the UI components in `src/components/`
 5. Read the full specification in `SPECIFICATION.md`
@@ -193,4 +193,6 @@ Edit `tactus-ide/frontend/src/index.css` to customize colors:
 - Read `SPECIFICATION.md` for DSL syntax
 - See `IMPLEMENTATION.md` for feature status
 - Report issues on GitHub (when available)
+
+
 

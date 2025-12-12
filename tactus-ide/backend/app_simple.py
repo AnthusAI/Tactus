@@ -31,7 +31,7 @@ def health():
 
 @app.route('/api/file', methods=['GET', 'POST'])
 def file_operations():
-    """Handle file operations (read/write .tactus.lua files)."""
+    """Handle file operations (read/write .tac files)."""
     if request.method == 'GET':
         file_path = request.args.get('path')
         if not file_path:
@@ -142,6 +142,8 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5001))
     logger.info(f"Starting Tactus IDE Backend (HTTP mode) on port {port}")
     app.run(host='127.0.0.1', port=port, debug=False, threaded=True)
+
+
 
 
 

@@ -2,7 +2,8 @@
 
 import os
 import sys
-from PyInstaller.utils.hooks import collect_data_files, collect_submodules
+import glob
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules, collect_dynamic_libs, copy_metadata
 
 block_cipher = None
 
@@ -17,14 +18,28 @@ antlr_modules = collect_submodules('antlr4')
 # Collect data files
 tactus_datas = collect_data_files('tactus', include_py_files=True)
 antlr_datas = collect_data_files('antlr4')
+lupa_datas = collect_data_files('lupa', include_py_files=True)
+
+# Manually collect lupa native libraries
+# collect_dynamic_libs doesn't find them, so we do it explicitly
+import lupa
+lupa_dir = os.path.dirname(lupa.__file__)
+lupa_binaries = [(so_file, 'lupa') for so_file in glob.glob(os.path.join(lupa_dir, '*.so'))]
 
 a = Analysis(
     [os.path.join(project_root, 'tactus', 'cli', 'app.py')],
     pathex=[project_root],
-    binaries=[],
+    binaries=lupa_binaries,
     datas=[
         *tactus_datas,
         *antlr_datas,
+        *lupa_datas,
+        *copy_metadata('genai_prices'),
+        *copy_metadata('pydantic_ai_slim'),
+        *copy_metadata('pydantic_ai'),
+        *copy_metadata('pydantic'),
+        *copy_metadata('openai'),
+        *copy_metadata('anthropic'),
         (os.path.join(project_root, 'tactus', 'validation', 'grammar', '*.g4'), 'tactus/validation/grammar'),
         (os.path.join(project_root, 'tactus-ide', 'frontend', 'dist'), 'tactus-ide/frontend/dist'),
     ],
@@ -42,8 +57,9 @@ a = Analysis(
         'typer',
         'rich',
         'dotyaml',
+        'genai_prices',
     ],
-    hookspath=[],
+    hookspath=[os.path.join(SPECPATH)],  # Use custom hooks from this directory
     hooksconfig={},
     runtime_hooks=[],
     excludes=[],

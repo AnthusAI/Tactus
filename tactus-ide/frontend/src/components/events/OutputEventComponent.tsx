@@ -15,3 +15,5 @@ export const OutputEventComponent: React.FC<OutputEventComponentProps> = ({ even
     </div>
   );
 };
+
+

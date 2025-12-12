@@ -53,20 +53,20 @@ The transformation from YAML+Lua hybrid to pure Lua DSL has been successfully im
 
 ### ✅ Phase 5: Migration & Testing
 8. **Created migration script** (`scripts/migrate_tyml.py`)
-   - Converts `.tyml` files to `.tactus.lua` format
+   - Converts `.tyml` files to `.tac` format
    - Handles all DSL constructs: parameters, outputs, agents, stages, prompts, HITL, specifications
    - Uses explicit call syntax: `name("value")` instead of `name "value"`
-   - Command-line interface: `python scripts/migrate_tyml.py input.tyml -o output.tactus.lua`
+   - Command-line interface: `python scripts/migrate_tyml.py input.tyml -o output.tac`
 
 9. **Converted all example files**
-   - `hello-world.tactus.lua`
-   - `simple-agent.tactus.lua`
-   - `state-management.tactus.lua`
-   - `with-parameters.tactus.lua`
-   - `multi-model.tactus.lua`
+   - `hello-world.tac`
+   - `simple-agent.tac`
+   - `state-management.tac`
+   - `with-parameters.tac`
+   - `multi-model.tac`
 
 10. **Updated CLI** (`tactus/cli/app.py`)
-    - `run` command supports both `.tactus.lua` and `.tyml` files
+    - `run` command supports both `.tac` and `.tyml` files
     - `validate` command supports both formats with `--quick` flag
     - Auto-detects format based on file extension
     - Displays validation results with tables
@@ -81,7 +81,7 @@ The transformation from YAML+Lua hybrid to pure Lua DSL has been successfully im
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| File extension | `.tactus.lua` | Free syntax highlighting, distinctive |
+| File extension | `.tac` | Free syntax highlighting, distinctive |
 | DSL syntax | Explicit calls: `name("value")` | Lupa doesn't support Lua's syntactic sugar |
 | Template syntax | `{params.x}` | Matches current, familiar to users |
 | Validation | Lupa-based (ANTLR deferred) | Simpler, sufficient for validation needs |
@@ -105,7 +105,7 @@ tactus/
 │   └── validator.py             # ✅ TactusValidator class
 │
 ├── cli/
-│   └── app.py                   # ✅ Updated for .tactus.lua support
+│   └── app.py                   # ✅ Updated for .tac support
 │
 └── primitives/
     └── (unchanged)
@@ -114,11 +114,11 @@ scripts/
 └── migrate_tyml.py              # ✅ Migration script
 
 examples/
-├── hello-world.tactus.lua       # ✅ Converted
-├── simple-agent.tactus.lua      # ✅ Converted
-├── state-management.tactus.lua  # ✅ Converted
-├── with-parameters.tactus.lua   # ✅ Converted
-├── multi-model.tactus.lua       # ✅ Converted
+├── hello-world.tac       # ✅ Converted
+├── simple-agent.tac      # ✅ Converted
+├── state-management.tac  # ✅ Converted
+├── with-parameters.tac   # ✅ Converted
+├── multi-model.tac       # ✅ Converted
 ├── hello-world.tyml             # ✅ Kept for backwards compatibility
 └── (other .tyml files)          # ✅ Kept for backwards compatibility
 ```
@@ -127,27 +127,25 @@ examples/
 
 ### Running a Lua DSL procedure:
 ```bash
-tactus run examples/hello-world.tactus.lua
-tactus run examples/hello-world.tactus.lua --param topic="AI"
+tactus run examples/hello-world.tac
+tactus run examples/hello-world.tac --param topic="AI"
 ```
 
 ### Validating a Lua DSL file:
 ```bash
-tactus validate examples/hello-world.tactus.lua
-tactus validate examples/hello-world.tactus.lua --quick
+tactus validate examples/hello-world.tac
+tactus validate examples/hello-world.tac --quick
 ```
 
 ### Migrating from YAML to Lua DSL:
 ```bash
-python scripts/migrate_tyml.py input.tyml -o output.tactus.lua
+python scripts/migrate_tyml.py input.tyml -o output.tac
 ```
 
 ### Example Lua DSL file:
 ```lua
 name("hello_world")
 version("1.0.0")
-description("A simple Hello World example")
-
 default_provider("openai")
 default_model("gpt-4o")
 
@@ -208,7 +206,7 @@ The following items from the original plan were intentionally deferred or modifi
 
 ## Success Criteria
 
-- ✅ All examples run with `.tactus.lua` format
+- ✅ All examples run with `.tac` format
 - ✅ Validation catches syntax errors
 - ✅ All existing tests pass (or can be updated)
 - ✅ YAML parsing code maintained for compatibility
@@ -231,6 +229,8 @@ The following items from the original plan were intentionally deferred or modifi
 - Empty Lua tables (`{}`) are converted to empty Python lists (`[]`) to match expected types for fields like `tools`
 - The registry system provides a clean separation between declaration parsing and execution
 - Backwards compatibility is maintained, allowing gradual migration
+
+
 
 
 

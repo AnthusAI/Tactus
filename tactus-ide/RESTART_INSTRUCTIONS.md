@@ -26,7 +26,7 @@ The new UI features:
 
 1. **Open a workspace folder**: File → Open Folder (or Cmd+O)
    - In browser mode, you'll need to type the absolute path
-   - The workspace folder should contain `.tactus.lua` files
+   - The workspace folder should contain `.tac` files
 
 2. **Navigate files**: Click files in the left sidebar to open them
 
@@ -50,4 +50,6 @@ If you still see the old UI:
 - The backend now includes workspace management, file tree, validation, and run APIs
 - All keyboard shortcuts work (Cmd+O, Cmd+S, Cmd+R, etc.)
 - Dark theme is enabled by default
+
+
 

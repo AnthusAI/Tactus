@@ -1,8 +1,4 @@
--- Migrated from .tyml format to .tactus.lua
-
-name("simple_agent")
-version("1.0.0")
-description("A simple example demonstrating agent interaction with LLM")
+-- Migrated from .tyml format to .tactus
 
 -- Outputs
 output("greeting", {
@@ -56,3 +52,17 @@ procedure(function()
     end
 
 end)
+
+-- BDD Specifications
+specifications([[
+Feature: Simple Agent Interaction
+  Demonstrate basic LLM agent interaction with done tool
+
+  Scenario: Agent completes greeting task
+    Given the procedure has started
+    When the greeter agent takes turn
+    Then the done tool should be called
+    And the procedure should complete successfully
+    And the output completed should be True
+    And the output greeting should exist
+]])

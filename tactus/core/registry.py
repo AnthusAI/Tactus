@@ -2,7 +2,7 @@
 Registry system for Lua DSL declarations.
 
 This module provides Pydantic models for collecting and validating
-procedure declarations from .tactus.lua files.
+procedure declarations from .tac files.
 """
 
 from enum import Enum
@@ -107,13 +107,11 @@ class SpecificationDeclaration(BaseModel):
 
 
 class ProcedureRegistry(BaseModel):
-    """Collects all declarations from a .tactus.lua file."""
+    """Collects all declarations from a .tac file."""
 
     model_config = {"arbitrary_types_allowed": True}
 
     # Metadata
-    procedure_name: Optional[str] = None
-    version: Optional[str] = None
     description: Optional[str] = None
 
     # Declarations
@@ -123,6 +121,11 @@ class ProcedureRegistry(BaseModel):
     hitl_points: dict[str, HITLDeclaration] = Field(default_factory=dict)
     stages: list[str] = Field(default_factory=list)
     specifications: list[SpecificationDeclaration] = Field(default_factory=list)
+
+    # Gherkin BDD Testing
+    gherkin_specifications: Optional[str] = None  # Raw Gherkin text
+    custom_steps: dict[str, Any] = Field(default_factory=dict)  # step_text -> lua_function
+    evaluation_config: dict[str, Any] = Field(default_factory=dict)  # runs, parallel, etc.
 
     # Prompts
     prompts: dict[str, str] = Field(default_factory=dict)
@@ -168,18 +171,6 @@ class RegistryBuilder:
     def __init__(self):
         self.registry = ProcedureRegistry()
         self.validation_messages: list[ValidationMessage] = []
-
-    def set_name(self, name: str) -> None:
-        """Set procedure name."""
-        self.registry.procedure_name = name
-
-    def set_version(self, version: str) -> None:
-        """Set procedure version."""
-        self.registry.version = version
-
-    def set_description(self, description: str) -> None:
-        """Set procedure description."""
-        self.registry.description = description
 
     def register_parameter(self, name: str, config: dict) -> None:
         """Register a parameter declaration."""
@@ -272,6 +263,18 @@ class RegistryBuilder:
         """Set maximum turns."""
         self.registry.max_turns = turns
 
+    def register_specifications(self, gherkin_text: str) -> None:
+        """Register Gherkin BDD specifications."""
+        self.registry.gherkin_specifications = gherkin_text
+
+    def register_custom_step(self, step_text: str, lua_function: Any) -> None:
+        """Register a custom step definition."""
+        self.registry.custom_steps[step_text] = lua_function
+
+    def set_evaluation_config(self, config: dict) -> None:
+        """Set evaluation configuration."""
+        self.registry.evaluation_config = config
+
     def _add_error(self, message: str) -> None:
         """Add an error message."""
         self.validation_messages.append(ValidationMessage(level="error", message=message))
@@ -286,8 +289,6 @@ class RegistryBuilder:
         warnings = []
 
         # Required fields
-        if not self.registry.procedure_name:
-            errors.append(ValidationMessage(level="error", message="name is required"))
         if not self.registry.procedure_function:
             errors.append(ValidationMessage(level="error", message="procedure is required"))
 
@@ -302,12 +303,12 @@ class RegistryBuilder:
                     )
                 )
 
-        # Warnings
-        if not self.registry.specifications:
+        # Warnings for missing specifications
+        if not self.registry.specifications and not self.registry.gherkin_specifications:
             warnings.append(
                 ValidationMessage(
                     level="warning",
-                    message="No specifications defined - consider adding tests",
+                    message="No specifications defined - consider adding BDD tests using specifications([[...]])",
                 )
             )
 
@@ -321,5 +322,7 @@ class RegistryBuilder:
             warnings=warnings,
             registry=self.registry if len(errors) == 0 else None,
         )
+
+
 
 

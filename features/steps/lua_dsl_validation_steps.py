@@ -32,7 +32,7 @@ def step_impl(context):
     """Create a temporary Lua DSL file with given content."""
     context.lua_content = context.text
     # Create a temporary file
-    context.temp_file = tempfile.NamedTemporaryFile(mode="w", suffix=".tactus.lua", delete=False)
+    context.temp_file = tempfile.NamedTemporaryFile(mode="w", suffix=".tac", delete=False)
     context.temp_file.write(context.lua_content)
     context.temp_file.close()
     context.lua_file = Path(context.temp_file.name)
@@ -44,13 +44,11 @@ def step_impl(context):
     context.lua_content = """
 name("test_procedure")
 version("1.0.0")
-description("Test")
-
 -- Missing closing brace
 agent("worker", {
     provider = "openai"
 """
-    context.temp_file = tempfile.NamedTemporaryFile(mode="w", suffix=".tactus.lua", delete=False)
+    context.temp_file = tempfile.NamedTemporaryFile(mode="w", suffix=".tac", delete=False)
     context.temp_file.write(context.lua_content)
     context.temp_file.close()
     context.lua_file = Path(context.temp_file.name)
@@ -226,7 +224,7 @@ def step_impl(context):
     """Assert that a procedure declaration was found."""
     assert context.validation_result is not None
     assert context.validation_result.registry is not None
-    assert context.validation_result.registry.procedure_name is not None
+    assert context.validation_result.registry.procedure_function is not None
 
 
 @then("it should recognize agent declarations")
@@ -370,4 +368,25 @@ def after_scenario(context, scenario):
         except Exception:
             pass
 
+
+
+
+@then('the agent system_prompt should contain "{text}"')
+def step_impl(context, text):
+    """Assert that an agent's system_prompt contains specific text."""
+    assert context.validation_result is not None
+    assert context.validation_result.registry is not None
+    assert len(context.validation_result.registry.agents) > 0, "No agents found"
+    
+    # Check first agent's system_prompt
+    first_agent = list(context.validation_result.registry.agents.values())[0]
+    assert text in first_agent.system_prompt, \
+        f"Expected '{text}' in system_prompt, got: {first_agent.system_prompt}"
+
+@then('validation should have warnings')
+def step_impl(context):
+    """Assert that validation succeeded but has warnings."""
+    assert context.validation_result is not None
+    assert context.validation_result.valid, "Validation should succeed"
+    assert len(context.validation_result.warnings) > 0, "Expected warnings but found none"
 

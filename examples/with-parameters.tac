@@ -1,8 +1,4 @@
--- Migrated from .tyml format to .tactus.lua
-
-name("with_parameters")
-version("1.0.0")
-description("Demonstrates parameter usage in Tactus workflows")
+-- Migrated from .tyml format to .tactus
 
 -- Parameters
 parameter("task", {
@@ -56,3 +52,16 @@ procedure(function()
     }
 
 end)
+
+-- BDD Specifications
+specifications([[
+Feature: Parameter Usage
+  Demonstrate parameter access and usage in workflows
+
+  Scenario: Parameters are used correctly
+    Given the procedure has started
+    When the procedure runs
+    Then the procedure should complete successfully
+    And the state iterations should be 3
+    And the output result should exist
+]])

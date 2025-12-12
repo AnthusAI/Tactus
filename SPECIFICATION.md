@@ -1841,6 +1841,116 @@ All v3 procedures work unchanged in v4. HITL features are additive.
 
 ---
 
+## Gherkin BDD Testing
+
+Tactus includes first-class support for behavior-driven testing using Gherkin syntax.
+
+### Specifications in Lua
+
+Write Gherkin specifications directly in procedure files:
+
+```lua
+specifications([[
+Feature: Research Task Completion
+  As a user
+  I want the agent to research topics effectively
+  So that I get reliable results
+
+  Scenario: Agent completes basic research
+    Given the procedure has started
+    When the researcher agent takes turns
+    Then the search tool should be called at least once
+    And the done tool should be called exactly once
+    And the procedure should complete successfully
+
+  Scenario: Agent progresses through stages correctly
+    Given the procedure has started
+    When the procedure runs
+    Then the stage should transition from researching to complete
+    And the total iterations should be less than 20
+]])
+```
+
+### Built-in Steps
+
+The framework provides comprehensive built-in steps for Tactus primitives:
+
+**Tool steps:**
+- `the {tool} tool should be called`
+- `the {tool} tool should be called at least {n} times`
+- `the {tool} tool should be called with {param}={value}`
+
+**Stage steps:**
+- `the procedure has started`
+- `the stage should be {stage}`
+- `the stage should transition from {stage1} to {stage2}`
+
+**State steps:**
+- `the state {key} should be {value}`
+- `the state {key} should exist`
+
+**Completion steps:**
+- `the procedure should complete successfully`
+- `the stop reason should contain {text}`
+
+**Iteration steps:**
+- `the total iterations should be less than {n}`
+- `the agent should take at least {n} turns`
+
+### Custom Steps
+
+Define custom steps in Lua for advanced assertions:
+
+```lua
+step("the research quality is high", function()
+  local results = State.get("research_results")
+  assert(#results > 5, "Should have at least 5 results")
+  assert(results[1].quality == "high", "First result should be high quality")
+end)
+```
+
+### Testing Commands
+
+**Run tests (single run per scenario):**
+
+```bash
+tactus test procedure.tac
+tactus test procedure.tac --scenario "Agent completes research"
+```
+
+**Evaluate consistency (multiple runs per scenario):**
+
+```bash
+tactus evaluate procedure.tac --runs 10
+tactus evaluate procedure.tac --runs 50 --workers 10
+```
+
+### Evaluation Metrics
+
+The `evaluate` command measures:
+- **Success Rate** - Percentage of runs that passed
+- **Consistency Score** - How often runs produce identical behavior (0.0 to 1.0)
+- **Timing Statistics** - Mean, median, standard deviation
+- **Flakiness Detection** - Identifies unreliable scenarios
+
+### Parser Warnings
+
+The validator warns if procedures have no specifications:
+
+```
+⚠ Warning: No specifications defined - consider adding BDD tests using specifications([[...]])
+```
+
+### Architecture
+
+Tests are executed using Behave programmatically with:
+- Parallel execution via multiprocessing
+- Structured Pydantic results (no text parsing)
+- IDE integration via structured log events
+- Custom step definitions in Lua
+
+---
+
 ## Summary
 
 **Uniform Recursion:** Procedures work identically at all levels—same params, outputs, prompts, async, HITL.
@@ -1850,3 +1960,5 @@ All v3 procedures work unchanged in v4. HITL features are additive.
 **Message Classification:** Every message has a `humanInteraction` type controlling visibility and behavior.
 
 **Declarative + Imperative:** Declare HITL points in YAML for documentation, invoke them in Lua for control.
+
+**BDD Testing:** First-class Gherkin specifications with built-in steps, custom steps, parallel execution, and consistency evaluation.

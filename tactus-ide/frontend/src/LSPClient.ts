@@ -30,7 +30,7 @@ export class LSPClient {
   private messageId = 0;
   private callbacks = new Map<number, (result: any) => void>();
   private diagnosticsHandler?: (diagnostics: LSPDiagnostic[]) => void;
-  private currentUri = 'file:///untitled.tactus.lua';
+  private currentUri = 'file:///untitled.tac';
   private version = 0;
   private isConnected = false;
   
@@ -192,6 +192,8 @@ export class LSPClient {
     });
   }
 }
+
+
 
 
 

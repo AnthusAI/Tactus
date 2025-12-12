@@ -159,3 +159,5 @@ export const ResultsSidebar: React.FC<ResultsSidebarProps> = ({ events, isRunnin
     </div>
   );
 };
+
+

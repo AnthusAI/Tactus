@@ -16,7 +16,7 @@ export function registerTactusLanguage() {
       'for', 'do', 'while', 'repeat', 'until', 'in', 'and', 'or', 'not'
     ],
     dslKeywords: [
-      'name', 'version', 'description', 'agent', 'procedure', 'parameter', 
+      'name', 'version', 'agent', 'procedure', 'parameter',  
       'output', 'default_provider', 'default_model', 'hitl', 'tool'
     ],
     operators: [
@@ -26,7 +26,7 @@ export function registerTactusLanguage() {
     tokenizer: {
       root: [
         // DSL keywords (highlight differently)
-        [/\b(name|version|description|agent|procedure|parameter|output|default_provider|default_model|hitl|tool)\b/, 'keyword.dsl'],
+        [/\b(name|version|agent|procedure|parameter|output|default_provider|default_model|hitl|tool)\b/, 'keyword.dsl'],
         
         // Lua keywords
         [/\b(function|end|local|return|if|then|else|for|do|while|repeat|until|in|and|or|not)\b/, 'keyword'],
@@ -113,14 +113,6 @@ export function registerTactusLanguage() {
           range
         },
         {
-          label: 'description',
-          kind: monaco.languages.CompletionItemKind.Function,
-          insertText: 'description("${1:Description}")',
-          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-          documentation: 'Define the procedure description',
-          range
-        },
-        {
           label: 'agent',
           kind: monaco.languages.CompletionItemKind.Function,
           insertText: [
@@ -180,6 +172,8 @@ export function registerTactusLanguage() {
     }
   });
 }
+
+
 
 
 

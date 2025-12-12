@@ -84,14 +84,19 @@ export function setupMenu(mainWindow: BrowserWindow): void {
           click: () => sendCommand('run.validate'),
         },
         {
-          label: 'Validate and Run',
-          accelerator: 'CmdOrCtrl+Shift+R',
-          click: () => sendCommand('run.validateAndRun'),
-        },
-        {
           label: 'Run',
           accelerator: 'CmdOrCtrl+R',
           click: () => sendCommand('run.run'),
+        },
+        {
+          label: 'Test',
+          accelerator: 'CmdOrCtrl+Shift+T',
+          click: () => sendCommand('run.test'),
+        },
+        {
+          label: 'Evaluate',
+          accelerator: 'CmdOrCtrl+Shift+E',
+          click: () => sendCommand('run.evaluate'),
         },
       ],
     },

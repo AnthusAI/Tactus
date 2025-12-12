@@ -93,23 +93,8 @@ class TactusLSPHandler:
             {
                 "label": "name",
                 "kind": 3,  # Function
-                "insertText": 'name("${1:procedure_name}")',
                 "insertTextFormat": 2,  # Snippet
                 "documentation": "Define the procedure name"
-            },
-            {
-                "label": "version",
-                "kind": 3,
-                "insertText": 'version("${1:1.0.0}")',
-                "insertTextFormat": 2,
-                "documentation": "Define the procedure version"
-            },
-            {
-                "label": "description",
-                "kind": 3,
-                "insertText": 'description("${1:Description}")',
-                "insertTextFormat": 2,
-                "documentation": "Define the procedure description"
             },
             {
                 "label": "agent",
@@ -183,12 +168,6 @@ class TactusLSPHandler:
         # TODO: Parse position to determine what's under cursor
         
         info_parts = []
-        
-        if registry.procedure_name:
-            info_parts.append(f"**Procedure:** {registry.procedure_name}")
-        
-        if registry.version:
-            info_parts.append(f"**Version:** {registry.version}")
         
         if registry.agents:
             info_parts.append(f"\n**Agents ({len(registry.agents)}):**")
@@ -310,6 +289,8 @@ class TactusLSPHandler:
             "source": "tactus-lsp",
             "message": message.message
         }
+
+
 
 
 

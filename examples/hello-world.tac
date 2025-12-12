@@ -1,8 +1,4 @@
--- Migrated from .tyml format to .tactus.lua
-
-name("hello_world")
-version("1.0.0")
-description("A simple \"Hello World\" example for Tactus")
+-- Migrated from .tyml format to .tactus
 
 -- Outputs
 output("success", {
@@ -54,3 +50,17 @@ procedure(function()
     }
 
 end)
+
+-- BDD Specifications
+specifications([[
+Feature: Hello World Workflow
+  Demonstrate basic Tactus workflow execution
+
+  Scenario: Successful workflow completion
+    Given the procedure has started
+    When the procedure runs
+    Then the procedure should complete successfully
+    And the output success should be True
+    And the output count should be 5
+    And the state items_processed should be 5
+]])

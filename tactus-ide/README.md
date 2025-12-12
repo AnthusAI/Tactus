@@ -138,7 +138,7 @@ tactus-ide/
 
 ### File Management
 - Open folder as workspace (like VS Code)
-- File tree with `.tactus.lua` highlighting
+- File tree with `.tac` highlighting
 - Workspace-sandboxed file operations (no path traversal)
 - Auto-open `examples/` folder on first launch
 
@@ -230,4 +230,6 @@ make dev-ide
 ## License
 
 See LICENSE file in project root.
+
+
 

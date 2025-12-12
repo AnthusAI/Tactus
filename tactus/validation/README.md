@@ -1,13 +1,13 @@
 # Tactus DSL Validation
 
-This module provides ANTLR-based validation for `.tactus.lua` files.
+This module provides ANTLR-based validation for `.tac` files.
 
 ## Architecture
 
 The validation system uses a three-phase approach:
 
 ```
-.tactus.lua file
+.tac file
       ↓
 Phase 1: ANTLR Parsing (Lua 5.4 grammar)
       ↓
@@ -86,10 +86,10 @@ else:
 
 ```bash
 # Validate a file
-tactus validate examples/hello-world.tactus.lua
+tactus validate examples/hello-world.tac
 
 # Quick validation (syntax only)
-tactus validate examples/hello-world.tactus.lua --quick
+tactus validate examples/hello-world.tac --quick
 ```
 
 ## Parser Generation
@@ -207,9 +207,11 @@ The antlr4ts code generator has known issues:
 - **Validation (ANTLR)**: Parse tree analysis, no execution
 - **Runtime (lupa)**: Actual Lua execution with primitives
 
-The same `.tactus.lua` file works for both:
+The same `.tac` file works for both:
 - ANTLR validates structure
 - lupa executes the procedure
+
+
 
 
 

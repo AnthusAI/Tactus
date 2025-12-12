@@ -17,8 +17,8 @@ function demo1ValidFile() {
   console.log('DEMO 1: Valid Lua DSL File');
   console.log('='.repeat(70));
   
-  const filePath = path.join(__dirname, '../examples/simple-agent.tactus.lua');
-  console.log(`\nValidating: simple-agent.tactus.lua\n`);
+  const filePath = path.join(__dirname, '../examples/simple-agent.tac');
+  console.log(`\nValidating: simple-agent.tac\n`);
   
   const source = fs.readFileSync(filePath, 'utf-8');
   const validator = new TactusValidator();
@@ -82,7 +82,7 @@ procedure(function()
     return { success = true }
 end)`;
   
-  console.log('\nValidating: test-invalid.tactus.lua\n');
+  console.log('\nValidating: test-invalid.tac\n');
   
   const validator = new TactusValidator();
   const result = validator.validate(source, 'full');

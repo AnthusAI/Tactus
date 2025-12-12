@@ -27,7 +27,7 @@ export const Editor: React.FC<EditorProps> = ({ initialValue = '', onValueChange
   const [lspConnected, setLspConnected] = useState(false);
   const isDisposedRef = useRef(false);
   const onValueChangeRef = useRef(onValueChange);
-  const currentFileUri = useRef<string>('file:///untitled.tactus.lua');
+  const currentFileUri = useRef<string>('file:///untitled.tac');
   
   // Update the callback ref when it changes
   useEffect(() => {
@@ -39,7 +39,7 @@ export const Editor: React.FC<EditorProps> = ({ initialValue = '', onValueChange
     if (!editorRef.current || !lspClient.current) return;
     
     const currentValue = editorRef.current.getValue();
-    const newUri = filePath ? `file:///${filePath}` : 'file:///untitled.tactus.lua';
+    const newUri = filePath ? `file:///${filePath}` : 'file:///untitled.tac';
     
     // If file changed, notify LSP
     if (newUri !== currentFileUri.current) {
@@ -118,7 +118,7 @@ export const Editor: React.FC<EditorProps> = ({ initialValue = '', onValueChange
       });
       
       // Send initial document
-      const uri = filePath ? `file:///${filePath}` : 'file:///untitled.tactus.lua';
+      const uri = filePath ? `file:///${filePath}` : 'file:///untitled.tac';
       currentFileUri.current = uri;
       lspClient.current.didOpen(uri, initialValue);
       setLspConnected(true);
@@ -227,6 +227,8 @@ export const Editor: React.FC<EditorProps> = ({ initialValue = '', onValueChange
     <div ref={containerRef} style={{ height: '100%' }} />
   );
 };
+
+
 
 
 

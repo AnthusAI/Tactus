@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-Transform Tactus from a YAML+Lua hybrid to a **pure Lua DSL** (`.tactus.lua` files). The same source file works for ANTLR-based validation (IDE/CLI) and lupa execution (runtime). This is a **clean break** - all YAML parsing code will be deleted, all examples converted, and all tests updated.
+Transform Tactus from a YAML+Lua hybrid to a **pure Lua DSL** (`.tac` files). The same source file works for ANTLR-based validation (IDE/CLI) and lupa execution (runtime). This is a **clean break** - all YAML parsing code will be deleted, all examples converted, and all tests updated.
 
 ## Core Architectural Insight
 
@@ -43,7 +43,7 @@ end)
 
 ## File Structure
 
-**Extension:** `.tactus.lua`
+**Extension:** `.tac`
 
 This gets free Lua syntax highlighting while being distinctive.
 
@@ -129,7 +129,7 @@ class SpecificationDeclaration(BaseModel):
 
 
 class ProcedureRegistry(BaseModel):
-    """Collects all declarations from a .tactus.lua file."""
+    """Collects all declarations from a .tac file."""
     
     model_config = {"arbitrary_types_allowed": True}
     
@@ -265,7 +265,7 @@ class RegistryBuilder:
 
 ## 2. DSL Function Stubs
 
-Before executing a `.tactus.lua` file, inject these functions into lupa:
+Before executing a `.tac` file, inject these functions into lupa:
 
 ```python
 def create_dsl_stubs(builder: RegistryBuilder) -> dict[str, Callable]:
@@ -495,7 +495,7 @@ class TactusRuntime:
     
     async def execute(
         self, 
-        source: str,  # .tactus.lua file contents
+        source: str,  # .tac file contents
         context: dict[str, Any]
     ) -> dict[str, Any]:
         
@@ -515,7 +515,7 @@ class TactusRuntime:
         return self._validate_output(registry, result)
     
     def _parse_declarations(self, source: str) -> ProcedureRegistry:
-        """Execute .tactus.lua to collect declarations."""
+        """Execute .tac to collect declarations."""
         
         builder = RegistryBuilder()
         
@@ -688,7 +688,7 @@ class TactusLanguageService {
 
 ```python
 class TactusValidator(LuaParserVisitor):
-    """Validates .tactus.lua files using ANTLR parse tree."""
+    """Validates .tac files using ANTLR parse tree."""
     
     DSL_FUNCTIONS = {
         "name", "version", "description",
@@ -825,13 +825,13 @@ class TactusRuntime:
 
 ```bash
 # Run specifications for a procedure
-tactus test hello.tactus.lua
+tactus test hello.tac
 
 # Run with verbose output
-tactus test hello.tactus.lua --verbose
+tactus test hello.tac --verbose
 
 # Generate Gherkin files without running
-tactus test hello.tactus.lua --generate-only
+tactus test hello.tac --generate-only
 ```
 
 ---
@@ -839,7 +839,7 @@ tactus test hello.tactus.lua --generate-only
 ## 7. Complete DSL Example
 
 ```lua
--- hello.tactus.lua
+-- hello.tac
 
 name "hello_world"
 version "1.0.0"
@@ -956,7 +956,7 @@ specification "greeting behavior" {
 
 ## 8. Migration Path
 
-### Converting .tyml to .tactus.lua
+### Converting .tyml to .tac
 
 Create a migration script:
 
@@ -1001,11 +1001,11 @@ def migrate_tyml_to_tactus(tyml_content: str) -> str:
 ### Files to Convert
 
 All files in `examples/`:
-- `hello-world.tyml` → `hello-world.tactus.lua`
-- `simple-agent.tyml` → `simple-agent.tactus.lua`
-- `state-management.tyml` → `state-management.tactus.lua`
-- `with-parameters.tyml` → `with-parameters.tactus.lua`
-- `multi-model.tyml` → `multi-model.tactus.lua`
+- `hello-world.tyml` → `hello-world.tac`
+- `simple-agent.tyml` → `simple-agent.tac`
+- `state-management.tyml` → `state-management.tac`
+- `with-parameters.tyml` → `with-parameters.tac`
+- `multi-model.tyml` → `multi-model.tac`
 
 ### Files to Delete
 
@@ -1016,7 +1016,7 @@ All files in `examples/`:
 
 ### Update Tests
 
-All tests must use new `.tactus.lua` format. Update:
+All tests must use new `.tac` format. Update:
 - `tests/integration/test_examples.py`
 - Any test fixtures using YAML
 - BDD feature files if any exist
@@ -1043,7 +1043,7 @@ All tests must use new `.tactus.lua` format. Update:
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| File extension | `.tactus.lua` | Free syntax highlighting, distinctive |
+| File extension | `.tac` | Free syntax highlighting, distinctive |
 | Template syntax | `{params.x}` in strings | Matches current, resolved via Pydantic AI prepare |
 | Validation | Layered (quick + full) | IDE needs speed, CLI needs thoroughness |
 | Warnings vs errors | Both supported | Missing specs = warning, missing name = error |
