@@ -86,6 +86,10 @@ class LogPrimitive:
                 procedure_id=self.procedure_id
             )
             self.log_handler.log(event)
+        else:
+            # Fall back to Python logging if no handler
+            formatted = self._format_message(message, context)
+            self.logger.debug(formatted)
 
     def info(self, message: str, context: Optional[Dict[str, Any]] = None) -> None:
         """
