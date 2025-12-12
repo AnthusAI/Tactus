@@ -445,6 +445,295 @@ def run_procedure_stream():
         logger.error(f"Error setting up streaming execution: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
+
+@app.route('/api/test/stream', methods=['GET', 'POST'])
+def test_procedure_stream():
+    """
+    Run BDD tests with SSE streaming output.
+    
+    Query params:
+    - path: procedure file path (required)
+    - mock: use mock mode (optional, default true)
+    - scenario: specific scenario name (optional)
+    - parallel: run in parallel (optional, default false)
+    """
+    if request.method == 'POST':
+        data = request.json or {}
+        file_path = data.get('path')
+        content = data.get('content')
+    else:
+        file_path = request.args.get('path')
+        content = None
+    
+    if not file_path:
+        return jsonify({"error": "Missing 'path' parameter"}), 400
+    
+    # Get options
+    mock = request.args.get('mock', 'true').lower() == 'true'
+    scenario = request.args.get('scenario')
+    parallel = request.args.get('parallel', 'false').lower() == 'true'
+    
+    try:
+        # Resolve path within workspace
+        path = _resolve_workspace_path(file_path)
+        
+        # Save content if provided
+        if content is not None:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content)
+        
+        # Ensure file exists
+        if not path.exists():
+            return jsonify({"error": f"File not found: {file_path}"}), 404
+        
+        procedure_id = path.stem
+        
+        def generate_events():
+            """Generator function that yields SSE test events."""
+            try:
+                from tactus.validation import TactusValidator
+                from tactus.testing import TactusTestRunner, GherkinParser
+                from events import (
+                    TestStartedEvent,
+                    TestCompletedEvent,
+                    TestScenarioCompletedEvent,
+                    ExecutionEvent,
+                )
+                
+                # Validate and extract specifications
+                validator = TactusValidator()
+                validation_result = validator.validate_file(str(path))
+                
+                if not validation_result.valid:
+                    # Emit validation error
+                    error_event = ExecutionEvent(
+                        lifecycle_stage="error",
+                        procedure_id=procedure_id,
+                        details={
+                            "error": "Validation failed",
+                            "errors": [{"message": e.message, "severity": e.severity} for e in validation_result.errors]
+                        }
+                    )
+                    yield f"data: {error_event.model_dump_json()}\n\n"
+                    return
+                
+                if not validation_result.registry or not validation_result.registry.gherkin_specifications:
+                    # No specifications found
+                    error_event = ExecutionEvent(
+                        lifecycle_stage="error",
+                        procedure_id=procedure_id,
+                        details={"error": "No specifications found in procedure"}
+                    )
+                    yield f"data: {error_event.model_dump_json()}\n\n"
+                    return
+                
+                # Setup test runner
+                mock_tools = {"done": {"status": "ok"}} if mock else None
+                runner = TactusTestRunner(path, mock_tools=mock_tools)
+                runner.setup(validation_result.registry.gherkin_specifications)
+                
+                # Get parsed feature to count scenarios
+                parser = GherkinParser()
+                parsed_feature = parser.parse(validation_result.registry.gherkin_specifications)
+                total_scenarios = len(parsed_feature.scenarios)
+                
+                # Emit started event
+                start_event = TestStartedEvent(
+                    procedure_file=str(path),
+                    total_scenarios=total_scenarios
+                )
+                yield f"data: {start_event.model_dump_json()}\n\n"
+                
+                # Run tests
+                test_result = runner.run_tests(parallel=parallel)
+                
+                # Emit scenario completion events
+                for feature in test_result.features:
+                    for scenario in feature.scenarios:
+                        scenario_event = TestScenarioCompletedEvent(
+                            scenario_name=scenario.name,
+                            status=scenario.status,
+                            duration=scenario.duration
+                        )
+                        yield f"data: {scenario_event.model_dump_json()}\n\n"
+                
+                # Emit completed event
+                complete_event = TestCompletedEvent(result=test_result)
+                yield f"data: {complete_event.model_dump_json()}\n\n"
+                
+                # Cleanup
+                runner.cleanup()
+                
+            except Exception as e:
+                logger.error(f"Error in test execution: {e}", exc_info=True)
+                error_event = ExecutionEvent(
+                    lifecycle_stage="error",
+                    procedure_id=procedure_id,
+                    details={"error": str(e)}
+                )
+                yield f"data: {error_event.model_dump_json()}\n\n"
+        
+        return Response(
+            stream_with_context(generate_events()),
+            mimetype='text/event-stream',
+            headers={
+                'Cache-Control': 'no-cache',
+                'X-Accel-Buffering': 'no',
+                'Connection': 'keep-alive'
+            }
+        )
+        
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        logger.error(f"Error setting up test execution: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/evaluate/stream', methods=['GET', 'POST'])
+def evaluate_procedure_stream():
+    """
+    Run BDD evaluation with SSE streaming output.
+    
+    Query params:
+    - path: procedure file path (required)
+    - runs: number of runs per scenario (optional, default 10)
+    - mock: use mock mode (optional, default true)
+    - scenario: specific scenario name (optional)
+    - parallel: run in parallel (optional, default true)
+    """
+    if request.method == 'POST':
+        data = request.json or {}
+        file_path = data.get('path')
+        content = data.get('content')
+    else:
+        file_path = request.args.get('path')
+        content = None
+    
+    if not file_path:
+        return jsonify({"error": "Missing 'path' parameter"}), 400
+    
+    # Get options
+    runs = int(request.args.get('runs', '10'))
+    mock = request.args.get('mock', 'true').lower() == 'true'
+    scenario = request.args.get('scenario')
+    parallel = request.args.get('parallel', 'true').lower() == 'true'
+    
+    try:
+        # Resolve path within workspace
+        path = _resolve_workspace_path(file_path)
+        
+        # Save content if provided
+        if content is not None:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content)
+        
+        # Ensure file exists
+        if not path.exists():
+            return jsonify({"error": f"File not found: {file_path}"}), 404
+        
+        procedure_id = path.stem
+        
+        def generate_events():
+            """Generator function that yields SSE evaluation events."""
+            try:
+                from tactus.validation import TactusValidator
+                from tactus.testing import TactusEvaluationRunner, GherkinParser
+                from events import (
+                    EvaluationStartedEvent,
+                    EvaluationCompletedEvent,
+                    EvaluationProgressEvent,
+                    ExecutionEvent,
+                )
+                
+                # Validate and extract specifications
+                validator = TactusValidator()
+                validation_result = validator.validate_file(str(path))
+                
+                if not validation_result.valid:
+                    error_event = ExecutionEvent(
+                        lifecycle_stage="error",
+                        procedure_id=procedure_id,
+                        details={
+                            "error": "Validation failed",
+                            "errors": [{"message": e.message, "severity": e.severity} for e in validation_result.errors]
+                        }
+                    )
+                    yield f"data: {error_event.model_dump_json()}\n\n"
+                    return
+                
+                if not validation_result.registry or not validation_result.registry.gherkin_specifications:
+                    error_event = ExecutionEvent(
+                        lifecycle_stage="error",
+                        procedure_id=procedure_id,
+                        details={"error": "No specifications found in procedure"}
+                    )
+                    yield f"data: {error_event.model_dump_json()}\n\n"
+                    return
+                
+                # Setup evaluation runner
+                mock_tools = {"done": {"status": "ok"}} if mock else None
+                evaluator = TactusEvaluationRunner(path, mock_tools=mock_tools)
+                evaluator.setup(validation_result.registry.gherkin_specifications)
+                
+                # Get parsed feature to count scenarios
+                parser = GherkinParser()
+                parsed_feature = parser.parse(validation_result.registry.gherkin_specifications)
+                total_scenarios = len(parsed_feature.scenarios)
+                
+                # Emit started event
+                start_event = EvaluationStartedEvent(
+                    procedure_file=str(path),
+                    total_scenarios=total_scenarios,
+                    runs_per_scenario=runs
+                )
+                yield f"data: {start_event.model_dump_json()}\n\n"
+                
+                # Run evaluation
+                eval_results = evaluator.evaluate_all(runs=runs, parallel=parallel)
+                
+                # Emit progress/completion events for each scenario
+                for eval_result in eval_results:
+                    progress_event = EvaluationProgressEvent(
+                        scenario_name=eval_result.scenario_name,
+                        completed_runs=eval_result.total_runs,
+                        total_runs=eval_result.total_runs
+                    )
+                    yield f"data: {progress_event.model_dump_json()}\n\n"
+                
+                # Emit completed event
+                complete_event = EvaluationCompletedEvent(results=eval_results)
+                yield f"data: {complete_event.model_dump_json()}\n\n"
+                
+                # Cleanup
+                evaluator.cleanup()
+                
+            except Exception as e:
+                logger.error(f"Error in evaluation execution: {e}", exc_info=True)
+                error_event = ExecutionEvent(
+                    lifecycle_stage="error",
+                    procedure_id=procedure_id,
+                    details={"error": str(e)}
+                )
+                yield f"data: {error_event.model_dump_json()}\n\n"
+        
+        return Response(
+            stream_with_context(generate_events()),
+            mimetype='text/event-stream',
+            headers={
+                'Cache-Control': 'no-cache',
+                'X-Accel-Buffering': 'no',
+                'Connection': 'keep-alive'
+            }
+        )
+        
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        logger.error(f"Error setting up evaluation execution: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
 @socketio.on('connect')
 def handle_connect():
     """Handle WebSocket connection."""
@@ -501,6 +790,7 @@ if __name__ == '__main__':
     logger.info(f"Starting Tactus IDE Backend on port {port}")
     # Use socketio.run which handles WebSocket properly
     socketio.run(app, host='127.0.0.1', port=port, debug=False, use_reloader=False, log_output=False, allow_unsafe_werkzeug=True)
+
 
 
 

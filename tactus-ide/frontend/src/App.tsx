@@ -307,15 +307,65 @@ export const App: React.FC = () => {
     }
   }, [currentFile, fileContent]);
 
-  // Test (not yet implemented)
+  // Test current file
   const handleTest = useCallback(async () => {
-    // TODO: Implement test functionality
-  }, []);
+    if (!currentFile) {
+      alert('Please select a file to test');
+      return;
+    }
 
-  // Evaluate (not yet implemented)
+    // Clear old results
+    setRunResult(null);
+    setValidationResult(null);
+    
+    try {
+      // First, save the file content
+      await fetch(apiUrl('/api/file'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          path: currentFile,
+          content: fileContent,
+        }),
+      });
+      
+      // Then start streaming test results (mock mode by default)
+      const url = apiUrl(`/api/test/stream?path=${encodeURIComponent(currentFile)}&mock=true`);
+      setStreamUrl(url);
+    } catch (error) {
+      console.error('Error running tests:', error);
+    }
+  }, [currentFile, fileContent]);
+
+  // Evaluate current file
   const handleEvaluate = useCallback(async () => {
-    // TODO: Implement evaluate functionality
-  }, []);
+    if (!currentFile) {
+      alert('Please select a file to evaluate');
+      return;
+    }
+
+    // Clear old results
+    setRunResult(null);
+    setValidationResult(null);
+    
+    try {
+      // First, save the file content
+      await fetch(apiUrl('/api/file'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          path: currentFile,
+          content: fileContent,
+        }),
+      });
+      
+      // Then start streaming evaluation results (mock mode by default, 10 runs)
+      const url = apiUrl(`/api/evaluate/stream?path=${encodeURIComponent(currentFile)}&mock=true&runs=10`);
+      setStreamUrl(url);
+    } catch (error) {
+      console.error('Error running evaluation:', error);
+    }
+  }, [currentFile, fileContent]);
 
   // Register command handlers
   useEffect(() => {
@@ -427,13 +477,13 @@ export const App: React.FC = () => {
                 <CheckCircle className="h-3 w-3 mr-1" />
                 Validate
               </Button>
-              <Button size="sm" variant="ghost" onClick={handleRun} disabled={isRunning} className="h-7 text-xs">
-                <Play className="h-3 w-3 mr-1" />
-                {isRunning ? 'Running...' : 'Run'}
-              </Button>
               <Button size="sm" variant="ghost" onClick={handleTest} className="h-7 text-xs">
                 <TestTube className="h-3 w-3 mr-1" />
                 Test
+              </Button>
+              <Button size="sm" variant="ghost" onClick={handleRun} disabled={isRunning} className="h-7 text-xs">
+                <Play className="h-3 w-3 mr-1" />
+                {isRunning ? 'Running...' : 'Run'}
               </Button>
               <Button size="sm" variant="ghost" onClick={handleEvaluate} className="h-7 text-xs">
                 <BarChart2 className="h-3 w-3 mr-1" />
@@ -508,6 +558,7 @@ export const App: React.FC = () => {
     </div>
   );
 };
+
 
 
 

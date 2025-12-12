@@ -253,3 +253,4 @@ behave --tags=-@spec_mismatch
 - Mismatches are behavioral, not syntactic
 - Implementation is internally consistent, just differs from spec
 - Spec may need updates to match implementation decisions
+

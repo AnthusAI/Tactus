@@ -348,9 +348,9 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
         try:
             validator = TactusValidator()
             result = validator.validate(content)
-            
+
             return jsonify({
-                "valid": result.is_valid,
+                "valid": result.valid,
                 "errors": [
                     {
                         "message": err.message,
@@ -359,6 +359,15 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                         "severity": err.severity
                     }
                     for err in result.errors
+                ],
+                "warnings": [
+                    {
+                        "message": warn.message,
+                        "line": warn.location[0] if warn.location else None,
+                        "column": warn.location[1] if warn.location else None,
+                        "severity": warn.severity
+                    }
+                    for warn in result.warnings
                 ]
             })
         except Exception as e:
@@ -575,6 +584,330 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             logger.error(f"Error setting up streaming execution: {e}", exc_info=True)
             return jsonify({"error": str(e)}), 500
 
+    @app.route("/api/test/stream", methods=["GET"])
+    def test_procedure_stream():
+        """
+        Run BDD tests with SSE streaming output.
+        
+        Query params:
+        - path: procedure file path (required)
+        - mock: use mock mode (optional, default true)
+        - scenario: specific scenario name (optional)
+        - parallel: run in parallel (optional, default false)
+        """
+        file_path = request.args.get("path")
+        
+        if not file_path:
+            return jsonify({"error": "Missing 'path' parameter"}), 400
+        
+        # Get options
+        mock = request.args.get("mock", "true").lower() == "true"
+        scenario = request.args.get("scenario")
+        parallel = request.args.get("parallel", "false").lower() == "true"
+        
+        try:
+            # Resolve path within workspace
+            path = _resolve_workspace_path(file_path)
+            
+            # Ensure file exists
+            if not path.exists():
+                return jsonify({"error": f"File not found: {file_path}"}), 404
+            
+            procedure_id = path.stem
+            
+            def generate_events():
+                """Generator function that yields SSE test events."""
+                try:
+                    import json
+                    from datetime import datetime
+                    from tactus.validation import TactusValidator
+                    from tactus.testing import TactusTestRunner, GherkinParser
+                    
+                    # Validate and extract specifications
+                    validator = TactusValidator()
+                    validation_result = validator.validate_file(str(path))
+                    
+                    if not validation_result.valid:
+                        # Emit validation error
+                        error_event = {
+                            "event_type": "execution",
+                            "lifecycle_stage": "error",
+                            "procedure_id": procedure_id,
+                            "timestamp": datetime.utcnow().isoformat() + 'Z',
+                            "details": {
+                                "error": "Validation failed",
+                                "errors": [{"message": e.message, "severity": e.severity} for e in validation_result.errors]
+                            }
+                        }
+                        yield f"data: {json.dumps(error_event)}\n\n"
+                        return
+                    
+                    if not validation_result.registry or not validation_result.registry.gherkin_specifications:
+                        # No specifications found
+                        error_event = {
+                            "event_type": "execution",
+                            "lifecycle_stage": "error",
+                            "procedure_id": procedure_id,
+                            "timestamp": datetime.utcnow().isoformat() + 'Z',
+                            "details": {"error": "No specifications found in procedure"}
+                        }
+                        yield f"data: {json.dumps(error_event)}\n\n"
+                        return
+                    
+                    # Setup test runner
+                    mock_tools = {"done": {"status": "ok"}} if mock else None
+                    runner = TactusTestRunner(path, mock_tools=mock_tools)
+                    runner.setup(validation_result.registry.gherkin_specifications)
+                    
+                    # Get parsed feature to count scenarios
+                    parser = GherkinParser()
+                    parsed_feature = parser.parse(validation_result.registry.gherkin_specifications)
+                    total_scenarios = len(parsed_feature.scenarios)
+                    
+                    # Emit started event
+                    start_event = {
+                        "event_type": "test_started",
+                        "procedure_file": str(path),
+                        "total_scenarios": total_scenarios,
+                        "timestamp": datetime.utcnow().isoformat() + 'Z'
+                    }
+                    yield f"data: {json.dumps(start_event)}\n\n"
+                    
+                    # Run tests
+                    test_result = runner.run_tests(parallel=parallel)
+                    
+                    # Emit scenario completion events
+                    for feature in test_result.features:
+                        for scenario in feature.scenarios:
+                            scenario_event = {
+                                "event_type": "test_scenario_completed",
+                                "scenario_name": scenario.name,
+                                "status": scenario.status,
+                                "duration": scenario.duration,
+                                "timestamp": datetime.utcnow().isoformat() + 'Z'
+                            }
+                            yield f"data: {json.dumps(scenario_event)}\n\n"
+                    
+                    # Emit completed event
+                    complete_event = {
+                        "event_type": "test_completed",
+                        "result": {
+                            "total_scenarios": test_result.total_scenarios,
+                            "passed_scenarios": test_result.passed_scenarios,
+                            "failed_scenarios": test_result.failed_scenarios,
+                            "features": [
+                                {
+                                    "name": f.name,
+                                    "scenarios": [
+                                        {
+                                            "name": s.name,
+                                            "status": s.status,
+                                            "duration": s.duration,
+                                            "steps": [
+                                                {
+                                                    "keyword": step.keyword,
+                                                    "text": step.text,
+                                                    "status": step.status,
+                                                    "error_message": step.error_message
+                                                }
+                                                for step in s.steps
+                                            ]
+                                        }
+                                        for s in f.scenarios
+                                    ]
+                                }
+                                for f in test_result.features
+                            ]
+                        },
+                        "timestamp": datetime.utcnow().isoformat() + 'Z'
+                    }
+                    yield f"data: {json.dumps(complete_event)}\n\n"
+                    
+                    # Cleanup
+                    runner.cleanup()
+                    
+                except Exception as e:
+                    logger.error(f"Error in test execution: {e}", exc_info=True)
+                    error_event = {
+                        "event_type": "execution",
+                        "lifecycle_stage": "error",
+                        "procedure_id": procedure_id,
+                        "timestamp": datetime.utcnow().isoformat() + 'Z',
+                        "details": {"error": str(e)}
+                    }
+                    yield f"data: {json.dumps(error_event)}\n\n"
+            
+            return Response(
+                stream_with_context(generate_events()),
+                mimetype="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "X-Accel-Buffering": "no",
+                    "Connection": "keep-alive"
+                }
+            )
+            
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+        except Exception as e:
+            logger.error(f"Error setting up test execution: {e}", exc_info=True)
+            return jsonify({"error": str(e)}), 500
+
+    @app.route("/api/evaluate/stream", methods=["GET"])
+    def evaluate_procedure_stream():
+        """
+        Run BDD evaluation with SSE streaming output.
+        
+        Query params:
+        - path: procedure file path (required)
+        - runs: number of runs per scenario (optional, default 10)
+        - mock: use mock mode (optional, default true)
+        - scenario: specific scenario name (optional)
+        - parallel: run in parallel (optional, default true)
+        """
+        file_path = request.args.get("path")
+        
+        if not file_path:
+            return jsonify({"error": "Missing 'path' parameter"}), 400
+        
+        # Get options
+        runs = int(request.args.get("runs", "10"))
+        mock = request.args.get("mock", "true").lower() == "true"
+        scenario = request.args.get("scenario")
+        parallel = request.args.get("parallel", "true").lower() == "true"
+        
+        try:
+            # Resolve path within workspace
+            path = _resolve_workspace_path(file_path)
+            
+            # Ensure file exists
+            if not path.exists():
+                return jsonify({"error": f"File not found: {file_path}"}), 404
+            
+            procedure_id = path.stem
+            
+            def generate_events():
+                """Generator function that yields SSE evaluation events."""
+                try:
+                    import json
+                    from datetime import datetime
+                    from tactus.validation import TactusValidator
+                    from tactus.testing import TactusEvaluationRunner, GherkinParser
+                    
+                    # Validate and extract specifications
+                    validator = TactusValidator()
+                    validation_result = validator.validate_file(str(path))
+                    
+                    if not validation_result.valid:
+                        error_event = {
+                            "event_type": "execution",
+                            "lifecycle_stage": "error",
+                            "procedure_id": procedure_id,
+                            "timestamp": datetime.utcnow().isoformat() + 'Z',
+                            "details": {
+                                "error": "Validation failed",
+                                "errors": [{"message": e.message, "severity": e.severity} for e in validation_result.errors]
+                            }
+                        }
+                        yield f"data: {json.dumps(error_event)}\n\n"
+                        return
+                    
+                    if not validation_result.registry or not validation_result.registry.gherkin_specifications:
+                        error_event = {
+                            "event_type": "execution",
+                            "lifecycle_stage": "error",
+                            "procedure_id": procedure_id,
+                            "timestamp": datetime.utcnow().isoformat() + 'Z',
+                            "details": {"error": "No specifications found in procedure"}
+                        }
+                        yield f"data: {json.dumps(error_event)}\n\n"
+                        return
+                    
+                    # Setup evaluation runner
+                    mock_tools = {"done": {"status": "ok"}} if mock else None
+                    evaluator = TactusEvaluationRunner(path, mock_tools=mock_tools)
+                    evaluator.setup(validation_result.registry.gherkin_specifications)
+                    
+                    # Get parsed feature to count scenarios
+                    parser = GherkinParser()
+                    parsed_feature = parser.parse(validation_result.registry.gherkin_specifications)
+                    total_scenarios = len(parsed_feature.scenarios)
+                    
+                    # Emit started event
+                    start_event = {
+                        "event_type": "evaluation_started",
+                        "procedure_file": str(path),
+                        "total_scenarios": total_scenarios,
+                        "runs_per_scenario": runs,
+                        "timestamp": datetime.utcnow().isoformat() + 'Z'
+                    }
+                    yield f"data: {json.dumps(start_event)}\n\n"
+                    
+                    # Run evaluation
+                    eval_results = evaluator.evaluate_all(runs=runs, parallel=parallel)
+                    
+                    # Emit progress/completion events for each scenario
+                    for eval_result in eval_results:
+                        progress_event = {
+                            "event_type": "evaluation_progress",
+                            "scenario_name": eval_result.scenario_name,
+                            "completed_runs": eval_result.total_runs,
+                            "total_runs": eval_result.total_runs,
+                            "timestamp": datetime.utcnow().isoformat() + 'Z'
+                        }
+                        yield f"data: {json.dumps(progress_event)}\n\n"
+                    
+                    # Emit completed event
+                    complete_event = {
+                        "event_type": "evaluation_completed",
+                        "results": [
+                            {
+                                "scenario_name": r.scenario_name,
+                                "total_runs": r.total_runs,
+                                "successful_runs": r.successful_runs,
+                                "failed_runs": r.failed_runs,
+                                "success_rate": r.success_rate,
+                                "consistency_score": r.consistency_score,
+                                "is_flaky": r.is_flaky,
+                                "avg_duration": r.avg_duration,
+                                "std_duration": r.std_duration
+                            }
+                            for r in eval_results
+                        ],
+                        "timestamp": datetime.utcnow().isoformat() + 'Z'
+                    }
+                    yield f"data: {json.dumps(complete_event)}\n\n"
+                    
+                    # Cleanup
+                    evaluator.cleanup()
+                    
+                except Exception as e:
+                    logger.error(f"Error in evaluation execution: {e}", exc_info=True)
+                    error_event = {
+                        "event_type": "execution",
+                        "lifecycle_stage": "error",
+                        "procedure_id": procedure_id,
+                        "timestamp": datetime.utcnow().isoformat() + 'Z',
+                        "details": {"error": str(e)}
+                    }
+                    yield f"data: {json.dumps(error_event)}\n\n"
+            
+            return Response(
+                stream_with_context(generate_events()),
+                mimetype="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "X-Accel-Buffering": "no",
+                    "Connection": "keep-alive"
+                }
+            )
+            
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+        except Exception as e:
+            logger.error(f"Error setting up evaluation execution: {e}", exc_info=True)
+            return jsonify({"error": str(e)}), 500
+
     @app.route("/api/lsp", methods=["POST"])
     def lsp_request():
         """Handle LSP requests via HTTP."""
@@ -669,6 +1002,12 @@ def main() -> None:
 
     This enables `python -m tactus.ide.server` which is useful for local development
     and file-watcher based auto-reload workflows.
+    
+    Environment variables:
+    - TACTUS_IDE_HOST: Host to bind to (default: 127.0.0.1)
+    - TACTUS_IDE_PORT: Port to bind to (default: 5001)
+    - TACTUS_IDE_WORKSPACE: Initial workspace directory (default: current directory)
+    - TACTUS_IDE_LOG_LEVEL: Logging level (default: INFO)
     """
     logging.basicConfig(level=os.environ.get("TACTUS_IDE_LOG_LEVEL", "INFO"))
 
@@ -679,7 +1018,12 @@ def main() -> None:
     except ValueError:
         raise SystemExit(f"Invalid TACTUS_IDE_PORT: {port_str!r}")
 
-    app = create_app()
+    # Get initial workspace from environment or use current directory
+    initial_workspace = os.environ.get("TACTUS_IDE_WORKSPACE")
+    if initial_workspace:
+        logger.info(f"Setting initial workspace to: {initial_workspace}")
+    
+    app = create_app(initial_workspace=initial_workspace)
     # NOTE: We intentionally disable Flask's reloader here; external watchers (e.g. watchdog)
     # should restart this process to avoid double-fork behavior.
     app.run(host=host, port=port, debug=False, threaded=True, use_reloader=False)
@@ -687,6 +1031,7 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
 
 
 

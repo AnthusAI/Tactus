@@ -36,3 +36,4 @@ Feature: IDE Server Management
     Given I have started the IDE in terminal 1
     When I press Ctrl+C
     Then I should see "Server port:" in the output
+

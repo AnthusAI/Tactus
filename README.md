@@ -16,7 +16,7 @@ pip install tactus
 
 ### Your First Procedure: Hello and Done
 
-Here's a complete working example that demonstrates the core concepts of Tactus. We define an agent with a goal and a tool, then use Lua to orchestrate the workflow.
+Here's a complete working example that demonstrates the core concepts of Tactus. We define an agent with a goal and a tool, orchestrate with Lua, and include a test specification.
 
 Create a file `hello.tac`:
 
@@ -31,16 +31,16 @@ parameter("name", {
 agent("greeter", {
   provider = "openai",
   model = "gpt-4o-mini",
-  
+
   -- The system prompt defines the agent's goal and behavior
   system_prompt = [[
     You are a friendly greeter. Greet the user by name: {params.name}
     When done, call the done tool.
   ]],
-  
+
   -- Optional: kick off the conversation
   initial_message = "Please greet the user.",
-  
+
   -- Tools the agent can use (procedures can also be tools)
   tools = {"done"}
 })
@@ -58,14 +58,47 @@ procedure(function()
     greeting = Tool.last_call("done").args.reason
   }
 end)
+
+-- 3. Define the Test Specification (Gherkin)
+specifications([[
+Feature: Greeting Workflow
+
+  Scenario: Agent greets user and completes
+    Given the procedure has started
+    When the greeter agent takes turns
+    Then the done tool should be called exactly once
+    And the procedure should complete successfully
+    And the result should have field "completed" equal to true
+]])
 ```
 
-Run it:
+**Run the procedure:**
 
 ```bash
 export OPENAI_API_KEY=your-key
 tactus run hello.tac
 ```
+
+**Test the procedure to verify behavior:**
+
+```bash
+tactus test hello.tac
+```
+
+This runs the Gherkin specification and verifies that the agent behaves correctly. You'll see output like:
+
+```
+Feature: Greeting Workflow
+  Scenario: Agent greets user and completes ... passed
+```
+
+**Evaluate consistency across multiple runs:**
+
+```bash
+tactus evaluate hello.tac --runs 10
+```
+
+This runs the test 10 times and reports success rate and consistency metrics, helping you identify flaky behavior.
 
 **What's happening here:**
 
@@ -75,7 +108,9 @@ tactus run hello.tac
 
 3. **Procedure** (`procedure`): This is your workflow logic in Lua. You control the flow explicitly—loops, conditionals, error handling—while the agent handles the intelligence within each turn.
 
-This separation of concerns is key: **you control the workflow structure, the agent handles the decision-making within that structure.**
+4. **Specifications** (`specifications`): Gherkin BDD tests that verify your agent's behavior. These are first-class citizens in Tactus—you can run them with `tactus test` or evaluate consistency with `tactus evaluate`.
+
+This separation of concerns is key: **you control the workflow structure, the agent handles the decision-making within that structure, and specifications ensure it works correctly.**
 
 ## Key Features
 
@@ -143,25 +178,28 @@ Parameters in Tactus are more than just variables—they form a **contract** def
 
 This separation means your agent logic remains the same, while the interface adapts to where it's running.
 
-```yaml
-params:
-  topic:
-    type: string
-    required: true
-    description: "The topic to research"
-    
-  depth:
-    type: string
-    enum: [shallow, deep]
-    default: shallow
-    
-  max_results:
-    type: number
-    default: 10
-    
-  include_sources:
-    type: boolean
-    default: true
+```lua
+parameter("topic", {
+  type = "string",
+  required = true,
+  description = "The topic to research"
+})
+
+parameter("depth", {
+  type = "string",
+  enum = {"shallow", "deep"},
+  default = "shallow"
+})
+
+parameter("max_results", {
+  type = "number",
+  default = 10
+})
+
+parameter("include_sources", {
+  type = "boolean",
+  default = true
+})
 ```
 
 Parameters are accessed in templates as `{params.topic}` and in Lua as `params.topic`.
@@ -174,59 +212,64 @@ Use different models and providers for different tasks within the same workflow.
 
 **Mix models for different capabilities:**
 
-```yaml
-agents:
-  researcher:
-    provider: openai
-    model: gpt-4o  # Use GPT-4o for complex research
-    system_prompt: "Research the topic thoroughly..."
-    tools: [search, done]
-  
-  summarizer:
-    provider: openai
-    model: gpt-4o-mini  # Use GPT-4o-mini for simple summarization
-    system_prompt: "Summarize the findings concisely..."
-    tools: [done]
+```lua
+agent("researcher", {
+  provider = "openai",
+  model = "gpt-4o",  -- Use GPT-4o for complex research
+  system_prompt = "Research the topic thoroughly...",
+  tools = {"search", "done"}
+})
+
+agent("summarizer", {
+  provider = "openai",
+  model = "gpt-4o-mini",  -- Use GPT-4o-mini for simple summarization
+  system_prompt = "Summarize the findings concisely...",
+  tools = {"done"}
+})
 ```
 
 **Mix providers (OpenAI + Bedrock):**
 
-```yaml
-agents:
-  openai_analyst:
-    provider: openai
-    model: gpt-4o
-    system_prompt: "Analyze the data..."
-    tools: [done]
-  
-  bedrock_reviewer:
-    provider: bedrock
-    model: anthropic.claude-3-5-sonnet-20240620-v1:0
-    system_prompt: "Review the analysis..."
-    tools: [done]
+```lua
+agent("openai_analyst", {
+  provider = "openai",
+  model = "gpt-4o",
+  system_prompt = "Analyze the data...",
+  tools = {"done"}
+})
+
+agent("bedrock_reviewer", {
+  provider = "bedrock",
+  model = "anthropic.claude-3-5-sonnet-20240620-v1:0",
+  system_prompt = "Review the analysis...",
+  tools = {"done"}
+})
 ```
 
 **Configure model-specific parameters:**
 
-```yaml
-agents:
-  creative_writer:
-    provider: openai
-    model:
-      name: gpt-4o
-      temperature: 0.9  # Higher creativity
-      max_tokens: 2000
-    system_prompt: "Write creatively..."
-    tools: [done]
-  
-  reasoning_agent:
-    provider: openai
-    model:
-      name: gpt-5  # Reasoning model
-      openai_reasoning_effort: high
-      max_tokens: 4000
-    system_prompt: "Solve this complex problem..."
-    tools: [done]
+```lua
+agent("creative_writer", {
+  provider = "openai",
+  model = {
+    name = "gpt-4o",
+    temperature = 0.9,  -- Higher creativity
+    max_tokens = 2000
+  },
+  system_prompt = "Write creatively...",
+  tools = {"done"}
+})
+
+agent("reasoning_agent", {
+  provider = "openai",
+  model = {
+    name = "gpt-5",  -- Reasoning model
+    openai_reasoning_effort = "high",
+    max_tokens = 4000
+  },
+  system_prompt = "Solve this complex problem...",
+  tools = {"done"}
+})
 ```
 
 **Configuration via `.tac/config.yml`:**
@@ -310,20 +353,26 @@ Every message has a classification that determines visibility:
 
 **Filter conversation history per agent:**
 
-```yaml
-agents:
-  worker:
-    system_prompt: "Process the task..."
-    tools: [search, analyze, done]
-    
-    # Control what this agent sees
-    filter:
-      class: ComposedFilter
-      chain:
-        - class: TokenBudget
-          max_tokens: 120000
-        - class: LimitToolResults
-          count: 2  # Only show last 2 tool results
+```lua
+agent("worker", {
+  system_prompt = "Process the task...",
+  tools = {"search", "analyze", "done"},
+
+  -- Control what this agent sees
+  filter = {
+    class = "ComposedFilter",
+    chain = {
+      {
+        class = "TokenBudget",
+        max_tokens = 120000
+      },
+      {
+        class = "LimitToolResults",
+        count = 2  -- Only show last 2 tool results
+      }
+    }
+  }
+})
 ```
 
 **Manage session state programmatically:**
@@ -408,15 +457,15 @@ elseif review.decision == "Revise" then
 end
 ```
 
-**Declare HITL points in YAML for reusable workflows:**
+**Declare HITL points for reusable workflows:**
 
-```yaml
-hitl:
-  confirm_publish:
-    type: approval
-    message: "Publish this document to production?"
-    timeout: 3600
-    default: false
+```lua
+hitl("confirm_publish", {
+  type = "approval",
+  message = "Publish this document to production?",
+  timeout = 3600,
+  default = false
+})
 ```
 
 Then reference them in your procedure:
@@ -493,12 +542,78 @@ Tactus bridges this gap. It offers the **evolutionary potential** of "Agent as C
 *   **Human-in-the-Loop**: First-class primitives for approval and oversight.
 *   **Bounded Autonomy**: The "Give an Agent a Tool" paradigm—defining capabilities and goals—within a controlled environment.
 
+## Related Projects
+
+The AI agent space is crowded. This section explains how Tactus differs from alternatives and why you might choose it.
+
+**Tactus's core differentiator**: Most frameworks embed orchestration in Python (or another host language). Tactus uses a dedicated DSL (Lua) that is token-efficient, sandboxed, and designed to be readable and modifiable by AI agents themselves. This enables self-evolution patterns where agents can inspect and rewrite their own workflow definitions—a capability that's difficult when logic is scattered across Python classes.
+
+### DSPy
+
+[DSPy](https://dspy.ai) (Declarative Self-improving Python) treats prompting as a compilation target. You define typed signatures and let optimizers automatically discover effective prompts, few-shot examples, or fine-tuning strategies. DSPy excels at tasks where you have training data and clear metrics—classification, RAG, information extraction—and want to programmatically iterate on prompt quality without manual tuning.
+
+Tactus takes a different approach: rather than optimizing prompts automatically, it provides a token-efficient, sandboxed language that serves as a safe platform for user-contributed or AI-generated code. Where DSPy hides control flow behind module composition, Tactus makes it explicit—you write the loops, conditionals, and error handling while agents handle intelligence within each turn.
+
+The frameworks are complementary: you could use DSPy to optimize the prompts that go into a Tactus agent's `system_prompt`, then use Tactus to orchestrate those optimized agents in a durable, human-in-the-loop workflow.
+
+| | DSPy | Tactus |
+|-|------|--------|
+| **Core idea** | Programming, not prompting | Token-efficient, AI-manipulable orchestration language |
+| **Optimization** | Automatic (optimizers) | Manual or agent-driven self-evolution |
+| **Control flow** | Declarative composition | Imperative Lua DSL |
+| **Human-in-the-loop** | Not built-in | First-class citizen |
+| **Durability** | Caching | Checkpointing + replay |
+| **Target** | Researchers optimizing prompts | Engineers building production workflows |
+
+### LangGraph
+
+[LangGraph](https://github.com/langchain-ai/langgraph) is LangChain's graph-based workflow engine. Like Tactus, it emphasizes explicit control flow over autonomous agent behavior—you define nodes, edges, and state transitions rather than letting agents decide what to do next.
+
+The key difference is the host language. LangGraph embeds workflows in Python using a `StateGraph` API, while Tactus uses Lua. This matters for two reasons: (1) Lua is more token-efficient when included in LLM context, and (2) Lua's sandboxed execution makes it safer for AI-generated or user-contributed code. If you need agents to read, understand, and modify their own orchestration logic, a dedicated DSL is more tractable than Python class hierarchies.
+
+| | LangGraph | Tactus |
+|-|-----------|--------|
+| **Orchestration language** | Python (StateGraph API) | Lua DSL |
+| **State management** | Explicit, graph-based | Explicit, imperative |
+| **HITL** | Interrupt nodes + persistent state | First-class primitives (`Human.approve()`, etc.) |
+| **Self-evolution** | Difficult (logic in Python) | Designed for it (logic in readable DSL) |
+| **Ecosystem** | LangChain integration | Standalone, uses Pydantic-AI |
+
+### CrewAI
+
+[CrewAI](https://github.com/crewAIInc/crewAI) takes a role-based approach where agents are modeled as team members with specific responsibilities. You define a "crew" of agents with roles, goals, and backstories, then let them collaborate on tasks.
+
+This paradigm is intuitive for certain use cases, but it imposes a specific mental model. All naming, configuration, and documentation is built around the crew/worker metaphor. If you want that structure, CrewAI provides it out of the box. If you find it constraining—or want your orchestration logic to be AI-readable without anthropomorphic abstractions—Tactus offers more flexibility.
+
+CrewAI recently added "Flows" for more explicit control, narrowing the gap with graph-based frameworks. But the underlying paradigm remains role-centric rather than workflow-centric.
+
+### Vendor Frameworks
+
+The major AI companies have released their own agent frameworks:
+
+- **[OpenAI Agents SDK](https://openai.github.io/openai-agents-python/)** — Production evolution of OpenAI Swarm. Lightweight primitives (Agents, Handoffs, Guardrails) for multi-agent orchestration. Tightly coupled to OpenAI's ecosystem.
+
+- **[Google ADK](https://google.github.io/adk-docs/)** (Agent Development Kit) — Modular framework with workflow agents (Sequential, Parallel, Loop) and LLM agents. Optimized for Gemini and Vertex AI deployment.
+
+- **[Microsoft AutoGen](https://github.com/microsoft/autogen)** — Conversation-driven multi-agent framework where agents coordinate through message passing.
+
+- **[Meta Llama Stack](https://ai.meta.com/blog/meta-llama-3-1/)** — Standardized interfaces for building agentic applications with Llama models. More of an API specification than a workflow framework.
+
+These frameworks are valuable if you're committed to a specific vendor's ecosystem. Tactus is model-agnostic (via Pydantic-AI) and designed to run anywhere—local, cloud, or AWS Lambda Durable Functions.
+
+### Other Tools
+
+- **[Pydantic-AI](https://github.com/pydantic/pydantic-ai)** — Type-safe LLM integration that Tactus uses under the hood. Tactus adds orchestration, HITL, and durability on top.
+
+- **[Guidance](https://github.com/guidance-ai/guidance)** (Microsoft) — Interleaves constrained generation with control flow. Focuses on token-level control during generation rather than workflow orchestration.
+
 ## Complete Feature List
 
-- **Declarative Workflows**: Define agent workflows in pure Lua DSL
+- **Imperative Lua DSL**: Define agent workflows with full programmatic control
 - **Multi-Provider Support**: Use OpenAI and AWS Bedrock models in the same workflow
 - **Multi-Model Support**: Different agents can use different models (GPT-4o, Claude, etc.)
 - **Human-in-the-Loop**: Built-in support for human approval, input, and review
+- **BDD Testing**: First-class Gherkin specifications for testing agent behavior
 - **Asynchronous Execution**: Native async I/O for efficient LLM workflows
 - **Context Engineering**: Fine-grained control over conversation history per agent
 - **Typed Parameters**: JSON Schema validation with UI generation support
@@ -544,6 +659,12 @@ tactus run workflow.tac --param task="Analyze data"
 
 # Validate a workflow
 tactus validate workflow.tac
+
+# Test a workflow (run Gherkin specifications)
+tactus test workflow.tac
+
+# Evaluate consistency across multiple runs
+tactus evaluate workflow.tac --runs 10
 ```
 
 ## Tactus IDE

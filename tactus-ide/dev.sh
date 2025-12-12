@@ -19,9 +19,48 @@ echo ""
 TACTUS_IDE_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$TACTUS_IDE_DIR/.." && pwd)"
 
-# Ports (fixed for dev simplicity)
-BACKEND_PORT="${TACTUS_IDE_BACKEND_PORT:-5001}"
-FRONTEND_PORT="${TACTUS_IDE_FRONTEND_PORT:-3000}"
+# Function to find an available port
+find_available_port() {
+    local start_port=$1
+    local max_attempts=${2:-10}
+    local port=$start_port
+    
+    for ((i=0; i<max_attempts; i++)); do
+        if ! lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1; then
+            echo $port
+            return 0
+        fi
+        port=$((port + 1))
+    done
+    
+    echo -e "${RED}Error: Could not find available port starting from $start_port${NC}" >&2
+    return 1
+}
+
+# Find available ports with auto-increment
+BACKEND_START_PORT="${TACTUS_IDE_BACKEND_PORT:-5001}"
+FRONTEND_START_PORT="${TACTUS_IDE_FRONTEND_PORT:-3000}"
+
+echo -e "${YELLOW}Finding available ports...${NC}"
+BACKEND_PORT=$(find_available_port $BACKEND_START_PORT)
+if [ $? -ne 0 ]; then
+    echo -e "${RED}Failed to find available backend port${NC}"
+    exit 1
+fi
+
+FRONTEND_PORT=$(find_available_port $FRONTEND_START_PORT)
+if [ $? -ne 0 ]; then
+    echo -e "${RED}Failed to find available frontend port${NC}"
+    exit 1
+fi
+
+if [ "$BACKEND_PORT" != "$BACKEND_START_PORT" ]; then
+    echo -e "${YELLOW}Backend port $BACKEND_START_PORT in use, using port $BACKEND_PORT${NC}"
+fi
+
+if [ "$FRONTEND_PORT" != "$FRONTEND_START_PORT" ]; then
+    echo -e "${YELLOW}Frontend port $FRONTEND_START_PORT in use, using port $FRONTEND_PORT${NC}"
+fi
 
 # Check if watchdog is installed (for Python auto-reload)
 if ! python -c "import watchdog" 2>/dev/null; then
@@ -45,6 +84,15 @@ export PYTHONWARNINGS="ignore::DeprecationWarning,ignore::RuntimeWarning,ignore:
 echo -e "${GREEN}Starting backend with auto-reload on port ${BACKEND_PORT}...${NC}"
 cd "$PROJECT_ROOT"
 
+# Set initial workspace to examples folder
+INITIAL_WORKSPACE="$PROJECT_ROOT/examples"
+if [ -d "$INITIAL_WORKSPACE" ]; then
+    echo -e "${BLUE}Setting initial workspace to: $INITIAL_WORKSPACE${NC}"
+else
+    echo -e "${YELLOW}Warning: examples folder not found, using project root${NC}"
+    INITIAL_WORKSPACE="$PROJECT_ROOT"
+fi
+
 # Use watchmedo with better settings to avoid restart loops
 watchmedo auto-restart \
     --directory="$PROJECT_ROOT/tactus/ide" \
@@ -53,7 +101,7 @@ watchmedo auto-restart \
     --ignore-patterns="*/__pycache__/*;*.pyc;*/.pytest_cache/*;*/.*" \
     --ignore-directories \
     --debounce-interval=2 \
-    -- env TACTUS_IDE_PORT="$BACKEND_PORT" python -W ignore -m tactus.ide.server &
+    -- env TACTUS_IDE_PORT="$BACKEND_PORT" TACTUS_IDE_WORKSPACE="$INITIAL_WORKSPACE" python -W ignore -m tactus.ide.server &
 
 BACKEND_PID=$!
 
@@ -80,6 +128,7 @@ cd "$TACTUS_IDE_DIR/frontend"
 
 # Ensure backend URL is embedded into the frontend bundle
 export VITE_BACKEND_URL="http://127.0.0.1:${BACKEND_PORT}"
+echo -e "${BLUE}Setting VITE_BACKEND_URL=${VITE_BACKEND_URL}${NC}"
 npm run build -- --watch &
 
 FRONTEND_BUILD_PID=$!
@@ -101,6 +150,7 @@ echo ""
 
 # Wait for any process to exit
 wait
+
 
 
 

@@ -166,3 +166,4 @@ Feature: Output Schema Declarations
     Then validation should succeed
     And it should recognize 1 output declaration
 
+

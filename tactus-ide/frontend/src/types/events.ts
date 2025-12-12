@@ -50,6 +50,89 @@ export interface ExecutionSummaryEvent extends BaseEvent {
   tools_used: string[];
 }
 
-export type AnyEvent = LogEvent | ExecutionEvent | OutputEvent | ValidationEvent | ExecutionSummaryEvent;
+export interface TestStartedEvent extends BaseEvent {
+  event_type: 'test_started';
+  procedure_file: string;
+  total_scenarios: number;
+}
+
+export interface TestCompletedEvent extends BaseEvent {
+  event_type: 'test_completed';
+  result: {
+    total_scenarios: number;
+    passed_scenarios: number;
+    failed_scenarios: number;
+    features: Array<{
+      name: string;
+      scenarios: Array<{
+        name: string;
+        status: string;
+        duration: number;
+        steps: Array<{
+          keyword: string;
+          text: string;
+          status: string;
+          error_message?: string;
+        }>;
+      }>;
+    }>;
+  };
+}
+
+export interface TestScenarioStartedEvent extends BaseEvent {
+  event_type: 'test_scenario_started';
+  scenario_name: string;
+}
+
+export interface TestScenarioCompletedEvent extends BaseEvent {
+  event_type: 'test_scenario_completed';
+  scenario_name: string;
+  status: string;
+  duration: number;
+}
+
+export interface EvaluationStartedEvent extends BaseEvent {
+  event_type: 'evaluation_started';
+  procedure_file: string;
+  total_scenarios: number;
+  runs_per_scenario: number;
+}
+
+export interface EvaluationCompletedEvent extends BaseEvent {
+  event_type: 'evaluation_completed';
+  results: Array<{
+    scenario_name: string;
+    total_runs: number;
+    successful_runs: number;
+    failed_runs: number;
+    success_rate: number;
+    consistency_score: number;
+    is_flaky: boolean;
+    avg_duration: number;
+    std_duration: number;
+  }>;
+}
+
+export interface EvaluationProgressEvent extends BaseEvent {
+  event_type: 'evaluation_progress';
+  scenario_name: string;
+  completed_runs: number;
+  total_runs: number;
+}
+
+export type AnyEvent = 
+  | LogEvent 
+  | ExecutionEvent 
+  | OutputEvent 
+  | ValidationEvent 
+  | ExecutionSummaryEvent
+  | TestStartedEvent
+  | TestCompletedEvent
+  | TestScenarioStartedEvent
+  | TestScenarioCompletedEvent
+  | EvaluationStartedEvent
+  | EvaluationCompletedEvent
+  | EvaluationProgressEvent;
+
 
 
