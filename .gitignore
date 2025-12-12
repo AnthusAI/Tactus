@@ -26,6 +26,13 @@ dist/
 build/
 *.egg-info/
 
+# Node / frontend
+node_modules/
+.vite/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
 # Tactus specific
 .tactus/config.yml
 progress.output

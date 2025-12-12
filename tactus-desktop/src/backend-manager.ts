@@ -94,11 +94,13 @@ export class BackendManager {
     }
 
     // Production: use bundled executable
+    // PyInstaller creates a directory structure: backend/tactus/tactus (executable)
     const platform = process.platform;
     const ext = platform === 'win32' ? '.exe' : '';
     const tactusPath = path.join(
       process.resourcesPath,
       'backend',
+      'tactus',
       `tactus${ext}`
     );
 

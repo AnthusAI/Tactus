@@ -1,4 +1,4 @@
-.PHONY: help generate-parsers generate-python-parser generate-typescript-parser test-parsers clean-generated
+.PHONY: help generate-parsers generate-python-parser generate-typescript-parser test-parsers clean-generated dev-ide
 
 help:
 	@echo "Tactus Parser Generation"
@@ -9,11 +9,12 @@ help:
 	@echo "  generate-typescript-parser - Generate TypeScript parser only"
 	@echo "  test-parsers            - Run parser tests"
 	@echo "  clean-generated         - Remove generated parser files"
+	@echo "  dev-ide                 - Start IDE in dev mode (auto-restart backend + rebuild frontend)"
 	@echo ""
 	@echo "Requirements:"
 	@echo "  - Docker must be running (for parser generation)"
 	@echo "  - Python 3.11+ with dependencies installed"
-	@echo "  - Node.js 20+ (for TypeScript)"
+	@echo "  - Node.js 20+ (for IDE frontend)"
 
 generate-parsers: generate-python-parser generate-typescript-parser
 
@@ -80,5 +81,8 @@ clean-generated:
 	rm -rf tactus-web/src/validation/generated/*.tokens
 	@echo "✓ Generated files removed"
 
-
+# IDE dev mode (no Vite dev server)
+dev-ide:
+	@chmod +x tactus-ide/dev.sh
+	@cd tactus-ide && ./dev.sh
 

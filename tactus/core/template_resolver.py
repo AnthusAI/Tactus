@@ -141,3 +141,4 @@ def resolve_template(
     )
     return resolver.resolve(template)
 
+

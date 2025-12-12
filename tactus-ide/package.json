@@ -1,0 +1,16 @@
+{
+  "name": "tactus-ide",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "./dev.sh",
+    "dev:backend": "watchmedo auto-restart --directory=../tactus/ide --directory=./backend --pattern='*.py' --recursive -- python -m tactus.ide.server",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build": "cd frontend && npm run build",
+    "preview": "cd frontend && npm run preview"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
+

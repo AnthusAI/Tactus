@@ -19,7 +19,7 @@ tactus_datas = collect_data_files('tactus', include_py_files=True)
 antlr_datas = collect_data_files('antlr4')
 
 a = Analysis(
-    [os.path.join(project_root, 'tactus', '__main__.py')],
+    [os.path.join(project_root, 'tactus', 'cli', 'app.py')],
     pathex=[project_root],
     binaries=[],
     datas=[

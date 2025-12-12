@@ -5,8 +5,13 @@ Main entry point for the Tactus command-line interface.
 Provides commands for running, validating, and testing workflows.
 """
 
-import asyncio
+# Disable logfire's Pydantic plugin for PyInstaller builds
+# This prevents errors when logfire tries to inspect source code in frozen apps
 import os
+os.environ['LOGFIRE_IGNORE_NO_CONFIG'] = '1'
+os.environ['LOGFIRE_COLLECT_SYSTEM_METRICS'] = 'false'
+
+import asyncio
 from pathlib import Path
 from typing import Optional
 import logging
@@ -164,6 +169,10 @@ def run(
     # Parameter takes precedence, then env var, then config
     api_key = openai_api_key or os.environ.get("OPENAI_API_KEY")
 
+    # Create log handler for Rich formatting
+    from tactus.adapters.cli_log import CLILogHandler
+    log_handler = CLILogHandler(console)
+
     # Create runtime
     procedure_id = f"cli-{workflow_file.stem}"
     runtime = TactusRuntime(
@@ -173,6 +182,7 @@ def run(
         chat_recorder=None,  # No chat recording in CLI mode
         mcp_server=None,  # No MCP server in basic CLI mode
         openai_api_key=api_key,
+        log_handler=log_handler,
     )
 
     # Execute procedure

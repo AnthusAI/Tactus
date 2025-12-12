@@ -74,7 +74,7 @@ async function buildBackend() {
 
   // Run PyInstaller
   console.log('\nRunning PyInstaller...');
-  await execPromise(`${pythonCmd} -m pyinstaller tactus_backend.spec --clean`, { cwd: BACKEND_DIR });
+  await execPromise(`pyinstaller tactus_backend.spec --clean -y`, { cwd: BACKEND_DIR });
 
   console.log('\n========================================');
   console.log('Backend built successfully!');

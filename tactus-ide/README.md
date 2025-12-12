@@ -1,283 +1,233 @@
 # Tactus IDE
 
-Full-featured IDE for editing Tactus DSL (`.tactus.lua`) files with instant feedback and intelligent code completion.
-
-## Architecture
-
-The Tactus IDE uses a **hybrid validation approach** for optimal performance:
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│ Frontend (React + Monaco Editor)                            │
-│                                                             │
-│  Layer 1: TypeScript Parser (< 10ms)                       │
-│  ├─ Instant syntax validation                              │
-│  ├─ Works offline                                           │
-│  └─ ANTLR-generated from Lua.g4                            │
-│                                                             │
-│  Layer 2: LSP Client (300ms debounced)                     │
-│  ├─ Semantic validation                                     │
-│  ├─ Intelligent completions                                 │
-│  └─ Hover documentation                                     │
-└──────────────────┬──────────────────────────────────────────┘
-                   │ WebSocket (Socket.IO)
-┌──────────────────▼──────────────────────────────────────────┐
-│ Backend (Flask + Python LSP)                                │
-│  ├─ Semantic validation using TactusValidator              │
-│  ├─ Context-aware completions                               │
-│  ├─ Hover info from ProcedureRegistry                       │
-│  └─ SSE for procedure execution (future)                    │
-└─────────────────────────────────────────────────────────────┘
-```
-
-## Features
-
-### Instant Feedback
-- **Syntax errors appear immediately** (< 10ms via TypeScript parser)
-- **Semantic errors after 300ms** (via Python LSP)
-- **No lag, no waiting** for validation
-
-### Language Intelligence
-- **Autocomplete**: DSL functions, agent names, parameters
-- **Hover documentation**: Agent configs, parameter types, output fields
-- **Signature help**: Function parameter hints
-- **Error highlighting**: Red squiggles for both syntax and semantic errors
-
-### Offline Capable
-- **Works without backend** for basic editing
-- **TypeScript parser** provides syntax validation offline
-- **Graceful degradation** when LSP unavailable
-
-### Cross-Platform
-- **Electron-ready** for desktop packaging
-- **Web-based** for development
-- **Standard technologies**: React, Monaco, Flask
+A sophisticated code editor for Tactus workflow files with integrated validation, execution, and AI assistance.
 
 ## Quick Start
 
-### Prerequisites
-- Python 3.11+
-- Node.js 18+
-- npm
+### Development Mode (Recommended for Development)
 
-### Running the IDE
+**One command to rule them all:**
 
-**Option 1: Use the startup script (recommended)**
 ```bash
-cd tactus-ide
-./start-dev.sh
+make dev-ide
 ```
 
-**Option 2: Manual startup**
-```bash
-# Terminal 1: Start backend (port 5001)
-cd tactus-ide/backend
-pip install -r requirements.txt
-python app.py
+This starts:
+- ✨ Backend with **auto-reload** on Python changes (using `watchmedo`)
+- 🔥 Frontend with **hot module replacement** on TypeScript/React changes (using Vite HMR)
+- 🚀 Both servers in one terminal with proper cleanup on Ctrl+C
 
-# Terminal 2: Start frontend (port 3000)
-cd tactus-ide/frontend
-npm install
-npm run dev
-```
+**What you get:**
+- Edit Python backend → server auto-restarts (1-2 seconds)
+- Edit React components → instant hot reload (< 100ms)
+- Edit CSS/Tailwind → instant update
+- No manual restarts needed!
 
 Open http://localhost:3000 in your browser.
 
-### Connection Status
+### Production Mode
 
-The IDE shows connection status in the header:
-- **● LSP Connected**: Backend is running, full features available
-- **○ Offline Mode**: Backend unavailable, syntax validation still works
+```bash
+# Build and run the production version
+tactus ide
+```
 
-See [FIXES.md](FIXES.md) for recent improvements to connection handling and error management.
+This serves the pre-built frontend from `dist/` and is what end-users will use.
+
+## Architecture
+
+### Hybrid Validation System
+
+The IDE uses a two-layer validation approach:
+
+**Layer 1: TypeScript Parser (Client-Side)**
+- ANTLR-generated from same `Lua.g4` grammar as Python parser
+- Instant syntax validation (< 10ms)
+- Runs in browser, no backend needed
+- Works offline
+
+**Layer 2: Python LSP (Backend)**
+- Uses existing `TactusValidator` from `tactus/validation/`
+- Semantic validation and intelligence
+- Debounced (300ms) to reduce load
+- Provides completions, hover, signature help
+
+### Tech Stack
+
+**Frontend:**
+- React + TypeScript
+- Monaco Editor (same as VS Code)
+- Shadcn UI + Tailwind CSS
+- Lucide React icons
+- Vite (dev server + build tool)
+
+**Backend:**
+- Python Flask
+- Language Server Protocol (LSP)
+- WebSocket for real-time communication
+- Tactus runtime integration
+
+**Desktop:**
+- Electron wrapper (optional)
+- Native menus and file dialogs
+- IPC bridge for command dispatch
+
+## Development Workflow
+
+### Making Changes
+
+1. **Start dev mode:**
+   ```bash
+   make dev-ide
+   ```
+
+2. **Edit files:**
+   - Frontend: `tactus-ide/frontend/src/**/*`
+   - Backend: `tactus/ide/server.py` or `tactus-ide/backend/app.py`
+   - Components: `tactus-ide/frontend/src/components/**/*`
+
+3. **See changes instantly:**
+   - Frontend changes appear immediately (HMR)
+   - Backend changes trigger auto-restart (1-2 seconds)
+
+4. **No manual steps needed!**
+
+### Building for Production
+
+```bash
+make build-ide
+```
+
+This creates optimized production build in `tactus-ide/frontend/dist/`.
+
+### Running Tests
+
+```bash
+# All tests
+make test
+
+# Parser tests specifically
+make test-parsers
+```
 
 ## Project Structure
 
 ```
 tactus-ide/
-├── backend/                    # Python LSP server
-│   ├── app.py                  # Flask app with WebSocket
-│   ├── lsp_server.py           # LSP protocol implementation
-│   ├── tactus_lsp_handler.py   # Tactus-specific LSP logic
-│   ├── test_lsp_server.py      # Backend tests
-│   └── requirements.txt
-│
-└── frontend/                   # React + Monaco
-    ├── src/
-    │   ├── App.tsx             # Main app component
-    │   ├── Editor.tsx          # Monaco editor with hybrid validation
-    │   ├── LSPClient.ts        # LSP WebSocket client
-    │   ├── TactusLanguage.ts   # Monaco language definition
-    │   ├── main.tsx            # Entry point
-    │   └── validation/         # TypeScript parser (ANTLR-generated)
-    │       ├── generated/
-    │       ├── TactusValidator.ts
-    │       └── ...
-    ├── index.html
-    ├── vite.config.ts
-    └── package.json
+├── dev.sh                    # Development mode script (auto-reload)
+├── frontend/
+│   ├── src/
+│   │   ├── App.tsx          # Main IDE layout
+│   │   ├── Editor.tsx       # Monaco editor with LSP
+│   │   ├── components/
+│   │   │   ├── FileTree.tsx # File browser sidebar
+│   │   │   ├── ChatSidebar.tsx # AI chat interface
+│   │   │   └── ui/          # Shadcn UI components
+│   │   ├── commands/
+│   │   │   └── registry.ts  # Centralized command system
+│   │   └── validation/
+│   │       └── generated/   # TypeScript parser (ANTLR)
+│   ├── package.json
+│   └── vite.config.ts       # Vite configuration
+└── backend/
+    ├── app.py               # Flask API server
+    └── requirements.txt
 ```
 
-## Hybrid Validation Explained
+## Features
 
-### Why Two Parsers?
+### File Management
+- Open folder as workspace (like VS Code)
+- File tree with `.tactus.lua` highlighting
+- Workspace-sandboxed file operations (no path traversal)
+- Auto-open `examples/` folder on first launch
 
-**TypeScript Parser (Client-Side):**
-- Instant syntax validation (< 10ms)
-- No network delay
-- Works offline
-- Reduces backend load
+### Code Editing
+- Monaco editor (VS Code engine)
+- Syntax highlighting for Lua
+- Instant syntax validation (TypeScript parser)
+- Semantic validation via LSP
+- Auto-completion and hover info
 
-**Python LSP (Backend):**
-- Semantic validation (cross-references, missing fields)
-- Intelligent completions (context-aware)
-- Hover documentation (from registry)
-- Can integrate with runtime (future)
+### Execution
+- Validate button (syntax + semantic checks)
+- Run button (execute procedure)
+- Validate + Run (combined)
+- Results displayed in bottom drawer
 
-### How It Works
+### UI/UX
+- Collapsible left sidebar (file tree)
+- Collapsible right sidebar (AI chat)
+- Bottom drawer (metrics/results)
+- Top menu bar (consistent with Electron menus)
+- Dark mode support
+- Lucide icons throughout
 
-1. **User types** → TypeScript parser validates syntax instantly
-2. **After 300ms** → LSP backend validates semantics
-3. **User requests completion** → Both provide suggestions
-4. **User hovers** → LSP shows documentation
+### Command System
+- Centralized command registry
+- Works in both browser and Electron
+- Keyboard shortcuts
+- Native menu integration (Electron)
+- In-app menu bar (browser)
 
-### Benefits
+## Requirements
 
-- **Zero-latency feedback**: Syntax errors appear instantly
-- **Smart features**: Completions know about your agents/parameters
-- **Offline capable**: Basic editing works without internet
-- **Scalable**: Backend only handles semantic requests
+### Development
+- Python 3.11+
+- Node.js 18+
+- `watchdog[watchmedo]` (auto-installed by `make dev-ide`)
 
-## Development
+### Production
+- Python 3.11+
+- Pre-built frontend (included in package)
 
-### Backend Development
+### Parser Generation (Optional)
+- Docker (only needed if modifying Lua grammar)
 
+## Troubleshooting
+
+### Port Already in Use
+
+The dev script auto-detects available ports:
+- Backend tries 5001, 5002, 5003, etc.
+- Frontend tries 3000, 3001, 3002, etc.
+- Multiple instances can run simultaneously
+
+### Backend Not Auto-Reloading
+
+Make sure `watchdog` is installed:
 ```bash
-cd tactus-ide/backend
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run tests
-pytest test_lsp_server.py
-
-# Run server
-python app.py
+pip install 'watchdog[watchmedo]'
 ```
 
-### Frontend Development
+### Frontend Not Hot-Reloading
 
+Check that Vite dev server is running (not production build):
 ```bash
-cd tactus-ide/frontend
-
-# Install dependencies
-npm install
-
-# Run development server
-npm run dev
-
-# Run tests
-npm test
-
-# Run parser demo
-npm run demo
-
-# Build for production
-npm run build
+# Should see "VITE" in output, not "Serving static files"
+make dev-ide
 ```
 
-## Testing
+### Changes Not Appearing in `tactus ide`
 
-### Backend Tests
+The `tactus ide` command serves pre-built files. You need to rebuild:
 ```bash
-cd tactus-ide/backend
-pytest test_lsp_server.py
+make build-ide
 ```
 
-Tests cover:
-- LSP protocol handlers
-- Semantic validation
-- Completions generation
-- Hover information
-- Error handling
-
-### Frontend Tests
+Or use development mode instead:
 ```bash
-cd tactus-ide/frontend
-npm test
+make dev-ide
 ```
 
-Tests cover:
-- TypeScript parser (12 tests)
-- Syntax validation
-- DSL extraction
-- Example file validation
+## Contributing
 
-### Integration Testing
+1. Use `make dev-ide` for development
+2. Test changes with `make test`
+3. Build production version with `make build-ide`
+4. Verify with `tactus ide`
 
-Test with real `.tactus.lua` files:
-```bash
-# Validate examples with TypeScript parser
-cd tactus-ide/frontend
-npm run demo
+## License
 
-# Validate examples with Python parser
-cd ../..
-tactus validate examples/*.tactus.lua
-```
-
-## Future Enhancements
-
-### Near-Term
-- Multiple file tabs
-- File tree explorer
-- Improved error messages with quick fixes
-- More intelligent completions
-
-### Long-Term
-- Procedure execution with live output (via SSE)
-- Debugging features (breakpoints, step through)
-- Git integration
-- Electron packaging for desktop distribution
-- AWS Amplify deployment option
-
-## Electron Packaging
-
-The IDE is designed for Electron:
-- Backend runs as subprocess
-- Frontend uses Electron's file system APIs
-- IPC instead of HTTP for local communication
-- No changes needed to core code
-
-## AWS Amplify Deployment
-
-For cloud deployment:
-- Backend as Lambda functions
-- SSE via API Gateway WebSocket
-- File storage via S3
-- Frontend served via CloudFront
-- TypeScript parser still provides instant validation
-
-## Technology Stack
-
-### Frontend
-- **React 18**: UI framework
-- **Monaco Editor**: Code editor (VS Code's editor)
-- **TypeScript**: Type-safe development
-- **Vite**: Fast build tool
-- **Socket.IO**: WebSocket communication
-
-### Backend
-- **Flask**: Web framework
-- **Flask-SocketIO**: WebSocket support
-- **Python 3.11+**: Language runtime
-- **ANTLR4**: Parser generation
-- **Redis**: SSE support (future)
-
-### Shared
-- **ANTLR Grammar**: `Lua.g4` generates both parsers
-- **LSP Protocol**: Standard language server protocol
-- **JSON-RPC 2.0**: LSP message format
-
-
+See LICENSE file in project root.
 

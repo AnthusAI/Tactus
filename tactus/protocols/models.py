@@ -70,6 +70,34 @@ class HITLRequest(BaseModel):
     model_config = {"arbitrary_types_allowed": True}
 
 
+class LogEvent(BaseModel):
+    """A log event from procedure execution."""
+    
+    event_type: str = Field(default="log", description="Event type identifier")
+    level: str = Field(..., description="Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)")
+    message: str = Field(..., description="Log message")
+    context: Optional[Dict[str, Any]] = Field(None, description="Additional context")
+    timestamp: datetime = Field(default_factory=datetime.utcnow, description="Event timestamp")
+    logger_name: Optional[str] = Field(None, description="Logger name")
+    procedure_id: Optional[str] = Field(None, description="Procedure identifier")
+    
+    model_config = {"arbitrary_types_allowed": True}
+
+
+class ExecutionSummaryEvent(BaseModel):
+    """Summary event at the end of procedure execution."""
+    
+    event_type: str = Field(default="execution_summary", description="Event type identifier")
+    result: Any = Field(..., description="Validated procedure result")
+    final_state: Dict[str, Any] = Field(default_factory=dict, description="Final state dictionary")
+    iterations: int = Field(default=0, description="Number of iterations executed")
+    tools_used: list[str] = Field(default_factory=list, description="List of tool names used")
+    timestamp: datetime = Field(default_factory=datetime.utcnow, description="Event timestamp")
+    procedure_id: Optional[str] = Field(None, description="Procedure identifier")
+    
+    model_config = {"arbitrary_types_allowed": True}
+
+
 class ChatMessage(BaseModel):
     """A message in a chat session."""
 
