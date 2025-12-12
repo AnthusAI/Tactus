@@ -75,3 +75,12 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           semantic-release version
           semantic-release publish
+
+      - name: Publish to PyPI
+        if: success()
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+        run: |
+          pip install twine
+          twine upload dist/*
