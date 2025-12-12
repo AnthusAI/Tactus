@@ -69,6 +69,8 @@ class TactusRuntime:
         mcp_server=None,
         openai_api_key: Optional[str] = None,
         log_handler=None,
+        tool_primitive: Optional[ToolPrimitive] = None,
+        skip_agents: bool = False,
     ):
         """
         Initialize the Tactus runtime.
@@ -81,6 +83,8 @@ class TactusRuntime:
             mcp_server: Optional MCP server providing tools
             openai_api_key: Optional OpenAI API key for LLMs
             log_handler: Optional handler for structured log events
+            tool_primitive: Optional pre-configured ToolPrimitive (for testing with mocks)
+            skip_agents: If True, skip agent setup and execution (for testing)
         """
         self.procedure_id = procedure_id
         self.storage_backend = storage_backend
@@ -89,6 +93,8 @@ class TactusRuntime:
         self.mcp_server = mcp_server
         self.openai_api_key = openai_api_key
         self.log_handler = log_handler
+        self._injected_tool_primitive = tool_primitive
+        self.skip_agents = skip_agents
 
         # Will be initialized during setup
         self.config: Optional[Dict[str, Any]] = None  # Legacy YAML support
@@ -127,7 +133,7 @@ class TactusRuntime:
         Execute a workflow (Lua DSL or legacy YAML format).
 
         Args:
-            source: Lua DSL source code (.tactus.lua) or YAML config (legacy)
+            source: Lua DSL source code (.tac) or YAML config (legacy)
             context: Optional context dict with pre-loaded data (can override params)
             format: Source format - "lua" (default) or "yaml" (legacy)
 
@@ -175,9 +181,7 @@ class TactusRuntime:
             if format == "lua":
                 logger.info("Step 1: Parsing Lua DSL configuration")
                 self.registry = self._parse_declarations(source)
-                logger.info(
-                    f"Loaded procedure: {self.registry.procedure_name} v{self.registry.version}"
-                )
+                logger.info("Loaded procedure from Lua DSL")
                 # Convert registry to config dict for compatibility
                 self.config = self._registry_to_config(self.registry)
             else:
@@ -398,7 +402,13 @@ class TactusRuntime:
         self.state_primitive = StatePrimitive()
         self.iterations_primitive = IterationsPrimitive()
         self.stop_primitive = StopPrimitive()
-        self.tool_primitive = ToolPrimitive()
+        
+        # Use injected tool primitive if provided (for testing with mocks)
+        if self._injected_tool_primitive:
+            self.tool_primitive = self._injected_tool_primitive
+            logger.info("Using injected tool primitive (mock mode)")
+        else:
+            self.tool_primitive = ToolPrimitive()
 
         logger.debug("All primitives initialized")
 
@@ -413,7 +423,21 @@ class TactusRuntime:
         agents_config = self.config.get("agents", {})
 
         if not agents_config:
-            raise TactusRuntimeError("No agents defined in configuration")
+            logger.info("No agents defined in configuration - skipping agent setup")
+            return
+        
+        # Skip agent setup in mock mode
+        if self.skip_agents:
+            logger.info("Skipping agent setup (mock mode)")
+            from tactus.testing.mock_agent import MockAgentPrimitive
+            
+            # Create mock agent primitives
+            for agent_name in agents_config.keys():
+                mock_agent = MockAgentPrimitive(agent_name, self.tool_primitive)
+                self.agents[agent_name] = mock_agent
+                logger.debug(f"Created mock agent: {agent_name}")
+            
+            return
 
         # Import agent primitive
         try:
@@ -845,7 +869,7 @@ class TactusRuntime:
 
     def _parse_declarations(self, source: str) -> ProcedureRegistry:
         """
-        Execute .tactus.lua to collect declarations.
+        Execute .tac to collect declarations.
 
         Args:
             source: Lua DSL source code
@@ -893,11 +917,10 @@ class TactusRuntime:
         Returns:
             Config dict in YAML format
         """
-        config = {
-            "name": registry.procedure_name,
-            "version": registry.version,
-            "description": registry.description,
-        }
+        config = {}
+        
+        if registry.description:
+            config["description"] = registry.description
 
         # Convert parameters
         if registry.parameters:
@@ -969,7 +992,11 @@ class TactusRuntime:
 
         # Convert stages
         if registry.stages:
-            config["stages"] = registry.stages
+            # Handle case where stages is [[list]] instead of [list]
+            if len(registry.stages) == 1 and isinstance(registry.stages[0], list):
+                config["stages"] = registry.stages[0]
+            else:
+                config["stages"] = registry.stages
 
         # Convert prompts
         if registry.prompts:

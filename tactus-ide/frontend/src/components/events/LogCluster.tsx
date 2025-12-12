@@ -73,3 +73,5 @@ export const LogCluster: React.FC<LogClusterProps> = ({ logs, forceExpanded = fa
     </div>
   );
 };
+
+

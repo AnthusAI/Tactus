@@ -235,7 +235,7 @@ def validate_procedure():
     """
     data = request.json
     content = data.get('content')
-    file_path = data.get('path', 'untitled.tactus.lua')
+    file_path = data.get('path', 'untitled.tac')
     
     if content is None:
         return jsonify({"error": "Missing 'content' parameter"}), 400
@@ -501,6 +501,8 @@ if __name__ == '__main__':
     logger.info(f"Starting Tactus IDE Backend on port {port}")
     # Use socketio.run which handles WebSocket properly
     socketio.run(app, host='127.0.0.1', port=port, debug=False, use_reloader=False, log_output=False, allow_unsafe_werkzeug=True)
+
+
 
 
 

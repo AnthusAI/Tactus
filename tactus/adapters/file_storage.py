@@ -20,7 +20,7 @@ class FileStorage:
     {storage_dir}/{procedure_id}.json
     """
 
-    def __init__(self, storage_dir: str = "~/.tactus/storage"):
+    def __init__(self, storage_dir: str = "~/.tac/storage"):
         """
         Initialize file storage.
 

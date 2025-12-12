@@ -117,7 +117,7 @@ GitHub Actions will automatically:
   - macOS: Right-click > Open
   - Windows: "More info" > "Run anyway"
 - **No auto-updates**: Users must manually download new versions
-- **No file associations**: Can't double-click .tactus.lua files yet
+- **No file associations**: Can't double-click .tac files yet
 
 ## Troubleshooting
 

@@ -51,6 +51,15 @@ agents:
 - Acknowledge limitations and incomplete features
 - Suggest improvements and note areas that need work
 
+## Semantic Release and Changelog
+
+**IMPORTANT**: This project uses Semantic Release to automatically manage versioning and the changelog.
+
+- **Do NOT manually edit `CHANGELOG.md`**. It is generated and updated automatically by the release workflow.
+- **Do NOT add `CHANGELOG.md` to `.gitignore`**. It must be tracked in the repository so the release bot can commit updates to it.
+- **Do NOT delete or truncate `CHANGELOG.md`**.
+- Ensure your commit messages follow the [Angular Commit Message Convention](https://github.com/angular/angular/blob/master/CONTRIBUTING.md#commit) (e.g., `feat: ...`, `fix: ...`, `docs: ...`) so that Semantic Release can correctly generate the changelog.
+
 ## Parser Generation Requirements
 
 **IMPORTANT**: Tactus uses ANTLR4 to generate parsers from the Lua grammar for both Python and TypeScript.
@@ -130,7 +139,7 @@ The IDE uses a two-layer validation approach for optimal performance and user ex
 ### Testing IDE Features
 - TypeScript parser: `cd tactus-ide/frontend && npm test`
 - Backend LSP: `pytest tactus-ide/backend/` (when tests are added)
-- Integration: Test with example `.tactus.lua` files
+- Integration: Test with example `.tac` files
 - Verify both layers work independently and together
 
 ### Running the IDE
@@ -186,5 +195,3 @@ When working on Tactus, focus on:
 - Adding missing functionality
 - Improving documentation
 - Writing and maintaining tests
-
-

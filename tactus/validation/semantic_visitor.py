@@ -34,6 +34,9 @@ class TactusDSLVisitor(LuaParserVisitor):
         "hitl",
         "stages",
         "specification",
+        "specifications",  # Gherkin BDD specs
+        "step",  # Custom step definitions
+        "evaluation",  # Evaluation configuration
         "default_provider",
         "default_model",
         "return_prompt",
@@ -113,9 +116,6 @@ class TactusDSLVisitor(LuaParserVisitor):
         elif func_name == "version":
             if args and len(args) >= 1:
                 self.builder.set_version(args[0])
-        elif func_name == "description":
-            if args and len(args) >= 1:
-                self.builder.set_description(args[0])
         elif func_name == "parameter":
             if args and len(args) >= 2:
                 self.builder.register_parameter(
@@ -146,6 +146,18 @@ class TactusDSLVisitor(LuaParserVisitor):
                 self.builder.register_specification(
                     args[0], args[1] if isinstance(args[1], list) else []
                 )
+        elif func_name == "specifications":
+            # specifications([[ Gherkin text ]])
+            if args and len(args) >= 1:
+                self.builder.register_specifications(args[0])
+        elif func_name == "step":
+            # step("step text", function() ... end)
+            if args and len(args) >= 2:
+                self.builder.register_custom_step(args[0], args[1])
+        elif func_name == "evaluation":
+            # evaluation({ runs = 10, parallel = true })
+            if args and len(args) >= 1:
+                self.builder.set_evaluation_config(args[0] if isinstance(args[0], dict) else {})
         elif func_name == "default_provider":
             if args and len(args) >= 1:
                 self.builder.set_default_provider(args[0])
@@ -328,5 +340,7 @@ class TactusDSLVisitor(LuaParserVisitor):
                 pass
 
         return 0
+
+
 
 

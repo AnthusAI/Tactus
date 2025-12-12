@@ -5,16 +5,17 @@ Main entry point for the Tactus command-line interface.
 Provides commands for running, validating, and testing workflows.
 """
 
-# Disable logfire's Pydantic plugin for PyInstaller builds
-# This prevents errors when logfire tries to inspect source code in frozen apps
+# Disable Pydantic plugins for PyInstaller builds
+# This prevents logfire (and other plugins) from being loaded via Pydantic's plugin system
+# which causes errors when trying to inspect source code in frozen apps
 import os
-os.environ['LOGFIRE_IGNORE_NO_CONFIG'] = '1'
-os.environ['LOGFIRE_COLLECT_SYSTEM_METRICS'] = 'false'
+os.environ['PYDANTIC_DISABLE_PLUGINS'] = '1'
 
 import asyncio
 from pathlib import Path
 from typing import Optional
 import logging
+import sys
 
 import typer
 from rich.console import Console
@@ -41,14 +42,14 @@ app = typer.Typer(
 
 def load_tactus_config():
     """
-    Load Tactus configuration from .tactus/config.yml using dotyaml.
+    Load Tactus configuration from .tac/config.yml using dotyaml.
 
     This will:
-    - Load configuration from .tactus/config.yml if it exists
+    - Load configuration from .tac/config.yml if it exists
     - Set environment variables from the config (e.g., openai_api_key -> OPENAI_API_KEY)
     - Also automatically loads .env file if present (via dotyaml)
     """
-    config_path = Path.cwd() / ".tactus" / "config.yml"
+    config_path = Path.cwd() / ".tac" / "config.yml"
 
     if config_path.exists():
         try:
@@ -98,7 +99,7 @@ def setup_logging(verbose: bool = False):
 
 @app.command()
 def run(
-    workflow_file: Path = typer.Argument(..., help="Path to workflow file (.tactus.lua or .tyml)"),
+    workflow_file: Path = typer.Argument(..., help="Path to workflow file (.tac)"),
     storage: str = typer.Option("memory", help="Storage backend: memory, file"),
     storage_path: Optional[Path] = typer.Option(None, help="Path for file storage"),
     openai_api_key: Optional[str] = typer.Option(
@@ -113,13 +114,13 @@ def run(
     Examples:
 
         # Run with memory storage
-        tactus run workflow.yaml
+        tactus run workflow.tac
 
         # Run with file storage
-        tactus run workflow.yaml --storage file --storage-path ./data
+        tactus run workflow.tac --storage file --storage-path ./data
 
         # Pass parameters
-        tactus run workflow.yaml --param task="Analyze data" --param count=5
+        tactus run workflow.tac --param task="Analyze data" --param count=5
     """
     setup_logging(verbose)
 
@@ -129,7 +130,7 @@ def run(
         raise typer.Exit(1)
 
     # Determine format based on extension
-    file_format = "lua" if workflow_file.suffix == ".lua" else "yaml"
+    file_format = "lua" if workflow_file.suffix in [".tac", ".lua"] else "yaml"
 
     # Read workflow file
     source_content = workflow_file.read_text()
@@ -151,7 +152,7 @@ def run(
         storage_backend = MemoryStorage()
     elif storage == "file":
         if not storage_path:
-            storage_path = Path.cwd() / ".tactus" / "storage"
+            storage_path = Path.cwd() / ".tac" / "storage"
         else:
             # Ensure storage_path is a directory path, not a file path
             storage_path = Path(storage_path)
@@ -172,6 +173,11 @@ def run(
     # Create log handler for Rich formatting
     from tactus.adapters.cli_log import CLILogHandler
     log_handler = CLILogHandler(console)
+    
+    # Suppress verbose runtime logging when using structured log handler
+    # This prevents duplicate output - we only want the clean structured logs
+    logging.getLogger("tactus.core.runtime").setLevel(logging.WARNING)
+    logging.getLogger("tactus.primitives").setLevel(logging.WARNING)
 
     # Create runtime
     procedure_id = f"cli-{workflow_file.stem}"
@@ -235,7 +241,7 @@ def run(
 
 @app.command()
 def validate(
-    workflow_file: Path = typer.Argument(..., help="Path to workflow file (.tactus.lua or .tyml)"),
+    workflow_file: Path = typer.Argument(..., help="Path to workflow file (.tac or .lua)"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose logging"),
     quick: bool = typer.Option(False, "--quick", help="Quick validation (syntax only)"),
 ):
@@ -244,9 +250,8 @@ def validate(
 
     Examples:
 
-        tactus validate workflow.tactus.lua
-        tactus validate workflow.tyml  # Legacy YAML format
-        tactus validate workflow.tactus.lua --quick
+        tactus validate workflow.tac
+        tactus validate workflow.lua --quick
     """
     setup_logging(verbose)
 
@@ -256,7 +261,7 @@ def validate(
         raise typer.Exit(1)
 
     # Determine format based on extension
-    file_format = "lua" if workflow_file.suffix == ".lua" else "yaml"
+    file_format = "lua" if workflow_file.suffix in [".tac", ".lua"] else "yaml"
 
     # Read workflow file
     source_content = workflow_file.read_text()
@@ -272,12 +277,16 @@ def validate(
 
             if result.valid:
                 console.print("\n[green]✓ DSL is valid[/green]\n")
+                
+                # Display warnings
+                if result.warnings:
+                    for warning in result.warnings:
+                        console.print(f"[yellow]⚠ Warning:[/yellow] {warning.message}")
+                    console.print()
 
                 if result.registry:
                     # Convert registry to config dict for display
-                    config = {
-                        "name": result.registry.procedure_name,
-                        "version": result.registry.version,
+                    config =                     {
                         "description": result.registry.description,
                         "agents": {},
                         "outputs": {},
@@ -390,6 +399,280 @@ def validate(
 
 
 @app.command()
+def test(
+    procedure_file: Path = typer.Argument(..., help="Path to procedure file (.tac or .lua)"),
+    scenario: Optional[str] = typer.Option(None, help="Run specific scenario"),
+    parallel: bool = typer.Option(True, help="Run scenarios in parallel"),
+    mock: bool = typer.Option(False, help="Use mocked tools (fast, deterministic)"),
+    mock_config: Optional[Path] = typer.Option(None, help="Path to mock config JSON"),
+    param: Optional[list[str]] = typer.Option(None, help="Parameters in format key=value"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose logging"),
+):
+    """
+    Run BDD specifications for a procedure.
+    
+    Examples:
+    
+        # Run all scenarios
+        tactus test procedure.tac
+        
+        # Run with mocked tools (fast, no API calls)
+        tactus test procedure.tac --mock
+        
+        # Run with custom mock config
+        tactus test procedure.tac --mock-config mocks.json
+        
+        # Run specific scenario
+        tactus test procedure.tac --scenario "Agent completes research"
+        
+        # Pass parameters
+        tactus test procedure.tac --param topic="AI" --param count=5
+        
+        # Run sequentially (no parallel)
+        tactus test procedure.tac --no-parallel
+    """
+    setup_logging(verbose)
+    
+    if not procedure_file.exists():
+        console.print(f"[red]Error:[/red] File not found: {procedure_file}")
+        raise typer.Exit(1)
+    
+    mode_str = "mocked" if (mock or mock_config) else "real"
+    console.print(Panel(f"Running BDD Tests ({mode_str} mode)", style="blue"))
+    
+    try:
+        from tactus.testing.test_runner import TactusTestRunner
+        from tactus.testing.mock_tools import create_default_mocks
+        from tactus.validation import TactusValidator
+        import json
+        
+        # Validate and extract specifications
+        validator = TactusValidator()
+        result = validator.validate_file(str(procedure_file))
+        
+        if not result.valid:
+            console.print("[red]✗ Validation failed:[/red]")
+            for error in result.errors:
+                console.print(f"  [red]• {error.message}[/red]")
+            raise typer.Exit(1)
+        
+        # Check if specifications exist
+        if not result.registry or not result.registry.gherkin_specifications:
+            console.print("[yellow]⚠ No specifications found in procedure file[/yellow]")
+            console.print("Add specifications using: specifications([[ ... ]])")
+            raise typer.Exit(1)
+        
+        # Load mock config if provided
+        mock_tools = {}
+        if mock or mock_config:
+            if mock_config:
+                mock_tools = json.loads(mock_config.read_text())
+                console.print(f"[cyan]Loaded mock config: {mock_config}[/cyan]")
+            else:
+                mock_tools = create_default_mocks()
+                console.print("[cyan]Using default mocks[/cyan]")
+        
+        # Parse parameters
+        test_params = {}
+        if param:
+            for p in param:
+                if "=" in p:
+                    key, value = p.split("=", 1)
+                    test_params[key] = value
+        
+        # Setup and run tests
+        runner = TactusTestRunner(procedure_file, mock_tools=mock_tools, params=test_params)
+        runner.setup(result.registry.gherkin_specifications)
+        
+        test_result = runner.run_tests(parallel=parallel, scenario_filter=scenario)
+        
+        # Display results
+        _display_test_results(test_result)
+        
+        # Cleanup
+        runner.cleanup()
+        
+        # Exit with appropriate code
+        if test_result.failed_scenarios > 0:
+            raise typer.Exit(1)
+        
+    except Exception as e:
+        console.print(f"[red]✗ Error:[/red] {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@app.command()
+def evaluate(
+    procedure_file: Path = typer.Argument(..., help="Path to procedure file (.tac or .lua)"),
+    runs: int = typer.Option(10, help="Number of runs per scenario"),
+    scenario: Optional[str] = typer.Option(None, help="Evaluate specific scenario"),
+    parallel: bool = typer.Option(True, help="Run in parallel"),
+    workers: Optional[int] = typer.Option(None, help="Number of parallel workers"),
+    mock: bool = typer.Option(False, help="Use mocked tools (fast, deterministic)"),
+    mock_config: Optional[Path] = typer.Option(None, help="Path to mock config JSON"),
+    param: Optional[list[str]] = typer.Option(None, help="Parameters in format key=value"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose logging"),
+):
+    """
+    Evaluate procedure consistency by running specs multiple times.
+    
+    Examples:
+    
+        # Evaluate with 10 runs per scenario
+        tactus evaluate procedure.tac --runs 10
+        
+        # Evaluate with mocked tools
+        tactus evaluate procedure.tac --runs 50 --mock
+        
+        # Evaluate with custom mock config
+        tactus evaluate procedure.tac --runs 20 --mock-config mocks.json
+        
+        # Evaluate specific scenario
+        tactus evaluate procedure.tac --scenario "Agent completes research"
+    """
+    setup_logging(verbose)
+    
+    if not procedure_file.exists():
+        console.print(f"[red]Error:[/red] File not found: {procedure_file}")
+        raise typer.Exit(1)
+    
+    mode_str = "mocked" if (mock or mock_config) else "real"
+    console.print(Panel(
+        f"Running Evaluation ({runs} runs per scenario, {mode_str} mode)",
+        style="blue"
+    ))
+    
+    try:
+        from tactus.testing.evaluation_runner import TactusEvaluationRunner
+        from tactus.testing.mock_tools import create_default_mocks
+        from tactus.validation import TactusValidator
+        import json
+        
+        # Validate and extract specifications
+        validator = TactusValidator()
+        result = validator.validate_file(str(procedure_file))
+        
+        if not result.valid:
+            console.print("[red]✗ Validation failed:[/red]")
+            for error in result.errors:
+                console.print(f"  [red]• {error.message}[/red]")
+            raise typer.Exit(1)
+        
+        # Check if specifications exist
+        if not result.registry or not result.registry.gherkin_specifications:
+            console.print("[yellow]⚠ No specifications found in procedure file[/yellow]")
+            console.print("Add specifications using: specifications([[ ... ]])")
+            raise typer.Exit(1)
+        
+        # Load mock config if provided
+        mock_tools = {}
+        if mock or mock_config:
+            if mock_config:
+                mock_tools = json.loads(mock_config.read_text())
+                console.print(f"[cyan]Loaded mock config: {mock_config}[/cyan]")
+            else:
+                mock_tools = create_default_mocks()
+                console.print("[cyan]Using default mocks[/cyan]")
+        
+        # Parse parameters
+        test_params = {}
+        if param:
+            for p in param:
+                if "=" in p:
+                    key, value = p.split("=", 1)
+                    test_params[key] = value
+        
+        # Setup and run evaluation
+        evaluator = TactusEvaluationRunner(procedure_file, mock_tools=mock_tools, params=test_params)
+        evaluator.setup(result.registry.gherkin_specifications)
+        
+        if scenario:
+            # Evaluate single scenario
+            eval_results = [evaluator.evaluate_scenario(scenario, runs, parallel)]
+        else:
+            # Evaluate all scenarios
+            eval_results = evaluator.evaluate_all(runs, parallel)
+        
+        # Display results
+        _display_evaluation_results(eval_results)
+        
+        # Cleanup
+        evaluator.cleanup()
+        
+    except Exception as e:
+        console.print(f"[red]✗ Error:[/red] {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+def _display_test_results(test_result):
+    """Display test results in Rich format."""
+    from tactus.testing.models import TestResult
+    
+    for feature in test_result.features:
+        console.print(f"\n[bold]Feature:[/bold] {feature.name}")
+        
+        for scenario in feature.scenarios:
+            status_icon = "✓" if scenario.status == "passed" else "✗"
+            status_color = "green" if scenario.status == "passed" else "red"
+            
+            console.print(
+                f"  [{status_color}]{status_icon}[/{status_color}] "
+                f"Scenario: {scenario.name} ({scenario.duration:.2f}s)"
+            )
+            
+            if scenario.status == "failed":
+                for step in scenario.steps:
+                    if step.status == "failed":
+                        console.print(
+                            f"    [red]Failed:[/red] {step.keyword} {step.text}"
+                        )
+                        if step.error_message:
+                            console.print(f"      {step.error_message}")
+    
+    # Summary
+    console.print(
+        f"\n{test_result.total_scenarios} scenarios "
+        f"([green]{test_result.passed_scenarios} passed[/green], "
+        f"[red]{test_result.failed_scenarios} failed[/red])"
+    )
+
+
+def _display_evaluation_results(eval_results):
+    """Display evaluation results with metrics."""
+    from tactus.testing.models import EvaluationResult
+    
+    for eval_result in eval_results:
+        console.print(f"\n[bold]Scenario:[/bold] {eval_result.scenario_name}")
+        
+        # Success rate
+        rate_color = "green" if eval_result.success_rate >= 0.9 else "yellow"
+        console.print(
+            f"  Success Rate: [{rate_color}]{eval_result.success_rate:.1%}[/{rate_color}] "
+            f"({eval_result.passed_runs}/{eval_result.total_runs})"
+        )
+        
+        # Timing
+        console.print(
+            f"  Duration: {eval_result.mean_duration:.2f}s "
+            f"(±{eval_result.stddev_duration:.2f}s)"
+        )
+        
+        # Consistency
+        consistency_color = "green" if eval_result.consistency_score >= 0.9 else "yellow"
+        console.print(
+            f"  Consistency: [{consistency_color}]{eval_result.consistency_score:.1%}[/{consistency_color}]"
+        )
+        
+        # Flakiness warning
+        if eval_result.is_flaky:
+            console.print("  [yellow]⚠️  FLAKY - Inconsistent results detected[/yellow]")
+
+
+@app.command()
 def version():
     """Show Tactus version."""
     from tactus import __version__
@@ -432,6 +715,9 @@ def ide(
 
     setup_logging(verbose)
 
+    # Save initial working directory before any chdir operations
+    initial_workspace = os.getcwd()
+
     console.print(Panel("[bold blue]Starting Tactus IDE[/bold blue]", style="blue"))
 
     # Find available port for backend
@@ -454,20 +740,19 @@ def ide(
         return assigned_port
 
     backend_port = find_available_port(port or 5001)
-    console.print(f"Backend port: [cyan]{backend_port}[/cyan]")
+    console.print(f"Server port: [cyan]{backend_port}[/cyan]")
 
-    # Find available port for frontend
-    frontend_port_actual = find_available_port(frontend_port)
-    if frontend_port_actual != frontend_port:
-        console.print(
-            f"[yellow]Note: Port {frontend_port} in use, using {frontend_port_actual}[/yellow]"
-        )
-    console.print(f"Frontend port: [cyan]{frontend_port_actual}[/cyan]")
-
-    # Get paths
-    project_root = Path(__file__).parent.parent.parent
-    frontend_dir = project_root / "tactus-ide" / "frontend"
-    dist_dir = frontend_dir / "dist"
+    # Get paths - handle both development and PyInstaller frozen environments
+    if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+        # Running in PyInstaller bundle
+        bundle_dir = Path(sys._MEIPASS)
+        frontend_dir = bundle_dir / "tactus-ide" / "frontend"
+        dist_dir = frontend_dir / "dist"
+    else:
+        # Running in development
+        project_root = Path(__file__).parent.parent.parent
+        frontend_dir = project_root / "tactus-ide" / "frontend"
+        dist_dir = frontend_dir / "dist"
 
     # Check if frontend is built
     if not dist_dir.exists():
@@ -496,43 +781,25 @@ def ide(
             console.print("[red]Error:[/red] npm not found. Please install Node.js and npm.")
             raise typer.Exit(1)
 
-    # Start backend server in thread
+    # Start backend server (which also serves frontend) in thread
     def run_backend():
-        app = create_app()
+        app = create_app(initial_workspace=initial_workspace, frontend_dist_dir=dist_dir)
         app.run(host="127.0.0.1", port=backend_port, debug=False, threaded=True, use_reloader=False)
 
     backend_thread = threading.Thread(target=run_backend, daemon=True)
     backend_thread.start()
-    console.print(f"[green]✓ Backend server started on http://127.0.0.1:{backend_port}[/green]")
+    console.print(f"[green]✓ Server started on http://127.0.0.1:{backend_port}[/green]")
 
-    # Start frontend server in thread
-    def run_frontend():
-        os.chdir(dist_dir)
-        handler = http.server.SimpleHTTPRequestHandler
-
-        # Suppress HTTP server logs unless verbose
-        if not verbose:
-            handler.log_message = lambda *args: None
-
-        with socketserver.TCPServer(("", frontend_port_actual), handler) as httpd:
-            httpd.serve_forever()
-
-    frontend_thread = threading.Thread(target=run_frontend, daemon=True)
-    frontend_thread.start()
-    console.print(
-        f"[green]✓ Frontend server started on http://localhost:{frontend_port_actual}[/green]"
-    )
-
-    # Wait a moment for servers to start
+    # Wait a moment for server to start
     time.sleep(1)
 
     # Open browser
-    frontend_url = f"http://localhost:{frontend_port_actual}"
+    ide_url = f"http://localhost:{backend_port}"
     if not no_browser:
-        console.print(f"\n[cyan]Opening browser to {frontend_url}[/cyan]")
-        webbrowser.open(frontend_url)
+        console.print(f"\n[cyan]Opening browser to {ide_url}[/cyan]")
+        webbrowser.open(ide_url)
     else:
-        console.print(f"\n[cyan]IDE available at: {frontend_url}[/cyan]")
+        console.print(f"\n[cyan]IDE available at: {ide_url}[/cyan]")
 
     console.print("\n[dim]Press Ctrl+C to stop the IDE[/dim]\n")
 

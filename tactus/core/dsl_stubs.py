@@ -2,7 +2,7 @@
 DSL stub functions for Lua execution.
 
 These functions are injected into the Lua sandbox before executing
-.tactus.lua files. They populate the registry with declarations.
+.tac files. They populate the registry with declarations.
 """
 
 from typing import Any, Callable
@@ -71,16 +71,8 @@ def create_dsl_stubs(builder: RegistryBuilder) -> dict[str, Callable]:
     Create DSL stub functions that populate the registry.
 
     These functions are injected into the Lua environment before
-    executing the .tactus.lua file.
+    executing the .tac file.
     """
-
-    def _name(value: str) -> None:
-        """Set procedure name."""
-        builder.set_name(value)
-
-    def _version(value: str) -> None:
-        """Set procedure version."""
-        builder.set_version(value)
 
     def _description(value: str) -> None:
         """Set procedure description."""
@@ -112,11 +104,30 @@ def create_dsl_stubs(builder: RegistryBuilder) -> dict[str, Callable]:
 
     def _stages(*stage_names) -> None:
         """Register stage names."""
-        builder.set_stages(list(stage_names))
+        # Handle both stages("a", "b", "c") and stages({"a", "b", "c"})
+        if len(stage_names) == 1 and hasattr(stage_names[0], "items"):
+            # Single Lua table argument - convert it
+            stages_list = lua_table_to_dict(stage_names[0])
+        else:
+            # Multiple string arguments
+            stages_list = list(stage_names)
+        builder.set_stages(stages_list)
 
     def _specification(spec_name: str, scenarios) -> None:
         """Register a BDD specification."""
         builder.register_specification(spec_name, lua_table_to_dict(scenarios))
+
+    def _specifications(gherkin_text: str) -> None:
+        """Register Gherkin BDD specifications."""
+        builder.register_specifications(gherkin_text)
+
+    def _step(step_text: str, lua_function) -> None:
+        """Register a custom step definition."""
+        builder.register_custom_step(step_text, lua_function)
+
+    def _evaluation(config) -> None:
+        """Set evaluation configuration."""
+        builder.set_evaluation_config(lua_table_to_dict(config or {}))
 
     def _default_provider(provider: str) -> None:
         """Set default provider."""
@@ -182,9 +193,6 @@ def create_dsl_stubs(builder: RegistryBuilder) -> dict[str, Callable]:
 
     return {
         # Core declarations
-        "name": _name,
-        "version": _version,
-        "description": _description,
         # Component declarations
         "parameter": _parameter,
         "output": _output,
@@ -194,6 +202,10 @@ def create_dsl_stubs(builder: RegistryBuilder) -> dict[str, Callable]:
         "hitl": _hitl,
         "stages": _stages,
         "specification": _specification,
+        # BDD Testing
+        "specifications": _specifications,
+        "step": _step,
+        "evaluation": _evaluation,
         # Settings
         "default_provider": _default_provider,
         "default_model": _default_model,
@@ -215,5 +227,7 @@ def create_dsl_stubs(builder: RegistryBuilder) -> dict[str, Callable]:
         "equals": _equals,
         "matches": _matches,
     }
+
+
 
 

@@ -4,7 +4,7 @@
 
 > **⚠️ Status: Alpha** - Tactus is in early development. Only a subset of the [specification](SPECIFICATION.md) is currently implemented. See [IMPLEMENTATION.md](IMPLEMENTATION.md) for details on what's complete and what's missing. The API is subject to change.
 
-Tactus implements the **"Give an Agent a Tool"** programming paradigm: instead of writing explicit code to handle every edge case, you define capabilities (tools) and goals, then let an intelligent agent figure out how to use them to solve the problem.
+Tactus lets you build AI-powered workflows by defining agents, tools, and orchestration logic. Instead of writing explicit code to handle every edge case, you define what capabilities (tools) are available and what goals the agents should achieve, then let the AI figure out how to use those tools to solve the problem.
 
 ## Quick Start
 
@@ -18,39 +18,35 @@ pip install tactus
 
 Here's a complete working example that demonstrates the core concepts of Tactus. We define an agent with a goal and a tool, then use Lua to orchestrate the workflow.
 
-Create a file `hello.yaml`:
+Create a file `hello.tac`:
 
-```yaml
-name: hello_world
-version: 1.0.0
-class: LuaDSL
+```lua
+-- Define typed parameters with defaults
+parameter("name", {
+  type = "string",
+  default = "World"
+})
 
-# Define typed parameters with defaults
-params:
-  name:
-    type: string
-    default: "World"
+-- 1. Define the Agent and its Tools
+agent("greeter", {
+  provider = "openai",
+  model = "gpt-4o-mini",
+  
+  -- The system prompt defines the agent's goal and behavior
+  system_prompt = [[
+    You are a friendly greeter. Greet the user by name: {params.name}
+    When done, call the done tool.
+  ]],
+  
+  -- Optional: kick off the conversation
+  initial_message = "Please greet the user.",
+  
+  -- Tools the agent can use (procedures can also be tools)
+  tools = {"done"}
+})
 
-# 1. Define the Agent and its Tools
-agents:
-  greeter:
-    provider: openai
-    model: gpt-4o-mini
-    
-    # The system prompt defines the agent's goal and behavior
-    system_prompt: |
-      You are a friendly greeter. Greet the user by name: {params.name}
-      When done, call the done tool.
-    
-    # Optional: kick off the conversation
-    initial_message: "Please greet the user."
-    
-    # Tools the agent can use (procedures can also be tools)
-    tools:
-      - done
-
-# 2. Define the Orchestration Logic (Lua)
-procedure: |
+-- 2. Define the Orchestration Logic (Lua)
+procedure(function()
   -- Loop until the agent decides to use the 'done' tool
   repeat
     Greeter.turn()  -- Give the agent a turn to think and act
@@ -61,13 +57,14 @@ procedure: |
     completed = true,
     greeting = Tool.last_call("done").args.reason
   }
+end)
 ```
 
 Run it:
 
 ```bash
 export OPENAI_API_KEY=your-key
-tactus run hello.yaml
+tactus run hello.tac
 ```
 
 **What's happening here:**
@@ -82,80 +79,92 @@ This separation of concerns is key: **you control the workflow structure, the ag
 
 ## Key Features
 
-### Human-in-the-Loop (HITL)
+### Programmatic Orchestration (Lua)
 
-Tactus has first-class support for human oversight and collaboration. You can request approval, input, or review at any point in your workflow.
+Tactus is a **new programming language** for AI agents. Unlike rigid configuration files, Tactus programs are written in Lua, giving you full programmatic control over execution flow. A Tactus program isn't just a script—it's a defined unit of work with declared **inputs (parameters)** and **outputs**.
 
-**Request approval before critical actions:**
-
-```lua
-local approved = Human.approve({
-  message = "Deploy to production?",
-  context = {environment = "prod", version = "2.1.0"},
-  timeout = 3600,  -- seconds
-  default = false
-})
-
-if approved then
-  deploy_to_production()
-else
-  Log.info("Deployment cancelled by operator")
-end
-```
-
-**Request human input:**
+**You control the structure:**
 
 ```lua
-local topic = Human.input({
-  message = "What topic should I research next?",
-  placeholder = "Enter a topic...",
-  timeout = nil  -- wait forever
-})
-
-if topic then
-  Procedure.run("researcher", {query = topic})
-end
+procedure: |
+  -- Explicit loops
+  repeat
+    Worker.turn()
+  until Tool.called("done") or Iterations.exceeded(20)
+  
+  -- Conditionals
+  if State.get("needs_review") then
+    local approved = Human.approve({message = "Continue?"})
+    if not approved then
+      return {completed = false, reason = "rejected"}
+    end
+  end
+  
+  -- Error handling
+  local ok, result = pcall(function()
+    return Procedure.run("risky_task", params)
+  end)
+  
+  if not ok then
+    Log.error("Task failed: " .. tostring(result))
+    return {success = false, error = result}
+  end
+  
+  -- Return structured results
+  return {
+    success = true,
+    items_processed = State.get("count"),
+    result = result
+  }
 ```
 
-**Request review of generated content:**
+**Why Lua?**
 
-```lua
-local review = Human.review({
-  message = "Please review this generated document",
-  artifact = generated_content,
-  artifact_type = "document",
-  options = {
-    {label = "Approve", type = "action"},
-    {label = "Reject", type = "cancel"},
-    {label = "Revise", type = "action"}
-  },
-  timeout = 86400  -- 24 hours
-})
+Most agent frameworks rely on Python (e.g., LangChain, CrewAI). While powerful, Python presents challenges for autonomous agents: it is difficult to sandbox, its significant whitespace is fragile when generated by AI, and it carries a lot of syntactic noise.
 
-if review.decision == "Approve" then
-  publish(generated_content)
-elseif review.decision == "Revise" then
-  State.set("human_feedback", review.feedback)
-  -- retry with feedback
-end
-```
+Tactus moves agent logic into a **DSL built on Lua** to solve these problems:
 
-**Declare HITL points in YAML for reusable workflows:**
+-   **Sandboxed & Safe**: Tactus agents run in a secure VM designed for isolation. Unlike Python, which exposes the host system, Tactus procedures can only access what you explicitly grant them.
+-   **Malleable "Agent as Code"**: Lua's syntax is simple and robust, lacking Python's delicate whitespace requirements. This makes it safe for AI models to generate and modify their own code.
+-   **High Signal-to-Noise**: The DSL is optimized for agent development. The code is concise and token-efficient, making it ideal for feeding back into an LLM's context window for self-evolution.
+-   **Introspection**: A Tactus program is a structured document, not just an opaque script. The custom parser allows external tools to analyze, visualize, and build UIs for a procedure *without running it*.
+-   **Explicit Control**: You get standard programming constructs (loops, conditionals, error handling) rather than hidden planning logic.
+
+This introspection capability enables the next feature: the ability to define a rigorous **interface contract** that any application can read.
+
+### Typed Parameters & The Contract
+
+Parameters in Tactus are more than just variables—they form a **contract** defined by the program. Because parameters are typed and structured (strings, numbers, enums, booleans), any application can use the Tactus parser to **introspect** a program and automatically generate a UI appropriate for the channel:
+
+*   **Mobile App**: Native forms and inputs.
+*   **Chat Bot**: Interactive cards or guided conversation flows.
+*   **SMS**: A structured text-based interview.
+*   **Microsoft Teams**: Rich Adaptive Cards.
+
+This separation means your agent logic remains the same, while the interface adapts to where it's running.
 
 ```yaml
-hitl:
-  confirm_publish:
-    type: approval
-    message: "Publish this document to production?"
-    timeout: 3600
-    default: false
+params:
+  topic:
+    type: string
+    required: true
+    description: "The topic to research"
+    
+  depth:
+    type: string
+    enum: [shallow, deep]
+    default: shallow
+    
+  max_results:
+    type: number
+    default: 10
+    
+  include_sources:
+    type: boolean
+    default: true
 ```
 
-Then reference them in your procedure:
-
-```lua
-local approved = Human.approve("confirm_publish")
-```
+Parameters are accessed in templates as `{params.topic}` and in Lua as `params.topic`.
 
 ### Multi-Model and Multi-Provider Support
 
@@ -220,7 +229,7 @@ agents:
     tools: [done]
 ```
 
-**Configuration via `.tactus/config.yml`:**
+**Configuration via `.tac/config.yml`:**
 
 ```yaml
 # OpenAI credentials
@@ -235,43 +244,6 @@ aws_default_region: us-east-1
 default_provider: openai
 default_model: gpt-4o
 ```
-
-### Typed Parameters
-
-Parameters are defined with JSON Schema types, providing validation and enabling rich UIs.
-
-```yaml
-params:
-  topic:
-    type: string
-    required: true
-    description: "The topic to research"
-    
-  depth:
-    type: string
-    enum: [shallow, deep]
-    default: shallow
-    
-  max_results:
-    type: number
-    default: 10
-    
-  include_sources:
-    type: boolean
-    default: true
-```
-
-**Why this matters:**
-
-- **Validation**: Parameters are validated before execution
-- **Documentation**: Types and descriptions serve as inline documentation
-- **UI Generation**: Different client applications can generate appropriate UIs:
-  - CLI: command-line flags with type checking
-  - Web UI: forms with dropdowns, number inputs, checkboxes
-  - IDE: autocomplete and inline documentation
-  - API: OpenAPI/JSON Schema for validation
-
-Parameters are accessed in templates as `{params.topic}` and in Lua as `params.topic`.
 
 ### Asynchronous Execution
 
@@ -378,66 +350,119 @@ Session.load_from_node(checkpoint_node)
 - **Privacy**: Hide sensitive information from certain agents
 - **Debugging**: Control visibility for testing and development
 
-### Procedural Workflow Control
+### Human-in-the-Loop (HITL)
 
-The `procedure` section is your workflow entry point. It's written in Lua, giving you explicit control over execution flow.
+Tactus has first-class support for human oversight and collaboration. You can request approval, input, or review at any point in your workflow.
 
-**You control the structure:**
-
-```lua
-procedure: |
-  -- Explicit loops
-  repeat
-    Worker.turn()
-  until Tool.called("done") or Iterations.exceeded(20)
-  
-  -- Conditionals
-  if State.get("needs_review") then
-    local approved = Human.approve({message = "Continue?"})
-    if not approved then
-      return {completed = false, reason = "rejected"}
-    end
-  end
-  
-  -- Error handling
-  local ok, result = pcall(function()
-    return Procedure.run("risky_task", params)
-  end)
-  
-  if not ok then
-    Log.error("Task failed: " .. tostring(result))
-    return {success = false, error = result}
-  end
-  
-  -- Return structured results
-  return {
-    success = true,
-    items_processed = State.get("count"),
-    result = result
-  }
-```
-
-**Checkpointing for reliability:**
-
-Tactus automatically checkpoints agent turns and can resume from where it left off:
+**Request approval before critical actions:**
 
 ```lua
--- Checkpoint expensive operations
-local data = Step.run("fetch_data", function()
-  return expensive_api_call()
-end)
+local approved = Human.approve({
+  message = "Deploy to production?",
+  context = {environment = "prod", version = "2.1.0"},
+  timeout = 3600,  -- seconds
+  default = false
+})
 
--- On retry/resume, this returns the cached result
--- without re-running the expensive operation
+if approved then
+  deploy_to_production()
+else
+  Log.info("Deployment cancelled by operator")
+end
 ```
 
-**Why Lua for orchestration:**
+**Request human input:**
 
-- **Explicit control**: No hidden planning or black-box behavior
-- **Familiar syntax**: Simple, readable, widely understood
-- **Deterministic**: Same inputs produce same outputs (with checkpointing)
-- **Debuggable**: Step through logic, inspect state, understand execution
-- **Portable**: Procedures work identically in local and cloud environments
+```lua
+local topic = Human.input({
+  message = "What topic should I research next?",
+  placeholder = "Enter a topic...",
+  timeout = nil  -- wait forever
+})
+
+if topic then
+  Procedure.run("researcher", {query = topic})
+end
+```
+
+**Request review of generated content:**
+
+```lua
+local review = Human.review({
+  message = "Please review this generated document",
+  artifact = generated_content,
+  artifact_type = "document",
+  options = {
+    {label = "Approve", type = "action"},
+    {label = "Reject", type = "cancel"},
+    {label = "Revise", type = "action"}
+  },
+  timeout = 86400  -- 24 hours
+})
+
+if review.decision == "Approve" then
+  publish(generated_content)
+elseif review.decision == "Revise" then
+  State.set("human_feedback", review.feedback)
+  -- retry with feedback
+end
+```
+
+**Declare HITL points in YAML for reusable workflows:**
+
+```yaml
+hitl:
+  confirm_publish:
+    type: approval
+    message: "Publish this document to production?"
+    timeout: 3600
+    default: false
+```
+
+Then reference them in your procedure:
+
+```lua
+local approved = Human.approve("confirm_publish")
+```
+
+### Gherkin BDD Testing
+
+Tactus has **first-class support for behavior-driven testing** using Gherkin syntax. Write natural language specifications directly in your procedure files:
+
+```lua
+specifications([[
+Feature: Research Task Completion
+
+  Scenario: Agent completes basic research
+    Given the procedure has started
+    When the researcher agent takes turns
+    Then the search tool should be called at least once
+    And the done tool should be called exactly once
+    And the procedure should complete successfully
+]])
+```
+
+**Run tests:**
+```bash
+# Run all scenarios once
+tactus test procedure.tac
+
+# Evaluate consistency (run 10 times per scenario)
+tactus evaluate procedure.tac --runs 10
+```
+
+**Evaluation output:**
+```
+Scenario: Agent completes basic research
+  Success Rate: 90% (9/10)
+  Duration: 1.23s (±0.15s)
+  Consistency: 90%
+  ⚠️  FLAKY - Inconsistent results detected
+```
+
+The framework provides rich built-in steps for testing Tactus primitives (tools, stages, state, iterations) and supports custom Lua step definitions. Tests run in parallel for fast feedback, and evaluations measure consistency and reliability across multiple runs.
+
+See [tactus/testing/README.md](tactus/testing/README.md) for complete documentation.
 
 ## Philosophy & Research
 
@@ -514,16 +539,16 @@ result = await runtime.execute(yaml_config, context)
 
 ```bash
 # Run a workflow
-tactus run workflow.tactus.lua
-tactus run workflow.tactus.lua --param task="Analyze data"
+tactus run workflow.tac
+tactus run workflow.tac --param task="Analyze data"
 
 # Validate a workflow
-tactus validate workflow.tactus.lua
+tactus validate workflow.tac
 ```
 
 ## Tactus IDE
 
-Tactus includes a full-featured IDE for editing `.tactus.lua` files with instant feedback and intelligent code completion.
+Tactus includes a full-featured IDE for editing `.tac` files with instant feedback and intelligent code completion.
 
 ### Features
 

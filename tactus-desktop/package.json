@@ -27,7 +27,7 @@
     "@types/node": "^20.10.6"
   },
   "build": {
-    "appId": "ai.anthus.tactus-ide",
+    "appId": "ai.anthus.tac-ide",
     "productName": "Tactus IDE",
     "directories": {
       "buildResources": "resources",
@@ -41,6 +41,11 @@
       {
         "from": "backend/dist",
         "to": "backend",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "../examples",
+        "to": "examples",
         "filter": ["**/*"]
       }
     ],

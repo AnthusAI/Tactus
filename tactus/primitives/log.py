@@ -74,11 +74,7 @@ class LogPrimitive:
         Example (Lua):
             Log.debug("Processing item", {index = i, item = item})
         """
-        # Keep existing Python logging for backward compatibility
-        formatted = self._format_message(message, context)
-        self.logger.debug(formatted)
-        
-        # Also send to log handler if provided
+        # Send to log handler if provided
         if self.log_handler:
             from tactus.protocols.models import LogEvent
             context_dict = self._lua_to_python(context) if context else None
@@ -102,11 +98,7 @@ class LogPrimitive:
         Example (Lua):
             Log.info("Phase complete", {duration = elapsed, items = count})
         """
-        # Keep existing Python logging for backward compatibility
-        formatted = self._format_message(message, context)
-        self.logger.info(formatted)
-        
-        # Also send to log handler if provided
+        # Send to log handler if provided
         if self.log_handler:
             from tactus.protocols.models import LogEvent
             context_dict = self._lua_to_python(context) if context else None
@@ -118,6 +110,10 @@ class LogPrimitive:
                 procedure_id=self.procedure_id
             )
             self.log_handler.log(event)
+        else:
+            # Fall back to Python logging if no handler
+            formatted = self._format_message(message, context)
+            self.logger.info(formatted)
 
     def warn(self, message: str, context: Optional[Dict[str, Any]] = None) -> None:
         """
@@ -130,11 +126,7 @@ class LogPrimitive:
         Example (Lua):
             Log.warn("Retry limit reached", {attempts = attempts})
         """
-        # Keep existing Python logging for backward compatibility
-        formatted = self._format_message(message, context)
-        self.logger.warning(formatted)
-        
-        # Also send to log handler if provided
+        # Send to log handler if provided
         if self.log_handler:
             from tactus.protocols.models import LogEvent
             context_dict = self._lua_to_python(context) if context else None
@@ -146,6 +138,10 @@ class LogPrimitive:
                 procedure_id=self.procedure_id
             )
             self.log_handler.log(event)
+        else:
+            # Fall back to Python logging if no handler
+            formatted = self._format_message(message, context)
+            self.logger.warning(formatted)
 
     def error(self, message: str, context: Optional[Dict[str, Any]] = None) -> None:
         """
@@ -158,11 +154,7 @@ class LogPrimitive:
         Example (Lua):
             Log.error("Operation failed", {error = last_error})
         """
-        # Keep existing Python logging for backward compatibility
-        formatted = self._format_message(message, context)
-        self.logger.error(formatted)
-        
-        # Also send to log handler if provided
+        # Send to log handler if provided
         if self.log_handler:
             from tactus.protocols.models import LogEvent
             context_dict = self._lua_to_python(context) if context else None
@@ -174,6 +166,10 @@ class LogPrimitive:
                 procedure_id=self.procedure_id
             )
             self.log_handler.log(event)
+        else:
+            # Fall back to Python logging if no handler
+            formatted = self._format_message(message, context)
+            self.logger.error(formatted)
 
     def __repr__(self) -> str:
         return f"LogPrimitive(procedure_id={self.procedure_id})"

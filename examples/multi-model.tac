@@ -1,8 +1,4 @@
--- Migrated from .tyml format to .tactus.lua
-
-name("multi_model_example")
-version("1.0.0")
-description("Example showing multiple OpenAI models in one procedure")
+-- Migrated from .tyml format to .tactus
 
 -- Parameters
 parameter("topic", {
@@ -58,3 +54,16 @@ procedure(function()
     }
 
 end)
+
+-- BDD Specifications
+specifications([[
+Feature: Multi-Model Workflow
+  Demonstrate using multiple OpenAI models in one procedure
+
+  Scenario: Research and summarization workflow
+    Given the procedure has started
+    When the procedure runs
+    Then the done tool should be called exactly 2 times
+    And the procedure should complete successfully
+    And the state research should exist
+]])

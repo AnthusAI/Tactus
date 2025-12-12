@@ -6,8 +6,7 @@ import log from 'electron-log';
 
 export class BackendManager {
   private process: ChildProcess | null = null;
-  private backendPort: number = 0;
-  private frontendPort: number = 0;
+  private serverPort: number = 0;
 
   async start(): Promise<{ backendPort: number; frontendPort: number }> {
     log.info('Starting Tactus IDE backend...');
@@ -15,8 +14,13 @@ export class BackendManager {
     const tactusCommand = this.getTactusCommand();
     log.info(`Using tactus command: ${tactusCommand}`);
 
+    // Get the examples folder path
+    const examplesFolder = this.getExamplesFolder();
+    log.info(`Setting working directory to: ${examplesFolder}`);
+
     // Spawn tactus ide with --no-browser
     this.process = spawn(tactusCommand, ['ide', '--no-browser'], {
+      cwd: examplesFolder,
       env: {
         ...process.env,
         PYTHONUNBUFFERED: '1',
@@ -37,26 +41,20 @@ export class BackendManager {
         const output = data.toString();
         log.info(`[Backend] ${output}`);
 
-        // Parse backend port
-        const backendMatch = output.match(/Backend port: (\d+)/);
-        if (backendMatch) {
-          this.backendPort = parseInt(backendMatch[1], 10);
-          log.info(`Detected backend port: ${this.backendPort}`);
+        // Parse server port from "Server port: 5001"
+        const serverMatch = output.match(/Server port: (\d+)/);
+        if (serverMatch) {
+          this.serverPort = parseInt(serverMatch[1], 10);
+          log.info(`Detected server port: ${this.serverPort}`);
         }
 
-        // Parse frontend port
-        const frontendMatch = output.match(/Frontend port: (\d+)/);
-        if (frontendMatch) {
-          this.frontendPort = parseInt(frontendMatch[1], 10);
-          log.info(`Detected frontend port: ${this.frontendPort}`);
-        }
-
-        // Check if both servers are ready
-        if (output.includes('Frontend server started') && this.backendPort && this.frontendPort) {
+        // Once server is confirmed started, resolve
+        if (output.includes('Server started') && this.serverPort) {
           if (!resolved) {
             resolved = true;
             clearTimeout(timeout);
-            resolve({ backendPort: this.backendPort, frontendPort: this.frontendPort });
+            // Return the same port for both backend and frontend since they're unified
+            resolve({ backendPort: this.serverPort, frontendPort: this.serverPort });
           }
         }
       });
@@ -83,6 +81,27 @@ export class BackendManager {
         }
       });
     });
+  }
+
+  private getExamplesFolder(): string {
+    const isDev = !app.isPackaged;
+
+    if (isDev) {
+      // Development: use examples folder from project root
+      // Navigate from tactus-desktop to project root
+      return path.join(__dirname, '..', '..', '..', 'examples');
+    }
+
+    // Production: use bundled examples folder
+    const examplesPath = path.join(process.resourcesPath, 'examples');
+
+    if (fs.existsSync(examplesPath)) {
+      return examplesPath;
+    }
+
+    // Fallback to user's home directory
+    log.warn('Examples folder not found, using home directory');
+    return app.getPath('home');
   }
 
   private getTactusCommand(): string {
@@ -122,10 +141,10 @@ export class BackendManager {
   }
 
   getBackendUrl(): string {
-    return `http://127.0.0.1:${this.backendPort}`;
+    return `http://127.0.0.1:${this.serverPort}`;
   }
 
   getFrontendUrl(): string {
-    return `http://127.0.0.1:${this.frontendPort}`;
+    return `http://127.0.0.1:${this.serverPort}`;
   }
 }

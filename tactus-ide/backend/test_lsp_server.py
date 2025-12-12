@@ -49,7 +49,7 @@ def test_did_open_notification(lsp_server):
         "method": "textDocument/didOpen",
         "params": {
             "textDocument": {
-                "uri": "file:///test.tactus.lua",
+                "uri": "file:///test.tac",
                 "languageId": "tactus-lua",
                 "version": 1,
                 "text": 'name("test")\nprocedure(function() end)'
@@ -61,7 +61,7 @@ def test_did_open_notification(lsp_server):
     
     # Notifications don't return responses
     assert response is None
-    assert "file:///test.tactus.lua" in lsp_server.handler.documents
+    assert "file:///test.tac" in lsp_server.handler.documents
 
 
 def test_did_change_notification(lsp_server):
@@ -80,7 +80,7 @@ def test_did_change_notification(lsp_server):
         "method": "textDocument/didOpen",
         "params": {
             "textDocument": {
-                "uri": "file:///test.tactus.lua",
+                "uri": "file:///test.tac",
                 "text": 'name("test")'
             }
         }
@@ -92,7 +92,7 @@ def test_did_change_notification(lsp_server):
         "method": "textDocument/didChange",
         "params": {
             "textDocument": {
-                "uri": "file:///test.tactus.lua",
+                "uri": "file:///test.tac",
                 "version": 2
             },
             "contentChanges": [{
@@ -104,7 +104,7 @@ def test_did_change_notification(lsp_server):
     response = lsp_server.handle_message(message)
     
     assert response is None
-    assert lsp_server.handler.documents["file:///test.tactus.lua"] == \
+    assert lsp_server.handler.documents["file:///test.tac"] == \
         'name("test")\nversion("1.0.0")\nprocedure(function() end)'
 
 
@@ -124,7 +124,7 @@ def test_completion_request(lsp_server):
         "method": "textDocument/didOpen",
         "params": {
             "textDocument": {
-                "uri": "file:///test.tactus.lua",
+                "uri": "file:///test.tac",
                 "text": 'name("test")\n'
             }
         }
@@ -136,7 +136,7 @@ def test_completion_request(lsp_server):
         "id": 2,
         "method": "textDocument/completion",
         "params": {
-            "textDocument": {"uri": "file:///test.tactus.lua"},
+            "textDocument": {"uri": "file:///test.tac"},
             "position": {"line": 1, "character": 0}
         }
     }
@@ -171,7 +171,7 @@ def test_hover_request(lsp_server):
         "method": "textDocument/didOpen",
         "params": {
             "textDocument": {
-                "uri": "file:///test.tactus.lua",
+                "uri": "file:///test.tac",
                 "text": '''name("test")
 version("1.0.0")
 agent("worker", {
@@ -190,7 +190,7 @@ procedure(function() end)'''
         "id": 2,
         "method": "textDocument/hover",
         "params": {
-            "textDocument": {"uri": "file:///test.tactus.lua"},
+            "textDocument": {"uri": "file:///test.tac"},
             "position": {"line": 2, "character": 7}
         }
     }
@@ -235,7 +235,7 @@ def test_validation_with_errors(lsp_server):
         "method": "textDocument/didOpen",
         "params": {
             "textDocument": {
-                "uri": "file:///test.tactus.lua",
+                "uri": "file:///test.tac",
                 "text": 'version("1.0.0")\nprocedure(function() end)'  # Missing name
             }
         }
@@ -243,7 +243,7 @@ def test_validation_with_errors(lsp_server):
     
     # Diagnostics should be generated
     diagnostics = lsp_server.handler.validate_document(
-        "file:///test.tactus.lua",
+        "file:///test.tac",
         'version("1.0.0")\nprocedure(function() end)'
     )
     
@@ -251,6 +251,8 @@ def test_validation_with_errors(lsp_server):
     # Should have error about missing name
     messages = [d["message"] for d in diagnostics]
     assert any("name is required" in msg.lower() for msg in messages)
+
+
 
 
 

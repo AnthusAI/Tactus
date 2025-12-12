@@ -1,8 +1,4 @@
--- Migrated from .tyml format to .tactus.lua
-
-name("state_management")
-version("1.0.0")
-description("Demonstrates state management operations in Tactus workflows")
+-- Migrated from .tyml format to .tactus
 
 -- Outputs
 output("success", {
@@ -56,3 +52,17 @@ procedure(function()
     }
 
 end)
+
+-- BDD Specifications
+specifications([[
+Feature: State Management
+  Demonstrate state operations in Tactus workflows
+
+  Scenario: State operations work correctly
+    Given the procedure has started
+    When the procedure runs
+    Then the procedure should complete successfully
+    And the state items_processed should be 5
+    And the output success should be True
+    And the output count should be 5
+]])

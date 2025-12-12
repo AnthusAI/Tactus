@@ -143,7 +143,7 @@ tactus ide --port-range 5001-5010
 
 ### Port Persistence
 ```yaml
-# .tactus/config.yml
+# .tac/config.yml
 ide:
   backend_port: 5001
   frontend_port: 3000
@@ -164,4 +164,6 @@ tactus ide list
 - [IDE Overhaul Summary](../../tactus-ide/IDE_OVERHAUL_SUMMARY.md)
 - [Quick Start Guide](../../tactus-ide/QUICK_START.md)
 - [Specification](../../SPECIFICATION.md)
+
+
 

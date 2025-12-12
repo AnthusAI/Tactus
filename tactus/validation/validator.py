@@ -1,7 +1,7 @@
 """
 Tactus DSL validator.
 
-Validates .tactus.lua files using ANTLR parser:
+Validates .tac files using ANTLR parser:
 1. Lua syntax validation (via ANTLR parse tree)
 2. Semantic validation (DSL construct recognition via visitor)
 3. Registry validation (cross-reference checking)
@@ -31,7 +31,7 @@ class ValidationMode(str, Enum):
 
 class TactusValidator:
     """
-    Validates .tactus.lua files using ANTLR parser.
+    Validates .tac files using ANTLR parser.
 
     Uses formal Lua grammar for syntax validation and semantic
     visitor for DSL construct recognition.
@@ -43,7 +43,7 @@ class TactusValidator:
         mode: ValidationMode = ValidationMode.FULL,
     ) -> ValidationResult:
         """
-        Validate a .tactus.lua file using ANTLR parser.
+        Validate a .tac file using ANTLR parser.
 
         Args:
             source: Lua DSL source code
@@ -118,10 +118,10 @@ class TactusValidator:
         mode: ValidationMode = ValidationMode.FULL,
     ) -> ValidationResult:
         """
-        Validate a .tactus.lua file from disk.
+        Validate a .tac file from disk.
 
         Args:
-            file_path: Path to .tactus.lua file
+            file_path: Path to .tac file
             mode: Validation mode
 
         Returns:
@@ -155,5 +155,7 @@ class TactusValidator:
                 warnings=[],
                 registry=None,
             )
+
+
 
 

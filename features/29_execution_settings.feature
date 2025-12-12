@@ -1,0 +1,102 @@
+Feature: Execution Settings (async, max_depth, max_turns)
+  As a workflow developer
+  I want to configure execution behavior
+  So that I can control async execution, recursion limits, and agent turns
+
+  Background:
+    Given a Tactus validation environment
+
+  @spec_mismatch @async_not_implemented
+  Scenario: Async execution setting
+    # TODO: SPEC.md describes async execution (lines 218-232)
+    # "Enable async invocation (caller can spawn and continue)"
+    # Current implementation stores async setting but doesn't implement async execution
+    # Fix in: tactus/core/runtime.py - implement async procedure execution
+    Given a Lua DSL file with content:
+      """
+      async(true)
+      
+      agent("worker", {
+        provider = "openai",
+        system_prompt = "Work",
+        tools = {}
+      })
+      
+      procedure(function()
+        return { result = "done" }
+      end)
+      """
+    When I validate the file
+    Then validation should succeed
+
+  Scenario: Max depth setting
+    Given a Lua DSL file with content:
+      """
+      max_depth(10)
+      
+      agent("worker", {
+        provider = "openai",
+        system_prompt = "Work",
+        tools = {}
+      })
+      
+      procedure(function()
+        return { result = "done" }
+      end)
+      """
+    When I validate the file
+    Then validation should succeed
+
+  Scenario: Max turns setting
+    Given a Lua DSL file with content:
+      """
+      max_turns(100)
+      
+      agent("worker", {
+        provider = "openai",
+        system_prompt = "Work",
+        tools = {}
+      })
+      
+      procedure(function()
+        return { result = "done" }
+      end)
+      """
+    When I validate the file
+    Then validation should succeed
+
+  Scenario: All execution settings combined
+    Given a Lua DSL file with content:
+      """
+      async(true)
+      max_depth(5)
+      max_turns(50)
+      
+      agent("worker", {
+        provider = "openai",
+        system_prompt = "Work",
+        tools = {}
+      })
+      
+      procedure(function()
+        return { result = "done" }
+      end)
+      """
+    When I validate the file
+    Then validation should succeed
+
+  Scenario: Default execution settings
+    Given a Lua DSL file with content:
+      """
+      agent("worker", {
+        provider = "openai",
+        system_prompt = "Work",
+        tools = {}
+      })
+      
+      procedure(function()
+        return { result = "done" }
+      end)
+      """
+    When I validate the file
+    Then validation should succeed

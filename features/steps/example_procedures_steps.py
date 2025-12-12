@@ -57,7 +57,7 @@ def step_impl(context):
         return
 
     # Determine format
-    is_lua_dsl = context.example_file.suffix == ".lua" or ".tactus" in context.example_file.suffixes
+    is_lua_dsl = context.example_file.suffix == ".lua" or ".tac" in context.example_file.suffixes
     format_type = "lua" if is_lua_dsl else "yaml"
 
     # Create runtime

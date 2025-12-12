@@ -24,7 +24,7 @@
 
 ### Breaking Changes
 
-- Workflow format changed from YAML+Lua (.tyml) to pure Lua DSL (.tactus.lua)
+- Workflow format changed from YAML+Lua (.tyml) to pure Lua DSL (.tac.lua)
 
 
 ## v0.1.0 (2025-12-11)

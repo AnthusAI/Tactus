@@ -12,7 +12,7 @@ Syntax validation is handled client-side by the TypeScript parser for instant fe
 - **Language Server Protocol (LSP)**: Semantic language support
 - **ANTLR-based validation**: Uses Tactus parser for full validation
 - **SSE support**: Server-Sent Events for procedure execution output (future)
-- **File operations**: Read/write `.tactus.lua` files
+- **File operations**: Read/write `.tac` files
 
 ## Prerequisites
 
@@ -78,6 +78,8 @@ The backend assumes syntax is already validated client-side:
 - Backend focuses on cross-references and context
 - Reduces load and latency
 - Graceful degradation if backend unavailable
+
+
 
 
 

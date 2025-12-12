@@ -38,10 +38,19 @@ class CLILogHandler:
         Args:
             event: Structured log event
         """
-        # Use Rich to format nicely
-        if event.context:
-            # Log with context as extra data
-            self.console.log(event.message, **event.context)
+        # Handle ExecutionSummaryEvent specially (no message attribute)
+        if event.event_type == "execution_summary":
+            self.console.log(f"[green]✓[/green] Procedure completed: {event.iterations} iterations, {len(event.tools_used)} tools used")
+            return
+            
+        # Use Rich to format nicely for other events
+        if hasattr(event, 'context') and event.context:
+            # Log with context formatted as part of the message
+            import json
+            context_str = json.dumps(event.context, indent=2)
+            self.console.log(f"{event.message}\n{context_str}")
         else:
             # Simple log message
             self.console.log(event.message)
+
+

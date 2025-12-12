@@ -1,0 +1,26 @@
+{
+  "done": {
+    "status": "complete",
+    "message": "Task finished successfully"
+  },
+  "search": {
+    "results": [
+      "Result 1: Important finding",
+      "Result 2: Another discovery",
+      "Result 3: Final conclusion"
+    ],
+    "count": 3
+  },
+  "write_file": {
+    "success": true,
+    "path": "/tmp/output.txt",
+    "bytes_written": 1024
+  },
+  "read_file": {
+    "success": true,
+    "content": "This is test file content",
+    "size": 24
+  }
+}
+
+
