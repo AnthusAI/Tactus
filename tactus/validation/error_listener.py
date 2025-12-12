@@ -19,3 +19,4 @@ class TactusErrorListener(ErrorListener):
                 level="error", message=f"Syntax error: {msg}", location=(line, column)
             )
         )
+

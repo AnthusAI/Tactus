@@ -66,3 +66,4 @@ echo -e "\nPress Ctrl+C to stop both servers"
 wait $BACKEND_PID $FRONTEND_PID
 
 
+

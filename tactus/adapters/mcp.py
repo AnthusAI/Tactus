@@ -287,3 +287,4 @@ def convert_mcp_tools_to_pydantic_ai(
         "convert_mcp_tools_to_pydantic_ai() is deprecated - use PydanticAIMCPAdapter instead"
     )
     return []
+

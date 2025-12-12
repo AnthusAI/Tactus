@@ -253,3 +253,4 @@ def test_validation_with_errors(lsp_server):
     assert any("name is required" in msg.lower() for msg in messages)
 
 
+

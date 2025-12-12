@@ -225,3 +225,4 @@ class SessionManager:
                 return getattr(message, "role", "")
             except Exception:
                 return ""
+
