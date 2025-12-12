@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.2.1 (2025-12-12)
+
+### Bug Fixes
+
+- Add PyPI upload step to release workflow
+  ([`1849407`](https://github.com/AnthusAI/Tactus/commit/1849407c1b14683bc137390bab08173118664557))
+
+
 ## v0.2.0 (2025-12-11)
 
 ### Documentation
