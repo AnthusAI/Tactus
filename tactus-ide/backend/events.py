@@ -9,6 +9,19 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
+# Import test/evaluation events from tactus.testing
+from tactus.testing.events import (
+    TestStartedEvent,
+    TestCompletedEvent,
+    TestScenarioStartedEvent,
+    TestScenarioCompletedEvent,
+    EvaluationStartedEvent,
+    EvaluationCompletedEvent,
+    EvaluationScenarioStartedEvent,
+    EvaluationScenarioCompletedEvent,
+    EvaluationProgressEvent,
+)
+
 
 class BaseEvent(BaseModel):
     """Base event model for all IDE events."""
@@ -57,5 +70,6 @@ class ValidationEvent(BaseEvent):
         default_factory=list,
         description="List of validation errors"
     )
+
 
 

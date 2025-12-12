@@ -27,3 +27,4 @@ class LogHandler(Protocol):
         ...
 
 
+

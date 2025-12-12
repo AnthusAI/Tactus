@@ -54,3 +54,4 @@ class CLILogHandler:
             self.console.log(event.message)
 
 
+
