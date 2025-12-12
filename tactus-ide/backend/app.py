@@ -7,11 +7,16 @@ This backend runs locally (development) or as a service (production).
 import os
 import json
 import logging
+import subprocess
+import threading
+import time
 from pathlib import Path
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response, stream_with_context
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
 from lsp_server import LSPServer
+from events import ExecutionEvent, OutputEvent, LogEvent
+from logging_capture import EventCollector
 
 # Setup logging
 logging.basicConfig(
@@ -28,18 +33,143 @@ socketio = SocketIO(app, cors_allowed_origins="*", logger=False, engineio_logger
 # Initialize LSP server
 lsp_server = LSPServer()
 
+# Workspace state
+WORKSPACE_ROOT = None
+
+def _resolve_workspace_path(relative_path: str) -> Path:
+    """
+    Resolve a relative path within the workspace root.
+    Raises ValueError if path escapes workspace or workspace not set.
+    """
+    global WORKSPACE_ROOT
+    
+    if not WORKSPACE_ROOT:
+        raise ValueError("No workspace folder selected")
+    
+    # Normalize the relative path
+    workspace = Path(WORKSPACE_ROOT).resolve()
+    target = (workspace / relative_path).resolve()
+    
+    # Ensure target is within workspace (prevent path traversal)
+    try:
+        target.relative_to(workspace)
+    except ValueError:
+        raise ValueError(f"Path '{relative_path}' escapes workspace")
+    
+    return target
+
 @app.route('/health', methods=['GET'])
 def health():
     """Health check endpoint."""
     return jsonify({"status": "ok", "service": "tactus-ide-backend"})
 
+@app.route('/api/workspace', methods=['GET', 'POST'])
+def workspace_operations():
+    """
+    Handle workspace operations.
+    
+    GET: Return current workspace root
+    POST: Set workspace root and change working directory
+    """
+    global WORKSPACE_ROOT
+    
+    if request.method == 'GET':
+        if not WORKSPACE_ROOT:
+            return jsonify({"root": None, "name": None})
+        
+        workspace_path = Path(WORKSPACE_ROOT)
+        return jsonify({
+            "root": str(workspace_path),
+            "name": workspace_path.name
+        })
+    
+    elif request.method == 'POST':
+        data = request.json
+        root = data.get('root')
+        
+        if not root:
+            return jsonify({"error": "Missing 'root' parameter"}), 400
+        
+        try:
+            root_path = Path(root).resolve()
+            
+            if not root_path.exists():
+                return jsonify({"error": f"Path does not exist: {root}"}), 404
+            
+            if not root_path.is_dir():
+                return jsonify({"error": f"Path is not a directory: {root}"}), 400
+            
+            # Set workspace root and change working directory
+            WORKSPACE_ROOT = str(root_path)
+            os.chdir(WORKSPACE_ROOT)
+            
+            logger.info(f"Workspace set to: {WORKSPACE_ROOT}")
+            
+            return jsonify({
+                "success": True,
+                "root": WORKSPACE_ROOT,
+                "name": root_path.name
+            })
+        except Exception as e:
+            logger.error(f"Error setting workspace {root}: {e}")
+            return jsonify({"error": str(e)}), 500
+
+@app.route('/api/tree', methods=['GET'])
+def tree_operations():
+    """
+    List directory contents within the workspace.
+    
+    Query params:
+    - path: relative path within workspace (default: root)
+    """
+    global WORKSPACE_ROOT
+    
+    if not WORKSPACE_ROOT:
+        return jsonify({"error": "No workspace folder selected"}), 400
+    
+    relative_path = request.args.get('path', '')
+    
+    try:
+        target_path = _resolve_workspace_path(relative_path)
+        
+        if not target_path.exists():
+            return jsonify({"error": f"Path not found: {relative_path}"}), 404
+        
+        if not target_path.is_dir():
+            return jsonify({"error": f"Path is not a directory: {relative_path}"}), 400
+        
+        # List directory contents
+        entries = []
+        for item in sorted(target_path.iterdir(), key=lambda x: (not x.is_dir(), x.name.lower())):
+            entry = {
+                "name": item.name,
+                "path": str(item.relative_to(WORKSPACE_ROOT)),
+                "type": "directory" if item.is_dir() else "file"
+            }
+            
+            # Add extension for files
+            if item.is_file():
+                entry["extension"] = item.suffix
+            
+            entries.append(entry)
+        
+        return jsonify({
+            "path": relative_path,
+            "entries": entries
+        })
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        logger.error(f"Error listing directory {relative_path}: {e}")
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/api/file', methods=['GET', 'POST'])
 def file_operations():
     """
-    Handle file operations (read/write .tactus.lua files).
+    Handle file operations (read/write files within workspace).
     
-    GET: Read file content
-    POST: Write file content
+    GET: Read file content (requires workspace-relative path)
+    POST: Write file content (requires workspace-relative path)
     """
     if request.method == 'GET':
         file_path = request.args.get('path')
@@ -47,16 +177,23 @@ def file_operations():
             return jsonify({"error": "Missing 'path' parameter"}), 400
         
         try:
-            path = Path(file_path)
+            path = _resolve_workspace_path(file_path)
+            
             if not path.exists():
                 return jsonify({"error": f"File not found: {file_path}"}), 404
             
+            if not path.is_file():
+                return jsonify({"error": f"Path is not a file: {file_path}"}), 400
+            
             content = path.read_text()
             return jsonify({
-                "path": str(path),
+                "path": file_path,
+                "absolutePath": str(path),
                 "content": content,
                 "name": path.name
             })
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
         except Exception as e:
             logger.error(f"Error reading file {file_path}: {e}")
             return jsonify({"error": str(e)}), 500
@@ -70,16 +207,243 @@ def file_operations():
             return jsonify({"error": "Missing 'path' or 'content'"}), 400
         
         try:
-            path = Path(file_path)
+            path = _resolve_workspace_path(file_path)
+            
+            # Create parent directories if needed
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(content)
+            
             return jsonify({
                 "success": True,
-                "path": str(path)
+                "path": file_path,
+                "absolutePath": str(path)
             })
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
         except Exception as e:
             logger.error(f"Error writing file {file_path}: {e}")
             return jsonify({"error": str(e)}), 500
+
+@app.route('/api/validate', methods=['POST'])
+def validate_procedure():
+    """
+    Validate Tactus procedure code.
+    
+    POST body:
+    - content: code to validate
+    - path: optional workspace-relative path for context
+    """
+    data = request.json
+    content = data.get('content')
+    file_path = data.get('path', 'untitled.tactus.lua')
+    
+    if content is None:
+        return jsonify({"error": "Missing 'content' parameter"}), 400
+    
+    try:
+        # Import validator
+        from tactus.validation.validator import TactusValidator
+        
+        validator = TactusValidator()
+        result = validator.validate(content)
+        
+        return jsonify({
+            "valid": result.valid,
+            "errors": [
+                {
+                    "message": err.message,
+                    "line": err.location[0] if err.location else None,
+                    "column": err.location[1] if err.location else None,
+                    "severity": err.severity
+                }
+                for err in result.errors
+            ]
+        })
+    except Exception as e:
+        logger.error(f"Error validating code: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/run', methods=['POST'])
+def run_procedure():
+    """
+    Run a Tactus procedure (non-streaming, backward compatibility).
+    
+    POST body:
+    - path: workspace-relative path to procedure file
+    - content: optional content to save before running
+    """
+    data = request.json
+    file_path = data.get('path')
+    content = data.get('content')
+    
+    if not file_path:
+        return jsonify({"error": "Missing 'path' parameter"}), 400
+    
+    try:
+        # Resolve path within workspace
+        path = _resolve_workspace_path(file_path)
+        
+        # Save content if provided
+        if content is not None:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content)
+        
+        # Ensure file exists
+        if not path.exists():
+            return jsonify({"error": f"File not found: {file_path}"}), 404
+        
+        # Run the procedure using tactus CLI
+        result = subprocess.run(
+            ['tactus', 'run', str(path)],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            cwd=WORKSPACE_ROOT
+        )
+        
+        return jsonify({
+            "success": result.returncode == 0,
+            "exitCode": result.returncode,
+            "stdout": result.stdout,
+            "stderr": result.stderr
+        })
+    except subprocess.TimeoutExpired:
+        return jsonify({"error": "Procedure execution timed out (30s)"}), 408
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        logger.error(f"Error running procedure {file_path}: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/run/stream', methods=['GET', 'POST'])
+def run_procedure_stream():
+    """
+    Run a Tactus procedure with SSE streaming output.
+    
+    For GET: Query param 'path' (required)
+    For POST: JSON body with 'path' (required) and optional 'content'
+    """
+    if request.method == 'POST':
+        data = request.json or {}
+        file_path = data.get('path')
+        content = data.get('content')
+    else:
+        file_path = request.args.get('path')
+        content = None  # Don't pass content via URL params (too large)
+    
+    if not file_path:
+        return jsonify({"error": "Missing 'path' parameter"}), 400
+    
+    try:
+        # Resolve path within workspace
+        path = _resolve_workspace_path(file_path)
+        
+        # Save content if provided
+        if content is not None:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content)
+        
+        # Ensure file exists
+        if not path.exists():
+            return jsonify({"error": f"File not found: {file_path}"}), 404
+        
+        procedure_id = path.stem
+        
+        def generate_events():
+            """Generator function that yields SSE events."""
+            try:
+                # Send start event
+                start_event = ExecutionEvent(
+                    lifecycle_stage="start",
+                    procedure_id=procedure_id,
+                    details={"path": file_path}
+                )
+                yield f"data: {start_event.model_dump_json()}\n\n"
+                
+                # Run the procedure using tactus CLI and capture output
+                process = subprocess.Popen(
+                    ['tactus', 'run', str(path)],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    cwd=WORKSPACE_ROOT,
+                    bufsize=1,  # Line buffered
+                    universal_newlines=True
+                )
+                
+                # Use threads to read stdout and stderr without blocking
+                import queue as q
+                output_queue = q.Queue()
+                
+                def read_stream(stream, stream_name):
+                    try:
+                        for line in iter(stream.readline, ''):
+                            if line:
+                                output_queue.put((stream_name, line.rstrip('\n')))
+                    except Exception as e:
+                        logger.error(f"Error reading {stream_name}: {e}")
+                    finally:
+                        stream.close()
+                
+                stdout_thread = threading.Thread(target=read_stream, args=(process.stdout, 'stdout'))
+                stderr_thread = threading.Thread(target=read_stream, args=(process.stderr, 'stderr'))
+                stdout_thread.daemon = True
+                stderr_thread.daemon = True
+                stdout_thread.start()
+                stderr_thread.start()
+                
+                # Poll for output until process completes
+                while process.poll() is None or not output_queue.empty():
+                    try:
+                        stream_name, content = output_queue.get(timeout=0.1)
+                        output_event = OutputEvent(
+                            stream=stream_name,
+                            content=content,
+                            procedure_id=procedure_id
+                        )
+                        yield f"data: {output_event.model_dump_json()}\n\n"
+                    except q.Empty:
+                        # No output available, just continue polling
+                        time.sleep(0.05)
+                
+                # Wait for threads to finish
+                stdout_thread.join(timeout=1)
+                stderr_thread.join(timeout=1)
+                
+                # Send completion event
+                exit_code = process.returncode
+                complete_event = ExecutionEvent(
+                    lifecycle_stage="complete" if exit_code == 0 else "error",
+                    procedure_id=procedure_id,
+                    exit_code=exit_code,
+                    details={"success": exit_code == 0}
+                )
+                yield f"data: {complete_event.model_dump_json()}\n\n"
+                
+            except Exception as e:
+                logger.error(f"Error in streaming execution: {e}", exc_info=True)
+                error_event = ExecutionEvent(
+                    lifecycle_stage="error",
+                    procedure_id=procedure_id,
+                    details={"error": str(e)}
+                )
+                yield f"data: {error_event.model_dump_json()}\n\n"
+        
+        return Response(
+            stream_with_context(generate_events()),
+            mimetype='text/event-stream',
+            headers={
+                'Cache-Control': 'no-cache',
+                'X-Accel-Buffering': 'no',
+                'Connection': 'keep-alive'
+            }
+        )
+        
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        logger.error(f"Error setting up streaming execution: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
 
 @socketio.on('connect')
 def handle_connect():
@@ -137,6 +501,7 @@ if __name__ == '__main__':
     logger.info(f"Starting Tactus IDE Backend on port {port}")
     # Use socketio.run which handles WebSocket properly
     socketio.run(app, host='127.0.0.1', port=port, debug=False, use_reloader=False, log_output=False, allow_unsafe_werkzeug=True)
+
 
 
 

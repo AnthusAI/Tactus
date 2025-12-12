@@ -14,9 +14,10 @@ import { registerTactusLanguage } from './TactusLanguage';
 interface EditorProps {
   initialValue?: string;
   onValueChange?: (value: string) => void;
+  filePath?: string;
 }
 
-export const Editor: React.FC<EditorProps> = ({ initialValue = '', onValueChange }) => {
+export const Editor: React.FC<EditorProps> = ({ initialValue = '', onValueChange, filePath }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor>();
   const modelRef = useRef<monaco.editor.ITextModel>();
@@ -26,21 +27,40 @@ export const Editor: React.FC<EditorProps> = ({ initialValue = '', onValueChange
   const [lspConnected, setLspConnected] = useState(false);
   const isDisposedRef = useRef(false);
   const onValueChangeRef = useRef(onValueChange);
+  const currentFileUri = useRef<string>('file:///untitled.tactus.lua');
   
   // Update the callback ref when it changes
   useEffect(() => {
     onValueChangeRef.current = onValueChange;
   }, [onValueChange]);
   
-  // Handle initialValue changes (e.g., loading a new file)
+  // Handle file changes (initialValue and filePath)
   useEffect(() => {
-    if (editorRef.current && initialValue !== undefined) {
-      const currentValue = editorRef.current.getValue();
-      if (currentValue !== initialValue) {
-        editorRef.current.setValue(initialValue);
+    if (!editorRef.current || !lspClient.current) return;
+    
+    const currentValue = editorRef.current.getValue();
+    const newUri = filePath ? `file:///${filePath}` : 'file:///untitled.tactus.lua';
+    
+    // If file changed, notify LSP
+    if (newUri !== currentFileUri.current) {
+      // Close old file
+      if (lspConnected) {
+        lspClient.current.didClose();
+      }
+      
+      currentFileUri.current = newUri;
+      
+      // Open new file
+      if (lspConnected) {
+        lspClient.current.didOpen(newUri, initialValue || '');
       }
     }
-  }, [initialValue]);
+    
+    // Update content if changed
+    if (currentValue !== initialValue) {
+      editorRef.current.setValue(initialValue || '');
+    }
+  }, [initialValue, filePath, lspConnected]);
   
   useEffect(() => {
     if (!containerRef.current) return;
@@ -98,7 +118,9 @@ export const Editor: React.FC<EditorProps> = ({ initialValue = '', onValueChange
       });
       
       // Send initial document
-      lspClient.current.didOpen('file:///untitled.tactus.lua', initialValue);
+      const uri = filePath ? `file:///${filePath}` : 'file:///untitled.tactus.lua';
+      currentFileUri.current = uri;
+      lspClient.current.didOpen(uri, initialValue);
       setLspConnected(true);
     } catch (error) {
       console.warn('LSP client connection failed, running in offline mode:', error);
@@ -202,28 +224,10 @@ export const Editor: React.FC<EditorProps> = ({ initialValue = '', onValueChange
   }, []); // Empty deps - only run once on mount
   
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div style={{ 
-        padding: '8px', 
-        background: '#1e1e1e', 
-        color: '#cccccc',
-        borderBottom: '1px solid #333',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '12px'
-      }}>
-        <span style={{ fontWeight: 'bold' }}>Tactus IDE</span>
-        <span style={{ fontSize: '12px', opacity: 0.7 }}>
-          {lspConnected ? '● LSP Connected' : '○ Offline Mode'}
-        </span>
-        <span style={{ fontSize: '12px', opacity: 0.7, marginLeft: 'auto' }}>
-          Hybrid Validation: TypeScript (instant) + LSP (semantic)
-        </span>
-      </div>
-      <div ref={containerRef} style={{ flex: 1 }} />
-    </div>
+    <div ref={containerRef} style={{ height: '100%' }} />
   );
 };
+
 
 
 

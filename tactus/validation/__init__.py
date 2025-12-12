@@ -6,3 +6,4 @@ from .validator import TactusValidator, ValidationMode
 
 __all__ = ["TactusValidator", "ValidationMode"]
 
+

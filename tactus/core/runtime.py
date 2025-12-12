@@ -68,6 +68,7 @@ class TactusRuntime:
         chat_recorder: Optional[ChatRecorder] = None,
         mcp_server=None,
         openai_api_key: Optional[str] = None,
+        log_handler=None,
     ):
         """
         Initialize the Tactus runtime.
@@ -79,6 +80,7 @@ class TactusRuntime:
             chat_recorder: Optional chat recorder for conversation logging
             mcp_server: Optional MCP server providing tools
             openai_api_key: Optional OpenAI API key for LLMs
+            log_handler: Optional handler for structured log events
         """
         self.procedure_id = procedure_id
         self.storage_backend = storage_backend
@@ -86,6 +88,7 @@ class TactusRuntime:
         self.chat_recorder = chat_recorder
         self.mcp_server = mcp_server
         self.openai_api_key = openai_api_key
+        self.log_handler = log_handler
 
         # Will be initialized during setup
         self.config: Optional[Dict[str, Any]] = None  # Legacy YAML support
@@ -233,7 +236,7 @@ class TactusRuntime:
             self.human_primitive = HumanPrimitive(self.execution_context, hitl_config)
             self.step_primitive = StepPrimitive(self.execution_context)
             self.checkpoint_primitive = CheckpointPrimitive(self.execution_context)
-            self.log_primitive = LogPrimitive(procedure_id=self.procedure_id)
+            self.log_primitive = LogPrimitive(procedure_id=self.procedure_id, log_handler=self.log_handler)
             declared_stages = self.config.get("stages", [])
             self.stage_primitive = StagePrimitive(
                 declared_stages=declared_stages, lua_sandbox=self.lua_sandbox
@@ -297,6 +300,18 @@ class TactusRuntime:
                 f"{self.iterations_primitive.current() if self.iterations_primitive else 0} iterations, "
                 f"{len(tools_used)} tool calls"
             )
+            
+            # Send execution summary event if log handler is available
+            if self.log_handler:
+                from tactus.protocols.models import ExecutionSummaryEvent
+                summary_event = ExecutionSummaryEvent(
+                    result=validated_result,
+                    final_state=final_state,
+                    iterations=self.iterations_primitive.current() if self.iterations_primitive else 0,
+                    tools_used=tools_used,
+                    procedure_id=self.procedure_id
+                )
+                self.log_handler.log(summary_event)
 
             return {
                 "success": True,

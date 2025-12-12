@@ -9,7 +9,10 @@ Provides:
 """
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from tactus.protocols.log_handler import LogHandler
 
 logger = logging.getLogger(__name__)
 
@@ -19,18 +22,21 @@ class LogPrimitive:
     Provides logging operations for procedures.
 
     All methods log using Python's standard logging module
-    with appropriate log levels.
+    with appropriate log levels, and optionally send structured
+    events to a LogHandler for custom rendering.
     """
 
-    def __init__(self, procedure_id: str):
+    def __init__(self, procedure_id: str, log_handler: Optional["LogHandler"] = None):
         """
         Initialize Log primitive.
 
         Args:
             procedure_id: ID of the running procedure (for context)
+            log_handler: Optional handler for structured log events
         """
         self.procedure_id = procedure_id
         self.logger = logging.getLogger(f"procedure.{procedure_id}")
+        self.log_handler = log_handler
 
     def _format_message(self, message: str, context: Optional[Dict[str, Any]] = None) -> str:
         """Format log message with context."""
@@ -68,8 +74,22 @@ class LogPrimitive:
         Example (Lua):
             Log.debug("Processing item", {index = i, item = item})
         """
+        # Keep existing Python logging for backward compatibility
         formatted = self._format_message(message, context)
         self.logger.debug(formatted)
+        
+        # Also send to log handler if provided
+        if self.log_handler:
+            from tactus.protocols.models import LogEvent
+            context_dict = self._lua_to_python(context) if context else None
+            event = LogEvent(
+                level="DEBUG",
+                message=message,
+                context=context_dict,
+                logger_name=self.logger.name,
+                procedure_id=self.procedure_id
+            )
+            self.log_handler.log(event)
 
     def info(self, message: str, context: Optional[Dict[str, Any]] = None) -> None:
         """
@@ -82,8 +102,22 @@ class LogPrimitive:
         Example (Lua):
             Log.info("Phase complete", {duration = elapsed, items = count})
         """
+        # Keep existing Python logging for backward compatibility
         formatted = self._format_message(message, context)
         self.logger.info(formatted)
+        
+        # Also send to log handler if provided
+        if self.log_handler:
+            from tactus.protocols.models import LogEvent
+            context_dict = self._lua_to_python(context) if context else None
+            event = LogEvent(
+                level="INFO",
+                message=message,
+                context=context_dict,
+                logger_name=self.logger.name,
+                procedure_id=self.procedure_id
+            )
+            self.log_handler.log(event)
 
     def warn(self, message: str, context: Optional[Dict[str, Any]] = None) -> None:
         """
@@ -96,8 +130,22 @@ class LogPrimitive:
         Example (Lua):
             Log.warn("Retry limit reached", {attempts = attempts})
         """
+        # Keep existing Python logging for backward compatibility
         formatted = self._format_message(message, context)
         self.logger.warning(formatted)
+        
+        # Also send to log handler if provided
+        if self.log_handler:
+            from tactus.protocols.models import LogEvent
+            context_dict = self._lua_to_python(context) if context else None
+            event = LogEvent(
+                level="WARNING",
+                message=message,
+                context=context_dict,
+                logger_name=self.logger.name,
+                procedure_id=self.procedure_id
+            )
+            self.log_handler.log(event)
 
     def error(self, message: str, context: Optional[Dict[str, Any]] = None) -> None:
         """
@@ -110,8 +158,22 @@ class LogPrimitive:
         Example (Lua):
             Log.error("Operation failed", {error = last_error})
         """
+        # Keep existing Python logging for backward compatibility
         formatted = self._format_message(message, context)
         self.logger.error(formatted)
+        
+        # Also send to log handler if provided
+        if self.log_handler:
+            from tactus.protocols.models import LogEvent
+            context_dict = self._lua_to_python(context) if context else None
+            event = LogEvent(
+                level="ERROR",
+                message=message,
+                context=context_dict,
+                logger_name=self.logger.name,
+                procedure_id=self.procedure_id
+            )
+            self.log_handler.log(event)
 
     def __repr__(self) -> str:
         return f"LogPrimitive(procedure_id={self.procedure_id})"

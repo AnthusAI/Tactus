@@ -11,3 +11,4 @@ def test_tool_record_and_queries():
     last_call = tool.last_call("search")
     assert last_call["args"]["query"] == "ai"
 
+

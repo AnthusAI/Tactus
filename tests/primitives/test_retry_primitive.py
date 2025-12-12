@@ -32,3 +32,4 @@ def test_retry_exhausts_attempts():
         with pytest.raises(Exception):
             primitive.with_backoff(always_fail, {"max_attempts": 2, "initial_delay": 0})
 
+

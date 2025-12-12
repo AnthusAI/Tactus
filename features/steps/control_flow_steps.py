@@ -129,3 +129,4 @@ def step_impl(context):
     assert len(control["remaining_items"]) > 0, "Expected remaining items to exist"
     assert control["remaining_items"][0] > control["stopped_at"]
 
+

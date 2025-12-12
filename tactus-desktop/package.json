@@ -7,8 +7,8 @@
   "author": "Anthus <info@anthus.ai>",
   "license": "MIT",
   "scripts": {
-    "dev": "tsc && electron dist/src/main.js",
-    "build": "tsc",
+    "dev": "tsc && tsc -p preload/tsconfig.json && electron dist/src/main.js",
+    "build": "tsc && tsc -p preload/tsconfig.json",
     "build:frontend": "node scripts/build-frontend.js",
     "build:backend": "node scripts/build-backend.js",
     "build:all": "npm run build:frontend && npm run build:backend && npm run build",
@@ -48,7 +48,9 @@
       "category": "public.app-category.developer-tools",
       "icon": "resources/app-icon.icns",
       "target": ["dmg"],
-      "artifactName": "${productName}-${version}-${os}.${ext}"
+      "artifactName": "${productName}-${version}-${os}.${ext}",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false
     },
     "win": {
       "icon": "resources/app-icon.ico",
