@@ -5,7 +5,7 @@ Tests for Gherkin parser.
 import pytest
 
 from tactus.testing.gherkin_parser import GherkinParser
-from tactus.testing.models import ParsedFeature, ParsedScenario, ParsedStep
+from tactus.testing.models import ParsedFeature
 
 
 def test_parse_simple_feature():
@@ -19,19 +19,19 @@ Feature: Simple Feature
     When an action occurs
     Then an outcome is verified
 """
-    
+
     parser = GherkinParser()
     feature = parser.parse(gherkin_text)
-    
+
     assert isinstance(feature, ParsedFeature)
     assert feature.name == "Simple Feature"
     assert "simple feature" in feature.description.lower()
     assert len(feature.scenarios) == 1
-    
+
     scenario = feature.scenarios[0]
     assert scenario.name == "Simple Scenario"
     assert len(scenario.steps) == 3
-    
+
     assert scenario.steps[0].keyword == "Given"
     assert scenario.steps[0].text == "a precondition"
     assert scenario.steps[1].keyword == "When"
@@ -51,10 +51,10 @@ Feature: Tagged Feature
     Given a setup
     Then verify result
 """
-    
+
     parser = GherkinParser()
     feature = parser.parse(gherkin_text)
-    
+
     assert "@important" in feature.tags
     assert "@smoke" in feature.tags
     assert "@critical" in feature.scenarios[0].tags
@@ -73,10 +73,10 @@ Feature: Multiple Scenarios
     Given second setup
     Then second result
 """
-    
+
     parser = GherkinParser()
     feature = parser.parse(gherkin_text)
-    
+
     assert len(feature.scenarios) == 2
     assert feature.scenarios[0].name == "First Scenario"
     assert feature.scenarios[1].name == "Second Scenario"
@@ -85,7 +85,7 @@ Feature: Multiple Scenarios
 def test_parse_invalid_gherkin():
     """Test that invalid Gherkin raises error."""
     gherkin_text = "This is not valid Gherkin"
-    
+
     parser = GherkinParser()
     with pytest.raises(ValueError, match="Invalid Gherkin"):
         parser.parse(gherkin_text)
@@ -104,15 +104,12 @@ Feature: And/But Keywords
     And another outcome is verified
     But a negative outcome is not present
 """
-    
+
     parser = GherkinParser()
     feature = parser.parse(gherkin_text)
-    
+
     scenario = feature.scenarios[0]
     assert len(scenario.steps) == 6
     assert scenario.steps[1].keyword == "And"
     assert scenario.steps[4].keyword == "And"
     assert scenario.steps[5].keyword == "But"
-
-
-

@@ -16,32 +16,32 @@ logger = logging.getLogger(__name__)
 class IDELogHandler:
     """
     IDE log handler that collects events for streaming.
-    
+
     Receives structured log events and stores them in a queue
     for retrieval and streaming to the IDE frontend.
     """
-    
+
     def __init__(self):
         """Initialize IDE log handler."""
         self.events = queue.Queue()
         logger.debug("IDELogHandler initialized")
-    
+
     def log(self, event: LogEvent) -> None:
         """
         Collect log event for streaming.
-        
+
         Args:
             event: Structured log event
         """
         self.events.put(event)
-    
+
     def get_events(self, timeout: float = 0.1) -> List[LogEvent]:
         """
         Get all available events from the queue.
-        
+
         Args:
             timeout: Timeout for queue.get() in seconds
-            
+
         Returns:
             List of LogEvent objects
         """
@@ -53,6 +53,3 @@ class IDELogHandler:
             except queue.Empty:
                 break
         return events
-
-
-

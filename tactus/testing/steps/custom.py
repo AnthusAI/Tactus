@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 class CustomStepManager:
     """
     Manages custom Lua step definitions.
-    
+
     Allows users to define custom steps in their procedure files
     using the step() function with Lua implementations.
     """
@@ -24,7 +24,7 @@ class CustomStepManager:
     def register_from_lua(self, step_text: str, lua_function: Any) -> None:
         """
         Register a custom step from Lua code.
-        
+
         Args:
             step_text: The step text pattern (exact match)
             lua_function: Lua function reference to execute
@@ -35,11 +35,11 @@ class CustomStepManager:
     def execute(self, step_text: str, context: Any) -> bool:
         """
         Execute custom Lua step if it exists.
-        
+
         Args:
             step_text: The step text to match
             context: Test context object
-            
+
         Returns:
             True if step was found and executed, False otherwise
         """
@@ -53,7 +53,7 @@ class CustomStepManager:
             except Exception as e:
                 logger.error(f"Custom step '{step_text}' failed: {e}")
                 raise AssertionError(f"Custom step failed: {e}")
-        
+
         return False
 
     def has_step(self, step_text: str) -> bool:
@@ -67,6 +67,3 @@ class CustomStepManager:
     def clear(self) -> None:
         """Clear all custom steps."""
         self.custom_steps.clear()
-
-
-

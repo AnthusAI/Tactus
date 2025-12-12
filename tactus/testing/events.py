@@ -14,7 +14,7 @@ from .models import TestResult, EvaluationResult
 
 class TestStartedEvent(BaseModel):
     """Event emitted when tests start."""
-    
+
     event_type: str = "test_started"
     procedure_file: str
     total_scenarios: int
@@ -23,7 +23,7 @@ class TestStartedEvent(BaseModel):
 
 class TestCompletedEvent(BaseModel):
     """Event emitted when tests complete."""
-    
+
     event_type: str = "test_completed"
     result: TestResult
     timestamp: datetime = Field(default_factory=datetime.now)
@@ -31,7 +31,7 @@ class TestCompletedEvent(BaseModel):
 
 class TestScenarioStartedEvent(BaseModel):
     """Event emitted when a scenario starts."""
-    
+
     event_type: str = "test_scenario_started"
     scenario_name: str
     timestamp: datetime = Field(default_factory=datetime.now)
@@ -39,7 +39,7 @@ class TestScenarioStartedEvent(BaseModel):
 
 class TestScenarioCompletedEvent(BaseModel):
     """Event emitted when a scenario completes."""
-    
+
     event_type: str = "test_scenario_completed"
     scenario_name: str
     status: str  # passed, failed, skipped
@@ -49,7 +49,7 @@ class TestScenarioCompletedEvent(BaseModel):
 
 class EvaluationStartedEvent(BaseModel):
     """Event emitted when evaluation starts."""
-    
+
     event_type: str = "evaluation_started"
     procedure_file: str
     total_scenarios: int
@@ -59,7 +59,7 @@ class EvaluationStartedEvent(BaseModel):
 
 class EvaluationCompletedEvent(BaseModel):
     """Event emitted when evaluation completes."""
-    
+
     event_type: str = "evaluation_completed"
     results: List[EvaluationResult]
     timestamp: datetime = Field(default_factory=datetime.now)
@@ -67,7 +67,7 @@ class EvaluationCompletedEvent(BaseModel):
 
 class EvaluationScenarioStartedEvent(BaseModel):
     """Event emitted when scenario evaluation starts."""
-    
+
     event_type: str = "evaluation_scenario_started"
     scenario_name: str
     runs: int
@@ -76,7 +76,7 @@ class EvaluationScenarioStartedEvent(BaseModel):
 
 class EvaluationScenarioCompletedEvent(BaseModel):
     """Event emitted when scenario evaluation completes."""
-    
+
     event_type: str = "evaluation_scenario_completed"
     result: EvaluationResult
     timestamp: datetime = Field(default_factory=datetime.now)
@@ -84,12 +84,9 @@ class EvaluationScenarioCompletedEvent(BaseModel):
 
 class EvaluationProgressEvent(BaseModel):
     """Event emitted during evaluation progress."""
-    
+
     event_type: str = "evaluation_progress"
     scenario_name: str
     completed_runs: int
     total_runs: int
     timestamp: datetime = Field(default_factory=datetime.now)
-
-
-

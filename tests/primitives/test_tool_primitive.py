@@ -10,8 +10,3 @@ def test_tool_record_and_queries():
     assert tool.last_result("search") == {"results": 3}
     last_call = tool.last_call("search")
     assert last_call["args"]["query"] == "ai"
-
-
-
-
-

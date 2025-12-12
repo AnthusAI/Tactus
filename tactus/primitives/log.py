@@ -77,13 +77,14 @@ class LogPrimitive:
         # Send to log handler if provided
         if self.log_handler:
             from tactus.protocols.models import LogEvent
+
             context_dict = self._lua_to_python(context) if context else None
             event = LogEvent(
                 level="DEBUG",
                 message=message,
                 context=context_dict,
                 logger_name=self.logger.name,
-                procedure_id=self.procedure_id
+                procedure_id=self.procedure_id,
             )
             self.log_handler.log(event)
         else:
@@ -105,13 +106,14 @@ class LogPrimitive:
         # Send to log handler if provided
         if self.log_handler:
             from tactus.protocols.models import LogEvent
+
             context_dict = self._lua_to_python(context) if context else None
             event = LogEvent(
                 level="INFO",
                 message=message,
                 context=context_dict,
                 logger_name=self.logger.name,
-                procedure_id=self.procedure_id
+                procedure_id=self.procedure_id,
             )
             self.log_handler.log(event)
         else:
@@ -133,13 +135,14 @@ class LogPrimitive:
         # Send to log handler if provided
         if self.log_handler:
             from tactus.protocols.models import LogEvent
+
             context_dict = self._lua_to_python(context) if context else None
             event = LogEvent(
                 level="WARNING",
                 message=message,
                 context=context_dict,
                 logger_name=self.logger.name,
-                procedure_id=self.procedure_id
+                procedure_id=self.procedure_id,
             )
             self.log_handler.log(event)
         else:
@@ -161,13 +164,14 @@ class LogPrimitive:
         # Send to log handler if provided
         if self.log_handler:
             from tactus.protocols.models import LogEvent
+
             context_dict = self._lua_to_python(context) if context else None
             event = LogEvent(
                 level="ERROR",
                 message=message,
                 context=context_dict,
                 logger_name=self.logger.name,
-                procedure_id=self.procedure_id
+                procedure_id=self.procedure_id,
             )
             self.log_handler.log(event)
         else:

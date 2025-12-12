@@ -240,7 +240,9 @@ class TactusRuntime:
             self.human_primitive = HumanPrimitive(self.execution_context, hitl_config)
             self.step_primitive = StepPrimitive(self.execution_context)
             self.checkpoint_primitive = CheckpointPrimitive(self.execution_context)
-            self.log_primitive = LogPrimitive(procedure_id=self.procedure_id, log_handler=self.log_handler)
+            self.log_primitive = LogPrimitive(
+                procedure_id=self.procedure_id, log_handler=self.log_handler
+            )
             declared_stages = self.config.get("stages", [])
             self.stage_primitive = StagePrimitive(
                 declared_stages=declared_stages, lua_sandbox=self.lua_sandbox
@@ -304,16 +306,19 @@ class TactusRuntime:
                 f"{self.iterations_primitive.current() if self.iterations_primitive else 0} iterations, "
                 f"{len(tools_used)} tool calls"
             )
-            
+
             # Send execution summary event if log handler is available
             if self.log_handler:
                 from tactus.protocols.models import ExecutionSummaryEvent
+
                 summary_event = ExecutionSummaryEvent(
                     result=validated_result,
                     final_state=final_state,
-                    iterations=self.iterations_primitive.current() if self.iterations_primitive else 0,
+                    iterations=(
+                        self.iterations_primitive.current() if self.iterations_primitive else 0
+                    ),
                     tools_used=tools_used,
-                    procedure_id=self.procedure_id
+                    procedure_id=self.procedure_id,
                 )
                 self.log_handler.log(summary_event)
 
@@ -402,7 +407,7 @@ class TactusRuntime:
         self.state_primitive = StatePrimitive()
         self.iterations_primitive = IterationsPrimitive()
         self.stop_primitive = StopPrimitive()
-        
+
         # Use injected tool primitive if provided (for testing with mocks)
         if self._injected_tool_primitive:
             self.tool_primitive = self._injected_tool_primitive
@@ -425,18 +430,18 @@ class TactusRuntime:
         if not agents_config:
             logger.info("No agents defined in configuration - skipping agent setup")
             return
-        
+
         # Skip agent setup in mock mode
         if self.skip_agents:
             logger.info("Skipping agent setup (mock mode)")
             from tactus.testing.mock_agent import MockAgentPrimitive
-            
+
             # Create mock agent primitives
             for agent_name in agents_config.keys():
                 mock_agent = MockAgentPrimitive(agent_name, self.tool_primitive)
                 self.agents[agent_name] = mock_agent
                 logger.debug(f"Created mock agent: {agent_name}")
-            
+
             return
 
         # Import agent primitive
@@ -918,7 +923,7 @@ class TactusRuntime:
             Config dict in YAML format
         """
         config = {}
-        
+
         if registry.description:
             config["description"] = registry.description
 

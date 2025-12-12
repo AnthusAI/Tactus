@@ -4,20 +4,13 @@ Test runner for Tactus BDD testing.
 Runs tests with parallel scenario execution using multiprocessing.
 """
 
+import importlib.util
 import logging
 import os
-import tempfile
 from datetime import datetime
 from multiprocessing import Pool
 from pathlib import Path
 from typing import Dict, List, Optional
-
-try:
-    from behave.runner import Runner
-    from behave.configuration import Configuration
-    BEHAVE_AVAILABLE = True
-except ImportError:
-    BEHAVE_AVAILABLE = False
 
 from .models import (
     ParsedFeature,
@@ -32,6 +25,8 @@ from .steps.registry import StepRegistry
 from .steps.builtin import register_builtin_steps
 from .steps.custom import CustomStepManager
 
+BEHAVE_AVAILABLE = importlib.util.find_spec("behave") is not None
+
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +34,7 @@ logger = logging.getLogger(__name__)
 class TactusTestRunner:
     """
     Runs Tactus BDD tests with parallel scenario execution.
-    
+
     Parses Gherkin specifications, generates Behave files,
     and executes scenarios in parallel for performance.
     """
@@ -51,11 +46,8 @@ class TactusTestRunner:
         params: Optional[Dict] = None,
     ):
         if not BEHAVE_AVAILABLE:
-            raise ImportError(
-                "behave library not installed. "
-                "Install with: pip install behave"
-            )
-        
+            raise ImportError("behave library not installed. " "Install with: pip install behave")
+
         self.procedure_file = procedure_file
         self.mock_tools = mock_tools or {}
         self.params = params or {}
@@ -63,21 +55,21 @@ class TactusTestRunner:
         self.parsed_feature: Optional[ParsedFeature] = None
         self.step_registry = StepRegistry()
         self.custom_steps = CustomStepManager()
-        
+
         # Register built-in steps
         register_builtin_steps(self.step_registry)
 
     def setup(self, gherkin_text: str) -> None:
         """
         Setup test environment from Gherkin text.
-        
+
         Args:
             gherkin_text: Raw Gherkin feature text
         """
         # Parse Gherkin
         parser = GherkinParser()
         self.parsed_feature = parser.parse(gherkin_text)
-        
+
         # Setup Behave directory with mock tools and params
         self.work_dir = setup_behave_directory(
             self.parsed_feature,
@@ -87,48 +79,46 @@ class TactusTestRunner:
             mock_tools=self.mock_tools,
             params=self.params,
         )
-        
+
         logger.info(f"Test setup complete for feature: {self.parsed_feature.name}")
 
     def run_tests(self, parallel: bool = True, scenario_filter: Optional[str] = None) -> TestResult:
         """
         Run all scenarios (optionally in parallel).
-        
+
         Args:
             parallel: Whether to run scenarios in parallel
             scenario_filter: Optional scenario name to run (runs only that scenario)
-            
+
         Returns:
             TestResult with all scenario results
         """
         if not self.parsed_feature or not self.work_dir:
             raise RuntimeError("Must call setup() before run_tests()")
-        
+
         # Get scenarios to run
         scenarios = self.parsed_feature.scenarios
         if scenario_filter:
             scenarios = [s for s in scenarios if s.name == scenario_filter]
             if not scenarios:
                 raise ValueError(f"Scenario not found: {scenario_filter}")
-        
+
         # Run scenarios
         if parallel and len(scenarios) > 1:
             # Run in parallel
             with Pool(processes=min(len(scenarios), os.cpu_count() or 1)) as pool:
                 scenario_results = pool.starmap(
-                    self._run_single_scenario,
-                    [(s.name, str(self.work_dir)) for s in scenarios]
+                    self._run_single_scenario, [(s.name, str(self.work_dir)) for s in scenarios]
                 )
         else:
             # Run sequentially
             scenario_results = [
-                self._run_single_scenario(s.name, str(self.work_dir))
-                for s in scenarios
+                self._run_single_scenario(s.name, str(self.work_dir)) for s in scenarios
             ]
-        
+
         # Build feature result
         feature_result = self._build_feature_result(scenario_results)
-        
+
         # Build test result
         return self._build_test_result([feature_result])
 
@@ -136,21 +126,21 @@ class TactusTestRunner:
     def _run_single_scenario(scenario_name: str, work_dir: str) -> ScenarioResult:
         """
         Run a single scenario (called in subprocess).
-        
+
         Args:
             scenario_name: Name of scenario to run
             work_dir: Path to Behave work directory
-            
+
         Returns:
             ScenarioResult
         """
         from behave.runner import Runner
         from behave.configuration import Configuration
-        
+
         # Create tag filter for this scenario
         sanitized_name = scenario_name.lower().replace(" ", "_")
         tag_filter = f"scenario_{sanitized_name}"
-        
+
         # Configure Behave
         config = Configuration(
             command_args=[str(work_dir)],
@@ -163,17 +153,17 @@ class TactusTestRunner:
         config.paths = [str(work_dir)]
         # Explicitly set step_paths to only this work_dir
         config.step_paths = [str(work_dir / "steps")]
-        
+
         # Run Behave
         runner = Runner(config)
         runner.run()
-        
+
         # Extract results from Behave
         for feature in runner.features:
             for scenario in feature.scenarios:
                 if scenario.name == scenario_name:
                     return TactusTestRunner._convert_scenario_result(scenario)
-        
+
         # Scenario not found (shouldn't happen)
         raise RuntimeError(f"Scenario '{scenario_name}' not found in Behave results")
 
@@ -182,14 +172,18 @@ class TactusTestRunner:
         """Convert Behave scenario to ScenarioResult."""
         steps = []
         for behave_step in behave_scenario.steps:
-            steps.append(StepResult(
-                keyword=behave_step.keyword,
-                text=behave_step.name,
-                status=behave_step.status.name,
-                duration=behave_step.duration,
-                error_message=behave_step.error_message if hasattr(behave_step, "error_message") else None,
-            ))
-        
+            steps.append(
+                StepResult(
+                    keyword=behave_step.keyword,
+                    text=behave_step.name,
+                    status=behave_step.status.name,
+                    duration=behave_step.duration,
+                    error_message=(
+                        behave_step.error_message if hasattr(behave_step, "error_message") else None
+                    ),
+                )
+            )
+
         return ScenarioResult(
             name=behave_scenario.name,
             status=behave_scenario.status.name,
@@ -203,15 +197,15 @@ class TactusTestRunner:
         """Build FeatureResult from scenario results."""
         if not self.parsed_feature:
             raise RuntimeError("No parsed feature available")
-        
+
         # Calculate feature status
         all_passed = all(s.status == "passed" for s in scenario_results)
         any_failed = any(s.status == "failed" for s in scenario_results)
         status = "passed" if all_passed else ("failed" if any_failed else "skipped")
-        
+
         # Calculate total duration
         total_duration = sum(s.duration for s in scenario_results)
-        
+
         return FeatureResult(
             name=self.parsed_feature.name,
             description=self.parsed_feature.description,
@@ -225,13 +219,11 @@ class TactusTestRunner:
         """Build TestResult from feature results."""
         total_scenarios = sum(len(f.scenarios) for f in feature_results)
         passed_scenarios = sum(
-            1 for f in feature_results
-            for s in f.scenarios
-            if s.status == "passed"
+            1 for f in feature_results for s in f.scenarios if s.status == "passed"
         )
         failed_scenarios = total_scenarios - passed_scenarios
         total_duration = sum(f.duration for f in feature_results)
-        
+
         return TestResult(
             features=feature_results,
             total_scenarios=total_scenarios,
@@ -244,11 +236,9 @@ class TactusTestRunner:
         """Cleanup temporary files."""
         if self.work_dir and self.work_dir.exists():
             import shutil
+
             try:
                 shutil.rmtree(self.work_dir)
                 logger.debug(f"Cleaned up work directory: {self.work_dir}")
             except Exception as e:
                 logger.warning(f"Failed to cleanup work directory: {e}")
-
-
-
