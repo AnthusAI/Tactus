@@ -9,7 +9,6 @@ import os
 import subprocess
 import threading
 import time
-import queue as q
 from pathlib import Path
 from flask import Flask, request, jsonify, Response, stream_with_context
 from flask_cors import CORS
@@ -137,20 +136,20 @@ def _resolve_workspace_path(relative_path: str) -> Path:
     Raises ValueError if path escapes workspace or workspace not set.
     """
     global WORKSPACE_ROOT
-    
+
     if not WORKSPACE_ROOT:
         raise ValueError("No workspace folder selected")
-    
+
     # Normalize the relative path
     workspace = Path(WORKSPACE_ROOT).resolve()
     target = (workspace / relative_path).resolve()
-    
+
     # Ensure target is within workspace (prevent path traversal)
     try:
         target.relative_to(workspace)
     except ValueError:
         raise ValueError(f"Path '{relative_path}' escapes workspace")
-    
+
     return target
 
 
@@ -165,7 +164,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
 
     # Configure Flask to serve frontend static files if provided
     if frontend_dist_dir:
-        app = Flask(__name__, static_folder=frontend_dist_dir, static_url_path='')
+        app = Flask(__name__, static_folder=frontend_dist_dir, static_url_path="")
     else:
         app = Flask(__name__)
     CORS(app)
@@ -193,44 +192,37 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
     def workspace_operations():
         """Handle workspace operations."""
         global WORKSPACE_ROOT
-        
+
         if request.method == "GET":
             if not WORKSPACE_ROOT:
                 return jsonify({"root": None, "name": None})
-            
+
             workspace_path = Path(WORKSPACE_ROOT)
-            return jsonify({
-                "root": str(workspace_path),
-                "name": workspace_path.name
-            })
-        
+            return jsonify({"root": str(workspace_path), "name": workspace_path.name})
+
         elif request.method == "POST":
             data = request.json
             root = data.get("root")
-            
+
             if not root:
                 return jsonify({"error": "Missing 'root' parameter"}), 400
-            
+
             try:
                 root_path = Path(root).resolve()
-                
+
                 if not root_path.exists():
                     return jsonify({"error": f"Path does not exist: {root}"}), 404
-                
+
                 if not root_path.is_dir():
                     return jsonify({"error": f"Path is not a directory: {root}"}), 400
-                
+
                 # Set workspace root and change working directory
                 WORKSPACE_ROOT = str(root_path)
                 os.chdir(WORKSPACE_ROOT)
-                
+
                 logger.info(f"Workspace set to: {WORKSPACE_ROOT}")
-                
-                return jsonify({
-                    "success": True,
-                    "root": WORKSPACE_ROOT,
-                    "name": root_path.name
-                })
+
+                return jsonify({"success": True, "root": WORKSPACE_ROOT, "name": root_path.name})
             except Exception as e:
                 logger.error(f"Error setting workspace {root}: {e}")
                 return jsonify({"error": str(e)}), 500
@@ -239,40 +231,39 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
     def tree_operations():
         """List directory contents within the workspace."""
         global WORKSPACE_ROOT
-        
+
         if not WORKSPACE_ROOT:
             return jsonify({"error": "No workspace folder selected"}), 400
-        
+
         relative_path = request.args.get("path", "")
-        
+
         try:
             target_path = _resolve_workspace_path(relative_path)
-            
+
             if not target_path.exists():
                 return jsonify({"error": f"Path not found: {relative_path}"}), 404
-            
+
             if not target_path.is_dir():
                 return jsonify({"error": f"Path is not a directory: {relative_path}"}), 400
-            
+
             # List directory contents
             entries = []
-            for item in sorted(target_path.iterdir(), key=lambda x: (not x.is_dir(), x.name.lower())):
+            for item in sorted(
+                target_path.iterdir(), key=lambda x: (not x.is_dir(), x.name.lower())
+            ):
                 entry = {
                     "name": item.name,
                     "path": str(item.relative_to(WORKSPACE_ROOT)),
-                    "type": "directory" if item.is_dir() else "file"
+                    "type": "directory" if item.is_dir() else "file",
                 }
-                
+
                 # Add extension for files
                 if item.is_file():
                     entry["extension"] = item.suffix
-                
+
                 entries.append(entry)
-            
-            return jsonify({
-                "path": relative_path,
-                "entries": entries
-            })
+
+            return jsonify({"path": relative_path, "entries": entries})
         except ValueError as e:
             return jsonify({"error": str(e)}), 400
         except Exception as e:
@@ -286,49 +277,47 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             file_path = request.args.get("path")
             if not file_path:
                 return jsonify({"error": "Missing 'path' parameter"}), 400
-            
+
             try:
                 path = _resolve_workspace_path(file_path)
-                
+
                 if not path.exists():
                     return jsonify({"error": f"File not found: {file_path}"}), 404
-                
+
                 if not path.is_file():
                     return jsonify({"error": f"Path is not a file: {file_path}"}), 400
-                
+
                 content = path.read_text()
-                return jsonify({
-                    "path": file_path,
-                    "absolutePath": str(path),
-                    "content": content,
-                    "name": path.name
-                })
+                return jsonify(
+                    {
+                        "path": file_path,
+                        "absolutePath": str(path),
+                        "content": content,
+                        "name": path.name,
+                    }
+                )
             except ValueError as e:
                 return jsonify({"error": str(e)}), 400
             except Exception as e:
                 logger.error(f"Error reading file {file_path}: {e}")
                 return jsonify({"error": str(e)}), 500
-        
+
         elif request.method == "POST":
             data = request.json
             file_path = data.get("path")
             content = data.get("content")
-            
+
             if not file_path or content is None:
                 return jsonify({"error": "Missing 'path' or 'content'"}), 400
-            
+
             try:
                 path = _resolve_workspace_path(file_path)
-                
+
                 # Create parent directories if needed
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(content)
-                
-                return jsonify({
-                    "success": True,
-                    "path": file_path,
-                    "absolutePath": str(path)
-                })
+
+                return jsonify({"success": True, "path": file_path, "absolutePath": str(path)})
             except ValueError as e:
                 return jsonify({"error": str(e)}), 400
             except Exception as e:
@@ -340,36 +329,37 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
         """Validate Tactus procedure code."""
         data = request.json
         content = data.get("content")
-        file_path = data.get("path", "untitled.tac")
-        
+
         if content is None:
             return jsonify({"error": "Missing 'content' parameter"}), 400
-        
+
         try:
             validator = TactusValidator()
             result = validator.validate(content)
 
-            return jsonify({
-                "valid": result.valid,
-                "errors": [
-                    {
-                        "message": err.message,
-                        "line": err.location[0] if err.location else None,
-                        "column": err.location[1] if err.location else None,
-                        "severity": err.severity
-                    }
-                    for err in result.errors
-                ],
-                "warnings": [
-                    {
-                        "message": warn.message,
-                        "line": warn.location[0] if warn.location else None,
-                        "column": warn.location[1] if warn.location else None,
-                        "severity": warn.severity
-                    }
-                    for warn in result.warnings
-                ]
-            })
+            return jsonify(
+                {
+                    "valid": result.valid,
+                    "errors": [
+                        {
+                            "message": err.message,
+                            "line": err.location[0] if err.location else None,
+                            "column": err.location[1] if err.location else None,
+                            "severity": err.severity,
+                        }
+                        for err in result.errors
+                    ],
+                    "warnings": [
+                        {
+                            "message": warn.message,
+                            "line": warn.location[0] if warn.location else None,
+                            "column": warn.location[1] if warn.location else None,
+                            "severity": warn.severity,
+                        }
+                        for warn in result.warnings
+                    ],
+                }
+            )
         except Exception as e:
             logger.error(f"Error validating code: {e}")
             return jsonify({"error": str(e)}), 500
@@ -380,38 +370,40 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
         data = request.json
         file_path = data.get("path")
         content = data.get("content")
-        
+
         if not file_path:
             return jsonify({"error": "Missing 'path' parameter"}), 400
-        
+
         try:
             # Resolve path within workspace
             path = _resolve_workspace_path(file_path)
-            
+
             # Save content if provided
             if content is not None:
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(content)
-            
+
             # Ensure file exists
             if not path.exists():
                 return jsonify({"error": f"File not found: {file_path}"}), 404
-            
+
             # Run the procedure using tactus CLI
             result = subprocess.run(
                 ["tactus", "run", str(path)],
                 capture_output=True,
                 text=True,
                 timeout=30,
-                cwd=WORKSPACE_ROOT
+                cwd=WORKSPACE_ROOT,
             )
-            
-            return jsonify({
-                "success": result.returncode == 0,
-                "exitCode": result.returncode,
-                "stdout": result.stdout,
-                "stderr": result.stderr
-            })
+
+            return jsonify(
+                {
+                    "success": result.returncode == 0,
+                    "exitCode": result.returncode,
+                    "stdout": result.stdout,
+                    "stderr": result.stderr,
+                }
+            )
         except subprocess.TimeoutExpired:
             return jsonify({"error": "Procedure execution timed out (30s)"}), 408
         except ValueError as e:
@@ -424,25 +416,25 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
     def run_procedure_stream():
         """
         Run a Tactus procedure with SSE streaming output.
-        
+
         Query param:
         - path: workspace-relative path to procedure file (required)
         """
         file_path = request.args.get("path")
-        
+
         if not file_path:
             return jsonify({"error": "Missing 'path' parameter"}), 400
-        
+
         try:
             # Resolve path within workspace
             path = _resolve_workspace_path(file_path)
-            
+
             # Ensure file exists
             if not path.exists():
                 return jsonify({"error": f"File not found: {file_path}"}), 404
-            
+
             procedure_id = f"ide-{path.stem}"
-            
+
             def generate_events():
                 """Generator function that yields SSE events."""
                 log_handler = None
@@ -453,24 +445,29 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                     from tactus.adapters.ide_log import IDELogHandler
                     from tactus.core.runtime import TactusRuntime
                     from tactus.adapters.file_storage import FileStorage
-                    
+
                     start_event = {
                         "event_type": "execution",
                         "lifecycle_stage": "start",
                         "procedure_id": procedure_id,
-                        "timestamp": datetime.utcnow().isoformat() + 'Z',
-                        "details": {"path": file_path}
+                        "timestamp": datetime.utcnow().isoformat() + "Z",
+                        "details": {"path": file_path},
                     }
                     yield f"data: {json.dumps(start_event)}\n\n"
-                    
+
                     # Create IDE log handler to collect structured events
                     log_handler = IDELogHandler()
-                    
+
                     # Create storage backend
                     from pathlib import Path as PathLib
-                    storage_dir = str(PathLib(WORKSPACE_ROOT) / ".tac" / "storage") if WORKSPACE_ROOT else "~/.tac/storage"
+
+                    storage_dir = (
+                        str(PathLib(WORKSPACE_ROOT) / ".tac" / "storage")
+                        if WORKSPACE_ROOT
+                        else "~/.tac/storage"
+                    )
                     storage_backend = FileStorage(storage_dir=storage_dir)
-                    
+
                     # Create runtime with log handler
                     runtime = TactusRuntime(
                         procedure_id=procedure_id,
@@ -478,14 +475,15 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                         hitl_handler=None,  # No HITL in IDE streaming mode
                         log_handler=log_handler,
                     )
-                    
+
                     # Read procedure source
                     source = path.read_text()
-                    
+
                     # Run in a thread to avoid blocking
                     import asyncio
+
                     result_container = {"result": None, "error": None, "done": False}
-                    
+
                     def run_procedure():
                         try:
                             # Create new event loop for this thread
@@ -498,11 +496,11 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                         finally:
                             result_container["done"] = True
                             loop.close()
-                    
+
                     exec_thread = threading.Thread(target=run_procedure)
                     exec_thread.daemon = True
                     exec_thread.start()
-                    
+
                     # Stream log events as they arrive
                     while not result_container["done"]:
                         # Get log events from handler
@@ -510,32 +508,40 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                         for event in events:
                             try:
                                 # Serialize with ISO format for datetime
-                                event_dict = event.model_dump(mode='json')
+                                event_dict = event.model_dump(mode="json")
                                 # Add 'Z' suffix to indicate UTC timezone
-                                event_dict['timestamp'] = event.timestamp.isoformat() + 'Z' if not event.timestamp.isoformat().endswith('Z') else event.timestamp.isoformat()
+                                event_dict["timestamp"] = (
+                                    event.timestamp.isoformat() + "Z"
+                                    if not event.timestamp.isoformat().endswith("Z")
+                                    else event.timestamp.isoformat()
+                                )
                                 yield f"data: {json.dumps(event_dict)}\n\n"
                             except Exception as e:
                                 logger.error(f"Error serializing event: {e}", exc_info=True)
                                 logger.error(f"Event type: {type(event)}, Event: {event}")
-                        
+
                         time.sleep(0.05)
-                    
+
                     # Get any remaining events
                     events = log_handler.get_events(timeout=0.1)
                     for event in events:
                         try:
                             # Serialize with ISO format for datetime
-                            event_dict = event.model_dump(mode='json')
+                            event_dict = event.model_dump(mode="json")
                             # Add 'Z' suffix to indicate UTC timezone
-                            event_dict['timestamp'] = event.timestamp.isoformat() + 'Z' if not event.timestamp.isoformat().endswith('Z') else event.timestamp.isoformat()
+                            event_dict["timestamp"] = (
+                                event.timestamp.isoformat() + "Z"
+                                if not event.timestamp.isoformat().endswith("Z")
+                                else event.timestamp.isoformat()
+                            )
                             yield f"data: {json.dumps(event_dict)}\n\n"
                         except Exception as e:
                             logger.error(f"Error serializing event: {e}", exc_info=True)
                             logger.error(f"Event type: {type(event)}, Event: {event}")
-                    
+
                     # Wait for thread to finish
                     exec_thread.join(timeout=1)
-                    
+
                     # Send completion event
                     if result_container["error"]:
                         complete_event = {
@@ -543,8 +549,8 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                             "lifecycle_stage": "error",
                             "procedure_id": procedure_id,
                             "exit_code": 1,
-                            "timestamp": datetime.utcnow().isoformat() + 'Z',
-                            "details": {"success": False, "error": str(result_container["error"])}
+                            "timestamp": datetime.utcnow().isoformat() + "Z",
+                            "details": {"success": False, "error": str(result_container["error"])},
                         }
                     else:
                         complete_event = {
@@ -552,32 +558,32 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                             "lifecycle_stage": "complete",
                             "procedure_id": procedure_id,
                             "exit_code": 0,
-                            "timestamp": datetime.utcnow().isoformat() + 'Z',
-                            "details": {"success": True}
+                            "timestamp": datetime.utcnow().isoformat() + "Z",
+                            "details": {"success": True},
                         }
                     yield f"data: {json.dumps(complete_event)}\n\n"
-                    
+
                 except Exception as e:
                     logger.error(f"Error in streaming execution: {e}", exc_info=True)
                     error_event = {
                         "event_type": "execution",
                         "lifecycle_stage": "error",
                         "procedure_id": procedure_id,
-                        "timestamp": datetime.utcnow().isoformat() + 'Z',
-                        "details": {"error": str(e)}
+                        "timestamp": datetime.utcnow().isoformat() + "Z",
+                        "details": {"error": str(e)},
                     }
                     yield f"data: {json.dumps(error_event)}\n\n"
-            
+
             return Response(
                 stream_with_context(generate_events()),
                 mimetype="text/event-stream",
                 headers={
                     "Cache-Control": "no-cache",
                     "X-Accel-Buffering": "no",
-                    "Connection": "keep-alive"
-                }
+                    "Connection": "keep-alive",
+                },
             )
-            
+
         except ValueError as e:
             return jsonify({"error": str(e)}), 400
         except Exception as e:
@@ -588,7 +594,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
     def test_procedure_stream():
         """
         Run BDD tests with SSE streaming output.
-        
+
         Query params:
         - path: procedure file path (required)
         - mock: use mock mode (optional, default true)
@@ -596,25 +602,24 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
         - parallel: run in parallel (optional, default false)
         """
         file_path = request.args.get("path")
-        
+
         if not file_path:
             return jsonify({"error": "Missing 'path' parameter"}), 400
-        
+
         # Get options
         mock = request.args.get("mock", "true").lower() == "true"
-        scenario = request.args.get("scenario")
         parallel = request.args.get("parallel", "false").lower() == "true"
-        
+
         try:
             # Resolve path within workspace
             path = _resolve_workspace_path(file_path)
-            
+
             # Ensure file exists
             if not path.exists():
                 return jsonify({"error": f"File not found: {file_path}"}), 404
-            
+
             procedure_id = path.stem
-            
+
             def generate_events():
                 """Generator function that yields SSE test events."""
                 try:
@@ -622,60 +627,66 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                     from datetime import datetime
                     from tactus.validation import TactusValidator
                     from tactus.testing import TactusTestRunner, GherkinParser
-                    
+
                     # Validate and extract specifications
                     validator = TactusValidator()
                     validation_result = validator.validate_file(str(path))
-                    
+
                     if not validation_result.valid:
                         # Emit validation error
                         error_event = {
                             "event_type": "execution",
                             "lifecycle_stage": "error",
                             "procedure_id": procedure_id,
-                            "timestamp": datetime.utcnow().isoformat() + 'Z',
+                            "timestamp": datetime.utcnow().isoformat() + "Z",
                             "details": {
                                 "error": "Validation failed",
-                                "errors": [{"message": e.message, "severity": e.severity} for e in validation_result.errors]
-                            }
+                                "errors": [
+                                    {"message": e.message, "severity": e.severity}
+                                    for e in validation_result.errors
+                                ],
+                            },
                         }
                         yield f"data: {json.dumps(error_event)}\n\n"
                         return
-                    
-                    if not validation_result.registry or not validation_result.registry.gherkin_specifications:
+
+                    if (
+                        not validation_result.registry
+                        or not validation_result.registry.gherkin_specifications
+                    ):
                         # No specifications found
                         error_event = {
                             "event_type": "execution",
                             "lifecycle_stage": "error",
                             "procedure_id": procedure_id,
-                            "timestamp": datetime.utcnow().isoformat() + 'Z',
-                            "details": {"error": "No specifications found in procedure"}
+                            "timestamp": datetime.utcnow().isoformat() + "Z",
+                            "details": {"error": "No specifications found in procedure"},
                         }
                         yield f"data: {json.dumps(error_event)}\n\n"
                         return
-                    
+
                     # Setup test runner
                     mock_tools = {"done": {"status": "ok"}} if mock else None
                     runner = TactusTestRunner(path, mock_tools=mock_tools)
                     runner.setup(validation_result.registry.gherkin_specifications)
-                    
+
                     # Get parsed feature to count scenarios
                     parser = GherkinParser()
                     parsed_feature = parser.parse(validation_result.registry.gherkin_specifications)
                     total_scenarios = len(parsed_feature.scenarios)
-                    
+
                     # Emit started event
                     start_event = {
                         "event_type": "test_started",
                         "procedure_file": str(path),
                         "total_scenarios": total_scenarios,
-                        "timestamp": datetime.utcnow().isoformat() + 'Z'
+                        "timestamp": datetime.utcnow().isoformat() + "Z",
                     }
                     yield f"data: {json.dumps(start_event)}\n\n"
-                    
+
                     # Run tests
                     test_result = runner.run_tests(parallel=parallel)
-                    
+
                     # Emit scenario completion events
                     for feature in test_result.features:
                         for scenario in feature.scenarios:
@@ -684,10 +695,10 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                                 "scenario_name": scenario.name,
                                 "status": scenario.status,
                                 "duration": scenario.duration,
-                                "timestamp": datetime.utcnow().isoformat() + 'Z'
+                                "timestamp": datetime.utcnow().isoformat() + "Z",
                             }
                             yield f"data: {json.dumps(scenario_event)}\n\n"
-                    
+
                     # Emit completed event
                     complete_event = {
                         "event_type": "test_completed",
@@ -708,45 +719,45 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                                                     "keyword": step.keyword,
                                                     "text": step.text,
                                                     "status": step.status,
-                                                    "error_message": step.error_message
+                                                    "error_message": step.error_message,
                                                 }
                                                 for step in s.steps
-                                            ]
+                                            ],
                                         }
                                         for s in f.scenarios
-                                    ]
+                                    ],
                                 }
                                 for f in test_result.features
-                            ]
+                            ],
                         },
-                        "timestamp": datetime.utcnow().isoformat() + 'Z'
+                        "timestamp": datetime.utcnow().isoformat() + "Z",
                     }
                     yield f"data: {json.dumps(complete_event)}\n\n"
-                    
+
                     # Cleanup
                     runner.cleanup()
-                    
+
                 except Exception as e:
                     logger.error(f"Error in test execution: {e}", exc_info=True)
                     error_event = {
                         "event_type": "execution",
                         "lifecycle_stage": "error",
                         "procedure_id": procedure_id,
-                        "timestamp": datetime.utcnow().isoformat() + 'Z',
-                        "details": {"error": str(e)}
+                        "timestamp": datetime.utcnow().isoformat() + "Z",
+                        "details": {"error": str(e)},
                     }
                     yield f"data: {json.dumps(error_event)}\n\n"
-            
+
             return Response(
                 stream_with_context(generate_events()),
                 mimetype="text/event-stream",
                 headers={
                     "Cache-Control": "no-cache",
                     "X-Accel-Buffering": "no",
-                    "Connection": "keep-alive"
-                }
+                    "Connection": "keep-alive",
+                },
             )
-            
+
         except ValueError as e:
             return jsonify({"error": str(e)}), 400
         except Exception as e:
@@ -757,7 +768,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
     def evaluate_procedure_stream():
         """
         Run BDD evaluation with SSE streaming output.
-        
+
         Query params:
         - path: procedure file path (required)
         - runs: number of runs per scenario (optional, default 10)
@@ -766,26 +777,25 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
         - parallel: run in parallel (optional, default true)
         """
         file_path = request.args.get("path")
-        
+
         if not file_path:
             return jsonify({"error": "Missing 'path' parameter"}), 400
-        
+
         # Get options
         runs = int(request.args.get("runs", "10"))
         mock = request.args.get("mock", "true").lower() == "true"
-        scenario = request.args.get("scenario")
         parallel = request.args.get("parallel", "true").lower() == "true"
-        
+
         try:
             # Resolve path within workspace
             path = _resolve_workspace_path(file_path)
-            
+
             # Ensure file exists
             if not path.exists():
                 return jsonify({"error": f"File not found: {file_path}"}), 404
-            
+
             procedure_id = path.stem
-            
+
             def generate_events():
                 """Generator function that yields SSE evaluation events."""
                 try:
@@ -793,59 +803,65 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                     from datetime import datetime
                     from tactus.validation import TactusValidator
                     from tactus.testing import TactusEvaluationRunner, GherkinParser
-                    
+
                     # Validate and extract specifications
                     validator = TactusValidator()
                     validation_result = validator.validate_file(str(path))
-                    
+
                     if not validation_result.valid:
                         error_event = {
                             "event_type": "execution",
                             "lifecycle_stage": "error",
                             "procedure_id": procedure_id,
-                            "timestamp": datetime.utcnow().isoformat() + 'Z',
+                            "timestamp": datetime.utcnow().isoformat() + "Z",
                             "details": {
                                 "error": "Validation failed",
-                                "errors": [{"message": e.message, "severity": e.severity} for e in validation_result.errors]
-                            }
+                                "errors": [
+                                    {"message": e.message, "severity": e.severity}
+                                    for e in validation_result.errors
+                                ],
+                            },
                         }
                         yield f"data: {json.dumps(error_event)}\n\n"
                         return
-                    
-                    if not validation_result.registry or not validation_result.registry.gherkin_specifications:
+
+                    if (
+                        not validation_result.registry
+                        or not validation_result.registry.gherkin_specifications
+                    ):
                         error_event = {
                             "event_type": "execution",
                             "lifecycle_stage": "error",
                             "procedure_id": procedure_id,
-                            "timestamp": datetime.utcnow().isoformat() + 'Z',
-                            "details": {"error": "No specifications found in procedure"}
+                            "timestamp": datetime.utcnow().isoformat() + "Z",
+                            "details": {"error": "No specifications found in procedure"},
                         }
                         yield f"data: {json.dumps(error_event)}\n\n"
                         return
-                    
+
                     # Setup evaluation runner
                     mock_tools = {"done": {"status": "ok"}} if mock else None
                     evaluator = TactusEvaluationRunner(path, mock_tools=mock_tools)
                     evaluator.setup(validation_result.registry.gherkin_specifications)
-                    
+
                     # Get parsed feature to count scenarios
                     parser = GherkinParser()
                     parsed_feature = parser.parse(validation_result.registry.gherkin_specifications)
                     total_scenarios = len(parsed_feature.scenarios)
-                    
+
                     # Emit started event
                     start_event = {
                         "event_type": "evaluation_started",
                         "procedure_file": str(path),
                         "total_scenarios": total_scenarios,
                         "runs_per_scenario": runs,
-                        "timestamp": datetime.utcnow().isoformat() + 'Z'
+                        "timestamp": datetime.utcnow().isoformat() + "Z",
                     }
                     yield f"data: {json.dumps(start_event)}\n\n"
-                    
+
                     # Run evaluation
                     eval_results = evaluator.evaluate_all(runs=runs, parallel=parallel)
-                    
+
                     # Emit progress/completion events for each scenario
                     for eval_result in eval_results:
                         progress_event = {
@@ -853,10 +869,10 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                             "scenario_name": eval_result.scenario_name,
                             "completed_runs": eval_result.total_runs,
                             "total_runs": eval_result.total_runs,
-                            "timestamp": datetime.utcnow().isoformat() + 'Z'
+                            "timestamp": datetime.utcnow().isoformat() + "Z",
                         }
                         yield f"data: {json.dumps(progress_event)}\n\n"
-                    
+
                     # Emit completed event
                     complete_event = {
                         "event_type": "evaluation_completed",
@@ -870,38 +886,38 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                                 "consistency_score": r.consistency_score,
                                 "is_flaky": r.is_flaky,
                                 "avg_duration": r.avg_duration,
-                                "std_duration": r.std_duration
+                                "std_duration": r.std_duration,
                             }
                             for r in eval_results
                         ],
-                        "timestamp": datetime.utcnow().isoformat() + 'Z'
+                        "timestamp": datetime.utcnow().isoformat() + "Z",
                     }
                     yield f"data: {json.dumps(complete_event)}\n\n"
-                    
+
                     # Cleanup
                     evaluator.cleanup()
-                    
+
                 except Exception as e:
                     logger.error(f"Error in evaluation execution: {e}", exc_info=True)
                     error_event = {
                         "event_type": "execution",
                         "lifecycle_stage": "error",
                         "procedure_id": procedure_id,
-                        "timestamp": datetime.utcnow().isoformat() + 'Z',
-                        "details": {"error": str(e)}
+                        "timestamp": datetime.utcnow().isoformat() + "Z",
+                        "details": {"error": str(e)},
                     }
                     yield f"data: {json.dumps(error_event)}\n\n"
-            
+
             return Response(
                 stream_with_context(generate_events()),
                 mimetype="text/event-stream",
                 headers={
                     "Cache-Control": "no-cache",
                     "X-Accel-Buffering": "no",
-                    "Connection": "keep-alive"
-                }
+                    "Connection": "keep-alive",
+                },
             )
-            
+
         except ValueError as e:
             return jsonify({"error": str(e)}), 400
         except Exception as e:
@@ -975,6 +991,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
 
     # Serve frontend if dist directory is provided
     if frontend_dist_dir:
+
         @app.route("/")
         def serve_frontend():
             """Serve the frontend index.html."""
@@ -1002,7 +1019,7 @@ def main() -> None:
 
     This enables `python -m tactus.ide.server` which is useful for local development
     and file-watcher based auto-reload workflows.
-    
+
     Environment variables:
     - TACTUS_IDE_HOST: Host to bind to (default: 127.0.0.1)
     - TACTUS_IDE_PORT: Port to bind to (default: 5001)
@@ -1022,7 +1039,7 @@ def main() -> None:
     initial_workspace = os.environ.get("TACTUS_IDE_WORKSPACE")
     if initial_workspace:
         logger.info(f"Setting initial workspace to: {initial_workspace}")
-    
+
     app = create_app(initial_workspace=initial_workspace)
     # NOTE: We intentionally disable Flask's reloader here; external watchers (e.g. watchdog)
     # should restart this process to avoid double-fork behavior.
@@ -1031,8 +1048,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-
-
-
-

@@ -59,6 +59,3 @@ __all__ = [
     "EvaluationScenarioCompletedEvent",
     "EvaluationProgressEvent",
 ]
-
-
-

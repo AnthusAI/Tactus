@@ -9,7 +9,8 @@ Provides commands for running, validating, and testing workflows.
 # This prevents logfire (and other plugins) from being loaded via Pydantic's plugin system
 # which causes errors when trying to inspect source code in frozen apps
 import os
-os.environ['PYDANTIC_DISABLE_PLUGINS'] = '1'
+
+os.environ["PYDANTIC_DISABLE_PLUGINS"] = "1"
 
 import asyncio
 from pathlib import Path
@@ -172,8 +173,9 @@ def run(
 
     # Create log handler for Rich formatting
     from tactus.adapters.cli_log import CLILogHandler
+
     log_handler = CLILogHandler(console)
-    
+
     # Suppress verbose runtime logging when using structured log handler
     # This prevents duplicate output - we only want the clean structured logs
     logging.getLogger("tactus.core.runtime").setLevel(logging.WARNING)
@@ -277,7 +279,7 @@ def validate(
 
             if result.valid:
                 console.print("\n[green]✓ DSL is valid[/green]\n")
-                
+
                 # Display warnings
                 if result.warnings:
                     for warning in result.warnings:
@@ -286,7 +288,7 @@ def validate(
 
                 if result.registry:
                     # Convert registry to config dict for display
-                    config =                     {
+                    config = {
                         "description": result.registry.description,
                         "agents": {},
                         "outputs": {},
@@ -410,58 +412,58 @@ def test(
 ):
     """
     Run BDD specifications for a procedure.
-    
+
     Examples:
-    
+
         # Run all scenarios
         tactus test procedure.tac
-        
+
         # Run with mocked tools (fast, no API calls)
         tactus test procedure.tac --mock
-        
+
         # Run with custom mock config
         tactus test procedure.tac --mock-config mocks.json
-        
+
         # Run specific scenario
         tactus test procedure.tac --scenario "Agent completes research"
-        
+
         # Pass parameters
         tactus test procedure.tac --param topic="AI" --param count=5
-        
+
         # Run sequentially (no parallel)
         tactus test procedure.tac --no-parallel
     """
     setup_logging(verbose)
-    
+
     if not procedure_file.exists():
         console.print(f"[red]Error:[/red] File not found: {procedure_file}")
         raise typer.Exit(1)
-    
+
     mode_str = "mocked" if (mock or mock_config) else "real"
     console.print(Panel(f"Running BDD Tests ({mode_str} mode)", style="blue"))
-    
+
     try:
         from tactus.testing.test_runner import TactusTestRunner
         from tactus.testing.mock_tools import create_default_mocks
         from tactus.validation import TactusValidator
         import json
-        
+
         # Validate and extract specifications
         validator = TactusValidator()
         result = validator.validate_file(str(procedure_file))
-        
+
         if not result.valid:
             console.print("[red]✗ Validation failed:[/red]")
             for error in result.errors:
                 console.print(f"  [red]• {error.message}[/red]")
             raise typer.Exit(1)
-        
+
         # Check if specifications exist
         if not result.registry or not result.registry.gherkin_specifications:
             console.print("[yellow]⚠ No specifications found in procedure file[/yellow]")
             console.print("Add specifications using: specifications([[ ... ]])")
             raise typer.Exit(1)
-        
+
         # Load mock config if provided
         mock_tools = {}
         if mock or mock_config:
@@ -471,7 +473,7 @@ def test(
             else:
                 mock_tools = create_default_mocks()
                 console.print("[cyan]Using default mocks[/cyan]")
-        
+
         # Parse parameters
         test_params = {}
         if param:
@@ -479,23 +481,23 @@ def test(
                 if "=" in p:
                     key, value = p.split("=", 1)
                     test_params[key] = value
-        
+
         # Setup and run tests
         runner = TactusTestRunner(procedure_file, mock_tools=mock_tools, params=test_params)
         runner.setup(result.registry.gherkin_specifications)
-        
+
         test_result = runner.run_tests(parallel=parallel, scenario_filter=scenario)
-        
+
         # Display results
         _display_test_results(test_result)
-        
+
         # Cleanup
         runner.cleanup()
-        
+
         # Exit with appropriate code
         if test_result.failed_scenarios > 0:
             raise typer.Exit(1)
-        
+
     except Exception as e:
         console.print(f"[red]✗ Error:[/red] {e}")
         if verbose:
@@ -517,55 +519,54 @@ def evaluate(
 ):
     """
     Evaluate procedure consistency by running specs multiple times.
-    
+
     Examples:
-    
+
         # Evaluate with 10 runs per scenario
         tactus evaluate procedure.tac --runs 10
-        
+
         # Evaluate with mocked tools
         tactus evaluate procedure.tac --runs 50 --mock
-        
+
         # Evaluate with custom mock config
         tactus evaluate procedure.tac --runs 20 --mock-config mocks.json
-        
+
         # Evaluate specific scenario
         tactus evaluate procedure.tac --scenario "Agent completes research"
     """
     setup_logging(verbose)
-    
+
     if not procedure_file.exists():
         console.print(f"[red]Error:[/red] File not found: {procedure_file}")
         raise typer.Exit(1)
-    
+
     mode_str = "mocked" if (mock or mock_config) else "real"
-    console.print(Panel(
-        f"Running Evaluation ({runs} runs per scenario, {mode_str} mode)",
-        style="blue"
-    ))
-    
+    console.print(
+        Panel(f"Running Evaluation ({runs} runs per scenario, {mode_str} mode)", style="blue")
+    )
+
     try:
         from tactus.testing.evaluation_runner import TactusEvaluationRunner
         from tactus.testing.mock_tools import create_default_mocks
         from tactus.validation import TactusValidator
         import json
-        
+
         # Validate and extract specifications
         validator = TactusValidator()
         result = validator.validate_file(str(procedure_file))
-        
+
         if not result.valid:
             console.print("[red]✗ Validation failed:[/red]")
             for error in result.errors:
                 console.print(f"  [red]• {error.message}[/red]")
             raise typer.Exit(1)
-        
+
         # Check if specifications exist
         if not result.registry or not result.registry.gherkin_specifications:
             console.print("[yellow]⚠ No specifications found in procedure file[/yellow]")
             console.print("Add specifications using: specifications([[ ... ]])")
             raise typer.Exit(1)
-        
+
         # Load mock config if provided
         mock_tools = {}
         if mock or mock_config:
@@ -575,7 +576,7 @@ def evaluate(
             else:
                 mock_tools = create_default_mocks()
                 console.print("[cyan]Using default mocks[/cyan]")
-        
+
         # Parse parameters
         test_params = {}
         if param:
@@ -583,24 +584,26 @@ def evaluate(
                 if "=" in p:
                     key, value = p.split("=", 1)
                     test_params[key] = value
-        
+
         # Setup and run evaluation
-        evaluator = TactusEvaluationRunner(procedure_file, mock_tools=mock_tools, params=test_params)
+        evaluator = TactusEvaluationRunner(
+            procedure_file, mock_tools=mock_tools, params=test_params
+        )
         evaluator.setup(result.registry.gherkin_specifications)
-        
+
         if scenario:
             # Evaluate single scenario
             eval_results = [evaluator.evaluate_scenario(scenario, runs, parallel)]
         else:
             # Evaluate all scenarios
             eval_results = evaluator.evaluate_all(runs, parallel)
-        
+
         # Display results
         _display_evaluation_results(eval_results)
-        
+
         # Cleanup
         evaluator.cleanup()
-        
+
     except Exception as e:
         console.print(f"[red]✗ Error:[/red] {e}")
         if verbose:
@@ -610,29 +613,26 @@ def evaluate(
 
 def _display_test_results(test_result):
     """Display test results in Rich format."""
-    from tactus.testing.models import TestResult
-    
+
     for feature in test_result.features:
         console.print(f"\n[bold]Feature:[/bold] {feature.name}")
-        
+
         for scenario in feature.scenarios:
             status_icon = "✓" if scenario.status == "passed" else "✗"
             status_color = "green" if scenario.status == "passed" else "red"
-            
+
             console.print(
                 f"  [{status_color}]{status_icon}[/{status_color}] "
                 f"Scenario: {scenario.name} ({scenario.duration:.2f}s)"
             )
-            
+
             if scenario.status == "failed":
                 for step in scenario.steps:
                     if step.status == "failed":
-                        console.print(
-                            f"    [red]Failed:[/red] {step.keyword} {step.text}"
-                        )
+                        console.print(f"    [red]Failed:[/red] {step.keyword} {step.text}")
                         if step.error_message:
                             console.print(f"      {step.error_message}")
-    
+
     # Summary
     console.print(
         f"\n{test_result.total_scenarios} scenarios "
@@ -643,30 +643,29 @@ def _display_test_results(test_result):
 
 def _display_evaluation_results(eval_results):
     """Display evaluation results with metrics."""
-    from tactus.testing.models import EvaluationResult
-    
+
     for eval_result in eval_results:
         console.print(f"\n[bold]Scenario:[/bold] {eval_result.scenario_name}")
-        
+
         # Success rate
         rate_color = "green" if eval_result.success_rate >= 0.9 else "yellow"
         console.print(
             f"  Success Rate: [{rate_color}]{eval_result.success_rate:.1%}[/{rate_color}] "
             f"({eval_result.passed_runs}/{eval_result.total_runs})"
         )
-        
+
         # Timing
         console.print(
             f"  Duration: {eval_result.mean_duration:.2f}s "
             f"(±{eval_result.stddev_duration:.2f}s)"
         )
-        
+
         # Consistency
         consistency_color = "green" if eval_result.consistency_score >= 0.9 else "yellow"
         console.print(
             f"  Consistency: [{consistency_color}]{eval_result.consistency_score:.1%}[/{consistency_color}]"
         )
-        
+
         # Flakiness warning
         if eval_result.is_flaky:
             console.print("  [yellow]⚠️  FLAKY - Inconsistent results detected[/yellow]")
@@ -709,8 +708,6 @@ def ide(
     import threading
     import time
     import webbrowser
-    import http.server
-    import socketserver
     from tactus.ide import create_app
 
     setup_logging(verbose)
@@ -743,7 +740,7 @@ def ide(
     console.print(f"Server port: [cyan]{backend_port}[/cyan]")
 
     # Get paths - handle both development and PyInstaller frozen environments
-    if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
         # Running in PyInstaller bundle
         bundle_dir = Path(sys._MEIPASS)
         frontend_dir = bundle_dir / "tactus-ide" / "frontend"

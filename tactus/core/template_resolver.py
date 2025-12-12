@@ -140,8 +140,3 @@ def resolve_template(
         env=env,
     )
     return resolver.resolve(template)
-
-
-
-
-

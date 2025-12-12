@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 class TactusTestContext:
     """
     Context object passed to step definitions.
-    
+
     Provides access to procedure execution results and state
     for making assertions in step functions.
     """
@@ -41,17 +41,17 @@ class TactusTestContext:
         from tactus.core.runtime import TactusRuntime
         from tactus.adapters.memory import MemoryStorage
         from tactus.testing.mock_hitl import MockHITLHandler
-        
+
         storage = MemoryStorage()
         hitl = MockHITLHandler()  # Auto-approve for tests
-        
+
         # Setup mocked tool primitive if mocks configured
         tool_primitive = None
         if self.mock_tools:
             self._setup_mock_tools()
             tool_primitive = self._mocked_tool_primitive
             logger.info("Mock mode enabled - using MockedToolPrimitive")
-        
+
         self.runtime = TactusRuntime(
             procedure_id=f"test_{self.procedure_file.stem}",
             storage_backend=storage,
@@ -59,7 +59,7 @@ class TactusTestContext:
             tool_primitive=tool_primitive,  # Inject mocked tool if configured
             skip_agents=bool(self.mock_tools),  # Skip agents in mock mode
         )
-        
+
         logger.debug(f"Setup runtime for test: {self.procedure_file.stem}")
 
     async def run_procedure_async(self) -> None:
@@ -67,28 +67,26 @@ class TactusTestContext:
         if self._procedure_executed:
             logger.debug("Procedure already executed, skipping")
             return
-            
+
         if not self.runtime:
             self.setup_runtime()
-        
+
         # Read procedure source
         source = self.procedure_file.read_text()
-        
+
         # Setup mock tools if provided
         if self.mock_tools:
             self._setup_mock_tools()
-        
+
         # Execute procedure
         logger.info(f"Executing procedure: {self.procedure_file}")
         self.execution_result = await self.runtime.execute(
-            source=source,
-            context=self.params,
-            format="lua"
+            source=source, context=self.params, format="lua"
         )
-        
+
         # Capture primitives for assertions
         self._capture_primitives()
-        
+
         self._procedure_executed = True
         logger.info(f"Procedure execution complete: success={self.execution_result.get('success')}")
 
@@ -99,15 +97,15 @@ class TactusTestContext:
     def _setup_mock_tools(self) -> None:
         """Setup mock tool responses by creating MockedToolPrimitive."""
         from tactus.testing.mock_tools import MockToolRegistry, MockedToolPrimitive
-        
+
         # Create mock registry
         mock_registry = MockToolRegistry()
         for tool_name, response in self.mock_tools.items():
             mock_registry.register(tool_name, response)
-        
+
         # Create mocked tool primitive
         self._mocked_tool_primitive = MockedToolPrimitive(mock_registry)
-        
+
         logger.info(f"Mock tools configured: {list(self.mock_tools.keys())}")
 
     def _capture_primitives(self) -> None:
@@ -115,37 +113,37 @@ class TactusTestContext:
         if not self.runtime or not self.runtime.lua_sandbox:
             logger.warning("Cannot capture primitives - runtime or sandbox not available")
             return
-        
+
         # Capture Tool primitive
         try:
             self._primitives["tool"] = self.runtime.tool_primitive
         except Exception as e:
             logger.debug(f"Could not capture Tool primitive: {e}")
-        
+
         # Capture Stage primitive
         try:
             self._primitives["stage"] = self.runtime.stage_primitive
         except Exception as e:
             logger.debug(f"Could not capture Stage primitive: {e}")
-        
+
         # Capture State primitive
         try:
             self._primitives["state"] = self.runtime.state_primitive
         except Exception as e:
             logger.debug(f"Could not capture State primitive: {e}")
-        
+
         # Capture Iterations primitive
         try:
             self._primitives["iterations"] = self.runtime.iterations_primitive
         except Exception as e:
             logger.debug(f"Could not capture Iterations primitive: {e}")
-        
+
         # Capture Stop primitive
         try:
             self._primitives["stop"] = self.runtime.stop_primitive
         except Exception as e:
             logger.debug(f"Could not capture Stop primitive: {e}")
-        
+
         logger.debug(f"Captured {len(self._primitives)} primitives")
 
     def is_running(self) -> bool:
@@ -274,6 +272,3 @@ class TactusTestContext:
         if self.execution_result:
             return self.execution_result.get("agent_context", "")
         return ""
-
-
-

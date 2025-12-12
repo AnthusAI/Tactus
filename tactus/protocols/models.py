@@ -72,7 +72,7 @@ class HITLRequest(BaseModel):
 
 class LogEvent(BaseModel):
     """A log event from procedure execution."""
-    
+
     event_type: str = Field(default="log", description="Event type identifier")
     level: str = Field(..., description="Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)")
     message: str = Field(..., description="Log message")
@@ -80,13 +80,13 @@ class LogEvent(BaseModel):
     timestamp: datetime = Field(default_factory=datetime.utcnow, description="Event timestamp")
     logger_name: Optional[str] = Field(None, description="Logger name")
     procedure_id: Optional[str] = Field(None, description="Procedure identifier")
-    
+
     model_config = {"arbitrary_types_allowed": True}
 
 
 class ExecutionSummaryEvent(BaseModel):
     """Summary event at the end of procedure execution."""
-    
+
     event_type: str = Field(default="execution_summary", description="Event type identifier")
     result: Any = Field(..., description="Validated procedure result")
     final_state: Dict[str, Any] = Field(default_factory=dict, description="Final state dictionary")
@@ -94,7 +94,7 @@ class ExecutionSummaryEvent(BaseModel):
     tools_used: list[str] = Field(default_factory=list, description="List of tool names used")
     timestamp: datetime = Field(default_factory=datetime.utcnow, description="Event timestamp")
     procedure_id: Optional[str] = Field(None, description="Procedure identifier")
-    
+
     model_config = {"arbitrary_types_allowed": True}
 
 

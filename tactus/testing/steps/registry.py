@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 class StepRegistry:
     """
     Registry of step definitions with regex pattern matching.
-    
+
     Matches step text against registered patterns and executes
     the corresponding step functions.
     """
@@ -25,7 +25,7 @@ class StepRegistry:
     def register(self, pattern: str, func: Callable, step_type: str = "any") -> None:
         """
         Register a step with regex pattern.
-        
+
         Args:
             pattern: Regex pattern to match step text
             func: Function to execute when pattern matches
@@ -43,10 +43,10 @@ class StepRegistry:
     def match(self, step_text: str) -> Optional[Tuple[Callable, dict]]:
         """
         Find matching step function for given step text.
-        
+
         Args:
             step_text: The step text to match
-            
+
         Returns:
             Tuple of (function, match_groups) or None if no match
         """
@@ -55,7 +55,7 @@ class StepRegistry:
             if match:
                 # Return function and captured groups as dict
                 return func, match.groupdict()
-        
+
         return None
 
     def get_all_patterns(self) -> list[str]:
@@ -66,6 +66,3 @@ class StepRegistry:
         """Clear all registered steps."""
         self._steps.clear()
         self._step_patterns.clear()
-
-
-

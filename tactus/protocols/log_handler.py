@@ -12,19 +12,16 @@ from tactus.protocols.models import LogEvent, ExecutionSummaryEvent
 class LogHandler(Protocol):
     """
     Protocol for log handlers.
-    
+
     Implementations handle log events from procedures, rendering them
     appropriately for different environments (CLI, IDE, API, etc.).
     """
-    
+
     def log(self, event: Union[LogEvent, ExecutionSummaryEvent]) -> None:
         """
         Handle a log or summary event.
-        
+
         Args:
             event: Structured event (LogEvent or ExecutionSummaryEvent)
         """
         ...
-
-
-

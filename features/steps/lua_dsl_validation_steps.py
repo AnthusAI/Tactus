@@ -369,25 +369,23 @@ def after_scenario(context, scenario):
             pass
 
 
-
-
 @then('the agent system_prompt should contain "{text}"')
 def step_impl(context, text):
     """Assert that an agent's system_prompt contains specific text."""
     assert context.validation_result is not None
     assert context.validation_result.registry is not None
     assert len(context.validation_result.registry.agents) > 0, "No agents found"
-    
+
     # Check first agent's system_prompt
     first_agent = list(context.validation_result.registry.agents.values())[0]
-    assert text in first_agent.system_prompt, \
-        f"Expected '{text}' in system_prompt, got: {first_agent.system_prompt}"
+    assert (
+        text in first_agent.system_prompt
+    ), f"Expected '{text}' in system_prompt, got: {first_agent.system_prompt}"
 
-@then('validation should have warnings')
+
+@then("validation should have warnings")
 def step_impl(context):
     """Assert that validation succeeded but has warnings."""
     assert context.validation_result is not None
     assert context.validation_result.valid, "Validation should succeed"
     assert len(context.validation_result.warnings) > 0, "Expected warnings but found none"
-
-
