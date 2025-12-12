@@ -369,3 +369,4 @@ def after_scenario(context, scenario):
             context.lua_file.unlink()
         except Exception:
             pass
+

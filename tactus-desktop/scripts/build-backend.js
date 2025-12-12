@@ -44,12 +44,15 @@ async function buildBackend() {
   const versionOutput = await execPromise(`${pythonCmd} --version`);
   console.log(`Using: ${versionOutput.trim()}`);
 
-  // Check if PyInstaller is installed
+  // Ensure PyInstaller is installed
+  console.log('Checking for PyInstaller...');
   try {
-    await execPromise(`${pythonCmd} -m pyinstaller --version`);
+    const pyiVersion = await execPromise(`${pythonCmd} -m pip show pyinstaller`);
+    console.log('PyInstaller is already installed');
   } catch (error) {
     console.log('PyInstaller not found, installing...');
     await execPromise(`${pythonCmd} -m pip install pyinstaller`);
+    console.log('PyInstaller installed successfully');
   }
 
   // Install Tactus package in development mode

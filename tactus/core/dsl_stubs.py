@@ -215,3 +215,4 @@ def create_dsl_stubs(builder: RegistryBuilder) -> dict[str, Callable]:
         "equals": _equals,
         "matches": _matches,
     }
+

@@ -76,3 +76,4 @@ The IDE uses **hybrid validation**:
 6. Stop backend - IDE continues working in offline mode
 
 
+
