@@ -47,8 +47,11 @@ class OutputFieldDeclaration(BaseModel):
         populate_by_name = True
 
 
-class SessionConfiguration(BaseModel):
-    """Session configuration for agents."""
+class MessageHistoryConfiguration(BaseModel):
+    """Message history configuration for agents.
+    
+    Aligned with pydantic-ai's message_history concept.
+    """
 
     source: str = "own"  # "own", "shared", or another agent's name
     filter: Optional[Any] = None  # Lua function reference or filter name
@@ -69,8 +72,9 @@ class AgentDeclaration(BaseModel):
     system_prompt: Union[str, Any]  # String with {markers} or Lua function
     initial_message: Optional[str] = None
     tools: list[str] = Field(default_factory=list)
-    output: Optional[AgentOutputSchema] = None
-    session: Optional[SessionConfiguration] = None
+    output: Optional[AgentOutputSchema] = None  # Legacy field
+    output_type: Optional[AgentOutputSchema] = None  # Aligned with pydantic-ai
+    message_history: Optional[MessageHistoryConfiguration] = None
     max_turns: int = 50
 
 
@@ -121,6 +125,9 @@ class ProcedureRegistry(BaseModel):
     hitl_points: dict[str, HITLDeclaration] = Field(default_factory=dict)
     stages: list[str] = Field(default_factory=list)
     specifications: list[SpecificationDeclaration] = Field(default_factory=list)
+    
+    # Message history configuration (aligned with pydantic-ai)
+    message_history_config: dict[str, Any] = Field(default_factory=dict)
 
     # Gherkin BDD Testing
     gherkin_specifications: Optional[str] = None  # Raw Gherkin text
@@ -188,9 +195,18 @@ class RegistryBuilder:
         except ValidationError as e:
             self._add_error(f"Invalid output '{name}': {e}")
 
-    def register_agent(self, name: str, config: dict) -> None:
+    def register_agent(self, name: str, config: dict, output_schema: Optional[dict] = None) -> None:
         """Register an agent declaration."""
         config["name"] = name
+        
+        # Add output_schema to config if provided
+        if output_schema:
+            # Convert output_schema dict to AgentOutputSchema
+            fields = {}
+            for field_name, field_config in output_schema.items():
+                fields[field_name] = OutputFieldDeclaration(**field_config)
+            config["output_type"] = AgentOutputSchema(fields=fields)
+        
         # Apply defaults
         if "provider" not in config and self.registry.default_provider:
             config["provider"] = self.registry.default_provider
@@ -274,6 +290,10 @@ class RegistryBuilder:
     def set_evaluation_config(self, config: dict) -> None:
         """Set evaluation configuration."""
         self.registry.evaluation_config = config
+
+    def set_message_history_config(self, config: dict) -> None:
+        """Set procedure-level message history configuration."""
+        self.registry.message_history_config = config
 
     def _add_error(self, message: str) -> None:
         """Add an error message."""

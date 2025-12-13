@@ -24,6 +24,7 @@ class IDELogHandler:
     def __init__(self):
         """Initialize IDE log handler."""
         self.events = queue.Queue()
+        self.cost_events = []  # Track cost events for aggregation
         logger.debug("IDELogHandler initialized")
 
     def log(self, event: LogEvent) -> None:
@@ -33,6 +34,11 @@ class IDELogHandler:
         Args:
             event: Structured log event
         """
+        # Track cost events for aggregation
+        from tactus.protocols.models import CostEvent
+        if isinstance(event, CostEvent):
+            self.cost_events.append(event)
+        
         self.events.put(event)
 
     def get_events(self, timeout: float = 0.1) -> List[LogEvent]:

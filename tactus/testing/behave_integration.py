@@ -122,7 +122,7 @@ class BehaveStepsGenerator:
 
         with open(steps_file, "w") as f:
             # Write imports
-            f.write("from behave import given, when, then, use_step_matcher\n")
+            f.write("from behave import step, use_step_matcher\n")
             f.write("import sys\n")
             f.write("from pathlib import Path\n\n")
 
@@ -158,15 +158,13 @@ class BehaveStepsGenerator:
                 # Escape quotes in pattern for Python string
                 escaped_pattern = parse_pattern.replace("'", "\\'").replace('"', '\\"')
 
-                # Write separate functions for each keyword to avoid duplicates
-                # Use unique function names for each keyword
-                for keyword in ["given", "when", "then"]:
-                    keyword_wrapper = f"{wrapper_name}_{keyword}"
-                    f.write(f"@{keyword}('{escaped_pattern}')\n")
-                    f.write(f"def {keyword_wrapper}(context, **kwargs):\n")
-                    f.write(f'    """Step: {escaped_pattern[:60]}"""\n')
-                    f.write("    # Call the actual step function from builtin module\n")
-                    f.write(f"    builtin.{func_name}(context.tac, **kwargs)\n\n")
+                # Use @step() decorator which works for Given/When/Then/And/But
+                # This prevents duplicate step definition errors
+                f.write(f"@step('{escaped_pattern}')\n")
+                f.write(f"def {wrapper_name}(context, **kwargs):\n")
+                f.write(f'    """Step: {escaped_pattern[:60]}"""\n')
+                f.write("    # Call the actual step function from builtin module\n")
+                f.write(f"    builtin.{func_name}(context.tac, **kwargs)\n\n")
 
         logger.info(f"Generated steps file: {steps_file}")
         return steps_file

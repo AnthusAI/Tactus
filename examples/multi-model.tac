@@ -1,12 +1,7 @@
--- Migrated from .tyml format to .tactus
+-- Multi-Model Workflow Example
+-- Demonstrates using multiple OpenAI models in one procedure
 
--- Parameters
-parameter("topic", {
-    type = "string",
-    default = "artificial intelligence",
-})
-
--- Agents
+-- Agents (defined at top level - reusable across procedures)
 agent("researcher", {
     provider = "openai",
     model = "gpt-4o",
@@ -28,8 +23,15 @@ When done, call the done tool.
     tools = {"done"},
 })
 
--- Procedure
-procedure(function()
+-- Procedure with parameters defined inline
+procedure({
+    params = {
+        topic = {
+            type = "string",
+            default = "artificial intelligence",
+        },
+    }
+}, function()
     -- Research phase with GPT-4o
     Log.info("Starting research with GPT-4o...")
     repeat
@@ -52,7 +54,6 @@ procedure(function()
       summary = summary,
       models_used = {"gpt-4o", "gpt-4o-mini"}
     }
-
 end)
 
 -- BDD Specifications

@@ -1,18 +1,7 @@
--- Migrated from .tyml format to .tactus
+-- Simple Agent Example
+-- Demonstrates calling an LLM agent using Worker.turn()
 
--- Outputs
-output("greeting", {
-    type = "string",
-    required = true,
-    description = "The greeting message from the agent",
-})
-output("completed", {
-    type = "boolean",
-    required = true,
-    description = "Whether the agent completed successfully",
-})
-
--- Agents
+-- Agents (defined at top level - reusable across procedures)
 agent("greeter", {
     provider = "openai",
     system_prompt = [[You are a friendly assistant. When asked to greet someone, 
@@ -23,11 +12,21 @@ the done tool with the greeting message.
     tools = {"done"},
 })
 
--- Procedure
-procedure(function()
-    -- Simple Agent Example
-    -- Demonstrates calling an LLM agent using Worker.turn()
-
+-- Procedure with outputs defined inline
+procedure({
+    outputs = {
+        greeting = {
+            type = "string",
+            required = true,
+            description = "The greeting message from the agent",
+        },
+        completed = {
+            type = "boolean",
+            required = true,
+            description = "Whether the agent completed successfully",
+        },
+    }
+}, function()
     Log.info("Starting simple agent example")
 
     -- Have the agent turn once (calls LLM)
@@ -50,7 +49,6 @@ procedure(function()
         completed = false
       }
     end
-
 end)
 
 -- BDD Specifications

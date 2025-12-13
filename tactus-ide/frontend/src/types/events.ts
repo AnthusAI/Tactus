@@ -42,12 +42,62 @@ export interface ValidationEvent extends BaseEvent {
   }>;
 }
 
+export interface CostEvent extends BaseEvent {
+  event_type: 'cost';
+  
+  // Agent/Model Info
+  agent_name: string;
+  model: string;
+  provider: string;
+  
+  // Token Usage (Primary)
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+  
+  // Cost (Primary)
+  prompt_cost: number;
+  completion_cost: number;
+  total_cost: number;
+  
+  // Performance (Details)
+  duration_ms?: number;
+  latency_ms?: number;
+  
+  // Retry/Validation (Details)
+  retry_count: number;
+  validation_errors: string[];
+  
+  // Cache (Details)
+  cache_hit: boolean;
+  cache_tokens?: number;
+  cache_cost?: number;
+  
+  // Messages (Details)
+  message_count: number;
+  new_message_count: number;
+  
+  // Request Metadata (Details)
+  request_id?: string;
+  model_version?: string;
+  temperature?: number;
+  max_tokens?: number;
+  
+  // Raw tracing data
+  raw_tracing_data?: Record<string, any>;
+}
+
 export interface ExecutionSummaryEvent extends BaseEvent {
   event_type: 'execution_summary';
   result: any;
   final_state: Record<string, any>;
   iterations: number;
   tools_used: string[];
+  
+  // Cost tracking
+  total_cost: number;
+  total_tokens: number;
+  cost_breakdown: CostEvent[];
 }
 
 export interface TestStartedEvent extends BaseEvent {
@@ -121,7 +171,8 @@ export interface EvaluationProgressEvent extends BaseEvent {
 }
 
 export type AnyEvent = 
-  | LogEvent 
+  | LogEvent
+  | CostEvent
   | ExecutionEvent 
   | OutputEvent 
   | ValidationEvent 

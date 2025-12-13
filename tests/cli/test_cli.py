@@ -29,12 +29,14 @@ def example_workflow_file(tmp_path):
     tools = {}
 })
 
-output("result", {
-    type = "string",
-    required = true
-})
-
-procedure(function()
+procedure({
+    outputs = {
+        result = {
+            type = "string",
+            required = true
+        }
+    }
+}, function()
     return { result = "test" }
 end)
 """
@@ -93,24 +95,27 @@ def test_cli_version(cli_runner):
 
 def test_cli_run_with_parameters(cli_runner, tmp_path):
     """Test that run command accepts parameters."""
-    workflow_content = """parameter("name", {
-    type = "string",
-    default = "World"
-})
-
-agent("worker", {
+    workflow_content = """agent("worker", {
     provider = "openai",
     system_prompt = "You are a test worker.",
     initial_message = "Starting test.",
     tools = {}
 })
 
-output("greeting", {
-    type = "string",
-    required = true
-})
-
-procedure(function()
+procedure({
+    params = {
+        name = {
+            type = "string",
+            default = "World"
+        }
+    },
+    outputs = {
+        greeting = {
+            type = "string",
+            required = true
+        }
+    }
+}, function()
     return { greeting = "Hello, " .. params.name }
 end)
 """

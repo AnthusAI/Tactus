@@ -1,34 +1,6 @@
 -- Comprehensive BDD Testing Example for Tactus
 -- Demonstrates all major features of the BDD testing framework
 
--- Parameters
-parameter("task", {
-  type = "string",
-  required = false,
-  default = "process data",
-  description = "Task to perform"
-})
-
-parameter("iterations", {
-  type = "number",
-  required = false,
-  default = 3,
-  description = "Number of iterations"
-})
-
--- Outputs
-output("status", {
-  type = "string",
-  required = true,
-  description = "Final status"
-})
-
-output("count", {
-  type = "number",
-  required = true,
-  description = "Items processed"
-})
-
 -- Agent
 agent("processor", {
   provider = "openai",
@@ -41,8 +13,35 @@ agent("processor", {
 -- Stages
 stages({"setup", "processing", "validation", "complete"})
 
--- Main procedure
-procedure(function()
+-- Procedure with parameters and outputs defined inline
+procedure({
+    params = {
+        task = {
+            type = "string",
+            required = false,
+            default = "process data",
+            description = "Task to perform"
+        },
+        iterations = {
+            type = "number",
+            required = false,
+            default = 3,
+            description = "Number of iterations"
+        },
+    },
+    outputs = {
+        status = {
+            type = "string",
+            required = true,
+            description = "Final status"
+        },
+        count = {
+            type = "number",
+            required = true,
+            description = "Items processed"
+        },
+    }
+}, function()
   -- Setup phase
   Stage.set("setup")
   State.set("items_processed", 0)

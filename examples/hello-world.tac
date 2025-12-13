@@ -1,23 +1,7 @@
--- Migrated from .tyml format to .tactus
+-- Hello World Example
+-- A simple introduction to Tactus procedures
 
--- Outputs
-output("success", {
-    type = "boolean",
-    required = true,
-    description = "Whether the workflow completed successfully",
-})
-output("message", {
-    type = "string",
-    required = true,
-    description = "A greeting message",
-})
-output("count", {
-    type = "number",
-    required = true,
-    description = "Number of items processed",
-})
-
--- Agents
+-- Agents (defined at top level - reusable across procedures)
 agent("worker", {
     provider = "openai",
     system_prompt = "You are a friendly worker",
@@ -25,11 +9,26 @@ agent("worker", {
     tools = {},
 })
 
--- Procedure
-procedure(function()
-    -- Hello World Example
-    -- A simple introduction to Tactus procedures
-
+-- Procedure with outputs defined inline
+procedure({
+    outputs = {
+        success = {
+            type = "boolean",
+            required = true,
+            description = "Whether the workflow completed successfully",
+        },
+        message = {
+            type = "string",
+            required = true,
+            description = "A greeting message",
+        },
+        count = {
+            type = "number",
+            required = true,
+            description = "Number of items processed",
+        },
+    }
+}, function()
     Log.info("Hello, Tactus!")
 
     -- Initialize state
@@ -48,7 +47,6 @@ procedure(function()
       message = "Hello World example completed successfully",
       count = final_count
     }
-
 end)
 
 -- BDD Specifications

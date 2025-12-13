@@ -119,16 +119,53 @@ Examples that don't require external services (like `hello-world.tac`) work with
 
 Example files use the `.tac` extension to indicate they are Tactus procedure files written in pure Lua DSL.
 
+## Self-Validating Files
+
+One of Tactus's key features is that procedure files can be **self-validating** through embedded BDD specifications. Files that include `specifications([[...]])` blocks contain their own test cases and can verify their correctness automatically.
+
+### Testing Self-Validating Files
+
+Run tests for any file with embedded specifications:
+
+```bash
+# Test a single file
+tactus test examples/hello-world.tac --mock
+
+# Test all files in the directory
+for file in examples/*.tac; do tactus test "$file" --mock; done
+```
+
+The `--mock` flag runs tests without requiring external services (like LLM API calls), making tests fast and deterministic.
+
+### Benefits of Self-Validating Files
+
+- ✅ **Trust**: Files with passing tests are known to work correctly
+- ✅ **Documentation**: Tests serve as executable examples of expected behavior
+- ✅ **Regression Prevention**: Changes that break functionality are caught immediately
+- ✅ **No External Dependencies**: Mock mode tests run without API keys or network calls
+
+### Which Files Are Self-Validating?
+
+You can identify self-validating files by checking for test results:
+
+```bash
+# Files with specifications will show test results
+tactus test examples/hello-world.tac --mock
+# Output: "1 scenarios (1 passed, 0 failed)"
+
+# Files without specifications will show a warning
+tactus test examples/some-file.tac --mock
+# Output: "⚠ Warning: No specifications defined"
+```
+
+All current example files include BDD specifications and are self-validating.
+
 ## Validation
 
-You can validate example files without running them:
+You can also validate files without running tests:
 
 ```bash
 tactus validate examples/hello-world.tac
 ```
 
-This uses the ANTLR-generated parser to check syntax and DSL structure.
-
-## Testing
-
-All examples in this directory are automatically tested as part of the BDD test suite. See `features/18_example_procedures.feature` for details. Tests that require external services (like LLM calls) will be skipped if the required configuration is not available.
+This uses the ANTLR-generated parser to check syntax and DSL structure, but doesn't verify runtime behavior like tests do.

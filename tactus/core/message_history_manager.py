@@ -1,8 +1,10 @@
 """
-Session management for per-agent message histories.
+Message history management for per-agent conversation histories.
 
 Manages conversation histories with filtering capabilities for
 token budgets, message limits, and custom filters.
+
+Aligned with pydantic-ai's message_history concept.
 """
 
 from typing import Any, Optional
@@ -13,50 +15,57 @@ except ImportError:
     # Fallback if pydantic_ai not available
     ModelMessage = dict
 
-from .registry import SessionConfiguration
+from .registry import MessageHistoryConfiguration
 
 
-class SessionManager:
-    """Manages per-agent message histories with filtering."""
+class MessageHistoryManager:
+    """Manages per-agent message histories with filtering.
+    
+    Aligned with pydantic-ai's message_history concept - this manager
+    maintains the message_history lists that get passed to agent.run_sync().
+    """
 
     def __init__(self):
-        """Initialize session manager."""
+        """Initialize message history manager."""
         self.histories: dict[str, list[ModelMessage]] = {}
         self.shared_history: list[ModelMessage] = []
 
     def get_history_for_agent(
         self,
         agent_name: str,
-        session_config: Optional[SessionConfiguration] = None,
+        message_history_config: Optional[MessageHistoryConfiguration] = None,
         context: Optional[Any] = None,
     ) -> list[ModelMessage]:
         """
         Get filtered message history for an agent.
+        
+        This returns the message_history list that will be passed to
+        pydantic-ai's agent.run_sync(message_history=...).
 
         Args:
             agent_name: Name of the agent
-            session_config: Session configuration (source, filter)
+            message_history_config: Message history configuration (source, filter)
             context: Runtime context for filter functions
 
         Returns:
-            List of messages for the agent
+            List of messages for the agent (message_history for pydantic-ai)
         """
-        if session_config is None:
+        if message_history_config is None:
             # Default: own history, no filter
             return self.histories.get(agent_name, [])
 
         # Determine source
-        if session_config.source == "own":
+        if message_history_config.source == "own":
             messages = self.histories.get(agent_name, [])
-        elif session_config.source == "shared":
+        elif message_history_config.source == "shared":
             messages = self.shared_history
         else:
             # Another agent's history
-            messages = self.histories.get(session_config.source, [])
+            messages = self.histories.get(message_history_config.source, [])
 
         # Apply filter if specified
-        if session_config.filter:
-            messages = self._apply_filter(messages, session_config.filter, context)
+        if message_history_config.filter:
+            messages = self._apply_filter(messages, message_history_config.filter, context)
 
         return messages
 

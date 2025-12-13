@@ -91,17 +91,38 @@ Parses and validates procedure YAML configurations.
 
 ### Parameters
 
-#### Implementation: `ProcedureYAMLParser._validate_params()` + `TactusRuntime._inject_primitives()`
+#### Implementation: DSL Stubs + Registry
 
-**Location**: 
-- Validation: `tactus/core/yaml_parser.py:76-94`
-- Injection: `tactus/core/runtime.py:470-482`
+**Lua DSL Format (.tac files):**
+
+Parameters are now defined inside the `procedure()` config table:
+
+```lua
+procedure({
+    params = {
+        task = {
+            type = "string",
+            required = true
+        }
+    }
+}, function()
+    local task = params.task
+    -- ...
+end)
+```
 
 **How it works:**
-1. YAML parser validates parameter types (`string`, `number`, `boolean`, `array`, `object`)
-2. Runtime injects `params` table into Lua sandbox with default values
-3. Context values override defaults
-4. Parameters accessible in Lua as `params.param_name`
+1. The `procedure()` stub in `dsl_stubs.py` accepts two arguments: config table and function
+2. When config contains `params`, each parameter is registered via `builder.register_parameter()`
+3. Runtime converts registry to config dict format for compatibility
+4. Parameters injected into Lua sandbox with default values
+5. Context values override defaults
+6. Parameters accessible in Lua as `params.param_name`
+
+**Location**: 
+- DSL Stub: `tactus/core/dsl_stubs.py` (updated `_procedure` function)
+- Registry: `tactus/core/registry.py` (`RegistryBuilder.register_parameter()`)
+- Injection: `tactus/core/runtime.py` (`_inject_primitives()`)
 
 **Template Support**: ✅ Parameters accessible in templates via `{params.name}`
 
@@ -109,16 +130,40 @@ Parses and validates procedure YAML configurations.
 
 ### Outputs
 
-#### Implementation: `OutputValidator` (`tactus/core/output_validator.py`)
+#### Implementation: DSL Stubs + Registry + OutputValidator
 
-**Location**: `tactus/core/output_validator.py`
+**Lua DSL Format (.tac files):**
+
+Outputs are now defined inside the `procedure()` config table:
+
+```lua
+procedure({
+    outputs = {
+        result = {
+            type = "string",
+            required = true
+        }
+    }
+}, function()
+    return {
+        result = "completed"
+    }
+end)
+```
 
 **How it works:**
-1. Output schema defined in YAML `outputs:` section
-2. `OutputValidator` created during runtime initialization
-3. After workflow execution, `validate()` called on return value
-4. Validates required fields, types, and structure
-5. Strips undeclared fields if schema present
+1. The `procedure()` stub in `dsl_stubs.py` accepts two arguments: config table and function
+2. When config contains `outputs`, each output is registered via `builder.register_output()`
+3. Runtime converts registry to config dict format for compatibility
+4. `OutputValidator` created during runtime initialization
+5. After workflow execution, `validate()` called on return value
+6. Validates required fields, types, and structure
+7. Strips undeclared fields if schema present
+
+**Location**: 
+- DSL Stub: `tactus/core/dsl_stubs.py` (updated `_procedure` function)
+- Registry: `tactus/core/registry.py` (`RegistryBuilder.register_output()`)
+- Validator: `tactus/core/output_validator.py`
 
 **Features:**
 - Type checking (string, number, boolean, object, array)
@@ -389,13 +434,97 @@ All procedure invocation primitives are missing.
 - Response content accessible via `response.content` (if agent returns it)
 - Tool calls tracked via `Tool` primitive
 
-#### Session Primitives
+#### Message History Primitives
 
-**Specification**: `Session.append()`, `Session.inject_system()`, `Session.clear()`, `Session.history()`, etc.
+#### MessageHistoryPrimitive (`tactus/primitives/message_history.py`)
 
-**Status**: ❌ **Not Implemented**
+**Status**: ✅ **Fully Implemented**
 
-No `Session` primitive exists. Chat recording is handled internally by `AgentPrimitive` if `chat_recorder` is provided.
+**Aligned with pydantic-ai:** This primitive manages the `message_history` that gets passed to pydantic-ai's `agent.run_sync(message_history=...)`.
+
+**Features:**
+- ✅ `MessageHistory.append({role, content})` - Add messages to history
+- ✅ `MessageHistory.inject_system(text)` - Inject system messages
+- ✅ `MessageHistory.clear()` - Clear agent's history
+- ✅ `MessageHistory.get()` - Get full conversation history (message_history)
+- ⚠️ `MessageHistory.load_from_node(node)` - Placeholder (requires graph primitives)
+- ⚠️ `MessageHistory.save_to_node(node)` - Placeholder (requires graph primitives)
+
+**Configuration:**
+- Procedure-level message_history config in `procedure({message_history = {...}}, function)`
+- Agent-level message_history overrides in `agent()` definition
+- Integrated with `MessageHistoryManager` for per-agent history management
+
+**Example:**
+```lua
+procedure({
+    message_history = {
+        mode = "isolated",
+        max_tokens = 120000
+    }
+}, function()
+    MessageHistory.inject_system("Focus on security")
+    MessageHistory.append({role = "user", content = "Hello"})
+    local history = MessageHistory.get()
+    MessageHistory.clear()
+end)
+```
+
+#### ResultPrimitive (`tactus/primitives/result.py`)
+
+**Status**: ✅ **Fully Implemented**
+
+Wraps pydantic-ai's `RunResult` for Lua access.
+
+**Aligned with pydantic-ai:** Direct mapping to `RunResult.data`, `RunResult.usage()`, `RunResult.new_messages()`, `RunResult.all_messages()`.
+
+**Features:**
+- ✅ `result.data` - Response data (text or structured dict)
+- ✅ `result.usage` - Token usage stats (prompt_tokens, completion_tokens, total_tokens)
+- ✅ `result.new_messages()` - Messages from this turn
+- ✅ `result.all_messages()` - Full conversation history
+- ✅ `result.cost()` - Token usage (for cost calculation)
+
+**Breaking change:** `Agent.turn()` now returns `ResultPrimitive` instead of raw data. Access response via `result.data`.
+
+**Example:**
+```lua
+local result = Agent.turn()
+
+-- Access response
+Log.info(result.data)
+
+-- Access usage
+Log.info("Tokens", {total = result.usage.total_tokens})
+
+-- Access messages
+local msgs = result.new_messages()
+```
+
+#### Structured Output (output_type)
+
+**Status**: ✅ **Fully Implemented**
+
+**Implementation:**
+- `AgentDeclaration.output_type` field in registry (`tactus/core/registry.py`)
+- `_create_pydantic_model_from_output_type()` helper in runtime (`tactus/core/runtime.py`)
+- Converts Tactus schema to Pydantic model for pydantic-ai's `output_type` parameter
+
+**Aligned with pydantic-ai:** Maps directly to pydantic-ai's `output_type` parameter with automatic validation and retry.
+
+**Example:**
+```lua
+agent("extractor", {
+    output_type = {
+        city = {type = "string", required = true},
+        country = {type = "string", required = true}
+    }
+})
+
+-- Agent automatically validates output against schema
+local result = Extractor.turn()
+Log.info(result.data.city)  -- Type-safe access
+```
 
 #### State Primitives
 

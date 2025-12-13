@@ -225,6 +225,30 @@ class TactusTestContext:
             return key in state_prim._state
         return False
 
+    # Output-related methods
+
+    def output_get(self, key: str) -> Any:
+        """Get output value from procedure execution result."""
+        if self.execution_result:
+            # Check if outputs are in a dedicated field
+            if "outputs" in self.execution_result:
+                return self.execution_result["outputs"].get(key)
+            # Otherwise check in the result dict (procedure return value)
+            if "result" in self.execution_result and isinstance(self.execution_result["result"], dict):
+                return self.execution_result["result"].get(key)
+        return None
+
+    def output_exists(self, key: str) -> bool:
+        """Check if output key exists in procedure execution result."""
+        if self.execution_result:
+            # Check if outputs are in a dedicated field
+            if "outputs" in self.execution_result:
+                return key in self.execution_result["outputs"]
+            # Otherwise check in the result dict (procedure return value)
+            if "result" in self.execution_result and isinstance(self.execution_result["result"], dict):
+                return key in self.execution_result["result"]
+        return False
+
     # Completion methods
 
     def stop_success(self) -> bool:

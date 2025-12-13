@@ -1,25 +1,7 @@
--- Migrated from .tyml format to .tactus
+-- Parameters Example
+-- Demonstrates accessing parameters and using them in procedure logic
 
--- Parameters
-parameter("task", {
-    type = "string",
-    default = "default task",
-    description = "The task name to process",
-})
-parameter("count", {
-    type = "number",
-    default = 3,
-    description = "Number of iterations to perform",
-})
-
--- Outputs
-output("result", {
-    type = "string",
-    required = true,
-    description = "Summary of the completed work",
-})
-
--- Agents
+-- Agents (defined at top level - reusable across procedures)
 agent("worker", {
     provider = "openai",
     system_prompt = "A worker agent",
@@ -27,11 +9,28 @@ agent("worker", {
     tools = {},
 })
 
--- Procedure
-procedure(function()
-    -- Parameters Example
-    -- Demonstrates accessing parameters and using them in procedure logic
-
+-- Procedure with parameters and outputs defined inline
+procedure({
+    params = {
+        task = {
+            type = "string",
+            default = "default task",
+            description = "The task name to process",
+        },
+        count = {
+            type = "number",
+            default = 3,
+            description = "Number of iterations to perform",
+        },
+    },
+    outputs = {
+        result = {
+            type = "string",
+            required = true,
+            description = "Summary of the completed work",
+        },
+    }
+}, function()
     -- Access parameters
     local task = params.task
     local count = params.count
@@ -50,7 +49,6 @@ procedure(function()
     return {
       result = "Completed " .. task .. " with " .. final_iterations .. " iterations"
     }
-
 end)
 
 -- BDD Specifications

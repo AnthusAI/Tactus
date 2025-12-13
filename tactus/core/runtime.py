@@ -16,7 +16,7 @@ from typing import Dict, Any, Optional
 from tactus.core.registry import ProcedureRegistry, RegistryBuilder
 from tactus.core.dsl_stubs import create_dsl_stubs, lua_table_to_dict
 from tactus.core.template_resolver import TemplateResolver
-from tactus.core.session_manager import SessionManager
+from tactus.core.message_history_manager import MessageHistoryManager
 from tactus.core.lua_sandbox import LuaSandbox, LuaSandboxError
 from tactus.core.output_validator import OutputValidator, OutputValidationError
 from tactus.core.execution_context import BaseExecutionContext
@@ -39,6 +39,7 @@ from tactus.primitives.tool import ToolPrimitive
 from tactus.primitives.human import HumanPrimitive
 from tactus.primitives.step import StepPrimitive, CheckpointPrimitive
 from tactus.primitives.log import LogPrimitive
+from tactus.primitives.message_history import MessageHistoryPrimitive
 from tactus.primitives.stage import StagePrimitive
 from tactus.primitives.json import JsonPrimitive
 from tactus.primitives.retry import RetryPrimitive
@@ -102,7 +103,7 @@ class TactusRuntime:
         self.lua_sandbox: Optional[LuaSandbox] = None
         self.output_validator: Optional[OutputValidator] = None
         self.template_resolver: Optional[TemplateResolver] = None
-        self.session_manager: Optional[SessionManager] = None
+        self.message_history_manager: Optional[MessageHistoryManager] = None
 
         # Execution context
         self.execution_context: Optional[BaseExecutionContext] = None
@@ -213,8 +214,8 @@ class TactusRuntime:
                 params=context or {},
                 state={},  # Will be updated dynamically
             )
-            self.session_manager = SessionManager()
-            logger.debug("Template resolver and session manager initialized")
+            self.message_history_manager = MessageHistoryManager()
+            logger.debug("Template resolver and message history manager initialized")
 
             # 5. Start chat session if recorder available
             if self.chat_recorder:
@@ -243,6 +244,9 @@ class TactusRuntime:
             self.log_primitive = LogPrimitive(
                 procedure_id=self.procedure_id, log_handler=self.log_handler
             )
+            self.message_history_primitive = MessageHistoryPrimitive(
+                message_history_manager=self.message_history_manager
+            )
             declared_stages = self.config.get("stages", [])
             self.stage_primitive = StagePrimitive(
                 declared_stages=declared_stages, lua_sandbox=self.lua_sandbox
@@ -250,7 +254,7 @@ class TactusRuntime:
             self.json_primitive = JsonPrimitive(lua_sandbox=self.lua_sandbox)
             self.retry_primitive = RetryPrimitive()
             self.file_primitive = FilePrimitive()
-            logger.debug("HITL and checkpoint primitives initialized")
+            logger.debug("HITL, checkpoint, and message history primitives initialized")
 
             # 8. Setup agents with LLMs and tools
             logger.info("Step 8: Setting up agents")
@@ -307,6 +311,18 @@ class TactusRuntime:
                 f"{len(tools_used)} tool calls"
             )
 
+            # Collect cost events and calculate totals
+            cost_breakdown = []
+            total_cost = 0.0
+            total_tokens = 0
+            
+            if self.log_handler and hasattr(self.log_handler, 'cost_events'):
+                # Get cost events from log handler
+                cost_breakdown = self.log_handler.cost_events
+                for event in cost_breakdown:
+                    total_cost += event.total_cost
+                    total_tokens += event.total_tokens
+            
             # Send execution summary event if log handler is available
             if self.log_handler:
                 from tactus.protocols.models import ExecutionSummaryEvent
@@ -319,6 +335,9 @@ class TactusRuntime:
                     ),
                     tools_used=tools_used,
                     procedure_id=self.procedure_id,
+                    total_cost=total_cost,
+                    total_tokens=total_tokens,
+                    cost_breakdown=cost_breakdown,
                 )
                 self.log_handler.log(summary_event)
 
@@ -543,8 +562,19 @@ class TactusRuntime:
 
             # Handle structured output if specified
             result_type = None
-            if agent_config.get("output_schema"):
-                # Agent has its own output schema - create Pydantic model
+            output_schema_guidance = None
+            
+            # Prefer output_type (aligned with pydantic-ai)
+            if agent_config.get("output_type"):
+                try:
+                    result_type = self._create_pydantic_model_from_output_type(
+                        agent_config["output_type"], f"{agent_name}Output"
+                    )
+                    logger.info(f"Using agent output_type schema for '{agent_name}'")
+                except Exception as e:
+                    logger.warning(f"Failed to create output model from output_type: {e}")
+            elif agent_config.get("output_schema"):
+                # Fallback to output_schema for backward compatibility
                 output_schema = agent_config["output_schema"]
                 try:
                     result_type = self._create_output_model_from_schema(
@@ -579,11 +609,78 @@ class TactusRuntime:
                 output_schema_guidance=output_schema_guidance,
                 chat_recorder=self.chat_recorder,
                 result_type=result_type,
+                log_handler=self.log_handler,
+                procedure_id=self.procedure_id,
+                provider=agent_config.get("provider"),
             )
 
             self.agents[agent_name] = agent_primitive
 
             logger.info(f"Agent '{agent_name}' configured successfully with model '{model_name}'")
+
+    def _create_pydantic_model_from_output_type(self, output_type_schema, model_name: str) -> type:
+        """
+        Convert output_type schema to Pydantic model.
+        
+        Aligned with pydantic-ai's output_type parameter.
+        
+        Args:
+            output_type_schema: AgentOutputSchema or dict with field definitions
+            model_name: Name for the generated Pydantic model
+            
+        Returns:
+            Dynamically created Pydantic model class
+        """
+        from pydantic import create_model
+        from typing import Optional
+        
+        fields = {}
+        
+        # Handle AgentOutputSchema object
+        if hasattr(output_type_schema, 'fields'):
+            schema_fields = output_type_schema.fields
+        else:
+            # Assume it's a dict
+            schema_fields = output_type_schema
+        
+        for field_name, field_def in schema_fields.items():
+            # Extract field properties
+            if hasattr(field_def, 'type'):
+                field_type_str = field_def.type
+                required = getattr(field_def, 'required', True)
+            else:
+                # Dict format
+                field_type_str = field_def.get('type', 'string')
+                required = field_def.get('required', True)
+            
+            # Map type string to Python type
+            field_type = self._map_type_string(field_type_str)
+            
+            # Create field tuple (type, default_or_required)
+            if required:
+                fields[field_name] = (field_type, ...)  # Required field
+            else:
+                fields[field_name] = (Optional[field_type], None)  # Optional field
+        
+        return create_model(model_name, **fields)
+    
+    def _map_type_string(self, type_str: str) -> type:
+        """Map type string to Python type."""
+        type_map = {
+            "string": str,
+            "str": str,
+            "number": float,
+            "float": float,
+            "integer": int,
+            "int": int,
+            "boolean": bool,
+            "bool": bool,
+            "object": dict,
+            "dict": dict,
+            "array": list,
+            "list": list,
+        }
+        return type_map.get(type_str.lower(), str)
 
     def _create_output_model_from_schema(
         self, output_schema: Dict[str, Any], model_name: str = "OutputModel"
@@ -676,6 +773,10 @@ class TactusRuntime:
         if self.log_primitive:
             logger.info(f"Injecting Log primitive: {self.log_primitive}")
             self.lua_sandbox.inject_primitive("Log", self.log_primitive)
+
+        if self.message_history_primitive:
+            logger.info(f"Injecting MessageHistory primitive: {self.message_history_primitive}")
+            self.lua_sandbox.inject_primitive("MessageHistory", self.message_history_primitive)
 
         if self.stage_primitive:
             logger.info(f"Injecting Stage primitive: {self.stage_primitive}")
@@ -974,10 +1075,10 @@ class TactusRuntime:
                         }
                         for field_name, field in agent.output.fields.items()
                     }
-                if agent.session:
-                    config["agents"][name]["session"] = {
-                        "source": agent.session.source,
-                        "filter": agent.session.filter,
+                if agent.message_history:
+                    config["agents"][name]["message_history"] = {
+                        "source": agent.message_history.source,
+                        "filter": agent.message_history.filter,
                     }
 
         # Convert HITL points
