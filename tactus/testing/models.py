@@ -61,6 +61,13 @@ class ScenarioResult(BaseModel):
     iteration: Optional[int] = None  # For evaluation runs
     timestamp: datetime = Field(default_factory=datetime.now)
 
+    # Execution metrics
+    total_cost: float = 0.0  # Total LLM cost for this scenario
+    total_tokens: int = 0  # Total tokens used in this scenario
+    iterations: int = 0  # Number of agent iterations
+    tools_used: List[str] = Field(default_factory=list)  # Tools called during execution
+    llm_calls: int = 0  # Number of LLM API calls made
+
 
 class FeatureResult(BaseModel):
     """Result of executing a feature."""
@@ -81,6 +88,15 @@ class TestResult(BaseModel):
     passed_scenarios: int
     failed_scenarios: int
     total_duration: float
+
+    # Aggregated execution metrics
+    total_cost: float = 0.0  # Total LLM cost across all scenarios
+    total_tokens: int = 0  # Total tokens used across all scenarios
+    total_iterations: int = 0  # Total iterations across all scenarios
+    total_llm_calls: int = 0  # Total LLM API calls across all scenarios
+    unique_tools_used: List[str] = Field(
+        default_factory=list
+    )  # Unique tools used across all scenarios
 
 
 class EvaluationResult(BaseModel):

@@ -334,8 +334,8 @@ export const App: React.FC = () => {
         }),
       });
       
-      // Then start streaming test results (mock mode by default)
-      const url = apiUrl(`/api/test/stream?path=${encodeURIComponent(currentFile)}&mock=true`);
+      // Then start streaming test results (real mode by default - uses actual LLM)
+      const url = apiUrl(`/api/test/stream?path=${encodeURIComponent(currentFile)}&mock=false`);
       setStreamUrl(url);
     } catch (error) {
       console.error('Error running tests:', error);

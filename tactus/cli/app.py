@@ -621,9 +621,21 @@ def _display_test_results(test_result):
             status_icon = "✓" if scenario.status == "passed" else "✗"
             status_color = "green" if scenario.status == "passed" else "red"
 
+            # Include execution metrics in scenario display
+            metrics_parts = []
+            if scenario.total_cost > 0:
+                metrics_parts.append(f"💰 ${scenario.total_cost:.6f}")
+            if scenario.llm_calls > 0:
+                metrics_parts.append(f"🤖 {scenario.llm_calls} LLM calls")
+            if scenario.iterations > 0:
+                metrics_parts.append(f"🔄 {scenario.iterations} iterations")
+            if scenario.tools_used:
+                metrics_parts.append(f"🔧 {len(scenario.tools_used)} tools")
+
+            metrics_str = f" ({', '.join(metrics_parts)})" if metrics_parts else ""
             console.print(
                 f"  [{status_color}]{status_icon}[/{status_color}] "
-                f"Scenario: {scenario.name} ({scenario.duration:.2f}s)"
+                f"Scenario: {scenario.name} ({scenario.duration:.2f}s){metrics_str}"
             )
 
             if scenario.status == "failed":
@@ -639,6 +651,20 @@ def _display_test_results(test_result):
         f"([green]{test_result.passed_scenarios} passed[/green], "
         f"[red]{test_result.failed_scenarios} failed[/red])"
     )
+
+    # Execution metrics summary
+    if test_result.total_cost > 0 or test_result.total_llm_calls > 0:
+        console.print("\n[bold]Execution Metrics:[/bold]")
+        if test_result.total_cost > 0:
+            console.print(
+                f"  💰 Cost: ${test_result.total_cost:.6f} ({test_result.total_tokens:,} tokens)"
+            )
+        if test_result.total_llm_calls > 0:
+            console.print(f"  🤖 LLM Calls: {test_result.total_llm_calls}")
+        if test_result.total_iterations > 0:
+            console.print(f"  🔄 Iterations: {test_result.total_iterations}")
+        if test_result.unique_tools_used:
+            console.print(f"  🔧 Tools: {', '.join(test_result.unique_tools_used)}")
 
 
 def _display_evaluation_results(eval_results):

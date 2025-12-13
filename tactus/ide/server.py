@@ -793,6 +793,11 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                                 "scenario_name": scenario.name,
                                 "status": scenario.status,
                                 "duration": scenario.duration,
+                                "total_cost": scenario.total_cost,
+                                "total_tokens": scenario.total_tokens,
+                                "llm_calls": scenario.llm_calls,
+                                "iterations": scenario.iterations,
+                                "tools_used": scenario.tools_used,
                                 "timestamp": datetime.utcnow().isoformat() + "Z",
                             }
                             yield f"data: {json.dumps(scenario_event)}\n\n"
@@ -804,6 +809,11 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                             "total_scenarios": test_result.total_scenarios,
                             "passed_scenarios": test_result.passed_scenarios,
                             "failed_scenarios": test_result.failed_scenarios,
+                            "total_cost": test_result.total_cost,
+                            "total_tokens": test_result.total_tokens,
+                            "total_llm_calls": test_result.total_llm_calls,
+                            "total_iterations": test_result.total_iterations,
+                            "unique_tools_used": test_result.unique_tools_used,
                             "features": [
                                 {
                                     "name": f.name,

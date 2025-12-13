@@ -187,6 +187,14 @@ class TactusTestRunner:
                 )
             )
 
+        # Extract execution metrics (attached by after_scenario hook)
+        total_cost = getattr(behave_scenario, "total_cost", 0.0)
+        total_tokens = getattr(behave_scenario, "total_tokens", 0)
+        cost_breakdown = getattr(behave_scenario, "cost_breakdown", [])
+        iterations = getattr(behave_scenario, "iterations", 0)
+        tools_used = getattr(behave_scenario, "tools_used", [])
+        llm_calls = len(cost_breakdown)  # Number of LLM calls = number of cost events
+
         return ScenarioResult(
             name=behave_scenario.name,
             status=behave_scenario.status.name,
@@ -194,6 +202,11 @@ class TactusTestRunner:
             steps=steps,
             tags=behave_scenario.tags,
             timestamp=datetime.now(),
+            total_cost=total_cost,
+            total_tokens=total_tokens,
+            iterations=iterations,
+            tools_used=tools_used,
+            llm_calls=llm_calls,
         )
 
     def _build_feature_result(self, scenario_results: List[ScenarioResult]) -> FeatureResult:
@@ -227,12 +240,30 @@ class TactusTestRunner:
         failed_scenarios = total_scenarios - passed_scenarios
         total_duration = sum(f.duration for f in feature_results)
 
+        # Aggregate execution metrics across all scenarios
+        total_cost = sum(s.total_cost for f in feature_results for s in f.scenarios)
+        total_tokens = sum(s.total_tokens for f in feature_results for s in f.scenarios)
+        total_iterations = sum(s.iterations for f in feature_results for s in f.scenarios)
+        total_llm_calls = sum(s.llm_calls for f in feature_results for s in f.scenarios)
+
+        # Collect unique tools used across all scenarios
+        all_tools = set()
+        for f in feature_results:
+            for s in f.scenarios:
+                all_tools.update(s.tools_used)
+        unique_tools_used = sorted(list(all_tools))
+
         return TestResult(
             features=feature_results,
             total_scenarios=total_scenarios,
             passed_scenarios=passed_scenarios,
             failed_scenarios=failed_scenarios,
             total_duration=total_duration,
+            total_cost=total_cost,
+            total_tokens=total_tokens,
+            total_iterations=total_iterations,
+            total_llm_calls=total_llm_calls,
+            unique_tools_used=unique_tools_used,
         )
 
     def cleanup(self) -> None:

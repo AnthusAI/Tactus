@@ -269,6 +269,15 @@ class BehaveEnvironmentGenerator:
 
             f.write("def after_scenario(context, scenario):\n")
             f.write('    """Cleanup after each scenario."""\n')
+            f.write("    # Attach execution metrics to scenario for reporting\n")
+            f.write("    if hasattr(context, 'tac') and context.tac:\n")
+            f.write("        scenario.total_cost = getattr(context.tac, 'total_cost', 0.0)\n")
+            f.write("        scenario.total_tokens = getattr(context.tac, 'total_tokens', 0)\n")
+            f.write(
+                "        scenario.cost_breakdown = getattr(context.tac, 'cost_breakdown', [])\n"
+            )
+            f.write("        scenario.iterations = getattr(context.tac, 'iterations', 0)\n")
+            f.write("        scenario.tools_used = getattr(context.tac, 'tools_used', [])\n")
             f.write("    # Cleanup runtime if it was created\n")
             f.write("    if hasattr(context.tac, 'runtime') and context.tac.runtime:\n")
             f.write("        # Any cleanup needed\n")

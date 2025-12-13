@@ -353,6 +353,9 @@ class TactusRuntime:
                 "stop_requested": self.stop_primitive.requested() if self.stop_primitive else False,
                 "stop_reason": self.stop_primitive.reason() if self.stop_primitive else None,
                 "session_id": session_id,
+                "total_cost": total_cost,
+                "total_tokens": total_tokens,
+                "cost_breakdown": cost_breakdown,
             }
 
         except ProcedureWaitingForHuman as e:

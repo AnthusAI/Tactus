@@ -56,11 +56,13 @@ specifications([[
 Feature: Simple Agent Interaction
   Demonstrate basic LLM agent interaction with done tool
 
-  Scenario: Agent completes greeting task
+  Scenario: Agent generates greeting using real LLM
     Given the procedure has started
-    When the greeter agent takes turn
+    When the procedure runs
     Then the done tool should be called
     And the procedure should complete successfully
     And the output completed should be True
     And the output greeting should exist
+    And the output greeting should not be "Agent did not complete properly"
+    And the output greeting should match pattern "(Hello|Hi|Greetings|Welcome|hello|hi|greetings|welcome)"
 ]])
