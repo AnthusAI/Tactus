@@ -8,9 +8,12 @@ Provides a comprehensive library of steps for testing:
 - Procedure completion
 - Iterations and timing
 - Parameters and context
+- Regex pattern matching
+- Fuzzy string matching
 """
 
 import logging
+import re
 from typing import Any
 
 from .registry import StepRegistry
@@ -49,6 +52,12 @@ def register_builtin_steps(registry: StepRegistry) -> None:
 
     # Agent steps
     register_agent_steps(registry)
+
+    # Regex pattern matching steps
+    register_regex_steps(registry)
+
+    # Fuzzy string matching steps
+    register_fuzzy_steps(registry)
 
 
 # Tool-related steps
@@ -214,6 +223,10 @@ def register_output_steps(registry: StepRegistry) -> None:
 
     registry.register(r"the output (?P<key>\w+) should be (?P<value>.+)", step_output_equals)
 
+    registry.register(
+        r"the output (?P<key>\w+) should not be (?P<value>.+)", step_output_not_equals
+    )
+
     registry.register(r"the output (?P<key>\w+) should exist", step_output_exists)
 
     registry.register(r"the output should contain (?P<key>\w+)", step_output_contains)
@@ -248,6 +261,41 @@ def step_output_equals(context: Any, key: str, value: str) -> None:
             # Fall back to string comparison
             actual_str = str(actual) if actual is not None else "None"
             assert actual_str == value, f"Output '{key}' is '{actual_str}', expected '{value}'"
+
+
+def step_output_not_equals(context: Any, key: str, value: str) -> None:
+    """Check if output value does not equal the specified value."""
+    actual = context.output_get(key)
+
+    # Handle boolean comparison specially
+    if value.lower() in ("true", "false"):
+        expected_bool = value.lower() == "true"
+        if isinstance(actual, bool):
+            assert (
+                actual != expected_bool
+            ), f"Output '{key}' is {actual}, should not be {expected_bool}"
+        else:
+            actual_str = str(actual).lower()
+            assert (
+                actual_str != value.lower()
+            ), f"Output '{key}' is '{actual}', should not be '{value}'"
+    else:
+        # Try numeric comparison first
+        try:
+            expected_num = float(value)
+            if isinstance(actual, (int, float)):
+                assert (
+                    actual != expected_num
+                ), f"Output '{key}' is {actual}, should not be {expected_num}"
+            else:
+                actual_num = float(actual)
+                assert (
+                    actual_num != expected_num
+                ), f"Output '{key}' is {actual_num}, should not be {expected_num}"
+        except (ValueError, TypeError):
+            # Fall back to string comparison
+            actual_str = str(actual) if actual is not None else "None"
+            assert actual_str != value, f"Output '{key}' is '{actual_str}', should not be '{value}'"
 
 
 def step_output_exists(context: Any, key: str) -> None:
@@ -321,7 +369,7 @@ def register_iteration_steps(registry: StepRegistry) -> None:
 
 def step_iterations_less_than(context: Any, n: str) -> None:
     """Check if total iterations is less than N."""
-    iterations = context.iterations()
+    iterations = context.iterations
     max_iterations = int(n)
     assert (
         iterations < max_iterations
@@ -330,7 +378,7 @@ def step_iterations_less_than(context: Any, n: str) -> None:
 
 def step_iterations_between(context: Any, min: str, max: str) -> None:
     """Check if iterations is between min and max."""
-    iterations = context.iterations()
+    iterations = context.iterations
     min_val = int(min)
     max_val = int(max)
     assert (
@@ -397,3 +445,170 @@ def step_agent_takes_turn(context: Any, agent: str) -> None:
 def step_procedure_runs(context: Any) -> None:
     """Execute the procedure."""
     context.run_procedure()
+
+
+# Regex pattern matching steps
+
+
+def register_regex_steps(registry: StepRegistry) -> None:
+    """Register regex pattern matching steps."""
+
+    # Output regex matching
+    registry.register(
+        r'the output (?P<key>\w+) should match pattern "(?P<pattern>.+)"',
+        step_output_matches_pattern,
+    )
+
+    # State regex matching
+    registry.register(
+        r'the state (?P<key>\w+) should match pattern "(?P<pattern>.+)"',
+        step_state_matches_pattern,
+    )
+
+    # Stop reason regex matching
+    registry.register(
+        r'the stop reason should match pattern "(?P<pattern>.+)"',
+        step_stop_reason_matches_pattern,
+    )
+
+    # Tool argument regex matching
+    registry.register(
+        r'the (?P<tool>\w+) tool should be called with (?P<param>\w+) matching pattern "(?P<pattern>.+)"',
+        step_tool_arg_matches_pattern,
+    )
+
+
+def step_output_matches_pattern(context: Any, key: str, pattern: str) -> None:
+    """Check if output value matches regex pattern."""
+    actual = context.output_get(key)
+    actual_str = str(actual) if actual is not None else ""
+
+    try:
+        regex = re.compile(pattern)
+        assert regex.search(
+            actual_str
+        ), f"Output '{key}' value '{actual_str}' does not match pattern '{pattern}'"
+    except re.error as e:
+        raise AssertionError(f"Invalid regex pattern '{pattern}': {e}")
+
+
+def step_state_matches_pattern(context: Any, key: str, pattern: str) -> None:
+    """Check if state value matches regex pattern."""
+    actual = context.state_get(key)
+    actual_str = str(actual) if actual is not None else ""
+
+    try:
+        regex = re.compile(pattern)
+        assert regex.search(
+            actual_str
+        ), f"State '{key}' value '{actual_str}' does not match pattern '{pattern}'"
+    except re.error as e:
+        raise AssertionError(f"Invalid regex pattern '{pattern}': {e}")
+
+
+def step_stop_reason_matches_pattern(context: Any, pattern: str) -> None:
+    """Check if stop reason matches regex pattern."""
+    actual = context.stop_reason()
+
+    try:
+        regex = re.compile(pattern)
+        assert regex.search(actual), f"Stop reason '{actual}' does not match pattern '{pattern}'"
+    except re.error as e:
+        raise AssertionError(f"Invalid regex pattern '{pattern}': {e}")
+
+
+def step_tool_arg_matches_pattern(context: Any, tool: str, param: str, pattern: str) -> None:
+    """Check if tool was called with parameter matching regex pattern."""
+    calls = context.tool_calls(tool)
+    assert calls, f"Tool '{tool}' was not called"
+
+    try:
+        regex = re.compile(pattern)
+        # Check if any call has the parameter matching the pattern
+        found = False
+        for call in calls:
+            param_value = call.get("args", {}).get(param)
+            if param_value is not None:
+                param_str = str(param_value)
+                if regex.search(param_str):
+                    found = True
+                    break
+
+        assert found, f"Tool '{tool}' was not called with {param} matching pattern '{pattern}'"
+    except re.error as e:
+        raise AssertionError(f"Invalid regex pattern '{pattern}': {e}")
+
+
+# Fuzzy string matching steps
+
+
+def register_fuzzy_steps(registry: StepRegistry) -> None:
+    """Register fuzzy string matching steps."""
+
+    # Output fuzzy matching (default threshold)
+    registry.register(
+        r'the output (?P<key>\w+) should be similar to "(?P<text>.+)"',
+        step_output_similar_default,
+    )
+
+    # Output fuzzy matching (custom threshold)
+    registry.register(
+        r'the output (?P<key>\w+) should be similar to "(?P<text>.+)" with (?P<threshold>\d+)% similarity',
+        step_output_similar_threshold,
+    )
+
+    # State fuzzy matching (default threshold)
+    registry.register(
+        r'the state (?P<key>\w+) should be similar to "(?P<text>.+)"',
+        step_state_similar_default,
+    )
+
+    # State fuzzy matching (custom threshold)
+    registry.register(
+        r'the state (?P<key>\w+) should be similar to "(?P<text>.+)" with (?P<threshold>\d+)% similarity',
+        step_state_similar_threshold,
+    )
+
+
+def step_output_similar_default(context: Any, key: str, text: str) -> None:
+    """Check if output is similar to expected text (80% default threshold)."""
+    step_output_similar_threshold(context, key, text, "80")
+
+
+def step_output_similar_threshold(context: Any, key: str, text: str, threshold: str) -> None:
+    """Check if output is similar to expected text with custom threshold."""
+    from rapidfuzz import fuzz
+
+    actual = context.output_get(key)
+    actual_str = str(actual) if actual is not None else ""
+
+    threshold_val = int(threshold)
+    similarity = fuzz.ratio(actual_str, text)
+
+    assert similarity >= threshold_val, (
+        f"Output '{key}' similarity is {similarity}% (expected >= {threshold_val}%)\n"
+        f"  Actual: '{actual_str}'\n"
+        f"  Expected: '{text}'"
+    )
+
+
+def step_state_similar_default(context: Any, key: str, text: str) -> None:
+    """Check if state is similar to expected text (80% default threshold)."""
+    step_state_similar_threshold(context, key, text, "80")
+
+
+def step_state_similar_threshold(context: Any, key: str, text: str, threshold: str) -> None:
+    """Check if state is similar to expected text with custom threshold."""
+    from rapidfuzz import fuzz
+
+    actual = context.state_get(key)
+    actual_str = str(actual) if actual is not None else ""
+
+    threshold_val = int(threshold)
+    similarity = fuzz.ratio(actual_str, text)
+
+    assert similarity >= threshold_val, (
+        f"State '{key}' similarity is {similarity}% (expected >= {threshold_val}%)\n"
+        f"  Actual: '{actual_str}'\n"
+        f"  Expected: '{text}'"
+    )

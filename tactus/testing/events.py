@@ -44,6 +44,8 @@ class TestScenarioCompletedEvent(BaseModel):
     scenario_name: str
     status: str  # passed, failed, skipped
     duration: float
+    total_cost: float = 0.0  # Total LLM cost for this scenario
+    total_tokens: int = 0  # Total tokens used in this scenario
     timestamp: datetime = Field(default_factory=datetime.now)
 
 

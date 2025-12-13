@@ -34,6 +34,26 @@ export const TestScenarioCompletedEventComponent: React.FC<{ event: TestScenario
         <span className="text-xs text-muted-foreground ml-auto">
           {(event.duration * 1000).toFixed(0)}ms
         </span>
+        {event.total_cost != null && event.total_cost > 0 && (
+          <span className="text-xs text-muted-foreground">
+            💰 ${event.total_cost.toFixed(6)}
+          </span>
+        )}
+        {event.llm_calls != null && event.llm_calls > 0 && (
+          <span className="text-xs text-muted-foreground">
+            🤖 {event.llm_calls}
+          </span>
+        )}
+        {event.iterations != null && event.iterations > 0 && (
+          <span className="text-xs text-muted-foreground">
+            🔄 {event.iterations}
+          </span>
+        )}
+        {event.tools_used != null && event.tools_used.length > 0 && (
+          <span className="text-xs text-muted-foreground">
+            🔧 {event.tools_used.length}
+          </span>
+        )}
       </div>
     </div>
   );
@@ -70,6 +90,34 @@ export const TestCompletedEventComponent: React.FC<{ event: TestCompletedEvent }
           <div className="font-medium text-red-500">{result.failed_scenarios}</div>
         </div>
       </div>
+      
+      {/* Execution Metrics Summary */}
+        {((result.total_cost != null && result.total_cost > 0) || 
+         (result.total_llm_calls != null && result.total_llm_calls > 0)) && (
+            <div className="mt-2 pt-2 border-t border-border/30 text-sm">
+              <div className="text-muted-foreground text-xs mb-1">Execution Metrics</div>
+              {result.total_cost != null && result.total_cost > 0 && (
+                <div className="font-medium">
+                  💰 ${result.total_cost.toFixed(6)} ({result.total_tokens.toLocaleString()} tokens)
+                </div>
+              )}
+              {result.total_llm_calls != null && result.total_llm_calls > 0 && (
+                <div className="font-medium">
+                  🤖 {result.total_llm_calls} LLM calls
+                </div>
+              )}
+              {result.total_iterations != null && result.total_iterations > 0 && (
+                <div className="font-medium">
+                  🔄 {result.total_iterations} iterations
+                </div>
+              )}
+              {result.unique_tools_used != null && result.unique_tools_used.length > 0 && (
+                <div className="font-medium">
+                  🔧 {result.unique_tools_used.join(', ')}
+                </div>
+              )}
+            </div>
+        )}
       
       {/* Show failed/error scenarios with details */}
       {result.features.map((feature, fi) => (

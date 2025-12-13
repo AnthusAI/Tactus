@@ -35,15 +35,21 @@ class TactusTestContext:
         self.execution_result: Optional[Dict] = None
         self._primitives: Dict[str, Any] = {}  # Captured primitives
         self._procedure_executed = False
+        self.total_cost: float = 0.0  # Track total cost
+        self.total_tokens: int = 0  # Track total tokens
+        self.cost_breakdown: List[Any] = []  # Track per-call costs
 
     def setup_runtime(self) -> None:
         """Initialize TactusRuntime with storage and handlers."""
+        import os
         from tactus.core.runtime import TactusRuntime
         from tactus.adapters.memory import MemoryStorage
         from tactus.testing.mock_hitl import MockHITLHandler
+        from tactus.adapters.cli_log import CLILogHandler
 
         storage = MemoryStorage()
         hitl = MockHITLHandler()  # Auto-approve for tests
+        log_handler = CLILogHandler()  # Capture cost events
 
         # Setup mocked tool primitive if mocks configured
         tool_primitive = None
@@ -58,6 +64,8 @@ class TactusTestContext:
             hitl_handler=hitl,
             tool_primitive=tool_primitive,  # Inject mocked tool if configured
             skip_agents=bool(self.mock_tools),  # Skip agents in mock mode
+            openai_api_key=os.environ.get("OPENAI_API_KEY"),  # Pass API key for real LLM calls
+            log_handler=log_handler,  # Enable cost tracking
         )
 
         logger.debug(f"Setup runtime for test: {self.procedure_file.stem}")
@@ -83,6 +91,14 @@ class TactusTestContext:
         self.execution_result = await self.runtime.execute(
             source=source, context=self.params, format="lua"
         )
+
+        # Capture metrics from execution result
+        if self.execution_result:
+            self.total_cost = self.execution_result.get("total_cost", 0.0)
+            self.total_tokens = self.execution_result.get("total_tokens", 0)
+            self.cost_breakdown = self.execution_result.get("cost_breakdown", [])
+            self.iterations = self.execution_result.get("iterations", 0)
+            self.tools_used = self.execution_result.get("tools_used", [])
 
         # Capture primitives for assertions
         self._capture_primitives()

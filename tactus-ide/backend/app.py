@@ -465,7 +465,7 @@ def test_procedure_stream():
         return jsonify({"error": "Missing 'path' parameter"}), 400
 
     # Get options
-    mock = request.args.get("mock", "true").lower() == "true"
+    mock = request.args.get("mock", "false").lower() == "true"
     parallel = request.args.get("parallel", "false").lower() == "true"
 
     try:
@@ -488,12 +488,12 @@ def test_procedure_stream():
             try:
                 from tactus.validation import TactusValidator
                 from tactus.testing import TactusTestRunner, GherkinParser
-                from events import (
+                from tactus.testing.events import (
                     TestStartedEvent,
                     TestCompletedEvent,
                     TestScenarioCompletedEvent,
-                    ExecutionEvent,
                 )
+                from events import ExecutionEvent
 
                 # Validate and extract specifications
                 validator = TactusValidator()
@@ -554,12 +554,16 @@ def test_procedure_stream():
                             scenario_name=scenario.name,
                             status=scenario.status,
                             duration=scenario.duration,
+                            total_cost=scenario.total_cost,
+                            total_tokens=scenario.total_tokens,
                         )
-                        yield f"data: {scenario_event.model_dump_json()}\n\n"
+                        event_json = scenario_event.model_dump_json()
+                        yield f"data: {event_json}\n\n"
 
                 # Emit completed event
                 complete_event = TestCompletedEvent(result=test_result)
-                yield f"data: {complete_event.model_dump_json()}\n\n"
+                event_json = complete_event.model_dump_json()
+                yield f"data: {event_json}\n\n"
 
                 # Cleanup
                 runner.cleanup()

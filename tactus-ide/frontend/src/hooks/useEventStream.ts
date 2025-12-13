@@ -45,11 +45,11 @@ export function useEventStream(url: string | null): StreamState {
       console.log('SSE connection opened');
     };
 
-    eventSource.onmessage = (e) => {
-      try {
-        const event = JSON.parse(e.data) as AnyEvent;
-        
-        setEvents((prev) => [...prev, event]);
+            eventSource.onmessage = (e) => {
+              try {
+                const event = JSON.parse(e.data) as AnyEvent;
+
+                setEvents((prev) => [...prev, event]);
         
         // Check if execution is complete
         if (event.event_type === 'execution' && 

@@ -112,6 +112,11 @@ export interface TestCompletedEvent extends BaseEvent {
     total_scenarios: number;
     passed_scenarios: number;
     failed_scenarios: number;
+    total_cost: number;
+    total_tokens: number;
+    total_llm_calls: number;
+    total_iterations: number;
+    unique_tools_used: string[];
     features: Array<{
       name: string;
       scenarios: Array<{
@@ -139,6 +144,11 @@ export interface TestScenarioCompletedEvent extends BaseEvent {
   scenario_name: string;
   status: string;
   duration: number;
+  total_cost: number;
+  total_tokens: number;
+  llm_calls: number;
+  iterations: number;
+  tools_used: string[];
 }
 
 export interface EvaluationStartedEvent extends BaseEvent {

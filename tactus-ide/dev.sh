@@ -94,8 +94,11 @@ else
 fi
 
 # Use watchmedo with better settings to avoid restart loops
+# Watch both tactus/ide, tactus/testing, and tactus-ide/backend for changes
 watchmedo auto-restart \
     --directory="$PROJECT_ROOT/tactus/ide" \
+    --directory="$PROJECT_ROOT/tactus/testing" \
+    --directory="$PROJECT_ROOT/tactus-ide/backend" \
     --pattern="*.py" \
     --recursive \
     --ignore-patterns="*/__pycache__/*;*.pyc;*/.pytest_cache/*;*/.*" \
