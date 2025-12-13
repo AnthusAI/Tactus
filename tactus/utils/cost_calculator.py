@@ -11,10 +11,10 @@ from .model_pricing import get_model_pricing, normalize_model_name
 class CostCalculator:
     """
     Calculate LLM costs from token usage and model information.
-    
+
     Aligned with pydantic-ai's usage tracking.
     """
-    
+
     def calculate_cost(
         self,
         model_name: str,
@@ -25,14 +25,14 @@ class CostCalculator:
     ) -> Dict[str, Any]:
         """
         Calculate cost for a single LLM call.
-        
+
         Args:
             model_name: Model identifier
             provider: Provider name (openai, anthropic, bedrock, google)
             prompt_tokens: Number of prompt tokens
             completion_tokens: Number of completion tokens
             cache_tokens: Number of cached tokens (if applicable)
-            
+
         Returns:
             Dict with:
                 - prompt_cost: Cost for prompt tokens
@@ -45,22 +45,22 @@ class CostCalculator:
         """
         # Normalize model name and get provider
         normalized_model, detected_provider = normalize_model_name(model_name, provider)
-        
+
         # Get pricing
         pricing = get_model_pricing(model_name, provider)
-        
+
         # Calculate costs (pricing is per million tokens)
         prompt_cost = (prompt_tokens / 1_000_000) * pricing["input"]
         completion_cost = (completion_tokens / 1_000_000) * pricing["output"]
-        
+
         # Calculate cache savings if applicable
         cache_cost = None
         if cache_tokens and cache_tokens > 0:
             # Cached tokens typically cost 10% of input tokens
             cache_cost = (cache_tokens / 1_000_000) * pricing["input"] * 0.9
-        
+
         total_cost = prompt_cost + completion_cost
-        
+
         return {
             "prompt_cost": prompt_cost,
             "completion_cost": completion_cost,

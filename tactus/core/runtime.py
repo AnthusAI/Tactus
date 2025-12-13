@@ -315,14 +315,14 @@ class TactusRuntime:
             cost_breakdown = []
             total_cost = 0.0
             total_tokens = 0
-            
-            if self.log_handler and hasattr(self.log_handler, 'cost_events'):
+
+            if self.log_handler and hasattr(self.log_handler, "cost_events"):
                 # Get cost events from log handler
                 cost_breakdown = self.log_handler.cost_events
                 for event in cost_breakdown:
                     total_cost += event.total_cost
                     total_tokens += event.total_tokens
-            
+
             # Send execution summary event if log handler is available
             if self.log_handler:
                 from tactus.protocols.models import ExecutionSummaryEvent
@@ -563,7 +563,7 @@ class TactusRuntime:
             # Handle structured output if specified
             result_type = None
             output_schema_guidance = None
-            
+
             # Prefer output_type (aligned with pydantic-ai)
             if agent_config.get("output_type"):
                 try:
@@ -621,49 +621,49 @@ class TactusRuntime:
     def _create_pydantic_model_from_output_type(self, output_type_schema, model_name: str) -> type:
         """
         Convert output_type schema to Pydantic model.
-        
+
         Aligned with pydantic-ai's output_type parameter.
-        
+
         Args:
             output_type_schema: AgentOutputSchema or dict with field definitions
             model_name: Name for the generated Pydantic model
-            
+
         Returns:
             Dynamically created Pydantic model class
         """
         from pydantic import create_model
         from typing import Optional
-        
+
         fields = {}
-        
+
         # Handle AgentOutputSchema object
-        if hasattr(output_type_schema, 'fields'):
+        if hasattr(output_type_schema, "fields"):
             schema_fields = output_type_schema.fields
         else:
             # Assume it's a dict
             schema_fields = output_type_schema
-        
+
         for field_name, field_def in schema_fields.items():
             # Extract field properties
-            if hasattr(field_def, 'type'):
+            if hasattr(field_def, "type"):
                 field_type_str = field_def.type
-                required = getattr(field_def, 'required', True)
+                required = getattr(field_def, "required", True)
             else:
                 # Dict format
-                field_type_str = field_def.get('type', 'string')
-                required = field_def.get('required', True)
-            
+                field_type_str = field_def.get("type", "string")
+                required = field_def.get("required", True)
+
             # Map type string to Python type
             field_type = self._map_type_string(field_type_str)
-            
+
             # Create field tuple (type, default_or_required)
             if required:
                 fields[field_name] = (field_type, ...)  # Required field
             else:
                 fields[field_name] = (Optional[field_type], None)  # Optional field
-        
+
         return create_model(model_name, **fields)
-    
+
     def _map_type_string(self, type_str: str) -> type:
         """Map type string to Python type."""
         type_map = {

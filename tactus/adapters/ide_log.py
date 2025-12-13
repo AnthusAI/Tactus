@@ -36,9 +36,10 @@ class IDELogHandler:
         """
         # Track cost events for aggregation
         from tactus.protocols.models import CostEvent
+
         if isinstance(event, CostEvent):
             self.cost_events.append(event)
-        
+
         self.events.put(event)
 
     def get_events(self, timeout: float = 0.1) -> List[LogEvent]:

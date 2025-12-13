@@ -5,7 +5,7 @@ Prices are per million tokens in USD.
 Data sourced from provider documentation and pricing pages.
 """
 
-from typing import Dict, Any, Optional
+from typing import Dict, Optional
 
 # Pricing per million tokens (USD)
 MODEL_PRICING: Dict[str, Dict[str, Dict[str, float]]] = {
@@ -60,16 +60,16 @@ DEFAULT_PRICING = {"input": 10.00, "output": 30.00}
 def normalize_model_name(model_name: str, provider: Optional[str] = None) -> tuple[str, str]:
     """
     Normalize model name and extract provider.
-    
+
     Handles formats like:
     - "gpt-4o" -> ("gpt-4o", "openai")
     - "openai:gpt-4o" -> ("gpt-4o", "openai")
     - "anthropic.claude-3-5-sonnet-20241022-v2:0" -> (full name, "bedrock")
-    
+
     Args:
         model_name: Model identifier
         provider: Optional provider hint
-        
+
     Returns:
         Tuple of (normalized_model_name, provider)
     """
@@ -79,15 +79,15 @@ def normalize_model_name(model_name: str, provider: Optional[str] = None) -> tup
         detected_provider = parts[0].lower()
         model_only = parts[1]
         return (model_only, detected_provider)
-    
+
     # Check for Bedrock format (anthropic.claude-...)
     if model_name.startswith("anthropic."):
         return (model_name, "bedrock")
-    
+
     # Use provided provider or try to infer
     if provider:
         return (model_name, provider.lower())
-    
+
     # Infer provider from model name patterns
     if model_name.startswith("gpt-") or model_name.startswith("o1") or model_name.startswith("o3"):
         return (model_name, "openai")
@@ -95,7 +95,7 @@ def normalize_model_name(model_name: str, provider: Optional[str] = None) -> tup
         return (model_name, "anthropic")
     elif model_name.startswith("gemini-"):
         return (model_name, "google")
-    
+
     # Default to openai if unknown
     return (model_name, provider or "openai")
 
@@ -103,23 +103,23 @@ def normalize_model_name(model_name: str, provider: Optional[str] = None) -> tup
 def get_model_pricing(model_name: str, provider: Optional[str] = None) -> Dict[str, float]:
     """
     Get pricing for a model.
-    
+
     Args:
         model_name: Model identifier
         provider: Optional provider
-        
+
     Returns:
         Dict with 'input' and 'output' pricing per million tokens
     """
     normalized_model, detected_provider = normalize_model_name(model_name, provider)
-    
+
     # Look up pricing
     provider_pricing = MODEL_PRICING.get(detected_provider, {})
     pricing = provider_pricing.get(normalized_model)
-    
+
     if pricing:
         return pricing
-    
+
     # Try without version suffix (e.g., "gpt-4o-2024-11-20" -> "gpt-4o")
     base_model = normalized_model.split("-")[0:2]  # Get first two parts
     if len(base_model) >= 2:
@@ -127,6 +127,6 @@ def get_model_pricing(model_name: str, provider: Optional[str] = None) -> Dict[s
         pricing = provider_pricing.get(base_name)
         if pricing:
             return pricing
-    
+
     # Return default pricing with warning
     return DEFAULT_PRICING

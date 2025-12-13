@@ -222,7 +222,7 @@ def register_output_steps(registry: StepRegistry) -> None:
 def step_output_equals(context: Any, key: str, value: str) -> None:
     """Check if output value equals expected."""
     actual = context.output_get(key)
-    
+
     # Handle boolean comparison specially
     if value.lower() in ("true", "false"):
         expected_bool = value.lower() == "true"
@@ -236,10 +236,14 @@ def step_output_equals(context: Any, key: str, value: str) -> None:
         try:
             expected_num = float(value)
             if isinstance(actual, (int, float)):
-                assert actual == expected_num, f"Output '{key}' is {actual}, expected {expected_num}"
+                assert (
+                    actual == expected_num
+                ), f"Output '{key}' is {actual}, expected {expected_num}"
             else:
                 actual_num = float(actual)
-                assert actual_num == expected_num, f"Output '{key}' is {actual_num}, expected {expected_num}"
+                assert (
+                    actual_num == expected_num
+                ), f"Output '{key}' is {actual_num}, expected {expected_num}"
         except (ValueError, TypeError):
             # Fall back to string comparison
             actual_str = str(actual) if actual is not None else "None"

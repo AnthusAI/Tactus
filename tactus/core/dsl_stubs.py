@@ -74,11 +74,10 @@ def create_dsl_stubs(builder: RegistryBuilder) -> dict[str, Callable]:
     executing the .tac file.
     """
 
-
     def _agent(agent_name: str, config) -> None:
         """Register an agent with its configuration."""
         config_dict = lua_table_to_dict(config)
-        
+
         # Extract output schema if present (support both 'output' and 'output_type')
         # output_type is preferred (aligned with pydantic-ai)
         output_schema = None
@@ -90,13 +89,13 @@ def create_dsl_stubs(builder: RegistryBuilder) -> dict[str, Callable]:
             output_config = config_dict["output"]
             if isinstance(output_config, dict):
                 output_schema = output_config
-        
+
         builder.register_agent(agent_name, config_dict, output_schema)
 
     def _procedure(config_or_fn, fn=None) -> None:
         """
         Store procedure function for later execution.
-        
+
         Supports two syntaxes:
         1. New: procedure({params = {...}, outputs = {...}, message_history = {...}}, function() ... end)
         2. Old: procedure(function() ... end)
@@ -107,12 +106,12 @@ def create_dsl_stubs(builder: RegistryBuilder) -> dict[str, Callable]:
         else:
             # New syntax: procedure(config, function)
             config = lua_table_to_dict(config_or_fn)
-            
+
             # Extract and register params
             if "params" in config:
                 for param_name, param_config in config["params"].items():
                     builder.register_parameter(param_name, param_config)
-            
+
             # Extract and register outputs
             if "outputs" in config:
                 for output_name, output_config in config["outputs"].items():
@@ -120,11 +119,11 @@ def create_dsl_stubs(builder: RegistryBuilder) -> dict[str, Callable]:
                     output_config_with_name = dict(output_config)
                     output_config_with_name["name"] = output_name
                     builder.register_output(output_name, output_config_with_name)
-            
+
             # Extract and register message_history config (aligned with pydantic-ai)
             if "message_history" in config:
                 builder.set_message_history_config(config["message_history"])
-            
+
             # Store the procedure function
             builder.set_procedure(fn)
 

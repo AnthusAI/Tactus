@@ -86,54 +86,58 @@ class LogEvent(BaseModel):
 
 class CostEvent(BaseModel):
     """Cost event for a single LLM call with comprehensive tracing data."""
-    
+
     event_type: str = Field(default="cost", description="Event type")
-    
+
     # Agent/Model Info
     agent_name: str = Field(..., description="Agent that made the call")
     model: str = Field(..., description="Model used")
     provider: str = Field(..., description="Provider (openai, bedrock, etc.)")
-    
+
     # Token Usage (Primary Metrics)
     prompt_tokens: int = Field(..., description="Prompt tokens used")
     completion_tokens: int = Field(..., description="Completion tokens used")
     total_tokens: int = Field(..., description="Total tokens")
-    
+
     # Cost Calculation (Primary Metrics)
     prompt_cost: float = Field(..., description="Cost for prompt tokens")
     completion_cost: float = Field(..., description="Cost for completion tokens")
     total_cost: float = Field(..., description="Total cost")
-    
+
     # Performance Metrics (Details)
     duration_ms: Optional[float] = Field(None, description="Call duration in milliseconds")
     latency_ms: Optional[float] = Field(None, description="Time to first token (if available)")
-    
+
     # Retry/Validation Metrics (Details)
     retry_count: int = Field(default=0, description="Number of retries due to validation")
-    validation_errors: list[str] = Field(default_factory=list, description="Validation errors encountered")
-    
+    validation_errors: list[str] = Field(
+        default_factory=list, description="Validation errors encountered"
+    )
+
     # Cache Metrics (Details)
     cache_hit: bool = Field(default=False, description="Whether cache was used")
     cache_tokens: Optional[int] = Field(None, description="Cached tokens used (if available)")
     cache_cost: Optional[float] = Field(None, description="Cost saved via cache")
-    
+
     # Message Metrics (Details)
     message_count: int = Field(default=0, description="Number of messages in conversation")
     new_message_count: int = Field(default=0, description="New messages from this call")
-    
+
     # Request Metadata (Details)
     request_id: Optional[str] = Field(None, description="Provider request ID (if available)")
     model_version: Optional[str] = Field(None, description="Specific model version")
     temperature: Optional[float] = Field(None, description="Temperature setting used")
     max_tokens: Optional[int] = Field(None, description="Max tokens setting")
-    
+
     # Timestamps
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     procedure_id: Optional[str] = Field(None, description="Procedure identifier")
-    
+
     # Raw tracing data (for future analysis)
-    raw_tracing_data: Optional[Dict[str, Any]] = Field(None, description="Any additional tracing data")
-    
+    raw_tracing_data: Optional[Dict[str, Any]] = Field(
+        None, description="Any additional tracing data"
+    )
+
     model_config = {"arbitrary_types_allowed": True}
 
 
@@ -147,7 +151,7 @@ class ExecutionSummaryEvent(BaseModel):
     tools_used: list[str] = Field(default_factory=list, description="List of tool names used")
     timestamp: datetime = Field(default_factory=datetime.utcnow, description="Event timestamp")
     procedure_id: Optional[str] = Field(None, description="Procedure identifier")
-    
+
     # Cost tracking
     total_cost: float = Field(default=0.0, description="Total LLM cost")
     total_tokens: int = Field(default=0, description="Total tokens used")

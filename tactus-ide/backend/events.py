@@ -10,22 +10,11 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
 # Import test/evaluation events from tactus.testing
-from tactus.testing.events import (
-    TestStartedEvent,
-    TestCompletedEvent,
-    TestScenarioStartedEvent,
-    TestScenarioCompletedEvent,
-    EvaluationStartedEvent,
-    EvaluationCompletedEvent,
-    EvaluationScenarioStartedEvent,
-    EvaluationScenarioCompletedEvent,
-    EvaluationProgressEvent,
-)
 
 
 class BaseEvent(BaseModel):
     """Base event model for all IDE events."""
-    
+
     event_type: str = Field(..., description="Type of event (log, execution, output, validation)")
     timestamp: datetime = Field(default_factory=datetime.utcnow, description="Event timestamp")
     procedure_id: Optional[str] = Field(None, description="Procedure identifier if available")
@@ -33,7 +22,7 @@ class BaseEvent(BaseModel):
 
 class LogEvent(BaseEvent):
     """Log message event."""
-    
+
     event_type: str = "log"
     level: str = Field(..., description="Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)")
     message: str = Field(..., description="Log message")
@@ -43,11 +32,10 @@ class LogEvent(BaseEvent):
 
 class ExecutionEvent(BaseEvent):
     """Execution lifecycle event."""
-    
+
     event_type: str = "execution"
     lifecycle_stage: str = Field(
-        ..., 
-        description="Lifecycle stage (start, complete, error, waiting)"
+        ..., description="Lifecycle stage (start, complete, error, waiting)"
     )
     details: Optional[Dict[str, Any]] = Field(None, description="Additional details")
     exit_code: Optional[int] = Field(None, description="Exit code if completed")
@@ -55,7 +43,7 @@ class ExecutionEvent(BaseEvent):
 
 class OutputEvent(BaseEvent):
     """Raw stdout/stderr output event."""
-    
+
     event_type: str = "output"
     stream: str = Field(..., description="Output stream (stdout or stderr)")
     content: str = Field(..., description="Output content")
@@ -63,13 +51,9 @@ class OutputEvent(BaseEvent):
 
 class ValidationEvent(BaseEvent):
     """Validation result event."""
-    
+
     event_type: str = "validation"
     valid: bool = Field(..., description="Whether validation passed")
     errors: List[Dict[str, Any]] = Field(
-        default_factory=list,
-        description="List of validation errors"
+        default_factory=list, description="List of validation errors"
     )
-
-
-

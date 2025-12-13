@@ -49,7 +49,7 @@ class OutputFieldDeclaration(BaseModel):
 
 class MessageHistoryConfiguration(BaseModel):
     """Message history configuration for agents.
-    
+
     Aligned with pydantic-ai's message_history concept.
     """
 
@@ -125,7 +125,7 @@ class ProcedureRegistry(BaseModel):
     hitl_points: dict[str, HITLDeclaration] = Field(default_factory=dict)
     stages: list[str] = Field(default_factory=list)
     specifications: list[SpecificationDeclaration] = Field(default_factory=list)
-    
+
     # Message history configuration (aligned with pydantic-ai)
     message_history_config: dict[str, Any] = Field(default_factory=dict)
 
@@ -198,7 +198,7 @@ class RegistryBuilder:
     def register_agent(self, name: str, config: dict, output_schema: Optional[dict] = None) -> None:
         """Register an agent declaration."""
         config["name"] = name
-        
+
         # Add output_schema to config if provided
         if output_schema:
             # Convert output_schema dict to AgentOutputSchema
@@ -206,7 +206,7 @@ class RegistryBuilder:
             for field_name, field_config in output_schema.items():
                 fields[field_name] = OutputFieldDeclaration(**field_config)
             config["output_type"] = AgentOutputSchema(fields=fields)
-        
+
         # Apply defaults
         if "provider" not in config and self.registry.default_provider:
             config["provider"] = self.registry.default_provider

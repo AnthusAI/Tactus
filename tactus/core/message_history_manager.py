@@ -20,7 +20,7 @@ from .registry import MessageHistoryConfiguration
 
 class MessageHistoryManager:
     """Manages per-agent message histories with filtering.
-    
+
     Aligned with pydantic-ai's message_history concept - this manager
     maintains the message_history lists that get passed to agent.run_sync().
     """
@@ -38,7 +38,7 @@ class MessageHistoryManager:
     ) -> list[ModelMessage]:
         """
         Get filtered message history for an agent.
-        
+
         This returns the message_history list that will be passed to
         pydantic-ai's agent.run_sync(message_history=...).
 
