@@ -35,6 +35,9 @@ def register_builtin_steps(registry: StepRegistry) -> None:
     # State-related steps
     register_state_steps(registry)
 
+    # Output-related steps
+    register_output_steps(registry)
+
     # Completion steps
     register_completion_steps(registry)
 
@@ -201,6 +204,58 @@ def step_state_contains(context: Any, key: str) -> None:
     """Check if state contains key."""
     exists = context.state_exists(key)
     assert exists, f"State does not contain key '{key}'"
+
+
+# Output-related steps
+
+
+def register_output_steps(registry: StepRegistry) -> None:
+    """Register output-related step definitions."""
+
+    registry.register(r"the output (?P<key>\w+) should be (?P<value>.+)", step_output_equals)
+
+    registry.register(r"the output (?P<key>\w+) should exist", step_output_exists)
+
+    registry.register(r"the output should contain (?P<key>\w+)", step_output_contains)
+
+
+def step_output_equals(context: Any, key: str, value: str) -> None:
+    """Check if output value equals expected."""
+    actual = context.output_get(key)
+    
+    # Handle boolean comparison specially
+    if value.lower() in ("true", "false"):
+        expected_bool = value.lower() == "true"
+        if isinstance(actual, bool):
+            assert actual == expected_bool, f"Output '{key}' is {actual}, expected {expected_bool}"
+        else:
+            actual_str = str(actual).lower()
+            assert actual_str == value.lower(), f"Output '{key}' is '{actual}', expected '{value}'"
+    else:
+        # Try numeric comparison first
+        try:
+            expected_num = float(value)
+            if isinstance(actual, (int, float)):
+                assert actual == expected_num, f"Output '{key}' is {actual}, expected {expected_num}"
+            else:
+                actual_num = float(actual)
+                assert actual_num == expected_num, f"Output '{key}' is {actual_num}, expected {expected_num}"
+        except (ValueError, TypeError):
+            # Fall back to string comparison
+            actual_str = str(actual) if actual is not None else "None"
+            assert actual_str == value, f"Output '{key}' is '{actual_str}', expected '{value}'"
+
+
+def step_output_exists(context: Any, key: str) -> None:
+    """Check if output key exists."""
+    exists = context.output_exists(key)
+    assert exists, f"Output key '{key}' does not exist"
+
+
+def step_output_contains(context: Any, key: str) -> None:
+    """Check if output contains key."""
+    exists = context.output_exists(key)
+    assert exists, f"Output does not contain key '{key}'"
 
 
 # Completion steps

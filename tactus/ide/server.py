@@ -364,6 +364,85 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             logger.error(f"Error validating code: {e}")
             return jsonify({"error": str(e)}), 500
 
+    @app.route("/api/validate/stream", methods=["GET"])
+    def validate_stream():
+        """Validate Tactus code with SSE streaming output."""
+        file_path = request.args.get("path")
+
+        if not file_path:
+            return jsonify({"error": "Missing 'path' parameter"}), 400
+
+        try:
+            # Resolve path within workspace
+            path = _resolve_workspace_path(file_path)
+
+            # Ensure file exists
+            if not path.exists():
+                return jsonify({"error": f"File not found: {file_path}"}), 404
+
+            def generate_events():
+                """Generator function that yields SSE validation events."""
+                try:
+                    import json
+                    from datetime import datetime
+
+                    # Read and validate file
+                    content = path.read_text()
+                    validator = TactusValidator()
+                    result = validator.validate(content)
+
+                    # Emit validation event
+                    validation_event = {
+                        "event_type": "validation",
+                        "valid": result.valid,
+                        "errors": [
+                            {
+                                "message": err.message,
+                                "line": err.location[0] if err.location else None,
+                                "column": err.location[1] if err.location else None,
+                                "severity": err.severity,
+                            }
+                            for err in result.errors
+                        ],
+                        "warnings": [
+                            {
+                                "message": warn.message,
+                                "line": warn.location[0] if warn.location else None,
+                                "column": warn.location[1] if warn.location else None,
+                                "severity": warn.severity,
+                            }
+                            for warn in result.warnings
+                        ],
+                        "timestamp": datetime.utcnow().isoformat() + "Z",
+                    }
+                    yield f"data: {json.dumps(validation_event)}\n\n"
+
+                except Exception as e:
+                    logger.error(f"Error in validation: {e}", exc_info=True)
+                    error_event = {
+                        "event_type": "execution",
+                        "lifecycle_stage": "error",
+                        "timestamp": datetime.utcnow().isoformat() + "Z",
+                        "details": {"error": str(e)},
+                    }
+                    yield f"data: {json.dumps(error_event)}\n\n"
+
+            return Response(
+                stream_with_context(generate_events()),
+                mimetype="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "X-Accel-Buffering": "no",
+                    "Connection": "keep-alive",
+                },
+            )
+
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+        except Exception as e:
+            logger.error(f"Error setting up validation: {e}", exc_info=True)
+            return jsonify({"error": str(e)}), 500
+
     @app.route("/api/run", methods=["POST"])
     def run_procedure():
         """Run a Tactus procedure."""
@@ -664,6 +743,23 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                         }
                         yield f"data: {json.dumps(error_event)}\n\n"
                         return
+
+                    # Clear Behave's global step registry before each test run
+                    # This prevents conflicts when running multiple tests in the same Flask process
+                    try:
+                        from behave import step_registry
+                        # Clear all registered steps (each step_type maps to a list)
+                        step_registry.registry.steps = {
+                            'given': [],
+                            'when': [],
+                            'then': [],
+                            'step': []
+                        }
+                        # Recreate the decorators
+                        from behave.step_registry import setup_step_decorators
+                        setup_step_decorators()
+                    except Exception as e:
+                        logger.warning(f"Could not reset Behave step registry: {e}")
 
                     # Setup test runner
                     mock_tools = {"done": {"status": "ok"}} if mock else None

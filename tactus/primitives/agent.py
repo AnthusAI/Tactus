@@ -11,6 +11,8 @@ from dataclasses import dataclass
 from pydantic_ai import Agent, RunContext, Tool
 from pydantic_ai.models import ModelMessage
 
+from tactus.primitives.result import ResultPrimitive
+
 logger = logging.getLogger(__name__)
 
 
@@ -51,6 +53,9 @@ class AgentPrimitive:
         chat_recorder: Optional[Any] = None,
         result_type: Optional[type] = None,
         model_settings: Optional[Dict[str, Any]] = None,
+        log_handler: Optional[Any] = None,
+        procedure_id: Optional[str] = None,
+        provider: Optional[str] = None,
     ):
         """
         Initialize agent primitive.
@@ -74,6 +79,7 @@ class AgentPrimitive:
         self.name = name
         self.system_prompt_template = system_prompt_template
         self.initial_message = initial_message
+        self.model = model
         self.tool_primitive = tool_primitive
         self.stop_primitive = stop_primitive
         self.iterations_primitive = iterations_primitive
@@ -82,6 +88,10 @@ class AgentPrimitive:
         self.output_schema_guidance = output_schema_guidance
         self.chat_recorder = chat_recorder
         self.result_type = result_type
+        self.log_handler = log_handler
+        self.procedure_id = procedure_id
+        self.provider = provider
+        self.model_settings = model_settings or {}
 
         # Create dependencies
         self.deps = AgentDeps(
@@ -171,7 +181,7 @@ class AgentPrimitive:
             f"AgentPrimitive '{name}' initialized with {len(all_tools)} tools (including 'done')"
         )
 
-    def turn(self) -> Optional[Any]:
+    def turn(self) -> ResultPrimitive:
         """
         Execute one agent turn (synchronous wrapper for async Pydantic AI call).
 
@@ -180,10 +190,10 @@ class AgentPrimitive:
         2. Handles tool calls automatically (Pydantic AI manages this)
         3. Records tool calls via tool_primitive
         4. Updates conversation history
-        5. Returns the final response (text or structured data)
+        5. Returns a ResultPrimitive wrapping pydantic-ai's RunResult
 
         Returns:
-            Final response from agent (text string or dict), or None if error
+            ResultPrimitive with access to data, usage, and messages
         """
         logger.debug(f"Agent '{self.name}' turn() called")
 
@@ -228,13 +238,18 @@ class AgentPrimitive:
             logger.error(f"Agent '{self.name}' turn() failed: {e}", exc_info=True)
             raise
 
-    async def _turn_async(self) -> Optional[Any]:
+    async def _turn_async(self) -> ResultPrimitive:
         """
         Internal async method that performs the actual agent turn.
 
         Returns:
-            Final response from agent (text string or dict), or None if error
+            ResultPrimitive wrapping pydantic-ai's RunResult
         """
+        import time
+        
+        # Track start time for duration measurement
+        start_time = time.time()
+        
         # Prepare input message
         user_input = self.initial_message if not self.message_history else None
         if not user_input:
@@ -256,6 +271,9 @@ class AgentPrimitive:
             result = await self.agent.run(
                 self.initial_message or "Hello", deps=self.deps, output_type=self.result_type
             )
+        
+        # Calculate duration
+        duration_ms = (time.time() - start_time) * 1000
 
         # Update message history
         new_messages = result.new_messages()
@@ -265,27 +283,111 @@ class AgentPrimitive:
         if self.chat_recorder:
             self._record_messages(new_messages)
 
-        # Extract response data
-        if self.result_type:
-            # Structured output - return as dict
-            if hasattr(result.response, "model_dump"):
-                response_data = result.response.model_dump()
-            elif hasattr(result.response, "dict"):
-                response_data = result.response.dict()
-            elif hasattr(result.response, "__dict__"):
-                # Use vars() instead of dict() for objects with __dict__
-                response_data = vars(result.response)
-            else:
-                response_data = result.response
-            logger.debug(f"Agent '{self.name}' returned structured data: {type(response_data)}")
-            return response_data
-        else:
-            # Text output
-            response_text = (
-                result.response if isinstance(result.response, str) else str(result.response)
+        # Wrap result in ResultPrimitive for Lua access
+        result_primitive = ResultPrimitive(result)
+        
+        # Extract all available tracing data
+        tracing_data = result_primitive.extract_tracing_data()
+        
+        # Calculate and log comprehensive cost/metrics
+        if self.log_handler:
+            self._log_cost_event(result_primitive, duration_ms, new_messages, tracing_data)
+        
+        logger.debug(f"Agent '{self.name}' turn completed in {duration_ms:.0f}ms")
+        return result_primitive
+    
+    def _log_cost_event(
+        self,
+        result_primitive: ResultPrimitive,
+        duration_ms: float,
+        new_messages: List[ModelMessage],
+        tracing_data: Dict[str, Any]
+    ):
+        """
+        Log comprehensive cost event with all available metrics.
+        
+        Args:
+            result_primitive: ResultPrimitive with usage data
+            duration_ms: Call duration in milliseconds
+            new_messages: New messages from this turn
+            tracing_data: Additional tracing data from RunResult
+        """
+        from tactus.utils.cost_calculator import CostCalculator
+        from tactus.protocols.models import CostEvent
+        
+        try:
+            # Calculate cost
+            calculator = CostCalculator()
+            usage = result_primitive.usage
+            
+            cost_info = calculator.calculate_cost(
+                model_name=self.model,
+                provider=self.provider,
+                prompt_tokens=usage['prompt_tokens'],
+                completion_tokens=usage['completion_tokens'],
+                cache_tokens=tracing_data.get('usage_cache_tokens')
             )
-            logger.debug(f"Agent '{self.name}' responded: {response_text[:100]}...")
-            return response_text
+            
+            # Extract retry/validation info
+            retry_count = tracing_data.get('retry_count', 0)
+            validation_errors = tracing_data.get('validation_errors', [])
+            if isinstance(validation_errors, str):
+                validation_errors = [validation_errors]
+            
+            # Extract cache info
+            cache_tokens = tracing_data.get('usage_cache_tokens') or tracing_data.get('cache_tokens')
+            cache_hit = cache_tokens is not None and cache_tokens > 0
+            
+            # Create comprehensive cost event
+            cost_event = CostEvent(
+                # Primary metrics
+                agent_name=self.name,
+                model=self.model,
+                provider=cost_info['provider'],
+                prompt_tokens=usage['prompt_tokens'],
+                completion_tokens=usage['completion_tokens'],
+                total_tokens=usage['total_tokens'],
+                prompt_cost=cost_info['prompt_cost'],
+                completion_cost=cost_info['completion_cost'],
+                total_cost=cost_info['total_cost'],
+                
+                # Performance metrics
+                duration_ms=duration_ms,
+                latency_ms=tracing_data.get('latency_ms') or tracing_data.get('time_to_first_token'),
+                
+                # Retry metrics
+                retry_count=retry_count,
+                validation_errors=validation_errors,
+                
+                # Cache metrics
+                cache_hit=cache_hit,
+                cache_tokens=cache_tokens,
+                cache_cost=cost_info.get('cache_cost'),
+                
+                # Message metrics
+                message_count=len(result_primitive.all_messages()),
+                new_message_count=len(new_messages),
+                
+                # Request metadata
+                request_id=tracing_data.get('request_id'),
+                model_version=tracing_data.get('model_version') or tracing_data.get('model_id'),
+                temperature=self.model_settings.get('temperature'),
+                max_tokens=self.model_settings.get('max_tokens'),
+                
+                procedure_id=self.procedure_id,
+                
+                # Raw tracing data
+                raw_tracing_data=tracing_data
+            )
+            
+            self.log_handler.log(cost_event)
+            logger.info(
+                f"💰 Agent '{self.name}' cost: ${cost_info['total_cost']:.6f} "
+                f"({usage['total_tokens']} tokens, {duration_ms:.0f}ms)"
+            )
+            
+        except Exception as e:
+            logger.warning(f"Failed to log cost event: {e}", exc_info=True)
 
     def _record_messages(self, messages: List[ModelMessage]):
         """Record messages in chat recorder if available."""

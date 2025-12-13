@@ -74,25 +74,59 @@ def create_dsl_stubs(builder: RegistryBuilder) -> dict[str, Callable]:
     executing the .tac file.
     """
 
-    def _description(value: str) -> None:
-        """Set procedure description."""
-        builder.set_description(value)
-
-    def _parameter(param_name: str, config=None) -> None:
-        """Register a parameter."""
-        builder.register_parameter(param_name, lua_table_to_dict(config or {}))
-
-    def _output(output_name: str, config=None) -> None:
-        """Register an output field."""
-        builder.register_output(output_name, lua_table_to_dict(config or {}))
 
     def _agent(agent_name: str, config) -> None:
-        """Register an agent."""
-        builder.register_agent(agent_name, lua_table_to_dict(config))
+        """Register an agent with its configuration."""
+        config_dict = lua_table_to_dict(config)
+        
+        # Extract output schema if present (support both 'output' and 'output_type')
+        # output_type is preferred (aligned with pydantic-ai)
+        output_schema = None
+        if "output_type" in config_dict:
+            output_config = config_dict["output_type"]
+            if isinstance(output_config, dict):
+                output_schema = output_config
+        elif "output" in config_dict:
+            output_config = config_dict["output"]
+            if isinstance(output_config, dict):
+                output_schema = output_config
+        
+        builder.register_agent(agent_name, config_dict, output_schema)
 
-    def _procedure(lua_function) -> None:
-        """Store procedure function for later execution."""
-        builder.set_procedure(lua_function)
+    def _procedure(config_or_fn, fn=None) -> None:
+        """
+        Store procedure function for later execution.
+        
+        Supports two syntaxes:
+        1. New: procedure({params = {...}, outputs = {...}, message_history = {...}}, function() ... end)
+        2. Old: procedure(function() ... end)
+        """
+        if fn is None:
+            # Old syntax: procedure(function)
+            builder.set_procedure(config_or_fn)
+        else:
+            # New syntax: procedure(config, function)
+            config = lua_table_to_dict(config_or_fn)
+            
+            # Extract and register params
+            if "params" in config:
+                for param_name, param_config in config["params"].items():
+                    builder.register_parameter(param_name, param_config)
+            
+            # Extract and register outputs
+            if "outputs" in config:
+                for output_name, output_config in config["outputs"].items():
+                    # Add the name to the config for registration
+                    output_config_with_name = dict(output_config)
+                    output_config_with_name["name"] = output_name
+                    builder.register_output(output_name, output_config_with_name)
+            
+            # Extract and register message_history config (aligned with pydantic-ai)
+            if "message_history" in config:
+                builder.set_message_history_config(config["message_history"])
+            
+            # Store the procedure function
+            builder.set_procedure(fn)
 
     def _prompt(prompt_name: str, content: str) -> None:
         """Register a prompt template."""
@@ -194,8 +228,6 @@ def create_dsl_stubs(builder: RegistryBuilder) -> dict[str, Callable]:
     return {
         # Core declarations
         # Component declarations
-        "parameter": _parameter,
-        "output": _output,
         "agent": _agent,
         "procedure": _procedure,
         "prompt": _prompt,

@@ -21,13 +21,7 @@ Here's a complete working example that demonstrates the core concepts of Tactus.
 Create a file `hello.tac`:
 
 ```lua
--- Define typed parameters with defaults
-parameter("name", {
-  type = "string",
-  default = "World"
-})
-
--- 1. Define the Agent and its Tools
+-- 1. Define the Agent and its Tools (at top level - reusable)
 agent("greeter", {
   provider = "openai",
   model = "gpt-4o-mini",
@@ -45,8 +39,28 @@ agent("greeter", {
   tools = {"done"}
 })
 
--- 2. Define the Orchestration Logic (Lua)
-procedure(function()
+-- 2. Define the Procedure with Parameters and Outputs
+procedure({
+  -- Parameters (inputs to the procedure)
+  params = {
+    name = {
+      type = "string",
+      default = "World"
+    }
+  },
+  
+  -- Outputs (validated return values)
+  outputs = {
+    completed = {
+      type = "boolean",
+      required = true
+    },
+    greeting = {
+      type = "string",
+      required = true
+    }
+  }
+}, function()
   -- Loop until the agent decides to use the 'done' tool
   repeat
     Greeter.turn()  -- Give the agent a turn to think and act
@@ -68,7 +82,8 @@ Feature: Greeting Workflow
     When the greeter agent takes turns
     Then the done tool should be called exactly once
     And the procedure should complete successfully
-    And the result should have field "completed" equal to true
+    And the output completed should be True
+    And the output greeting should exist
 ]])
 ```
 
@@ -102,15 +117,19 @@ This runs the test 10 times and reports success rate and consistency metrics, he
 
 **What's happening here:**
 
-1. **Parameters** (`params`): Define typed inputs with defaults. These can be overridden at runtime and are available in templates as `{params.name}`.
+1. **Agents** (top level): Define reusable agents with models, prompts, and tools. When you define an agent named `greeter`, the primitive `Greeter.turn()` becomes available in Lua.
 
-2. **Agents** (`agents`): Each agent has a model, system prompt, and tools. When you define an agent named `greeter`, the primitive `Greeter.turn()` becomes available in Lua.
+2. **Procedure** with config: Takes two arguments:
+   - **Config table**: Contains `params` (inputs) and `outputs` (validated return values)
+   - **Function**: Your workflow logic in Lua with explicit control flow
 
-3. **Procedure** (`procedure`): This is your workflow logic in Lua. You control the flow explicitly—loops, conditionals, error handling—while the agent handles the intelligence within each turn.
+3. **Parameters** (`params`): Define typed inputs with defaults. These can be overridden at runtime and are available in templates as `{params.name}`.
 
-4. **Specifications** (`specifications`): Gherkin BDD tests that verify your agent's behavior. These are first-class citizens in Tactus—you can run them with `tactus test` or evaluate consistency with `tactus evaluate`.
+4. **Outputs** (`outputs`): Define the structure of return values. Tactus validates that your procedure returns the declared fields with correct types.
 
-This separation of concerns is key: **you control the workflow structure, the agent handles the decision-making within that structure, and specifications ensure it works correctly.**
+5. **Specifications** (`specifications`): Gherkin BDD tests that verify your agent's behavior. These are first-class citizens in Tactus—you can run them with `tactus test` or evaluate consistency with `tactus evaluate`.
+
+**Key insight:** Parameters and outputs are defined *inside* the procedure config because they belong to the procedure. Agents are defined at the top level because they're reusable across procedures.
 
 ## Key Features
 
@@ -179,27 +198,33 @@ Parameters in Tactus are more than just variables—they form a **contract** def
 This separation means your agent logic remains the same, while the interface adapts to where it's running.
 
 ```lua
-parameter("topic", {
-  type = "string",
-  required = true,
-  description = "The topic to research"
-})
-
-parameter("depth", {
-  type = "string",
-  enum = {"shallow", "deep"},
-  default = "shallow"
-})
-
-parameter("max_results", {
-  type = "number",
-  default = 10
-})
-
-parameter("include_sources", {
-  type = "boolean",
-  default = true
-})
+procedure({
+  params = {
+    topic = {
+      type = "string",
+      required = true,
+      description = "The topic to research"
+    },
+    depth = {
+      type = "string",
+      enum = {"shallow", "deep"},
+      default = "shallow"
+    },
+    max_results = {
+      type = "number",
+      default = 10
+    },
+    include_sources = {
+      type = "boolean",
+      default = true
+    }
+  }
+}, function()
+  -- Access parameters
+  local topic = params.topic
+  local depth = params.depth
+  -- ...
+end)
 ```
 
 Parameters are accessed in templates as `{params.topic}` and in Lua as `params.topic`.
@@ -474,6 +499,54 @@ Then reference them in your procedure:
 local approved = Human.approve("confirm_publish")
 ```
 
+### Cost Tracking & Metrics
+
+Tactus provides **comprehensive cost and performance tracking** for all LLM calls. Every agent interaction is monitored with detailed metrics, giving you complete visibility into costs, performance, and behavior.
+
+**Real-time cost reporting:**
+
+```
+💰 Cost researcher: $0.000375 (250 tokens, gpt-4o-mini, 1.2s)
+💰 Cost summarizer: $0.000750 (500 tokens, gpt-4o, 2.1s)
+
+✓ Procedure completed: 2 iterations, 3 tools used
+
+💰 Cost Summary
+  Total Cost: $0.001125
+  Total Tokens: 750
+  
+  Per-call breakdown:
+    researcher: $0.000375 (250 tokens, 1.2s)
+    summarizer: $0.000750 (500 tokens, 2.1s)
+```
+
+**Comprehensive metrics tracked:**
+
+- **Cost**: Prompt cost, completion cost, total cost (calculated from model pricing)
+- **Tokens**: Prompt tokens, completion tokens, total tokens, cached tokens
+- **Performance**: Duration, latency (time to first token)
+- **Reliability**: Retry count, validation errors
+- **Efficiency**: Cache hits, cache savings
+- **Context**: Message count, new messages per turn
+- **Metadata**: Request ID, model version, temperature, max tokens
+
+**Visibility everywhere:**
+
+- **CLI**: Real-time cost logging per call + summary at end
+- **IDE**: Collapsible cost events with primary metrics visible, detailed metrics expandable
+- **Tests**: Cost tracking during test runs
+- **Evaluations**: Aggregate costs across multiple runs
+
+**Collapsible IDE display:**
+
+The IDE shows a clean summary by default (agent, cost, tokens, model, duration) with a single click to expand full details including cost breakdown, performance metrics, retry information, cache statistics, and request metadata.
+
+This helps you:
+- **Optimize costs**: Identify expensive agents and calls
+- **Debug performance**: Track latency and duration issues
+- **Monitor reliability**: See retry patterns and validation failures
+- **Measure efficiency**: Track cache hit rates and savings
+
 ### Gherkin BDD Testing
 
 Tactus has **first-class support for behavior-driven testing** using Gherkin syntax. Write natural language specifications directly in your procedure files:
@@ -613,6 +686,7 @@ These frameworks are valuable if you're committed to a specific vendor's ecosyst
 - **Multi-Provider Support**: Use OpenAI and AWS Bedrock models in the same workflow
 - **Multi-Model Support**: Different agents can use different models (GPT-4o, Claude, etc.)
 - **Human-in-the-Loop**: Built-in support for human approval, input, and review
+- **Cost & Performance Tracking**: Granular tracking of costs, tokens, latency, retries, cache usage, and comprehensive metrics per agent and procedure
 - **BDD Testing**: First-class Gherkin specifications for testing agent behavior
 - **Asynchronous Execution**: Native async I/O for efficient LLM workflows
 - **Context Engineering**: Fine-grained control over conversation history per agent
@@ -653,19 +727,21 @@ result = await runtime.execute(yaml_config, context)
 ## CLI Commands
 
 ```bash
-# Run a workflow
+# Run a workflow (displays real-time cost tracking and summary)
 tactus run workflow.tac
 tactus run workflow.tac --param task="Analyze data"
 
 # Validate a workflow
 tactus validate workflow.tac
 
-# Test a workflow (run Gherkin specifications)
+# Test a workflow (run Gherkin specifications with cost tracking)
 tactus test workflow.tac
 
-# Evaluate consistency across multiple runs
+# Evaluate consistency across multiple runs (includes cost metrics)
 tactus evaluate workflow.tac --runs 10
 ```
+
+All commands that execute workflows display comprehensive cost and performance metrics, including per-call costs, total costs, token usage, and timing information.
 
 ## Tactus IDE
 

@@ -254,28 +254,33 @@ export const App: React.FC = () => {
 
   // Validate current file
   const handleValidate = useCallback(async () => {
-    if (!fileContent) return;
+    if (!currentFile) {
+      alert('Please select a file to validate');
+      return;
+    }
+
+    // Clear old results
+    setRunResult(null);
+    setValidationResult(null);
 
     try {
-      const response = await fetch(apiUrl('/api/validate'), {
+      // First, save the file content
+      await fetch(apiUrl('/api/file'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          path: currentFile,
           content: fileContent,
-          path: currentFile || 'untitled.tac',
         }),
       });
 
-      if (response.ok) {
-        const result = await response.json();
-        setValidationResult(result);
-      } else {
-        console.error('Error validating:', await response.text());
-      }
+      // Then start streaming validation results
+      const url = apiUrl(`/api/validate/stream?path=${encodeURIComponent(currentFile)}`);
+      setStreamUrl(url);
     } catch (error) {
       console.error('Error validating:', error);
     }
-  }, [fileContent, currentFile]);
+  }, [currentFile, fileContent]);
 
   // Run current file with streaming
   const handleRun = useCallback(async () => {

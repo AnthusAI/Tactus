@@ -18,9 +18,14 @@ from tactus.primitives.file import FilePrimitive
 from tactus.primitives.human import HumanPrimitive
 from tactus.primitives.agent import AgentPrimitive
 
+# MessageHistory primitive is now available
+from tactus.primitives.message_history import MessageHistoryPrimitive
+
+# Result primitive is now available
+from tactus.primitives.result import ResultPrimitive
+
 # These will be imported when their dependencies are ready
 # from tactus.primitives.system import SystemPrimitive
-# from tactus.primitives.session import SessionPrimitive
 # from tactus.primitives.procedure import ProcedurePrimitive
 # from tactus.primitives.graph import GraphNodePrimitive
 
@@ -33,6 +38,8 @@ __all__ = [
     "LogPrimitive",
     "StepPrimitive",
     "CheckpointPrimitive",
+    "MessageHistoryPrimitive",
+    "ResultPrimitive",
     "StagePrimitive",
     "JsonPrimitive",
     "RetryPrimitive",

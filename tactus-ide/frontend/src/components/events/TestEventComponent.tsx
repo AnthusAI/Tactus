@@ -71,22 +71,39 @@ export const TestCompletedEventComponent: React.FC<{ event: TestCompletedEvent }
         </div>
       </div>
       
-      {/* Show failed scenarios with details */}
+      {/* Show failed/error scenarios with details */}
       {result.features.map((feature, fi) => (
         <div key={fi} className="mt-3">
-          {feature.scenarios.filter(s => s.status === 'failed').map((scenario, si) => (
+          {feature.scenarios.filter(s => s.status === 'failed' || s.status === 'error').map((scenario, si) => (
             <div key={si} className="mt-2 p-2 bg-background/50 rounded text-xs">
-              <div className="font-medium text-red-400 mb-1">{scenario.name}</div>
-              {scenario.steps.filter(step => step.status === 'failed').map((step, sti) => (
-                <div key={sti} className="ml-2 text-muted-foreground">
-                  <span className="text-red-400">✗</span> {step.keyword} {step.text}
-                  {step.error_message && (
-                    <div className="ml-4 text-xs text-red-400/80 mt-0.5">
-                      {step.error_message}
-                    </div>
-                  )}
-                </div>
-              ))}
+              <div className="font-medium text-red-400 mb-1">
+                {scenario.name}
+                <span className="ml-2 text-xs text-red-300">({scenario.status})</span>
+              </div>
+              {/* Show all steps with their status */}
+              {scenario.steps.map((step, sti) => {
+                const isFailed = step.status === 'failed' || step.status === 'error';
+                const isUndefined = step.status === 'undefined';
+                const isSkipped = step.status === 'skipped';
+                
+                return (
+                  <div key={sti} className={`ml-2 ${isFailed || isUndefined ? 'text-red-300' : isSkipped ? 'text-muted-foreground/50' : 'text-muted-foreground'}`}>
+                    <span className={isFailed ? 'text-red-400' : isUndefined ? 'text-yellow-400' : isSkipped ? 'text-gray-500' : 'text-green-400'}>
+                      {isFailed ? '✗' : isUndefined ? '?' : isSkipped ? '○' : '✓'}
+                    </span> {step.keyword} {step.text}
+                    {step.error_message && (
+                      <div className="ml-4 text-xs text-red-400/80 mt-0.5 whitespace-pre-wrap">
+                        {step.error_message}
+                      </div>
+                    )}
+                    {isUndefined && (
+                      <div className="ml-4 text-xs text-yellow-400/80 mt-0.5">
+                        Step not implemented
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           ))}
         </div>

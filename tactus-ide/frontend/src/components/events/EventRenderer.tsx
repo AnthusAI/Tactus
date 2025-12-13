@@ -1,6 +1,7 @@
 import React from 'react';
 import { AnyEvent } from '@/types/events';
 import { LogEventComponent } from './LogEventComponent';
+import { CostEventComponent } from './CostEventComponent';
 import { ExecutionEventComponent } from './ExecutionEventComponent';
 import { OutputEventComponent } from './OutputEventComponent';
 import { ValidationEventComponent } from './ValidationEventComponent';
@@ -24,6 +25,8 @@ export const EventRenderer: React.FC<EventRendererProps> = ({ event }) => {
   switch (event.event_type) {
     case 'log':
       return <LogEventComponent event={event} />;
+    case 'cost':
+      return <CostEventComponent event={event} />;
     case 'execution':
       return <ExecutionEventComponent event={event} />;
     case 'execution_summary':

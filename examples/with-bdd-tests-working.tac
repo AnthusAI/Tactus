@@ -1,21 +1,6 @@
 -- Working example of Tactus procedure with BDD specifications
 -- This example uses simple state manipulation and can be tested with mocked tools
 
--- Parameters
-parameter("count", {
-  type = "number",
-  required = false,
-  default = 3,
-  description = "Number of iterations to perform"
-})
-
--- Outputs
-output("result", {
-  type = "string",
-  required = true,
-  description = "Final result message"
-})
-
 -- Agent definition (will be mocked in tests)
 agent("worker", {
   provider = "openai",
@@ -27,8 +12,24 @@ agent("worker", {
 -- Stages
 stages({"initializing", "working", "complete"})
 
--- Main procedure
-procedure(function()
+-- Procedure with parameters and outputs defined inline
+procedure({
+    params = {
+        count = {
+            type = "number",
+            required = false,
+            default = 3,
+            description = "Number of iterations to perform"
+        },
+    },
+    outputs = {
+        result = {
+            type = "string",
+            required = true,
+            description = "Final result message"
+        },
+    }
+}, function()
   -- Initialize
   Stage.set("initializing")
   State.set("counter", 0)

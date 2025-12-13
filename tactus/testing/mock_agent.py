@@ -53,12 +53,15 @@ class MockAgentPrimitive:
             # Check if it's a MockedToolPrimitive (takes 2 args) or regular (takes 3 args)
             from tactus.testing.mock_tools import MockedToolPrimitive
 
+            # Provide a mock greeting message that procedures might expect
+            mock_args = {"reason": f"Mock greeting from {self.name}"}
+
             if isinstance(self.tool_primitive, MockedToolPrimitive):
                 # MockedToolPrimitive.record_call(tool_name, args) -> returns result
-                self.tool_primitive.record_call("done", {})
+                self.tool_primitive.record_call("done", mock_args)
             else:
                 # Regular ToolPrimitive.record_call(tool_name, args, result)
-                self.tool_primitive.record_call("done", {}, {"status": "mocked"})
+                self.tool_primitive.record_call("done", mock_args, {"status": "mocked"})
 
         return None
 

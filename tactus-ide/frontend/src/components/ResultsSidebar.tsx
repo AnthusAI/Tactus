@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, ChevronUp, X, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, X, Loader2, Copy, Check } from 'lucide-react';
 import { AnyEvent, LogEvent } from '@/types/events';
 import { EventRenderer } from './events/EventRenderer';
 import { LogCluster } from './events/LogCluster';
+import { exportEventsForAI } from '@/utils/exportForAI';
 
 interface ResultsSidebarProps {
   events: AnyEvent[];
@@ -46,6 +47,7 @@ export const ResultsSidebar: React.FC<ResultsSidebarProps> = ({ events, isRunnin
   const [showFullLogs, setShowFullLogs] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+  const [copied, setCopied] = useState(false);
 
   // Cluster events
   const clusteredEvents = useMemo(() => clusterEvents(events), [events]);
@@ -81,6 +83,17 @@ export const ResultsSidebar: React.FC<ResultsSidebarProps> = ({ events, isRunnin
     return 'Ready';
   };
 
+  const handleCopyForAI = async () => {
+    const exportedData = exportEventsForAI(events);
+    try {
+      await navigator.clipboard.writeText(exportedData);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full">
       {/* Toolbar */}
@@ -94,6 +107,17 @@ export const ResultsSidebar: React.FC<ResultsSidebarProps> = ({ events, isRunnin
           >
             {showFullLogs ? <ChevronUp className="h-3 w-3 mr-1" /> : <ChevronDown className="h-3 w-3 mr-1" />}
             Show Full Logs
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleCopyForAI}
+            className="h-6 text-xs"
+            disabled={events.length === 0}
+            title="Copy results in AI-comprehensible format (YAML)"
+          >
+            {copied ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
+            {copied ? 'Copied!' : 'Copy for AI'}
           </Button>
           <Button
             variant="ghost"

@@ -20,7 +20,88 @@ The Procedure DSL enables defining agentic workflows as configuration. It combin
 
 ---
 
-## Document Structure
+## Lua DSL Format (.tac files)
+
+**Recommended format** for defining procedures. Lua DSL provides better cohesion by grouping parameters and outputs with the procedure logic.
+
+```lua
+-- Agents are defined at top level (reusable across procedures)
+agent("worker", {
+    provider = "openai",
+    model = "gpt-4o",
+    system_prompt = "You are a helpful assistant",
+    tools = {"done"}
+})
+
+-- Stages (optional)
+stages({"planning", "executing", "complete"})
+
+-- Procedure with parameters and outputs defined inline
+procedure({
+    -- Parameters (inputs to the procedure)
+    params = {
+        task = {
+            type = "string",
+            required = true,
+            description = "The task to perform"
+        },
+        max_iterations = {
+            type = "number",
+            default = 10
+        }
+    },
+    
+    -- Outputs (validated return values)
+    outputs = {
+        result = {
+            type = "string",
+            required = true,
+            description = "The result of the task"
+        },
+        success = {
+            type = "boolean",
+            required = true
+        }
+    }
+}, function()
+    -- Procedure logic here
+    local task = params.task
+    Log.info("Starting task", {task = task})
+    
+    repeat
+        Worker.turn()
+    until Tool.called("done") or Iterations.exceeded(params.max_iterations)
+    
+    return {
+        result = "Task completed",
+        success = true
+    }
+end)
+
+-- BDD Specifications (optional)
+specifications([[
+Feature: Task Processing
+  Scenario: Task completes successfully
+    Given the procedure has started
+    When the procedure runs
+    Then the done tool should be called
+    And the procedure should complete successfully
+]])
+```
+
+**Key structure:**
+- **Agents** at top level (reusable)
+- **procedure()** takes two arguments:
+  1. Config table with `params` and `outputs`
+  2. Function containing the procedure logic
+- **Parameters** and **outputs** are defined inside the procedure config, not at top level
+- **specifications()** at top level for BDD tests
+
+---
+
+## YAML Format (Legacy)
+
+The original YAML format is still supported for backward compatibility:
 
 ```yaml
 name: procedure_name
@@ -95,11 +176,47 @@ procedure: |
   -- Lua code
 ```
 
+**Note:** The YAML format is maintained for backward compatibility but the Lua DSL format (.tac files) is recommended for new procedures.
+
 ---
 
 ## Parameters
 
 Parameter schema defines what the procedure accepts. Validated before execution.
+
+**Lua DSL format (.tac):**
+
+```lua
+procedure({
+    params = {
+        topic = {
+            type = "string",
+            required = true,
+            description = "The topic to research"
+        },
+        depth = {
+            type = "string",
+            enum = {"shallow", "deep"},
+            default = "shallow"
+        },
+        max_results = {
+            type = "number",
+            default = 10
+        },
+        include_sources = {
+            type = "boolean",
+            default = true
+        }
+    }
+}, function()
+    -- Access parameters
+    local topic = params.topic
+    local depth = params.depth
+    -- ...
+end)
+```
+
+**YAML format (legacy):**
 
 ```yaml
 params:
@@ -132,6 +249,38 @@ Parameters are accessed in templates as `{params.topic}` and in Lua as `params.t
 
 Output schema defines what the procedure returns. Validated after execution.
 
+**Lua DSL format (.tac):**
+
+```lua
+procedure({
+    outputs = {
+        findings = {
+            type = "string",
+            required = true,
+            description = "Research findings summary"
+        },
+        confidence = {
+            type = "string",
+            enum = {"high", "medium", "low"},
+            required = true
+        },
+        sources = {
+            type = "array",
+            required = false
+        }
+    }
+}, function()
+    -- Procedure logic
+    return {
+        findings = "...",
+        confidence = "high",
+        sources = {...}
+    }
+end)
+```
+
+**YAML format (legacy):**
+
 ```yaml
 outputs:
   findings:
@@ -149,12 +298,178 @@ outputs:
     required: false
 ```
 
-When `outputs:` is present:
+When `outputs` is present:
 1. Required fields are validated to exist
 2. Types are checked
 3. Only declared fields are returned (internal data stripped)
 
-When `outputs:` is omitted, the procedure can return anything without validation.
+When `outputs` is omitted, the procedure can return anything without validation.
+
+---
+
+## Message History Configuration
+
+Message history configuration controls how conversation history is managed across agents.
+
+**Aligned with pydantic-ai:** This maps directly to pydantic-ai's `message_history` parameter that gets passed to `agent.run_sync(message_history=...)`.
+
+**Lua DSL format (.tac):**
+
+```lua
+procedure({
+    message_history = {
+        mode = "isolated",  -- or "shared"
+        max_tokens = 120000,
+        filter = filters.last_n(50)
+    }
+}, function()
+    -- Access message history via MessageHistory primitive
+    MessageHistory.inject_system("Context for next turn")
+    local history = MessageHistory.get()
+end)
+```
+
+**Message history modes:**
+- `isolated` (default): Each agent has its own conversation history
+- `shared`: All agents share a common conversation history
+
+**Message history filters:**
+- `filters.last_n(n)` - Keep only last N messages
+- `filters.token_budget(max)` - Keep messages within token budget
+- `filters.by_role(role)` - Filter by message role
+- `filters.compose(...)` - Combine multiple filters
+
+**Agent-level overrides:**
+
+Agents can override procedure-level message history settings:
+
+```lua
+agent("researcher", {
+    provider = "openai",
+    model = "gpt-4o",
+    system_prompt = "Research the topic",
+    tools = {"search", "done"},
+    
+    message_history = {
+        source = "shared",  -- Use shared history
+        filter = filters.compose(
+            filters.token_budget(80000),
+            filters.last_n(20)
+        )
+    }
+})
+```
+
+**YAML format (legacy):**
+
+Message history configuration is not supported in YAML format. Use Lua DSL for message history management.
+
+---
+
+## Structured Output (output_type)
+
+Agents can enforce structured output schemas using `output_type`, aligned with pydantic-ai's validation and automatic retry.
+
+**Lua DSL format (.tac):**
+
+```lua
+agent("extractor", {
+    provider = "openai",
+    model = "gpt-4o",
+    system_prompt = "Extract structured data from user input",
+    tools = {"done"},
+    
+    -- Define structured output schema (aligned with pydantic-ai's output_type)
+    output_type = {
+        name = {type = "string", required = true},
+        age = {type = "number", required = true},
+        email = {type = "string", required = false}
+    }
+})
+```
+
+**Supported types:**
+- `string` / `str` - Text data
+- `number` / `float` - Floating point numbers
+- `integer` / `int` - Whole numbers
+- `boolean` / `bool` - True/false values
+- `object` / `dict` - Nested objects
+- `array` / `list` - Lists of items
+
+**Validation behavior:**
+
+When `output_type` is specified, pydantic-ai automatically:
+1. Validates the LLM's response against the schema
+2. Retries if the response doesn't match the schema
+3. Provides error feedback to the LLM for correction
+
+This ensures type-safe, structured outputs from agents.
+
+**YAML format (legacy):**
+
+Structured output is not supported in YAML format. Use Lua DSL with `output_type`.
+
+---
+
+## Result Object
+
+`Agent.turn()` returns a `Result` object (not raw data) with access to response data, token usage, and conversation history.
+
+**Aligned with pydantic-ai:** The Result object wraps pydantic-ai's `RunResult` and provides Lua-accessible properties.
+
+**Properties:**
+- `result.data` - The response (text string or structured data dict)
+- `result.usage` - Token usage stats (prompt_tokens, completion_tokens, total_tokens)
+
+**Methods:**
+- `result.new_messages()` - Messages from this turn only
+- `result.all_messages()` - Full conversation history
+- `result.cost()` - Token usage (same as .usage, for cost calculation)
+
+**Example:**
+
+```lua
+procedure({}, function()
+    local result = Agent.turn()
+    
+    -- Access response data
+    Log.info("Response", {data = result.data})
+    
+    -- Access token usage
+    Log.info("Tokens used", {
+        prompt = result.usage.prompt_tokens,
+        completion = result.usage.completion_tokens,
+        total = result.usage.total_tokens
+    })
+    
+    -- Access messages
+    local messages = result.new_messages()
+    for i, msg in ipairs(messages) do
+        Log.info("Message", {role = msg.role, content = msg.content})
+    end
+end)
+```
+
+**With structured output:**
+
+```lua
+agent("extractor", {
+    output_type = {
+        city = {type = "string", required = true},
+        country = {type = "string", required = true}
+    }
+})
+
+procedure({}, function()
+    local result = Extractor.turn()
+    
+    -- Access structured data fields
+    Log.info("Extracted", {
+        city = result.data.city,
+        country = result.data.country
+    })
+end)
+```
 
 ---
 

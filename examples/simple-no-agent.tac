@@ -1,32 +1,32 @@
 -- Simple Tactus procedure without agents for BDD testing
 -- This example uses only state and stage primitives, no LLM calls required
 
--- Parameters
-parameter("target_count", {
-  type = "number",
-  required = false,
-  default = 5,
-  description = "Target counter value"
-})
-
--- Outputs
-output("final_count", {
-  type = "number",
-  required = true,
-  description = "Final counter value"
-})
-
-output("message", {
-  type = "string",
-  required = true,
-  description = "Status message"
-})
-
 -- Stages
 stages({"start", "middle", "end"})
 
--- Main procedure (doesn't use the agent!)
-procedure(function()
+-- Procedure with parameters and outputs defined inline
+procedure({
+    params = {
+        target_count = {
+            type = "number",
+            required = false,
+            default = 5,
+            description = "Target counter value"
+        },
+    },
+    outputs = {
+        final_count = {
+            type = "number",
+            required = true,
+            description = "Final counter value"
+        },
+        message = {
+            type = "string",
+            required = true,
+            description = "Status message"
+        },
+    }
+}, function()
   -- Initialize
   Stage.set("start")
   State.set("counter", 0)

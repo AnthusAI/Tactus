@@ -1,23 +1,7 @@
--- Migrated from .tyml format to .tactus
+-- State Management Example
+-- Demonstrates setting, getting, and incrementing state values
 
--- Outputs
-output("success", {
-    type = "boolean",
-    required = true,
-    description = "Whether the workflow completed successfully",
-})
-output("message", {
-    type = "string",
-    required = true,
-    description = "Status message",
-})
-output("count", {
-    type = "number",
-    required = true,
-    description = "Final count of processed items",
-})
-
--- Agents
+-- Agents (defined at top level - reusable across procedures)
 agent("worker", {
     provider = "openai",
     system_prompt = "A simple worker agent",
@@ -25,11 +9,26 @@ agent("worker", {
     tools = {},
 })
 
--- Procedure
-procedure(function()
-    -- State Management Example
-    -- Demonstrates setting, getting, and incrementing state values
-
+-- Procedure with outputs defined inline
+procedure({
+    outputs = {
+        success = {
+            type = "boolean",
+            required = true,
+            description = "Whether the workflow completed successfully",
+        },
+        message = {
+            type = "string",
+            required = true,
+            description = "Status message",
+        },
+        count = {
+            type = "number",
+            required = true,
+            description = "Final count of processed items",
+        },
+    }
+}, function()
     Log.info("Starting state management example")
 
     -- Initialize state
@@ -50,7 +49,6 @@ procedure(function()
       message = "State management example completed successfully",
       count = final_count
     }
-
 end)
 
 -- BDD Specifications
