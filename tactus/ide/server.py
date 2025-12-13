@@ -748,15 +748,17 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                     # This prevents conflicts when running multiple tests in the same Flask process
                     try:
                         from behave import step_registry
+
                         # Clear all registered steps (each step_type maps to a list)
                         step_registry.registry.steps = {
-                            'given': [],
-                            'when': [],
-                            'then': [],
-                            'step': []
+                            "given": [],
+                            "when": [],
+                            "then": [],
+                            "step": [],
                         }
                         # Recreate the decorators
                         from behave.step_registry import setup_step_decorators
+
                         setup_step_decorators()
                     except Exception as e:
                         logger.warning(f"Could not reset Behave step registry: {e}")

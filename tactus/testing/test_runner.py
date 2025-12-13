@@ -126,7 +126,7 @@ class TactusTestRunner:
     def _run_single_scenario(scenario_name: str, work_dir: str) -> ScenarioResult:
         """
         Run a single scenario (called in subprocess).
-        
+
         Note: Clears Behave's global step registry to prevent conflicts
         when running multiple tests in the same process.
 

@@ -234,7 +234,9 @@ class TactusTestContext:
             if "outputs" in self.execution_result:
                 return self.execution_result["outputs"].get(key)
             # Otherwise check in the result dict (procedure return value)
-            if "result" in self.execution_result and isinstance(self.execution_result["result"], dict):
+            if "result" in self.execution_result and isinstance(
+                self.execution_result["result"], dict
+            ):
                 return self.execution_result["result"].get(key)
         return None
 
@@ -245,7 +247,9 @@ class TactusTestContext:
             if "outputs" in self.execution_result:
                 return key in self.execution_result["outputs"]
             # Otherwise check in the result dict (procedure return value)
-            if "result" in self.execution_result and isinstance(self.execution_result["result"], dict):
+            if "result" in self.execution_result and isinstance(
+                self.execution_result["result"], dict
+            ):
                 return key in self.execution_result["result"]
         return False
 

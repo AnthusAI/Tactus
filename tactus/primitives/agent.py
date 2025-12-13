@@ -246,10 +246,10 @@ class AgentPrimitive:
             ResultPrimitive wrapping pydantic-ai's RunResult
         """
         import time
-        
+
         # Track start time for duration measurement
         start_time = time.time()
-        
+
         # Prepare input message
         user_input = self.initial_message if not self.message_history else None
         if not user_input:
@@ -271,7 +271,7 @@ class AgentPrimitive:
             result = await self.agent.run(
                 self.initial_message or "Hello", deps=self.deps, output_type=self.result_type
             )
-        
+
         # Calculate duration
         duration_ms = (time.time() - start_time) * 1000
 
@@ -285,27 +285,27 @@ class AgentPrimitive:
 
         # Wrap result in ResultPrimitive for Lua access
         result_primitive = ResultPrimitive(result)
-        
+
         # Extract all available tracing data
         tracing_data = result_primitive.extract_tracing_data()
-        
+
         # Calculate and log comprehensive cost/metrics
         if self.log_handler:
             self._log_cost_event(result_primitive, duration_ms, new_messages, tracing_data)
-        
+
         logger.debug(f"Agent '{self.name}' turn completed in {duration_ms:.0f}ms")
         return result_primitive
-    
+
     def _log_cost_event(
         self,
         result_primitive: ResultPrimitive,
         duration_ms: float,
         new_messages: List[ModelMessage],
-        tracing_data: Dict[str, Any]
+        tracing_data: Dict[str, Any],
     ):
         """
         Log comprehensive cost event with all available metrics.
-        
+
         Args:
             result_primitive: ResultPrimitive with usage data
             duration_ms: Call duration in milliseconds
@@ -314,78 +314,74 @@ class AgentPrimitive:
         """
         from tactus.utils.cost_calculator import CostCalculator
         from tactus.protocols.models import CostEvent
-        
+
         try:
             # Calculate cost
             calculator = CostCalculator()
             usage = result_primitive.usage
-            
+
             cost_info = calculator.calculate_cost(
                 model_name=self.model,
                 provider=self.provider,
-                prompt_tokens=usage['prompt_tokens'],
-                completion_tokens=usage['completion_tokens'],
-                cache_tokens=tracing_data.get('usage_cache_tokens')
+                prompt_tokens=usage["prompt_tokens"],
+                completion_tokens=usage["completion_tokens"],
+                cache_tokens=tracing_data.get("usage_cache_tokens"),
             )
-            
+
             # Extract retry/validation info
-            retry_count = tracing_data.get('retry_count', 0)
-            validation_errors = tracing_data.get('validation_errors', [])
+            retry_count = tracing_data.get("retry_count", 0)
+            validation_errors = tracing_data.get("validation_errors", [])
             if isinstance(validation_errors, str):
                 validation_errors = [validation_errors]
-            
+
             # Extract cache info
-            cache_tokens = tracing_data.get('usage_cache_tokens') or tracing_data.get('cache_tokens')
+            cache_tokens = tracing_data.get("usage_cache_tokens") or tracing_data.get(
+                "cache_tokens"
+            )
             cache_hit = cache_tokens is not None and cache_tokens > 0
-            
+
             # Create comprehensive cost event
             cost_event = CostEvent(
                 # Primary metrics
                 agent_name=self.name,
                 model=self.model,
-                provider=cost_info['provider'],
-                prompt_tokens=usage['prompt_tokens'],
-                completion_tokens=usage['completion_tokens'],
-                total_tokens=usage['total_tokens'],
-                prompt_cost=cost_info['prompt_cost'],
-                completion_cost=cost_info['completion_cost'],
-                total_cost=cost_info['total_cost'],
-                
+                provider=cost_info["provider"],
+                prompt_tokens=usage["prompt_tokens"],
+                completion_tokens=usage["completion_tokens"],
+                total_tokens=usage["total_tokens"],
+                prompt_cost=cost_info["prompt_cost"],
+                completion_cost=cost_info["completion_cost"],
+                total_cost=cost_info["total_cost"],
                 # Performance metrics
                 duration_ms=duration_ms,
-                latency_ms=tracing_data.get('latency_ms') or tracing_data.get('time_to_first_token'),
-                
+                latency_ms=tracing_data.get("latency_ms")
+                or tracing_data.get("time_to_first_token"),
                 # Retry metrics
                 retry_count=retry_count,
                 validation_errors=validation_errors,
-                
                 # Cache metrics
                 cache_hit=cache_hit,
                 cache_tokens=cache_tokens,
-                cache_cost=cost_info.get('cache_cost'),
-                
+                cache_cost=cost_info.get("cache_cost"),
                 # Message metrics
                 message_count=len(result_primitive.all_messages()),
                 new_message_count=len(new_messages),
-                
                 # Request metadata
-                request_id=tracing_data.get('request_id'),
-                model_version=tracing_data.get('model_version') or tracing_data.get('model_id'),
-                temperature=self.model_settings.get('temperature'),
-                max_tokens=self.model_settings.get('max_tokens'),
-                
+                request_id=tracing_data.get("request_id"),
+                model_version=tracing_data.get("model_version") or tracing_data.get("model_id"),
+                temperature=self.model_settings.get("temperature"),
+                max_tokens=self.model_settings.get("max_tokens"),
                 procedure_id=self.procedure_id,
-                
                 # Raw tracing data
-                raw_tracing_data=tracing_data
+                raw_tracing_data=tracing_data,
             )
-            
+
             self.log_handler.log(cost_event)
             logger.info(
                 f"💰 Agent '{self.name}' cost: ${cost_info['total_cost']:.6f} "
                 f"({usage['total_tokens']} tokens, {duration_ms:.0f}ms)"
             )
-            
+
         except Exception as e:
             logger.warning(f"Failed to log cost event: {e}", exc_info=True)
 

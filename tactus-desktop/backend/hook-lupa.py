@@ -3,15 +3,16 @@
 PyInstaller hook for lupa to ensure binary modules are correctly packaged.
 """
 
-from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 import glob
 import os
+
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules
+import lupa
 
 # Collect all Python files
 datas = collect_data_files('lupa', include_py_files=True)
 
 # Manually collect all .so files from lupa
-import lupa
 lupa_dir = os.path.dirname(lupa.__file__)
 binaries = [(so_file, 'lupa') for so_file in glob.glob(os.path.join(lupa_dir, '*.so'))]
 

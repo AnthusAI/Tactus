@@ -2,6 +2,30 @@
 
 This document provides guidelines for AI coding agents working on the Tactus project.
 
+## Pre-Commit Checklist
+
+**CRITICAL**: Before committing any changes, you MUST run the complete test and linting suite:
+
+```bash
+# 1. Run unit tests
+pytest tests/ -x -k "not test_real_execution"
+
+# 2. Run BDD behavior tests
+behave --summary
+
+# 3. Check code style with ruff (no uncommitted code should have ruff errors)
+ruff check .
+
+# 4. Format code with black
+black tactus tactus-ide/backend features/steps tests
+
+# 5. Verify all checks pass again
+ruff check .
+black tactus tactus-ide/backend features/steps tests --check
+```
+
+Only commit when ALL of the above pass. Do not skip this step or commit before running these checks.
+
 ## Reference Documentation
 
 - **[SPECIFICATION.md](SPECIFICATION.md)**: The official specification for the Tactus domain-specific language. Refer to this document for the definitive guide on DSL syntax, semantics, and behavior.

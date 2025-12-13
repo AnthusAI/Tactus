@@ -43,7 +43,7 @@ class CLILogHandler:
         if isinstance(event, CostEvent):
             self._display_cost_event(event)
             return
-        
+
         # Handle ExecutionSummaryEvent specially
         if event.event_type == "execution_summary":
             self._display_execution_summary(event)
@@ -59,12 +59,12 @@ class CLILogHandler:
         else:
             # Simple log message
             self.console.log(event.message)
-    
+
     def _display_cost_event(self, event: CostEvent) -> None:
         """Display cost event with comprehensive metrics."""
         # Track cost event for aggregation
         self.cost_events.append(event)
-        
+
         # Primary metrics - always show
         self.console.print(
             f"[green]💰 Cost[/green] [bold]{event.agent_name}[/bold]: "
@@ -72,35 +72,35 @@ class CLILogHandler:
             f"({event.total_tokens:,} tokens, {event.model}"
             f"{f', {event.duration_ms:.0f}ms' if event.duration_ms else ''})"
         )
-        
+
         # Show retry warning if applicable
         if event.retry_count > 0:
             self.console.print(
                 f"  [yellow]⚠ Retried {event.retry_count} time(s) due to validation[/yellow]"
             )
-        
+
         # Show cache hit if applicable
         if event.cache_hit and event.cache_tokens:
             self.console.print(
                 f"  [green]✓ Cache hit: {event.cache_tokens:,} tokens"
                 f"{f' (saved ${event.cache_cost:.6f})' if event.cache_cost else ''}[/green]"
             )
-    
+
     def _display_execution_summary(self, event) -> None:
         """Display execution summary with cost breakdown."""
         self.console.print(
             f"\n[green bold]✓ Procedure completed[/green bold]: "
             f"{event.iterations} iterations, {len(event.tools_used)} tools used"
         )
-        
+
         # Display cost summary if costs were incurred
-        if hasattr(event, 'total_cost') and event.total_cost > 0:
-            self.console.print(f"\n[green bold]💰 Cost Summary[/green bold]")
+        if hasattr(event, "total_cost") and event.total_cost > 0:
+            self.console.print("\n[green bold]💰 Cost Summary[/green bold]")
             self.console.print(f"  Total Cost: [green bold]${event.total_cost:.6f}[/green bold]")
             self.console.print(f"  Total Tokens: {event.total_tokens:,}")
-            
-            if hasattr(event, 'cost_breakdown') and event.cost_breakdown:
-                self.console.print(f"\n  [bold]Per-call breakdown:[/bold]")
+
+            if hasattr(event, "cost_breakdown") and event.cost_breakdown:
+                self.console.print("\n  [bold]Per-call breakdown:[/bold]")
                 for cost in event.cost_breakdown:
                     self.console.print(
                         f"    {cost.agent_name}: ${cost.total_cost:.6f} "
