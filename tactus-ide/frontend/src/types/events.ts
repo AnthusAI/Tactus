@@ -191,6 +191,15 @@ export interface LoadingEvent extends BaseEvent {
   message: string;
 }
 
+export interface AgentStreamChunkEvent extends BaseEvent {
+  event_type: 'agent_stream_chunk';
+  agent_name: string;
+  chunk_text: string;
+  accumulated_text: string;
+  timestamp: string;
+  procedure_id?: string;
+}
+
 export type AnyEvent = 
   | LogEvent
   | CostEvent
@@ -205,7 +214,8 @@ export type AnyEvent =
   | EvaluationStartedEvent
   | EvaluationCompletedEvent
   | EvaluationProgressEvent
-  | LoadingEvent;
+  | LoadingEvent
+  | AgentStreamChunkEvent;
 
 
 

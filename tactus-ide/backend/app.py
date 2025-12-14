@@ -8,14 +8,13 @@ This backend runs locally (development) or as a service (production).
 import os
 import logging
 import subprocess
-import threading
 import time
 from pathlib import Path
 from flask import Flask, request, jsonify, Response, stream_with_context
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
 from lsp_server import LSPServer
-from events import ExecutionEvent, OutputEvent, LoadingEvent
+from events import ExecutionEvent
 
 # Setup logging
 logging.basicConfig(
@@ -354,7 +353,7 @@ def run_procedure_stream():
                 from tactus.adapters.memory import MemoryStorage
                 import asyncio
                 import threading
-                
+
                 # Send start event
                 start_event = ExecutionEvent(
                     lifecycle_stage="start", procedure_id=procedure_id, details={"path": file_path}
@@ -363,29 +362,32 @@ def run_procedure_stream():
 
                 # Create log handler to capture structured events
                 log_handler = IDELogHandler()
-                
+
                 # Create runtime with log handler
                 runtime = TactusRuntime(
                     procedure_id=procedure_id,
                     storage_backend=MemoryStorage(),
                     log_handler=log_handler,
                 )
-                
+
                 # Read procedure content
                 source_content = path.read_text()
-                
+
                 # Run execution in a separate thread so we can stream events
                 result_container = {}
+
                 def run_procedure():
                     try:
-                        result = asyncio.run(runtime.execute(source_content, context={}, format="lua"))
-                        result_container['result'] = result
+                        result = asyncio.run(
+                            runtime.execute(source_content, context={}, format="lua")
+                        )
+                        result_container["result"] = result
                     except Exception as e:
-                        result_container['error'] = e
-                
+                        result_container["error"] = e
+
                 execution_thread = threading.Thread(target=run_procedure)
                 execution_thread.start()
-                
+
                 # Stream events as they come in while execution is running
                 while execution_thread.is_alive() or not log_handler.events.empty():
                     events = log_handler.get_events(timeout=0.1)
@@ -396,18 +398,18 @@ def run_procedure_stream():
                             logger.error(f"Failed to serialize event: {e}", exc_info=True)
                             # Send error event instead
                             from events import LogEvent
+
                             error_event = LogEvent(
                                 level="ERROR",
                                 message=f"Failed to serialize event: {str(e)}",
-                                procedure_id=procedure_id
+                                procedure_id=procedure_id,
                             )
                             yield f"data: {error_event.model_dump_json()}\n\n"
                     time.sleep(0.05)  # Small delay to avoid busy waiting
-                
+
                 # Wait for thread to complete
                 execution_thread.join(timeout=1)
-                
-                
+
                 # Get any remaining events
                 events = log_handler.get_events(timeout=0.1)
                 for event in events:
@@ -415,13 +417,13 @@ def run_procedure_stream():
                         yield f"data: {event.model_dump_json()}\n\n"
                     except Exception as e:
                         logger.error(f"Failed to serialize event: {e}", exc_info=True)
-                
+
                 # Check for errors
-                if 'error' in result_container:
-                    raise result_container['error']
-                
-                result = result_container.get('result', {})
-                
+                if "error" in result_container:
+                    raise result_container["error"]
+
+                result = result_container.get("result", {})
+
                 # Send completion event
                 complete_event = ExecutionEvent(
                     lifecycle_stage="complete" if result.get("success") else "error",

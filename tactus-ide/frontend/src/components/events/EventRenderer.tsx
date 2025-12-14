@@ -7,6 +7,7 @@ import { OutputEventComponent } from './OutputEventComponent';
 import { ValidationEventComponent } from './ValidationEventComponent';
 import { ExecutionSummaryEventComponent } from './ExecutionSummaryEventComponent';
 import { LoadingEventComponent } from './LoadingEventComponent';
+import { AgentStreamingComponent } from './AgentStreamingComponent';
 import { 
   TestStartedEventComponent, 
   TestScenarioCompletedEventComponent, 
@@ -56,6 +57,8 @@ export const EventRenderer: React.FC<EventRendererProps> = ({ event, isAlternate
       return <LogEventComponent event={event} isAlternate={isAlternate} />;
     case 'cost':
       return <CostEventComponent event={event} isAlternate={isAlternate} />;
+    case 'agent_stream_chunk':
+      return <AgentStreamingComponent event={event} isAlternate={isAlternate} />;
     case 'execution':
       // Filter out "Completed" message (lifecycle_stage: 'complete')
       // Exit code is now shown in ExecutionSummaryEvent
