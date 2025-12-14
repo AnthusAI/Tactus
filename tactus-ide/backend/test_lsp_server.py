@@ -224,3 +224,5 @@ def test_validation_with_errors(lsp_server):
     # Should have error about missing name
     messages = [d["message"] for d in diagnostics]
     assert any("name is required" in msg.lower() for msg in messages)
+
+

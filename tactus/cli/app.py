@@ -403,8 +403,10 @@ def validate(
 @app.command()
 def test(
     procedure_file: Path = typer.Argument(..., help="Path to procedure file (.tac or .lua)"),
+    runs: int = typer.Option(1, help="Number of runs per scenario (for consistency check)"),
     scenario: Optional[str] = typer.Option(None, help="Run specific scenario"),
     parallel: bool = typer.Option(True, help="Run scenarios in parallel"),
+    workers: Optional[int] = typer.Option(None, help="Number of parallel workers"),
     mock: bool = typer.Option(False, help="Use mocked tools (fast, deterministic)"),
     mock_config: Optional[Path] = typer.Option(None, help="Path to mock config JSON"),
     param: Optional[list[str]] = typer.Option(None, help="Parameters in format key=value"),
@@ -413,25 +415,21 @@ def test(
     """
     Run BDD specifications for a procedure.
 
+    Can run scenarios once (standard test) or multiple times (consistency evaluation).
+
     Examples:
 
-        # Run all scenarios
+        # Run all scenarios once
         tactus test procedure.tac
 
-        # Run with mocked tools (fast, no API calls)
-        tactus test procedure.tac --mock
+        # Check consistency (run 10 times per scenario)
+        tactus test procedure.tac --runs 10
 
-        # Run with custom mock config
-        tactus test procedure.tac --mock-config mocks.json
+        # Run with mocked tools
+        tactus test procedure.tac --mock
 
         # Run specific scenario
         tactus test procedure.tac --scenario "Agent completes research"
-
-        # Pass parameters
-        tactus test procedure.tac --param topic="AI" --param count=5
-
-        # Run sequentially (no parallel)
-        tactus test procedure.tac --no-parallel
     """
     setup_logging(verbose)
 
@@ -440,112 +438,15 @@ def test(
         raise typer.Exit(1)
 
     mode_str = "mocked" if (mock or mock_config) else "real"
-    console.print(Panel(f"Running BDD Tests ({mode_str} mode)", style="blue"))
+    if runs > 1:
+        console.print(
+            Panel(f"Running Consistency Check ({runs} runs, {mode_str} mode)", style="blue")
+        )
+    else:
+        console.print(Panel(f"Running BDD Tests ({mode_str} mode)", style="blue"))
 
     try:
         from tactus.testing.test_runner import TactusTestRunner
-        from tactus.testing.mock_tools import create_default_mocks
-        from tactus.validation import TactusValidator
-        import json
-
-        # Validate and extract specifications
-        validator = TactusValidator()
-        result = validator.validate_file(str(procedure_file))
-
-        if not result.valid:
-            console.print("[red]✗ Validation failed:[/red]")
-            for error in result.errors:
-                console.print(f"  [red]• {error.message}[/red]")
-            raise typer.Exit(1)
-
-        # Check if specifications exist
-        if not result.registry or not result.registry.gherkin_specifications:
-            console.print("[yellow]⚠ No specifications found in procedure file[/yellow]")
-            console.print("Add specifications using: specifications([[ ... ]])")
-            raise typer.Exit(1)
-
-        # Load mock config if provided
-        mock_tools = {}
-        if mock or mock_config:
-            if mock_config:
-                mock_tools = json.loads(mock_config.read_text())
-                console.print(f"[cyan]Loaded mock config: {mock_config}[/cyan]")
-            else:
-                mock_tools = create_default_mocks()
-                console.print("[cyan]Using default mocks[/cyan]")
-
-        # Parse parameters
-        test_params = {}
-        if param:
-            for p in param:
-                if "=" in p:
-                    key, value = p.split("=", 1)
-                    test_params[key] = value
-
-        # Setup and run tests
-        runner = TactusTestRunner(procedure_file, mock_tools=mock_tools, params=test_params)
-        runner.setup(result.registry.gherkin_specifications)
-
-        test_result = runner.run_tests(parallel=parallel, scenario_filter=scenario)
-
-        # Display results
-        _display_test_results(test_result)
-
-        # Cleanup
-        runner.cleanup()
-
-        # Exit with appropriate code
-        if test_result.failed_scenarios > 0:
-            raise typer.Exit(1)
-
-    except Exception as e:
-        console.print(f"[red]✗ Error:[/red] {e}")
-        if verbose:
-            console.print_exception()
-        raise typer.Exit(1)
-
-
-@app.command()
-def evaluate(
-    procedure_file: Path = typer.Argument(..., help="Path to procedure file (.tac or .lua)"),
-    runs: int = typer.Option(10, help="Number of runs per scenario"),
-    scenario: Optional[str] = typer.Option(None, help="Evaluate specific scenario"),
-    parallel: bool = typer.Option(True, help="Run in parallel"),
-    workers: Optional[int] = typer.Option(None, help="Number of parallel workers"),
-    mock: bool = typer.Option(False, help="Use mocked tools (fast, deterministic)"),
-    mock_config: Optional[Path] = typer.Option(None, help="Path to mock config JSON"),
-    param: Optional[list[str]] = typer.Option(None, help="Parameters in format key=value"),
-    verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose logging"),
-):
-    """
-    Evaluate procedure consistency by running specs multiple times.
-
-    Examples:
-
-        # Evaluate with 10 runs per scenario
-        tactus evaluate procedure.tac --runs 10
-
-        # Evaluate with mocked tools
-        tactus evaluate procedure.tac --runs 50 --mock
-
-        # Evaluate with custom mock config
-        tactus evaluate procedure.tac --runs 20 --mock-config mocks.json
-
-        # Evaluate specific scenario
-        tactus evaluate procedure.tac --scenario "Agent completes research"
-    """
-    setup_logging(verbose)
-
-    if not procedure_file.exists():
-        console.print(f"[red]Error:[/red] File not found: {procedure_file}")
-        raise typer.Exit(1)
-
-    mode_str = "mocked" if (mock or mock_config) else "real"
-    console.print(
-        Panel(f"Running Evaluation ({runs} runs per scenario, {mode_str} mode)", style="blue")
-    )
-
-    try:
         from tactus.testing.evaluation_runner import TactusEvaluationRunner
         from tactus.testing.mock_tools import create_default_mocks
         from tactus.validation import TactusValidator
@@ -585,30 +486,41 @@ def evaluate(
                     key, value = p.split("=", 1)
                     test_params[key] = value
 
-        # Setup and run evaluation
-        evaluator = TactusEvaluationRunner(
-            procedure_file, mock_tools=mock_tools, params=test_params
-        )
-        evaluator.setup(result.registry.gherkin_specifications)
+        if runs > 1:
+            # Run consistency evaluation
+            evaluator = TactusEvaluationRunner(
+                procedure_file, mock_tools=mock_tools, params=test_params
+            )
+            evaluator.setup(result.registry.gherkin_specifications)
 
-        if scenario:
-            # Evaluate single scenario
-            eval_results = [evaluator.evaluate_scenario(scenario, runs, parallel)]
+            if scenario:
+                eval_results = [evaluator.evaluate_scenario(scenario, runs, parallel)]
+            else:
+                eval_results = evaluator.evaluate_all(runs, parallel)
+
+            _display_evaluation_results(eval_results)
+            evaluator.cleanup()
+
         else:
-            # Evaluate all scenarios
-            eval_results = evaluator.evaluate_all(runs, parallel)
+            # Run standard test
+            runner = TactusTestRunner(procedure_file, mock_tools=mock_tools, params=test_params)
+            runner.setup(result.registry.gherkin_specifications)
 
-        # Display results
-        _display_evaluation_results(eval_results)
+            test_result = runner.run_tests(parallel=parallel, scenario_filter=scenario)
 
-        # Cleanup
-        evaluator.cleanup()
+            _display_test_results(test_result)
+            runner.cleanup()
+
+            if test_result.failed_scenarios > 0:
+                raise typer.Exit(1)
 
     except Exception as e:
         console.print(f"[red]✗ Error:[/red] {e}")
         if verbose:
             console.print_exception()
         raise typer.Exit(1)
+
+
 
 
 def _display_test_results(test_result):
@@ -695,6 +607,313 @@ def _display_evaluation_results(eval_results):
         # Flakiness warning
         if eval_result.is_flaky:
             console.print("  [yellow]⚠️  FLAKY - Inconsistent results detected[/yellow]")
+
+
+def _display_eval_results(report, runs: int, console):
+    """Display evaluation results with per-task success rate breakdown."""
+    from collections import defaultdict
+    from rich.table import Table
+    from rich.panel import Panel
+    from rich import box
+    
+    # Group results by original case name
+    case_results = defaultdict(list)
+    for case in report.cases:
+        # Extract original case name from the case name (e.g., "simple_greeting_run1" -> "simple_greeting")
+        case_name = case.name
+        if "_run" in case_name:
+            original_name = case_name.rsplit("_run", 1)[0]
+        else:
+            original_name = case_name
+        case_results[original_name].append(case)
+    
+    # Display per-task breakdown with details
+    if runs > 1:
+        console.print("\n[bold cyan]Evaluation Results by Task[/bold cyan]\n")
+        
+        for task_name, cases in sorted(case_results.items()):
+            total_runs = len(cases)
+            # A case is successful if ALL its assertions passed
+            successful_runs = sum(
+                1 for c in cases 
+                if all(a.value for a in c.assertions.values())
+            )
+            success_rate = (successful_runs / total_runs * 100) if total_runs > 0 else 0
+            
+            # Calculate per-evaluator pass rates
+            evaluator_stats = defaultdict(lambda: {"passed": 0, "total": 0})
+            for case in cases:
+                for eval_name, assertion in case.assertions.items():
+                    evaluator_stats[eval_name]["total"] += 1
+                    if assertion.value:
+                        evaluator_stats[eval_name]["passed"] += 1
+            
+            # Status styling
+            status_icon = "✔" if success_rate >= 80 else "⚠" if success_rate >= 50 else "✗"
+            rate_color = "green" if success_rate >= 80 else "yellow" if success_rate >= 50 else "red"
+            
+            # Create task summary
+            summary = f"[bold]{task_name}[/bold]\n"
+            summary += f"[{rate_color}]{status_icon} Success Rate: {success_rate:.1f}% ({successful_runs}/{total_runs} runs passed all evaluators)[/{rate_color}]\n"
+            
+            # Add evaluator breakdown
+            summary += "\n[dim]Evaluator Breakdown:[/dim]\n"
+            for eval_name, stats in evaluator_stats.items():
+                eval_rate = (stats["passed"] / stats["total"] * 100) if stats["total"] > 0 else 0
+                eval_color = "green" if eval_rate >= 80 else "yellow" if eval_rate >= 50 else "red"
+                summary += f"  [{eval_color}]{eval_name}: {eval_rate:.0f}% ({stats['passed']}/{stats['total']})[/{eval_color}]\n"
+            
+            # Show detailed sample runs
+            summary += "\n[dim]Sample Runs (showing first 3):[/dim]"
+            for i, case in enumerate(cases[:3], 1):  # Show first 3 runs
+                all_passed = all(a.value for a in case.assertions.values())
+                icon = "✔" if all_passed else "✗"
+                summary += f"\n\n  {icon} [bold]Run {i}:[/bold]"
+                
+                # Show input
+                summary += f"\n    [dim]Input:[/dim] {case.inputs}"
+                
+                # Show output (formatted nicely)
+                summary += f"\n    [dim]Output:[/dim]"
+                if isinstance(case.output, dict):
+                    for key, value in case.output.items():
+                        value_str = str(value)
+                        if len(value_str) > 200:
+                            value_str = value_str[:197] + "..."
+                        summary += f"\n      {key}: {value_str}"
+                else:
+                    output_str = str(case.output)
+                    if len(output_str) > 200:
+                        output_str = output_str[:197] + "..."
+                    summary += f" {output_str}"
+                
+                # Show assertion results for this run
+                summary += f"\n    [dim]Evaluators:[/dim]"
+                for eval_name, assertion in case.assertions.items():
+                    result_icon = "✔" if assertion.value else "✗"
+                    summary += f"\n      {result_icon} {eval_name}"
+                    # Show reason if available (e.g., from LLM judge)
+                    if hasattr(assertion, 'reason') and assertion.reason:
+                        reason_lines = assertion.reason.split('\n')
+                        # Show first line inline, rest indented
+                        if reason_lines:
+                            summary += f": {reason_lines[0]}"
+                            for line in reason_lines[1:3]:  # Show up to 2 more lines
+                                if line.strip():
+                                    summary += f"\n         {line.strip()}"
+                            if len(reason_lines) > 3:
+                                summary += f"\n         [dim]...[/dim]"
+            
+            if len(cases) > 3:
+                summary += f"\n\n  [dim]... and {len(cases) - 3} more runs (use --verbose to see all)[/dim]"
+            
+            console.print(Panel(summary, box=box.ROUNDED, border_style=rate_color))
+            console.print()
+    else:
+        # Single run - just show the standard report
+        console.print("\n[bold]Detailed Results:[/bold]")
+        report.print(include_input=True, include_output=True)
+
+
+@app.command()
+def eval(
+    procedure_file: Path = typer.Argument(..., help="Path to procedure file (.tac)"),
+    runs: int = typer.Option(1, help="Number of runs per case"),
+    parallel: bool = typer.Option(True, help="Run cases in parallel"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose logging"),
+):
+    """
+    Run Pydantic Evals evaluation on procedure.
+
+    Evaluates LLM agent quality, consistency, and performance using
+    the Pydantic Evals framework. Requires evaluations() block in
+    the procedure file.
+
+    Examples:
+
+        # Run evaluation once per case
+        tactus eval procedure.tac
+
+        # Run evaluation 10 times per case to measure consistency
+        tactus eval procedure.tac --runs 10
+
+        # Run sequentially (for debugging)
+        tactus eval procedure.tac --no-parallel
+    """
+    setup_logging(verbose)
+    load_tactus_config()
+
+    if not procedure_file.exists():
+        console.print(f"[red]Error:[/red] File not found: {procedure_file}")
+        raise typer.Exit(1)
+
+    try:
+        from tactus.testing.pydantic_eval_runner import TactusPydanticEvalRunner
+        from tactus.testing.eval_models import EvaluationConfig, EvalCase, EvaluatorConfig
+        from tactus.validation import TactusValidator
+
+        # Validate and extract evaluations config
+        validator = TactusValidator()
+        result = validator.validate_file(str(procedure_file))
+
+        if not result.valid:
+            console.print("[red]✗ Validation failed:[/red]")
+            for error in result.errors:
+                console.print(f"  [red]• {error.message}[/red]")
+            raise typer.Exit(1)
+
+        # Check if evaluations exist
+        if not result.registry or not result.registry.pydantic_evaluations:
+            console.print("[yellow]⚠ No evaluations found in procedure file[/yellow]")
+            console.print(
+                "Add evaluations using: evaluations({ dataset = {...}, evaluators = {...} })"
+            )
+            raise typer.Exit(1)
+
+        # Convert registry evaluations to EvaluationConfig
+        eval_dict = result.registry.pydantic_evaluations
+
+        # Parse dataset
+        dataset_cases = []
+        for case_dict in eval_dict.get("dataset", []):
+            dataset_cases.append(EvalCase(**case_dict))
+
+        # Parse evaluators
+        evaluators = []
+        for eval_dict_item in eval_dict.get("evaluators", []):
+            evaluators.append(EvaluatorConfig(**eval_dict_item))
+        
+        # Parse thresholds if present
+        thresholds = None
+        if "thresholds" in eval_dict:
+            from tactus.testing.eval_models import EvaluationThresholds
+            thresholds = EvaluationThresholds(**eval_dict["thresholds"])
+
+        # Create evaluation config
+        # Use runs from file if specified, otherwise use CLI parameter
+        file_runs = eval_dict.get("runs", 1)
+        actual_runs = runs if runs != 1 else file_runs  # CLI default is 1, so if it's 1, use file value
+        
+        console.print(Panel(f"Running Pydantic Evals Evaluation ({actual_runs} runs per case)", style="blue"))
+        
+        eval_config = EvaluationConfig(
+            dataset=dataset_cases,
+            evaluators=evaluators,
+            runs=actual_runs,
+            parallel=parallel,
+            thresholds=thresholds,
+        )
+
+        # Get OpenAI API key
+        openai_api_key = os.environ.get("OPENAI_API_KEY")
+        if not openai_api_key:
+            console.print("[yellow]⚠ Warning: OPENAI_API_KEY not set[/yellow]")
+
+        # Run evaluation
+        runner = TactusPydanticEvalRunner(
+            procedure_file=procedure_file,
+            eval_config=eval_config,
+            openai_api_key=openai_api_key,
+        )
+
+        report = runner.run_evaluation()
+
+        # Display results with custom formatting for success rates
+        console.print("\n")
+        _display_eval_results(report, actual_runs, console)
+        
+        # Check thresholds
+        passed, violations = runner.check_thresholds(report)
+        
+        if not passed:
+            console.print("\n[red]❌ Evaluation failed threshold checks:[/red]")
+            for violation in violations:
+                console.print(f"  • {violation}")
+            raise typer.Exit(code=1)
+        elif eval_config.thresholds:
+            # Only show success message if thresholds were configured
+            console.print("\n[green]✓ All thresholds met[/green]")
+
+    except ImportError as e:
+        console.print(f"[red]✗ Error:[/red] {e}")
+        console.print("\n[yellow]Install pydantic-evals:[/yellow]")
+        console.print("  pip install pydantic-evals")
+        raise typer.Exit(1)
+    except Exception as e:
+        console.print(f"[red]✗ Error:[/red] {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+def _display_pydantic_eval_results(report):
+    """Display Pydantic Evals results in Rich format."""
+
+    # Summary header
+    console.print(f"\n[bold]Evaluation Results:[/bold]")
+
+    # Overall stats
+    total_cases = len(report.cases) if hasattr(report, "cases") else 0
+    if total_cases == 0:
+        console.print("[yellow]No cases found in report[/yellow]")
+        return
+
+    passed_cases = sum(
+        1 for case in report.cases if all(assertion for assertion in case.assertions.values())
+    )
+
+    console.print(
+        f"  Cases: {total_cases} total, "
+        f"[green]{passed_cases} passed[/green], "
+        f"[red]{total_cases - passed_cases} failed[/red]"
+    )
+
+    # Per-case results
+    for case in report.cases:
+        console.print(f"\n[bold cyan]Case:[/bold cyan] {case.name}")
+
+        # Assertions (pass/fail evaluators)
+        if case.assertions:
+            console.print("  [bold]Assertions:[/bold]")
+            for name, passed in case.assertions.items():
+                icon = "✓" if passed else "✗"
+                color = "green" if passed else "red"
+                console.print(f"    [{color}]{icon}[/{color}] {name}")
+
+        # Scores (numeric evaluators like LLM judge)
+        if case.scores:
+            console.print("  [bold]Scores:[/bold]")
+            for name, score in case.scores.items():
+                console.print(f"    {name}: {score:.2f}")
+
+        # Labels (categorical evaluators)
+        if case.labels:
+            console.print("  [bold]Labels:[/bold]")
+            for name, label in case.labels.items():
+                console.print(f"    {name}: {label}")
+
+        # Duration
+        console.print(f"  Duration: {case.task_duration:.2f}s")
+
+    # Averages
+    if report.cases:
+        console.print("\n[bold]Averages:[/bold]")
+
+        # Average scores
+        all_scores = {}
+        for case in report.cases:
+            for name, score in case.scores.items():
+                if name not in all_scores:
+                    all_scores[name] = []
+                all_scores[name].append(score)
+
+        for name, scores in all_scores.items():
+            avg_score = sum(scores) / len(scores)
+            console.print(f"  {name}: {avg_score:.2f}")
+
+        # Average duration
+        avg_duration = sum(case.task_duration for case in report.cases) / len(report.cases)
+        console.print(f"  Duration: {avg_duration:.2f}s")
 
 
 @app.command()

@@ -159,3 +159,5 @@ def test_evaluation_result_creation():
     assert result.consistency_score == 0.95
     assert result.is_flaky is True
     assert len(result.individual_results) == 1
+
+

@@ -195,7 +195,21 @@ class AgentPrimitive:
         Returns:
             ResultPrimitive with access to data, usage, and messages
         """
-        logger.debug(f"Agent '{self.name}' turn() called")
+        logger.info(f"Agent '{self.name}' turn() called")
+
+        # Emit agent turn started event
+        if self.log_handler:
+            try:
+                from tactus.protocols.models import AgentTurnEvent
+                
+                turn_event = AgentTurnEvent(
+                    agent_name=self.name,
+                    stage="started",
+                    procedure_id=self.procedure_id,
+                )
+                self.log_handler.log(turn_event)
+            except Exception as e:
+                logger.warning(f"Failed to log agent turn started event: {e}")
 
         # Initialize conversation on first turn
         if not self._initialized:
@@ -211,25 +225,39 @@ class AgentPrimitive:
             # we need to handle this carefully.
             try:
                 # Try to get the current event loop
-                _ = asyncio.get_running_loop()  # noqa: F841
+                loop = asyncio.get_running_loop()
                 # We're in an async context - run in a thread with new event loop
                 import threading
+                import nest_asyncio
+                
+                # Try using nest_asyncio if available
+                try:
+                    nest_asyncio.apply(loop)
+                    # Now we can use asyncio.run even in a running loop
+                    return asyncio.run(self._turn_async())
+                except ImportError:
+                    # nest_asyncio not available, fall back to threading
+                    result_container = {"value": None, "exception": None}
 
-                result_container = {"value": None, "exception": None}
+                    def run_in_thread():
+                        try:
+                            # Create a new event loop for this thread
+                            new_loop = asyncio.new_event_loop()
+                            asyncio.set_event_loop(new_loop)
+                            try:
+                                result_container["value"] = new_loop.run_until_complete(self._turn_async())
+                            finally:
+                                new_loop.close()
+                        except Exception as e:
+                            result_container["exception"] = e
 
-                def run_in_thread():
-                    try:
-                        result_container["value"] = asyncio.run(self._turn_async())
-                    except Exception as e:
-                        result_container["exception"] = e
+                    thread = threading.Thread(target=run_in_thread)
+                    thread.start()
+                    thread.join()
 
-                thread = threading.Thread(target=run_in_thread)
-                thread.start()
-                thread.join()
-
-                if result_container["exception"]:
-                    raise result_container["exception"]
-                return result_container["value"]
+                    if result_container["exception"]:
+                        raise result_container["exception"]
+                    return result_container["value"]
             except RuntimeError:
                 # No event loop running - safe to use asyncio.run()
                 return asyncio.run(self._turn_async())
@@ -289,11 +317,27 @@ class AgentPrimitive:
         # Extract all available tracing data
         tracing_data = result_primitive.extract_tracing_data()
 
-        # Calculate and log comprehensive cost/metrics
+        logger.info(f"Agent '{self.name}' turn completed in {duration_ms:.0f}ms")
+
+        # Emit agent turn completed event BEFORE cost event
+        if self.log_handler:
+            try:
+                from tactus.protocols.models import AgentTurnEvent
+                
+                turn_event = AgentTurnEvent(
+                    agent_name=self.name,
+                    stage="completed",
+                    duration_ms=duration_ms,
+                    procedure_id=self.procedure_id,
+                )
+                self.log_handler.log(turn_event)
+            except Exception as e:
+                logger.warning(f"Failed to log agent turn completed event: {e}")
+
+        # Calculate and log comprehensive cost/metrics AFTER completion event
         if self.log_handler:
             self._log_cost_event(result_primitive, duration_ms, new_messages, tracing_data)
 
-        logger.debug(f"Agent '{self.name}' turn completed in {duration_ms:.0f}ms")
         return result_primitive
 
     def _log_cost_event(
@@ -340,6 +384,35 @@ class AgentPrimitive:
             )
             cache_hit = cache_tokens is not None and cache_tokens > 0
 
+            # Convert response_data to plain dict for JSON serialization
+            response_data = result_primitive.data
+            # #region agent log
+            import json
+            with open('/Users/ryan.porter/Projects/Tactus/.cursor/debug.log', 'a') as f:
+                f.write(json.dumps({"location":"agent.py:388","message":"response_data before conversion","data":{"type":str(type(response_data)),"has_model_dump":hasattr(response_data, 'model_dump'),"has_dict":hasattr(response_data, '__dict__')},"timestamp":__import__('time').time()*1000,"sessionId":"debug-session","hypothesisId":"A"}) + '\n')
+            # #endregion
+            if hasattr(response_data, 'model_dump'):
+                # It's a Pydantic model
+                response_data = response_data.model_dump()
+            elif hasattr(response_data, '__dict__'):
+                # It's some other object
+                response_data = dict(response_data.__dict__)
+            elif isinstance(response_data, (dict, list)):
+                # Already serializable
+                pass
+            elif isinstance(response_data, (str, int, float, bool)):
+                # Primitive types - wrap in dict for consistent display
+                response_data = {"value": response_data}
+            elif response_data is None:
+                response_data = None
+            else:
+                # Unknown type - convert to string
+                response_data = {"value": str(response_data)}
+            # #region agent log
+            with open('/Users/ryan.porter/Projects/Tactus/.cursor/debug.log', 'a') as f:
+                f.write(json.dumps({"location":"agent.py:412","message":"response_data after conversion","data":{"is_dict":isinstance(response_data, dict),"is_none":response_data is None,"keys":list(response_data.keys()) if isinstance(response_data, dict) else None},"timestamp":__import__('time').time()*1000,"sessionId":"debug-session","hypothesisId":"A"}) + '\n')
+            # #endregion
+            
             # Create comprehensive cost event
             cost_event = CostEvent(
                 # Primary metrics
@@ -374,9 +447,20 @@ class AgentPrimitive:
                 procedure_id=self.procedure_id,
                 # Raw tracing data
                 raw_tracing_data=tracing_data,
+                # Response data (converted to dict)
+                response_data=response_data,
             )
 
+            # #region agent log
+            import json
+            with open('/Users/ryan.porter/Projects/Tactus/.cursor/debug.log', 'a') as f:
+                f.write(json.dumps({"location":"agent.py:454","message":"About to log cost_event","data":{"agent_name":cost_event.agent_name,"has_response_data":cost_event.response_data is not None},"timestamp":__import__('time').time()*1000,"sessionId":"debug-session","hypothesisId":"B"}) + '\n')
+            # #endregion
             self.log_handler.log(cost_event)
+            # #region agent log
+            with open('/Users/ryan.porter/Projects/Tactus/.cursor/debug.log', 'a') as f:
+                f.write(json.dumps({"location":"agent.py:461","message":"Cost event logged to handler","data":{"queue_size":self.log_handler.events.qsize()},"timestamp":__import__('time').time()*1000,"sessionId":"debug-session","hypothesisId":"B"}) + '\n')
+            # #endregion
             logger.info(
                 f"💰 Agent '{self.name}' cost: ${cost_info['total_cost']:.6f} "
                 f"({usage['total_tokens']} tokens, {duration_ms:.0f}ms)"
@@ -430,3 +514,5 @@ class AgentPrimitive:
 
     def __repr__(self) -> str:
         return f"AgentPrimitive('{self.name}', {len(self.message_history)} messages)"
+
+

@@ -15,7 +15,7 @@ from flask import Flask, request, jsonify, Response, stream_with_context
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
 from lsp_server import LSPServer
-from events import ExecutionEvent, OutputEvent
+from events import ExecutionEvent, OutputEvent, LoadingEvent
 
 # Setup logging
 logging.basicConfig(
@@ -349,72 +349,114 @@ def run_procedure_stream():
         def generate_events():
             """Generator function that yields SSE events."""
             try:
+                from tactus.core import TactusRuntime
+                from tactus.adapters.ide_log import IDELogHandler
+                from tactus.adapters.memory import MemoryStorage
+                import asyncio
+                import threading
+                
                 # Send start event
                 start_event = ExecutionEvent(
                     lifecycle_stage="start", procedure_id=procedure_id, details={"path": file_path}
                 )
                 yield f"data: {start_event.model_dump_json()}\n\n"
 
-                # Run the procedure using tactus CLI and capture output
-                process = subprocess.Popen(
-                    ["tactus", "run", str(path)],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True,
-                    cwd=WORKSPACE_ROOT,
-                    bufsize=1,  # Line buffered
-                    universal_newlines=True,
-                )
-
-                # Use threads to read stdout and stderr without blocking
-                import queue as q
-
-                output_queue = q.Queue()
-
-                def read_stream(stream, stream_name):
-                    try:
-                        for line in iter(stream.readline, ""):
-                            if line:
-                                output_queue.put((stream_name, line.rstrip("\n")))
-                    except Exception as e:
-                        logger.error(f"Error reading {stream_name}: {e}")
-                    finally:
-                        stream.close()
-
-                stdout_thread = threading.Thread(
-                    target=read_stream, args=(process.stdout, "stdout")
-                )
-                stderr_thread = threading.Thread(
-                    target=read_stream, args=(process.stderr, "stderr")
-                )
-                stdout_thread.daemon = True
-                stderr_thread.daemon = True
-                stdout_thread.start()
-                stderr_thread.start()
-
-                # Poll for output until process completes
-                while process.poll() is None or not output_queue.empty():
-                    try:
-                        stream_name, content = output_queue.get(timeout=0.1)
-                        output_event = OutputEvent(
-                            stream=stream_name, content=content, procedure_id=procedure_id
-                        )
-                        yield f"data: {output_event.model_dump_json()}\n\n"
-                    except q.Empty:
-                        # No output available, just continue polling
-                        time.sleep(0.05)
-
-                # Wait for threads to finish
-                stdout_thread.join(timeout=1)
-                stderr_thread.join(timeout=1)
-
-                # Send completion event
-                exit_code = process.returncode
-                complete_event = ExecutionEvent(
-                    lifecycle_stage="complete" if exit_code == 0 else "error",
+                # Create log handler to capture structured events
+                log_handler = IDELogHandler()
+                
+                # Create runtime with log handler
+                runtime = TactusRuntime(
                     procedure_id=procedure_id,
-                    exit_code=exit_code,
-                    details={"success": exit_code == 0},
+                    storage_backend=MemoryStorage(),
+                    log_handler=log_handler,
+                )
+                
+                # Read procedure content
+                source_content = path.read_text()
+                
+                # Run execution in a separate thread so we can stream events
+                result_container = {}
+                def run_procedure():
+                    try:
+                        result = asyncio.run(runtime.execute(source_content, context={}, format="lua"))
+                        result_container['result'] = result
+                    except Exception as e:
+                        result_container['error'] = e
+                
+                execution_thread = threading.Thread(target=run_procedure)
+                execution_thread.start()
+                
+                # Stream events as they come in while execution is running
+                # #region agent log
+                import json as json_lib
+                with open('/Users/ryan.porter/Projects/Tactus/.cursor/debug.log', 'a') as f:
+                    f.write(json_lib.dumps({"location":"app.py:390","message":"Starting event stream loop","data":{"thread_alive":execution_thread.is_alive(),"queue_empty":log_handler.events.empty()},"timestamp":time.time()*1000,"sessionId":"debug-session","hypothesisId":"D"}) + '\n')
+                # #endregion
+                while execution_thread.is_alive() or not log_handler.events.empty():
+                    events = log_handler.get_events(timeout=0.1)
+                    # #region agent log
+                    with open('/Users/ryan.porter/Projects/Tactus/.cursor/debug.log', 'a') as f:
+                        f.write(json_lib.dumps({"location":"app.py:397","message":"Retrieved events from queue","data":{"event_count":len(events),"event_types":[e.event_type for e in events]},"timestamp":time.time()*1000,"sessionId":"debug-session","hypothesisId":"B,D"}) + '\n')
+                    # #endregion
+                    for event in events:
+                        try:
+                            # #region agent log
+                            with open('/Users/ryan.porter/Projects/Tactus/.cursor/debug.log', 'a') as f:
+                                f.write(json_lib.dumps({"location":"app.py:404","message":"About to serialize event","data":{"event_type":event.event_type,"is_cost":event.event_type=='cost'},"timestamp":time.time()*1000,"sessionId":"debug-session","hypothesisId":"C"}) + '\n')
+                            # #endregion
+                            yield f"data: {event.model_dump_json()}\n\n"
+                            # #region agent log
+                            with open('/Users/ryan.porter/Projects/Tactus/.cursor/debug.log', 'a') as f:
+                                f.write(json_lib.dumps({"location":"app.py:411","message":"Event serialized successfully","data":{"event_type":event.event_type},"timestamp":time.time()*1000,"sessionId":"debug-session","hypothesisId":"C"}) + '\n')
+                            # #endregion
+                        except Exception as e:
+                            logger.error(f"Failed to serialize event: {e}", exc_info=True)
+                            # #region agent log
+                            with open('/Users/ryan.porter/Projects/Tactus/.cursor/debug.log', 'a') as f:
+                                f.write(json_lib.dumps({"location":"app.py:418","message":"Event serialization FAILED","data":{"event_type":event.event_type,"error":str(e)},"timestamp":time.time()*1000,"sessionId":"debug-session","hypothesisId":"C"}) + '\n')
+                            # #endregion
+                            # Send error event instead
+                            from events import LogEvent
+                            error_event = LogEvent(
+                                level="ERROR",
+                                message=f"Failed to serialize event: {str(e)}",
+                                procedure_id=procedure_id
+                            )
+                            yield f"data: {error_event.model_dump_json()}\n\n"
+                    time.sleep(0.05)  # Small delay to avoid busy waiting
+                
+                # Wait for thread to complete
+                execution_thread.join(timeout=1)
+                
+                # #region agent log
+                with open('/Users/ryan.porter/Projects/Tactus/.cursor/debug.log', 'a') as f:
+                    f.write(json_lib.dumps({"location":"app.py:428","message":"Thread completed, getting remaining events","data":{"queue_empty":log_handler.events.empty(),"queue_size":log_handler.events.qsize()},"timestamp":time.time()*1000,"sessionId":"debug-session","hypothesisId":"D"}) + '\n')
+                # #endregion
+                
+                # Get any remaining events
+                events = log_handler.get_events(timeout=0.1)
+                # #region agent log
+                with open('/Users/ryan.porter/Projects/Tactus/.cursor/debug.log', 'a') as f:
+                    f.write(json_lib.dumps({"location":"app.py:436","message":"Final events retrieved","data":{"event_count":len(events),"event_types":[e.event_type for e in events]},"timestamp":time.time()*1000,"sessionId":"debug-session","hypothesisId":"D"}) + '\n')
+                # #endregion
+                for event in events:
+                    try:
+                        yield f"data: {event.model_dump_json()}\n\n"
+                    except Exception as e:
+                        logger.error(f"Failed to serialize event: {e}", exc_info=True)
+                
+                # Check for errors
+                if 'error' in result_container:
+                    raise result_container['error']
+                
+                result = result_container.get('result', {})
+                
+                # Send completion event
+                complete_event = ExecutionEvent(
+                    lifecycle_stage="complete" if result.get("success") else "error",
+                    procedure_id=procedure_id,
+                    exit_code=0 if result.get("success") else 1,
+                    details={"success": result.get("success", False)},
                 )
                 yield f"data: {complete_event.model_dump_json()}\n\n"
 
@@ -592,18 +634,17 @@ def test_procedure_stream():
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/api/evaluate/stream", methods=["GET", "POST"])
-def evaluate_procedure_stream():
+@app.route("/api/pydantic-eval/stream", methods=["GET", "POST"])
+def pydantic_eval_stream():
     """
-    Run BDD evaluation with SSE streaming output.
+    Run Pydantic Evals with SSE streaming output.
 
     Query params:
     - path: procedure file path (required)
-    - runs: number of runs per scenario (optional, default 10)
-    - mock: use mock mode (optional, default true)
-    - scenario: specific scenario name (optional)
-    - parallel: run in parallel (optional, default true)
+    - runs: number of runs per case (optional, default 1)
     """
+    logger.info(f"Pydantic eval stream request: method={request.method}, args={request.args}")
+
     if request.method == "POST":
         data = request.json or {}
         file_path = data.get("path")
@@ -613,16 +654,17 @@ def evaluate_procedure_stream():
         content = None
 
     if not file_path:
+        logger.error("Missing 'path' parameter")
         return jsonify({"error": "Missing 'path' parameter"}), 400
 
     # Get options
-    runs = int(request.args.get("runs", "10"))
-    mock = request.args.get("mock", "true").lower() == "true"
-    parallel = request.args.get("parallel", "true").lower() == "true"
+    runs = int(request.args.get("runs", "1"))
 
     try:
         # Resolve path within workspace
+        logger.info(f"Resolving path: {file_path}")
         path = _resolve_workspace_path(file_path)
+        logger.info(f"Resolved to: {path}")
 
         # Save content if provided
         if content is not None:
@@ -639,15 +681,15 @@ def evaluate_procedure_stream():
             """Generator function that yields SSE evaluation events."""
             try:
                 from tactus.validation import TactusValidator
-                from tactus.testing import TactusEvaluationRunner, GherkinParser
-                from events import (
-                    EvaluationStartedEvent,
-                    EvaluationCompletedEvent,
-                    EvaluationProgressEvent,
-                    ExecutionEvent,
+                from tactus.testing.pydantic_eval_runner import TactusPydanticEvalRunner
+                from tactus.testing.eval_models import (
+                    EvaluationConfig,
+                    EvalCase,
+                    EvaluatorConfig,
                 )
+                from events import ExecutionEvent
 
-                # Validate and extract specifications
+                # Validate and extract evaluations
                 validator = TactusValidator()
                 validation_result = validator.validate_file(str(path))
 
@@ -657,10 +699,7 @@ def evaluate_procedure_stream():
                         procedure_id=procedure_id,
                         details={
                             "error": "Validation failed",
-                            "errors": [
-                                {"message": e.message, "severity": e.severity}
-                                for e in validation_result.errors
-                            ],
+                            "errors": [e.message for e in validation_result.errors],
                         },
                     )
                     yield f"data: {error_event.model_dump_json()}\n\n"
@@ -668,57 +707,86 @@ def evaluate_procedure_stream():
 
                 if (
                     not validation_result.registry
-                    or not validation_result.registry.gherkin_specifications
+                    or not validation_result.registry.pydantic_evaluations
                 ):
                     error_event = ExecutionEvent(
                         lifecycle_stage="error",
                         procedure_id=procedure_id,
-                        details={"error": "No specifications found in procedure"},
+                        details={"error": "No evaluations found in procedure"},
                     )
                     yield f"data: {error_event.model_dump_json()}\n\n"
                     return
 
-                # Setup evaluation runner
-                mock_tools = {"done": {"status": "ok"}} if mock else None
-                evaluator = TactusEvaluationRunner(path, mock_tools=mock_tools)
-                evaluator.setup(validation_result.registry.gherkin_specifications)
-
-                # Get parsed feature to count scenarios
-                parser = GherkinParser()
-                parsed_feature = parser.parse(validation_result.registry.gherkin_specifications)
-                total_scenarios = len(parsed_feature.scenarios)
-
-                # Emit started event
-                start_event = EvaluationStartedEvent(
-                    procedure_file=str(path),
-                    total_scenarios=total_scenarios,
-                    runs_per_scenario=runs,
+                # Emit start event
+                start_event = ExecutionEvent(
+                    lifecycle_stage="started",
+                    procedure_id=procedure_id,
+                    details={"type": "pydantic_eval", "runs": runs},
                 )
                 yield f"data: {start_event.model_dump_json()}\n\n"
 
+                # Parse evaluation config
+                eval_dict = validation_result.registry.pydantic_evaluations
+                dataset_cases = [EvalCase(**c) for c in eval_dict.get("dataset", [])]
+                evaluators = [EvaluatorConfig(**e) for e in eval_dict.get("evaluators", [])]
+
+                eval_config = EvaluationConfig(
+                    dataset=dataset_cases,
+                    evaluators=evaluators,
+                    runs=runs,
+                    parallel=False,  # Sequential for IDE streaming
+                )
+
                 # Run evaluation
-                eval_results = evaluator.evaluate_all(runs=runs, parallel=parallel)
+                runner = TactusPydanticEvalRunner(
+                    procedure_file=path,
+                    eval_config=eval_config,
+                    openai_api_key=os.environ.get("OPENAI_API_KEY"),
+                )
 
-                # Emit progress/completion events for each scenario
-                for eval_result in eval_results:
-                    progress_event = EvaluationProgressEvent(
-                        scenario_name=eval_result.scenario_name,
-                        completed_runs=eval_result.total_runs,
-                        total_runs=eval_result.total_runs,
-                    )
-                    yield f"data: {progress_event.model_dump_json()}\n\n"
+                report = runner.run_evaluation()
 
-                # Emit completed event
-                complete_event = EvaluationCompletedEvent(results=eval_results)
-                yield f"data: {complete_event.model_dump_json()}\n\n"
+                # Emit results - convert report to dict
+                result_details = {
+                    "type": "pydantic_eval",
+                    "total_cases": len(report.cases) if hasattr(report, "cases") else 0,
+                }
 
-                # Cleanup
-                evaluator.cleanup()
+                # Add case results
+                if hasattr(report, "cases"):
+                    result_details["cases"] = []
+                    for case in report.cases:
+                        case_dict = {
+                            "name": case.name,
+                            "inputs": case.inputs,
+                            "output": case.output,
+                            "assertions": case.assertions,
+                            "scores": case.scores,
+                            "labels": case.labels,
+                            "duration": case.task_duration,
+                        }
+                        result_details["cases"].append(case_dict)
 
-            except Exception as e:
-                logger.error(f"Error in evaluation execution: {e}", exc_info=True)
+                result_event = ExecutionEvent(
+                    lifecycle_stage="completed",
+                    procedure_id=procedure_id,
+                    details=result_details,
+                )
+                yield f"data: {result_event.model_dump_json()}\n\n"
+
+            except ImportError as e:
                 error_event = ExecutionEvent(
-                    lifecycle_stage="error", procedure_id=procedure_id, details={"error": str(e)}
+                    lifecycle_stage="error",
+                    procedure_id=procedure_id,
+                    details={"error": f"pydantic_evals not installed: {e}"},
+                )
+                yield f"data: {error_event.model_dump_json()}\n\n"
+            except Exception as e:
+                logger.error(f"Error running Pydantic Evals: {e}", exc_info=True)
+                error_event = ExecutionEvent(
+                    lifecycle_stage="error",
+                    procedure_id=procedure_id,
+                    details={"error": str(e)},
                 )
                 yield f"data: {error_event.model_dump_json()}\n\n"
 
@@ -728,14 +796,11 @@ def evaluate_procedure_stream():
             headers={
                 "Cache-Control": "no-cache",
                 "X-Accel-Buffering": "no",
-                "Connection": "keep-alive",
             },
         )
 
-    except ValueError as e:
-        return jsonify({"error": str(e)}), 400
     except Exception as e:
-        logger.error(f"Error setting up evaluation execution: {e}", exc_info=True)
+        logger.error(f"Error setting up Pydantic Evals: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 

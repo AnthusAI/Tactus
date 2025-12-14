@@ -54,13 +54,27 @@ class ResultPrimitive:
         # Access the response data
         if hasattr(self._result, "data"):
             data = self._result.data
+            # #region agent log
+            import json
+            with open('/Users/ryan.porter/Projects/Tactus/.cursor/debug.log', 'a') as f:
+                f.write(json.dumps({"location":"result.py:56","message":"ResultPrimitive.data called","data":{"type":str(type(data)),"has_model_dump":hasattr(data, 'model_dump'),"has_dict":hasattr(data, 'dict'),"repr_preview":str(data)[:200]},"timestamp":__import__('time').time()*1000,"sessionId":"debug-session","hypothesisId":"E"}) + '\n')
+            # #endregion
 
             # Convert Pydantic models to dicts for Lua
             if hasattr(data, "model_dump"):
-                return data.model_dump()
+                result = data.model_dump()
+                # #region agent log
+                with open('/Users/ryan.porter/Projects/Tactus/.cursor/debug.log', 'a') as f:
+                    f.write(json.dumps({"location":"result.py:68","message":"Called model_dump()","data":{"result_type":str(type(result)),"is_dict":isinstance(result, dict)},"timestamp":__import__('time').time()*1000,"sessionId":"debug-session","hypothesisId":"E"}) + '\n')
+                # #endregion
+                return result
             elif hasattr(data, "dict"):
                 return data.dict()
             else:
+                # #region agent log
+                with open('/Users/ryan.porter/Projects/Tactus/.cursor/debug.log', 'a') as f:
+                    f.write(json.dumps({"location":"result.py:77","message":"Returning data as-is (no model_dump or dict)","data":{"type":str(type(data))},"timestamp":__import__('time').time()*1000,"sessionId":"debug-session","hypothesisId":"E"}) + '\n')
+                # #endregion
                 return data
         else:
             # Fallback to response attribute
@@ -205,3 +219,5 @@ class ResultPrimitive:
             except Exception:
                 # Fallback: convert to string
                 return {"role": "unknown", "content": str(msg)}
+
+

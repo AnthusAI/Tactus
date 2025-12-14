@@ -134,6 +134,9 @@ class ProcedureRegistry(BaseModel):
     custom_steps: dict[str, Any] = Field(default_factory=dict)  # step_text -> lua_function
     evaluation_config: dict[str, Any] = Field(default_factory=dict)  # runs, parallel, etc.
 
+    # Pydantic Evals Integration
+    pydantic_evaluations: Optional[dict[str, Any]] = None  # Pydantic Evals configuration
+
     # Prompts
     prompts: dict[str, str] = Field(default_factory=dict)
     return_prompt: Optional[str] = None
@@ -294,6 +297,10 @@ class RegistryBuilder:
     def set_message_history_config(self, config: dict) -> None:
         """Set procedure-level message history configuration."""
         self.registry.message_history_config = config
+
+    def register_evaluations(self, config: dict) -> None:
+        """Register Pydantic Evals evaluation configuration."""
+        self.registry.pydantic_evaluations = config
 
     def _add_error(self, message: str) -> None:
         """Add an error message."""

@@ -29,3 +29,5 @@ Feature: Structured Output with output_type
     When the workflow is parsed
     Then all field types should be recognized
     And the types should map correctly
+
+

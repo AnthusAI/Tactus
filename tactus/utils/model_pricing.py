@@ -130,3 +130,5 @@ def get_model_pricing(model_name: str, provider: Optional[str] = None) -> Dict[s
 
     # Return default pricing with warning
     return DEFAULT_PRICING
+
+

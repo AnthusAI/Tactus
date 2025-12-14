@@ -41,6 +41,10 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        'feed-row': {
+          DEFAULT: "hsl(var(--feed-row-default))",
+          alternate: "hsl(var(--feed-row-alternate))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -65,6 +69,8 @@ export default {
   },
   plugins: [require("tailwindcss-animate")],
 }
+
+
 
 
 

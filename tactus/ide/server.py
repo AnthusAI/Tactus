@@ -4,11 +4,13 @@ Tactus IDE Backend Server.
 Provides HTTP-based LSP server for the Tactus IDE.
 """
 
+import json
 import logging
 import os
 import subprocess
 import threading
 import time
+from datetime import datetime
 from pathlib import Path
 from flask import Flask, request, jsonify, Response, stream_with_context
 from flask_cors import CORS
@@ -345,7 +347,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                             "message": err.message,
                             "line": err.location[0] if err.location else None,
                             "column": err.location[1] if err.location else None,
-                            "severity": err.severity,
+                            "level": err.level,
                         }
                         for err in result.errors
                     ],
@@ -354,7 +356,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                             "message": warn.message,
                             "line": warn.location[0] if warn.location else None,
                             "column": warn.location[1] if warn.location else None,
-                            "severity": warn.severity,
+                            "level": warn.level,
                         }
                         for warn in result.warnings
                     ],
@@ -400,7 +402,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                                 "message": err.message,
                                 "line": err.location[0] if err.location else None,
                                 "column": err.location[1] if err.location else None,
-                                "severity": err.severity,
+                                "level": err.level,
                             }
                             for err in result.errors
                         ],
@@ -409,7 +411,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                                 "message": warn.message,
                                 "line": warn.location[0] if warn.location else None,
                                 "column": warn.location[1] if warn.location else None,
-                                "severity": warn.severity,
+                                "level": warn.level,
                             }
                             for warn in result.warnings
                         ],
@@ -721,7 +723,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                             "details": {
                                 "error": "Validation failed",
                                 "errors": [
-                                    {"message": e.message, "severity": e.severity}
+                                    {"message": e.message, "level": e.level}
                                     for e in validation_result.errors
                                 ],
                             },
@@ -925,7 +927,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                             "details": {
                                 "error": "Validation failed",
                                 "errors": [
-                                    {"message": e.message, "severity": e.severity}
+                                    {"message": e.message, "level": e.level}
                                     for e in validation_result.errors
                                 ],
                             },
@@ -1030,6 +1032,202 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             return jsonify({"error": str(e)}), 400
         except Exception as e:
             logger.error(f"Error setting up evaluation execution: {e}", exc_info=True)
+            return jsonify({"error": str(e)}), 500
+
+    @app.route("/api/pydantic-eval/stream", methods=["GET"])
+    def pydantic_eval_stream():
+        """
+        Run Pydantic Evals with SSE streaming output.
+
+        Query params:
+        - path: procedure file path (required)
+        - runs: number of runs per case (optional, default 1)
+        """
+        logger.info(f"Pydantic eval stream request: args={request.args}")
+
+        file_path = request.args.get("path")
+        if not file_path:
+            logger.error("Missing 'path' parameter")
+            return jsonify({"error": "Missing 'path' parameter"}), 400
+
+        runs = int(request.args.get("runs", "1"))
+
+        try:
+            # Resolve path within workspace
+            logger.info(f"Resolving path: {file_path}")
+            path = _resolve_workspace_path(file_path)
+            logger.info(f"Resolved to: {path}")
+
+            if not path.exists():
+                return jsonify({"error": f"File not found: {file_path}"}), 404
+
+            procedure_id = path.stem
+
+            def generate_events():
+                """Generator function that yields SSE evaluation events."""
+                try:
+                    from tactus.testing.pydantic_eval_runner import TactusPydanticEvalRunner
+                    from tactus.testing.eval_models import (
+                        EvaluationConfig,
+                        EvalCase,
+                        EvaluatorConfig,
+                    )
+
+                    # Validate and extract evaluations
+                    validator = TactusValidator()
+                    validation_result = validator.validate_file(str(path))
+
+                    if not validation_result.valid:
+                        error_event = {
+                            "event_type": "execution",
+                            "lifecycle_stage": "error",
+                            "procedure_id": procedure_id,
+                            "timestamp": datetime.utcnow().isoformat() + "Z",
+                            "details": {
+                                "error": "Validation failed",
+                                "errors": [e.message for e in validation_result.errors],
+                            },
+                        }
+                        yield f"data: {json.dumps(error_event)}\n\n"
+                        return
+
+                    if (
+                        not validation_result.registry
+                        or not validation_result.registry.pydantic_evaluations
+                    ):
+                        error_event = {
+                            "event_type": "execution",
+                            "lifecycle_stage": "error",
+                            "procedure_id": procedure_id,
+                            "timestamp": datetime.utcnow().isoformat() + "Z",
+                            "details": {"error": "No evaluations found in procedure"},
+                        }
+                        yield f"data: {json.dumps(error_event)}\n\n"
+                        return
+
+                    # Parse evaluation config FIRST (before start event)
+                    eval_dict = validation_result.registry.pydantic_evaluations
+                    dataset_cases = [EvalCase(**c) for c in eval_dict.get("dataset", [])]
+                    evaluators = [EvaluatorConfig(**e) for e in eval_dict.get("evaluators", [])]
+                    
+                    # Parse thresholds if present
+                    from tactus.testing.eval_models import EvaluationThresholds
+                    thresholds = None
+                    if "thresholds" in eval_dict:
+                        thresholds = EvaluationThresholds(**eval_dict["thresholds"])
+                    
+                    # Use runs from file if specified, otherwise use query param
+                    actual_runs = eval_dict.get("runs", runs)
+
+                    # Emit start event (after actual_runs is defined)
+                    start_event = {
+                        "event_type": "execution",
+                        "lifecycle_stage": "started",
+                        "procedure_id": procedure_id,
+                        "timestamp": datetime.utcnow().isoformat() + "Z",
+                        "details": {"type": "pydantic_eval", "runs": actual_runs},
+                    }
+                    yield f"data: {json.dumps(start_event)}\n\n"
+
+                    eval_config = EvaluationConfig(
+                        dataset=dataset_cases,
+                        evaluators=evaluators,
+                        runs=actual_runs,
+                        parallel=False,  # Sequential for IDE streaming
+                        thresholds=thresholds,
+                    )
+
+                    # Run evaluation
+                    runner = TactusPydanticEvalRunner(
+                        procedure_file=path,
+                        eval_config=eval_config,
+                        openai_api_key=os.environ.get("OPENAI_API_KEY"),
+                    )
+
+                    report = runner.run_evaluation()
+
+                    # Emit results
+                    result_details = {
+                        "type": "pydantic_eval",
+                        "total_cases": len(report.cases) if hasattr(report, "cases") else 0,
+                    }
+
+                    if hasattr(report, "cases"):
+                        result_details["cases"] = []
+                        for case in report.cases:
+                            # Convert case to dict, handling non-serializable objects
+                            def make_serializable(obj):
+                                """Recursively convert objects to JSON-serializable types."""
+                                if isinstance(obj, (str, int, float, bool, type(None))):
+                                    return obj
+                                elif isinstance(obj, dict):
+                                    return {k: make_serializable(v) for k, v in obj.items()}
+                                elif isinstance(obj, (list, tuple)):
+                                    return [make_serializable(item) for item in obj]
+                                elif hasattr(obj, '__dict__'):
+                                    # Convert object with __dict__ to dict
+                                    return {k: make_serializable(v) for k, v in obj.__dict__.items() if not k.startswith('_')}
+                                else:
+                                    return str(obj)
+                            
+                            case_dict = {
+                                "name": str(case.name),
+                                "inputs": make_serializable(case.inputs),
+                                "output": make_serializable(case.output),
+                                "assertions": make_serializable(case.assertions),
+                                "scores": make_serializable(case.scores),
+                                "labels": make_serializable(case.labels),
+                                "duration": float(case.task_duration) if hasattr(case, 'task_duration') else 0.0,
+                            }
+                            result_details["cases"].append(case_dict)
+
+                    # Check thresholds
+                    passed, violations = runner.check_thresholds(report)
+                    result_details["thresholds_passed"] = passed
+                    if violations:
+                        result_details["threshold_violations"] = violations
+                    
+                    result_event = {
+                        "event_type": "execution",
+                        "lifecycle_stage": "complete",
+                        "procedure_id": procedure_id,
+                        "timestamp": datetime.utcnow().isoformat() + "Z",
+                        "details": result_details,
+                    }
+                    yield f"data: {json.dumps(result_event)}\n\n"
+
+                except ImportError as e:
+                    error_event = {
+                        "event_type": "execution",
+                        "lifecycle_stage": "error",
+                        "procedure_id": procedure_id,
+                        "timestamp": datetime.utcnow().isoformat() + "Z",
+                        "details": {"error": f"pydantic_evals not installed: {e}"},
+                    }
+                    yield f"data: {json.dumps(error_event)}\n\n"
+                except Exception as e:
+                    logger.error(f"Error running Pydantic Evals: {e}", exc_info=True)
+                    error_event = {
+                        "event_type": "execution",
+                        "lifecycle_stage": "error",
+                        "procedure_id": procedure_id,
+                        "timestamp": datetime.utcnow().isoformat() + "Z",
+                        "details": {"error": str(e)},
+                    }
+                    yield f"data: {json.dumps(error_event)}\n\n"
+
+            return Response(
+                stream_with_context(generate_events()),
+                mimetype="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "X-Accel-Buffering": "no",
+                    "Connection": "keep-alive",
+                },
+            )
+
+        except Exception as e:
+            logger.error(f"Error setting up Pydantic Evals: {e}", exc_info=True)
             return jsonify({"error": str(e)}), 500
 
     @app.route("/api/lsp", methods=["POST"])
@@ -1156,3 +1354,5 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+

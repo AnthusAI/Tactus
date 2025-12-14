@@ -44,6 +44,12 @@ class CLILogHandler:
             self._display_cost_event(event)
             return
 
+        # Handle agent turn events
+        from tactus.protocols.models import AgentTurnEvent
+        if isinstance(event, AgentTurnEvent):
+            self._display_agent_turn_event(event)
+            return
+
         # Handle ExecutionSummaryEvent specially
         if event.event_type == "execution_summary":
             self._display_execution_summary(event)
@@ -59,6 +65,20 @@ class CLILogHandler:
         else:
             # Simple log message
             self.console.log(event.message)
+
+    def _display_agent_turn_event(self, event) -> None:
+        """Display agent turn start/complete event."""
+        from tactus.protocols.models import AgentTurnEvent
+        
+        if event.stage == "started":
+            self.console.print(
+                f"[blue]⏳ Agent[/blue] [bold]{event.agent_name}[/bold]: [blue]Waiting for response...[/blue]"
+            )
+        elif event.stage == "completed":
+            duration_str = f"{event.duration_ms:.0f}ms" if event.duration_ms else ""
+            self.console.print(
+                f"[green]✓ Agent[/green] [bold]{event.agent_name}[/bold]: [green]Completed[/green] {duration_str}"
+            )
 
     def _display_cost_event(self, event: CostEvent) -> None:
         """Display cost event with comprehensive metrics."""
@@ -106,3 +126,5 @@ class CLILogHandler:
                         f"    {cost.agent_name}: ${cost.total_cost:.6f} "
                         f"({cost.total_tokens:,} tokens, {cost.duration_ms:.0f}ms)"
                     )
+
+

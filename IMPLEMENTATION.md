@@ -697,11 +697,18 @@ Code between checkpoints should be deterministic, but there's no validation. Non
 - ✅ `tactus validate procedure.yaml` - Validate YAML syntax and structure
   - Shows procedure info, agents, outputs, parameters
   
+- ✅ `tactus test procedure.yaml` - Run BDD specifications
+  - Supports `--scenario` filter
+  - Supports `--parallel` execution
+  - Supports `--runs N` for consistency evaluation
+  
+- ✅ `tactus eval procedure.yaml` - Run Pydantic evaluations
+  - Supports `--runs` count
+  - Supports `--parallel` execution
+  
 - ✅ `tactus version` - Show version
 
 **Missing Commands:**
-- ❌ `tactus test procedure.yaml --test-file tests.yaml`
-- ❌ `tactus eval procedure.yaml --eval-file evals.yaml`
 - ❌ `tactus procedure resume <procedure_id>`
 - ❌ `tactus procedure resume-all`
 - ❌ `tactus procedure watch --interval 10s`
@@ -735,16 +742,25 @@ Defines interface for persistence.
 **Features:**
 - ✅ `specifications([[...]])` - Embed Gherkin text in procedure files
 - ✅ `step("text", function)` - Custom Lua step definitions
-- ✅ `evaluation({...})` - Evaluation configuration
 - ✅ Gherkin parser using `gherkin-official` library
 - ✅ Comprehensive built-in step library for Tactus primitives
 - ✅ Behave integration with programmatic API
 - ✅ Parallel execution using multiprocessing
-- ✅ Structured Pydantic results (no text parsing)
-- ✅ `tactus test` command - Run scenarios once
-- ✅ `tactus evaluate` command - Run scenarios N times for consistency
+- ✅ `tactus test` command - Run scenarios (use `--runs N` for consistency)
 - ✅ Consistency metrics (success rate, timing, flakiness detection)
-- ✅ Parser warnings for missing specifications
+
+### Pydantic Evaluations (`tactus/testing/`)
+
+**Status**: ✅ **Fully Implemented**
+
+**Features:**
+- ✅ `evaluations({...})` - Evaluation configuration in Lua
+- ✅ Pydantic AI Evals integration
+- ✅ External dataset loading (JSONL, JSON, CSV)
+- ✅ `tactus eval` command - Run evaluations against dataset
+- ✅ Advanced evaluators (Regex, JSON Schema, Range, Trace Inspection)
+- ✅ CI/CD Thresholds
+- ✅ Structured Pydantic results (no text parsing)
 - ✅ IDE integration via structured log events
 
 **Implementation:**
