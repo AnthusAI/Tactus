@@ -1060,6 +1060,19 @@ def main():
     """Main entry point for the CLI."""
     # Load configuration before processing any commands
     load_tactus_config()
+    
+    # Check if user provided a direct file path (shortcut for 'run' command)
+    # This allows: tactus procedure.tac instead of tactus run procedure.tac
+    if len(sys.argv) > 1:
+        first_arg = sys.argv[1]
+        # Check if it's a file (not a subcommand or option)
+        if not first_arg.startswith("-") and first_arg not in ["run", "validate", "test", "eval", "version", "ide"]:
+            # Check if it's a file that exists
+            potential_file = Path(first_arg)
+            if potential_file.exists() and potential_file.is_file():
+                # Insert 'run' command before the file path
+                sys.argv.insert(1, "run")
+    
     app()
 
 
