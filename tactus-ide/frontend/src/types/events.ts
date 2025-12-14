@@ -102,8 +102,11 @@ export interface ExecutionSummaryEvent extends BaseEvent {
   total_tokens: number;
   cost_breakdown: CostEvent[];
   
-  // Exit code
+  // Exit code and error information
   exit_code?: number;
+  error_message?: string;
+  error_type?: string;
+  traceback?: string;
 }
 
 export interface TestStartedEvent extends BaseEvent {

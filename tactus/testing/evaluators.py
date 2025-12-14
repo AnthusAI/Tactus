@@ -588,9 +588,7 @@ def _create_json_schema_evaluator(config: EvaluatorConfig) -> Evaluator:
             except ValidationError:
                 return False
 
-    return JSONSchemaValidator(
-        field=config.field, schema=config.json_schema or config.value or {}
-    )
+    return JSONSchemaValidator(field=config.field, schema=config.json_schema or config.value or {})
 
 
 def _create_range_evaluator(config: EvaluatorConfig) -> Evaluator:

@@ -56,6 +56,7 @@ class AgentPrimitive:
         log_handler: Optional[Any] = None,
         procedure_id: Optional[str] = None,
         provider: Optional[str] = None,
+        disable_streaming: bool = False,
     ):
         """
         Initialize agent primitive.
@@ -92,6 +93,7 @@ class AgentPrimitive:
         self.procedure_id = procedure_id
         self.provider = provider
         self.model_settings = model_settings or {}
+        self.disable_streaming = disable_streaming
 
         # Create dependencies
         self.deps = AgentDeps(
@@ -101,34 +103,58 @@ class AgentPrimitive:
             output_schema_guidance=output_schema_guidance,
         )
 
-        # Create "done" tool first so we can include it in the Agent constructor
-        async def done_tool(reason: str, success: bool = True) -> str:
-            """Signal completion of the task."""
-            if self.stop_primitive:
-                self.stop_primitive.request(reason if success else f"Failed: {reason}")
-            if self.tool_primitive:
-                self.tool_primitive.record_call(
-                    "done", {"reason": reason, "success": success}, "Done"
-                )
-            return f"Done: {reason} (success: {success})"
+        # Create "done" tool if any tools are specified
+        # For models without tool support, we don't add any tools (including done)
+        if tools:
+            async def done_tool(reason: str, success: bool = True) -> str:
+                """Signal completion of the task."""
+                if self.stop_primitive:
+                    self.stop_primitive.request(reason if success else f"Failed: {reason}")
+                if self.tool_primitive:
+                    self.tool_primitive.record_call(
+                        "done", {"reason": reason, "success": success}, "Done"
+                    )
+                return f"Done: {reason} (success: {success})"
 
-        done_tool_instance = Tool(
-            done_tool, name="done", description="Signal completion of the task"
-        )
+            done_tool_instance = Tool(
+                done_tool, name="done", description="Signal completion of the task"
+            )
 
-        # Combine all tools (MCP tools + done tool)
-        all_tools = list(tools) + [done_tool_instance]
+            # Combine all tools (MCP tools + done tool)
+            all_tools = list(tools) + [done_tool_instance]
+        else:
+            # No tools for this agent (model doesn't support tool calling)
+            all_tools = []
 
         # Create Pydantic AI Agent with all tools
-        # Pydantic AI will use OPENAI_API_KEY from environment by default
-        # If we need to pass it explicitly, we would use:
-        # from pydantic_ai.models.openai import OpenAIChatModel
-        # from pydantic_ai.providers.openai import OpenAIProvider
-        # model_obj = OpenAIChatModel(model.split(':')[1], provider=OpenAIProvider(api_key=api_key))
-        # For now, we assume OPENAI_API_KEY is set in environment
-        self.agent = Agent(
-            model, deps_type=AgentDeps, tools=all_tools, model_settings=model_settings
-        )
+        # For Bedrock, we need to create a provider with region_name
+        if provider and provider.lower() == "bedrock":
+            import os
+            from pydantic_ai.models.bedrock import BedrockConverseModel
+            from pydantic_ai.providers.bedrock import BedrockProvider
+            
+            # Get region from environment (set by config loader)
+            region_name = os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
+            
+            # Extract model ID (remove provider prefix if present)
+            model_id = model.split(":", 1)[1] if ":" in model else model
+            
+            logger.info(f"Creating Bedrock model '{model_id}' with region: {region_name}")
+            bedrock_provider = BedrockProvider(region_name=region_name)
+            bedrock_model = BedrockConverseModel(model_id, provider=bedrock_provider)
+            
+            self.agent = Agent(
+                bedrock_model,
+                deps_type=AgentDeps,
+                tools=all_tools,
+                model_settings=model_settings,
+            )
+        else:
+            # For OpenAI and other providers, use default behavior
+            # Pydantic AI will use OPENAI_API_KEY from environment by default
+            self.agent = Agent(
+                model, deps_type=AgentDeps, tools=all_tools, model_settings=model_settings
+            )
 
         # Add dynamic system prompt
         @self.agent.system_prompt
@@ -287,13 +313,18 @@ class AgentPrimitive:
             # In Pydantic AI, we pass message_history to continue
             user_input = ""  # Empty input to continue conversation
 
-        # Check if we should use streaming (IDE mode + no structured output)
+        # Check if we should use streaming (IDE mode + no structured output + not disabled)
         # Streaming only works with text responses, not structured outputs
-        if self.log_handler and self.result_type is None:
+        # Some models don't support tools in streaming mode, so they can disable it
+        # Only use streaming in IDE mode (which has IDELogHandler)
+        from tactus.adapters.ide_log import IDELogHandler
+        is_ide_mode = isinstance(self.log_handler, IDELogHandler)
+        
+        if is_ide_mode and self.result_type is None and not self.disable_streaming:
             # IDE mode with text output - use streaming
             result_primitive = await self._turn_async_streaming(start_time, user_input)
         else:
-            # CLI mode or structured output - use regular run()
+            # CLI mode or structured output or streaming disabled - use regular run()
             result_primitive = await self._turn_async_regular(start_time, user_input)
 
         return result_primitive
@@ -390,7 +421,7 @@ class AgentPrimitive:
         from pydantic_ai.tools import RunContext
         from typing import AsyncIterable
 
-        # Track accumulated text across the handler
+        # Track accumulated text across the handler (will be stored in result for .text access)
         accumulated_text_container = {"text": ""}
 
         # Create event stream handler function
@@ -437,6 +468,7 @@ class AgentPrimitive:
                         logger.warning(f"Failed to log stream chunk event: {e}")
 
         # Run agent with event stream handler
+        # Note: Passing event_stream_handler makes agent.run() use streaming internally
         if self.message_history:
             # Continue existing conversation
             result = await self.agent.run(
@@ -468,6 +500,9 @@ class AgentPrimitive:
 
         # Wrap result in ResultPrimitive for Lua access
         result_primitive = ResultPrimitive(result)
+        
+        # Store the accumulated streamed text so it can be accessed via .text property
+        result_primitive._streamed_text = accumulated_text_container["text"]
 
         # Extract all available tracing data
         tracing_data = result_primitive.extract_tracing_data()
@@ -475,21 +510,23 @@ class AgentPrimitive:
         logger.info(f"Agent '{self.name}' turn completed in {duration_ms:.0f}ms")
 
         # Emit agent turn completed event BEFORE cost event
-        try:
-            from tactus.protocols.models import AgentTurnEvent
+        if self.log_handler:
+            try:
+                from tactus.protocols.models import AgentTurnEvent
 
-            turn_event = AgentTurnEvent(
-                agent_name=self.name,
-                stage="completed",
-                duration_ms=duration_ms,
-                procedure_id=self.procedure_id,
-            )
-            self.log_handler.log(turn_event)
-        except Exception as e:
-            logger.warning(f"Failed to log agent turn completed event: {e}")
+                turn_event = AgentTurnEvent(
+                    agent_name=self.name,
+                    stage="completed",
+                    duration_ms=duration_ms,
+                    procedure_id=self.procedure_id,
+                )
+                self.log_handler.log(turn_event)
+            except Exception as e:
+                logger.warning(f"Failed to log agent turn completed event: {e}")
 
         # Calculate and log comprehensive cost/metrics AFTER completion event
-        self._log_cost_event(result_primitive, duration_ms, new_messages, tracing_data)
+        if self.log_handler:
+            self._log_cost_event(result_primitive, duration_ms, new_messages, tracing_data)
 
         return result_primitive
 
@@ -539,28 +576,6 @@ class AgentPrimitive:
 
             # Convert response_data to plain dict for JSON serialization
             response_data = result_primitive.data
-            # #region agent log
-            import json
-
-            with open("/Users/ryan.porter/Projects/Tactus/.cursor/debug.log", "a") as f:
-                f.write(
-                    json.dumps(
-                        {
-                            "location": "agent.py:388",
-                            "message": "response_data before conversion",
-                            "data": {
-                                "type": str(type(response_data)),
-                                "has_model_dump": hasattr(response_data, "model_dump"),
-                                "has_dict": hasattr(response_data, "__dict__"),
-                            },
-                            "timestamp": __import__("time").time() * 1000,
-                            "sessionId": "debug-session",
-                            "hypothesisId": "A",
-                        }
-                    )
-                    + "\n"
-                )
-            # #endregion
             if hasattr(response_data, "model_dump"):
                 # It's a Pydantic model
                 response_data = response_data.model_dump()
@@ -578,30 +593,6 @@ class AgentPrimitive:
             else:
                 # Unknown type - convert to string
                 response_data = {"value": str(response_data)}
-            # #region agent log
-            with open("/Users/ryan.porter/Projects/Tactus/.cursor/debug.log", "a") as f:
-                f.write(
-                    json.dumps(
-                        {
-                            "location": "agent.py:412",
-                            "message": "response_data after conversion",
-                            "data": {
-                                "is_dict": isinstance(response_data, dict),
-                                "is_none": response_data is None,
-                                "keys": (
-                                    list(response_data.keys())
-                                    if isinstance(response_data, dict)
-                                    else None
-                                ),
-                            },
-                            "timestamp": __import__("time").time() * 1000,
-                            "sessionId": "debug-session",
-                            "hypothesisId": "A",
-                        }
-                    )
-                    + "\n"
-                )
-            # #endregion
 
             # Create comprehensive cost event
             cost_event = CostEvent(
@@ -641,44 +632,7 @@ class AgentPrimitive:
                 response_data=response_data,
             )
 
-            # #region agent log
-            import json
-
-            with open("/Users/ryan.porter/Projects/Tactus/.cursor/debug.log", "a") as f:
-                f.write(
-                    json.dumps(
-                        {
-                            "location": "agent.py:454",
-                            "message": "About to log cost_event",
-                            "data": {
-                                "agent_name": cost_event.agent_name,
-                                "has_response_data": cost_event.response_data is not None,
-                            },
-                            "timestamp": __import__("time").time() * 1000,
-                            "sessionId": "debug-session",
-                            "hypothesisId": "B",
-                        }
-                    )
-                    + "\n"
-                )
-            # #endregion
             self.log_handler.log(cost_event)
-            # #region agent log
-            with open("/Users/ryan.porter/Projects/Tactus/.cursor/debug.log", "a") as f:
-                f.write(
-                    json.dumps(
-                        {
-                            "location": "agent.py:461",
-                            "message": "Cost event logged to handler",
-                            "data": {"queue_size": self.log_handler.events.qsize()},
-                            "timestamp": __import__("time").time() * 1000,
-                            "sessionId": "debug-session",
-                            "hypothesisId": "B",
-                        }
-                    )
-                    + "\n"
-                )
-            # #endregion
             logger.info(
                 f"💰 Agent '{self.name}' cost: ${cost_info['total_cost']:.6f} "
                 f"({usage['total_tokens']} tokens, {duration_ms:.0f}ms)"

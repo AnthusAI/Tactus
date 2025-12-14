@@ -71,6 +71,12 @@ export function registerTactusLanguage() {
   });
   
   // Theme customization for DSL keywords
+  // Colors derived from Tailwind config (index.css dark mode variables)
+  // --background: 222.2 84% 4.9% -> #020817
+  // --foreground: 210 40% 98% -> #f8fafc
+  // --primary: 217.2 91.2% 59.8% -> #3b82f6
+  // --muted: 217.2 32.6% 17.5% -> #1e293b
+  // --border: 217.2 32.6% 17.5% -> #1e293b
   monaco.editor.defineTheme('tactus-dark', {
     base: 'vs-dark',
     inherit: true,
@@ -81,7 +87,32 @@ export function registerTactusLanguage() {
       { token: 'number', foreground: 'B5CEA8' },
       { token: 'keyword', foreground: '569CD6' },
     ],
-    colors: {}
+    colors: {
+      'editor.background': '#020817',
+      'editor.foreground': '#f8fafc',
+      'editorLineNumber.foreground': '#64748b',
+      'editor.lineHighlightBackground': '#1e293b40', // Muted with opacity
+      'editorCursor.foreground': '#3b82f6', // Primary
+      'editor.selectionBackground': '#3b82f640', // Primary with opacity
+      
+      // Minimap configuration - make slider visible using primary color
+      // Increased opacity for better visibility
+      'minimap.background': '#020817',
+      'minimapSlider.background': '#3b82f640', // increased from 30 to 40
+      'minimapSlider.hoverBackground': '#3b82f660', // increased from 50 to 60
+      'minimapSlider.activeBackground': '#3b82f680', // increased from 70 to 80
+      'scrollbarSlider.background': '#3b82f620',
+      'scrollbarSlider.hoverBackground': '#3b82f640',
+      'scrollbarSlider.activeBackground': '#3b82f660',
+      
+      // UI Components
+      'editorWidget.background': '#020817',
+      'editorWidget.border': '#1e293b',
+      'editorSuggestWidget.background': '#020817',
+      'editorSuggestWidget.border': '#1e293b',
+      'editorSuggestWidget.selectedBackground': '#1e293b',
+      'list.hoverBackground': '#1e293b40',
+    }
   });
   
   // Basic completions (will be enhanced by LSP)
@@ -172,6 +203,7 @@ export function registerTactusLanguage() {
     }
   });
 }
+
 
 
 

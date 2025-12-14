@@ -545,7 +545,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                     storage_dir = (
                         str(PathLib(WORKSPACE_ROOT) / ".tac" / "storage")
                         if WORKSPACE_ROOT
-                        else "~/.tac/storage"
+                        else "~/.tactus/storage"
                     )
                     storage_backend = FileStorage(storage_dir=storage_dir)
 
@@ -1109,13 +1109,14 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                     eval_dict = validation_result.registry.pydantic_evaluations
                     dataset_cases = [EvalCase(**c) for c in eval_dict.get("dataset", [])]
                     evaluators = [EvaluatorConfig(**e) for e in eval_dict.get("evaluators", [])]
-                    
+
                     # Parse thresholds if present
                     from tactus.testing.eval_models import EvaluationThresholds
+
                     thresholds = None
                     if "thresholds" in eval_dict:
                         thresholds = EvaluationThresholds(**eval_dict["thresholds"])
-                    
+
                     # Use runs from file if specified, otherwise use query param
                     actual_runs = eval_dict.get("runs", runs)
 
@@ -1164,12 +1165,16 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                                     return {k: make_serializable(v) for k, v in obj.items()}
                                 elif isinstance(obj, (list, tuple)):
                                     return [make_serializable(item) for item in obj]
-                                elif hasattr(obj, '__dict__'):
+                                elif hasattr(obj, "__dict__"):
                                     # Convert object with __dict__ to dict
-                                    return {k: make_serializable(v) for k, v in obj.__dict__.items() if not k.startswith('_')}
+                                    return {
+                                        k: make_serializable(v)
+                                        for k, v in obj.__dict__.items()
+                                        if not k.startswith("_")
+                                    }
                                 else:
                                     return str(obj)
-                            
+
                             case_dict = {
                                 "name": str(case.name),
                                 "inputs": make_serializable(case.inputs),
@@ -1177,7 +1182,11 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                                 "assertions": make_serializable(case.assertions),
                                 "scores": make_serializable(case.scores),
                                 "labels": make_serializable(case.labels),
-                                "duration": float(case.task_duration) if hasattr(case, 'task_duration') else 0.0,
+                                "duration": (
+                                    float(case.task_duration)
+                                    if hasattr(case, "task_duration")
+                                    else 0.0
+                                ),
                             }
                             result_details["cases"].append(case_dict)
 
@@ -1186,7 +1195,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                     result_details["thresholds_passed"] = passed
                     if violations:
                         result_details["threshold_violations"] = violations
-                    
+
                     result_event = {
                         "event_type": "execution",
                         "lifecycle_stage": "complete",
@@ -1354,5 +1363,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-

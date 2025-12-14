@@ -31,3 +31,4 @@ Feature: Structured Output with output_type
     And the types should map correctly
 
 
+

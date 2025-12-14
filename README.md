@@ -1,10 +1,8 @@
 # Tactus
 
-**Tactus**: A Lua-based DSL for defining and executing agentic workflows.
+**Tactus**: A tactical programming language for accomplishing tasks with agents reliably, affordably, and accurately. At scale, with regulatory compliance in mind.
 
-> **⚠️ Status: Alpha** - Tactus is in early development. Only a subset of the [specification](SPECIFICATION.md) is currently implemented. See [IMPLEMENTATION.md](IMPLEMENTATION.md) for details on what's complete and what's missing. The API is subject to change.
-
-Tactus lets you build AI-powered workflows by defining agents, tools, and orchestration logic. Instead of writing explicit code to handle every edge case, you define what capabilities (tools) are available and what goals the agents should achieve, then let the AI figure out how to use those tools to solve the problem.
+There is no shortage of options for ways to set up tasks for agents.  There are new agent development frameworks every week, positioned in different ways.  Tactus is one of those.  Instead of a framework for a programming language like Python or Javascript, Tactus is a programming language.  It's designed to be embedded in AI appliccations and systems that need to solve tasks with agents, especially when the agent code is user-contributed data.  It runs on a sandboxed Lua VM that can only access the tools you give it.  It has a way to plug human-in-the-loop interactions into your own application UI or your comunincation channel, so that your users can approve things and provide input and monitor processes through chat messages or emails or in-app UI, or a combination.  Behavior testing and ML-style evaluations are built in as first-class concepts, for enabling self-evolving agents that can validate and evaluate themselves.
 
 ## Quick Start
 
@@ -21,27 +19,21 @@ Here's a complete working example that demonstrates the core concepts of Tactus.
 Create a file `hello.tac`:
 
 ```lua
--- 1. Define the Agent and its Tools (at top level - reusable)
 agent("greeter", {
   provider = "openai",
   model = "gpt-4o-mini",
 
-  -- The system prompt defines the agent's goal and behavior
   system_prompt = [[
     You are a friendly greeter. Greet the user by name: {params.name}
     When done, call the done tool.
   ]],
 
-  -- Optional: kick off the conversation
   initial_message = "Please greet the user.",
 
-  -- Tools the agent can use (procedures can also be tools)
   tools = {"done"}
 })
 
--- 2. Define the Procedure with Parameters and Outputs
 procedure({
-  -- Parameters (inputs to the procedure)
   params = {
     name = {
       type = "string",
@@ -49,7 +41,6 @@ procedure({
     }
   },
   
-  -- Outputs (validated return values)
   outputs = {
     completed = {
       type = "boolean",
@@ -73,7 +64,6 @@ procedure({
   }
 end)
 
--- 3. Define the Test Specification (Gherkin)
 specifications([[
 Feature: Greeting Workflow
 
@@ -341,20 +331,20 @@ Score 0.0 otherwise.
 - You need fast, deterministic tests
 - You want to verify control flow (loops, conditionals, state)
 - You're testing multi-agent coordination patterns
-- Example: [`examples/with-bdd-tests.tac`](examples/with-bdd-tests.tac)
+- Example: [`examples/20-bdd-complete.tac`](examples/20-bdd-complete.tac)
 
 **Use Evaluations when:**
 - Your procedure is mostly an LLM call wrapper
 - You need to measure output quality (accuracy, tone)
 - You want to test prompt effectiveness
 - You need consistency metrics across runs
-- Example: [`examples/eval-advanced-evaluators.tac`](examples/eval-advanced-evaluators.tac)
+- Example: [`examples/36-eval-advanced.tac`](examples/36-eval-advanced.tac)
 
 **Use Both when:**
 - You have complex orchestration AND care about output quality
 - Run BDD tests for fast feedback on logic
 - Run evaluations periodically to measure LLM performance
-- Example: [`examples/eval-comprehensive.tac`](examples/eval-comprehensive.tac)
+- Example: [`examples/37-eval-comprehensive.tac`](examples/37-eval-comprehensive.tac)
 
 **The key insight:** Behavior specifications test your *code*. Evaluations test your *AI*. Most real-world procedures need both.
 
@@ -509,11 +499,11 @@ evaluations {
 When thresholds are not met, `tactus eval` exits with code 1, enabling CI/CD integration.
 
 **See examples:**
-- [`examples/eval-with-dataset-file.tac`](examples/eval-with-dataset-file.tac) - External dataset loading
-- [`examples/eval-trace-inspection.tac`](examples/eval-trace-inspection.tac) - Trace-based evaluators
-- [`examples/eval-advanced-evaluators.tac`](examples/eval-advanced-evaluators.tac) - Regex, JSON schema, range
-- [`examples/eval-with-thresholds.tac`](examples/eval-with-thresholds.tac) - CI/CD quality gates
-- [`examples/eval-comprehensive.tac`](examples/eval-comprehensive.tac) - All features combined
+- [`examples/34-eval-dataset.tac`](examples/34-eval-dataset.tac) - External dataset loading
+- [`examples/35-eval-trace.tac`](examples/35-eval-trace.tac) - Trace-based evaluators
+- [`examples/36-eval-advanced.tac`](examples/36-eval-advanced.tac) - Regex, JSON schema, range
+- [`examples/33-eval-thresholds.tac`](examples/33-eval-thresholds.tac) - CI/CD quality gates
+- [`examples/37-eval-comprehensive.tac`](examples/37-eval-comprehensive.tac) - All features combined
 
 ### Typed Parameters & The Contract
 
@@ -626,7 +616,7 @@ agent("reasoning_agent", {
 })
 ```
 
-**Configuration via `.tac/config.yml`:**
+**Configuration via `.tactus/config.yml`:**
 
 ```yaml
 # OpenAI credentials
