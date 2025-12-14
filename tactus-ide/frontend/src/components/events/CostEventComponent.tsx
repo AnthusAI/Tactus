@@ -1,61 +1,52 @@
 import React, { useState } from 'react';
 import { CostEvent } from '@/types/events';
-import { ChevronDown, ChevronRight, DollarSign } from 'lucide-react';
+import { Bot, ChevronDown, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { BaseEventComponent } from './BaseEventComponent';
+import { Timestamp } from '../Timestamp';
 
 interface CostEventComponentProps {
   event: CostEvent;
+  isAlternate?: boolean;
 }
 
-export const CostEventComponent: React.FC<CostEventComponentProps> = ({ event }) => {
+export const CostEventComponent: React.FC<CostEventComponentProps> = ({ event, isAlternate }) => {
   const [expanded, setExpanded] = useState(false);
+  const hasResponse = event.response_data && Object.keys(event.response_data).length > 0;
   
   return (
-    <div className="py-2 px-3 text-sm border-b border-border/50 bg-green-500/5">
-      {/* Primary Metrics - Always Visible */}
-      <div className="flex items-center gap-2">
-        <DollarSign className="h-4 w-4 text-green-500 flex-shrink-0" />
+    <BaseEventComponent isAlternate={isAlternate} className="py-2 px-3 text-sm">
+      <div className="flex items-start gap-2">
+        <Bot className="h-5 w-5 text-muted-foreground flex-shrink-0 stroke-[2]" />
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-medium text-green-600">
-              {event.agent_name}:
-            </span>
-            <span className="font-bold text-green-700">
-              ${event.total_cost.toFixed(6)}
-            </span>
+          {/* Agent name and timestamp - clean alignment */}
+          <div className="flex items-center justify-between">
+            <span className="text-foreground">{event.agent_name}</span>
+            <Timestamp timestamp={event.timestamp} />
           </div>
-          <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap mt-0.5">
-            <span>{event.total_tokens.toLocaleString()} tokens</span>
-            <span>•</span>
-            <span className="truncate max-w-[200px]">{event.model}</span>
-            {event.duration_ms && (
-              <>
-                <span>•</span>
-                <span>{(event.duration_ms / 1000).toFixed(2)}s</span>
-              </>
-            )}
-            {event.retry_count > 0 && (
-              <>
-                <span>•</span>
-                <span className="text-yellow-600">
-                  {event.retry_count} {event.retry_count === 1 ? 'retry' : 'retries'}
-                </span>
-              </>
-            )}
-            {event.cache_hit && (
-              <>
-                <span>•</span>
-                <span className="text-green-600">cache hit</span>
-              </>
-            )}
-          </div>
+        </div>
+      </div>
+      
+      {/* Response - First, most prominent */}
+      {hasResponse && (
+        <div className="mt-2 ml-7 bg-background rounded p-3 border">
+          <pre className="text-xs font-mono whitespace-pre-wrap">
+            {JSON.stringify(event.response_data, null, 2)}
+          </pre>
+        </div>
+      )}
+      
+      {/* Cost metrics with expand button - Below response */}
+      <div className="mt-2 ml-7 flex items-center justify-between">
+        <div className="text-xs text-muted-foreground">
+          ${event.total_cost.toFixed(6)} • {event.total_tokens.toLocaleString()} tokens • {event.model} • {event.duration_ms ? `${(event.duration_ms / 1000).toFixed(2)}s` : ''}
         </div>
         <button
           onClick={() => setExpanded(!expanded)}
           className="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted/50 transition-colors"
           aria-label={expanded ? "Collapse details" : "Expand details"}
         >
-          {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+          {expanded ? <ChevronDown className="h-3 w-3 stroke-[2]" /> : <ChevronRight className="h-3 w-3 stroke-[2]" />}
         </button>
       </div>
       
@@ -64,7 +55,7 @@ export const CostEventComponent: React.FC<CostEventComponentProps> = ({ event })
         <div className="mt-2 pt-2 border-t border-border/30 space-y-2 text-xs">
           {/* Cost Breakdown */}
           <div className="space-y-1">
-            <div className="font-medium text-muted-foreground">Cost Breakdown</div>
+            <div className="text-muted-foreground">Cost Breakdown</div>
             <div className="grid grid-cols-2 gap-2 pl-2">
               <div>
                 <span className="text-muted-foreground">Prompt:</span>
@@ -82,7 +73,7 @@ export const CostEventComponent: React.FC<CostEventComponentProps> = ({ event })
           {/* Performance Metrics */}
           {(event.duration_ms || event.latency_ms) && (
             <div className="space-y-1">
-              <div className="font-medium text-muted-foreground">Performance</div>
+              <div className="text-muted-foreground">Performance</div>
               <div className="grid grid-cols-2 gap-2 pl-2">
                 {event.duration_ms && (
                   <div>
@@ -103,7 +94,7 @@ export const CostEventComponent: React.FC<CostEventComponentProps> = ({ event })
           {/* Retry Information */}
           {event.retry_count > 0 && (
             <div className="space-y-1">
-              <div className="font-medium text-yellow-600">Validation Retries</div>
+              <div className="text-yellow-600">Validation Retries</div>
               <div className="pl-2">
                 <div>
                   <span className="text-muted-foreground">Retry count:</span>
@@ -124,7 +115,7 @@ export const CostEventComponent: React.FC<CostEventComponentProps> = ({ event })
           {/* Cache Information */}
           {event.cache_hit && (
             <div className="space-y-1">
-              <div className="font-medium text-green-600">Cache</div>
+              <div className="text-green-600">Cache</div>
               <div className="pl-2">
                 <div>
                   <span className="text-muted-foreground">Status:</span>
@@ -148,7 +139,7 @@ export const CostEventComponent: React.FC<CostEventComponentProps> = ({ event })
           
           {/* Message Counts */}
           <div className="space-y-1">
-            <div className="font-medium text-muted-foreground">Messages</div>
+            <div className="text-muted-foreground">Messages</div>
             <div className="grid grid-cols-2 gap-2 pl-2">
               <div>
                 <span className="text-muted-foreground">Total:</span>
@@ -164,7 +155,7 @@ export const CostEventComponent: React.FC<CostEventComponentProps> = ({ event })
           {/* Model Settings */}
           {(event.temperature !== null && event.temperature !== undefined || event.max_tokens) && (
             <div className="space-y-1">
-              <div className="font-medium text-muted-foreground">Model Settings</div>
+              <div className="text-muted-foreground">Model Settings</div>
               <div className="grid grid-cols-2 gap-2 pl-2">
                 {event.temperature !== null && event.temperature !== undefined && (
                   <div>
@@ -185,7 +176,7 @@ export const CostEventComponent: React.FC<CostEventComponentProps> = ({ event })
           {/* Request Metadata */}
           {(event.request_id || event.model_version || event.provider) && (
             <div className="space-y-1">
-              <div className="font-medium text-muted-foreground">Request Metadata</div>
+              <div className="text-muted-foreground">Request Metadata</div>
               <div className="pl-2 space-y-0.5">
                 {event.provider && (
                   <div>
@@ -210,6 +201,8 @@ export const CostEventComponent: React.FC<CostEventComponentProps> = ({ event })
           )}
         </div>
       )}
-    </div>
+    </BaseEventComponent>
   );
 };
+
+

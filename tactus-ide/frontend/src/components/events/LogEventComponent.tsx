@@ -1,65 +1,79 @@
 import React, { useState } from 'react';
 import { LogEvent } from '@/types/events';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, Bug, Info, AlertTriangle, AlertCircle, Siren } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { BaseEventComponent } from './BaseEventComponent';
+import { Timestamp } from '../Timestamp';
 
 interface LogEventComponentProps {
   event: LogEvent;
+  isAlternate?: boolean;
 }
 
-const levelColors = {
-  DEBUG: 'text-gray-500',
-  INFO: 'text-blue-500',
-  WARNING: 'text-yellow-500',
-  ERROR: 'text-red-500',
-  CRITICAL: 'text-red-700',
+const levelConfig = {
+  DEBUG: {
+    icon: Bug,
+    color: 'text-muted-foreground',
+  },
+  INFO: {
+    icon: Info,
+    color: 'text-muted-foreground',
+  },
+  WARNING: {
+    icon: AlertTriangle,
+    color: 'text-yellow-500',
+  },
+  ERROR: {
+    icon: AlertCircle,
+    color: 'text-red-500',
+    bg: 'bg-red-500/10',
+  },
+  CRITICAL: {
+    icon: Siren,
+    color: 'text-red-700',
+    bg: 'bg-red-700/10',
+  },
 };
 
-const levelBgColors = {
-  DEBUG: 'bg-gray-500/10',
-  INFO: 'bg-blue-500/10',
-  WARNING: 'bg-yellow-500/10',
-  ERROR: 'bg-red-500/10',
-  CRITICAL: 'bg-red-700/10',
-};
-
-export const LogEventComponent: React.FC<LogEventComponentProps> = ({ event }) => {
-  const [contextExpanded, setContextExpanded] = useState(false);
+export const LogEventComponent: React.FC<LogEventComponentProps> = ({ event, isAlternate }) => {
+  // Auto-expand context for "Agent completed" messages
+  const autoExpand = event.message.includes('Agent completed');
+  const [contextExpanded, setContextExpanded] = useState(autoExpand);
   const hasContext = event.context && Object.keys(event.context).length > 0;
 
-  const levelColor = levelColors[event.level as keyof typeof levelColors] || 'text-gray-500';
-  const levelBg = levelBgColors[event.level as keyof typeof levelBgColors] || 'bg-gray-500/10';
+  const config = levelConfig[event.level as keyof typeof levelConfig] || levelConfig.INFO;
+  const Icon = config.icon;
 
   return (
-    <div className="py-2 px-3 text-sm border-b border-border/50">
+    <BaseEventComponent isAlternate={isAlternate} className={cn('py-2 px-3 text-sm', config.bg)}>
       <div className="flex items-start gap-2">
-        <span className={cn('text-xs font-mono px-1.5 py-0.5 rounded', levelBg, levelColor)}>
-          {event.level}
-        </span>
+        <Icon className={cn('h-5 w-5 flex-shrink-0 stroke-[2]', config.color)} />
         <div className="flex-1 min-w-0">
-          <div className="text-foreground">{event.message}</div>
-          {hasContext && (
+          <div className="flex items-center justify-between">
+            <div className="text-foreground">{event.message}</div>
+            <Timestamp timestamp={event.timestamp} className="whitespace-nowrap" />
+          </div>
+          {hasContext && !autoExpand && (
             <button
               onClick={() => setContextExpanded(!contextExpanded)}
-              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mt-1"
+              className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mt-1"
             >
-              {contextExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+              {contextExpanded ? <ChevronDown className="h-3 w-3 stroke-[2]" /> : <ChevronRight className="h-3 w-3 stroke-[2]" />}
               Context
             </button>
           )}
-          {contextExpanded && hasContext && (
-            <pre className="mt-2 text-xs bg-muted/30 p-2 rounded overflow-x-auto">
-              {JSON.stringify(event.context, null, 2)}
-            </pre>
-          )}
         </div>
-        <span className="text-xs text-muted-foreground whitespace-nowrap">
-          {new Date(event.timestamp).toLocaleTimeString()}
-        </span>
       </div>
-    </div>
+      {hasContext && (autoExpand || contextExpanded) && (
+        <div className="mt-2 ml-7 bg-background rounded p-3 border">
+          <pre className="text-xs font-mono whitespace-pre-wrap">{JSON.stringify(event.context, null, 2)}</pre>
+        </div>
+      )}
+    </BaseEventComponent>
   );
 };
+
+
 
 
 

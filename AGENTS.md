@@ -4,7 +4,10 @@ This document provides guidelines for AI coding agents working on the Tactus pro
 
 ## Pre-Commit Checklist
 
-**CRITICAL**: Before committing any changes, you MUST run the complete test and linting suite:
+**CRITICAL**: Before committing any changes, you MUST:
+
+1. **Wait for human approval** - DO NOT COMMIT until the human user has tested and approved your changes
+2. **Run the complete test and linting suite**:
 
 ```bash
 # 1. Run unit tests
@@ -24,7 +27,11 @@ ruff check .
 black tactus tactus-ide/backend features/steps tests --check
 ```
 
-Only commit when ALL of the above pass. Do not skip this step or commit before running these checks.
+Only commit when:
+- The human user has explicitly approved the changes
+- ALL of the above checks pass
+
+Do not skip this step or commit before getting approval and running these checks.
 
 ## Reference Documentation
 
@@ -187,6 +194,23 @@ The IDE is designed to run as a desktop application:
 - No dependency on browser-specific APIs
 - Hybrid validation works in Electron environment
 
+### UI/UX Standards
+
+When working on the Tactus IDE frontend:
+
+- **UI Framework**: Use [Shadcn UI](https://ui.shadcn.com/) components for all UI elements
+- **Icons**: Always use [Lucide React](https://lucide.dev/) icons - **NEVER use emojis**
+- **Styling**: Use Tailwind CSS with the existing design system
+- **Theme**: Support both light and dark modes (colors are defined in CSS variables)
+- **Accessibility**: Ensure proper ARIA labels and keyboard navigation
+
+Example icon usage:
+```tsx
+import { Bot, CircleCheck, ChevronDown } from 'lucide-react';
+
+<Bot className="h-5 w-5 text-muted-foreground stroke-[2]" />
+```
+
 ## Testing Requirements
 
 Before declaring any change complete:
@@ -196,6 +220,33 @@ Before declaring any change complete:
 3. **Verify imports**: Ensure all imports resolve correctly
 4. **Check for errors**: Run linters and fix any issues
 5. **Test parser changes**: If grammar modified, run `make test-parsers`
+
+### Understanding Testing vs. Evaluation
+
+Tactus has two distinct testing mechanisms that serve different purposes:
+
+**Behavior Specifications (`specifications`):**
+- Test the **Lua orchestration logic** (control flow, state management, coordination)
+- Use Gherkin syntax (Given/When/Then)
+- Run with `tactus test`
+- Can use mocks to isolate logic from LLM behavior
+- Fast and deterministic
+- Example: Testing that a multi-agent workflow delegates correctly
+
+**Evaluations (`evaluations`):**
+- Test the **LLM's output quality** (accuracy, consistency, helpfulness)
+- Use Pydantic AI Evals framework
+- Run with `tactus eval`
+- Use real API calls (not mocked)
+- Slower and probabilistic
+- Example: Testing that an agent generates high-quality greetings
+
+**When to use which:**
+- **Complex orchestration** → Use `specifications` to test the logic
+- **Simple LLM wrapper** → Use `evaluations` to test the output
+- **Both** → Use specifications for fast feedback on logic, evaluations for quality metrics
+
+**Key principle:** Don't mock LLMs in evaluations—you're testing the model's actual behavior. Do mock them in specifications when you're testing orchestration logic, not intelligence.
 
 ## Code Quality
 
