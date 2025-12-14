@@ -102,6 +102,19 @@ class AgentTurnEvent(BaseModel):
     model_config = {"arbitrary_types_allowed": True}
 
 
+class AgentStreamChunkEvent(BaseModel):
+    """Event emitted for each chunk of streamed agent response."""
+
+    event_type: str = Field(default="agent_stream_chunk", description="Event type")
+    agent_name: str = Field(..., description="Agent name")
+    chunk_text: str = Field(..., description="Text chunk from this update")
+    accumulated_text: str = Field(..., description="Full text accumulated so far")
+    timestamp: datetime = Field(default_factory=utc_now, description="Event timestamp")
+    procedure_id: Optional[str] = Field(None, description="Procedure identifier")
+
+    model_config = {"arbitrary_types_allowed": True}
+
+
 class CostEvent(BaseModel):
     """Cost event for a single LLM call with comprehensive tracing data."""
 
@@ -155,7 +168,7 @@ class CostEvent(BaseModel):
     raw_tracing_data: Optional[Dict[str, Any]] = Field(
         None, description="Any additional tracing data"
     )
-    
+
     # Response data (new field)
     response_data: Optional[Dict[str, Any]] = Field(
         None, description="Agent's response data (extracted from result.data)"
@@ -179,9 +192,11 @@ class ExecutionSummaryEvent(BaseModel):
     total_cost: float = Field(default=0.0, description="Total LLM cost")
     total_tokens: int = Field(default=0, description="Total tokens used")
     cost_breakdown: list[Any] = Field(default_factory=list, description="Per-call cost details")
-    
+
     # Exit code
-    exit_code: Optional[int] = Field(default=0, description="Exit code (0 for success, non-zero for error)")
+    exit_code: Optional[int] = Field(
+        default=0, description="Exit code (0 for success, non-zero for error)"
+    )
 
     model_config = {"arbitrary_types_allowed": True}
 

@@ -9,6 +9,9 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
+# Import core event types from tactus.protocols
+from tactus.protocols.models import AgentStreamChunkEvent  # noqa: F401
+
 # Import test/evaluation events from tactus.testing
 
 
@@ -64,5 +67,3 @@ class LoadingEvent(BaseEvent):
 
     event_type: str = "loading"
     message: str = Field(..., description="Loading message to display")
-
-

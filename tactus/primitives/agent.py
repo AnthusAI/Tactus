@@ -201,7 +201,7 @@ class AgentPrimitive:
         if self.log_handler:
             try:
                 from tactus.protocols.models import AgentTurnEvent
-                
+
                 turn_event = AgentTurnEvent(
                     agent_name=self.name,
                     stage="started",
@@ -229,7 +229,7 @@ class AgentPrimitive:
                 # We're in an async context - run in a thread with new event loop
                 import threading
                 import nest_asyncio
-                
+
                 # Try using nest_asyncio if available
                 try:
                     nest_asyncio.apply(loop)
@@ -245,7 +245,9 @@ class AgentPrimitive:
                             new_loop = asyncio.new_event_loop()
                             asyncio.set_event_loop(new_loop)
                             try:
-                                result_container["value"] = new_loop.run_until_complete(self._turn_async())
+                                result_container["value"] = new_loop.run_until_complete(
+                                    self._turn_async()
+                                )
                             finally:
                                 new_loop.close()
                         except Exception as e:
@@ -285,6 +287,32 @@ class AgentPrimitive:
             # In Pydantic AI, we pass message_history to continue
             user_input = ""  # Empty input to continue conversation
 
+        # Check if we should use streaming (IDE mode + no structured output)
+        # Streaming only works with text responses, not structured outputs
+        if self.log_handler and self.result_type is None:
+            # IDE mode with text output - use streaming
+            result_primitive = await self._turn_async_streaming(start_time, user_input)
+        else:
+            # CLI mode or structured output - use regular run()
+            result_primitive = await self._turn_async_regular(start_time, user_input)
+
+        return result_primitive
+
+    async def _turn_async_regular(
+        self, start_time: float, user_input: Optional[str]
+    ) -> ResultPrimitive:
+        """
+        Regular (non-streaming) agent turn for CLI mode.
+
+        Args:
+            start_time: Start time for duration measurement
+            user_input: User input message
+
+        Returns:
+            ResultPrimitive wrapping pydantic-ai's RunResult
+        """
+        import time
+
         # Run agent with dependencies and message history
         if self.message_history:
             # Continue existing conversation
@@ -323,7 +351,7 @@ class AgentPrimitive:
         if self.log_handler:
             try:
                 from tactus.protocols.models import AgentTurnEvent
-                
+
                 turn_event = AgentTurnEvent(
                     agent_name=self.name,
                     stage="completed",
@@ -337,6 +365,131 @@ class AgentPrimitive:
         # Calculate and log comprehensive cost/metrics AFTER completion event
         if self.log_handler:
             self._log_cost_event(result_primitive, duration_ms, new_messages, tracing_data)
+
+        return result_primitive
+
+    async def _turn_async_streaming(
+        self, start_time: float, user_input: Optional[str]
+    ) -> ResultPrimitive:
+        """
+        Streaming agent turn for IDE mode using event_stream_handler.
+
+        This approach uses agent.run() with event_stream_handler instead of run_stream(),
+        which allows us to stream text AND execute tool calls properly.
+
+        Args:
+            start_time: Start time for duration measurement
+            user_input: User input message
+
+        Returns:
+            ResultPrimitive wrapping pydantic-ai's RunResult
+        """
+        import time
+        from tactus.protocols.models import AgentStreamChunkEvent
+        from pydantic_ai.messages import AgentStreamEvent, PartDeltaEvent, PartStartEvent
+        from pydantic_ai.tools import RunContext
+        from typing import AsyncIterable
+
+        # Track accumulated text across the handler
+        accumulated_text_container = {"text": ""}
+
+        # Create event stream handler function
+        async def stream_handler(
+            ctx: RunContext[AgentDeps], events: AsyncIterable[AgentStreamEvent]
+        ) -> None:
+            """Handler function that processes streaming events."""
+            from pydantic_ai.messages import FunctionToolCallEvent
+
+            async for event in events:
+                text_chunk = ""
+
+                # Log tool calls for debugging
+                if isinstance(event, FunctionToolCallEvent):
+                    logger.info(f"Tool call event: {event.part.tool_name} (id: {event.call_id})")
+
+                # Handle PartStartEvent - contains the first word/content
+                if isinstance(event, PartStartEvent):
+                    # PartStartEvent contains the initial part content
+                    if hasattr(event.part, "content"):
+                        text_chunk = event.part.content
+
+                # Handle PartDeltaEvent - contains incremental text updates
+                elif isinstance(event, PartDeltaEvent):
+                    # PartDeltaEvent contains text deltas
+                    if hasattr(event.delta, "content_delta"):
+                        text_chunk = event.delta.content_delta
+                    elif hasattr(event.delta, "content"):
+                        text_chunk = event.delta.content
+
+                # Emit chunk if we have text
+                if text_chunk:
+                    accumulated_text_container["text"] += text_chunk
+
+                    try:
+                        chunk_event = AgentStreamChunkEvent(
+                            agent_name=self.name,
+                            chunk_text=text_chunk,
+                            accumulated_text=accumulated_text_container["text"],
+                            procedure_id=self.procedure_id,
+                        )
+                        self.log_handler.log(chunk_event)
+                    except Exception as e:
+                        logger.warning(f"Failed to log stream chunk event: {e}")
+
+        # Run agent with event stream handler
+        if self.message_history:
+            # Continue existing conversation
+            result = await self.agent.run(
+                user_input if user_input else "Continue",
+                deps=self.deps,
+                message_history=self.message_history,
+                output_type=self.result_type,
+                event_stream_handler=stream_handler,
+            )
+        else:
+            # First turn - start new conversation
+            result = await self.agent.run(
+                self.initial_message or "Hello",
+                deps=self.deps,
+                output_type=self.result_type,
+                event_stream_handler=stream_handler,
+            )
+
+        # Calculate duration
+        duration_ms = (time.time() - start_time) * 1000
+
+        # Update message history
+        new_messages = result.new_messages()
+        self.message_history.extend(new_messages)
+
+        # Record messages in chat recorder if available
+        if self.chat_recorder:
+            self._record_messages(new_messages)
+
+        # Wrap result in ResultPrimitive for Lua access
+        result_primitive = ResultPrimitive(result)
+
+        # Extract all available tracing data
+        tracing_data = result_primitive.extract_tracing_data()
+
+        logger.info(f"Agent '{self.name}' turn completed in {duration_ms:.0f}ms")
+
+        # Emit agent turn completed event BEFORE cost event
+        try:
+            from tactus.protocols.models import AgentTurnEvent
+
+            turn_event = AgentTurnEvent(
+                agent_name=self.name,
+                stage="completed",
+                duration_ms=duration_ms,
+                procedure_id=self.procedure_id,
+            )
+            self.log_handler.log(turn_event)
+        except Exception as e:
+            logger.warning(f"Failed to log agent turn completed event: {e}")
+
+        # Calculate and log comprehensive cost/metrics AFTER completion event
+        self._log_cost_event(result_primitive, duration_ms, new_messages, tracing_data)
 
         return result_primitive
 
@@ -388,13 +541,30 @@ class AgentPrimitive:
             response_data = result_primitive.data
             # #region agent log
             import json
-            with open('/Users/ryan.porter/Projects/Tactus/.cursor/debug.log', 'a') as f:
-                f.write(json.dumps({"location":"agent.py:388","message":"response_data before conversion","data":{"type":str(type(response_data)),"has_model_dump":hasattr(response_data, 'model_dump'),"has_dict":hasattr(response_data, '__dict__')},"timestamp":__import__('time').time()*1000,"sessionId":"debug-session","hypothesisId":"A"}) + '\n')
+
+            with open("/Users/ryan.porter/Projects/Tactus/.cursor/debug.log", "a") as f:
+                f.write(
+                    json.dumps(
+                        {
+                            "location": "agent.py:388",
+                            "message": "response_data before conversion",
+                            "data": {
+                                "type": str(type(response_data)),
+                                "has_model_dump": hasattr(response_data, "model_dump"),
+                                "has_dict": hasattr(response_data, "__dict__"),
+                            },
+                            "timestamp": __import__("time").time() * 1000,
+                            "sessionId": "debug-session",
+                            "hypothesisId": "A",
+                        }
+                    )
+                    + "\n"
+                )
             # #endregion
-            if hasattr(response_data, 'model_dump'):
+            if hasattr(response_data, "model_dump"):
                 # It's a Pydantic model
                 response_data = response_data.model_dump()
-            elif hasattr(response_data, '__dict__'):
+            elif hasattr(response_data, "__dict__"):
                 # It's some other object
                 response_data = dict(response_data.__dict__)
             elif isinstance(response_data, (dict, list)):
@@ -409,10 +579,30 @@ class AgentPrimitive:
                 # Unknown type - convert to string
                 response_data = {"value": str(response_data)}
             # #region agent log
-            with open('/Users/ryan.porter/Projects/Tactus/.cursor/debug.log', 'a') as f:
-                f.write(json.dumps({"location":"agent.py:412","message":"response_data after conversion","data":{"is_dict":isinstance(response_data, dict),"is_none":response_data is None,"keys":list(response_data.keys()) if isinstance(response_data, dict) else None},"timestamp":__import__('time').time()*1000,"sessionId":"debug-session","hypothesisId":"A"}) + '\n')
+            with open("/Users/ryan.porter/Projects/Tactus/.cursor/debug.log", "a") as f:
+                f.write(
+                    json.dumps(
+                        {
+                            "location": "agent.py:412",
+                            "message": "response_data after conversion",
+                            "data": {
+                                "is_dict": isinstance(response_data, dict),
+                                "is_none": response_data is None,
+                                "keys": (
+                                    list(response_data.keys())
+                                    if isinstance(response_data, dict)
+                                    else None
+                                ),
+                            },
+                            "timestamp": __import__("time").time() * 1000,
+                            "sessionId": "debug-session",
+                            "hypothesisId": "A",
+                        }
+                    )
+                    + "\n"
+                )
             # #endregion
-            
+
             # Create comprehensive cost event
             cost_event = CostEvent(
                 # Primary metrics
@@ -453,13 +643,41 @@ class AgentPrimitive:
 
             # #region agent log
             import json
-            with open('/Users/ryan.porter/Projects/Tactus/.cursor/debug.log', 'a') as f:
-                f.write(json.dumps({"location":"agent.py:454","message":"About to log cost_event","data":{"agent_name":cost_event.agent_name,"has_response_data":cost_event.response_data is not None},"timestamp":__import__('time').time()*1000,"sessionId":"debug-session","hypothesisId":"B"}) + '\n')
+
+            with open("/Users/ryan.porter/Projects/Tactus/.cursor/debug.log", "a") as f:
+                f.write(
+                    json.dumps(
+                        {
+                            "location": "agent.py:454",
+                            "message": "About to log cost_event",
+                            "data": {
+                                "agent_name": cost_event.agent_name,
+                                "has_response_data": cost_event.response_data is not None,
+                            },
+                            "timestamp": __import__("time").time() * 1000,
+                            "sessionId": "debug-session",
+                            "hypothesisId": "B",
+                        }
+                    )
+                    + "\n"
+                )
             # #endregion
             self.log_handler.log(cost_event)
             # #region agent log
-            with open('/Users/ryan.porter/Projects/Tactus/.cursor/debug.log', 'a') as f:
-                f.write(json.dumps({"location":"agent.py:461","message":"Cost event logged to handler","data":{"queue_size":self.log_handler.events.qsize()},"timestamp":__import__('time').time()*1000,"sessionId":"debug-session","hypothesisId":"B"}) + '\n')
+            with open("/Users/ryan.porter/Projects/Tactus/.cursor/debug.log", "a") as f:
+                f.write(
+                    json.dumps(
+                        {
+                            "location": "agent.py:461",
+                            "message": "Cost event logged to handler",
+                            "data": {"queue_size": self.log_handler.events.qsize()},
+                            "timestamp": __import__("time").time() * 1000,
+                            "sessionId": "debug-session",
+                            "hypothesisId": "B",
+                        }
+                    )
+                    + "\n"
+                )
             # #endregion
             logger.info(
                 f"💰 Agent '{self.name}' cost: ${cost_info['total_cost']:.6f} "
@@ -514,5 +732,3 @@ class AgentPrimitive:
 
     def __repr__(self) -> str:
         return f"AgentPrimitive('{self.name}', {len(self.message_history)} messages)"
-
-

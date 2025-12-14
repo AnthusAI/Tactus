@@ -60,7 +60,26 @@ export function useEventStream(url: string | null): StreamState {
                   console.log('[SSE] Adding event to state, prev count:', prev.length);
                   // #endregion
                   
-                  // If this is a cost event, remove any loading events for the same agent
+                  // If this is a streaming chunk event, replace loading and previous chunks for this agent
+                  if (event.event_type === 'agent_stream_chunk') {
+                    const chunkEvent = event as any;
+                    const filtered = prev.filter(e => {
+                      // Remove loading events that match this agent
+                      if (e.event_type === 'loading') {
+                        const loadingMsg = (e as any).message;
+                        return loadingMsg !== `Waiting for ${chunkEvent.agent_name} response...`;
+                      }
+                      // Remove previous stream chunks for this agent
+                      if (e.event_type === 'agent_stream_chunk') {
+                        const prevChunk = e as any;
+                        return prevChunk.agent_name !== chunkEvent.agent_name;
+                      }
+                      return true;
+                    });
+                    return [...filtered, event];
+                  }
+                  
+                  // If this is a cost event, remove loading and agent_turn events (but KEEP streaming chunks visible)
                   if (event.event_type === 'cost') {
                     const costEvent = event as any;
                     // #region agent log
@@ -87,6 +106,16 @@ export function useEventStream(url: string | null): StreamState {
                       }
                       return true;
                     });
+                    // Don't show response_data in CostEvent if we streamed it
+                    // Check if there's a streaming chunk for this agent
+                    const hasStreamChunk = prev.some(e => 
+                      e.event_type === 'agent_stream_chunk' && 
+                      (e as any).agent_name === costEvent.agent_name
+                    );
+                    if (hasStreamChunk && costEvent.response_data) {
+                      // Hide response_data since we already streamed it
+                      costEvent.response_data = null;
+                    }
                     return [...filtered, event];
                   }
                   
@@ -119,7 +148,7 @@ export function useEventStream(url: string | null): StreamState {
 
     eventSource.onerror = (err) => {
       // #region agent log
-      console.debug('[SSE] Error event:', {readyState: eventSource.readyState, err});
+      console.debug('[SSE] Error event:', {readyState: eventSource.readyState, err, type: err.type, target: err.target});
       // #endregion
       
       // If connection is already closed (readyState 2), this is expected after completion
@@ -128,8 +157,14 @@ export function useEventStream(url: string | null): StreamState {
         return;
       }
       
+      // If we're connecting (readyState 0), this might be a temporary connection issue
+      if (eventSource.readyState === EventSource.CONNECTING) {
+        console.debug('SSE reconnecting...');
+        return;
+      }
+      
       // Only log actual errors
-      console.error('SSE error:', err);
+      console.error('SSE error:', err, 'readyState:', eventSource.readyState);
       setError('Connection error');
       setIsRunning(false);
       eventSource.close();

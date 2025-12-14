@@ -39,6 +39,54 @@ class ResultPrimitive:
         self._result = pydantic_result
 
     @property
+    def text(self) -> str:
+        """
+        Extract plain text content from the response.
+
+        For plain text responses (no structured output), extracts the text
+        from the underlying ModelResponse. For structured outputs, returns string representation.
+
+        Returns:
+            Plain text content from the response
+        """
+        # AgentRunResult has 'response' attribute which is a ModelResponse
+        if hasattr(self._result, "response"):
+            response = self._result.response
+
+            # If it's a ModelResponse object, extract text from parts
+            if hasattr(response, "parts"):
+                text_parts = []
+                for part in response.parts:
+                    if hasattr(part, "content"):
+                        text_parts.append(str(part.content))
+                    elif hasattr(part, "text"):
+                        text_parts.append(part.text)
+                return "".join(text_parts)
+
+        # Try 'output' attribute (for structured outputs)
+        if hasattr(self._result, "output"):
+            output = self._result.output
+
+            # If it's a dict, return JSON
+            if isinstance(output, dict):
+                import json
+
+                return json.dumps(output, indent=2)
+
+            # If it's a Pydantic model, convert to dict then JSON
+            if hasattr(output, "model_dump"):
+                import json
+
+                return json.dumps(output.model_dump(), indent=2)
+
+            # If it's a string, return it
+            if isinstance(output, str):
+                return output
+
+        # Fallback: use the .data property
+        return str(self.data)
+
+    @property
     def data(self) -> Any:
         """
         Get the response data (output).
@@ -56,24 +104,69 @@ class ResultPrimitive:
             data = self._result.data
             # #region agent log
             import json
-            with open('/Users/ryan.porter/Projects/Tactus/.cursor/debug.log', 'a') as f:
-                f.write(json.dumps({"location":"result.py:56","message":"ResultPrimitive.data called","data":{"type":str(type(data)),"has_model_dump":hasattr(data, 'model_dump'),"has_dict":hasattr(data, 'dict'),"repr_preview":str(data)[:200]},"timestamp":__import__('time').time()*1000,"sessionId":"debug-session","hypothesisId":"E"}) + '\n')
+
+            with open("/Users/ryan.porter/Projects/Tactus/.cursor/debug.log", "a") as f:
+                f.write(
+                    json.dumps(
+                        {
+                            "location": "result.py:56",
+                            "message": "ResultPrimitive.data called",
+                            "data": {
+                                "type": str(type(data)),
+                                "has_model_dump": hasattr(data, "model_dump"),
+                                "has_dict": hasattr(data, "dict"),
+                                "repr_preview": str(data)[:200],
+                            },
+                            "timestamp": __import__("time").time() * 1000,
+                            "sessionId": "debug-session",
+                            "hypothesisId": "E",
+                        }
+                    )
+                    + "\n"
+                )
             # #endregion
 
             # Convert Pydantic models to dicts for Lua
             if hasattr(data, "model_dump"):
                 result = data.model_dump()
                 # #region agent log
-                with open('/Users/ryan.porter/Projects/Tactus/.cursor/debug.log', 'a') as f:
-                    f.write(json.dumps({"location":"result.py:68","message":"Called model_dump()","data":{"result_type":str(type(result)),"is_dict":isinstance(result, dict)},"timestamp":__import__('time').time()*1000,"sessionId":"debug-session","hypothesisId":"E"}) + '\n')
+                with open("/Users/ryan.porter/Projects/Tactus/.cursor/debug.log", "a") as f:
+                    f.write(
+                        json.dumps(
+                            {
+                                "location": "result.py:68",
+                                "message": "Called model_dump()",
+                                "data": {
+                                    "result_type": str(type(result)),
+                                    "is_dict": isinstance(result, dict),
+                                },
+                                "timestamp": __import__("time").time() * 1000,
+                                "sessionId": "debug-session",
+                                "hypothesisId": "E",
+                            }
+                        )
+                        + "\n"
+                    )
                 # #endregion
                 return result
             elif hasattr(data, "dict"):
                 return data.dict()
             else:
                 # #region agent log
-                with open('/Users/ryan.porter/Projects/Tactus/.cursor/debug.log', 'a') as f:
-                    f.write(json.dumps({"location":"result.py:77","message":"Returning data as-is (no model_dump or dict)","data":{"type":str(type(data))},"timestamp":__import__('time').time()*1000,"sessionId":"debug-session","hypothesisId":"E"}) + '\n')
+                with open("/Users/ryan.porter/Projects/Tactus/.cursor/debug.log", "a") as f:
+                    f.write(
+                        json.dumps(
+                            {
+                                "location": "result.py:77",
+                                "message": "Returning data as-is (no model_dump or dict)",
+                                "data": {"type": str(type(data))},
+                                "timestamp": __import__("time").time() * 1000,
+                                "sessionId": "debug-session",
+                                "hypothesisId": "E",
+                            }
+                        )
+                        + "\n"
+                    )
                 # #endregion
                 return data
         else:
@@ -219,5 +312,3 @@ class ResultPrimitive:
             except Exception:
                 # Fallback: convert to string
                 return {"role": "unknown", "content": str(msg)}
-
-
