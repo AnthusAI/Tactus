@@ -57,6 +57,7 @@ class AgentPrimitive:
         procedure_id: Optional[str] = None,
         provider: Optional[str] = None,
         disable_streaming: bool = False,
+        message_history_filter: Optional[Any] = None,
     ):
         """
         Initialize agent primitive.
@@ -94,6 +95,7 @@ class AgentPrimitive:
         self.provider = provider
         self.model_settings = model_settings or {}
         self.disable_streaming = disable_streaming
+        self.message_history_filter = message_history_filter
 
         # Create dependencies
         self.deps = AgentDeps(
@@ -106,6 +108,7 @@ class AgentPrimitive:
         # Create "done" tool if any tools are specified
         # For models without tool support, we don't add any tools (including done)
         if tools:
+
             async def done_tool(reason: str, success: bool = True) -> str:
                 """Signal completion of the task."""
                 if self.stop_primitive:
@@ -126,23 +129,26 @@ class AgentPrimitive:
             # No tools for this agent (model doesn't support tool calling)
             all_tools = []
 
+        # Store all tools for later reference (for per-turn filtering)
+        self.all_tools = all_tools
+
         # Create Pydantic AI Agent with all tools
         # For Bedrock, we need to create a provider with region_name
         if provider and provider.lower() == "bedrock":
             import os
             from pydantic_ai.models.bedrock import BedrockConverseModel
             from pydantic_ai.providers.bedrock import BedrockProvider
-            
+
             # Get region from environment (set by config loader)
             region_name = os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
-            
+
             # Extract model ID (remove provider prefix if present)
             model_id = model.split(":", 1)[1] if ":" in model else model
-            
+
             logger.info(f"Creating Bedrock model '{model_id}' with region: {region_name}")
             bedrock_provider = BedrockProvider(region_name=region_name)
             bedrock_model = BedrockConverseModel(model_id, provider=bedrock_provider)
-            
+
             self.agent = Agent(
                 bedrock_model,
                 deps_type=AgentDeps,
@@ -207,7 +213,7 @@ class AgentPrimitive:
             f"AgentPrimitive '{name}' initialized with {len(all_tools)} tools (including 'done')"
         )
 
-    def turn(self) -> ResultPrimitive:
+    def turn(self, opts: Optional[Dict[str, Any]] = None) -> ResultPrimitive:
         """
         Execute one agent turn (synchronous wrapper for async Pydantic AI call).
 
@@ -217,6 +223,14 @@ class AgentPrimitive:
         3. Records tool calls via tool_primitive
         4. Updates conversation history
         5. Returns a ResultPrimitive wrapping pydantic-ai's RunResult
+
+        Args:
+            opts: Optional dict with per-turn overrides:
+                - inject: str - Message to inject for this turn
+                - tools: List[str] - Tool names to use (None = use default, [] = no tools)
+                - temperature: float - Override temperature for this turn
+                - max_tokens: int - Override max_tokens for this turn
+                - top_p: float - Override top_p for this turn
 
         Returns:
             ResultPrimitive with access to data, usage, and messages
@@ -260,7 +274,7 @@ class AgentPrimitive:
                 try:
                     nest_asyncio.apply(loop)
                     # Now we can use asyncio.run even in a running loop
-                    return asyncio.run(self._turn_async())
+                    return asyncio.run(self._turn_async(opts))
                 except ImportError:
                     # nest_asyncio not available, fall back to threading
                     result_container = {"value": None, "exception": None}
@@ -272,7 +286,7 @@ class AgentPrimitive:
                             asyncio.set_event_loop(new_loop)
                             try:
                                 result_container["value"] = new_loop.run_until_complete(
-                                    self._turn_async()
+                                    self._turn_async(opts)
                                 )
                             finally:
                                 new_loop.close()
@@ -288,15 +302,107 @@ class AgentPrimitive:
                     return result_container["value"]
             except RuntimeError:
                 # No event loop running - safe to use asyncio.run()
-                return asyncio.run(self._turn_async())
+                return asyncio.run(self._turn_async(opts))
 
         except Exception as e:
             logger.error(f"Agent '{self.name}' turn() failed: {e}", exc_info=True)
             raise
 
-    async def _turn_async(self) -> ResultPrimitive:
+    def _get_tools_for_turn(self, opts: Optional[Dict[str, Any]]) -> Optional[List]:
+        """
+        Get tool list for this specific turn, respecting overrides.
+
+        Args:
+            opts: Optional dict with 'tools' key
+
+        Returns:
+            List of Tool instances to use for this turn, or None for default
+        """
+        if opts and "tools" in opts:
+            tool_names = opts["tools"]
+            if tool_names is None:
+                # None means use default tools
+                return None
+            elif isinstance(tool_names, list):
+                # Filter to requested tools
+                return self._filter_tools_by_name(tool_names)
+
+        # Default: use all configured tools (None = use agent's default)
+        return None
+
+    def _filter_tools_by_name(self, tool_names: List[str]) -> List:
+        """
+        Filter agent's tools to only those in tool_names list.
+
+        Args:
+            tool_names: List of tool names to include
+
+        Returns:
+            List of Tool instances matching the names
+        """
+        filtered = []
+
+        for tool in self.all_tools:
+            if tool.name in tool_names:
+                filtered.append(tool)
+
+        # Validate all requested tools exist
+        found_names = {t.name for t in filtered}
+        missing = set(tool_names) - found_names
+        if missing:
+            logger.warning(f"Agent '{self.name}': Requested tools not found: {missing}")
+
+        return filtered
+
+    def _get_user_input_for_turn(self, opts: Optional[Dict[str, Any]]) -> Optional[str]:
+        """
+        Get user input for this turn, respecting inject override.
+
+        Args:
+            opts: Optional dict with 'inject' key
+
+        Returns:
+            User input message for this turn
+        """
+        if opts and "inject" in opts:
+            return opts["inject"]
+
+        # Default behavior
+        return self.initial_message if not self.message_history else None
+
+    def _get_model_settings_for_turn(self, opts: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Get model settings for this turn, merging in any overrides.
+
+        Args:
+            opts: Optional dict with model setting overrides
+
+        Returns:
+            Dict of model settings for this turn
+        """
+        # Start with default settings
+        turn_model_settings = dict(self.model_settings)
+
+        # Merge in any overrides
+        if opts:
+            for key in [
+                "temperature",
+                "max_tokens",
+                "top_p",
+                "presence_penalty",
+                "frequency_penalty",
+            ]:
+                if key in opts:
+                    turn_model_settings[key] = opts[key]
+
+        return turn_model_settings
+
+    async def _turn_async(self, opts: Optional[Dict[str, Any]] = None) -> ResultPrimitive:
         """
         Internal async method that performs the actual agent turn.
+
+        Args:
+            opts: Optional dict with per-turn overrides
 
         Returns:
             ResultPrimitive wrapping pydantic-ai's RunResult
@@ -306,31 +412,46 @@ class AgentPrimitive:
         # Track start time for duration measurement
         start_time = time.time()
 
-        # Prepare input message
-        user_input = self.initial_message if not self.message_history else None
+        # Determine tools for this turn
+        turn_tools = self._get_tools_for_turn(opts)
+
+        # Determine input message for this turn
+        user_input = self._get_user_input_for_turn(opts)
         if not user_input:
             # For subsequent turns, we need to continue the conversation
             # In Pydantic AI, we pass message_history to continue
             user_input = ""  # Empty input to continue conversation
 
-        # Check if we should use streaming (IDE mode + no structured output + not disabled)
+        # Get model settings for this turn
+        turn_model_settings = self._get_model_settings_for_turn(opts)
+
+        # Check if we should use streaming (log handler present + no structured output + not disabled)
         # Streaming only works with text responses, not structured outputs
         # Some models don't support tools in streaming mode, so they can disable it
-        # Only use streaming in IDE mode (which has IDELogHandler)
-        from tactus.adapters.ide_log import IDELogHandler
-        is_ide_mode = isinstance(self.log_handler, IDELogHandler)
-        
-        if is_ide_mode and self.result_type is None and not self.disable_streaming:
-            # IDE mode with text output - use streaming
-            result_primitive = await self._turn_async_streaming(start_time, user_input)
+        # Works with both IDE and CLI log handlers
+        should_stream = (
+            self.log_handler is not None and self.result_type is None and not self.disable_streaming
+        )
+
+        if should_stream:
+            # Streaming mode - works with both IDE and CLI
+            result_primitive = await self._turn_async_streaming(
+                start_time, user_input, turn_tools, turn_model_settings
+            )
         else:
-            # CLI mode or structured output or streaming disabled - use regular run()
-            result_primitive = await self._turn_async_regular(start_time, user_input)
+            # Non-streaming mode (structured output or streaming disabled)
+            result_primitive = await self._turn_async_regular(
+                start_time, user_input, turn_tools, turn_model_settings
+            )
 
         return result_primitive
 
     async def _turn_async_regular(
-        self, start_time: float, user_input: Optional[str]
+        self,
+        start_time: float,
+        user_input: Optional[str],
+        turn_tools: List,
+        turn_model_settings: Dict[str, Any],
     ) -> ResultPrimitive:
         """
         Regular (non-streaming) agent turn for CLI mode.
@@ -338,26 +459,48 @@ class AgentPrimitive:
         Args:
             start_time: Start time for duration measurement
             user_input: User input message
+            turn_tools: List of tools to use for this turn
+            turn_model_settings: Model settings to use for this turn
 
         Returns:
             ResultPrimitive wrapping pydantic-ai's RunResult
         """
         import time
 
-        # Run agent with dependencies and message history
-        if self.message_history:
-            # Continue existing conversation
-            result = await self.agent.run(
-                user_input if user_input else "Continue",
-                deps=self.deps,
-                message_history=self.message_history,
-                output_type=self.result_type,
+        # Use context manager to override tools if specified
+        if turn_tools is not None:
+            logger.debug(
+                f"Agent '{self.name}': Temporarily using {len(turn_tools)} tools for this turn"
             )
+            agent_context = self.agent.override(tools=turn_tools)
         else:
-            # First turn - start new conversation
-            result = await self.agent.run(
-                self.initial_message or "Hello", deps=self.deps, output_type=self.result_type
-            )
+            # No override - use a no-op context manager
+            from contextlib import nullcontext
+
+            agent_context = nullcontext()
+
+        async with agent_context:
+            # Run agent with dependencies and message history
+            if self.message_history:
+                # Apply filters to message history if configured
+                filtered_history = self._apply_message_history_filter(self.message_history)
+
+                # Continue existing conversation
+                result = await self.agent.run(
+                    user_input if user_input else "Continue",
+                    deps=self.deps,
+                    message_history=filtered_history,
+                    output_type=self.result_type,
+                    model_settings=turn_model_settings,
+                )
+            else:
+                # First turn - start new conversation
+                result = await self.agent.run(
+                    self.initial_message or "Hello",
+                    deps=self.deps,
+                    output_type=self.result_type,
+                    model_settings=turn_model_settings,
+                )
 
         # Calculate duration
         duration_ms = (time.time() - start_time) * 1000
@@ -400,7 +543,11 @@ class AgentPrimitive:
         return result_primitive
 
     async def _turn_async_streaming(
-        self, start_time: float, user_input: Optional[str]
+        self,
+        start_time: float,
+        user_input: Optional[str],
+        turn_tools: List,
+        turn_model_settings: Dict[str, Any],
     ) -> ResultPrimitive:
         """
         Streaming agent turn for IDE mode using event_stream_handler.
@@ -411,6 +558,8 @@ class AgentPrimitive:
         Args:
             start_time: Start time for duration measurement
             user_input: User input message
+            turn_tools: List of tools to use for this turn
+            turn_model_settings: Model settings to use for this turn
 
         Returns:
             ResultPrimitive wrapping pydantic-ai's RunResult
@@ -467,25 +616,43 @@ class AgentPrimitive:
                     except Exception as e:
                         logger.warning(f"Failed to log stream chunk event: {e}")
 
-        # Run agent with event stream handler
-        # Note: Passing event_stream_handler makes agent.run() use streaming internally
-        if self.message_history:
-            # Continue existing conversation
-            result = await self.agent.run(
-                user_input if user_input else "Continue",
-                deps=self.deps,
-                message_history=self.message_history,
-                output_type=self.result_type,
-                event_stream_handler=stream_handler,
+        # Use context manager to override tools if specified
+        if turn_tools is not None:
+            logger.debug(
+                f"Agent '{self.name}': Temporarily using {len(turn_tools)} tools for this turn"
             )
+            agent_context = self.agent.override(tools=turn_tools)
         else:
-            # First turn - start new conversation
-            result = await self.agent.run(
-                self.initial_message or "Hello",
-                deps=self.deps,
-                output_type=self.result_type,
-                event_stream_handler=stream_handler,
-            )
+            # No override - use a no-op context manager
+            from contextlib import nullcontext
+
+            agent_context = nullcontext()
+
+        async with agent_context:
+            # Run agent with event stream handler
+            # Note: Passing event_stream_handler makes agent.run() use streaming internally
+            if self.message_history:
+                # Apply filters to message history if configured
+                filtered_history = self._apply_message_history_filter(self.message_history)
+
+                # Continue existing conversation
+                result = await self.agent.run(
+                    user_input if user_input else "Continue",
+                    deps=self.deps,
+                    message_history=filtered_history,
+                    output_type=self.result_type,
+                    event_stream_handler=stream_handler,
+                    model_settings=turn_model_settings,
+                )
+            else:
+                # First turn - start new conversation
+                result = await self.agent.run(
+                    self.initial_message or "Hello",
+                    deps=self.deps,
+                    output_type=self.result_type,
+                    event_stream_handler=stream_handler,
+                    model_settings=turn_model_settings,
+                )
 
         # Calculate duration
         duration_ms = (time.time() - start_time) * 1000
@@ -500,7 +667,7 @@ class AgentPrimitive:
 
         # Wrap result in ResultPrimitive for Lua access
         result_primitive = ResultPrimitive(result)
-        
+
         # Store the accumulated streamed text so it can be accessed via .text property
         result_primitive._streamed_text = accumulated_text_container["text"]
 
@@ -683,6 +850,75 @@ class AgentPrimitive:
         """Flush any queued chat recordings (async method)."""
         # This is a placeholder - actual implementation depends on chat_recorder
         pass
+
+    def _apply_message_history_filter(self, messages: List[ModelMessage]) -> List[ModelMessage]:
+        """
+        Apply configured filter to message history.
+
+        Args:
+            messages: Full message history
+
+        Returns:
+            Filtered message history
+        """
+        if not self.message_history_filter:
+            return messages
+
+        # Filter is a tuple like ("last_n", 10) or ("compose", [filter1, filter2])
+        if (
+            not isinstance(self.message_history_filter, tuple)
+            or len(self.message_history_filter) < 2
+        ):
+            logger.warning(f"Invalid filter format: {self.message_history_filter}")
+            return messages
+
+        filter_type = self.message_history_filter[0]
+        filter_arg = self.message_history_filter[1]
+
+        if filter_type == "last_n":
+            # Keep only last N messages
+            n = int(filter_arg)
+            filtered = messages[-n:] if len(messages) > n else messages
+            logger.debug(f"Applied last_n({n}) filter: {len(messages)} -> {len(filtered)} messages")
+            return filtered
+
+        elif filter_type == "by_role":
+            # Keep only messages with specific role
+            role = filter_arg
+            filtered = [msg for msg in messages if getattr(msg, "role", None) == role]
+            logger.debug(
+                f"Applied by_role('{role}') filter: {len(messages)} -> {len(filtered)} messages"
+            )
+            return filtered
+
+        elif filter_type == "token_budget":
+            # Keep messages within token budget (simplified: just count messages)
+            # TODO: Implement proper token counting
+            max_tokens = int(filter_arg)
+            # Rough estimate: ~100 tokens per message
+            max_messages = max_tokens // 100
+            filtered = messages[-max_messages:] if len(messages) > max_messages else messages
+            logger.debug(
+                f"Applied token_budget({max_tokens}) filter: {len(messages)} -> {len(filtered)} messages"
+            )
+            return filtered
+
+        elif filter_type == "compose":
+            # Apply multiple filters in sequence
+            filtered = messages
+            if isinstance(filter_arg, (list, tuple)):
+                for sub_filter in filter_arg:
+                    # Temporarily set the filter and apply recursively
+                    old_filter = self.message_history_filter
+                    self.message_history_filter = sub_filter
+                    filtered = self._apply_message_history_filter(filtered)
+                    self.message_history_filter = old_filter
+            logger.debug(f"Applied compose filter: {len(messages)} -> {len(filtered)} messages")
+            return filtered
+
+        else:
+            logger.warning(f"Unknown filter type: {filter_type}")
+            return messages
 
     def __repr__(self) -> str:
         return f"AgentPrimitive('{self.name}', {len(self.message_history)} messages)"

@@ -610,7 +610,6 @@ def _display_evaluation_results(eval_results):
 def _display_eval_results(report, runs: int, console):
     """Display evaluation results with per-task success rate breakdown."""
     from collections import defaultdict
-    from rich.table import Table
     from rich.panel import Panel
     from rich import box
 
@@ -671,7 +670,7 @@ def _display_eval_results(report, runs: int, console):
                 summary += f"\n    [dim]Input:[/dim] {case.inputs}"
 
                 # Show output (formatted nicely)
-                summary += f"\n    [dim]Output:[/dim]"
+                summary += "\n    [dim]Output:[/dim]"
                 if isinstance(case.output, dict):
                     for key, value in case.output.items():
                         value_str = str(value)
@@ -685,7 +684,7 @@ def _display_eval_results(report, runs: int, console):
                     summary += f" {output_str}"
 
                 # Show assertion results for this run
-                summary += f"\n    [dim]Evaluators:[/dim]"
+                summary += "\n    [dim]Evaluators:[/dim]"
                 for eval_name, assertion in case.assertions.items():
                     result_icon = "✔" if assertion.value else "✗"
                     summary += f"\n      {result_icon} {eval_name}"
@@ -699,7 +698,7 @@ def _display_eval_results(report, runs: int, console):
                                 if line.strip():
                                     summary += f"\n         {line.strip()}"
                             if len(reason_lines) > 3:
-                                summary += f"\n         [dim]...[/dim]"
+                                summary += "\n         [dim]...[/dim]"
 
             if len(cases) > 3:
                 summary += f"\n\n  [dim]... and {len(cases) - 3} more runs (use --verbose to see all)[/dim]"
@@ -852,7 +851,7 @@ def _display_pydantic_eval_results(report):
     """Display Pydantic Evals results in Rich format."""
 
     # Summary header
-    console.print(f"\n[bold]Evaluation Results:[/bold]")
+    console.print("\n[bold]Evaluation Results:[/bold]")
 
     # Overall stats
     total_cases = len(report.cases) if hasattr(report, "cases") else 0
@@ -1060,6 +1059,26 @@ def main():
     """Main entry point for the CLI."""
     # Load configuration before processing any commands
     load_tactus_config()
+
+    # Check if user provided a direct file path (shortcut for 'run' command)
+    # This allows: tactus procedure.tac instead of tactus run procedure.tac
+    if len(sys.argv) > 1:
+        first_arg = sys.argv[1]
+        # Check if it's a file (not a subcommand or option)
+        if not first_arg.startswith("-") and first_arg not in [
+            "run",
+            "validate",
+            "test",
+            "eval",
+            "version",
+            "ide",
+        ]:
+            # Check if it's a file that exists
+            potential_file = Path(first_arg)
+            if potential_file.exists() and potential_file.is_file():
+                # Insert 'run' command before the file path
+                sys.argv.insert(1, "run")
+
     app()
 
 

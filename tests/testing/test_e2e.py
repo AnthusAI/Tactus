@@ -2,6 +2,10 @@
 End-to-end tests for BDD testing framework.
 
 Tests complete flow from Gherkin parsing through execution to results.
+
+Note: These tests use Behave which has a global step registry that persists
+across tests in the same worker process. See conftest.py for the fixture that
+clears the registry between tests.
 """
 
 import pytest
@@ -11,6 +15,7 @@ from tactus.testing.test_runner import TactusTestRunner
 from tactus.validation import TactusValidator
 
 
+@pytest.mark.xdist_group(name="behave_tests")
 def test_simple_procedure_no_agents():
     """Test complete flow with simple procedure (no agents)."""
     procedure_file = Path("examples/02-basics-simple-logic.tac")
@@ -42,9 +47,7 @@ def test_simple_procedure_no_agents():
     runner.cleanup()
 
 
-@pytest.mark.skip(
-    reason="Behave step registry conflict when running multiple tests - run individually"
-)
+@pytest.mark.xdist_group(name="behave_tests")
 def test_procedure_with_mocked_agents():
     """Test procedure with agents in mock mode."""
     procedure_file = Path("examples/21-bdd-passing.tac")
@@ -75,9 +78,7 @@ def test_procedure_with_mocked_agents():
     runner.cleanup()
 
 
-@pytest.mark.skip(
-    reason="Behave step registry conflict when running multiple tests - run individually"
-)
+@pytest.mark.xdist_group(name="behave_tests")
 def test_evaluation_with_mock_mode():
     """Test evaluation runner with mock mode."""
     procedure_file = Path("examples/02-basics-simple-logic.tac")
@@ -98,7 +99,7 @@ def test_evaluation_with_mock_mode():
     evaluator.setup(result.registry.gherkin_specifications)
 
     # Run evaluation with just 3 runs for speed
-    eval_results = evaluator.evaluate_all(runs=3, parallel=False)
+    eval_results = evaluator.evaluate_all(runs=3, parallel=True)
 
     # Verify results
     assert len(eval_results) == 3  # 3 scenarios
@@ -112,6 +113,7 @@ def test_evaluation_with_mock_mode():
     evaluator.cleanup()
 
 
+@pytest.mark.xdist_group(name="behave_tests")
 def test_cli_test_command_mock_mode(tmp_path):
     """Test CLI test command with mock mode."""
     from typer.testing import CliRunner
@@ -154,9 +156,7 @@ Feature: Test
     assert result.exit_code in [0, 1]  # 0 = pass, 1 = test failure
 
 
-@pytest.mark.skip(
-    reason="Behave step registry conflict when running multiple tests - run individually"
-)
+@pytest.mark.xdist_group(name="behave_tests")
 def test_parameter_passing():
     """Test that parameters are passed correctly to procedures."""
     procedure_file = Path("examples/02-basics-simple-logic.tac")
@@ -171,12 +171,9 @@ def test_parameter_passing():
     runner = TactusTestRunner(procedure_file, params={"target_count": 3})
     runner.setup(result.registry.gherkin_specifications)
 
-    test_result = runner.run_tests(parallel=False)
+    test_result = runner.run_tests(parallel=True)
 
     # Should complete
     assert test_result.total_scenarios > 0
 
     runner.cleanup()
-
-
-

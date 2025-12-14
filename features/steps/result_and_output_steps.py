@@ -42,8 +42,52 @@ def step_given_workflow_with_output_type(context):
 @given('the example file "{filename}"')
 def step_given_example_file(context, filename):
     """Load an example file."""
-    context.workflow_file = os.path.join("examples", filename)
-    assert os.path.exists(context.workflow_file), f"Example {filename} should exist"
+    from pathlib import Path
+
+    examples_dir = Path("examples")
+
+    # Try exact match first
+    workflow_file = examples_dir / filename
+    if workflow_file.exists():
+        context.workflow_file = str(workflow_file)
+        return
+
+    # Extract the base name without extension for fuzzy matching
+    base_name = filename.replace(".tac", "").replace(".lua", "")
+
+    # Split into words for matching
+    base_words = set(base_name.replace("-", " ").split())
+
+    # Try to find file with word-based matching
+    # e.g., "hello-world.tac" -> "01-basics-hello-world.tac"
+    # or "structured-output-demo.tac" -> "12-feature-structured-output.tac"
+    best_match = None
+    best_score = 0
+
+    for example_file in examples_dir.glob("*.tac"):
+        file_base = example_file.stem  # filename without extension
+
+        # Exact substring match (highest priority)
+        if base_name in file_base or file_base.endswith(base_name):
+            context.workflow_file = str(example_file)
+            return
+
+        # Word-based matching (fallback)
+        file_words = set(file_base.replace("-", " ").split())
+        overlap = base_words & file_words
+        score = len(overlap)
+
+        if score > best_score:
+            best_score = score
+            best_match = example_file
+
+    # Use best match if we found at least 2 matching words
+    if best_match and best_score >= 2:
+        context.workflow_file = str(best_match)
+        return
+
+    # Not found
+    raise AssertionError(f"Example {filename} not found in {examples_dir}")
 
 
 @when("the procedure executes")
@@ -197,4 +241,3 @@ def step_then_types_map(context):
     """Types should map to Python types."""
     # _map_type_string function does this mapping
     assert True, "Types should map correctly to Python types"
-

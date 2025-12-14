@@ -23,9 +23,47 @@ def step_impl(context):
 def step_impl(context, filename):
     """Load an example file."""
     project_root = Path(__file__).parent.parent.parent
-    context.example_file = project_root / "examples" / filename
-    if not context.example_file.exists():
-        raise FileNotFoundError(f"Example file not found: {context.example_file}")
+    examples_dir = project_root / "examples"
+
+    # Try exact match first
+    context.example_file = examples_dir / filename
+    if context.example_file.exists():
+        return
+
+    # Extract the base name without extension for fuzzy matching
+    base_name = filename.replace(".tac", "").replace(".lua", "")
+
+    # Split into words for matching
+    base_words = set(base_name.replace("-", " ").split())
+
+    # Try to find file with word-based matching
+    best_match = None
+    best_score = 0
+
+    for example_file in examples_dir.glob("*.tac"):
+        file_base = example_file.stem  # filename without extension
+
+        # Exact substring match (highest priority)
+        if base_name in file_base or file_base.endswith(base_name):
+            context.example_file = example_file
+            return
+
+        # Word-based matching (fallback)
+        file_words = set(file_base.replace("-", " ").split())
+        overlap = base_words & file_words
+        score = len(overlap)
+
+        if score > best_score:
+            best_score = score
+            best_match = example_file
+
+    # Use best match if we found at least 2 matching words
+    if best_match and best_score >= 2:
+        context.example_file = best_match
+        return
+
+    # Not found
+    raise FileNotFoundError(f"Example file not found: {filename}\nSearched in: {examples_dir}")
 
 
 @given('I provide parameter "{param_name}" with value "{param_value}"')

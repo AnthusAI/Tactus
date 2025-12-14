@@ -6,12 +6,7 @@ Feature: Session Filters
   Background:
     Given a Tactus validation environment
 
-  @spec_mismatch @filters_not_used_at_runtime
   Scenario: last_n filter
-    # TODO: SPEC.md describes session filters (lines 828-834)
-    # Current implementation defines filter functions but doesn't apply them at runtime
-    # Filters should be used in agent session configuration
-    # Fix in: tactus/core/runtime.py - apply filters to agent sessions
     Given a Lua DSL file with content:
       """
       agent("worker", {
@@ -31,9 +26,7 @@ Feature: Session Filters
     When I validate the file
     Then validation should succeed
 
-  @spec_mismatch @filters_not_used_at_runtime
   Scenario: token_budget filter
-    # TODO: Same as above - filters defined but not applied
     Given a Lua DSL file with content:
       """
       agent("worker", {
@@ -53,9 +46,7 @@ Feature: Session Filters
     When I validate the file
     Then validation should succeed
 
-  @spec_mismatch @filters_not_used_at_runtime
   Scenario: by_role filter
-    # TODO: Same as above - filters defined but not applied
     Given a Lua DSL file with content:
       """
       agent("worker", {
@@ -75,9 +66,7 @@ Feature: Session Filters
     When I validate the file
     Then validation should succeed
 
-  @spec_mismatch @filters_not_used_at_runtime
   Scenario: compose multiple filters
-    # TODO: Same as above - filters defined but not applied
     Given a Lua DSL file with content:
       """
       agent("worker", {

@@ -6,12 +6,7 @@ Feature: Matchers (contains, equals, matches)
   Background:
     Given a Tactus validation environment
 
-  @spec_mismatch @matchers_not_documented_in_spec
   Scenario: contains matcher
-    # TODO: Matchers (contains, equals, matches) are implemented in dsl_stubs.py
-    # but are not documented in SPECIFICATION.md
-    # Need to add documentation for these matchers
-    # Document in: SPECIFICATION.md - add matchers section
     Given a Lua DSL file with content:
       """
       agent("worker", {
@@ -30,9 +25,7 @@ Feature: Matchers (contains, equals, matches)
     When I validate the file
     Then validation should succeed
 
-  @spec_mismatch @matchers_not_documented_in_spec
   Scenario: equals matcher
-    # TODO: Same as above - not documented in spec
     Given a Lua DSL file with content:
       """
       agent("worker", {
@@ -50,9 +43,7 @@ Feature: Matchers (contains, equals, matches)
     When I validate the file
     Then validation should succeed
 
-  @spec_mismatch @matchers_not_documented_in_spec
   Scenario: matches regex matcher
-    # TODO: Same as above - not documented in spec
     Given a Lua DSL file with content:
       """
       agent("worker", {

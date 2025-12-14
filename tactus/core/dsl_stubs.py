@@ -90,6 +90,10 @@ def create_dsl_stubs(builder: RegistryBuilder) -> dict[str, Callable]:
             if isinstance(output_config, dict):
                 output_schema = output_config
 
+        # Support 'session' as an alias for 'message_history'
+        if "session" in config_dict and "message_history" not in config_dict:
+            config_dict["message_history"] = config_dict["session"]
+
         builder.register_agent(agent_name, config_dict, output_schema)
 
     def _procedure(config_or_fn, fn=None) -> None:
@@ -123,6 +127,14 @@ def create_dsl_stubs(builder: RegistryBuilder) -> dict[str, Callable]:
             # Extract and register message_history config (aligned with pydantic-ai)
             if "message_history" in config:
                 builder.set_message_history_config(config["message_history"])
+
+            # Extract and register custom prompts
+            if "return_prompt" in config:
+                builder.set_return_prompt(config["return_prompt"])
+            if "error_prompt" in config:
+                builder.set_error_prompt(config["error_prompt"])
+            if "status_prompt" in config:
+                builder.set_status_prompt(config["status_prompt"])
 
             # Store the procedure function
             builder.set_procedure(fn)

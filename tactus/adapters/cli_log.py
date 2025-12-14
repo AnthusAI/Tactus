@@ -39,6 +39,13 @@ class CLILogHandler:
         Args:
             event: Structured log event
         """
+        # Handle stream chunks specially
+        from tactus.protocols.models import AgentStreamChunkEvent
+
+        if isinstance(event, AgentStreamChunkEvent):
+            self._display_stream_chunk(event)
+            return
+
         # Handle cost events specially
         if isinstance(event, CostEvent):
             self._display_cost_event(event)
@@ -67,15 +74,22 @@ class CLILogHandler:
             # Simple log message
             self.console.log(event.message)
 
+    def _display_stream_chunk(self, event) -> None:
+        """Display streaming text chunk in real-time."""
+        # Print chunk without newline so text flows naturally
+        # Use markup=False to avoid interpreting Rich markup in the text
+        self.console.print(event.chunk_text, end="", markup=False)
+
     def _display_agent_turn_event(self, event) -> None:
         """Display agent turn start/complete event."""
-        from tactus.protocols.models import AgentTurnEvent
 
         if event.stage == "started":
             self.console.print(
                 f"[blue]⏳ Agent[/blue] [bold]{event.agent_name}[/bold]: [blue]Waiting for response...[/blue]"
             )
         elif event.stage == "completed":
+            # Add newline after streaming completes to separate from next output
+            self.console.print()  # Newline after streamed text
             duration_str = f"{event.duration_ms:.0f}ms" if event.duration_ms else ""
             self.console.print(
                 f"[green]✓ Agent[/green] [bold]{event.agent_name}[/bold]: [green]Completed[/green] {duration_str}"

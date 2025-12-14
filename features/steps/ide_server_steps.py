@@ -424,4 +424,3 @@ def after_scenario(context, scenario):
         for sock in context.occupied_sockets:
             sock.close()
         context.occupied_sockets = []
-

@@ -203,9 +203,7 @@ class ExecutionSummaryEvent(BaseModel):
     error_type: Optional[str] = Field(
         default=None, description="Error type/class name if execution failed"
     )
-    traceback: Optional[str] = Field(
-        default=None, description="Full traceback if execution failed"
-    )
+    traceback: Optional[str] = Field(default=None, description="Full traceback if execution failed")
 
     model_config = {"arbitrary_types_allowed": True}
 
