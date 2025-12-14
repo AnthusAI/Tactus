@@ -387,34 +387,13 @@ def run_procedure_stream():
                 execution_thread.start()
                 
                 # Stream events as they come in while execution is running
-                # #region agent log
-                import json as json_lib
-                with open('/Users/ryan.porter/Projects/Tactus/.cursor/debug.log', 'a') as f:
-                    f.write(json_lib.dumps({"location":"app.py:390","message":"Starting event stream loop","data":{"thread_alive":execution_thread.is_alive(),"queue_empty":log_handler.events.empty()},"timestamp":time.time()*1000,"sessionId":"debug-session","hypothesisId":"D"}) + '\n')
-                # #endregion
                 while execution_thread.is_alive() or not log_handler.events.empty():
                     events = log_handler.get_events(timeout=0.1)
-                    # #region agent log
-                    with open('/Users/ryan.porter/Projects/Tactus/.cursor/debug.log', 'a') as f:
-                        f.write(json_lib.dumps({"location":"app.py:397","message":"Retrieved events from queue","data":{"event_count":len(events),"event_types":[e.event_type for e in events]},"timestamp":time.time()*1000,"sessionId":"debug-session","hypothesisId":"B,D"}) + '\n')
-                    # #endregion
                     for event in events:
                         try:
-                            # #region agent log
-                            with open('/Users/ryan.porter/Projects/Tactus/.cursor/debug.log', 'a') as f:
-                                f.write(json_lib.dumps({"location":"app.py:404","message":"About to serialize event","data":{"event_type":event.event_type,"is_cost":event.event_type=='cost'},"timestamp":time.time()*1000,"sessionId":"debug-session","hypothesisId":"C"}) + '\n')
-                            # #endregion
                             yield f"data: {event.model_dump_json()}\n\n"
-                            # #region agent log
-                            with open('/Users/ryan.porter/Projects/Tactus/.cursor/debug.log', 'a') as f:
-                                f.write(json_lib.dumps({"location":"app.py:411","message":"Event serialized successfully","data":{"event_type":event.event_type},"timestamp":time.time()*1000,"sessionId":"debug-session","hypothesisId":"C"}) + '\n')
-                            # #endregion
                         except Exception as e:
                             logger.error(f"Failed to serialize event: {e}", exc_info=True)
-                            # #region agent log
-                            with open('/Users/ryan.porter/Projects/Tactus/.cursor/debug.log', 'a') as f:
-                                f.write(json_lib.dumps({"location":"app.py:418","message":"Event serialization FAILED","data":{"event_type":event.event_type,"error":str(e)},"timestamp":time.time()*1000,"sessionId":"debug-session","hypothesisId":"C"}) + '\n')
-                            # #endregion
                             # Send error event instead
                             from events import LogEvent
                             error_event = LogEvent(
@@ -428,17 +407,9 @@ def run_procedure_stream():
                 # Wait for thread to complete
                 execution_thread.join(timeout=1)
                 
-                # #region agent log
-                with open('/Users/ryan.porter/Projects/Tactus/.cursor/debug.log', 'a') as f:
-                    f.write(json_lib.dumps({"location":"app.py:428","message":"Thread completed, getting remaining events","data":{"queue_empty":log_handler.events.empty(),"queue_size":log_handler.events.qsize()},"timestamp":time.time()*1000,"sessionId":"debug-session","hypothesisId":"D"}) + '\n')
-                # #endregion
                 
                 # Get any remaining events
                 events = log_handler.get_events(timeout=0.1)
-                # #region agent log
-                with open('/Users/ryan.porter/Projects/Tactus/.cursor/debug.log', 'a') as f:
-                    f.write(json_lib.dumps({"location":"app.py:436","message":"Final events retrieved","data":{"event_count":len(events),"event_types":[e.event_type for e in events]},"timestamp":time.time()*1000,"sessionId":"debug-session","hypothesisId":"D"}) + '\n')
-                # #endregion
                 for event in events:
                     try:
                         yield f"data: {event.model_dump_json()}\n\n"
