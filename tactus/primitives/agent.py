@@ -313,18 +313,21 @@ class AgentPrimitive:
             # In Pydantic AI, we pass message_history to continue
             user_input = ""  # Empty input to continue conversation
 
-        # Check if we should use streaming (IDE mode + no structured output + not disabled)
+        # Check if we should use streaming (log handler present + no structured output + not disabled)
         # Streaming only works with text responses, not structured outputs
         # Some models don't support tools in streaming mode, so they can disable it
-        # Only use streaming in IDE mode (which has IDELogHandler)
-        from tactus.adapters.ide_log import IDELogHandler
-        is_ide_mode = isinstance(self.log_handler, IDELogHandler)
+        # Works with both IDE and CLI log handlers
+        should_stream = (
+            self.log_handler is not None
+            and self.result_type is None
+            and not self.disable_streaming
+        )
         
-        if is_ide_mode and self.result_type is None and not self.disable_streaming:
-            # IDE mode with text output - use streaming
+        if should_stream:
+            # Streaming mode - works with both IDE and CLI
             result_primitive = await self._turn_async_streaming(start_time, user_input)
         else:
-            # CLI mode or structured output or streaming disabled - use regular run()
+            # Non-streaming mode (structured output or streaming disabled)
             result_primitive = await self._turn_async_regular(start_time, user_input)
 
         return result_primitive
