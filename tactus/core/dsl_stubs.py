@@ -162,6 +162,10 @@ def create_dsl_stubs(builder: RegistryBuilder) -> dict[str, Callable]:
         """Set evaluation configuration."""
         builder.set_evaluation_config(lua_table_to_dict(config or {}))
 
+    def _evaluations(config) -> None:
+        """Register Pydantic Evals evaluation configuration."""
+        builder.register_evaluations(lua_table_to_dict(config or {}))
+
     def _default_provider(provider: str) -> None:
         """Set default provider."""
         builder.set_default_provider(provider)
@@ -237,6 +241,8 @@ def create_dsl_stubs(builder: RegistryBuilder) -> dict[str, Callable]:
         "specifications": _specifications,
         "step": _step,
         "evaluation": _evaluation,
+        # Pydantic Evals Integration
+        "evaluations": _evaluations,
         # Settings
         "default_provider": _default_provider,
         "default_model": _default_model,

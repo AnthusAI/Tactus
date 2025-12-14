@@ -25,3 +25,5 @@ class LogHandler(Protocol):
             event: Structured event (LogEvent or ExecutionSummaryEvent)
         """
         ...
+
+

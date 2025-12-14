@@ -57,3 +57,12 @@ class ValidationEvent(BaseEvent):
     errors: List[Dict[str, Any]] = Field(
         default_factory=list, description="List of validation errors"
     )
+
+
+class LoadingEvent(BaseEvent):
+    """Loading indicator event."""
+
+    event_type: str = "loading"
+    message: str = Field(..., description="Loading message to display")
+
+

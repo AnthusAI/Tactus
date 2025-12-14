@@ -37,3 +37,5 @@ Feature: IDE Server Management
     When I press Ctrl+C
     Then I should see "Server port:" in the output
 
+
+

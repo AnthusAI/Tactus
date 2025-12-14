@@ -65,13 +65,13 @@ tactus test procedure.tac --no-parallel
 
 ```bash
 # Run each scenario 10 times to measure consistency
-tactus evaluate procedure.tac --runs 10
+tactus test procedure.tac --runs 10
 
 # Run with more iterations
-tactus evaluate procedure.tac --runs 50
+tactus test procedure.tac --runs 50
 
 # Evaluate specific scenario
-tactus evaluate procedure.tac --scenario "Worker completes task" --runs 20
+tactus test procedure.tac --scenario "Worker completes task" --runs 20
 ```
 
 ## Built-in Steps
@@ -189,6 +189,10 @@ $ tactus validate procedure.tac
 ⚠ Warning: No specifications defined - consider adding BDD tests using specifications([[...]])
 ```
 
+## Note on Evaluations
+
+This framework is for **testing logic** (BDD). If you want to evaluate **LLM output quality** using datasets and metrics (Pydantic Evals), see the main [README](../../README.md#evaluations-testing-agent-intelligence) and use the `tactus eval` command.
+
 ## Architecture
 
 ```
@@ -270,6 +274,8 @@ See `examples/with-bdd-tests.tac` for a complete example with:
 - Custom steps
 - Evaluation configuration
 - All major step types
+
+
 
 
 

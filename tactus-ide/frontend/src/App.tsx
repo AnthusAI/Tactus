@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import { registerCommandHandler, executeCommand, ALL_COMMAND_GROUPS } from './commands/registry';
 import { useEventStream } from './hooks/useEventStream';
+import { ThemeProvider } from './components/theme-provider';
 
 // Detect if running in Electron (moved inside component for runtime evaluation)
 
@@ -55,7 +56,7 @@ interface ValidationResult {
   }>;
 }
 
-export const App: React.FC = () => {
+const AppContent: React.FC = () => {
   const API_BASE = import.meta.env.VITE_BACKEND_URL || '';
   const apiUrl = (path: string) => (API_BASE ? `${API_BASE}${path}` : path);
   
@@ -342,8 +343,10 @@ export const App: React.FC = () => {
     }
   }, [currentFile, fileContent]);
 
-  // Evaluate current file
+  // Evaluate current file (Pydantic Evals)
   const handleEvaluate = useCallback(async () => {
+    console.log('[Evaluate] Button clicked', { currentFile, hasContent: !!fileContent });
+    
     if (!currentFile) {
       alert('Please select a file to evaluate');
       return;
@@ -354,6 +357,7 @@ export const App: React.FC = () => {
     setValidationResult(null);
     
     try {
+      console.log('[Evaluate] Saving file content...');
       // First, save the file content
       await fetch(apiUrl('/api/file'), {
         method: 'POST',
@@ -364,13 +368,15 @@ export const App: React.FC = () => {
         }),
       });
       
-      // Then start streaming evaluation results (mock mode by default, 10 runs)
-      const url = apiUrl(`/api/evaluate/stream?path=${encodeURIComponent(currentFile)}&mock=true&runs=10`);
+      // Then start streaming Pydantic Eval results
+      const url = apiUrl(`/api/pydantic-eval/stream?path=${encodeURIComponent(currentFile)}&runs=1`);
+      console.log('[Evaluate] Starting stream:', url);
       setStreamUrl(url);
     } catch (error) {
-      console.error('Error running evaluation:', error);
+      console.error('[Evaluate] Error running Pydantic Evals:', error);
     }
   }, [currentFile, fileContent]);
+
 
   // Register command handlers
   useEffect(() => {
@@ -381,7 +387,7 @@ export const App: React.FC = () => {
     registerCommandHandler('run.validate', handleValidate);
     registerCommandHandler('run.run', handleRun);
     registerCommandHandler('run.test', handleTest);
-    registerCommandHandler('run.evaluate', handleEvaluate);
+    registerCommandHandler('run.evaluate', handleEvaluate);  // Pydantic Evals
   }, [handleOpenFolder, handleSave, handleValidate, handleRun, handleTest, handleEvaluate]);
 
   // Listen for Electron commands
@@ -486,13 +492,13 @@ export const App: React.FC = () => {
                 <TestTube className="h-3 w-3 mr-1" />
                 Test
               </Button>
-              <Button size="sm" variant="ghost" onClick={handleRun} disabled={isRunning} className="h-7 text-xs">
-                <Play className="h-3 w-3 mr-1" />
-                {isRunning ? 'Running...' : 'Run'}
-              </Button>
               <Button size="sm" variant="ghost" onClick={handleEvaluate} className="h-7 text-xs">
                 <BarChart2 className="h-3 w-3 mr-1" />
                 Evaluate
+              </Button>
+              <Button size="sm" variant="ghost" onClick={handleRun} disabled={isRunning} className="h-7 text-xs">
+                <Play className="h-3 w-3 mr-1" />
+                {isRunning ? 'Running...' : 'Run'}
               </Button>
               {runResult && (
                 <span className={`text-xs ml-2 ${runResult.success ? 'text-green-600' : 'text-red-600'}`}>
@@ -564,6 +570,12 @@ export const App: React.FC = () => {
   );
 };
 
-
+export const App: React.FC = () => {
+  return (
+    <ThemeProvider defaultTheme="system" storageKey="tactus-ui-theme">
+      <AppContent />
+    </ThemeProvider>
+  );
+};
 
 

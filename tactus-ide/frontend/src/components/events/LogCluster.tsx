@@ -3,31 +3,33 @@ import { LogEvent } from '@/types/events';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { LogEventComponent } from './LogEventComponent';
 import { cn } from '@/lib/utils';
+import { BaseEventComponent } from './BaseEventComponent';
 
 interface LogClusterProps {
-  logs: LogEvent[];
-  forceExpanded?: boolean;
+  events: LogEvent[];
+  showFullLogs?: boolean;
+  isAlternate?: boolean;
 }
 
-export const LogCluster: React.FC<LogClusterProps> = ({ logs, forceExpanded = false }) => {
-  const [isExpanded, setIsExpanded] = useState(forceExpanded);
+export const LogCluster: React.FC<LogClusterProps> = ({ events, showFullLogs = false, isAlternate }) => {
+  const [isExpanded, setIsExpanded] = useState(showFullLogs);
 
-  // Update expanded state when forceExpanded changes
+  // Update expanded state when showFullLogs changes
   useEffect(() => {
-    setIsExpanded(forceExpanded);
-  }, [forceExpanded]);
+    setIsExpanded(showFullLogs);
+  }, [showFullLogs]);
 
-  if (logs.length === 0) {
+  if (events.length === 0) {
     return null;
   }
 
   // If only one log, always show it expanded
-  if (logs.length === 1) {
-    return <LogEventComponent event={logs[0]} />;
+  if (events.length === 1) {
+    return <LogEventComponent event={events[0]} isAlternate={isAlternate} />;
   }
 
   // Count logs by level
-  const levelCounts = logs.reduce((acc, log) => {
+  const levelCounts = events.reduce((acc, log) => {
     acc[log.level] = (acc[log.level] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
@@ -37,7 +39,7 @@ export const LogCluster: React.FC<LogClusterProps> = ({ logs, forceExpanded = fa
     .join(', ');
 
   return (
-    <div className="border-b border-border">
+    <BaseEventComponent isAlternate={isAlternate}>
       {/* Collapsed header */}
       {!isExpanded && (
         <button
@@ -46,7 +48,7 @@ export const LogCluster: React.FC<LogClusterProps> = ({ logs, forceExpanded = fa
         >
           <ChevronRight className="h-4 w-4 text-muted-foreground" />
           <span className="text-sm text-muted-foreground">
-            {logs.length} log messages ({levelSummary})
+            {events.length} log messages ({levelSummary})
           </span>
         </button>
       )}
@@ -60,19 +62,21 @@ export const LogCluster: React.FC<LogClusterProps> = ({ logs, forceExpanded = fa
           >
             <ChevronDown className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm text-muted-foreground">
-              {logs.length} log messages ({levelSummary})
+              {events.length} log messages ({levelSummary})
             </span>
           </button>
           <div className="animate-in slide-in-from-top-2 duration-300">
-            {logs.map((log, index) => (
+            {events.map((log, index) => (
               <LogEventComponent key={`${log.timestamp}-${index}`} event={log} />
             ))}
           </div>
         </div>
       )}
-    </div>
+    </BaseEventComponent>
   );
 };
+
+
 
 
 

@@ -1,0 +1,5 @@
+{"name": "greeting_alice", "inputs": {"task": "Generate a friendly greeting for Alice"}, "metadata": {"category": "greetings"}}
+{"name": "greeting_bob", "inputs": {"task": "Generate a professional greeting for Bob"}, "metadata": {"category": "greetings"}}
+{"name": "haiku_nature", "inputs": {"task": "Write a haiku about nature"}, "metadata": {"category": "creative"}}
+{"name": "haiku_technology", "inputs": {"task": "Write a haiku about technology"}, "metadata": {"category": "creative"}}
+{"name": "list_benefits", "inputs": {"task": "List 3 benefits of automated testing"}, "metadata": {"category": "technical"}}

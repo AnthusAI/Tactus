@@ -110,7 +110,7 @@ Feature: Greeting Workflow
 **Evaluate consistency across multiple runs:**
 
 ```bash
-tactus evaluate hello.tac --runs 10
+tactus test hello.tac --runs 10
 ```
 
 This runs the test 10 times and reports success rate and consistency metrics, helping you identify flaky behavior.
@@ -185,6 +185,335 @@ Tactus moves agent logic into a **DSL built on Lua** to solve these problems:
 -   **Explicit Control**: You get standard programming constructs (loops, conditionals, error handling) rather than hidden planning logic.
 
 This introspection capability enables the next feature: the ability to define a rigorous **interface contract** that any application can read.
+
+### Testing & Evaluation: Two Different Concerns
+
+Tactus provides two complementary approaches for ensuring quality, each targeting a different aspect of your agentic workflow:
+
+#### Behavior Specifications (BDD): Testing Workflow Logic
+
+**What it tests:** The deterministic control flow of your procedure—the Lua code that orchestrates agents, handles conditionals, manages state, and coordinates tools.
+
+**When to use:**
+- Complex procedures with branching logic, loops, and state management
+- Multi-agent coordination patterns
+- Error handling and edge cases
+- Procedures where the *orchestration* is more complex than the *intelligence*
+
+**How it works:**
+```lua
+specifications([[
+Feature: Multi-Agent Research Workflow
+
+  Scenario: Researcher delegates to summarizer
+    Given the procedure has started
+    When the researcher agent takes 3 turns
+    Then the search tool should be called at least once
+    And the researcher should call the delegate tool
+    And the summarizer agent should take at least 1 turn
+    And the done tool should be called exactly once
+]])
+```
+
+**Key characteristics:**
+- Uses Gherkin syntax (Given/When/Then)
+- Runs with `tactus test`
+- Can use mocks to isolate logic from LLM behavior
+- Deterministic: same input → same execution path
+- Fast: tests orchestration without expensive API calls
+- Measures: "Did the code execute correctly?"
+
+#### Gherkin Step Reference
+
+Tactus provides a rich library of built-in steps for BDD testing. You can use these immediately in your `specifications` block:
+
+**Tool Steps:**
+```gherkin
+Then the search tool should be called
+Then the search tool should not be called
+Then the search tool should be called at least 3 times
+Then the search tool should be called exactly 2 times
+Then the search tool should be called with query=test
+```
+
+**State & Stage Steps:**
+```gherkin
+Given the procedure has started
+Then the stage should be processing
+Then the state count should be 5
+Then the state error should exist
+```
+
+**Completion & Iteration Steps:**
+```gherkin
+Then the procedure should complete successfully
+Then the procedure should fail
+Then the total iterations should be less than 10
+Then the agent should take at least 3 turns
+```
+
+**Custom Steps:**
+Define your own steps in Lua:
+```lua
+step("the research quality is high", function()
+  local results = State.get("results")
+  assert(#results > 5, "Not enough results")
+end)
+```
+
+See [tactus/testing/README.md](tactus/testing/README.md) for the complete reference.
+
+#### Evaluations: Testing Agent Intelligence
+
+**What it tests:** The probabilistic quality of LLM outputs—whether agents produce correct, helpful, and consistent results.
+
+**When to use:**
+- Simple "LLM wrapper" procedures (minimal orchestration logic)
+- Measuring output quality (accuracy, tone, format)
+- Testing prompt effectiveness
+- Consistency across multiple runs
+- Procedures where the *intelligence* is more important than the *orchestration*
+
+**How it works:**
+```lua
+evaluations {
+  runs = 10,  -- Run each test case 10 times
+  parallel = true,
+  
+  dataset = {
+    {
+      name = "greeting_task",
+      inputs = {task = "Greet Alice warmly"}
+    },
+    {
+      name = "haiku_task",
+      inputs = {task = "Write a haiku about AI"}
+    }
+  },
+  
+  evaluators = {
+    -- Check for required content
+    {
+      type = "contains",
+      field = "output",
+      value = "TASK_COMPLETE:"
+    },
+    
+    -- Use LLM to judge quality
+    {
+      type = "llm_judge",
+      rubric = [[
+Score 1.0 if the agent:
+- Completed the task successfully
+- Produced high-quality output
+- Called the done tool appropriately
+Score 0.0 otherwise.
+      ]],
+      model = "openai:gpt-4o-mini"
+    }
+  }
+}
+```
+
+**Key characteristics:**
+- Uses Pydantic AI Evals framework
+- Runs with `tactus eval`
+- Uses real LLM calls (not mocked)
+- Probabilistic: same input → potentially different outputs
+- Slower: makes actual API calls
+- Measures: "Did the AI produce good results?"
+- Provides success rates, consistency metrics, and per-task breakdowns
+
+#### When to Use Which?
+
+| Feature | Behavior Specifications (BDD) | Evaluations |
+|---------|-------------------------------|-------------|
+| **Goal** | Verify deterministic logic | Measure probabilistic quality |
+| **Command (Single)** | `tactus test` | `tactus eval` |
+| **Command (Repeat)** | `tactus test --runs 10` (consistency check) | `tactus eval --runs 10` |
+| **Execution** | Fast, mocked (optional) | Slow, real API calls |
+| **Syntax** | Gherkin (`Given`/`When`/`Then`) | Lua configuration table |
+| **Example** | "Did the agent call the tool?" | "Did the agent write a good poem?" |
+| **Best for** | Complex orchestration, state management | LLM output quality, prompt tuning |
+
+**Use Behavior Specifications when:**
+- You have complex orchestration logic to test
+- You need fast, deterministic tests
+- You want to verify control flow (loops, conditionals, state)
+- You're testing multi-agent coordination patterns
+- Example: [`examples/with-bdd-tests.tac`](examples/with-bdd-tests.tac)
+
+**Use Evaluations when:**
+- Your procedure is mostly an LLM call wrapper
+- You need to measure output quality (accuracy, tone)
+- You want to test prompt effectiveness
+- You need consistency metrics across runs
+- Example: [`examples/eval-advanced-evaluators.tac`](examples/eval-advanced-evaluators.tac)
+
+**Use Both when:**
+- You have complex orchestration AND care about output quality
+- Run BDD tests for fast feedback on logic
+- Run evaluations periodically to measure LLM performance
+- Example: [`examples/eval-comprehensive.tac`](examples/eval-comprehensive.tac)
+
+**The key insight:** Behavior specifications test your *code*. Evaluations test your *AI*. Most real-world procedures need both.
+
+#### Gherkin Step Reference
+
+Tactus provides a rich library of built-in steps for BDD testing. You can use these immediately in your `specifications` block:
+
+**Tool Steps:**
+```gherkin
+Then the search tool should be called
+Then the search tool should not be called
+Then the search tool should be called at least 3 times
+Then the search tool should be called exactly 2 times
+Then the search tool should be called with query=test
+```
+
+**State & Stage Steps:**
+```gherkin
+Given the procedure has started
+Then the stage should be processing
+Then the state count should be 5
+Then the state error should exist
+```
+
+**Completion & Iteration Steps:**
+```gherkin
+Then the procedure should complete successfully
+Then the procedure should fail
+Then the total iterations should be less than 10
+Then the agent should take at least 3 turns
+```
+
+**Custom Steps:**
+Define your own steps in Lua:
+```lua
+step("the research quality is high", function()
+  local results = State.get("results")
+  assert(#results > 5, "Not enough results")
+end)
+```
+
+See [tactus/testing/README.md](tactus/testing/README.md) for the complete reference.
+
+#### Advanced Evaluation Features
+
+Tactus evaluations support powerful features for real-world testing:
+
+**External Dataset Loading:**
+
+Load evaluation cases from external files for better scalability:
+
+```lua
+evaluations {
+  -- Load from JSONL file (one case per line)
+  dataset_file = "data/eval_cases.jsonl",
+  
+  -- Can also include inline cases (combined with file)
+  dataset = {
+    {name = "inline_case", inputs = {...}}
+  },
+  
+  evaluators = {...}
+}
+```
+
+Supported formats: `.jsonl`, `.json` (array), `.csv`
+
+**Trace Inspection:**
+
+Evaluators can inspect execution internals beyond just inputs/outputs:
+
+```lua
+evaluators = {
+  -- Verify specific tool was called
+  {
+    type = "tool_called",
+    value = "search",
+    min_value = 1,
+    max_value = 3
+  },
+  
+  -- Check agent turn count
+  {
+    type = "agent_turns",
+    field = "researcher",
+    min_value = 2,
+    max_value = 5
+  },
+  
+  -- Verify state variable
+  {
+    type = "state_check",
+    field = "research_complete",
+    value = true
+  }
+}
+```
+
+**Advanced Evaluator Types:**
+
+```lua
+evaluators = {
+  -- Regex pattern matching
+  {
+    type = "regex",
+    field = "phone",
+    value = "\\(\\d{3}\\) \\d{3}-\\d{4}"
+  },
+  
+  -- JSON schema validation
+  {
+    type = "json_schema",
+    field = "data",
+    value = {
+      type = "object",
+      properties = {
+        name = {type = "string"},
+        age = {type = "number"}
+      },
+      required = {"name"}
+    }
+  },
+  
+  -- Numeric range checking
+  {
+    type = "range",
+    field = "score",
+    value = {min = 0, max = 100}
+  }
+}
+```
+
+**CI/CD Thresholds:**
+
+Define quality gates that fail the build if not met:
+
+```lua
+evaluations {
+  dataset = {...},
+  evaluators = {...},
+  
+  -- Quality thresholds for CI/CD
+  thresholds = {
+    min_success_rate = 0.90,  -- Fail if < 90% pass
+    max_cost_per_run = 0.01,  -- Fail if too expensive
+    max_duration = 10.0,      -- Fail if too slow (seconds)
+    max_tokens_per_run = 500  -- Fail if too many tokens
+  }
+}
+```
+
+When thresholds are not met, `tactus eval` exits with code 1, enabling CI/CD integration.
+
+**See examples:**
+- [`examples/eval-with-dataset-file.tac`](examples/eval-with-dataset-file.tac) - External dataset loading
+- [`examples/eval-trace-inspection.tac`](examples/eval-trace-inspection.tac) - Trace-based evaluators
+- [`examples/eval-advanced-evaluators.tac`](examples/eval-advanced-evaluators.tac) - Regex, JSON schema, range
+- [`examples/eval-with-thresholds.tac`](examples/eval-with-thresholds.tac) - CI/CD quality gates
+- [`examples/eval-comprehensive.tac`](examples/eval-comprehensive.tac) - All features combined
 
 ### Typed Parameters & The Contract
 
@@ -570,7 +899,7 @@ Feature: Research Task Completion
 tactus test procedure.tac
 
 # Evaluate consistency (run 10 times per scenario)
-tactus evaluate procedure.tac --runs 10
+tactus test procedure.tac --runs 10
 ```
 
 **Evaluation output:**
@@ -811,7 +1140,7 @@ Open http://localhost:3000 in your browser to use the IDE.
 
 - [**Specification (DSL Reference)**](SPECIFICATION.md) - The official specification for the Tactus domain-specific language.
 - [**Implementation Guide**](IMPLEMENTATION.md) - Maps the specification to the actual codebase implementation. Shows where each feature is implemented, what's complete, and what's missing relative to the specification.
-- [**Testing Strategy**](TESTING.md) - Testing approach, frameworks, and guidelines for adding new tests.
+- [**Testing Strategy**](tactus/testing/README.md) - Testing approach, frameworks, and guidelines for adding new tests.
 - [**Examples**](examples/) - Run additional example procedures to see Tactus in action
 - **Primitives Reference** (See `tactus/primitives/`)
 - **Storage Adapters** (See `tactus/adapters/`)
@@ -837,7 +1166,7 @@ pytest tests/     # Unit tests
 # Run with coverage
 pytest --cov=tactus --cov-report=html
 
-# See TESTING.md for detailed testing documentation
+# See tactus/testing/README.md for detailed testing documentation
 ```
 
 ### Parser Generation

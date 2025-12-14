@@ -185,3 +185,5 @@ class LSPServer:
     def _error_response(self, msg_id: Optional[int], code: int, message: str) -> Dict[str, Any]:
         """Create LSP error response."""
         return {"jsonrpc": "2.0", "id": msg_id, "error": {"code": code, "message": message}}
+
+

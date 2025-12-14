@@ -77,3 +77,5 @@ Feature: Structured Output with Result Access
     And the output city_data should exist
     And the output tokens_used should exist
 ]])
+
+
