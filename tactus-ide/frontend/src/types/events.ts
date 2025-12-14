@@ -85,6 +85,9 @@ export interface CostEvent extends BaseEvent {
   
   // Raw tracing data
   raw_tracing_data?: Record<string, any>;
+  
+  // Response data
+  response_data?: Record<string, any>;
 }
 
 export interface ExecutionSummaryEvent extends BaseEvent {
@@ -98,6 +101,9 @@ export interface ExecutionSummaryEvent extends BaseEvent {
   total_cost: number;
   total_tokens: number;
   cost_breakdown: CostEvent[];
+  
+  // Exit code
+  exit_code?: number;
 }
 
 export interface TestStartedEvent extends BaseEvent {
@@ -180,6 +186,11 @@ export interface EvaluationProgressEvent extends BaseEvent {
   total_runs: number;
 }
 
+export interface LoadingEvent extends BaseEvent {
+  event_type: 'loading';
+  message: string;
+}
+
 export type AnyEvent = 
   | LogEvent
   | CostEvent
@@ -193,7 +204,10 @@ export type AnyEvent =
   | TestScenarioCompletedEvent
   | EvaluationStartedEvent
   | EvaluationCompletedEvent
-  | EvaluationProgressEvent;
+  | EvaluationProgressEvent
+  | LoadingEvent;
+
+
 
 
 

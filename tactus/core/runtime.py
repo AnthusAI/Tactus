@@ -338,6 +338,7 @@ class TactusRuntime:
                     total_cost=total_cost,
                     total_tokens=total_tokens,
                     cost_breakdown=cost_breakdown,
+                    exit_code=0,  # Success
                 )
                 self.log_handler.log(summary_event)
 

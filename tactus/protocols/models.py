@@ -4,7 +4,12 @@ Core Pydantic models used across Tactus protocols.
 
 from typing import Any, Dict, Optional
 from pydantic import BaseModel, Field
-from datetime import datetime
+from datetime import datetime, timezone
+
+
+def utc_now() -> datetime:
+    """Return current UTC time as a timezone-aware datetime."""
+    return datetime.now(timezone.utc)
 
 
 class CheckpointData(BaseModel):
@@ -77,8 +82,21 @@ class LogEvent(BaseModel):
     level: str = Field(..., description="Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)")
     message: str = Field(..., description="Log message")
     context: Optional[Dict[str, Any]] = Field(None, description="Additional context")
-    timestamp: datetime = Field(default_factory=datetime.utcnow, description="Event timestamp")
+    timestamp: datetime = Field(default_factory=utc_now, description="Event timestamp")
     logger_name: Optional[str] = Field(None, description="Logger name")
+    procedure_id: Optional[str] = Field(None, description="Procedure identifier")
+
+    model_config = {"arbitrary_types_allowed": True}
+
+
+class AgentTurnEvent(BaseModel):
+    """Event emitted when an agent turn starts or completes."""
+
+    event_type: str = Field(default="agent_turn", description="Event type")
+    agent_name: str = Field(..., description="Agent name")
+    stage: str = Field(..., description="Stage: 'started' or 'completed'")
+    duration_ms: Optional[float] = Field(None, description="Duration in ms (for completed stage)")
+    timestamp: datetime = Field(default_factory=utc_now, description="Event timestamp")
     procedure_id: Optional[str] = Field(None, description="Procedure identifier")
 
     model_config = {"arbitrary_types_allowed": True}
@@ -130,12 +148,17 @@ class CostEvent(BaseModel):
     max_tokens: Optional[int] = Field(None, description="Max tokens setting")
 
     # Timestamps
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=utc_now)
     procedure_id: Optional[str] = Field(None, description="Procedure identifier")
 
     # Raw tracing data (for future analysis)
     raw_tracing_data: Optional[Dict[str, Any]] = Field(
         None, description="Any additional tracing data"
+    )
+    
+    # Response data (new field)
+    response_data: Optional[Dict[str, Any]] = Field(
+        None, description="Agent's response data (extracted from result.data)"
     )
 
     model_config = {"arbitrary_types_allowed": True}
@@ -149,13 +172,16 @@ class ExecutionSummaryEvent(BaseModel):
     final_state: Dict[str, Any] = Field(default_factory=dict, description="Final state dictionary")
     iterations: int = Field(default=0, description="Number of iterations executed")
     tools_used: list[str] = Field(default_factory=list, description="List of tool names used")
-    timestamp: datetime = Field(default_factory=datetime.utcnow, description="Event timestamp")
+    timestamp: datetime = Field(default_factory=utc_now, description="Event timestamp")
     procedure_id: Optional[str] = Field(None, description="Procedure identifier")
 
     # Cost tracking
     total_cost: float = Field(default=0.0, description="Total LLM cost")
     total_tokens: int = Field(default=0, description="Total tokens used")
     cost_breakdown: list[Any] = Field(default_factory=list, description="Per-call cost details")
+    
+    # Exit code
+    exit_code: Optional[int] = Field(default=0, description="Exit code (0 for success, non-zero for error)")
 
     model_config = {"arbitrary_types_allowed": True}
 
