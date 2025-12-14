@@ -176,6 +176,61 @@ Tactus moves agent logic into a **DSL built on Lua** to solve these problems:
 
 This introspection capability enables the next feature: the ability to define a rigorous **interface contract** that any application can read.
 
+### Per-Turn Tool Control
+
+Tactus gives you fine-grained control over what tools an agent has access to on each individual turn. This enables powerful patterns like **tool result summarization**, where you want the agent to explain what a tool returned without having access to call more tools.
+
+**The Pattern:**
+
+```lua
+agent("researcher", {
+  provider = "openai",
+  model = "gpt-4o",
+  system_prompt = "You are a research assistant.",
+  tools = {"search", "analyze", "done"}
+})
+
+procedure({}, function()
+  repeat
+    -- Main turn: agent has all tools
+    Researcher.turn()
+    
+    -- After each tool call, ask agent to summarize with NO tools
+    if Tool.called("search") or Tool.called("analyze") then
+      Researcher.turn({
+        inject = "Summarize the tool results above in 2-3 sentences",
+        tools = {}  -- No tools for this turn!
+      })
+    end
+    
+  until Tool.called("done")
+end)
+```
+
+This creates a rhythm: **tool call → summarization → tool call → summarization → done**
+
+**Why this matters:**
+
+Without per-turn control, an agent might call another tool when you just want it to explain the previous result. By temporarily restricting tools to an empty set (`tools = {}`), you ensure the agent focuses on summarization.
+
+**Other per-turn overrides:**
+
+```lua
+-- Override model parameters for one turn
+Researcher.turn({
+  inject = "Be creative with this summary",
+  temperature = 0.9,
+  max_tokens = 500
+})
+
+-- Restrict to specific tools only
+Researcher.turn({
+  tools = {"search", "done"}  -- No analyze for this turn
+})
+```
+
+See `examples/14-feature-per-turn-tools.tac` for a complete working example.
+
 ### Testing & Evaluation: Two Different Concerns
 
 Tactus provides two complementary approaches for ensuring quality, each targeting a different aspect of your agentic workflow:

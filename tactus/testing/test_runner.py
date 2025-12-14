@@ -139,6 +139,21 @@ class TactusTestRunner:
         """
         from behave.runner import Runner
         from behave.configuration import Configuration
+        import sys
+
+        # Clear Behave's global step registry to prevent conflicts
+        import behave.step_registry
+
+        behave.step_registry.registry = behave.step_registry.StepRegistry()
+
+        # Clear Python's module cache for any previously loaded step modules
+        modules_to_remove = [
+            mod_name
+            for mod_name in list(sys.modules.keys())
+            if "tactus_steps_" in mod_name or "steps.tactus_steps_" in mod_name
+        ]
+        for mod_name in modules_to_remove:
+            del sys.modules[mod_name]
 
         # Create tag filter for this scenario
         sanitized_name = scenario_name.lower().replace(" ", "_")

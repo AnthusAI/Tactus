@@ -87,12 +87,7 @@ Feature: Parameter Declarations
     Then validation should succeed
     And it should recognize 3 parameter declarations
 
-  @spec_mismatch @enum_not_validated_at_runtime
   Scenario: Parameter with enum values
-    # TODO: SPEC.md shows enum validation at runtime (lines 112-114)
-    # Current implementation only validates enum at parse time
-    # The registry stores enum but runtime doesn't validate against it
-    # Fix in: tactus/core/runtime.py - add parameter validation before execution
     Given a Lua DSL file with content:
       """
       parameter("level", {

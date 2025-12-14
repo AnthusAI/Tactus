@@ -11,6 +11,7 @@ Orchestrates:
 
 import logging
 import time
+import uuid
 from typing import Dict, Any, Optional
 
 from tactus.core.registry import ProcedureRegistry, RegistryBuilder
@@ -44,6 +45,7 @@ from tactus.primitives.stage import StagePrimitive
 from tactus.primitives.json import JsonPrimitive
 from tactus.primitives.retry import RetryPrimitive
 from tactus.primitives.file import FilePrimitive
+from tactus.primitives.procedure import ProcedurePrimitive
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +74,7 @@ class TactusRuntime:
         log_handler=None,
         tool_primitive: Optional[ToolPrimitive] = None,
         skip_agents: bool = False,
+        recursion_depth: int = 0,
     ):
         """
         Initialize the Tactus runtime.
@@ -96,6 +99,7 @@ class TactusRuntime:
         self.log_handler = log_handler
         self._injected_tool_primitive = tool_primitive
         self.skip_agents = skip_agents
+        self.recursion_depth = recursion_depth
 
         # Will be initialized during setup
         self.config: Optional[Dict[str, Any]] = None  # Legacy YAML support
@@ -121,6 +125,7 @@ class TactusRuntime:
         self.json_primitive: Optional[JsonPrimitive] = None
         self.retry_primitive: Optional[RetryPrimitive] = None
         self.file_primitive: Optional[FilePrimitive] = None
+        self.procedure_primitive: Optional[ProcedurePrimitive] = None
 
         # Agent primitives (one per agent)
         self.agents: Dict[str, Any] = {}
@@ -254,7 +259,16 @@ class TactusRuntime:
             self.json_primitive = JsonPrimitive(lua_sandbox=self.lua_sandbox)
             self.retry_primitive = RetryPrimitive()
             self.file_primitive = FilePrimitive()
-            logger.debug("HITL, checkpoint, and message history primitives initialized")
+
+            # Initialize Procedure primitive (requires execution_context)
+            max_depth = self.config.get("max_depth", 5) if self.config else 5
+            self.procedure_primitive = ProcedurePrimitive(
+                execution_context=self.execution_context,
+                runtime_factory=self._create_runtime_for_procedure,
+                max_depth=max_depth,
+                current_depth=self.recursion_depth,
+            )
+            logger.debug("HITL, checkpoint, message history, and procedure primitives initialized")
 
             # 8. Setup agents with LLMs and tools
             logger.info("Step 8: Setting up agents")
@@ -274,6 +288,13 @@ class TactusRuntime:
             # 10. Execute workflow (may raise ProcedureWaitingForHuman)
             logger.info("Step 10: Executing Lua workflow")
             workflow_result = self._execute_workflow()
+
+            # 10.5. Apply return_prompt if specified (future: inject to agent for summary)
+            if self.config.get("return_prompt"):
+                return_prompt = self.config["return_prompt"]
+                logger.info(f"Return prompt specified: {return_prompt[:50]}...")
+                # TODO: In full implementation, inject this prompt to an agent to get a summary
+                # For now, just log it
 
             # 11. Validate workflow output
             logger.info("Step 11: Validating workflow output")
@@ -418,6 +439,13 @@ class TactusRuntime:
 
         except LuaSandboxError as e:
             logger.error(f"Lua execution error: {e}")
+
+            # Apply error_prompt if specified (future: inject to agent for explanation)
+            if self.config and self.config.get("error_prompt"):
+                error_prompt = self.config["error_prompt"]
+                logger.info(f"Error prompt specified: {error_prompt[:50]}...")
+                # TODO: In full implementation, inject this prompt to an agent to get an explanation
+
             # Flush recordings even on error
             if self.chat_recorder and session_id:
                 try:
@@ -454,6 +482,13 @@ class TactusRuntime:
 
         except Exception as e:
             logger.error(f"Unexpected error: {e}", exc_info=True)
+
+            # Apply error_prompt if specified (future: inject to agent for explanation)
+            if self.config and self.config.get("error_prompt"):
+                error_prompt = self.config["error_prompt"]
+                logger.info(f"Error prompt specified: {error_prompt[:50]}...")
+                # TODO: In full implementation, inject this prompt to an agent to get an explanation
+
             # Flush recordings even on error
             if self.chat_recorder and session_id:
                 try:
@@ -660,6 +695,16 @@ class TactusRuntime:
                 except Exception as e:
                     logger.warning(f"Failed to create output model from procedure schema: {e}")
 
+            # Extract message history filter if configured
+            message_history_filter = None
+            if agent_config.get("message_history"):
+                message_history_config = agent_config["message_history"]
+                if isinstance(message_history_config, dict) and "filter" in message_history_config:
+                    message_history_filter = message_history_config["filter"]
+                    logger.info(
+                        f"Agent '{agent_name}' has message history filter: {message_history_filter}"
+                    )
+
             # Create AgentPrimitive
             agent_primitive = AgentPrimitive(
                 name=agent_name,
@@ -680,6 +725,7 @@ class TactusRuntime:
                 procedure_id=self.procedure_id,
                 provider=agent_config.get("provider"),
                 disable_streaming=agent_config.get("disable_streaming", False),
+                message_history_filter=message_history_filter,
             )
 
             self.agents[agent_name] = agent_primitive
@@ -813,6 +859,19 @@ class TactusRuntime:
             for param_name in params_config.keys():
                 if param_name in self.context:
                     param_values[param_name] = self.context[param_name]
+
+            # Validate enum constraints
+            for param_name, param_value in param_values.items():
+                if param_name in params_config:
+                    param_def = params_config[param_name]
+                    if "enum" in param_def and param_def["enum"]:
+                        allowed_values = param_def["enum"]
+                        if param_value not in allowed_values:
+                            raise ValueError(
+                                f"Parameter '{param_name}' has invalid value '{param_value}'. "
+                                f"Allowed values: {allowed_values}"
+                            )
+
             self.lua_sandbox.set_global("params", param_values)
             logger.info(f"Injected params into Lua sandbox: {param_values}")
 
@@ -873,6 +932,10 @@ class TactusRuntime:
         if self.file_primitive:
             logger.info(f"Injecting File primitive: {self.file_primitive}")
             self.lua_sandbox.inject_primitive("File", self.file_primitive)
+
+        if self.procedure_primitive:
+            logger.info(f"Injecting Procedure primitive: {self.procedure_primitive}")
+            self.lua_sandbox.inject_primitive("Procedure", self.procedure_primitive)
 
         # Inject Sleep function
         def sleep_wrapper(seconds):
@@ -1193,3 +1256,70 @@ class TactusRuntime:
         config["procedure"] = "-- Procedure function stored in registry"
 
         return config
+
+    def _create_runtime_for_procedure(
+        self, procedure_name: str, params: Dict[str, Any]
+    ) -> "TactusRuntime":
+        """
+        Create a new runtime instance for a sub-procedure.
+
+        Args:
+            procedure_name: Name or path of the procedure to load
+            params: Parameters to pass to the procedure
+
+        Returns:
+            New TactusRuntime instance
+        """
+        # Generate unique ID for sub-procedure
+        sub_procedure_id = f"{self.procedure_id}_{procedure_name}_{uuid.uuid4().hex[:8]}"
+
+        # Create new runtime with incremented depth
+        runtime = TactusRuntime(
+            procedure_id=sub_procedure_id,
+            storage_backend=self.storage_backend,
+            hitl_handler=self.hitl_handler,
+            chat_recorder=self.chat_recorder,
+            mcp_server=self.mcp_server,
+            openai_api_key=self.openai_api_key,
+            log_handler=self.log_handler,
+            skip_agents=self.skip_agents,
+            recursion_depth=self.recursion_depth + 1,
+        )
+
+        logger.info(
+            f"Created runtime for sub-procedure '{procedure_name}' "
+            f"(depth {self.recursion_depth + 1})"
+        )
+
+        return runtime
+
+    def _load_procedure_by_name(self, name: str) -> str:
+        """
+        Load procedure source code by name.
+
+        Args:
+            name: Procedure name or file path
+
+        Returns:
+            Procedure source code
+
+        Raises:
+            FileNotFoundError: If procedure file not found
+        """
+        import os
+
+        # Try different locations
+        search_paths = [
+            name,  # Exact path
+            f"{name}.tac",  # Add extension
+            f"examples/{name}",  # Examples directory
+            f"examples/{name}.tac",  # Examples with extension
+        ]
+
+        for path in search_paths:
+            if os.path.exists(path):
+                logger.debug(f"Loading procedure from: {path}")
+                with open(path, "r") as f:
+                    return f.read()
+
+        raise FileNotFoundError(f"Procedure '{name}' not found. Searched: {search_paths}")

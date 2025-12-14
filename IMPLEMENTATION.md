@@ -180,9 +180,9 @@ end)
 - `error_prompt:` - Injected when procedure fails
 - `status_prompt:` - Injected for async status updates
 
-**Status**: ❌ **Not Implemented**
+**Status**: ✅ **Partially Implemented**
 
-These prompts are not parsed, stored, or used anywhere in the codebase. Procedures complete normally without final summary turns.
+These prompts are now parsed from DSL, stored in registry, and logged at appropriate times. Full implementation (injecting prompts to agents for summary generation) is deferred for future enhancement.
 
 ### Async and Recursion Settings
 
@@ -426,9 +426,31 @@ All procedure invocation primitives are missing.
 **Status**: ✅ **Fully Implemented**
 
 - ✅ `AgentName.turn()` - Execute agent turn
-- ✅ `AgentName.turn({inject = "..."})` - Turn with injected message (not implemented)
+- ✅ `AgentName.turn({inject = "..."})` - Turn with injected message
+- ✅ `AgentName.turn({tools = {...}})` - Turn with specific tools
+- ✅ `AgentName.turn({tools = {}})` - Turn with no tools
+- ✅ Per-turn model parameter overrides (temperature, max_tokens, top_p, etc.)
 
-**Note**: `turn({inject})` signature not implemented. Only `turn()` without args works.
+**Per-Turn Overrides:**
+
+The `turn()` method now accepts an optional table to override behavior for a single turn:
+- `inject` - Inject a specific message for this turn
+- `tools` - Override available tools (empty list = no tools)
+- `temperature`, `max_tokens`, `top_p` - Override model settings
+
+**Common pattern - Tool result summarization:**
+```lua
+repeat
+    Researcher.turn()  -- Agent has all tools
+    
+    if Tool.called("search") then
+        Researcher.turn({
+            inject = "Summarize the search results",
+            tools = {}  -- No tools for summarization
+        })
+    end
+until Tool.called("done")
+```
 
 **Response Access:**
 - Response content accessible via `response.content` (if agent returns it)
@@ -830,15 +852,11 @@ tactus evaluate procedure.tac --runs 10
    - `procedures:` section not parsed
    - Cannot define helper procedures
 
-5. **Summarization Prompts** ❌
-   - `return_prompt`, `error_prompt`, `status_prompt` not implemented
-   - No final summary turns
-
-6. **Lambda Durable Execution Context** ❌
+5. **Lambda Durable Execution Context** ❌
    - Only local context exists
    - No AWS Lambda integration
 
-7. **System.alert()** ❌
+6. **System.alert()** ❌
    - No system-level alerts
    - Only `Human.notify()` exists
 
@@ -855,10 +873,15 @@ tactus evaluate procedure.tac --runs 10
 3. **Agent Features** ⚠️
    - Core functionality: ✅
    - `prepare` hook: ❌
-   - `filter`: ❌
+   - Session filters: ✅ (basic implementation)
    - `response.retries`: ❌
 
-4. **CLI Commands** ⚠️
+4. **Summarization Prompts** ⚠️
+   - Parsed and stored: ✅
+   - Logged at appropriate times: ✅
+   - Full agent injection for summaries: ❌ (deferred)
+
+5. **CLI Commands** ⚠️
    - Basic commands: ✅
    - Advanced commands: ❌
 
@@ -909,11 +932,19 @@ tactus/
 
 To align the implementation with the specification:
 
+### Recently Completed
+1. ✅ **Parameter Enum Validation** - Runtime validation of enum constraints
+2. ✅ **Output Schema Validation** - Enhanced validation with enum support and field filtering
+3. ✅ **Custom Prompts (Partial)** - Parsing and logging of return/error/status prompts
+4. ✅ **Session Filters** - Basic implementation of message history filters (last_n, by_role, token_budget, compose)
+5. ✅ **Matchers Documentation** - Added to specification
+6. ✅ **YAML Format Removal** - Specification now focuses on Lua DSL only
+
 ### High Priority
 1. **Procedure Primitive** - Enable recursion and composition
 2. **Guards** - Add pre-execution validation
 3. **Dependencies** - Add upfront validation
-4. **Summarization Prompts** - Implement return/error/status prompts
+4. **Summarization Prompts (Full)** - Complete agent injection for summary generation
 
 ### Medium Priority
 5. **Inline Procedures** - Parse and support `procedures:` section
@@ -924,8 +955,7 @@ To align the implementation with the specification:
 ### Low Priority
 9. **Lambda Durable Context** - AWS Lambda integration
 10. **Advanced CLI commands** - test, eval, resume-all, watch
-11. **Agent filters** - ComposedFilter, TokenBudget, etc.
-12. **Graph primitives** - Tree structure support
+11. **Graph primitives** - Tree structure support
 
 ---
 

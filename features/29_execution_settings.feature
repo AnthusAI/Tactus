@@ -6,12 +6,7 @@ Feature: Execution Settings (async, max_depth, max_turns)
   Background:
     Given a Tactus validation environment
 
-  @spec_mismatch @async_not_implemented
   Scenario: Async execution setting
-    # TODO: SPEC.md describes async execution (lines 218-232)
-    # "Enable async invocation (caller can spawn and continue)"
-    # Current implementation stores async setting but doesn't implement async execution
-    # Fix in: tactus/core/runtime.py - implement async procedure execution
     Given a Lua DSL file with content:
       """
       async(true)

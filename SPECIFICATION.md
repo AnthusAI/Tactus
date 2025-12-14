@@ -99,92 +99,9 @@ Feature: Task Processing
 
 ---
 
-## YAML Format (Legacy)
-
-The original YAML format is still supported for backward compatibility:
-
-```yaml
-name: procedure_name
-version: 1.0.0
-description: Human-readable description
-
-# Parameter schema (validated before execution)
-params:
-  param_name:
-    type: string
-    required: true
-
-# Output schema (validated after execution)
-outputs:
-  result_name:
-    type: string
-    required: true
-
-# Summarization prompts
-return_prompt: |
-  Summarize your work...
-error_prompt: |
-  Explain what went wrong...
-status_prompt: |
-  Report your progress...
-
-# Execution control
-async: true
-max_depth: 5
-max_turns: 50
-
-# Validation before execution
-guards:
-  - |
-    return true
-
-# Human-in-the-loop interaction points (optional)
-hitl:
-  interaction_name:
-    type: approval | input | review
-    message: "..."
-    timeout: 3600
-
-# Required dependencies
-dependencies:
-  tools:
-    - tool_name
-  procedures:
-    - other_procedure_name
-
-# Prompt templates
-prompts:
-  template_name: |
-    Template content...
-
-# Inline procedure definitions
-procedures:
-  helper_name:
-    # Full procedure definition...
-
-# Agent definitions
-agents:
-  agent_name:
-    # Agent configuration...
-
-# Stage definitions
-stages:
-  - stage_name
-
-# Orchestration logic
-procedure: |
-  -- Lua code
-```
-
-**Note:** The YAML format is maintained for backward compatibility but the Lua DSL format (.tac files) is recommended for new procedures.
-
----
-
 ## Parameters
 
 Parameter schema defines what the procedure accepts. Validated before execution.
-
-**Lua DSL format (.tac):**
 
 ```lua
 procedure({
@@ -216,29 +133,6 @@ procedure({
 end)
 ```
 
-**YAML format (legacy):**
-
-```yaml
-params:
-  topic:
-    type: string
-    required: true
-    description: "The topic to research"
-    
-  depth:
-    type: string
-    enum: [shallow, deep]
-    default: shallow
-    
-  max_results:
-    type: number
-    default: 10
-    
-  include_sources:
-    type: boolean
-    default: true
-```
-
 **Type options:** `string`, `number`, `boolean`, `array`, `object`
 
 Parameters are accessed in templates as `{params.topic}` and in Lua as `params.topic`.
@@ -248,8 +142,6 @@ Parameters are accessed in templates as `{params.topic}` and in Lua as `params.t
 ## Outputs
 
 Output schema defines what the procedure returns. Validated after execution.
-
-**Lua DSL format (.tac):**
 
 ```lua
 procedure({
@@ -277,25 +169,6 @@ procedure({
         sources = {...}
     }
 end)
-```
-
-**YAML format (legacy):**
-
-```yaml
-outputs:
-  findings:
-    type: string
-    required: true
-    description: "Research findings summary"
-    
-  confidence:
-    type: string
-    enum: [high, medium, low]
-    required: true
-    
-  sources:
-    type: array
-    required: false
 ```
 
 When `outputs` is present:
@@ -360,10 +233,6 @@ agent("researcher", {
 })
 ```
 
-**YAML format (legacy):**
-
-Message history configuration is not supported in YAML format. Use Lua DSL for message history management.
-
 ---
 
 ## Structured Output (output_type)
@@ -404,10 +273,6 @@ When `output_type` is specified, pydantic-ai automatically:
 3. Provides error feedback to the LLM for correction
 
 This ensures type-safe, structured outputs from agents.
-
-**YAML format (legacy):**
-
-Structured output is not supported in YAML format. Use Lua DSL with `output_type`.
 
 ---
 
@@ -1430,9 +1295,66 @@ System.alert({message, level, source, context})  -- level: info, warning, error,
 
 ```lua
 Worker.turn()
-Worker.turn({inject = "..."})
+Worker.turn({inject = "...", tools = {...}})
+Worker.turn({tools = {}})  -- No tools for this turn
+Worker.turn({temperature = 0.3})  -- Override model settings
 response.content
 response.tool_calls
+```
+
+#### Per-Turn Overrides
+
+The `turn()` method accepts an optional table to override behavior for a single turn:
+
+**Available overrides:**
+- `inject` (string) - Message to inject for this turn (overrides normal conversation flow)
+- `tools` (list of strings) - Tool names available for this turn (empty list = no tools)
+- `temperature` (number) - Override temperature for this turn
+- `max_tokens` (number) - Override max_tokens for this turn
+- `top_p` (number) - Override top_p for this turn
+
+**Examples:**
+
+```lua
+-- Normal turn with all configured tools
+Worker.turn()
+
+-- Turn with injected message (still has all tools)
+Worker.turn({inject = "Focus on security aspects"})
+
+-- Turn with no tools (for summarization)
+Worker.turn({
+    inject = "Summarize the search results above",
+    tools = {}
+})
+
+-- Turn with specific tools only
+Worker.turn({tools = {"search", "done"}})
+
+-- Turn with model parameter overrides
+Worker.turn({
+    inject = "Be creative",
+    temperature = 0.9,
+    max_tokens = 1000
+})
+```
+
+**Common pattern - Tool result summarization:**
+
+```lua
+repeat
+    -- Main turn: agent has all tools
+    Researcher.turn()
+    
+    -- If tool was called (not done), summarize with no tools
+    if Tool.called("search") or Tool.called("analyze") then
+        Researcher.turn({
+            inject = "Summarize the tool results above in 2-3 sentences",
+            tools = {}
+        })
+    end
+    
+until Tool.called("done")
 ```
 
 ### Session Primitives
@@ -1504,6 +1426,113 @@ Json.decode(string)
 File.read(path)
 File.write(path, contents)
 File.exists(path)
+```
+
+---
+
+## Matchers
+
+Matchers are utility functions for pattern matching and validation in workflows. They return tuple representations that can be used in assertions and conditional logic.
+
+### Available Matchers
+
+#### `contains(pattern)`
+
+Checks if a string contains a specific substring.
+
+```lua
+local matcher = contains("error")
+-- Returns: ("contains", "error")
+
+-- Usage in assertions
+if Tool.called("search") then
+    local result = Tool.last_result("search")
+    if matcher_matches(result, contains("success")) then
+        Log.info("Search was successful")
+    end
+end
+```
+
+#### `equals(value)`
+
+Checks for exact equality.
+
+```lua
+local matcher = equals("completed")
+-- Returns: ("equals", "completed")
+
+-- Usage
+local status = State.get("status")
+if status == "completed" then
+    -- Exact match
+end
+```
+
+#### `matches(regex)`
+
+Checks if a string matches a regular expression pattern.
+
+```lua
+local matcher = matches("^[A-Z][a-z]+$")
+-- Returns: ("matches", "^[A-Z][a-z]+$")
+
+-- Usage for validation
+local name = params.name
+if string.match(name, "^[A-Z][a-z]+$") then
+    Log.info("Valid name format")
+end
+```
+
+### Integration with Validation
+
+Matchers are primarily used in BDD specifications for testing:
+
+```lua
+specifications([[
+Feature: Data Processing
+  Scenario: Process valid data
+    Given the procedure has started
+    When the processor agent processes the data
+    Then the result should contain "success"
+    And the status should equal "completed"
+    And the output should match "^[0-9]+$"
+]])
+```
+
+### Matcher Tuples
+
+Matchers return tuples that can be stored and passed around:
+
+```lua
+-- Store matchers for reuse
+local success_matcher = contains("success")
+local error_matcher = contains("error")
+
+-- Use in conditional logic
+local result = Worker.turn()
+if result.data:find("success") then
+    -- Contains success
+elseif result.data:find("error") then
+    -- Contains error
+end
+```
+
+### Custom Matchers
+
+You can create custom matcher-like functions:
+
+```lua
+local function between(min, max)
+    return function(value)
+        return value >= min and value <= max
+    end
+end
+
+-- Usage
+local check_range = between(1, 100)
+if check_range(params.count) then
+    Log.info("Count is in valid range")
+end
 ```
 
 ---

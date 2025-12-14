@@ -93,13 +93,7 @@ Feature: Output Schema Declarations
     Then validation should succeed
     And it should recognize 2 output declarations
 
-  @spec_mismatch @output_validation_not_enforced
   Scenario: Output schema validation at runtime
-    # TODO: SPEC.md says outputs should be validated after execution (lines 152-158)
-    # "When outputs: is present: 1. Required fields are validated to exist
-    #  2. Types are checked 3. Only declared fields are returned"
-    # Current implementation stores output schema but doesn't validate at runtime
-    # Fix in: tactus/core/runtime.py - add output validation after procedure returns
     Given a Lua DSL file with content:
       """
       output("result", {

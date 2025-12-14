@@ -95,8 +95,9 @@ class OutputValidator:
             )
 
         errors = []
+        validated_output = {}
 
-        # Check required fields
+        # Check required fields and validate types
         for field_name, field_def in self.schema.items():
             is_required = field_def.get("required", False)
 
@@ -108,27 +109,40 @@ class OutputValidator:
             if field_name not in output:
                 continue
 
+            value = output[field_name]
+
             # Type checking
             expected_type = field_def.get("type")
             if expected_type:
-                value = output[field_name]
                 if not self._check_type(value, expected_type):
                     actual_type = type(value).__name__
                     errors.append(
                         f"Field '{field_name}' should be {expected_type}, got {actual_type}"
                     )
 
-        # Check for unexpected fields (warning only)
+            # Enum validation
+            if "enum" in field_def and field_def["enum"]:
+                allowed_values = field_def["enum"]
+                if value not in allowed_values:
+                    errors.append(
+                        f"Field '{field_name}' has invalid value '{value}'. "
+                        f"Allowed values: {allowed_values}"
+                    )
+
+            # Add to validated output (only declared fields)
+            validated_output[field_name] = value
+
+        # Filter undeclared fields (only return declared fields)
         for field_name in output:
             if field_name not in self.schema:
-                logger.warning(f"Unexpected field '{field_name}' in output (not in schema)")
+                logger.debug(f"Filtering undeclared field '{field_name}' from output")
 
         if errors:
             error_msg = "Output validation failed:\n  " + "\n  ".join(errors)
             raise OutputValidationError(error_msg)
 
-        logger.info(f"Output validation passed for {len(output)} fields")
-        return output
+        logger.info(f"Output validation passed for {len(validated_output)} fields")
+        return validated_output
 
     def _check_type(self, value: Any, expected_type: str) -> bool:
         """

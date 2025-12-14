@@ -52,7 +52,7 @@ class ResultPrimitive:
         # If we have streamed text (from IDE streaming mode), return that
         if hasattr(self, "_streamed_text") and self._streamed_text:
             return self._streamed_text
-        
+
         # AgentRunResult has 'response' attribute which is a ModelResponse
         if hasattr(self._result, "response"):
             response = self._result.response

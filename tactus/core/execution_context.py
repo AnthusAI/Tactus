@@ -6,7 +6,7 @@ Uses pluggable storage and HITL handlers via protocols.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Optional, Callable, List
+from typing import Any, Optional, Callable, List, Dict
 from datetime import datetime, timezone
 
 from tactus.protocols.storage import StorageBackend
@@ -201,6 +201,74 @@ class BaseExecutionContext(ExecutionContext):
     def checkpoint_get(self, name: str) -> Optional[Any]:
         """Get cached checkpoint value."""
         return self.storage.checkpoint_get(self.procedure_id, name)
+
+    def store_procedure_handle(self, handle: Any) -> None:
+        """
+        Store async procedure handle.
+
+        Args:
+            handle: ProcedureHandle instance
+        """
+        # Store in metadata under "async_procedures" key
+        if "async_procedures" not in self.metadata:
+            self.metadata["async_procedures"] = {}
+
+        self.metadata["async_procedures"][handle.procedure_id] = handle.to_dict()
+        self.storage.save_procedure_metadata(self.procedure_id, self.metadata)
+
+    def get_procedure_handle(self, procedure_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Retrieve procedure handle.
+
+        Args:
+            procedure_id: ID of the procedure
+
+        Returns:
+            Handle dict or None
+        """
+        async_procedures = self.metadata.get("async_procedures", {})
+        return async_procedures.get(procedure_id)
+
+    def list_pending_procedures(self) -> List[Dict[str, Any]]:
+        """
+        List all pending async procedures.
+
+        Returns:
+            List of handle dicts for procedures with status "running" or "waiting"
+        """
+        async_procedures = self.metadata.get("async_procedures", {})
+        return [
+            handle
+            for handle in async_procedures.values()
+            if handle.get("status") in ("running", "waiting")
+        ]
+
+    def update_procedure_status(
+        self, procedure_id: str, status: str, result: Any = None, error: str = None
+    ) -> None:
+        """
+        Update procedure status.
+
+        Args:
+            procedure_id: ID of the procedure
+            status: New status
+            result: Optional result value
+            error: Optional error message
+        """
+        if "async_procedures" not in self.metadata:
+            return
+
+        if procedure_id in self.metadata["async_procedures"]:
+            handle = self.metadata["async_procedures"][procedure_id]
+            handle["status"] = status
+            if result is not None:
+                handle["result"] = result
+            if error is not None:
+                handle["error"] = error
+            if status in ("completed", "failed", "cancelled"):
+                handle["completed_at"] = datetime.now(timezone.utc).isoformat()
+
+            self.storage.save_procedure_metadata(self.procedure_id, self.metadata)
 
 
 class InMemoryExecutionContext(BaseExecutionContext):

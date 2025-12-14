@@ -436,15 +436,16 @@ def run_procedure_stream():
             except Exception as e:
                 logger.error(f"Error in streaming execution: {e}", exc_info=True)
                 import traceback
+
                 error_event = ExecutionEvent(
-                    lifecycle_stage="error", 
-                    procedure_id=procedure_id, 
+                    lifecycle_stage="error",
+                    procedure_id=procedure_id,
                     exit_code=1,
                     details={
                         "error": str(e),
                         "error_type": type(e).__name__,
-                        "traceback": traceback.format_exc()
-                    }
+                        "traceback": traceback.format_exc(),
+                    },
                 )
                 yield f"data: {error_event.model_dump_json()}\n\n"
 
