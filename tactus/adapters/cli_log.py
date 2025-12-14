@@ -46,6 +46,7 @@ class CLILogHandler:
 
         # Handle agent turn events
         from tactus.protocols.models import AgentTurnEvent
+
         if isinstance(event, AgentTurnEvent):
             self._display_agent_turn_event(event)
             return
@@ -69,7 +70,7 @@ class CLILogHandler:
     def _display_agent_turn_event(self, event) -> None:
         """Display agent turn start/complete event."""
         from tactus.protocols.models import AgentTurnEvent
-        
+
         if event.stage == "started":
             self.console.print(
                 f"[blue]⏳ Agent[/blue] [bold]{event.agent_name}[/bold]: [blue]Waiting for response...[/blue]"
@@ -126,5 +127,3 @@ class CLILogHandler:
                         f"    {cost.agent_name}: ${cost.total_cost:.6f} "
                         f"({cost.total_tokens:,} tokens, {cost.duration_ms:.0f}ms)"
                     )
-
-

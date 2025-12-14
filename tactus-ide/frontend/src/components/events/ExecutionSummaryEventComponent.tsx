@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ExecutionSummaryEvent } from '@/types/events';
-import { CheckCircle, ChevronDown, ChevronRight, Clock } from 'lucide-react';
+import { CheckCircle, XCircle, ChevronDown, ChevronRight, Clock, AlertTriangle } from 'lucide-react';
 import { BaseEventComponent } from './BaseEventComponent';
 import { Timestamp } from '../Timestamp';
 
@@ -12,6 +12,9 @@ interface ExecutionSummaryEventComponentProps {
 export const ExecutionSummaryEventComponent: React.FC<ExecutionSummaryEventComponentProps> = ({ event, isAlternate }) => {
   const [metricsExpanded, setMetricsExpanded] = useState(false);
   const [stateExpanded, setStateExpanded] = useState(false);
+  const [errorExpanded, setErrorExpanded] = useState(true); // Errors expanded by default
+  
+  const isError = event.exit_code !== 0 && event.exit_code !== undefined;
   
   // Calculate tool counts
   const toolCounts = event.tools_used.reduce((acc, tool) => {
@@ -25,12 +28,16 @@ export const ExecutionSummaryEventComponent: React.FC<ExecutionSummaryEventCompo
     : 0;
   
   return (
-    <BaseEventComponent isAlternate={isAlternate} className="py-3 px-4 text-sm bg-green-500/5">
+    <BaseEventComponent isAlternate={isAlternate} className={`py-3 px-4 text-sm ${isError ? 'bg-red-500/5' : 'bg-green-500/5'}`}>
       <div className="flex items-start gap-3">
-        <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0 stroke-[2]" />
+        {isError ? (
+          <XCircle className="h-5 w-5 text-red-500 flex-shrink-0 stroke-[2]" />
+        ) : (
+          <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0 stroke-[2]" />
+        )}
         <div className="flex-1 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-foreground">Finished</span>
+            <span className="text-foreground">{isError ? 'Failed' : 'Finished'}</span>
             <Timestamp timestamp={event.timestamp} />
           </div>
           
@@ -43,13 +50,62 @@ export const ExecutionSummaryEventComponent: React.FC<ExecutionSummaryEventCompo
             {event.exit_code !== undefined && ` • Exit code: ${event.exit_code}`}
           </div>
           
-          {/* Result - Always Visible */}
-          <div className="space-y-2">
-            <div className="text-sm text-foreground">Result</div>
-            <div className="bg-background rounded p-3 border">
-              <pre className="text-xs font-mono whitespace-pre-wrap">{JSON.stringify(event.result, null, 2)}</pre>
+          {/* Error Information - Show if error exists */}
+          {isError && event.error_message && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm text-red-500">
+                <AlertTriangle className="h-4 w-4 stroke-[2]" />
+                <span className="font-medium">Error</span>
+              </div>
+              <div className="bg-red-500/10 rounded p-3 border border-red-500/20">
+                <div className="space-y-2">
+                  {event.error_type && (
+                    <div className="text-xs font-mono text-red-600 dark:text-red-400">
+                      {event.error_type}
+                    </div>
+                  )}
+                  <div className="text-sm text-foreground">
+                    {event.error_message}
+                  </div>
+                  {event.traceback && (
+                    <div className="mt-2">
+                      <button
+                        onClick={() => setErrorExpanded(!errorExpanded)}
+                        className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+                      >
+                        {errorExpanded ? (
+                          <>
+                            <ChevronDown className="h-3 w-3 stroke-[2]" />
+                            Hide traceback
+                          </>
+                        ) : (
+                          <>
+                            <ChevronRight className="h-3 w-3 stroke-[2]" />
+                            Show traceback
+                          </>
+                        )}
+                      </button>
+                      {errorExpanded && (
+                        <pre className="mt-2 text-xs font-mono whitespace-pre-wrap text-muted-foreground bg-background/50 rounded p-2 overflow-x-auto">
+                          {event.traceback}
+                        </pre>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
+          )}
+          
+          {/* Result - Always Visible */}
+          {event.result !== null && (
+            <div className="space-y-2">
+              <div className="text-sm text-foreground">Result</div>
+              <div className="bg-background rounded p-3 border">
+                <pre className="text-xs font-mono whitespace-pre-wrap">{JSON.stringify(event.result, null, 2)}</pre>
+              </div>
+            </div>
+          )}
           
           {/* Collapsible expanded metrics */}
           <div className="border rounded bg-background">

@@ -389,6 +389,27 @@ class TactusRuntime:
                 except Exception as err:
                     logger.warning(f"Failed to end chat session: {err}")
 
+            # Send error summary event if log handler is available
+            if self.log_handler:
+                import traceback
+                from tactus.protocols.models import ExecutionSummaryEvent
+
+                summary_event = ExecutionSummaryEvent(
+                    result=None,
+                    final_state={},
+                    iterations=0,
+                    tools_used=[],
+                    procedure_id=self.procedure_id,
+                    total_cost=0.0,
+                    total_tokens=0,
+                    cost_breakdown=[],
+                    exit_code=1,
+                    error_message=str(e),
+                    error_type=type(e).__name__,
+                    traceback=traceback.format_exc(),
+                )
+                self.log_handler.log(summary_event)
+
             return {
                 "success": False,
                 "procedure_id": self.procedure_id,
@@ -404,6 +425,27 @@ class TactusRuntime:
                 except Exception as err:
                     logger.warning(f"Failed to end chat session: {err}")
 
+            # Send error summary event if log handler is available
+            if self.log_handler:
+                import traceback
+                from tactus.protocols.models import ExecutionSummaryEvent
+
+                summary_event = ExecutionSummaryEvent(
+                    result=None,
+                    final_state={},
+                    iterations=0,
+                    tools_used=[],
+                    procedure_id=self.procedure_id,
+                    total_cost=0.0,
+                    total_tokens=0,
+                    cost_breakdown=[],
+                    exit_code=1,
+                    error_message=str(e),
+                    error_type=type(e).__name__,
+                    traceback=traceback.format_exc(),
+                )
+                self.log_handler.log(summary_event)
+
             return {
                 "success": False,
                 "procedure_id": self.procedure_id,
@@ -418,6 +460,27 @@ class TactusRuntime:
                     await self.chat_recorder.end_session(session_id, status="FAILED")
                 except Exception as err:
                     logger.warning(f"Failed to end chat session: {err}")
+
+            # Send error summary event if log handler is available
+            if self.log_handler:
+                import traceback
+                from tactus.protocols.models import ExecutionSummaryEvent
+
+                summary_event = ExecutionSummaryEvent(
+                    result=None,
+                    final_state={},
+                    iterations=0,
+                    tools_used=[],
+                    procedure_id=self.procedure_id,
+                    total_cost=0.0,
+                    total_tokens=0,
+                    cost_breakdown=[],
+                    exit_code=1,
+                    error_message=str(e),
+                    error_type=type(e).__name__,
+                    traceback=traceback.format_exc(),
+                )
+                self.log_handler.log(summary_event)
 
             return {
                 "success": False,
@@ -616,6 +679,7 @@ class TactusRuntime:
                 log_handler=self.log_handler,
                 procedure_id=self.procedure_id,
                 provider=agent_config.get("provider"),
+                disable_streaming=agent_config.get("disable_streaming", False),
             )
 
             self.agents[agent_name] = agent_primitive

@@ -12,7 +12,7 @@ Feature: Storage Backends
 
   Scenario: File-based storage for persistence
     Given a Tactus runtime with file-based storage
-    And storage directory is "~/.tac/storage"
+    And storage directory is "~/.tactus/storage"
     When I execute a workflow that sets state "user" to "Alice"
     Then a file should be created in the storage directory
     And reading the file should show the state value

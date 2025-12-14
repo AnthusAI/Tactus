@@ -86,10 +86,10 @@ else:
 
 ```bash
 # Validate a file
-tactus validate examples/hello-world.tac
+tactus validate examples/01-basics-hello-world.tac
 
 # Quick validation (syntax only)
-tactus validate examples/hello-world.tac --quick
+tactus validate examples/01-basics-hello-world.tac --quick
 ```
 
 ## Parser Generation
@@ -210,6 +210,7 @@ The antlr4ts code generator has known issues:
 The same `.tac` file works for both:
 - ANTLR validates structure
 - lupa executes the procedure
+
 
 
 

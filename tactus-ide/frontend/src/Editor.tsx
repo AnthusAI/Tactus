@@ -74,7 +74,10 @@ export const Editor: React.FC<EditorProps> = ({ initialValue = '', onValueChange
       language: 'tactus-lua',
       theme: 'tactus-dark',
       automaticLayout: true,
-      minimap: { enabled: true },
+      minimap: { 
+        enabled: true,
+        showSlider: 'always'
+      },
       fontSize: 14,
       lineNumbers: 'on',
       roundedSelection: false,
@@ -227,6 +230,7 @@ export const Editor: React.FC<EditorProps> = ({ initialValue = '', onValueChange
     <div ref={containerRef} style={{ height: '100%' }} />
   );
 };
+
 
 
 

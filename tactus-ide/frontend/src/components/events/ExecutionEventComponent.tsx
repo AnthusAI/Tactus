@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ExecutionEvent } from '@/types/events';
-import { PlayCircle, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { PlayCircle, CheckCircle, XCircle, Clock, ChevronDown, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { BaseEventComponent } from './BaseEventComponent';
 import { Timestamp } from '../Timestamp';
@@ -36,6 +36,7 @@ const stageConfig = {
 };
 
 export const ExecutionEventComponent: React.FC<ExecutionEventComponentProps> = ({ event, isAlternate }) => {
+  const [tracebackExpanded, setTracebackExpanded] = useState(false);
   const config = stageConfig[event.lifecycle_stage as keyof typeof stageConfig] || stageConfig.start;
   const Icon = config.icon;
 
@@ -54,9 +55,44 @@ export const ExecutionEventComponent: React.FC<ExecutionEventComponentProps> = (
             </div>
           )}
           {event.details && Object.keys(event.details).length > 0 && (
-            <div className="mt-2 text-sm">
+            <div className="mt-2 text-sm space-y-2">
           {event.details.path && <div className="text-muted-foreground">Path: {event.details.path}</div>}
-          {event.details.error && <div className="text-red-500">Error: {event.details.error}</div>}
+          {event.details.error && (
+            <div className="bg-red-500/10 rounded p-3 border border-red-500/20 space-y-2">
+              <div className="text-sm font-medium text-red-500">Error</div>
+              {event.details.error_type && (
+                <div className="text-xs font-mono text-red-600 dark:text-red-400">
+                  {event.details.error_type}
+                </div>
+              )}
+              <div className="text-sm text-foreground whitespace-pre-wrap">{event.details.error}</div>
+              {event.details.traceback && (
+                <div className="mt-2">
+                  <button
+                    onClick={() => setTracebackExpanded(!tracebackExpanded)}
+                    className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+                  >
+                    {tracebackExpanded ? (
+                      <>
+                        <ChevronDown className="h-3 w-3 stroke-[2]" />
+                        Hide traceback
+                      </>
+                    ) : (
+                      <>
+                        <ChevronRight className="h-3 w-3 stroke-[2]" />
+                        Show traceback
+                      </>
+                    )}
+                  </button>
+                  {tracebackExpanded && (
+                    <pre className="mt-2 text-xs font-mono whitespace-pre-wrap text-muted-foreground bg-background/50 rounded p-2 overflow-x-auto">
+                      {event.details.traceback}
+                    </pre>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
           
           {/* Pydantic Evals Results */}
           {event.details.type === 'pydantic_eval' && event.details.cases && (() => {

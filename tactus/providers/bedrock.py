@@ -14,6 +14,7 @@ class BedrockProvider:
 
     # Known Bedrock models (Claude via Bedrock)
     KNOWN_MODELS = {
+        "anthropic.claude-haiku-4-5-20251001-v1:0",  # Claude 4.5 Haiku
         "anthropic.claude-3-5-sonnet-20240620-v1:0",
         "anthropic.claude-3-5-haiku-20241022-v1:0",
         "anthropic.claude-3-sonnet-20240229-v1:0",

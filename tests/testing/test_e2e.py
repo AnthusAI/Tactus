@@ -13,7 +13,7 @@ from tactus.validation import TactusValidator
 
 def test_simple_procedure_no_agents():
     """Test complete flow with simple procedure (no agents)."""
-    procedure_file = Path("examples/simple-no-agent.tac")
+    procedure_file = Path("examples/02-basics-simple-logic.tac")
 
     if not procedure_file.exists():
         pytest.skip(f"Example file not found: {procedure_file}")
@@ -47,7 +47,7 @@ def test_simple_procedure_no_agents():
 )
 def test_procedure_with_mocked_agents():
     """Test procedure with agents in mock mode."""
-    procedure_file = Path("examples/with-bdd-tests-working.tac")
+    procedure_file = Path("examples/21-bdd-passing.tac")
 
     if not procedure_file.exists():
         pytest.skip(f"Example file not found: {procedure_file}")
@@ -80,7 +80,7 @@ def test_procedure_with_mocked_agents():
 )
 def test_evaluation_with_mock_mode():
     """Test evaluation runner with mock mode."""
-    procedure_file = Path("examples/simple-no-agent.tac")
+    procedure_file = Path("examples/02-basics-simple-logic.tac")
 
     if not procedure_file.exists():
         pytest.skip(f"Example file not found: {procedure_file}")
@@ -159,7 +159,7 @@ Feature: Test
 )
 def test_parameter_passing():
     """Test that parameters are passed correctly to procedures."""
-    procedure_file = Path("examples/simple-no-agent.tac")
+    procedure_file = Path("examples/02-basics-simple-logic.tac")
 
     if not procedure_file.exists():
         pytest.skip(f"Example file not found: {procedure_file}")
@@ -177,5 +177,6 @@ def test_parameter_passing():
     assert test_result.total_scenarios > 0
 
     runner.cleanup()
+
 
 

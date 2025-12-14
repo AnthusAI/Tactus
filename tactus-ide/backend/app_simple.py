@@ -138,5 +138,3 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5001))
     logger.info(f"Starting Tactus IDE Backend (HTTP mode) on port {port}")
     app.run(host="127.0.0.1", port=port, debug=False, threaded=True)
-
-

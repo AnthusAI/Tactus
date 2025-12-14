@@ -43,14 +43,14 @@ app = typer.Typer(
 
 def load_tactus_config():
     """
-    Load Tactus configuration from .tac/config.yml using dotyaml.
+    Load Tactus configuration from .tactus/config.yml using dotyaml.
 
     This will:
-    - Load configuration from .tac/config.yml if it exists
+    - Load configuration from .tactus/config.yml if it exists
     - Set environment variables from the config (e.g., openai_api_key -> OPENAI_API_KEY)
     - Also automatically loads .env file if present (via dotyaml)
     """
-    config_path = Path.cwd() / ".tac" / "config.yml"
+    config_path = Path.cwd() / ".tactus" / "config.yml"
 
     if config_path.exists():
         try:
@@ -521,8 +521,6 @@ def test(
         raise typer.Exit(1)
 
 
-
-
 def _display_test_results(test_result):
     """Display test results in Rich format."""
 
@@ -615,7 +613,7 @@ def _display_eval_results(report, runs: int, console):
     from rich.table import Table
     from rich.panel import Panel
     from rich import box
-    
+
     # Group results by original case name
     case_results = defaultdict(list)
     for case in report.cases:
@@ -626,20 +624,17 @@ def _display_eval_results(report, runs: int, console):
         else:
             original_name = case_name
         case_results[original_name].append(case)
-    
+
     # Display per-task breakdown with details
     if runs > 1:
         console.print("\n[bold cyan]Evaluation Results by Task[/bold cyan]\n")
-        
+
         for task_name, cases in sorted(case_results.items()):
             total_runs = len(cases)
             # A case is successful if ALL its assertions passed
-            successful_runs = sum(
-                1 for c in cases 
-                if all(a.value for a in c.assertions.values())
-            )
+            successful_runs = sum(1 for c in cases if all(a.value for a in c.assertions.values()))
             success_rate = (successful_runs / total_runs * 100) if total_runs > 0 else 0
-            
+
             # Calculate per-evaluator pass rates
             evaluator_stats = defaultdict(lambda: {"passed": 0, "total": 0})
             for case in cases:
@@ -647,32 +642,34 @@ def _display_eval_results(report, runs: int, console):
                     evaluator_stats[eval_name]["total"] += 1
                     if assertion.value:
                         evaluator_stats[eval_name]["passed"] += 1
-            
+
             # Status styling
             status_icon = "✔" if success_rate >= 80 else "⚠" if success_rate >= 50 else "✗"
-            rate_color = "green" if success_rate >= 80 else "yellow" if success_rate >= 50 else "red"
-            
+            rate_color = (
+                "green" if success_rate >= 80 else "yellow" if success_rate >= 50 else "red"
+            )
+
             # Create task summary
             summary = f"[bold]{task_name}[/bold]\n"
             summary += f"[{rate_color}]{status_icon} Success Rate: {success_rate:.1f}% ({successful_runs}/{total_runs} runs passed all evaluators)[/{rate_color}]\n"
-            
+
             # Add evaluator breakdown
             summary += "\n[dim]Evaluator Breakdown:[/dim]\n"
             for eval_name, stats in evaluator_stats.items():
                 eval_rate = (stats["passed"] / stats["total"] * 100) if stats["total"] > 0 else 0
                 eval_color = "green" if eval_rate >= 80 else "yellow" if eval_rate >= 50 else "red"
                 summary += f"  [{eval_color}]{eval_name}: {eval_rate:.0f}% ({stats['passed']}/{stats['total']})[/{eval_color}]\n"
-            
+
             # Show detailed sample runs
             summary += "\n[dim]Sample Runs (showing first 3):[/dim]"
             for i, case in enumerate(cases[:3], 1):  # Show first 3 runs
                 all_passed = all(a.value for a in case.assertions.values())
                 icon = "✔" if all_passed else "✗"
                 summary += f"\n\n  {icon} [bold]Run {i}:[/bold]"
-                
+
                 # Show input
                 summary += f"\n    [dim]Input:[/dim] {case.inputs}"
-                
+
                 # Show output (formatted nicely)
                 summary += f"\n    [dim]Output:[/dim]"
                 if isinstance(case.output, dict):
@@ -686,15 +683,15 @@ def _display_eval_results(report, runs: int, console):
                     if len(output_str) > 200:
                         output_str = output_str[:197] + "..."
                     summary += f" {output_str}"
-                
+
                 # Show assertion results for this run
                 summary += f"\n    [dim]Evaluators:[/dim]"
                 for eval_name, assertion in case.assertions.items():
                     result_icon = "✔" if assertion.value else "✗"
                     summary += f"\n      {result_icon} {eval_name}"
                     # Show reason if available (e.g., from LLM judge)
-                    if hasattr(assertion, 'reason') and assertion.reason:
-                        reason_lines = assertion.reason.split('\n')
+                    if hasattr(assertion, "reason") and assertion.reason:
+                        reason_lines = assertion.reason.split("\n")
                         # Show first line inline, rest indented
                         if reason_lines:
                             summary += f": {reason_lines[0]}"
@@ -703,10 +700,10 @@ def _display_eval_results(report, runs: int, console):
                                     summary += f"\n         {line.strip()}"
                             if len(reason_lines) > 3:
                                 summary += f"\n         [dim]...[/dim]"
-            
+
             if len(cases) > 3:
                 summary += f"\n\n  [dim]... and {len(cases) - 3} more runs (use --verbose to see all)[/dim]"
-            
+
             console.print(Panel(summary, box=box.ROUNDED, border_style=rate_color))
             console.print()
     else:
@@ -782,20 +779,25 @@ def eval(
         evaluators = []
         for eval_dict_item in eval_dict.get("evaluators", []):
             evaluators.append(EvaluatorConfig(**eval_dict_item))
-        
+
         # Parse thresholds if present
         thresholds = None
         if "thresholds" in eval_dict:
             from tactus.testing.eval_models import EvaluationThresholds
+
             thresholds = EvaluationThresholds(**eval_dict["thresholds"])
 
         # Create evaluation config
         # Use runs from file if specified, otherwise use CLI parameter
         file_runs = eval_dict.get("runs", 1)
-        actual_runs = runs if runs != 1 else file_runs  # CLI default is 1, so if it's 1, use file value
-        
-        console.print(Panel(f"Running Pydantic Evals Evaluation ({actual_runs} runs per case)", style="blue"))
-        
+        actual_runs = (
+            runs if runs != 1 else file_runs
+        )  # CLI default is 1, so if it's 1, use file value
+
+        console.print(
+            Panel(f"Running Pydantic Evals Evaluation ({actual_runs} runs per case)", style="blue")
+        )
+
         eval_config = EvaluationConfig(
             dataset=dataset_cases,
             evaluators=evaluators,
@@ -821,10 +823,10 @@ def eval(
         # Display results with custom formatting for success rates
         console.print("\n")
         _display_eval_results(report, actual_runs, console)
-        
+
         # Check thresholds
         passed, violations = runner.check_thresholds(report)
-        
+
         if not passed:
             console.print("\n[red]❌ Evaluation failed threshold checks:[/red]")
             for violation in violations:

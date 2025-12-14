@@ -9,14 +9,14 @@ import os
 @given("a simple workflow file with an agent")
 def step_given_simple_workflow(context):
     """Load or create a simple workflow for testing."""
-    context.workflow_file = "examples/simple-agent.tac"
+    context.workflow_file = "examples/04-basics-simple-agent.tac"
     assert os.path.exists(context.workflow_file), f"{context.workflow_file} should exist"
 
 
 @given("a simple workflow file with agents")
 def step_given_workflow_with_agents(context):
     """Load a workflow with agents."""
-    context.workflow_file = "examples/simple-agent.tac"
+    context.workflow_file = "examples/04-basics-simple-agent.tac"
     assert os.path.exists(context.workflow_file), f"{context.workflow_file} should exist"
 
 
@@ -35,7 +35,7 @@ def step_given_procedure_logs_result(context):
 @given("a workflow with an agent that has output_type defined")
 def step_given_workflow_with_output_type(context):
     """Load workflow with output_type."""
-    context.workflow_file = "examples/structured-output-demo.tac"
+    context.workflow_file = "examples/12-feature-structured-output.tac"
     assert os.path.exists(context.workflow_file), f"{context.workflow_file} should exist"
 
 
@@ -172,7 +172,7 @@ def step_then_model_has_fields(context):
 @given("a workflow with output_type fields")
 def step_given_output_type_fields(context):
     """Define workflow with output_type fields."""
-    context.workflow_file = "examples/structured-output-demo.tac"
+    context.workflow_file = "examples/12-feature-structured-output.tac"
     assert os.path.exists(context.workflow_file), f"{context.workflow_file} should exist"
 
 
@@ -197,3 +197,4 @@ def step_then_types_map(context):
     """Types should map to Python types."""
     # _map_type_string function does this mapping
     assert True, "Types should map correctly to Python types"
+

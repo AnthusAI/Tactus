@@ -7,7 +7,7 @@ Feature: Lua DSL Validation
     Given a Tactus validation environment
 
   Scenario: Valid Lua DSL file passes validation
-    Given a Lua DSL file "examples/simple-agent.tac"
+    Given a Lua DSL file "examples/04-basics-simple-agent.tac"
     When I validate the file
     Then validation should succeed
     And it should recognize the procedure declaration
@@ -104,13 +104,13 @@ Feature: Lua DSL Validation
     And it should recognize 1 output declaration
 
   Scenario: Quick validation mode
-    Given a Lua DSL file "examples/simple-agent.tac"
+    Given a Lua DSL file "examples/04-basics-simple-agent.tac"
     When I validate the file in quick mode
     Then validation should succeed
     And it should only check syntax
 
   Scenario: Full validation mode
-    Given a Lua DSL file "examples/simple-agent.tac"
+    Given a Lua DSL file "examples/04-basics-simple-agent.tac"
     When I validate the file in full mode
     Then validation should succeed
     And it should check syntax
@@ -120,17 +120,17 @@ Feature: Lua DSL Validation
   Scenario: All example files validate successfully
     Given the example Lua DSL files:
       | file                            |
-      | simple-agent.tac             |
-      | hello-world.tac              |
-      | state-management.tac         |
-      | with-parameters.tac          |
-      | multi-model.tac              |
+      | 04-basics-simple-agent.tac      |
+      | 01-basics-hello-world.tac       |
+      | 10-feature-state.tac            |
+      | 03-basics-parameters.tac        |
+      | 05-basics-multi-model.tac       |
     When I validate each file
     Then all validations should succeed
 
   Scenario: CLI validation command for Lua DSL
-    Given a Lua DSL file "examples/simple-agent.tac"
-    When I run "tactus validate examples/simple-agent.tac"
+    Given a Lua DSL file "examples/04-basics-simple-agent.tac"
+    When I run "tactus validate examples/04-basics-simple-agent.tac"
     Then the command should succeed
     And the output should show "lua format"
     And the output should display procedure information
@@ -141,6 +141,7 @@ Feature: Lua DSL Validation
     Then the command should fail
     And the output should show the error location
     And the output should suggest how to fix it
+
 
 
 

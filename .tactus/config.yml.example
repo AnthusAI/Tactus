@@ -1,0 +1,10 @@
+# Tactus Configuration File
+# Copy this file to config.yml and add your actual API keys
+
+# OpenAI Configuration
+openai_api_key: "your-openai-api-key-here"
+
+# AWS Bedrock Configuration
+aws_access_key_id: "your-aws-access-key-id-here"
+aws_secret_access_key: "your-aws-secret-access-key-here"
+aws_region: "us-east-1"  # or your preferred region

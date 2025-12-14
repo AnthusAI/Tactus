@@ -70,5 +70,3 @@ class CostCalculator:
             "provider": detected_provider,
             "pricing_found": True,  # Could track if we used DEFAULT_PRICING
         }
-
-

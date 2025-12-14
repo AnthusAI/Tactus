@@ -193,9 +193,18 @@ class ExecutionSummaryEvent(BaseModel):
     total_tokens: int = Field(default=0, description="Total tokens used")
     cost_breakdown: list[Any] = Field(default_factory=list, description="Per-call cost details")
 
-    # Exit code
+    # Exit code and error information
     exit_code: Optional[int] = Field(
         default=0, description="Exit code (0 for success, non-zero for error)"
+    )
+    error_message: Optional[str] = Field(
+        default=None, description="Error message if execution failed"
+    )
+    error_type: Optional[str] = Field(
+        default=None, description="Error type/class name if execution failed"
+    )
+    traceback: Optional[str] = Field(
+        default=None, description="Full traceback if execution failed"
     )
 
     model_config = {"arbitrary_types_allowed": True}
