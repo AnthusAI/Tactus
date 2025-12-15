@@ -15,8 +15,8 @@ Feature: Example Procedures
     Examples: Lua DSL Examples
       | example_file                    |
       | hello-world.tac              |
-      | state-management.tac         |
-      | with-parameters.tac          |
+      | 10-feature-state.tac         |
+      | 03-basics-parameters.tac     |
       | simple-agent.tac             |
       | multi-model.tac              |
 
@@ -28,14 +28,14 @@ Feature: Example Procedures
     And the output should contain field "count" with value 5
 
   Scenario: State Management example tracks count correctly
-    Given an example file "state-management.tac"
+    Given an example file "10-feature-state.tac"
     When I execute the procedure
     Then the execution should succeed
     And the output should contain field "success" with value true
     And the output should contain field "count" with value 5
 
   Scenario: With Parameters example uses defaults
-    Given an example file "with-parameters.tac"
+    Given an example file "03-basics-parameters.tac"
     When I execute the procedure
     Then the execution should succeed
     And the output should contain field "result" with value "Completed default task with 3 iterations"
