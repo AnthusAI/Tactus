@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v0.6.1 (2025-12-15)
+
+### Bug Fixes
+
+- Resolve Behave registry conflicts in e2e tests
+  ([`ced4160`](https://github.com/AnthusAI/Tactus/commit/ced41603883ecba465008edf6a216d4d5e61000d))
+
+### Code Style
+
+- Format code with black
+  ([`3f97cc1`](https://github.com/AnthusAI/Tactus/commit/3f97cc1dad1f3d3c01cb9e6c30e08da08e7409bb))
+
+
 ## v0.6.0 (2025-12-15)
 
 ### Bug Fixes
