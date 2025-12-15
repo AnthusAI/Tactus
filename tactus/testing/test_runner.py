@@ -7,8 +7,8 @@ Runs tests with parallel scenario execution using multiprocessing.
 import importlib.util
 import logging
 import os
+import multiprocessing
 from datetime import datetime
-from multiprocessing import Pool
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -105,8 +105,10 @@ class TactusTestRunner:
 
         # Run scenarios
         if parallel and len(scenarios) > 1:
-            # Run in parallel
-            with Pool(processes=min(len(scenarios), os.cpu_count() or 1)) as pool:
+            # Run in parallel using 'spawn' to avoid Behave global state conflicts
+            # 'spawn' creates fresh Python interpreters for each worker
+            ctx = multiprocessing.get_context('spawn')
+            with ctx.Pool(processes=min(len(scenarios), os.cpu_count() or 1)) as pool:
                 scenario_results = pool.starmap(
                     self._run_single_scenario, [(s.name, str(self.work_dir)) for s in scenarios]
                 )
