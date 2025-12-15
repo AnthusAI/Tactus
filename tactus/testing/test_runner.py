@@ -208,7 +208,9 @@ class TactusTestRunner:
         total_cost = getattr(behave_scenario, "total_cost", 0.0)
         total_tokens = getattr(behave_scenario, "total_tokens", 0)
         cost_breakdown = getattr(behave_scenario, "cost_breakdown", [])
-        iterations = getattr(behave_scenario, "iterations", 0)
+        # iterations is a method, not an attribute - call it if it exists
+        iterations_attr = getattr(behave_scenario, "iterations", None)
+        iterations = iterations_attr() if callable(iterations_attr) else 0
         tools_used = getattr(behave_scenario, "tools_used", [])
         llm_calls = len(cost_breakdown)  # Number of LLM calls = number of cost events
 
