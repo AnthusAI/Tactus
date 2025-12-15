@@ -55,6 +55,7 @@ class TactusTestRunner:
         self.parsed_feature: Optional[ParsedFeature] = None
         self.step_registry = StepRegistry()
         self.custom_steps = CustomStepManager()
+        self.generated_step_file: Optional[Path] = None
 
         # Register built-in steps
         register_builtin_steps(self.step_registry)
@@ -79,6 +80,13 @@ class TactusTestRunner:
             mock_tools=self.mock_tools,
             params=self.params,
         )
+
+        # Track the generated step file for cleanup
+        # The step file name is based on the work_dir hash
+        import hashlib
+
+        dir_hash = hashlib.md5(str(self.work_dir).encode()).hexdigest()[:8]
+        self.generated_step_file = self.work_dir / "steps" / f"tactus_steps_{dir_hash}.py"
 
         logger.info(f"Test setup complete for feature: {self.parsed_feature.name}")
 
@@ -142,20 +150,36 @@ class TactusTestRunner:
         from behave.runner import Runner
         from behave.configuration import Configuration
         import sys
+        import importlib
 
         # Clear Behave's global step registry to prevent conflicts
+        # IMPORTANT: We call registry.clear() instead of creating a new registry
+        # because the @step decorator has a closure reference to the registry object.
+        # If we create a new object, the decorator still uses the old one!
         import behave.step_registry
 
-        behave.step_registry.registry = behave.step_registry.StepRegistry()
+        behave.step_registry.registry.clear()
 
         # Clear Python's module cache for any previously loaded step modules
+        # Be very aggressive - clear ALL step-related modules
         modules_to_remove = [
             mod_name
             for mod_name in list(sys.modules.keys())
-            if "tactus_steps_" in mod_name or "steps.tactus_steps_" in mod_name
+            if any([
+                "tactus_steps_" in mod_name,
+                "steps.tactus_steps_" in mod_name,
+                mod_name == "steps",
+                mod_name.startswith("steps.") and "tactus" in mod_name,
+            ])
         ]
         for mod_name in modules_to_remove:
-            del sys.modules[mod_name]
+            try:
+                del sys.modules[mod_name]
+            except KeyError:
+                pass
+
+        # Invalidate import caches
+        importlib.invalidate_caches()
 
         # Create tag filter for this scenario
         sanitized_name = scenario_name.lower().replace(" ", "_")
@@ -286,7 +310,50 @@ class TactusTestRunner:
         )
 
     def cleanup(self) -> None:
-        """Cleanup temporary files."""
+        """
+        Cleanup temporary files and clear Behave state.
+        
+        This removes:
+        - The temporary work directory
+        - Generated step modules from sys.modules
+        - Behave's global step registry
+        """
+        import sys
+        import importlib
+
+        # Clear the generated step module from sys.modules
+        if self.generated_step_file:
+            # Compute the module name that Python would use
+            # The step file is in work_dir/steps/tactus_steps_<hash>.py
+            # Python imports it as "steps.tactus_steps_<hash>"
+            step_module_name = f"steps.{self.generated_step_file.stem}"
+
+            # Remove all variations of this module name
+            modules_to_clear = [
+                m
+                for m in list(sys.modules.keys())
+                if step_module_name in m or self.generated_step_file.stem in m
+            ]
+
+            for mod in modules_to_clear:
+                del sys.modules[mod]
+                logger.debug(f"Cleared module from sys.modules: {mod}")
+
+        # Clear Behave's global step registry IN-PLACE
+        # IMPORTANT: We call registry.clear() instead of creating a new registry
+        # because the @step decorator has a closure reference to the registry object.
+        try:
+            import behave.step_registry
+
+            behave.step_registry.registry.clear()
+            logger.debug("Cleared Behave step registry")
+        except ImportError:
+            pass
+
+        # Invalidate import caches
+        importlib.invalidate_caches()
+
+        # Clean up work directory
         if self.work_dir and self.work_dir.exists():
             import shutil
 
