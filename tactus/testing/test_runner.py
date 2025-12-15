@@ -165,12 +165,14 @@ class TactusTestRunner:
         modules_to_remove = [
             mod_name
             for mod_name in list(sys.modules.keys())
-            if any([
-                "tactus_steps_" in mod_name,
-                "steps.tactus_steps_" in mod_name,
-                mod_name == "steps",
-                mod_name.startswith("steps.") and "tactus" in mod_name,
-            ])
+            if any(
+                [
+                    "tactus_steps_" in mod_name,
+                    "steps.tactus_steps_" in mod_name,
+                    mod_name == "steps",
+                    mod_name.startswith("steps.") and "tactus" in mod_name,
+                ]
+            )
         ]
         for mod_name in modules_to_remove:
             try:
@@ -312,7 +314,7 @@ class TactusTestRunner:
     def cleanup(self) -> None:
         """
         Cleanup temporary files and clear Behave state.
-        
+
         This removes:
         - The temporary work directory
         - Generated step modules from sys.modules
