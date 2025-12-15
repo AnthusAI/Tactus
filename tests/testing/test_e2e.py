@@ -15,7 +15,6 @@ from tactus.testing.test_runner import TactusTestRunner
 from tactus.validation import TactusValidator
 
 
-@pytest.mark.skip(reason="Behave global registry conflicts - needs refactoring")
 @pytest.mark.xdist_group(name="behave_tests")
 def test_simple_procedure_no_agents():
     """Test complete flow with simple procedure (no agents)."""
@@ -48,7 +47,6 @@ def test_simple_procedure_no_agents():
     runner.cleanup()
 
 
-@pytest.mark.skip(reason="Behave global registry conflicts - needs refactoring")
 @pytest.mark.xdist_group(name="behave_tests")
 def test_procedure_with_mocked_agents():
     """Test procedure with agents in mock mode."""
