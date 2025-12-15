@@ -2,6 +2,63 @@
 
 <!-- version list -->
 
+## v0.6.0 (2025-12-15)
+
+### Bug Fixes
+
+- Add pytest-xdist to dev dependencies for parallel test execution
+  ([`d43be74`](https://github.com/AnthusAI/Tactus/commit/d43be740730479bd9f3e2eeefc8b9a96b14d4489))
+
+- Clear Behave registry before AND after e2e tests
+  ([`a430682`](https://github.com/AnthusAI/Tactus/commit/a4306825cb4322f7462b00c8d8e15137cb4affeb))
+
+- Clear Behave registry before AND after each test
+  ([`c83d1eb`](https://github.com/AnthusAI/Tactus/commit/c83d1eb532e306b71b31c2d4b821db7b10f1bd27))
+
+- Disable pytest-xdist parallel execution due to Behave global state conflicts
+  ([`612875e`](https://github.com/AnthusAI/Tactus/commit/612875e83e02e9bff8c6b74b52fc346f94504d2b))
+
+- Enable streaming responses in CLI and add direct file execution
+  ([`e53ee22`](https://github.com/AnthusAI/Tactus/commit/e53ee22b4c683b91774b484c19b6115f1e663f7b))
+
+- Enable streaming responses in CLI and add direct file execution
+  ([`47aab07`](https://github.com/AnthusAI/Tactus/commit/47aab07339c96cd8030c3a03bf22e4648b86f49c))
+
+- Only clear Behave registry for tests that use it
+  ([`67987aa`](https://github.com/AnthusAI/Tactus/commit/67987aadad1339c3ebb05d10c071a04ddb010d8f))
+
+- Remove debug logging code from run_procedure_stream()
+  ([`7a783b5`](https://github.com/AnthusAI/Tactus/commit/7a783b50f4881efb2eede7756613cf38d40dca21))
+
+- Skip problematic Behave tests due to global registry conflicts
+  ([`7f47c38`](https://github.com/AnthusAI/Tactus/commit/7f47c38fd9cbda63517b8e560bc7219c85942975))
+
+- Update example file names in feature tests
+  ([`e6bc0ae`](https://github.com/AnthusAI/Tactus/commit/e6bc0aeea6d26b30019146d7765ec3e36d0dd384))
+
+- Use multiprocessing 'spawn' context to avoid Behave global registry conflicts
+  ([`442816e`](https://github.com/AnthusAI/Tactus/commit/442816e7f8dc3ab4c95c53279e336a39d72eb01c))
+
+- Use spawn context in evaluation_runner and fix iterations method call
+  ([`83d8853`](https://github.com/AnthusAI/Tactus/commit/83d885341b31d4a6c25980a5c567ae652c7bddef))
+
+- **tests**: Add simple per-turn tool control test and dynamic tool availability example
+  ([`11c63c4`](https://github.com/AnthusAI/Tactus/commit/11c63c4190d78851b0ac462e6afa2368e1b62685))
+
+### Code Style
+
+- Format test_runner.py with black
+  ([`96a177f`](https://github.com/AnthusAI/Tactus/commit/96a177fa8207d3bb5c4bdfc42fa1d9ba58e7de52))
+
+### Features
+
+- Add real-time LLM response streaming to Tactus IDE
+  ([`3c45f29`](https://github.com/AnthusAI/Tactus/commit/3c45f29da47d1e8c7de26dfe9901ef5e37fb81d0))
+
+- **streaming**: Support for streaming responses into the IDE.
+  ([`2b5dac9`](https://github.com/AnthusAI/Tactus/commit/2b5dac9748d47071aceec61b1aa1d72fd7ea8032))
+
+
 ## v0.5.0 (2025-12-13)
 
 
