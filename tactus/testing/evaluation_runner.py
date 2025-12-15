@@ -7,8 +7,8 @@ Runs scenarios multiple times in parallel to measure consistency and reliability
 import logging
 import os
 import statistics
+import multiprocessing
 from collections import Counter
-from multiprocessing import Pool
 from typing import List
 
 from .models import ScenarioResult, EvaluationResult
@@ -99,7 +99,9 @@ class TactusEvaluationRunner(TactusTestRunner):
         # Run scenario N times
         if parallel:
             workers = min(runs, os.cpu_count() or 1)
-            with Pool(processes=workers) as pool:
+            # Use 'spawn' to avoid Behave global state conflicts
+            ctx = multiprocessing.get_context("spawn")
+            with ctx.Pool(processes=workers) as pool:
                 iteration_args = [(scenario_name, str(self.work_dir), i) for i in range(runs)]
                 results = pool.starmap(self._run_single_iteration, iteration_args)
         else:
