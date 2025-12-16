@@ -7,7 +7,6 @@ agent("processor", {
   model = "gpt-4o-mini",
   system_prompt = "Process the task: {params.task}. Call done when finished.",
   initial_message = "Start processing",
-  tools = {"done"}
 })
 
 -- Stages

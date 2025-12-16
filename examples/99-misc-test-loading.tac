@@ -3,7 +3,6 @@ agent("test_agent", {
   provider = "openai",
   model = "gpt-4o-mini",
   system_prompt = "You are a helpful assistant. Respond briefly.",
-  tools = {"done"}
 })
 
 procedure(function()

@@ -9,6 +9,7 @@ Orchestrates:
 5. Workflow execution
 """
 
+import io
 import logging
 import time
 import uuid
@@ -70,11 +71,14 @@ class TactusRuntime:
         hitl_handler: Optional[HITLHandler] = None,
         chat_recorder: Optional[ChatRecorder] = None,
         mcp_server=None,
+        mcp_servers: Optional[Dict[str, Any]] = None,
         openai_api_key: Optional[str] = None,
         log_handler=None,
         tool_primitive: Optional[ToolPrimitive] = None,
         skip_agents: bool = False,
         recursion_depth: int = 0,
+        tool_paths: Optional[list] = None,
+        external_config: Optional[Dict[str, Any]] = None,
     ):
         """
         Initialize the Tactus runtime.
@@ -84,22 +88,29 @@ class TactusRuntime:
             storage_backend: Storage backend for checkpoints and state
             hitl_handler: Handler for human-in-the-loop interactions
             chat_recorder: Optional chat recorder for conversation logging
-            mcp_server: Optional MCP server providing tools
+            mcp_server: DEPRECATED - use mcp_servers instead
+            mcp_servers: Optional dict of MCP server configs {name: {command, args, env}}
             openai_api_key: Optional OpenAI API key for LLMs
             log_handler: Optional handler for structured log events
             tool_primitive: Optional pre-configured ToolPrimitive (for testing with mocks)
             skip_agents: If True, skip agent setup and execution (for testing)
+            tool_paths: Optional list of paths to scan for local Python tool plugins
+            external_config: Optional external config (from .tac.yml) to merge with DSL config
         """
         self.procedure_id = procedure_id
         self.storage_backend = storage_backend
         self.hitl_handler = hitl_handler
         self.chat_recorder = chat_recorder
-        self.mcp_server = mcp_server
+        self.mcp_server = mcp_server  # Keep for backward compatibility
+        self.mcp_servers = mcp_servers or {}
+        self.mcp_manager = None  # Will be initialized in _setup_agents
         self.openai_api_key = openai_api_key
         self.log_handler = log_handler
         self._injected_tool_primitive = tool_primitive
+        self.tool_paths = tool_paths or []
         self.skip_agents = skip_agents
         self.recursion_depth = recursion_depth
+        self.external_config = external_config or {}
 
         # Will be initialized during setup
         self.config: Optional[Dict[str, Any]] = None  # Legacy YAML support
@@ -129,6 +140,9 @@ class TactusRuntime:
 
         # Agent primitives (one per agent)
         self.agents: Dict[str, Any] = {}
+
+        # Toolset registry (name -> AbstractToolset instance)
+        self.toolset_registry: Dict[str, Any] = {}
 
         logger.info(f"TactusRuntime initialized for procedure {procedure_id}")
 
@@ -190,6 +204,22 @@ class TactusRuntime:
                 logger.info("Loaded procedure from Lua DSL")
                 # Convert registry to config dict for compatibility
                 self.config = self._registry_to_config(self.registry)
+
+                # Merge external config (from .tac.yml) into self.config
+                # External config provides toolsets, default_toolsets, etc.
+                if self.external_config:
+                    # Merge toolsets from external config
+                    if "toolsets" in self.external_config:
+                        if "toolsets" not in self.config:
+                            self.config["toolsets"] = {}
+                        self.config["toolsets"].update(self.external_config["toolsets"])
+
+                    # Merge other external config keys (like default_toolsets)
+                    for key in ["default_toolsets", "default_model", "default_provider"]:
+                        if key in self.external_config:
+                            self.config[key] = self.external_config[key]
+
+                    logger.debug(f"Merged external config with {len(self.external_config)} keys")
             else:
                 # Legacy YAML support
                 logger.info("Step 1: Parsing YAML configuration (legacy)")
@@ -269,6 +299,10 @@ class TactusRuntime:
                 current_depth=self.recursion_depth,
             )
             logger.debug("HITL, checkpoint, message history, and procedure primitives initialized")
+
+            # 7.5. Initialize toolset registry
+            logger.info("Step 7.5: Initializing toolset registry")
+            await self._initialize_toolsets()
 
             # 8. Setup agents with LLMs and tools
             logger.info("Step 8: Setting up agents")
@@ -523,6 +557,15 @@ class TactusRuntime:
                 "error": f"Unexpected error: {e}",
             }
 
+        finally:
+            # Cleanup: Disconnect from MCP servers
+            if self.mcp_manager:
+                try:
+                    await self.mcp_manager.__aexit__(None, None, None)
+                    logger.info("Disconnected from MCP servers")
+                except Exception as e:
+                    logger.warning(f"Error disconnecting from MCP servers: {e}")
+
     async def _initialize_primitives(self):
         """Initialize all primitive objects."""
         self.state_primitive = StatePrimitive()
@@ -536,7 +579,320 @@ class TactusRuntime:
         else:
             self.tool_primitive = ToolPrimitive()
 
+        # Initialize toolset primitive (needs runtime reference for resolution)
+        from tactus.primitives.toolset import ToolsetPrimitive
+
+        self.toolset_primitive = ToolsetPrimitive(runtime=self)
+
         logger.debug("All primitives initialized")
+
+    def resolve_toolset(self, name: str) -> Optional[Any]:
+        """
+        Resolve a toolset by name from runtime's registered toolsets.
+
+        This is called by ToolsetPrimitive.get() and agent setup to look up toolsets.
+
+        Args:
+            name: Toolset name to resolve
+
+        Returns:
+            AbstractToolset instance or None if not found
+        """
+        toolset = self.toolset_registry.get(name)
+        if toolset:
+            logger.debug(f"Resolved toolset '{name}' from registry")
+            return toolset
+        else:
+            logger.warning(f"Toolset '{name}' not found in registry")
+            return None
+
+    async def _initialize_toolsets(self):
+        """
+        Load and register all toolsets from config and built-in sources.
+
+        This method:
+        1. Registers built-in toolsets (like "done")
+        2. Loads config-defined toolsets from YAML
+        3. Registers MCP toolsets by server name
+        4. Registers plugin toolset if tool_paths configured
+        """
+        from pydantic_ai.toolsets import FunctionToolset
+
+        # 1. Register built-in "done" toolset (always available)
+        try:
+            # Create done function that integrates with tool_primitive and stop_primitive
+            def done(reason: str = "Task completed") -> str:
+                """
+                Signal that the agent has completed its task.
+
+                Args:
+                    reason: Explanation of what was accomplished
+
+                Returns:
+                    Confirmation message
+                """
+                # Record the tool call
+                if self.tool_primitive:
+                    self.tool_primitive.record_call("done", {"reason": reason}, "Done")
+                    logger.debug(f"Recorded done tool call: {reason}")
+
+                # Request stop
+                if self.stop_primitive:
+                    self.stop_primitive.request(reason)
+                    logger.debug(f"Requested stop: {reason}")
+
+                return f"Done: {reason}"
+
+            builtin_done_toolset = FunctionToolset(tools=[done])
+            self.toolset_registry["done"] = builtin_done_toolset
+            logger.info("Registered built-in 'done' toolset")
+        except Exception as e:
+            logger.error(f"Failed to create built-in 'done' toolset: {e}", exc_info=True)
+
+        # 2. Load config-defined toolsets
+        config_toolsets = self.config.get("toolsets", {})
+        for name, definition in config_toolsets.items():
+            try:
+                toolset = await self._create_toolset_from_config(name, definition)
+                if toolset:
+                    self.toolset_registry[name] = toolset
+                    logger.info(f"Registered config-defined toolset '{name}'")
+            except Exception as e:
+                logger.error(f"Failed to create toolset '{name}' from config: {e}", exc_info=True)
+
+        # 3. Register MCP toolsets by server name
+        if self.mcp_servers:
+            try:
+                from tactus.adapters.mcp_manager import MCPServerManager
+
+                self.mcp_manager = MCPServerManager(
+                    self.mcp_servers, tool_primitive=self.tool_primitive
+                )
+                await self.mcp_manager.__aenter__()
+
+                # Get toolsets from MCP manager
+                mcp_toolsets = self.mcp_manager.get_toolsets()
+
+                # Register each MCP toolset by server name
+                for server_name in self.mcp_servers.keys():
+                    # Find corresponding toolset (assumes same order)
+                    # TODO: MCPServerManager should provide get_named_toolsets() method
+                    if mcp_toolsets:
+                        # For now, register first toolset with server name
+                        # This needs improvement when we add get_named_toolsets()
+                        toolset = mcp_toolsets[0] if len(mcp_toolsets) == 1 else None
+                        if toolset:
+                            self.toolset_registry[server_name] = toolset
+                            logger.info(f"Registered MCP toolset '{server_name}'")
+
+                logger.info(f"Connected to {len(mcp_toolsets)} MCP server(s)")
+            except Exception as e:
+                # Check if this is a fileno error (common in test environments with redirected stderr)
+                error_str = str(e)
+                if "fileno" in error_str or isinstance(e, io.UnsupportedOperation):
+                    logger.warning(
+                        "MCP server initialization skipped (test environment with redirected streams)"
+                    )
+                else:
+                    logger.error(f"Failed to initialize MCP toolsets: {e}", exc_info=True)
+
+        # 4. Register plugin toolset if tool_paths configured
+        if self.tool_paths:
+            try:
+                from tactus.adapters.plugins import PluginLoader
+
+                plugin_loader = PluginLoader(tool_primitive=self.tool_primitive)
+                plugin_toolset = plugin_loader.create_toolset(self.tool_paths, name="plugin")
+                self.toolset_registry["plugin"] = plugin_toolset
+                logger.info(f"Registered plugin toolset from {len(self.tool_paths)} path(s)")
+            except ImportError as e:
+                logger.warning(
+                    f"Could not import PluginLoader: {e} - local tools will not be available"
+                )
+            except Exception as e:
+                logger.error(f"Failed to create plugin toolset: {e}", exc_info=True)
+
+        # 5. Register DSL-defined toolsets from registry
+        if hasattr(self, "registry") and self.registry and hasattr(self.registry, "toolsets"):
+            for name, definition in self.registry.toolsets.items():
+                try:
+                    toolset = await self._create_toolset_from_config(name, definition)
+                    if toolset:
+                        self.toolset_registry[name] = toolset
+                        logger.info(f"Registered DSL-defined toolset '{name}'")
+                except Exception as e:
+                    logger.error(f"Failed to create DSL toolset '{name}': {e}", exc_info=True)
+
+        logger.info(
+            f"Toolset registry initialized with {len(self.toolset_registry)} toolset(s): {list(self.toolset_registry.keys())}"
+        )
+
+    async def _create_toolset_from_config(
+        self, name: str, definition: Dict[str, Any]
+    ) -> Optional[Any]:
+        """
+        Create toolset from YAML config definition.
+
+        Supports toolset types:
+        - plugin: Load from local Python files
+        - mcp: Reference MCP server toolset
+        - filtered: Filter tools from source toolset
+        - combined: Merge multiple toolsets
+        - builtin: Custom built-in toolset
+
+        Args:
+            name: Toolset name
+            definition: Config dict with 'type' and type-specific fields
+
+        Returns:
+            AbstractToolset instance or None if creation fails
+        """
+        import re
+        from pydantic_ai.toolsets import CombinedToolset
+
+        toolset_type = definition.get("type")
+
+        if toolset_type == "plugin":
+            # Load from local paths
+            paths = definition.get("paths", [])
+            if not paths:
+                logger.warning(f"Plugin toolset '{name}' has no paths configured")
+                return None
+
+            from tactus.adapters.plugins import PluginLoader
+
+            plugin_loader = PluginLoader(tool_primitive=self.tool_primitive)
+            return plugin_loader.create_toolset(paths, name=name)
+
+        elif toolset_type == "mcp":
+            # Reference MCP server by name
+            server_name = definition.get("server")
+            if not server_name:
+                logger.error(f"MCP toolset '{name}' missing 'server' field")
+                return None
+
+            # Return reference to MCP toolset (will be resolved after MCP init)
+            return self.resolve_toolset(server_name)
+
+        elif toolset_type == "filtered":
+            # Filter tools from source toolset
+            source_name = definition.get("source")
+            pattern = definition.get("pattern")
+
+            if not source_name:
+                logger.error(f"Filtered toolset '{name}' missing 'source' field")
+                return None
+
+            source_toolset = self.resolve_toolset(source_name)
+            if not source_toolset:
+                logger.error(f"Filtered toolset '{name}' cannot find source '{source_name}'")
+                return None
+
+            if pattern:
+                # Filter by regex pattern
+                return source_toolset.filtered(lambda ctx, tool: re.match(pattern, tool.name))
+            else:
+                logger.warning(f"Filtered toolset '{name}' has no filter pattern")
+                return source_toolset
+
+        elif toolset_type == "combined":
+            # Merge multiple toolsets
+            sources = definition.get("sources", [])
+            if not sources:
+                logger.warning(f"Combined toolset '{name}' has no sources")
+                return None
+
+            toolsets = []
+            for source_name in sources:
+                source = self.resolve_toolset(source_name)
+                if source:
+                    toolsets.append(source)
+                else:
+                    logger.warning(f"Combined toolset '{name}' cannot find source '{source_name}'")
+
+            if toolsets:
+                return CombinedToolset(toolsets)
+            else:
+                logger.error(f"Combined toolset '{name}' has no valid sources")
+                return None
+
+        elif toolset_type == "builtin":
+            # Custom built-in toolset (for future extension)
+            logger.warning(f"Builtin toolset type for '{name}' not yet implemented")
+            return None
+
+        else:
+            logger.error(f"Unknown toolset type '{toolset_type}' for toolset '{name}'")
+            return None
+
+    def _parse_toolset_expressions(self, expressions: list) -> list:
+        """
+        Parse toolset expressions from agent config.
+
+        Supports:
+        - Simple string: "financial" -> entire toolset
+        - Filter dict: {name = "plexus", include = ["score_info"]}
+        - Exclude dict: {name = "web", exclude = ["admin"]}
+        - Prefix dict: {name = "web", prefix = "search_"}
+        - Rename dict: {name = "tools", rename = {old = "new"}}
+
+        Args:
+            expressions: List of toolset references or transformation dicts
+
+        Returns:
+            List of AbstractToolset instances
+        """
+        result = []
+
+        for expr in expressions:
+            if isinstance(expr, str):
+                # Simple reference - resolve by name
+                toolset = self.resolve_toolset(expr)
+                if toolset is None:
+                    logger.error(f"Toolset '{expr}' not found in registry")
+                    raise ValueError(f"Toolset '{expr}' not found")
+                result.append(toolset)
+
+            elif isinstance(expr, dict):
+                # Transformation expression
+                name = expr.get("name")
+                if not name:
+                    raise ValueError(f"Toolset expression missing 'name': {expr}")
+
+                toolset = self.resolve_toolset(name)
+                if toolset is None:
+                    raise ValueError(f"Toolset '{name}' not found")
+
+                # Apply transformations in order
+                if "include" in expr:
+                    # Filter to specific tools
+                    tool_names = set(expr["include"])
+                    toolset = toolset.filtered(lambda ctx, tool: tool.name in tool_names)
+                    logger.debug(f"Applied include filter to toolset '{name}': {tool_names}")
+
+                if "exclude" in expr:
+                    # Exclude specific tools
+                    tool_names = set(expr["exclude"])
+                    toolset = toolset.filtered(lambda ctx, tool: tool.name not in tool_names)
+                    logger.debug(f"Applied exclude filter to toolset '{name}': {tool_names}")
+
+                if "prefix" in expr:
+                    # Add prefix to tool names
+                    prefix = expr["prefix"]
+                    toolset = toolset.prefixed(prefix)
+                    logger.debug(f"Applied prefix '{prefix}' to toolset '{name}'")
+
+                if "rename" in expr:
+                    # Rename tools
+                    rename_map = expr["rename"]
+                    toolset = toolset.renamed(rename_map)
+                    logger.debug(f"Applied rename to toolset '{name}': {rename_map}")
+
+                result.append(toolset)
+            else:
+                raise ValueError(f"Invalid toolset expression: {expr} (type: {type(expr)})")
+
+        return result
 
     async def _setup_agents(self, context: Dict[str, Any]):
         """
@@ -573,33 +929,10 @@ class TactusRuntime:
             logger.warning(f"Could not import AgentPrimitive: {e} - agents will not be available")
             return
 
-        # Load tools from MCP server if available
-        all_pydantic_tools = []
-        if self.mcp_server:
-            # Connect to MCP server and get tools
-            async with self.mcp_server.connect(
-                {"name": f"Tactus Runtime for {self.procedure_id}"}
-            ) as mcp_client:
-                try:
-                    from tactus.adapters.mcp import PydanticAIMCPAdapter
-                except ImportError as e:
-                    logger.warning(
-                        f"Could not import MCP adapter: {e} - external tools will not be available"
-                    )
-                else:
-                    # Create adapter with tool_primitive for recording
-                    adapter = PydanticAIMCPAdapter(mcp_client, tool_primitive=self.tool_primitive)
-                    all_pydantic_tools = await adapter.load_tools()
-
-                    logger.info(f"Loaded {len(all_pydantic_tools)} MCP tools as Pydantic AI tools")
-        else:
-            logger.info("No MCP server configured - agents will only have built-in tools")
-
-        # Prepare output schema guidance if defined
-        output_schema_guidance = None
-        if self.config.get("outputs"):
-            output_schema_guidance = self._format_output_schema_for_prompt()
-            logger.info("Prepared output schema guidance for agents")
+        # Get default toolsets from config (for agents that don't specify toolsets)
+        default_toolset_names = self.config.get("default_toolsets", [])
+        if default_toolset_names:
+            logger.info(f"Default toolsets configured: {default_toolset_names}")
 
         # Setup each agent
         for agent_name, agent_config in agents_config.items():
@@ -609,7 +942,12 @@ class TactusRuntime:
             system_prompt_template = agent_config[
                 "system_prompt"
             ]  # Keep as template for dynamic rendering
-            initial_message = self._process_template(agent_config["initial_message"], context)
+
+            # initial_message is optional - if not provided, will default to empty string or manual injection
+            initial_message_raw = agent_config.get("initial_message", "")
+            initial_message = (
+                self._process_template(initial_message_raw, context) if initial_message_raw else ""
+            )
 
             # Provider is required - no defaults
             provider_name = agent_config.get("provider") or self.config.get("default_provider")
@@ -649,18 +987,72 @@ class TactusRuntime:
                 f"Agent '{agent_name}' using provider '{provider_name}' with model '{model_id}'"
             )
 
-            # Filter tools for this agent
-            allowed_tool_names = agent_config.get("tools", [])
-            # Match tools by name (Pydantic AI Tool has a 'name' attribute)
-            filtered_tools = [
-                tool
-                for tool in all_pydantic_tools
-                if hasattr(tool, "name") and tool.name in allowed_tool_names
-            ]
+            # BREAKING CHANGE: Remove support for 'tools' parameter
+            if "tools" in agent_config:
+                raise ValueError(
+                    f"Agent '{agent_name}' uses deprecated 'tools' parameter. "
+                    f"Please migrate to 'toolsets' parameter. "
+                    f"Example: toolsets = {{}} for no tools, or toolsets = {{'done'}} for done tool only. "
+                    f"See migration guide in docs."
+                )
 
-            logger.info(
-                f"Agent '{agent_name}' has {len(filtered_tools)} tools: {allowed_tool_names}"
+            # Get toolsets for this agent
+            # Use a sentinel value to distinguish "not present" from "present but None/empty"
+            _MISSING = object()
+            agent_toolsets_config = agent_config.get("toolsets", _MISSING)
+
+            # Debug log
+            logger.debug(
+                f"Agent '{agent_name}' raw toolsets config: {agent_toolsets_config}, type: {type(agent_toolsets_config)}"
             )
+
+            # Convert Lua table to Python list if needed
+            if (
+                agent_toolsets_config is not _MISSING
+                and agent_toolsets_config is not None
+                and hasattr(agent_toolsets_config, "__len__")
+            ):
+                try:
+                    # Try to convert Lua table to list
+                    agent_toolsets_config = (
+                        list(agent_toolsets_config.values())
+                        if hasattr(agent_toolsets_config, "values")
+                        else list(agent_toolsets_config)
+                    )
+                    logger.debug(
+                        f"Agent '{agent_name}' converted toolsets to: {agent_toolsets_config}"
+                    )
+                except (TypeError, AttributeError):
+                    # If conversion fails, leave as-is
+                    pass
+
+            if agent_toolsets_config is _MISSING:
+                # No toolsets key present - use default toolsets if configured, otherwise all
+                if default_toolset_names:
+                    filtered_toolsets = self._parse_toolset_expressions(default_toolset_names)
+                    logger.info(
+                        f"Agent '{agent_name}' using default toolsets: {default_toolset_names}"
+                    )
+                else:
+                    # No defaults configured - use all available toolsets from registry
+                    filtered_toolsets = list(self.toolset_registry.values())
+                    logger.info(
+                        f"Agent '{agent_name}' using all available toolsets (no defaults configured)"
+                    )
+            elif isinstance(agent_toolsets_config, list) and len(agent_toolsets_config) == 0:
+                # Explicitly empty list - no toolsets
+                # Use None instead of [] to completely disable tool calling for Bedrock models
+                filtered_toolsets = None
+                logger.info(
+                    f"Agent '{agent_name}' has NO toolsets (explicitly empty - passing None)"
+                )
+            else:
+                # Parse toolset expressions
+                filtered_toolsets = self._parse_toolset_expressions(agent_toolsets_config)
+                logger.info(f"Agent '{agent_name}' toolsets: {agent_toolsets_config}")
+
+            # Legacy: Keep empty tools list for AgentPrimitive constructor
+            filtered_tools = []
 
             # Handle structured output if specified
             result_type = None
@@ -705,14 +1097,16 @@ class TactusRuntime:
                         f"Agent '{agent_name}' has message history filter: {message_history_filter}"
                     )
 
-            # Create AgentPrimitive
+            # Create AgentPrimitive with toolsets
+            # Pass None instead of empty list for toolsets to disable tool calling entirely
             agent_primitive = AgentPrimitive(
                 name=agent_name,
                 system_prompt_template=system_prompt_template,
                 initial_message=initial_message,
                 model=model_name,
                 model_settings=model_settings,
-                tools=filtered_tools,
+                tools=filtered_tools,  # Empty list - kept for backward compat in AgentPrimitive
+                toolsets=filtered_toolsets,  # List of toolsets (may be empty)
                 tool_primitive=self.tool_primitive,
                 stop_primitive=self.stop_primitive,
                 iterations_primitive=self.iterations_primitive,
@@ -884,6 +1278,9 @@ class TactusRuntime:
             self.lua_sandbox.inject_primitive("Stop", self.stop_primitive)
         if self.tool_primitive:
             self.lua_sandbox.inject_primitive("Tool", self.tool_primitive)
+        if self.toolset_primitive:
+            self.lua_sandbox.inject_primitive("Toolset", self.toolset_primitive)
+            logger.info(f"Injecting Toolset primitive: {self.toolset_primitive}")
 
         # Inject checkpoint primitives
         if self.step_primitive:
@@ -1193,8 +1590,11 @@ class TactusRuntime:
                     "provider": agent.provider,
                     "model": agent.model,
                     "system_prompt": agent.system_prompt,
-                    "tools": agent.tools,
+                    # Use toolsets instead of tools (breaking change)
+                    # Keep empty list as [] (not None) to preserve "explicitly no tools" intent
+                    "toolsets": agent.tools,
                     "max_turns": agent.max_turns,
+                    "disable_streaming": agent.disable_streaming,
                 }
                 if agent.initial_message:
                     config["agents"][name]["initial_message"] = agent.initial_message

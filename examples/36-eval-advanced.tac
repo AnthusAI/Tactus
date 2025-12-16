@@ -11,7 +11,6 @@ Format your output according to the requirements.
 
 IMPORTANT: Always call the done tool immediately with your formatted result.]],
     initial_message = "{task}",
-    tools = {"done"},
     request_limit = 5
 })
 

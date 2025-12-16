@@ -114,28 +114,32 @@ export const TestCompletedEventComponent: React.FC<{ event: TestCompletedEvent; 
       </div>
       
       {/* Execution Metrics Summary */}
-        {((result.total_cost != null && result.total_cost > 0) || 
+        {((result.total_cost != null && result.total_cost > 0) ||
          (result.total_llm_calls != null && result.total_llm_calls > 0)) && (
             <div className="mt-2 pt-2 border-t border-border/30 text-sm">
               <div className="text-muted-foreground text-xs mb-1">Execution Metrics</div>
               {result.total_cost != null && result.total_cost > 0 && (
-                <div className="text-foreground">
-                  💰 ${result.total_cost.toFixed(6)} ({result.total_tokens.toLocaleString()} tokens)
+                <div className="text-foreground flex items-center gap-1">
+                  <DollarSign className="h-3 w-3" />
+                  ${result.total_cost.toFixed(6)} ({result.total_tokens.toLocaleString()} tokens)
                 </div>
               )}
               {result.total_llm_calls != null && result.total_llm_calls > 0 && (
-                <div className="text-foreground">
-                  🤖 {result.total_llm_calls} LLM calls
+                <div className="text-foreground flex items-center gap-1">
+                  <Bot className="h-3 w-3" />
+                  {result.total_llm_calls} LLM calls
                 </div>
               )}
               {result.total_iterations != null && result.total_iterations > 0 && (
-                <div className="text-foreground">
-                  🔄 {result.total_iterations} iterations
+                <div className="text-foreground flex items-center gap-1">
+                  <RotateCw className="h-3 w-3" />
+                  {result.total_iterations} iterations
                 </div>
               )}
               {result.unique_tools_used != null && result.unique_tools_used.length > 0 && (
-                <div className="text-foreground">
-                  🔧 {result.unique_tools_used.join(', ')}
+                <div className="text-foreground flex items-center gap-1">
+                  <Wrench className="h-3 w-3" />
+                  {result.unique_tools_used.join(', ')}
                 </div>
               )}
             </div>

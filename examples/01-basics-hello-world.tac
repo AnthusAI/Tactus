@@ -6,7 +6,7 @@ agent("worker", {
     provider = "openai",
     system_prompt = "You are a friendly worker",
     initial_message = "Hello! Starting procedure",
-    tools = {},
+    toolsets = {},
 })
 
 -- Procedure with outputs defined inline

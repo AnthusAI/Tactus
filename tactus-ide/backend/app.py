@@ -616,6 +616,118 @@ def test_procedure_stream():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/procedure/metadata", methods=["GET"])
+def get_procedure_metadata():
+    """
+    Get metadata about a procedure file using TactusValidator.
+
+    Query params:
+    - path: workspace-relative path to procedure file (required)
+
+    Returns:
+        {
+            "success": true,
+            "metadata": {
+                "description": str | null,
+                "parameters": { name: ParameterDeclaration },
+                "outputs": { name: OutputFieldDeclaration },
+                "agents": { name: AgentDeclaration },
+                "toolsets": { name: dict },
+                "tools": [str]  # Flattened list of all tools
+            }
+        }
+    """
+    file_path = request.args.get("path")
+
+    if not file_path:
+        return jsonify({"error": "Missing 'path' parameter"}), 400
+
+    try:
+        from tactus.validation.validator import TactusValidator, ValidationMode
+
+        # Resolve path
+        path = _resolve_workspace_path(file_path)
+
+        if not path.exists():
+            return jsonify({"error": f"File not found: {file_path}"}), 404
+
+        # Validate with FULL mode to get registry
+        validator = TactusValidator()
+        result = validator.validate_file(str(path), ValidationMode.FULL)
+
+        if not result.registry:
+            # Validation failed or no registry
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "error": "Failed to extract metadata",
+                        "validation_errors": [
+                            {"message": e.message, "line": e.location[0] if e.location else None}
+                            for e in result.errors
+                        ],
+                    }
+                ),
+                400,
+            )
+
+        registry = result.registry
+
+        # Extract tools from agents and toolsets
+        all_tools = set()
+        for agent in registry.agents.values():
+            all_tools.update(agent.tools)
+        for toolset in registry.toolsets.values():
+            if isinstance(toolset, dict) and "tools" in toolset:
+                all_tools.update(toolset["tools"])
+
+        # Build metadata response
+        metadata = {
+            "description": registry.description,
+            "parameters": {
+                name: {
+                    "name": param.name,
+                    "type": param.parameter_type,
+                    "required": param.required,
+                    "default": param.default,
+                    "description": getattr(param, "description", None),
+                }
+                for name, param in registry.parameters.items()
+            },
+            "outputs": {
+                name: {
+                    "name": output.name,
+                    "type": output.field_type,
+                    "required": output.required,
+                    "description": getattr(output, "description", None),
+                }
+                for name, output in registry.outputs.items()
+            },
+            "agents": {
+                name: {
+                    "name": agent.name,
+                    "provider": agent.provider,
+                    "model": agent.model if isinstance(agent.model, str) else str(agent.model),
+                    "system_prompt": (
+                        agent.system_prompt
+                        if isinstance(agent.system_prompt, str)
+                        else "[Dynamic Prompt]"
+                    ),
+                    "tools": agent.tools,
+                }
+                for name, agent in registry.agents.items()
+            },
+            "toolsets": {name: toolset for name, toolset in registry.toolsets.items()},
+            "tools": sorted(list(all_tools)),
+        }
+
+        return jsonify({"success": True, "metadata": metadata})
+
+    except Exception as e:
+        logger.error(f"Error extracting procedure metadata: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/pydantic-eval/stream", methods=["GET", "POST"])
 def pydantic_eval_stream():
     """

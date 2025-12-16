@@ -1,148 +1,131 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { ChevronDown, ChevronUp, X, Loader2, Copy, Check } from 'lucide-react';
-import { AnyEvent } from '@/types/events';
-import { MessageFeed } from './MessageFeed';
-import { exportEventsForAI } from '@/utils/exportForAI';
+import React, { useRef, useEffect } from 'react';
+import { Loader2 } from 'lucide-react';
+import { FileResultsHistory } from '@/types/results';
+import { ProcedureMetadata } from '@/types/metadata';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ProcedureTab } from './ProcedureTab';
+import { CollapsibleRun } from './CollapsibleRun';
 
 interface ResultsSidebarProps {
-  events: AnyEvent[];
+  currentFile: string | null;
+  activeTab: 'procedure' | 'results';
+  onTabChange: (tab: 'procedure' | 'results') => void;
+
+  // Procedure tab
+  procedureMetadata: ProcedureMetadata | null;
+  metadataLoading: boolean;
+
+  // Results tab
+  resultsHistory: FileResultsHistory | null;
   isRunning: boolean;
-  onClear: () => void;
+  onToggleRunExpansion: (runId: string) => void;
 }
 
-export const ResultsSidebar: React.FC<ResultsSidebarProps> = ({ events, isRunning, onClear }) => {
-  // #region agent log
-  console.log('[ResultsSidebar] Render:', {events_count: events.length, isRunning, events_preview: events.map(e => ({type: e.event_type, stage: e.lifecycle_stage}))});
-  // #endregion
-  const [showFullLogs, setShowFullLogs] = useState(false);
-  const contentRef = useRef<HTMLDivElement>(null);
-  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
-  const [copied, setCopied] = useState(false);
+export const ResultsSidebar: React.FC<ResultsSidebarProps> = ({
+  currentFile,
+  activeTab,
+  onTabChange,
+  procedureMetadata,
+  metadataLoading,
+  resultsHistory,
+  isRunning,
+  onToggleRunExpansion,
+}) => {
+  const resultsContentRef = useRef<HTMLDivElement>(null);
+  const lastRunCountRef = useRef<number>(0);
+  const shouldAutoScrollRef = useRef<boolean>(true);
 
-  // Auto-scroll to bottom when new events arrive
+  // Auto-scroll to bottom when NEW runs are added
   useEffect(() => {
-    if (shouldAutoScroll && contentRef.current) {
-      contentRef.current.scrollTop = contentRef.current.scrollHeight;
-    }
-  }, [events, shouldAutoScroll]);
+    const currentRunCount = resultsHistory?.runs.length || 0;
 
-  // Check if user has scrolled up (disable auto-scroll)
+    // Auto-scroll if the number of runs increased (new run added)
+    if (activeTab === 'results' &&
+        resultsContentRef.current &&
+        currentRunCount > lastRunCountRef.current) {
+      // Use setTimeout with requestAnimationFrame to ensure DOM has fully updated
+      setTimeout(() => {
+        requestAnimationFrame(() => {
+          if (resultsContentRef.current) {
+            resultsContentRef.current.scrollTop = resultsContentRef.current.scrollHeight;
+          }
+        });
+      }, 50);
+    }
+
+    lastRunCountRef.current = currentRunCount;
+  }, [resultsHistory?.runs?.length, activeTab]);
+
+  // Detect manual scrolling
   const handleScroll = () => {
-    if (contentRef.current) {
-      const { scrollTop, scrollHeight, clientHeight } = contentRef.current;
-      const isAtBottom = Math.abs(scrollHeight - clientHeight - scrollTop) < 10;
-      setShouldAutoScroll(isAtBottom);
+    if (resultsContentRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = resultsContentRef.current;
+      const isAtBottom = Math.abs(scrollHeight - clientHeight - scrollTop) < 50;
+      shouldAutoScrollRef.current = isAtBottom;
     }
   };
 
   // Get status text
   const getStatus = () => {
     if (isRunning) return 'Running...';
-    if (events.length === 0) return 'Ready';
-    
-    // Check last event
-    const lastEvent = events[events.length - 1];
-    if (lastEvent.event_type === 'execution') {
-      if (lastEvent.lifecycle_stage === 'complete') return 'Completed';
-      if (lastEvent.lifecycle_stage === 'error') return 'Failed';
-    }
-    
+    if (!resultsHistory || resultsHistory.runs.length === 0) return 'Ready';
+
+    // Check status of most recent run (last in array)
+    const latestRun = resultsHistory.runs[resultsHistory.runs.length - 1];
+    if (latestRun.status === 'success') return 'Completed';
+    if (latestRun.status === 'failed') return 'Failed';
+    if (latestRun.status === 'error') return 'Error';
+
     return 'Ready';
   };
 
-  const handleCopyForAI = async () => {
-    const exportedData = exportEventsForAI(events);
-    try {
-      await navigator.clipboard.writeText(exportedData);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy:', err);
-    }
-  };
-
   return (
-    <div className="flex flex-col h-full">
-      {/* Toolbar */}
-      <div className="h-8 px-2 border-b flex items-center justify-between bg-muted/30 flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowFullLogs(!showFullLogs)}
-            className="h-6 text-xs"
-          >
-            {showFullLogs ? <ChevronUp className="h-3 w-3 mr-1" /> : <ChevronDown className="h-3 w-3 mr-1" />}
-            Show Full Logs
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleCopyForAI}
-            className="h-6 text-xs"
-            disabled={events.length === 0}
-            title="Copy results in AI-comprehensible format (YAML)"
-          >
-            {copied ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
-            {copied ? 'Copied!' : 'Copy for AI'}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onClear}
-            className="h-6 text-xs"
-            disabled={events.length === 0}
-          >
-            <X className="h-3 w-3 mr-1" />
-            Clear
-          </Button>
-        </div>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          {isRunning && <Loader2 className="h-3 w-3 animate-spin" />}
-          <span>{getStatus()}</span>
-        </div>
-      </div>
+    <div className="flex flex-col h-full overflow-hidden">
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={(value) => onTabChange(value as 'procedure' | 'results')} className="flex flex-col h-full">
+        <div className="h-10 px-2 border-b flex items-center justify-between bg-muted/30 flex-shrink-0">
+          <TabsList className="h-8">
+            <TabsTrigger value="procedure" className="text-xs">
+              Procedure
+            </TabsTrigger>
+            <TabsTrigger value="results" className="text-xs">
+              Results
+            </TabsTrigger>
+          </TabsList>
 
-      {/* Content area */}
-      <div
-        ref={contentRef}
-        onScroll={handleScroll}
-        className="flex-1 overflow-y-auto"
-      >
-        {events.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
-            No results yet
-          </div>
-        ) : (
-          <MessageFeed events={events} clustered={true} showFullLogs={showFullLogs} />
-        )}
-      </div>
-
-      {/* Scroll to bottom button (when not auto-scrolling) */}
-      {!shouldAutoScroll && events.length > 0 && (
-        <div className="absolute bottom-4 right-4">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setShouldAutoScroll(true);
-              if (contentRef.current) {
-                contentRef.current.scrollTop = contentRef.current.scrollHeight;
-              }
-            }}
-            className="h-8 shadow-lg"
-          >
-            <ChevronDown className="h-4 w-4 mr-1" />
-            Scroll to bottom
-          </Button>
+          {activeTab === 'results' && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              {isRunning && <Loader2 className="h-3 w-3 animate-spin" />}
+              <span>{getStatus()}</span>
+            </div>
+          )}
         </div>
-      )}
+
+        {/* Procedure Tab Content */}
+        <TabsContent value="procedure" className="h-0 flex-1 m-0">
+          <ProcedureTab metadata={procedureMetadata} loading={metadataLoading} />
+        </TabsContent>
+
+        {/* Results Tab Content */}
+        <TabsContent value="results" className="h-0 flex-1 m-0 overflow-hidden">
+          {!resultsHistory || resultsHistory.runs.length === 0 ? (
+            <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+              No results yet
+            </div>
+          ) : (
+            <div ref={resultsContentRef} className="h-full overflow-y-auto" onScroll={handleScroll}>
+              {resultsHistory.runs.map((run) => (
+                <CollapsibleRun
+                  key={run.id}
+                  run={run}
+                  isExpanded={run.isExpanded}
+                  onToggle={() => onToggleRunExpansion(run.id)}
+                />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
-
-
-
-
-

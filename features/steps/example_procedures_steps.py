@@ -88,6 +88,7 @@ def step_impl(context, param_name, param_value):
 def step_impl(context):
     """Execute the procedure from the example file."""
     import asyncio
+    from tactus.core.config_manager import ConfigManager
 
     # Skip if no OpenAI API key is available (CI environment)
     if not os.environ.get("OPENAI_API_KEY"):
@@ -98,14 +99,25 @@ def step_impl(context):
     is_lua_dsl = context.example_file.suffix == ".lua" or ".tac" in context.example_file.suffixes
     format_type = "lua" if is_lua_dsl else "yaml"
 
-    # Create runtime
+    # Load configuration cascade (includes sidecar .tac.yml if present)
+    config_manager = ConfigManager()
+    merged_config = config_manager.load_cascade(context.example_file)
+
+    # Get tool_paths and mcp_servers from merged config
+    tool_paths = merged_config.get("tool_paths")
+    mcp_servers = merged_config.get("mcp_servers", {})
+
+    # Create runtime with config
     context.runtime = TactusRuntime(
         procedure_id=f"test-{context.example_file.stem}",
         storage_backend=MemoryStorage(),
         hitl_handler=None,
         chat_recorder=None,
         mcp_server=None,
+        mcp_servers=mcp_servers,
         openai_api_key=os.environ.get("OPENAI_API_KEY"),
+        tool_paths=tool_paths,
+        external_config=merged_config,
     )
 
     # Read file content

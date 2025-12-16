@@ -3,11 +3,10 @@
   "version": "0.1.0",
   "description": "Tactus IDE - Desktop Application",
   "main": "dist/src/main.js",
-  "type": "module",
   "author": "Anthus <info@anthus.ai>",
   "license": "MIT",
   "scripts": {
-    "dev": "tsc && tsc -p preload/tsconfig.json && electron dist/src/main.js",
+    "dev": "tsc && tsc -p preload/tsconfig.json && cross-env ELECTRON_RUN_AS_NODE= electron .",
     "build": "tsc && tsc -p preload/tsconfig.json",
     "build:frontend": "node scripts/build-frontend.js",
     "build:backend": "node scripts/build-backend.js",
@@ -21,10 +20,11 @@
     "electron-log": "^5.0.1"
   },
   "devDependencies": {
-    "electron": "^28.0.0",
+    "@types/node": "^20.10.6",
+    "cross-env": "^10.1.0",
+    "electron": "^27.3.11",
     "electron-builder": "^24.9.1",
-    "typescript": "^5.3.3",
-    "@types/node": "^20.10.6"
+    "typescript": "^5.3.3"
   },
   "build": {
     "appId": "ai.anthus.tac-ide",
@@ -41,30 +41,40 @@
       {
         "from": "backend/dist",
         "to": "backend",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       },
       {
         "from": "../examples",
         "to": "examples",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       }
     ],
     "mac": {
       "category": "public.app-category.developer-tools",
       "icon": "resources/app-icon.icns",
-      "target": ["dmg"],
+      "target": [
+        "dmg"
+      ],
       "artifactName": "${productName}-${version}-${os}.${ext}",
       "hardenedRuntime": false,
       "gatekeeperAssess": false
     },
     "win": {
       "icon": "resources/app-icon.ico",
-      "target": ["nsis"],
+      "target": [
+        "nsis"
+      ],
       "artifactName": "${productName}-Setup-${version}.${ext}"
     },
     "linux": {
       "icon": "resources/app-icon.png",
-      "target": ["AppImage"],
+      "target": [
+        "AppImage"
+      ],
       "category": "Development",
       "artifactName": "${productName}-${version}-${arch}.${ext}"
     },

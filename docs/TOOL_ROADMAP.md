@@ -1,5 +1,231 @@
 # Tactus Tool Roadmap
 
+## ✅ COMPLETED: Toolset Architecture Migration (December 2024)
+
+**Major architectural update:** Tactus now uses Pydantic AI's composable toolset system throughout.
+
+### Breaking Change
+
+**The `tools` parameter has been REMOVED and replaced with unified toolset architecture.**
+
+**Before (deprecated):**
+```lua
+agent("worker", {
+    tools = {"done"}  -- ❌ NO LONGER SUPPORTED
+})
+```
+
+**After:**
+```lua
+agent("worker", {
+    -- ✅ "done" tool available by default
+    -- No toolsets parameter needed for basic usage
+})
+
+-- Or explicitly control toolsets
+agent("analyst", {
+    toolsets = {}  -- Explicitly no tools
+})
+```
+
+### Key Improvements
+
+1. **Unified Architecture**: Both MCP servers and plugin tools use `FunctionToolset`
+2. **Built-in Toolsets**: The `done` toolset is available and can be explicitly requested
+3. **Composability**: Foundation for filtering, prefixing, and combining toolsets
+4. **Cleaner Code**: Consistent toolset handling throughout the runtime
+5. **Multi-Provider Support**: Validated with OpenAI, AWS Bedrock (Claude, Llama, Nova models)
+
+### Migration Guide
+
+- **Use `toolsets` parameter**: `toolsets = {"done"}` to include the done tool
+- **For no tools**: Use `toolsets = {}` for explicitly no tools (e.g., models without tool support)
+- **Default behavior**: Omit `toolsets` to use default_toolsets from config (if configured)
+- All example files have been migrated
+- Tests passing with new architecture
+
+### Provider Support
+
+**Validated Providers:**
+- ✅ **OpenAI**: GPT-4o, GPT-4o-mini, GPT-3.5-turbo with tools and streaming
+- ✅ **AWS Bedrock - Anthropic**: Claude 4.5 Haiku with tools and streaming
+- ✅ **AWS Bedrock - Meta**: Llama 3.1 8B, Llama 3.2 3B (no tool support, streaming disabled)
+- ✅ **AWS Bedrock - Amazon**: Nova Micro, Nova Lite (no tool support, streaming disabled)
+
+**See**: [examples/07-basics-bedrock.tac](../examples/07-basics-bedrock.tac), [examples/08-basics-models.tac](../examples/08-basics-models.tac)
+
+### Implementation
+
+- **Built-in toolset**: [tactus/core/runtime.py:596-614](tactus/core/runtime.py:596)
+- **PluginLoader toolsets**: [tactus/adapters/plugins.py:41-70](tactus/adapters/plugins.py:41)
+- **ToolsetPrimitive**: [tactus/primitives/toolset.py](tactus/primitives/toolset.py:1) (foundation for future DSL features)
+
+---
+
+## ✅ COMPLETED: Advanced Toolset Features (December 2024)
+
+**Full implementation of Pydantic AI toolset composition features.**
+
+### Config-Defined Toolsets
+
+Define reusable toolsets in YAML configuration:
+
+```yaml
+# In .tactus/config.yml or sidecar .tac.yml
+toolsets:
+  # Plugin toolset from local Python files
+  financial:
+    type: plugin
+    paths:
+      - "./tools/financial"
+
+  # Filtered toolset (only specific tools)
+  search_only:
+    type: filtered
+    source: web
+    pattern: "^search_"
+
+  # Combined toolset (merge multiple sources)
+  all_tools:
+    type: combined
+    sources:
+      - financial
+      - search_only
+      - done
+
+# Default toolsets for all agents
+default_toolsets:
+  - done
+```
+
+**Supported Toolset Types:**
+- `plugin` - Load from local Python files
+- `mcp` - Reference MCP server by name
+- `filtered` - Filter tools by regex pattern
+- `combined` - Merge multiple toolsets
+- `builtin` - Custom built-in toolsets (future)
+
+### Toolset Expressions
+
+Compose and transform toolsets in agent definitions:
+
+```lua
+agent("analyst", {
+    provider = "openai",
+    model = "gpt-4o",
+    toolsets = {
+        -- Simple reference
+        "financial",
+
+        -- Filter to specific tools (include)
+        {name = "plexus", include = {"score_info", "evaluation_run"}},
+
+        -- Exclude specific tools
+        {name = "web", exclude = {"admin_panel"}},
+
+        -- Add prefix for namespacing
+        {name = "mcp_server", prefix = "mcp_"},
+
+        -- Rename tools
+        {name = "tools", rename = {old_name = "new_name"}},
+
+        -- Built-in done tool
+        "done"
+    }
+})
+```
+
+**Expression Operations:**
+- **Include filtering**: `{name = "x", include = ["tool1", "tool2"]}`
+- **Exclude filtering**: `{name = "x", exclude = ["admin"]}`
+- **Prefixing**: `{name = "x", prefix = "namespace_"}`
+- **Renaming**: `{name = "x", rename = {old = "new"}}`
+
+### Default Toolsets
+
+Configure directory-wide defaults via config cascade:
+
+```yaml
+# examples/.tactus/config.yml
+default_toolsets:
+  - done
+```
+
+**Behavior:**
+- **No toolsets key** → Agent gets `default_toolsets`
+- **Empty toolsets** `[]` → Agent gets NO tools (explicitly)
+- **Specified toolsets** → Agent gets ONLY what's specified (no defaults)
+
+### Directory-Wide Configuration
+
+The config cascade system loads `.tactus/config.yml` from parent directories:
+
+```
+examples/
+├── .tactus/
+│   └── config.yml          # Default toolsets for all examples
+├── 01-basic.tac
+├── 02-agent.tac
+└── subdirectory/
+    ├── .tactus/
+    │   └── config.yml      # Overrides for this subdirectory
+    └── 03-advanced.tac
+```
+
+**Priority order (high to low):**
+1. CLI arguments
+2. Sidecar config (`procedure.tac.yml`)
+3. Local directory config (`.tactus/config.yml` in procedure's dir)
+4. Parent directory configs (walk up tree)
+5. Root config (`.tactus/config.yml` in cwd)
+6. Environment variables
+
+### Toolset Registry
+
+All toolsets are registered by name in the runtime:
+
+```python
+runtime.toolset_registry = {
+    'done': <FunctionToolset>,           # Built-in
+    'plugin': <FunctionToolset>,         # From tool_paths
+    'test_server': <MCPToolset>,         # From MCP server
+    'financial': <FunctionToolset>,      # Config-defined
+}
+```
+
+**Resolution:**
+- `runtime.resolve_toolset(name)` → Returns toolset or None
+- Used by expression parser and ToolsetPrimitive
+- Enables toolset reuse across agents
+
+### Examples
+
+**Complete example:** [examples/16-feature-toolsets-advanced.tac](../examples/16-feature-toolsets-advanced.tac)
+
+**Config example:** [examples/16-feature-toolsets-advanced.tac.yml](../examples/16-feature-toolsets-advanced.tac.yml)
+
+**Directory config:** [examples/.tactus/config.yml](../examples/.tactus/config.yml)
+
+### Implementation Details
+
+**Core files:**
+- **Toolset registry**: [tactus/core/runtime.py:140-141](tactus/core/runtime.py:140)
+- **Toolset initialization**: [tactus/core/runtime.py:584-666](tactus/core/runtime.py:584)
+- **Config parsing**: [tactus/core/runtime.py:668-765](tactus/core/runtime.py:668)
+- **Expression parsing**: [tactus/core/runtime.py:767-838](tactus/core/runtime.py:767)
+- **Agent setup**: [tactus/core/runtime.py:867-883](tactus/core/runtime.py:867)
+
+**Key features:**
+- ✅ Toolset registry with name-based resolution
+- ✅ Config-defined toolsets (plugin, mcp, filtered, combined)
+- ✅ Default toolsets from config
+- ✅ Toolset expressions (include, exclude, prefix, rename)
+- ✅ Combined toolsets merging multiple sources
+- ✅ Per-agent toolset customization
+- ✅ Directory-wide config cascade
+
+---
+
 This document outlines Tactus's tool support strategy, current implementation status, and planned features. Our goal is to provide a thin, elegant layer over Pydantic AI's comprehensive tool ecosystem while maintaining Tactus's Lua-first design philosophy.
 
 ## Design Philosophy
@@ -11,6 +237,8 @@ This document outlines Tactus's tool support strategy, current implementation st
 **MCP-Native**: Model Context Protocol (MCP) servers are first-class citizens in Tactus, enabling seamless integration with external tool ecosystems.
 
 ## Current Implementation Status
+
+**Summary**: Several major features have been implemented with automated unit tests, but require manual testing and user validation before being considered production-ready. Focus should be on testing existing features rather than adding new ones.
 
 ### ✅ Implemented and Tested
 
@@ -61,9 +289,125 @@ end
 
 **Implementation**: `ToolPrimitive` ([`tactus/primitives/tool.py`](../tactus/primitives/tool.py))
 
-### 🚧 Implemented but Untested
+### 🚧 Implemented but Needs Manual Testing
 
-#### 3. Basic Function Tools
+**Status Note**: The following features have been implemented with automated unit tests, but require manual testing and user validation in real-world scenarios.
+
+#### 3. Local Python Plugin Tools
+**Status**: 🚧 Implemented, Needs Manual Testing  
+**Priority**: High
+
+Enable loading Python functions from local directories as tools without requiring MCP servers.
+
+**Design Philosophy**: Convention over configuration - any Python function in specified directories is automatically loaded as a tool.
+
+**Configuration** (via config cascade - see Configuration section):
+```yaml
+# In .tactus/config.yml or procedure.tac.yml
+tool_paths:
+  - "./tools"
+  - "./custom_tools/helpers.py"
+```
+
+**Tool Definition** (simple Python function):
+```python
+# tools/my_tools.py
+def calculate_mortgage(principal: float, rate: float, years: int) -> float:
+    """
+    Calculate monthly mortgage payment.
+    
+    Args:
+        principal: Loan amount in dollars
+        rate: Annual interest rate (as percentage, e.g., 5.5)
+        years: Loan term in years
+    
+    Returns:
+        Monthly payment amount
+    """
+    monthly_rate = rate / 100 / 12
+    num_payments = years * 12
+    payment = principal * (monthly_rate * (1 + monthly_rate)**num_payments) / \
+              ((1 + monthly_rate)**num_payments - 1)
+    return round(payment, 2)
+```
+
+**Usage in DSL**:
+```lua
+agent("financial_advisor", {
+    provider = "openai",
+    model = "gpt-4o",
+    tools = {"calculate_mortgage", "done"}
+})
+```
+
+**Implementation**:
+- `PluginLoader` class in `tactus/adapters/plugins.py`
+- Scans directories for `.py` files
+- Uses `importlib` for dynamic imports
+- Uses `inspect` to find public functions
+- Wraps functions in `pydantic_ai.Tool`
+- Integrates with `TactusRuntime` alongside MCP tools
+
+**Testing Status**:
+- ✅ Unit tests: `tests/adapters/test_plugins.py` (10 tests, all passing)
+- ✅ Example tools: `examples/tools/` (search, calculations, data_analysis)
+- ✅ Example procedure: `examples/15-feature-local-tools.tac`
+- 🚧 **Needs**: Manual end-to-end testing with real LLM calls
+- 🚧 **Needs**: User validation with real-world tool definitions
+- 🚧 **Needs**: Testing with complex tool signatures (async, optional params, etc.)
+
+**Benefits**:
+- Zero boilerplate - just write a Python function
+- Type hints become JSON Schema automatically
+- Docstrings become tool descriptions for the LLM
+- No server setup required
+- Fast iteration during development
+- Works offline
+
+**Comparison to MCP**:
+- **Local Plugins**: Lightweight, simple, fast, good for project-specific tools
+- **MCP Servers**: Heavyweight, reusable across projects, good for shared tool ecosystems
+
+#### 4. Configuration Cascade System
+**Status**: 🚧 Implemented, Needs Manual Testing  
+**Priority**: High
+
+Cascading configuration system that supports sidecar config files, directory-level configs, and root config with clear priority ordering.
+
+**Configuration Cascade (Priority: High to Low)**:
+1. CLI Arguments
+2. Sidecar Config (`procedure.tac.yml`)
+3. Local Directory Config (`.tactus/config.yml` in procedure's directory)
+4. Parent Directory Configs (walk up tree)
+5. Root Config (`.tactus/config.yml` in cwd)
+6. Environment Variables
+
+**Sidecar Config Example** (`examples/mortgage.tac.yml`):
+```yaml
+# Procedure-specific configuration
+tool_paths:
+  - "./examples/tools"
+default_model: "gpt-4o-mini"
+```
+
+**Implementation**:
+- `ConfigManager` class in `tactus/core/config_manager.py`
+- Sidecar file discovery (`procedure.tac.yml` or `procedure.yml`)
+- Directory tree walking for parent configs
+- Deep merging with list extension
+- Environment variable fallback
+
+**Testing Status**:
+- ✅ Unit tests: `tests/core/test_config_manager.py` (17 tests, all passing)
+- ✅ Example sidecar: `examples/15-feature-local-tools.tac.yml`
+- ✅ Documentation: `docs/CONFIGURATION.md`
+- 🚧 **Needs**: Manual testing with real procedures
+- 🚧 **Needs**: Validation of merge behavior in complex scenarios
+- 🚧 **Needs**: User feedback on configuration ergonomics
+
+**Security Note**: Sidecar configs are NOT sandboxed - they can contain file paths and command execution. Only use trusted sidecar files.
+
+#### 5. Basic Function Tools (Legacy)
 **Status**: 🚧 Code exists, never tested
 
 Tools are registered in agent definitions and automatically converted to Pydantic AI `Tool` instances:
@@ -94,60 +438,205 @@ agent("worker", {
 - Unknown: Does tool execution actually work?
 - Unknown: Does JSON Schema conversion work correctly?
 
-#### 4. MCP Server Integration
-**Status**: 🚧 Code exists, never tested
+#### 3. MCP Server Integration
+**Status**: 🚧 Implemented, Needs Real-World Validation  
+**Priority**: Critical
 
-Tactus loads tools from MCP servers and makes them available to agents:
+Tactus loads tools from MCP servers and makes them available to agents using Pydantic AI's native `MCPServerStdio`:
 
 ```lua
 -- Tools from MCP server are automatically available
 agent("worker", {
     provider = "openai",
     model = "gpt-4o",
-    tools = {"mcp_tool_name", "done"}
+    tools = {
+        "plexus_score_info",      -- From plexus MCP server
+        "filesystem_read_file",   -- From filesystem MCP server
+        "done"
+    }
 })
 ```
 
 **Implementation**:
-- `PydanticAIMCPAdapter` converts MCP tool definitions to Pydantic AI Tools
-- JSON Schema → Pydantic model conversion
-- Automatic tool call execution via MCP client
-- Tool result tracking
+- Uses Pydantic AI's native `MCPServerStdio` for stdio transport
+- `MCPServerManager` handles multiple server connections
+- Automatic tool prefixing with server name (e.g., `plexus_score_info`)
+- Environment variable substitution (`${VAR}` syntax)
+- Tool call tracking via `process_tool_call` middleware
+- Clean lifecycle management with `AsyncExitStack`
+
+**Configuration** (`.tactus/config.yml`):
+```yaml
+mcp_servers:
+  plexus:
+    command: "python"
+    args: ["-m", "plexus.mcp"]
+    env:
+      PLEXUS_ACCOUNT_KEY: "${PLEXUS_ACCOUNT_KEY}"
+      PLEXUS_API_KEY: "${PLEXUS_API_KEY}"
+```
+
+**Features**:
+- Multiple MCP servers per procedure
+- Automatic tool namespacing (prevents conflicts)
+- Stdio transport (command + args)
+- Environment variable support
+- Proper connection lifecycle management
+
+**Automated Testing Status**:
+- ✅ Unit tests: `tests/test_mcp_integration.py` (4 tests, all passing)
+- ✅ Integration with test MCP server: `tests/fixtures/test_mcp_server.py` (FastMCP)
+- ✅ Example procedures: `examples/40-mcp-test.tac`, `examples/41-mcp-simple.tac`
+- ✅ Tool prefixing verified in tests
+- ✅ Environment variable substitution tested
+- ✅ Connection lifecycle management verified
+
+**🚨 Critical: Real-World Validation Needed**:
+- ❌ **NOT YET TESTED** with real Plexus MCP server
+- ❌ **NOT YET TESTED** with other production MCP servers (filesystem, github, etc.)
+- ❌ **NOT YET TESTED** with multiple real MCP servers simultaneously
+- ❌ **NOT YET VALIDATED** by users in real workflows
+- ❌ **NOT YET TESTED** with complex tool signatures, large responses, or error cases
+
+**What Needs Real Testing**:
+1. **Plexus MCP Server** (Primary Use Case)
+   - Connect to actual Plexus MCP server
+   - Test all Plexus tools (score_info, evaluation_run, feedback_analysis, etc.)
+   - Verify tool namespacing works correctly (`plexus_score_info`)
+   - Test with real API keys and authentication
+   - Validate tool call results and error handling
+
+2. **Other Production MCP Servers**
+   - Filesystem MCP server
+   - GitHub MCP server
+   - Any other commonly used MCP servers
+   - Verify compatibility with different MCP server implementations
+
+3. **Multiple Servers Simultaneously**
+   - Configure 2+ real MCP servers in same procedure
+   - Verify tool namespacing prevents conflicts
+   - Test connection lifecycle (all connect/disconnect properly)
+   - Validate performance with multiple servers
+
+4. **Edge Cases and Error Handling**
+   - Server connection failures
+   - Tool execution errors
+   - Large tool responses
+   - Timeout scenarios
+   - Invalid tool schemas
 
 **Current Limitations**:
 - Only supports function tools from MCP (not prompts or resources yet)
-- Single MCP server per runtime instance
-- No dynamic MCP server loading
-
-**What's Missing**:
-- No test with real MCP server (e.g., Plexus MCP)
-- No example file
-- No documentation on MCP server configuration
-- Unknown: Does it actually work end-to-end?
+- Only stdio transport (no HTTP/SSE yet)
 
 ---
+
+## Testing Priorities
+
+### 🧪 Manual Testing Needed
+
+The following features have automated unit tests but require **real-world validation** with actual tools, servers, and user workflows:
+
+1. **Local Python Plugin Tools** - Test with real LLM calls, complex tool signatures, async functions
+2. **Configuration Cascade** - Validate merge behavior, sidecar discovery, priority ordering
+3. **MCP Server Integration** - **CRITICAL**: Test with real MCP servers (Plexus, filesystem, etc.)
+
+**MCP Server Testing Checklist** (Highest Priority):
+- [ ] **Connect to real Plexus MCP server** with actual credentials
+- [ ] **Test all Plexus tools** in real workflows (score_info, evaluation_run, feedback_analysis, etc.)
+- [ ] **Verify tool namespacing** works correctly (`plexus_score_info` vs `test_server_greet`)
+- [ ] **Test multiple real MCP servers** simultaneously (Plexus + filesystem, etc.)
+- [ ] **Validate error handling** with real API errors, connection failures, timeouts
+- [ ] **Test with complex tool signatures** (nested objects, arrays, optional params)
+- [ ] **Performance testing** with high-volume tool calls
+- [ ] **User feedback** on ergonomics, documentation, and real-world usage patterns
+
+**General Testing Checklist**:
+- [ ] Run example procedures with local plugin tools
+- [ ] Test configuration cascade with multiple config files
+- [ ] Validate tool discovery and loading
+- [ ] Test error handling (missing tools, invalid configs, etc.)
+- [ ] User feedback on ergonomics and documentation
+- [ ] Performance testing with many tools/configs
 
 ## Planned Features
 
 ### 🚧 High Priority
 
-#### 1. Test and Fix MCP Integration
-**Status**: ❌ Not Started  
+#### 1. Manual Testing and Validation
+**Status**: 🚧 In Progress  
 **Priority**: Critical
 
-Actually test the MCP adapter code with a real MCP server (Plexus MCP).
+Complete manual testing and user validation of implemented features before adding new functionality.
 
 **What Needs Testing**:
-1. MCP server connection and tool discovery
-2. JSON Schema → Pydantic model conversion
-3. Tool execution end-to-end
-4. Tool result handling
-5. Error cases (connection failures, invalid schemas, etc.)
+1. Local Python Plugin Tools
+   - Real-world tool definitions
+   - Complex function signatures (async, optional params, type unions)
+   - Tool discovery and loading in various directory structures
+   - Integration with agent execution
+
+2. Configuration Cascade
+   - Sidecar config discovery and loading
+   - Config merging behavior (lists, dicts, priority)
+   - Directory tree walking
+   - Error handling for invalid configs
+
+3. MCP Server Integration (**CRITICAL PRIORITY**)
+   - **Real Plexus MCP server** with actual credentials and tools
+   - Other production MCP servers (filesystem, github, etc.)
+   - Multiple servers simultaneously
+   - Tool namespacing and conflict resolution
+   - Connection lifecycle management
+   - Real-world error scenarios and edge cases
+   - Performance with production workloads
 
 **Deliverables**:
-- Working example with Plexus MCP server
-- Integration test
-- Documentation on MCP configuration
+- Manual test results and bug reports
+- User feedback and ergonomics improvements
+- Updated documentation based on real usage
+- Performance benchmarks
+
+#### 2. Real-World MCP Server Validation
+**Status**: 🚧 In Progress (Automated Tests Complete, Real Servers Pending)  
+**Priority**: Critical
+
+**Current State**: MCP integration is implemented and passes all automated tests with a test MCP server. However, it has **NOT been validated** with real production MCP servers.
+
+**What's Been Tested** (Automated):
+- ✅ Connection to test MCP server (FastMCP)
+- ✅ Tool discovery and loading
+- ✅ Tool prefixing (`test_server_greet` → `test_server_greet`)
+- ✅ Tool execution end-to-end
+- ✅ Environment variable substitution
+- ✅ Connection lifecycle management
+- ✅ Multiple server support (in tests)
+
+**What Needs Real-World Testing**:
+1. **Plexus MCP Server** (Primary Priority)
+   - Connect to actual Plexus MCP server with real credentials
+   - Test all Plexus tools in real workflows
+   - Verify tool names work correctly (`plexus_score_info`, `plexus_evaluation_run`, etc.)
+   - Test with real API responses and data
+   - Validate error handling with real API errors
+
+2. **Other Production MCP Servers**
+   - Filesystem MCP server (`@modelcontextprotocol/server-filesystem`)
+   - GitHub MCP server (`@modelcontextprotocol/server-github`)
+   - Any other MCP servers in use
+
+3. **Production Scenarios**
+   - Multiple real MCP servers in same procedure
+   - Long-running procedures with MCP tools
+   - High-volume tool calls
+   - Network issues and retries
+
+**Deliverables**:
+- [ ] Working example with real Plexus MCP server
+- [ ] User validation and feedback
+- [ ] Bug reports and fixes for real-world issues
+- [ ] Performance benchmarks
+- [ ] Updated documentation based on real usage
 
 #### 2. LangChain Tool Integration
 **Status**: ❌ Not Started  
@@ -278,12 +767,12 @@ agent("researcher", {
 **References**: [Pydantic AI Common Tools](https://ai.pydantic.dev/common-tools/)
 
 #### 5. Multiple MCP Server Support
-**Status**: ❌ Not Started  
+**Status**: ✅ Implemented (Needs Real-World Validation)  
 **Priority**: High
 
 Support multiple MCP servers per procedure.
 
-**Current Limitation**: Only one MCP server per runtime instance.
+**Current Status**: Implementation complete with automated tests. Needs validation with real MCP servers.
 
 **Proposed Tactus API**:
 

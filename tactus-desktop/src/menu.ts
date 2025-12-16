@@ -1,6 +1,8 @@
-import { app, Menu, BrowserWindow } from 'electron';
+import type { BrowserWindow } from 'electron';
 
 export function setupMenu(mainWindow: BrowserWindow): void {
+  const { app, Menu } = require('electron');
+
   const sendCommand = (cmdId: string) => {
     mainWindow.webContents.send('tactus:command', { id: cmdId });
   };

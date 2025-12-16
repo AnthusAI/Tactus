@@ -18,7 +18,7 @@ Given raw contact information, format it properly:
 
 Return JSON with: {phone, email, score}]],
     initial_message = "Format this contact: {raw_contact}",
-    tools = {"validate", "done"}
+    toolsets = {"validate"}
 })
 
 procedure({

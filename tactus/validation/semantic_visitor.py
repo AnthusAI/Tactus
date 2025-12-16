@@ -129,9 +129,24 @@ class TactusDSLVisitor(LuaParserVisitor):
             if args and len(args) >= 2:
                 self.builder.register_agent(args[0], args[1] if isinstance(args[1], dict) else {})
         elif func_name == "procedure":
-            # For procedure, we just mark that it exists (can't extract function body from parse tree easily)
-            # The actual function will be executed at runtime
-            self.builder.set_procedure(True)  # Placeholder
+            # For procedure, mark that it exists and extract inline parameters/outputs if present
+            self.builder.set_procedure(True)
+
+            # Check if first argument is a table constructor with params/outputs
+            if args and len(args) >= 1 and isinstance(args[0], dict):
+                config = args[0]
+
+                # Extract inline parameters
+                if "params" in config and isinstance(config["params"], dict):
+                    for param_name, param_config in config["params"].items():
+                        if isinstance(param_config, dict):
+                            self.builder.register_parameter(param_name, param_config)
+
+                # Extract inline outputs
+                if "outputs" in config and isinstance(config["outputs"], dict):
+                    for output_name, output_config in config["outputs"].items():
+                        if isinstance(output_config, dict):
+                            self.builder.register_output(output_name, output_config)
         elif func_name == "prompt":
             if args and len(args) >= 2:
                 self.builder.register_prompt(args[0], args[1])

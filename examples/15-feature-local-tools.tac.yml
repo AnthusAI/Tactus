@@ -1,0 +1,9 @@
+# Sidecar configuration for 15-feature-local-tools.tac
+# This file is NOT sandboxed - keep it trusted!
+
+# Specify where to find local Python tool plugins
+tool_paths:
+  - "./examples/tools"
+
+# Optional: Override model for this specific procedure
+default_model: "gpt-4o-mini"

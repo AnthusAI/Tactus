@@ -14,7 +14,6 @@ When asked to write a story:
 - Do NOT ask follow-up questions
 - Do NOT offer to continue or write more]],
     initial_message = "Write a short story about a robot learning to paint.",
-    tools = {"done"},
 })
 
 -- Simple procedure: one turn to generate and stream the story

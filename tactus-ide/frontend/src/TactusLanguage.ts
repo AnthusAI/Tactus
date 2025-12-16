@@ -70,6 +70,50 @@ export function registerTactusLanguage() {
     }
   });
   
+  // Light theme for Tactus DSL
+  // Colors derived from Tailwind config (index.css light mode variables)
+  // --background: 0 0% 100% -> #ffffff
+  // --foreground: 222.2 47.4% 15% -> #141f38
+  // --primary: 221.2 83.2% 53.3% -> #3b82f6
+  // --muted: 210 40% 96.1% -> #f1f5f9
+  // --border: 214.3 31.8% 91.4% -> #e2e8f0
+  monaco.editor.defineTheme('tactus-light', {
+    base: 'vs',
+    inherit: true,
+    rules: [
+      { token: 'keyword.dsl', foreground: 'AF00DB', fontStyle: 'bold' },
+      { token: 'comment', foreground: '008000' },
+      { token: 'string', foreground: 'A31515' },
+      { token: 'number', foreground: '098658' },
+      { token: 'keyword', foreground: '0000FF' },
+    ],
+    colors: {
+      'editor.background': '#ffffff',
+      'editor.foreground': '#141f38',
+      'editorLineNumber.foreground': '#94a3b8',
+      'editor.lineHighlightBackground': '#f1f5f920',
+      'editorCursor.foreground': '#3b82f6',
+      'editor.selectionBackground': '#3b82f640',
+
+      // Minimap configuration
+      'minimap.background': '#ffffff',
+      'minimapSlider.background': '#3b82f640',
+      'minimapSlider.hoverBackground': '#3b82f660',
+      'minimapSlider.activeBackground': '#3b82f680',
+      'scrollbarSlider.background': '#3b82f620',
+      'scrollbarSlider.hoverBackground': '#3b82f640',
+      'scrollbarSlider.activeBackground': '#3b82f660',
+
+      // UI Components
+      'editorWidget.background': '#ffffff',
+      'editorWidget.border': '#e2e8f0',
+      'editorSuggestWidget.background': '#ffffff',
+      'editorSuggestWidget.border': '#e2e8f0',
+      'editorSuggestWidget.selectedBackground': '#f1f5f9',
+      'list.hoverBackground': '#f1f5f940',
+    }
+  });
+
   // Theme customization for DSL keywords
   // Colors derived from Tailwind config (index.css dark mode variables)
   // --background: 222.2 84% 4.9% -> #020817
@@ -94,7 +138,7 @@ export function registerTactusLanguage() {
       'editor.lineHighlightBackground': '#1e293b40', // Muted with opacity
       'editorCursor.foreground': '#3b82f6', // Primary
       'editor.selectionBackground': '#3b82f640', // Primary with opacity
-      
+
       // Minimap configuration - make slider visible using primary color
       // Increased opacity for better visibility
       'minimap.background': '#020817',
@@ -104,7 +148,7 @@ export function registerTactusLanguage() {
       'scrollbarSlider.background': '#3b82f620',
       'scrollbarSlider.hoverBackground': '#3b82f640',
       'scrollbarSlider.activeBackground': '#3b82f660',
-      
+
       // UI Components
       'editorWidget.background': '#020817',
       'editorWidget.border': '#1e293b',

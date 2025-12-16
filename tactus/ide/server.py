@@ -326,6 +326,173 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                 logger.error(f"Error writing file {file_path}: {e}")
                 return jsonify({"error": str(e)}), 500
 
+    @app.route("/api/procedure/metadata", methods=["GET"])
+    def get_procedure_metadata():
+        """
+        Get metadata about a procedure file using TactusValidator.
+
+        Query params:
+        - path: workspace-relative path to procedure file (required)
+
+        Returns:
+            {
+                "success": true,
+                "metadata": {
+                    "description": str | null,
+                    "parameters": { name: ParameterDeclaration },
+                    "outputs": { name: OutputFieldDeclaration },
+                    "agents": { name: AgentDeclaration },
+                    "toolsets": { name: dict },
+                    "tools": [str]  # Flattened list of all tools
+                }
+            }
+        """
+        file_path = request.args.get("path")
+
+        if not file_path:
+            return jsonify({"error": "Missing 'path' parameter"}), 400
+
+        try:
+            # Resolve path
+            path = _resolve_workspace_path(file_path)
+
+            if not path.exists():
+                return jsonify({"error": f"File not found: {file_path}"}), 404
+
+            # Validate with FULL mode to get registry
+            validator = TactusValidator()
+            result = validator.validate_file(str(path), ValidationMode.FULL)
+
+            if not result.registry:
+                # Validation failed or no registry
+                return (
+                    jsonify(
+                        {
+                            "success": False,
+                            "error": "Failed to extract metadata",
+                            "validation_errors": [
+                                {
+                                    "message": e.message,
+                                    "line": e.location[0] if e.location else None,
+                                }
+                                for e in result.errors
+                            ],
+                        }
+                    ),
+                    400,
+                )
+
+            registry = result.registry
+
+            # Extract tools from agents and toolsets
+            all_tools = set()
+            for agent in registry.agents.values():
+                all_tools.update(agent.tools)
+            for toolset in registry.toolsets.values():
+                if isinstance(toolset, dict) and "tools" in toolset:
+                    all_tools.update(toolset["tools"])
+
+            # Parse specifications if present
+            specifications_data = None
+            if registry.gherkin_specifications:
+                import re
+
+                gherkin_text = registry.gherkin_specifications
+
+                # Count scenarios
+                scenarios = re.findall(r"^\s*Scenario:", gherkin_text, re.MULTILINE)
+
+                # Extract feature name
+                feature_match = re.search(r"Feature:\s*(.+)", gherkin_text)
+                feature_name = feature_match.group(1).strip() if feature_match else None
+
+                specifications_data = {
+                    "text": gherkin_text,
+                    "feature_name": feature_name,
+                    "scenario_count": len(scenarios),
+                }
+
+            # Extract stages (flatten if nested)
+            stages_list = []
+            if registry.stages:
+                for stage in registry.stages:
+                    if isinstance(stage, list):
+                        stages_list.extend(stage)
+                    else:
+                        stages_list.append(stage)
+
+            # Extract evaluations summary
+            evaluations_data = None
+            if registry.pydantic_evaluations:
+                evals = registry.pydantic_evaluations
+                dataset_count = 0
+                evaluator_count = 0
+
+                if isinstance(evals, dict):
+                    # Count dataset items
+                    if "dataset" in evals and isinstance(evals["dataset"], list):
+                        dataset_count = len(evals["dataset"])
+
+                    # Count evaluators
+                    if "evaluators" in evals and isinstance(evals["evaluators"], list):
+                        evaluator_count = len(evals["evaluators"])
+
+                evaluations_data = {
+                    "dataset_count": dataset_count,
+                    "evaluator_count": evaluator_count,
+                    "runs": evals.get("runs", 1) if isinstance(evals, dict) else 1,
+                    "parallel": evals.get("parallel", False) if isinstance(evals, dict) else False,
+                }
+
+            # Build metadata response
+            metadata = {
+                "description": registry.description,
+                "parameters": {
+                    name: {
+                        "name": param.name,
+                        "type": param.parameter_type,
+                        "required": param.required,
+                        "default": param.default,
+                        "description": getattr(param, "description", None),
+                    }
+                    for name, param in registry.parameters.items()
+                },
+                "outputs": {
+                    name: {
+                        "name": output.name,
+                        "type": output.field_type,
+                        "required": output.required,
+                        "description": getattr(output, "description", None),
+                    }
+                    for name, output in registry.outputs.items()
+                },
+                "agents": {
+                    name: {
+                        "name": agent.name,
+                        "provider": agent.provider,
+                        "model": agent.model if isinstance(agent.model, str) else str(agent.model),
+                        "system_prompt": (
+                            agent.system_prompt
+                            if isinstance(agent.system_prompt, str)
+                            else "[Dynamic Prompt]"
+                        ),
+                        "tools": agent.tools,
+                    }
+                    for name, agent in registry.agents.items()
+                },
+                "toolsets": {name: toolset for name, toolset in registry.toolsets.items()},
+                "tools": sorted(list(all_tools)),
+                "specifications": specifications_data,
+                "stages": stages_list,
+                "evaluations": evaluations_data,
+            }
+
+            return jsonify({"success": True, "metadata": metadata})
+
+        except Exception as e:
+            logger.error(f"Error extracting procedure metadata: {e}", exc_info=True)
+            return jsonify({"error": str(e)}), 500
+
     @app.route("/api/validate", methods=["POST"])
     def validate_procedure():
         """Validate Tactus procedure code."""
@@ -590,12 +757,15 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                             try:
                                 # Serialize with ISO format for datetime
                                 event_dict = event.model_dump(mode="json")
-                                # Add 'Z' suffix to indicate UTC timezone
-                                event_dict["timestamp"] = (
-                                    event.timestamp.isoformat() + "Z"
-                                    if not event.timestamp.isoformat().endswith("Z")
-                                    else event.timestamp.isoformat()
-                                )
+                                # Format timestamp: add 'Z' only if no timezone info present
+                                iso_string = event.timestamp.isoformat()
+                                if not (
+                                    iso_string.endswith("Z")
+                                    or "+" in iso_string
+                                    or iso_string.count("-") > 2
+                                ):
+                                    iso_string += "Z"
+                                event_dict["timestamp"] = iso_string
                                 yield f"data: {json.dumps(event_dict)}\n\n"
                             except Exception as e:
                                 logger.error(f"Error serializing event: {e}", exc_info=True)
@@ -609,12 +779,15 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                         try:
                             # Serialize with ISO format for datetime
                             event_dict = event.model_dump(mode="json")
-                            # Add 'Z' suffix to indicate UTC timezone
-                            event_dict["timestamp"] = (
-                                event.timestamp.isoformat() + "Z"
-                                if not event.timestamp.isoformat().endswith("Z")
-                                else event.timestamp.isoformat()
-                            )
+                            # Format timestamp: add 'Z' only if no timezone info present
+                            iso_string = event.timestamp.isoformat()
+                            if not (
+                                iso_string.endswith("Z")
+                                or "+" in iso_string
+                                or iso_string.count("-") > 2
+                            ):
+                                iso_string += "Z"
+                            event_dict["timestamp"] = iso_string
                             yield f"data: {json.dumps(event_dict)}\n\n"
                         except Exception as e:
                             logger.error(f"Error serializing event: {e}", exc_info=True)

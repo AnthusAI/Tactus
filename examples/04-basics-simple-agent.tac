@@ -9,7 +9,6 @@ provide a warm, friendly greeting. When you're done, call
 the done tool with the greeting message.
 ]],
     initial_message = "Please greet the user with a friendly message",
-    tools = {"done"},
 })
 
 -- Procedure with outputs defined inline

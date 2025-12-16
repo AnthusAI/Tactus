@@ -96,23 +96,28 @@ export const ExecutionSummaryEventComponent: React.FC<ExecutionSummaryEventCompo
               </div>
             </div>
           )}
-          
+
           {/* Result - Always Visible */}
           {event.result !== null && (
-            <div className="space-y-2">
-              <div className="text-sm text-foreground">Result</div>
-              <div className="bg-background rounded p-3 border">
+            <div className="border rounded bg-background">
+              <div className="p-2">
+                <span className="text-sm text-foreground">Result</span>
+              </div>
+              <div className="px-3 pb-3">
                 <pre className="text-xs font-mono whitespace-pre-wrap">{JSON.stringify(event.result, null, 2)}</pre>
               </div>
             </div>
           )}
-          
+
           {/* Collapsible expanded metrics */}
           <div className="border rounded bg-background">
             <button
               onClick={() => setMetricsExpanded(!metricsExpanded)}
-              className="w-full flex items-center justify-center p-2 hover:bg-muted/50 transition-colors"
+              className="w-full flex items-center justify-between p-2 hover:bg-muted/50 transition-colors"
             >
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-foreground">Usage</span>
+              </div>
               {metricsExpanded ? (
                 <ChevronDown className="h-4 w-4 stroke-[2]" />
               ) : (

@@ -8,10 +8,20 @@ interface DurationProps {
 }
 
 export const Duration: React.FC<DurationProps> = ({ startTime, className = '' }) => {
+  // Parse timestamp (Unix or ISO string)
+  const parseTimestamp = (ts: string): number => {
+    // If it looks like a Unix timestamp (number with optional decimal)
+    if (/^\d+(\.\d+)?$/.test(ts)) {
+      return parseFloat(ts) * 1000; // Convert to milliseconds
+    }
+    // Otherwise treat as ISO string
+    return new Date(ts).getTime();
+  };
+
   // Initialize with calculated elapsed time to avoid showing -1:-1
   const [elapsed, setElapsed] = useState<number>(() => {
     if (!startTime) return 0;
-    const start = new Date(startTime).getTime();
+    const start = parseTimestamp(startTime);
     const now = Date.now();
     return Math.max(0, Math.floor((now - start) / 1000));
   });
@@ -20,7 +30,7 @@ export const Duration: React.FC<DurationProps> = ({ startTime, className = '' })
     if (!startTime) return;
 
     const updateDuration = () => {
-      const start = new Date(startTime).getTime();
+      const start = parseTimestamp(startTime);
       const now = Date.now();
       const seconds = Math.max(0, Math.floor((now - start) / 1000));
       setElapsed(seconds);

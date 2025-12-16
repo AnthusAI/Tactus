@@ -143,6 +143,10 @@ def create_dsl_stubs(builder: RegistryBuilder) -> dict[str, Callable]:
         """Register a prompt template."""
         builder.register_prompt(prompt_name, content)
 
+    def _toolset(toolset_name: str, config) -> None:
+        """Register a toolset definition."""
+        builder.register_toolset(toolset_name, lua_table_to_dict(config))
+
     def _hitl(hitl_name: str, config) -> None:
         """Register a HITL interaction point."""
         builder.register_hitl(hitl_name, lua_table_to_dict(config))
@@ -246,6 +250,7 @@ def create_dsl_stubs(builder: RegistryBuilder) -> dict[str, Callable]:
         "agent": _agent,
         "procedure": _procedure,
         "prompt": _prompt,
+        "toolset": _toolset,
         "hitl": _hitl,
         "stages": _stages,
         "specification": _specification,

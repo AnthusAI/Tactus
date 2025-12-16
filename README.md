@@ -231,6 +231,75 @@ Researcher.turn({
 
 See `examples/14-feature-per-turn-tools.tac` for a complete working example.
 
+### MCP Server Integration
+
+Tactus provides first-class support for [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) servers, allowing you to connect to external tool providers and use their tools in your procedures.
+
+**Configuration** (`.tactus/config.yml`):
+
+```yaml
+mcp_servers:
+  plexus:
+    command: "python"
+    args:
+      - "-m"
+      - "plexus.mcp"
+    env:
+      PLEXUS_ACCOUNT_KEY: "${PLEXUS_ACCOUNT_KEY}"
+      PLEXUS_API_KEY: "${PLEXUS_API_KEY}"
+  
+  filesystem:
+    command: "npx"
+    args:
+      - "-y"
+      - "@modelcontextprotocol/server-filesystem"
+      - "/workspace"
+```
+
+**Tool Namespacing:**
+
+Tools from MCP servers are automatically prefixed with the server name to prevent conflicts:
+
+```lua
+agent("worker", {
+    provider = "openai",
+    model = "gpt-4o",
+    tools = {
+        "plexus_score_info",           -- From plexus server
+        "plexus_evaluation_run",       -- From plexus server
+        "filesystem_read_file",        -- From filesystem server
+        "filesystem_write_file",       -- From filesystem server
+        "done"
+    }
+})
+```
+
+**How it works:**
+
+1. **Stdio Transport**: Each MCP server runs as a subprocess with stdio communication
+2. **Automatic Discovery**: Tools are loaded from servers at runtime
+3. **Native Integration**: Uses Pydantic AI's `MCPServerStdio` under the hood
+4. **Tool Tracking**: All MCP tool calls are tracked via `Tool.called()` and `Tool.last_result()`
+
+**Environment Variables:**
+
+Use `${VAR}` syntax in config to reference environment variables:
+
+```yaml
+mcp_servers:
+  github:
+    command: "npx"
+    args: ["-y", "@modelcontextprotocol/server-github"]
+    env:
+      GITHUB_TOKEN: "${GITHUB_TOKEN}"  # Reads from system env
+```
+
+**Multiple Servers:**
+
+You can configure multiple MCP servers and use tools from all of them in the same procedure. Each server's tools are independently namespaced.
+
+See `examples/40-mcp-test.tac` for a complete working example.
+
 ### Testing & Evaluation: Two Different Concerns
 
 Tactus provides two complementary approaches for ensuring quality, each targeting a different aspect of your agentic workflow:

@@ -71,11 +71,16 @@ class AgentDeclaration(BaseModel):
     model: Union[str, dict[str, Any]] = "gpt-4o"
     system_prompt: Union[str, Any]  # String with {markers} or Lua function
     initial_message: Optional[str] = None
-    tools: list[str] = Field(default_factory=list)
+    tools: list[Union[str, dict[str, Any]]] = Field(
+        default_factory=list
+    )  # Supports toolset expressions
     output: Optional[AgentOutputSchema] = None  # Legacy field
     output_type: Optional[AgentOutputSchema] = None  # Aligned with pydantic-ai
     message_history: Optional[MessageHistoryConfiguration] = None
     max_turns: int = 50
+    disable_streaming: bool = (
+        False  # Disable streaming for models that don't support tools in streaming mode
+    )
 
 
 class HITLDeclaration(BaseModel):
@@ -122,6 +127,7 @@ class ProcedureRegistry(BaseModel):
     parameters: dict[str, ParameterDeclaration] = Field(default_factory=dict)
     outputs: dict[str, OutputFieldDeclaration] = Field(default_factory=dict)
     agents: dict[str, AgentDeclaration] = Field(default_factory=dict)
+    toolsets: dict[str, dict[str, Any]] = Field(default_factory=dict)
     hitl_points: dict[str, HITLDeclaration] = Field(default_factory=dict)
     stages: list[str] = Field(default_factory=list)
     specifications: list[SpecificationDeclaration] = Field(default_factory=list)
@@ -207,8 +213,16 @@ class RegistryBuilder:
             # Convert output_schema dict to AgentOutputSchema
             fields = {}
             for field_name, field_config in output_schema.items():
-                fields[field_name] = OutputFieldDeclaration(**field_config)
+                # Add the field name to the config (required by OutputFieldDeclaration)
+                field_config_with_name = dict(field_config)
+                field_config_with_name["name"] = field_name
+                fields[field_name] = OutputFieldDeclaration(**field_config_with_name)
             config["output_type"] = AgentOutputSchema(fields=fields)
+
+        # Handle toolsets -> tools rename (backward compatibility)
+        # The Lua DSL uses "toolsets" but AgentDeclaration expects "tools"
+        if "toolsets" in config and "tools" not in config:
+            config["tools"] = config.pop("toolsets")
 
         # Apply defaults
         if "provider" not in config and self.registry.default_provider:
@@ -231,6 +245,10 @@ class RegistryBuilder:
     def register_prompt(self, name: str, content: str) -> None:
         """Register a prompt template."""
         self.registry.prompts[name] = content
+
+    def register_toolset(self, name: str, config: dict) -> None:
+        """Register a toolset definition from DSL."""
+        self.registry.toolsets[name] = config
 
     def set_stages(self, stage_names: list[str]) -> None:
         """Set stage names."""

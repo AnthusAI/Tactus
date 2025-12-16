@@ -6,7 +6,7 @@ agent("worker", {
     provider = "openai",
     system_prompt = "A simple worker agent",
     initial_message = "Starting state management example",
-    tools = {},
+    toolsets = {},
 })
 
 -- Procedure with outputs defined inline

@@ -10,7 +10,6 @@ agent("completer", {
 When you complete a task, call the 'done' tool with your result.
 Always start your response with "TASK_COMPLETE: " followed by your actual work.]],
     initial_message = "{task}\n\nPlease complete this task now.",
-    tools = {"done"}
 })
 
 procedure({

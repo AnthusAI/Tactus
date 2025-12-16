@@ -1,0 +1,33 @@
+# Advanced Toolset Configuration Example
+# Demonstrates config-defined toolsets with filtering, prefixing, and composition
+
+# Define custom toolsets in config
+toolsets:
+  # Plugin toolset with local Python tools
+  financial:
+    type: plugin
+    paths:
+      - "./examples/tools/calculations.py"
+
+  # Plugin toolset with all tools from examples/tools
+  plugin:
+    type: plugin
+    paths:
+      - "./examples/tools"
+
+  # Filter the test MCP server to only include greet tool
+  test_filtered:
+    type: filtered
+    source: test_server
+    pattern: "^test_server_greet$"
+
+  # Combined toolset merging multiple sources
+  all_tools:
+    type: combined
+    sources:
+      - financial
+      - test_filtered
+      - done
+
+# Clear tool_paths to avoid auto-creating duplicate plugin toolset
+tool_paths: []

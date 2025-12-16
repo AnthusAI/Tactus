@@ -4,6 +4,27 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tactus IDE</title>
+    <script>
+      // Set theme before page loads to prevent flash
+      const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      console.log('[index.html] Initial theme detection:', isDark ? 'dark' : 'light');
+      if (isDark) {
+        document.documentElement.classList.add('dark');
+      }
+
+      // Debug: log the computed background color after a short delay
+      setTimeout(() => {
+        const bg = getComputedStyle(document.documentElement).getPropertyValue('--background');
+        const fg = getComputedStyle(document.documentElement).getPropertyValue('--foreground');
+        console.log('[index.html] CSS variables - background:', bg, 'foreground:', fg);
+        console.log('[index.html] Has dark class:', document.documentElement.classList.contains('dark'));
+
+        // Check actual computed colors on body
+        const bodyBg = getComputedStyle(document.body).backgroundColor;
+        const bodyColor = getComputedStyle(document.body).color;
+        console.log('[index.html] Body computed - backgroundColor:', bodyBg, 'color:', bodyColor);
+      }, 500);
+    </script>
   </head>
   <body>
     <div id="root"></div>

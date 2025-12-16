@@ -28,11 +28,29 @@ export const Editor: React.FC<EditorProps> = ({ initialValue = '', onValueChange
   const isDisposedRef = useRef(false);
   const onValueChangeRef = useRef(onValueChange);
   const currentFileUri = useRef<string>('file:///untitled.tac');
+  const [isDark, setIsDark] = useState(() =>
+    window.matchMedia('(prefers-color-scheme: dark)').matches
+  );
   
   // Update the callback ref when it changes
   useEffect(() => {
     onValueChangeRef.current = onValueChange;
   }, [onValueChange]);
+
+  // Listen for system theme changes
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+    const handleChange = (e: MediaQueryListEvent) => {
+      setIsDark(e.matches);
+      if (editorRef.current) {
+        monaco.editor.setTheme(e.matches ? 'tactus-dark' : 'tactus-light');
+      }
+    };
+
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, []);
   
   // Handle file changes (initialValue and filePath)
   useEffect(() => {
@@ -68,13 +86,13 @@ export const Editor: React.FC<EditorProps> = ({ initialValue = '', onValueChange
     // Register Tactus language
     registerTactusLanguage();
     
-    // Initialize Monaco
+    // Initialize Monaco with dynamic theme
     const editor = monaco.editor.create(containerRef.current, {
       value: initialValue || '',
       language: 'tactus-lua',
-      theme: 'tactus-dark',
+      theme: isDark ? 'tactus-dark' : 'tactus-light',
       automaticLayout: true,
-      minimap: { 
+      minimap: {
         enabled: true,
         showSlider: 'always'
       },
