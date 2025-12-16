@@ -1,5 +1,4 @@
 import { spawn, ChildProcess } from 'child_process';
-import { app } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 import log from 'electron-log';
@@ -84,6 +83,7 @@ export class BackendManager {
   }
 
   private getExamplesFolder(): string {
+    const { app } = require('electron');
     const isDev = !app.isPackaged;
 
     if (isDev) {
@@ -105,6 +105,7 @@ export class BackendManager {
   }
 
   private getTactusCommand(): string {
+    const { app } = require('electron');
     const isDev = !app.isPackaged;
 
     if (isDev) {

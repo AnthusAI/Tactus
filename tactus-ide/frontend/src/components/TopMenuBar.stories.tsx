@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react';
 import { Menubar, MenubarContent, MenubarItem, MenubarMenu, MenubarShortcut, MenubarTrigger } from './ui/menubar';
 import { Separator } from './ui/separator';
 import { Button } from './ui/button';
+import { Logo } from './ui/logo';
 import { Mail, Bell } from 'lucide-react';
 import { ALL_COMMAND_GROUPS } from '@/commands/registry';
 
@@ -18,7 +19,10 @@ const TopMenuBar = ({
   return (
     <div className="flex items-center justify-between h-12 px-4 border-b bg-card">
       <div className="flex items-center gap-4">
-        <span className="font-semibold">Tactus</span>
+        <div className="flex items-center gap-2">
+          <Logo className="h-6 w-auto" />
+          <span className="font-semibold">Tactus</span>
+        </div>
         <Separator orientation="vertical" className="h-6" />
         <Menubar className="border-0 bg-transparent shadow-none">
           {ALL_COMMAND_GROUPS.map((group) => (

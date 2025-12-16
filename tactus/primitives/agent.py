@@ -58,6 +58,7 @@ class AgentPrimitive:
         provider: Optional[str] = None,
         disable_streaming: bool = False,
         message_history_filter: Optional[Any] = None,
+        toolsets: Optional[List] = None,
     ):
         """
         Initialize agent primitive.
@@ -149,18 +150,37 @@ class AgentPrimitive:
             bedrock_provider = BedrockProvider(region_name=region_name)
             bedrock_model = BedrockConverseModel(model_id, provider=bedrock_provider)
 
-            self.agent = Agent(
-                bedrock_model,
-                deps_type=AgentDeps,
-                tools=all_tools,
-                model_settings=model_settings,
-            )
+            # Pass tools/toolsets to Agent constructor
+            # Empty lists are valid, but we only pass them if not empty
+            # This avoids Bedrock rejecting requests for models that don't support tools
+            agent_kwargs = {
+                "deps_type": AgentDeps,
+                "model_settings": model_settings,
+            }
+            if all_tools:
+                agent_kwargs["tools"] = all_tools
+                logger.info(f"Agent '{name}' passing {len(all_tools)} tools to Bedrock Agent")
+            if toolsets and len(toolsets) > 0:  # Only pass if not empty
+                agent_kwargs["toolsets"] = toolsets
+                logger.info(f"Agent '{name}' passing {len(toolsets)} toolsets to Bedrock Agent")
+
+            if not all_tools and (not toolsets or len(toolsets) == 0 or toolsets is None):
+                logger.info(f"Agent '{name}' created with NO tools/toolsets for Bedrock")
+
+            self.agent = Agent(bedrock_model, **agent_kwargs)
         else:
             # For OpenAI and other providers, use default behavior
             # Pydantic AI will use OPENAI_API_KEY from environment by default
-            self.agent = Agent(
-                model, deps_type=AgentDeps, tools=all_tools, model_settings=model_settings
-            )
+            agent_kwargs = {
+                "deps_type": AgentDeps,
+                "model_settings": model_settings,
+            }
+            if all_tools:
+                agent_kwargs["tools"] = all_tools
+            if toolsets is not None:  # Check for None, not emptiness
+                agent_kwargs["toolsets"] = toolsets
+
+            self.agent = Agent(model, **agent_kwargs)
 
         # Add dynamic system prompt
         @self.agent.system_prompt
@@ -432,6 +452,9 @@ class AgentPrimitive:
         should_stream = (
             self.log_handler is not None and self.result_type is None and not self.disable_streaming
         )
+        logger.debug(
+            f"Agent '{self.name}' streaming decision: should_stream={should_stream}, disable_streaming={self.disable_streaming}, log_handler={self.log_handler is not None}, result_type={self.result_type}"
+        )
 
         if should_stream:
             # Streaming mode - works with both IDE and CLI
@@ -507,11 +530,13 @@ class AgentPrimitive:
 
         # Update message history
         new_messages = result.new_messages()
-        self.message_history.extend(new_messages)
+        # Filter out any empty messages (workaround for pydantic-ai Bedrock bug)
+        filtered_new_messages = [msg for msg in new_messages if self._message_has_content(msg)]
+        self.message_history.extend(filtered_new_messages)
 
         # Record messages in chat recorder if available
         if self.chat_recorder:
-            self._record_messages(new_messages)
+            self._record_messages(filtered_new_messages)
 
         # Wrap result in ResultPrimitive for Lua access
         result_primitive = ResultPrimitive(result)
@@ -659,11 +684,13 @@ class AgentPrimitive:
 
         # Update message history
         new_messages = result.new_messages()
-        self.message_history.extend(new_messages)
+        # Filter out any empty messages (workaround for pydantic-ai Bedrock bug)
+        filtered_new_messages = [msg for msg in new_messages if self._message_has_content(msg)]
+        self.message_history.extend(filtered_new_messages)
 
         # Record messages in chat recorder if available
         if self.chat_recorder:
-            self._record_messages(new_messages)
+            self._record_messages(filtered_new_messages)
 
         # Wrap result in ResultPrimitive for Lua access
         result_primitive = ResultPrimitive(result)
@@ -850,6 +877,37 @@ class AgentPrimitive:
         """Flush any queued chat recordings (async method)."""
         # This is a placeholder - actual implementation depends on chat_recorder
         pass
+
+    def _message_has_content(self, msg: ModelMessage) -> bool:
+        """
+        Check if a message has non-empty content.
+
+        This is a workaround for pydantic-ai Bedrock bug where tool response
+        messages can have empty content arrays, causing ValidationException.
+
+        Args:
+            msg: Message to check
+
+        Returns:
+            True if message has content, False if empty
+        """
+        try:
+            # Check if message has content attribute
+            if hasattr(msg, "content"):
+                content = msg.content
+                # Check if content is a list/array
+                if isinstance(content, (list, tuple)):
+                    return len(content) > 0
+                # Check if content is a string
+                if isinstance(content, str):
+                    return len(content.strip()) > 0
+                # Other content types are considered non-empty
+                return content is not None
+            # No content attribute means it's probably empty
+            return False
+        except Exception:
+            # If we can't determine, assume it has content
+            return True
 
     def _apply_message_history_filter(self, messages: List[ModelMessage]) -> List[ModelMessage]:
         """

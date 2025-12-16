@@ -23,7 +23,6 @@ WRONG examples:
 
 Always follow this format exactly.]],
     initial_message = "{task}\n\nPlease complete this task now and call the done tool with your result.",
-    tools = {"done"}
 })
 
 -- Procedure

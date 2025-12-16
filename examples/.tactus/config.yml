@@ -1,0 +1,21 @@
+# Directory-wide configuration for all example procedures
+# This config cascades to all .tac files in the examples/ directory
+#
+# This configuration makes the "done" tool available by default to all agents
+# in example procedures. The "done" toolset is built-in to the runtime and
+# doesn't need to be defined here - we just reference it in default_toolsets.
+
+# Default toolsets applied to all agents that don't specify toolsets
+# Agents can override this by specifying their own toolsets list
+default_toolsets:
+  - done  # References the built-in "done" toolset from the runtime
+
+# Configuration notes:
+# 1. Agents with no toolsets key will get default_toolsets
+# 2. Agents with toolsets = [] will get NO tools (explicitly empty)
+# 3. Agents with toolsets = ["done"] will get only the done tool
+# 4. Agents can use toolset expressions for filtering/transformation:
+#    toolsets:
+#      - "done"                                    # Include entire toolset
+#      - {name: "mcp_server", include: ["tool1"]} # Filter to specific tools
+#      - {name: "plugins", prefix: "local_"}      # Add prefix to all tools

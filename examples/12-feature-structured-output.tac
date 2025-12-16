@@ -5,9 +5,14 @@
 agent("extractor", {
     provider = "openai",
     model = "gpt-4o-mini",
-    system_prompt = "Extract city information from user input. Be accurate and concise.",
-    tools = {"done"},
-    
+    system_prompt = [[You extract city information. Return ONLY structured data with these fields:
+- city: city name
+- country: country name
+- population: estimated population (number, optional)
+
+Be concise and accurate.]],
+    initial_message = "{params.query}",
+
     -- Structured output (aligned with pydantic-ai's output_type)
     output_type = {
         city = {type = "string", required = true},

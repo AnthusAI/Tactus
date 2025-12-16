@@ -6,7 +6,6 @@ agent("chatbot", {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = "You are a helpful chatbot. Answer questions concisely.",
-    tools = {"done"}
 })
 
 -- Procedure with message_history configuration
@@ -48,19 +47,22 @@ procedure({
     
     -- Get the conversation history (message_history in pydantic-ai terms)
     local history = MessageHistory.get()
-    Log.info("Conversation history", {length = #history})
-    
-    -- Log each message
-    for i, msg in ipairs(history) do
-        Log.info("Message " .. i, {role = msg.role, content = msg.content})
+
+    -- Count messages (Python list doesn't support # operator in Lua)
+    local count = 0
+    for _, msg in python.iter(history) do
+        count = count + 1
+        Log.info("Message " .. count, {role = msg.role, content = msg.content})
     end
+
+    Log.info("Conversation history", {length = count})
     
     -- Clear history if needed
     -- MessageHistory.clear()
     
     return {
         response = "Conversation completed",
-        history_length = #history
+        history_length = count
     }
 end)
 

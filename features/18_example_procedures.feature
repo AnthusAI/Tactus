@@ -13,12 +13,23 @@ Feature: Example Procedures
     And the output should match the declared schema
 
     Examples: Lua DSL Examples
-      | example_file                    |
-      | hello-world.tac              |
-      | 10-feature-state.tac         |
-      | 03-basics-parameters.tac     |
-      | simple-agent.tac             |
-      | multi-model.tac              |
+      | example_file                         |
+      | hello-world.tac                      |
+      | 02-basics-simple-logic.tac          |
+      | 03-basics-parameters.tac             |
+      | simple-agent.tac                     |
+      | 05-basics-multi-model.tac           |
+      | 06-basics-streaming.tac             |
+      | 07-basics-bedrock.tac               |
+      | 08-basics-models.tac                |
+      | 10-feature-state.tac                 |
+      | 11-feature-message-history.tac      |
+      | 13-feature-session.tac              |
+      | 14-feature-per-turn-tools-simple.tac|
+      | 14-feature-per-turn-tools.tac       |
+      | 15-feature-local-tools.tac          |
+      | 16-feature-toolsets-advanced.tac    |
+      | 17-feature-toolsets-dsl.tac         |
 
   Scenario: Hello World example produces correct output
     Given an example file "hello-world.tac"

@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Jersey+20&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -28,11 +30,11 @@
     --feed-row-alternate: 210 40% 98%;
   }
 
-  .dark {
+  html.dark {
     --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 85%;
+    --foreground: 210 40% 98%;
     --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 85%;
+    --card-foreground: 210 40% 98%;
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
     --primary: 217.2 91.2% 59.8%;
@@ -49,7 +51,12 @@
     --input: 217.2 32.6% 17.5%;
     --ring: 224.3 76.3% 48%;
     --feed-row-default: 222.2 84% 4.9%;
-    --feed-row-alternate: 217.2 32.6% 12%;
+    --feed-row-alternate: 217.2 32.6% 17.5%;
+  }
+
+  /* Define fill-background for SVG logo */
+  svg path[fill="fill-background"] {
+    fill: hsl(var(--background));
   }
 }
 
@@ -71,6 +78,41 @@
   height: 100vh;
   width: 100vw;
   overflow: hidden;
+}
+
+/* Auto-hiding scrollbars */
+@layer utilities {
+  /* For Webkit browsers (Chrome, Safari, Edge) */
+  .overflow-y-auto::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .overflow-y-auto::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .overflow-y-auto::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 4px;
+  }
+
+  .overflow-y-auto:hover::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.3);
+  }
+
+  .overflow-y-auto::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+  }
+
+  /* For Firefox */
+  .overflow-y-auto {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+
+  .overflow-y-auto:hover {
+    scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
+  }
 }
 
 

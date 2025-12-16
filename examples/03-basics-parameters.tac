@@ -6,7 +6,7 @@ agent("worker", {
     provider = "openai",
     system_prompt = "A worker agent",
     initial_message = "Processing task",
-    tools = {},
+    toolsets = {},
 })
 
 -- Procedure with parameters and outputs defined inline

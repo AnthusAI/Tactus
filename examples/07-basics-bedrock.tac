@@ -13,7 +13,7 @@ After answering, call the done tool with a brief summary of what you explained.
 
 IMPORTANT: Always call the done tool after providing your answer.]],
     initial_message = "What are the key benefits of using AWS Bedrock for AI applications?",
-    tools = {"done"},
+    toolsets = {"done"}
 })
 
 -- Procedure demonstrating Bedrock usage
@@ -24,16 +24,16 @@ procedure(function()
     local response_text = ""
     local max_turns = 5
     local turn_count = 0
-    
+
     repeat
         local response = Haiku_assistant.turn()
         turn_count = turn_count + 1
-        
+
         -- Accumulate the response text from each turn using .text property
         if response.text and response.text ~= "" then
             response_text = response_text .. response.text
         end
-        
+
         -- Safety check: exit if too many turns
         if turn_count >= max_turns then
             Log.warn("Max turns reached without done being called")
@@ -49,7 +49,7 @@ procedure(function()
     else
         Log.warn("Test incomplete - done tool not called")
     end
-    
+
     return {
         provider = "bedrock",
         model = "us.anthropic.claude-haiku-4-5-20251001-v1:0",

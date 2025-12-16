@@ -123,8 +123,13 @@ export function useEventStream(url: string | null): StreamState {
                 });
         
         // Check if execution is complete
-        if (event.event_type === 'execution' && 
-            (event.lifecycle_stage === 'complete' || event.lifecycle_stage === 'error')) {
+        const isExecutionComplete =
+          (event.event_type === 'execution' &&
+           (event.lifecycle_stage === 'complete' || event.lifecycle_stage === 'error')) ||
+          event.event_type === 'test_completed' ||
+          event.event_type === 'evaluation_completed';
+
+        if (isExecutionComplete) {
           // #region agent log
           console.log('[SSE] Execution complete, closing connection');
           // #endregion

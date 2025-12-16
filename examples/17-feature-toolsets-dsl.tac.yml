@@ -1,0 +1,6 @@
+# Sidecar configuration for 17-feature-toolsets-dsl.tac
+# This example defines toolsets via DSL, so we clear any tool_paths
+# from parent configs to avoid conflicts
+
+# Clear tool_paths so we don't auto-create plugin toolset
+tool_paths: []

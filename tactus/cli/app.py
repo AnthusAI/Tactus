@@ -49,6 +49,9 @@ def load_tactus_config():
     - Load configuration from .tactus/config.yml if it exists
     - Set environment variables from the config (e.g., openai_api_key -> OPENAI_API_KEY)
     - Also automatically loads .env file if present (via dotyaml)
+
+    Returns:
+        dict: Configuration dictionary, or empty dict if no config found
     """
     config_path = Path.cwd() / ".tactus" / "config.yml"
 
@@ -69,12 +72,24 @@ def load_tactus_config():
 
             # Set uppercase env vars for any keys in the config
             # This ensures openai_api_key -> OPENAI_API_KEY
+            import json
+
             for key, value in config_dict.items():
+                # Skip mcp_servers - we'll pass it directly to runtime
+                if key == "mcp_servers":
+                    continue
+
                 if isinstance(value, (str, int, float, bool)):
                     env_key = key.upper()
                     # Only set if not already set (env vars take precedence)
                     if env_key not in os.environ:
                         os.environ[env_key] = str(value)
+                elif isinstance(value, list):
+                    # Handle lists by serializing to JSON
+                    # e.g., tool_paths: ["./tools"] -> TOOL_PATHS='["./tools"]'
+                    env_key = key.upper()
+                    if env_key not in os.environ:
+                        os.environ[env_key] = json.dumps(value)
                 elif isinstance(value, dict):
                     # Handle nested structures by flattening with underscores
                     for nested_key, nested_value in value.items():
@@ -82,9 +97,14 @@ def load_tactus_config():
                             env_key = f"{key.upper()}_{nested_key.upper()}"
                             if env_key not in os.environ:
                                 os.environ[env_key] = str(nested_value)
+
+            return config_dict
         except Exception as e:
             # Don't fail if config loading fails - just log and continue
             logging.debug(f"Could not load config from {config_path}: {e}")
+            return {}
+
+    return {}
 
 
 def setup_logging(verbose: bool = False):
@@ -167,9 +187,31 @@ def run(
     # Setup HITL handler
     hitl_handler = CLIHITLHandler(console=console)
 
-    # Get OpenAI API key from parameter, environment, or config
-    # Parameter takes precedence, then env var, then config
-    api_key = openai_api_key or os.environ.get("OPENAI_API_KEY")
+    # Load configuration cascade
+    from tactus.core.config_manager import ConfigManager
+
+    config_manager = ConfigManager()
+    merged_config = config_manager.load_cascade(workflow_file)
+
+    # CLI arguments override config values
+    # Get OpenAI API key: CLI param > config > environment
+    api_key = (
+        openai_api_key or merged_config.get("openai_api_key") or os.environ.get("OPENAI_API_KEY")
+    )
+
+    # Get tool paths from merged config
+    tool_paths = merged_config.get("tool_paths")
+
+    # Get MCP servers from merged config
+    mcp_servers = merged_config.get("mcp_servers", {})
+
+    # Override context params with CLI params (CLI takes precedence)
+    if param:
+        # Merge: CLI params override config params
+        for p in param:
+            if "=" in p:
+                key, value = p.split("=", 1)
+                context[key] = value
 
     # Create log handler for Rich formatting
     from tactus.adapters.cli_log import CLILogHandler
@@ -188,9 +230,11 @@ def run(
         storage_backend=storage_backend,
         hitl_handler=hitl_handler,
         chat_recorder=None,  # No chat recording in CLI mode
-        mcp_server=None,  # No MCP server in basic CLI mode
+        mcp_server=None,  # Legacy parameter (deprecated)
+        mcp_servers=mcp_servers,  # New multi-server support
         openai_api_key=api_key,
         log_handler=log_handler,
+        tool_paths=tool_paths,
     )
 
     # Execute procedure

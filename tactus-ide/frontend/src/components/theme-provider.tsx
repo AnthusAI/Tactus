@@ -22,45 +22,51 @@ export function ThemeProvider({
   storageKey = 'tactus-ui-theme',
   ...props
 }: ThemeProviderProps) {
-  const [theme, setTheme] = useState<Theme>(
-    () => (localStorage.getItem(storageKey) as Theme) || defaultTheme
-  );
+  // Always use system preference, ignore localStorage
+  const [theme] = useState<Theme>('system');
   const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light');
 
   useEffect(() => {
     const root = window.document.documentElement;
-    
-    // Remove both classes first
-    root.classList.remove('light', 'dark');
 
-    let effectiveTheme: 'light' | 'dark';
+    // Detect system preference
+    const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches
+      ? 'dark'
+      : 'light';
 
-    if (theme === 'system') {
-      // Detect system preference
-      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches
-        ? 'dark'
-        : 'light';
-      effectiveTheme = systemTheme;
+    console.log('[ThemeProvider] System theme detected:', systemTheme);
+    console.log('[ThemeProvider] matchMedia result:', window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+    // Remove dark class first
+    root.classList.remove('dark');
+
+    // Only add 'dark' class if system is dark, otherwise use default (light) styles
+    if (systemTheme === 'dark') {
+      root.classList.add('dark');
+      console.log('[ThemeProvider] Added dark class');
     } else {
-      effectiveTheme = theme;
+      console.log('[ThemeProvider] Using light mode (no dark class)');
     }
 
-    root.classList.add(effectiveTheme);
-    setResolvedTheme(effectiveTheme);
+    setResolvedTheme(systemTheme);
   }, [theme]);
 
   useEffect(() => {
     // Listen for system theme changes
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    
+
     const handleChange = (e: MediaQueryListEvent) => {
-      if (theme === 'system') {
-        const root = window.document.documentElement;
-        root.classList.remove('light', 'dark');
-        const newTheme = e.matches ? 'dark' : 'light';
-        root.classList.add(newTheme);
-        setResolvedTheme(newTheme);
+      const root = window.document.documentElement;
+      root.classList.remove('dark');
+
+      const newTheme = e.matches ? 'dark' : 'light';
+
+      // Only add 'dark' class if system is dark
+      if (newTheme === 'dark') {
+        root.classList.add('dark');
       }
+
+      setResolvedTheme(newTheme);
     };
 
     mediaQuery.addEventListener('change', handleChange);
@@ -69,9 +75,8 @@ export function ThemeProvider({
 
   const value = {
     theme,
-    setTheme: (newTheme: Theme) => {
-      localStorage.setItem(storageKey, newTheme);
-      setTheme(newTheme);
+    setTheme: () => {
+      // No-op: theme is always 'system'
     },
     resolvedTheme,
   };

@@ -11,7 +11,7 @@ When given a topic, search for information and then provide a summary.
 1. First, call the 'search' tool with the topic
 2. Then, call the 'done' tool with your findings]],
     initial_message = "Research: {topic}",
-    tools = {"search", "done"}
+    toolsets = {"search"}
 })
 
 agent("reviewer", {
@@ -21,7 +21,6 @@ agent("reviewer", {
 
 Review the research and call 'done' with your assessment.]],
     initial_message = "Review this research: {research}",
-    tools = {"done"}
 })
 
 procedure({

@@ -8,3 +8,34 @@ openai_api_key: "your-openai-api-key-here"
 aws_access_key_id: "your-aws-access-key-id-here"
 aws_secret_access_key: "your-aws-secret-access-key-here"
 aws_region: "us-east-1"  # or your preferred region
+
+# MCP Servers Configuration
+# Define Model Context Protocol servers that provide tools to your agents
+mcp_servers:
+  # Example: Test MCP Server (for testing)
+  # test_server:
+  #   command: "python"
+  #   args:
+  #     - "-m"
+  #     - "tests.fixtures.test_mcp_server"
+  
+  # Example: Plexus MCP Server
+  # plexus:
+  #   command: "python"
+  #   args:
+  #     - "-m"
+  #     - "plexus.mcp"
+  #   env:
+  #     PLEXUS_ACCOUNT_KEY: "${PLEXUS_ACCOUNT_KEY}"
+  #     PLEXUS_API_KEY: "${PLEXUS_API_KEY}"
+  
+  # Example: Filesystem MCP Server
+  # filesystem:
+  #   command: "npx"
+  #   args:
+  #     - "-y"
+  #     - "@modelcontextprotocol/server-filesystem"
+  #     - "/workspace"
+
+# Note: Tools from MCP servers are automatically prefixed with the server name
+# Example: "test_server_add_numbers", "plexus_score_info", "filesystem_read_file"

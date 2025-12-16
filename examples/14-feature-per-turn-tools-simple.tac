@@ -6,7 +6,6 @@ agent("tester", {
     model = "gpt-4o-mini",
     system_prompt = "You are a test agent. When you have tools, call done. When you don't have tools, just respond with 'No tools available'.",
     initial_message = "Start test",
-    tools = {"done"}
 })
 
 procedure({}, function()
@@ -22,7 +21,7 @@ procedure({}, function()
     Log.info("Test 2: Agent without tools - should just respond")
     Tester.turn({
         inject = "Respond with 'No tools available'",
-        tools = {}
+        toolsets = {}
     })
     
     -- Check that done was NOT called in the second turn
