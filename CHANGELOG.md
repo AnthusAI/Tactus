@@ -2,6 +2,17 @@
 
 <!-- version list -->
 
+## v0.6.2 (2025-12-16)
+
+### Bug Fixes
+
+- Align tool implementation with Pydantic AI and numerous frontend improvements
+  ([`4fa5649`](https://github.com/AnthusAI/Tactus/commit/4fa5649e7bd569b99ed2bff5504f145678b9ddfa))
+
+- Skip MCP integration test when OpenAI API key not available
+  ([`7b6894f`](https://github.com/AnthusAI/Tactus/commit/7b6894f577a62eb5ad0f2db8d8d7353209aaae83))
+
+
 ## v0.6.1 (2025-12-15)
 
 ### Bug Fixes
