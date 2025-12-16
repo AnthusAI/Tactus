@@ -115,6 +115,17 @@ class SpecificationDeclaration(BaseModel):
     scenarios: list[ScenarioDeclaration] = Field(default_factory=list)
 
 
+class DependencyDeclaration(BaseModel):
+    """Dependency declaration from DSL."""
+
+    name: str
+    dependency_type: str = Field(alias="type")  # http_client, postgres, redis
+    config: dict[str, Any] = Field(default_factory=dict)  # Configuration dict
+
+    class Config:
+        populate_by_name = True
+
+
 class ProcedureRegistry(BaseModel):
     """Collects all declarations from a .tac file."""
 
@@ -131,6 +142,7 @@ class ProcedureRegistry(BaseModel):
     hitl_points: dict[str, HITLDeclaration] = Field(default_factory=dict)
     stages: list[str] = Field(default_factory=list)
     specifications: list[SpecificationDeclaration] = Field(default_factory=list)
+    dependencies: dict[str, DependencyDeclaration] = Field(default_factory=dict)
 
     # Message history configuration (aligned with pydantic-ai)
     message_history_config: dict[str, Any] = Field(default_factory=dict)
@@ -241,6 +253,19 @@ class RegistryBuilder:
             self.registry.hitl_points[name] = HITLDeclaration(**config)
         except ValidationError as e:
             self._add_error(f"Invalid HITL point '{name}': {e}")
+
+    def register_dependency(self, name: str, config: dict) -> None:
+        """Register a dependency declaration."""
+        # The config dict contains the type and all other configuration
+        dependency_config = {
+            "name": name,
+            "type": config.get("type"),
+            "config": config  # Store the entire config dict
+        }
+        try:
+            self.registry.dependencies[name] = DependencyDeclaration(**dependency_config)
+        except ValidationError as e:
+            self._add_error(f"Invalid dependency '{name}': {e}")
 
     def register_prompt(self, name: str, content: str) -> None:
         """Register a prompt template."""

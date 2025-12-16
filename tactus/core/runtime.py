@@ -144,6 +144,10 @@ class TactusRuntime:
         # Toolset registry (name -> AbstractToolset instance)
         self.toolset_registry: Dict[str, Any] = {}
 
+        # User dependencies (HTTP clients, DB connections, etc.)
+        self.user_dependencies: Dict[str, Any] = {}
+        self.dependency_manager: Optional[Any] = None  # ResourceManager for cleanup
+
         logger.info(f"TactusRuntime initialized for procedure {procedure_id}")
 
     async def execute(
@@ -566,6 +570,14 @@ class TactusRuntime:
                 except Exception as e:
                     logger.warning(f"Error disconnecting from MCP servers: {e}")
 
+            # Cleanup: Close user dependencies
+            if self.dependency_manager:
+                try:
+                    await self.dependency_manager.cleanup()
+                    logger.info("Cleaned up user dependencies")
+                except Exception as e:
+                    logger.warning(f"Error cleaning up dependencies: {e}")
+
     async def _initialize_primitives(self):
         """Initialize all primitive objects."""
         self.state_primitive = StatePrimitive()
@@ -894,6 +906,40 @@ class TactusRuntime:
 
         return result
 
+    async def _initialize_dependencies(self):
+        """Initialize user-declared dependencies from registry."""
+        # Only initialize if registry exists and has dependencies
+        if not self.registry or not self.registry.dependencies:
+            logger.debug("No dependencies declared in procedure")
+            return
+
+        logger.info(f"Initializing {len(self.registry.dependencies)} dependencies")
+
+        # Import dependency infrastructure
+        from tactus.core.dependencies import ResourceFactory, ResourceManager
+
+        # Create ResourceManager for lifecycle management
+        self.dependency_manager = ResourceManager()
+
+        # Build config dict for ResourceFactory
+        dependencies_config = {}
+        for dep_name, dep_decl in self.registry.dependencies.items():
+            dependencies_config[dep_name] = dep_decl.config
+
+        try:
+            # Create all dependencies
+            self.user_dependencies = await ResourceFactory.create_all(dependencies_config)
+
+            # Register with manager for cleanup
+            for dep_name, dep_instance in self.user_dependencies.items():
+                await self.dependency_manager.add_resource(dep_name, dep_instance)
+
+            logger.info(f"Successfully initialized dependencies: {list(self.user_dependencies.keys())}")
+
+        except Exception as e:
+            logger.error(f"Failed to initialize dependencies: {e}")
+            raise RuntimeError(f"Dependency initialization failed: {e}")
+
     async def _setup_agents(self, context: Dict[str, Any]):
         """
         Setup agent primitives with LLMs and tools using Pydantic AI.
@@ -901,6 +947,9 @@ class TactusRuntime:
         Args:
             context: Procedure context with pre-loaded data
         """
+        # Initialize user dependencies first (needed by agents)
+        await self._initialize_dependencies()
+
         # Get agent configurations
         agents_config = self.config.get("agents", {})
 
@@ -1120,6 +1169,7 @@ class TactusRuntime:
                 provider=agent_config.get("provider"),
                 disable_streaming=agent_config.get("disable_streaming", False),
                 message_history_filter=message_history_filter,
+                user_dependencies=self.user_dependencies if self.user_dependencies else None,
             )
 
             self.agents[agent_name] = agent_primitive

@@ -44,6 +44,7 @@ class TactusTestRunner:
         procedure_file: Path,
         mock_tools: Optional[Dict] = None,
         params: Optional[Dict] = None,
+        mocked: bool = False,
     ):
         if not BEHAVE_AVAILABLE:
             raise ImportError("behave library not installed. " "Install with: pip install behave")
@@ -51,6 +52,7 @@ class TactusTestRunner:
         self.procedure_file = procedure_file
         self.mock_tools = mock_tools or {}
         self.params = params or {}
+        self.mocked = mocked  # Whether to use mocked dependencies
         self.work_dir: Optional[Path] = None
         self.parsed_feature: Optional[ParsedFeature] = None
         self.step_registry = StepRegistry()
@@ -71,7 +73,7 @@ class TactusTestRunner:
         parser = GherkinParser()
         self.parsed_feature = parser.parse(gherkin_text)
 
-        # Setup Behave directory with mock tools and params
+        # Setup Behave directory with mock tools, params, and mocked flag
         self.work_dir = setup_behave_directory(
             self.parsed_feature,
             self.step_registry,
@@ -79,6 +81,7 @@ class TactusTestRunner:
             self.procedure_file,
             mock_tools=self.mock_tools,
             params=self.params,
+            mocked=self.mocked,
         )
 
         # Track the generated step file for cleanup

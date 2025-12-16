@@ -124,6 +124,11 @@ def create_dsl_stubs(builder: RegistryBuilder) -> dict[str, Callable]:
                     output_config_with_name["name"] = output_name
                     builder.register_output(output_name, output_config_with_name)
 
+            # Extract and register dependencies
+            if "dependencies" in config:
+                for dep_name, dep_config in config["dependencies"].items():
+                    builder.register_dependency(dep_name, dep_config)
+
             # Extract and register message_history config (aligned with pydantic-ai)
             if "message_history" in config:
                 builder.set_message_history_config(config["message_history"])

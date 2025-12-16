@@ -137,3 +137,35 @@ class MockHITLHandler:
     def clear_history(self) -> None:
         """Clear request history."""
         self.requests_received.clear()
+
+    def configure_response(self, interaction_type: str, value: Any) -> None:
+        """
+        Configure mock response for a specific interaction type.
+
+        This allows dynamic configuration during test scenarios.
+
+        Args:
+            interaction_type: Type of interaction (approval, input, review, etc.)
+            value: The value to return for this interaction type
+
+        Example:
+            mock_hitl.configure_response("approval", True)
+            mock_hitl.configure_response("input", "test data")
+        """
+        type_key = f"_type_{interaction_type}"
+        self.default_responses[type_key] = value
+        logger.debug(f"Configured mock HITL response: {interaction_type} -> {value}")
+
+    def configure_message_response(self, message_prefix: str, value: Any) -> None:
+        """
+        Configure mock response for a specific message.
+
+        Args:
+            message_prefix: Prefix of the message to match
+            value: The value to return when this message is received
+
+        Example:
+            mock_hitl.configure_message_response("Approve payment", False)
+        """
+        self.default_responses[message_prefix] = value
+        logger.debug(f"Configured mock HITL response for message: {message_prefix}")

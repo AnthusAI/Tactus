@@ -59,6 +59,8 @@ class AgentPrimitive:
         disable_streaming: bool = False,
         message_history_filter: Optional[Any] = None,
         toolsets: Optional[List] = None,
+        user_dependencies: Optional[Dict[str, Any]] = None,
+        deps_class: Optional[type] = None,
     ):
         """
         Initialize agent primitive.
@@ -97,14 +99,40 @@ class AgentPrimitive:
         self.model_settings = model_settings or {}
         self.disable_streaming = disable_streaming
         self.message_history_filter = message_history_filter
+        self.user_dependencies = user_dependencies
 
-        # Create dependencies
-        self.deps = AgentDeps(
-            state_primitive=state_primitive,
-            context=context,
-            system_prompt_template=system_prompt_template,
-            output_schema_guidance=output_schema_guidance,
-        )
+        # Create dependencies (with dynamic class if user dependencies exist)
+        if deps_class:
+            # Use provided deps class (already generated)
+            from tactus.primitives.deps_generator import create_agent_deps_instance
+            self.deps = create_agent_deps_instance(
+                deps_class=deps_class,
+                state_primitive=state_primitive,
+                context=context,
+                system_prompt_template=system_prompt_template,
+                output_schema_guidance=output_schema_guidance,
+                user_dependencies=user_dependencies,
+            )
+        elif user_dependencies:
+            # Generate deps class dynamically
+            from tactus.primitives.deps_generator import generate_agent_deps_class, create_agent_deps_instance
+            deps_class = generate_agent_deps_class(user_dependencies)
+            self.deps = create_agent_deps_instance(
+                deps_class=deps_class,
+                state_primitive=state_primitive,
+                context=context,
+                system_prompt_template=system_prompt_template,
+                output_schema_guidance=output_schema_guidance,
+                user_dependencies=user_dependencies,
+            )
+        else:
+            # No user dependencies - use base AgentDeps
+            self.deps = AgentDeps(
+                state_primitive=state_primitive,
+                context=context,
+                system_prompt_template=system_prompt_template,
+                output_schema_guidance=output_schema_guidance,
+            )
 
         # Create "done" tool if any tools are specified
         # For models without tool support, we don't add any tools (including done)

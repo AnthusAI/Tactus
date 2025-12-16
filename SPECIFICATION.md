@@ -548,7 +548,60 @@ Guards return `true` to proceed or `false, "error message"` to abort.
 
 ## Dependencies
 
-Validated before any execution:
+Tactus supports declaring external resource dependencies (HTTP clients, databases, caches) that are automatically initialized and injected into your procedure.
+
+### Resource Dependencies
+
+Declare resources your procedure needs (HTTP APIs, databases, caches, etc.):
+
+```lua
+procedure({
+    params = {
+        city = {type = "string", required = true}
+    },
+
+    -- Declare resource dependencies
+    dependencies = {
+        weather_api = {
+            type = "http_client",
+            base_url = "https://api.weather.com",
+            headers = {
+                ["Authorization"] = env.WEATHER_API_KEY
+            },
+            timeout = 30.0
+        },
+        database = {
+            type = "postgres",
+            connection_string = env.DATABASE_URL,
+            pool_size = 10
+        },
+        cache = {
+            type = "redis",
+            url = env.REDIS_URL
+        }
+    }
+}, function()
+    -- Dependencies are automatically created and available
+    -- Tools (via MCP) can access them through the dependency injection system
+    Worker.turn()
+    return {result = "done"}
+end)
+```
+
+**Supported Resource Types:**
+- `http_client` - HTTP client for API calls (backed by httpx.AsyncClient)
+- `postgres` - PostgreSQL connection pool (backed by asyncpg)
+- `redis` - Redis client (backed by redis.asyncio)
+
+**Benefits:**
+- **Lifecycle Management:** Resources are automatically created at procedure start and cleaned up on exit
+- **Connection Pooling:** HTTP clients and database connections are reused across tool calls
+- **Configuration:** Centralized dependency configuration in procedure declaration
+- **Testing:** Easy to mock dependencies for fast unit tests
+
+### Tool and Procedure Dependencies
+
+Optionally validate that required tools and procedures exist:
 
 ```yaml
 dependencies:
@@ -561,6 +614,109 @@ dependencies:
 ```
 
 If any dependency is missing, the procedure fails fast with a clear error.
+
+### Testing with Dependencies
+
+#### Unit Tests (Mocked Dependencies)
+
+Run tests with automatically mocked dependencies for fast, deterministic tests:
+
+```bash
+tactus test procedure.tac --mocked
+```
+
+Mock responses can be configured in Gherkin steps:
+
+```gherkin
+Feature: Weather Lookup
+  Scenario: Successful lookup
+    Given the weather_api returns '{"temp": 72, "condition": "sunny"}'
+    When the Worker agent takes turn
+    Then the done tool should be called
+```
+
+**Mock Configuration Steps:**
+
+HTTP Dependencies:
+- `Given the {dep_name} returns '{response}'` - Default response for any path
+- `Given the {dep_name} returns '{response}' for {path}` - Response for specific path
+- `Given the {dep_name} returns '{response}' with status {code}` - Response with status code
+
+HITL (Human-in-the-Loop):
+- `Given Human.approve will return true` - Mock approval requests
+- `Given Human.input will return 'value'` - Mock input requests
+- `Given when asked "message" return true` - Mock specific message
+
+Assertions:
+- `Then the {dep_name} should have been called` - Verify dependency was used
+- `Then the {dep_name} should not have been called` - Verify dependency wasn't used
+- `Then the {dep_name} should have been called {n} times` - Verify call count
+
+#### Integration Tests (Real Dependencies)
+
+Run tests with real external services:
+
+```bash
+tactus test procedure.tac --integration
+```
+
+This creates real HTTP clients, database connections, etc., allowing you to validate end-to-end behavior.
+
+### Dependency Injection Details
+
+When you declare dependencies:
+
+1. **Runtime Initialization:** The runtime creates resource instances (HTTP clients, DB pools, etc.) based on your configuration
+
+2. **Agent Injection:** Dependencies are injected into agents via an expanded `AgentDeps` class:
+
+```python
+@dataclass
+class GeneratedAgentDeps(AgentDeps):
+    # Framework dependencies
+    state_primitive: Any
+    context: Dict[str, Any]
+    system_prompt_template: str
+
+    # Your declared dependencies
+    weather_api: httpx.AsyncClient
+    database: asyncpg.Pool
+    cache: redis.asyncio.Redis
+```
+
+3. **Tool Access:** Tools (Python functions decorated with `@agent.tool`) receive dependencies via `RunContext[Deps]`:
+
+```python
+@agent.tool
+async def get_weather(ctx: RunContext[GeneratedAgentDeps], city: str) -> str:
+    # Access dependency
+    response = await ctx.deps.weather_api.get(f"/weather?city={city}")
+    return response.text
+```
+
+4. **Cleanup:** Resources are automatically closed when the procedure completes or fails
+
+### Nested Procedures and Dependencies
+
+Child procedures inherit parent dependencies:
+
+```lua
+-- Parent procedure
+procedure({
+    dependencies = {
+        api_client = {type = "http_client", base_url = "https://api.example.com"}
+    }
+}, function()
+    -- Child procedure uses same api_client instance
+    local child_result = ChildProcedure.run({...})
+end)
+```
+
+Both parent and child use the same HTTP client instance, enabling efficient connection reuse.
+
+### Checkpoint and Restart
+
+Dependencies are **recreated** on procedure restart (after checkpoint). The dependency configuration is saved, but instances themselves are ephemeral per execution session.
 
 ---
 
