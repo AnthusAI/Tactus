@@ -27,10 +27,13 @@ class TactusTestContext:
         procedure_file: Path,
         params: Optional[Dict] = None,
         mock_tools: Optional[Dict] = None,
+        mocked: bool = False,
     ):
         self.procedure_file = procedure_file
         self.params = params or {}
         self.mock_tools = mock_tools  # tool_name -> mock_response
+        self.mocked = mocked  # Whether to use mocked dependencies
+        self.mock_registry = None  # Unified mock registry for dependencies + HITL
         self.runtime = None
         self.execution_result: Optional[Dict] = None
         self._primitives: Dict[str, Any] = {}  # Captured primitives
@@ -45,10 +48,20 @@ class TactusTestContext:
         from tactus.core.runtime import TactusRuntime
         from tactus.adapters.memory import MemoryStorage
         from tactus.testing.mock_hitl import MockHITLHandler
+        from tactus.testing.mock_registry import UnifiedMockRegistry
         from tactus.adapters.cli_log import CLILogHandler
 
         storage = MemoryStorage()
-        hitl = MockHITLHandler()  # Auto-approve for tests
+
+        # Setup mock registry if in mocked mode
+        if self.mocked:
+            from tactus.testing.mock_hitl import MockHITLHandler
+            self.mock_registry = UnifiedMockRegistry(hitl_handler=MockHITLHandler())
+            hitl = self.mock_registry.get_hitl_handler()
+            logger.info("Mock mode enabled - using UnifiedMockRegistry")
+        else:
+            hitl = MockHITLHandler()  # Auto-approve for tests
+
         log_handler = CLILogHandler()  # Capture cost events
 
         # Setup mocked tool primitive if mocks configured
@@ -85,6 +98,10 @@ class TactusTestContext:
         # Setup mock tools if provided
         if self.mock_tools:
             self._setup_mock_tools()
+
+        # Inject mocked dependencies if in mocked mode
+        if self.mocked and self.mock_registry:
+            await self._inject_mocked_dependencies()
 
         # Execute procedure
         logger.info(f"Executing procedure: {self.procedure_file}")
@@ -123,6 +140,29 @@ class TactusTestContext:
         self._mocked_tool_primitive = MockedToolPrimitive(mock_registry)
 
         logger.info(f"Mock tools configured: {list(self.mock_tools.keys())}")
+
+    async def _inject_mocked_dependencies(self) -> None:
+        """Inject mocked dependencies into runtime."""
+        if not self.runtime or not self.runtime.registry:
+            logger.warning("Cannot inject mocked dependencies - runtime or registry not available")
+            return
+
+        # Get dependencies from registry
+        dependencies_config = {}
+        for dep_name, dep_decl in self.runtime.registry.dependencies.items():
+            dependencies_config[dep_name] = dep_decl.config
+
+        if not dependencies_config:
+            logger.debug("No dependencies declared in procedure")
+            return
+
+        # Create mock dependencies
+        mock_dependencies = await self.mock_registry.create_mock_dependencies(dependencies_config)
+
+        # Inject into runtime
+        self.runtime.user_dependencies = mock_dependencies
+
+        logger.info(f"Mocked dependencies injected: {list(mock_dependencies.keys())}")
 
     def _capture_primitives(self) -> None:
         """Capture primitive states after execution."""

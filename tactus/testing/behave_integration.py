@@ -136,7 +136,9 @@ class BehaveStepsGenerator:
 
             # Import all built-in step functions
             f.write("from tactus.testing.steps import builtin\n")
-            f.write("from tactus.testing.context import TactusTestContext\n\n")
+            f.write("from tactus.testing.context import TactusTestContext\n")
+            f.write("# Import mock steps for dependency mocking\n")
+            f.write("from tactus.testing.steps import mock_steps\n\n")
 
             # Generate decorators for each built-in step pattern
             # Map pattern to actual function (avoid duplicates)
@@ -206,6 +208,7 @@ class BehaveEnvironmentGenerator:
         procedure_file: Path,
         mock_tools: Optional[Dict] = None,
         params: Optional[Dict] = None,
+        mocked: bool = False,
     ) -> Path:
         """
         Generate environment.py for Behave.
@@ -215,6 +218,7 @@ class BehaveEnvironmentGenerator:
             procedure_file: Path to the procedure file being tested
             mock_tools: Optional dict of tool_name -> mock_response
             params: Optional dict of parameters to pass to procedure
+            mocked: Whether to use mocked dependencies
 
         Returns:
             Path to generated environment file
@@ -256,16 +260,28 @@ class BehaveEnvironmentGenerator:
             f.write("    # Store test configuration\n")
             f.write(f"    context.procedure_file = Path(r'{procedure_file}')\n")
             f.write(f"    context.mock_tools = json.loads('{mock_tools_json}')\n")
-            f.write(f"    context.params = json.loads('{params_json}')\n\n")
+            f.write(f"    context.params = json.loads('{params_json}')\n")
+            f.write(f"    context.mocked = {mocked}\n\n")
 
             f.write("def before_scenario(context, scenario):\n")
             f.write('    """Setup before each scenario."""\n')
+            f.write("    # Import mock registry for dependency mocking\n")
+            f.write("    from tactus.testing.mock_registry import UnifiedMockRegistry\n")
+            f.write("    from tactus.testing.mock_hitl import MockHITLHandler\n")
+            f.write("    \n")
             f.write("    # Create fresh Tactus context for each scenario\n")
             f.write("    context.tac = TactusTestContext(\n")
             f.write("        procedure_file=context.procedure_file,\n")
             f.write("        params=context.params,\n")
             f.write("        mock_tools=context.mock_tools,\n")
-            f.write("    )\n\n")
+            f.write("        mocked=context.mocked,\n")
+            f.write("    )\n")
+            f.write("    \n")
+            f.write("    # Create mock registry for Gherkin steps to configure\n")
+            f.write("    if context.mocked:\n")
+            f.write("        context.mock_registry = UnifiedMockRegistry(hitl_handler=MockHITLHandler())\n")
+            f.write("        # Share mock registry with TactusTestContext\n")
+            f.write("        context.tac.mock_registry = context.mock_registry\n\n")
 
             f.write("def after_scenario(context, scenario):\n")
             f.write('    """Cleanup after each scenario."""\n')
@@ -295,6 +311,7 @@ def setup_behave_directory(
     work_dir: Optional[Path] = None,
     mock_tools: Optional[Dict] = None,
     params: Optional[Dict] = None,
+    mocked: bool = False,
 ) -> Path:
     """
     Setup complete Behave directory structure.
@@ -307,6 +324,7 @@ def setup_behave_directory(
         work_dir: Optional work directory (creates temp if not provided)
         mock_tools: Optional dict of tool mocks
         params: Optional dict of procedure parameters
+        mocked: Whether to use mocked dependencies
 
     Returns:
         Path to Behave work directory
@@ -325,9 +343,9 @@ def setup_behave_directory(
     steps_gen = BehaveStepsGenerator()
     steps_gen.generate(step_registry, custom_steps, work_dir)
 
-    # Generate environment.py with mock tools and params
+    # Generate environment.py with mock tools, params, and mocked flag
     env_gen = BehaveEnvironmentGenerator()
-    env_gen.generate(work_dir, procedure_file, mock_tools, params)
+    env_gen.generate(work_dir, procedure_file, mock_tools, params, mocked)
 
     logger.info(f"Behave directory setup complete: {work_dir}")
     return work_dir
