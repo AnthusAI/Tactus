@@ -2,7 +2,11 @@
 
 **Tactus**: A tactical programming language for accomplishing tasks with agents reliably, affordably, and accurately. At scale, with regulatory compliance in mind.
 
-There is no shortage of options for ways to set up tasks for agents.  There are new agent development frameworks every week, positioned in different ways.  Tactus is one of those.  Instead of a framework for a programming language like Python or Javascript, Tactus is a programming language.  It's designed to be embedded in AI appliccations and systems that need to solve tasks with agents, especially when the agent code is user-contributed data.  It runs on a sandboxed Lua VM that can only access the tools you give it.  It has a way to plug human-in-the-loop interactions into your own application UI or your comunincation channel, so that your users can approve things and provide input and monitor processes through chat messages or emails or in-app UI, or a combination.  Behavior testing and ML-style evaluations are built in as first-class concepts, for enabling self-evolving agents that can validate and evaluate themselves.
+There is no shortage of options for ways to set up tasks for agents.  There are new agent development frameworks every week, positioned in different ways.  Tactus is one of those.
+
+Instead of a framework for a programming language like Python or Javascript, Tactus is a programming language.  It's designed to be embedded in AI appliccations and systems that need to solve tasks with agents, especially when the agent code is user-contributed data.  
+
+It runs on a sandboxed Lua VM that can only access the tools you give it.  It has a way to plug human-in-the-loop interactions into your own application UI or your comunincation channel, so that your users can approve things and provide input and monitor processes through chat messages or emails or in-app UI, or a combination.  Behavior testing and ML-style evaluations are built in as first-class concepts, for enabling self-evolving agents that can validate and evaluate themselves.
 
 ## Quick Start
 

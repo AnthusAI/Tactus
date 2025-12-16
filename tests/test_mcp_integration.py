@@ -38,6 +38,10 @@ async def test_mcp_server_connection():
 
 
 @pytest.mark.asyncio
+@pytest.mark.skipif(
+    "OPENAI_API_KEY" not in __import__("os").environ,
+    reason="Requires OPENAI_API_KEY environment variable",
+)
 async def test_mcp_tools_in_procedure(tmp_path):
     """Test using MCP tools in a Tactus procedure."""
 
@@ -49,13 +53,13 @@ version: "1.0.0"
 procedure: |
     -- Call the add_numbers tool from test MCP server
     Test_agent.turn()
-    
+
     if Tool.called("test_server_add_numbers") then
         local result = Tool.last_result("test_server_add_numbers")
         Log.info("Addition result", {result = result})
         return {success = true, result = result}
     end
-    
+
     return {success = false, error = "Tool not called"}
 
 agents:
