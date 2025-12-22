@@ -44,11 +44,7 @@ class UnifiedMockRegistry:
         self.all_mocks: Dict[str, Any] = {}
 
     def configure_http_response(
-        self,
-        dep_name: str,
-        path: Optional[str],
-        response: str,
-        status_code: int = 200
+        self, dep_name: str, path: Optional[str], response: str, status_code: int = 200
     ) -> None:
         """
         Configure mock HTTP response via Gherkin step.
@@ -71,7 +67,7 @@ class UnifiedMockRegistry:
             # Set default response for any path
             self.http_mocks[dep_name].responses["_default"] = {
                 "text": response,
-                "status_code": status_code
+                "status_code": status_code,
             }
 
         logger.debug(f"Configured mock HTTP response for {dep_name}: {path} -> {response[:50]}...")
@@ -103,8 +99,7 @@ class UnifiedMockRegistry:
         self.hitl_mock.configure_message_response(message_prefix, value)
 
     async def create_mock_dependencies(
-        self,
-        dependencies_config: Dict[str, Dict[str, Any]]
+        self, dependencies_config: Dict[str, Dict[str, Any]]
     ) -> Dict[str, Any]:
         """
         Create mock dependencies for runtime.
@@ -145,7 +140,9 @@ class UnifiedMockRegistry:
                 mocks[dep_name] = self.redis_mocks[dep_name]
 
             else:
-                logger.warning(f"Unknown resource type '{resource_type}' for dependency '{dep_name}'")
+                logger.warning(
+                    f"Unknown resource type '{resource_type}' for dependency '{dep_name}'"
+                )
                 continue
 
             self.all_mocks[dep_name] = mocks[dep_name]

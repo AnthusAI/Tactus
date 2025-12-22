@@ -155,4 +155,3 @@ class TactusValidator:
                 warnings=[],
                 registry=None,
             )
-

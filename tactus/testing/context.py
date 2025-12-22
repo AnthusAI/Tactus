@@ -56,6 +56,7 @@ class TactusTestContext:
         # Setup mock registry if in mocked mode
         if self.mocked:
             from tactus.testing.mock_hitl import MockHITLHandler
+
             self.mock_registry = UnifiedMockRegistry(hitl_handler=MockHITLHandler())
             hitl = self.mock_registry.get_hitl_handler()
             logger.info("Mock mode enabled - using UnifiedMockRegistry")

@@ -133,4 +133,3 @@ def parse_gherkin(gherkin_text: str) -> Optional[ParsedFeature]:
     except Exception as e:
         logger.error(f"Failed to parse Gherkin: {e}")
         return None
-

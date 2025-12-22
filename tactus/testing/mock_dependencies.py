@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class MockResponse:
     """Mock HTTP response."""
+
     text: str
     status_code: int = 200
     headers: Dict[str, str] = None
@@ -26,6 +27,7 @@ class MockResponse:
     def json(self):
         """Parse response as JSON."""
         import json
+
         return json.loads(self.text)
 
 
@@ -63,7 +65,7 @@ class MockHTTPClient:
             if isinstance(response_data, dict):
                 return MockResponse(
                     text=response_data.get("text", ""),
-                    status_code=response_data.get("status_code", 200)
+                    status_code=response_data.get("status_code", 200),
                 )
             else:
                 return MockResponse(text=response_data)
@@ -81,7 +83,7 @@ class MockHTTPClient:
             if isinstance(response_data, dict):
                 return MockResponse(
                     text=response_data.get("text", ""),
-                    status_code=response_data.get("status_code", 200)
+                    status_code=response_data.get("status_code", 200),
                 )
             else:
                 return MockResponse(text=response_data)
@@ -176,7 +178,9 @@ class MockDependencyFactory:
     """
 
     @staticmethod
-    async def create_mock(resource_type: str, config: Dict[str, Any], mock_responses: Optional[Dict] = None) -> Any:
+    async def create_mock(
+        resource_type: str, config: Dict[str, Any], mock_responses: Optional[Dict] = None
+    ) -> Any:
         """
         Create a mock dependency.
 
@@ -205,7 +209,7 @@ class MockDependencyFactory:
     @staticmethod
     async def create_all_mocks(
         dependencies_config: Dict[str, Dict[str, Any]],
-        mock_responses: Optional[Dict[str, Dict]] = None
+        mock_responses: Optional[Dict[str, Dict]] = None,
     ) -> Dict[str, Any]:
         """
         Create all mock dependencies.

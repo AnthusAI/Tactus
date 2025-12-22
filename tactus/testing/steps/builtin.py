@@ -612,4 +612,3 @@ def step_state_similar_threshold(context: Any, key: str, text: str, threshold: s
         f"  Actual: '{actual_str}'\n"
         f"  Expected: '{text}'"
     )
-

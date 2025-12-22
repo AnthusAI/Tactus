@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 class ResourceType(Enum):
     """Supported dependency resource types."""
+
     HTTP_CLIENT = "http_client"
     POSTGRES = "postgres"
     REDIS = "redis"
@@ -69,11 +70,7 @@ class ResourceFactory:
 
         logger.info(f"Creating HTTP client for base_url={base_url}")
 
-        return httpx.AsyncClient(
-            base_url=base_url,
-            headers=headers,
-            timeout=timeout
-        )
+        return httpx.AsyncClient(base_url=base_url, headers=headers, timeout=timeout)
 
     @staticmethod
     async def _create_postgres(config: Dict[str, Any]) -> Any:
@@ -93,9 +90,7 @@ class ResourceFactory:
         logger.info(f"Creating PostgreSQL pool with size={pool_size}")
 
         return await asyncpg.create_pool(
-            connection_string,
-            min_size=pool_size,
-            max_size=max_pool_size
+            connection_string, min_size=pool_size, max_size=max_pool_size
         )
 
     @staticmethod
@@ -105,19 +100,14 @@ class ResourceFactory:
             import redis.asyncio as redis
         except ImportError:
             raise ImportError(
-                "redis is required for Redis dependencies. "
-                "Install it with: pip install redis"
+                "redis is required for Redis dependencies. " "Install it with: pip install redis"
             )
 
         url = config["url"]
 
         logger.info(f"Creating Redis client for url={url}")
 
-        return redis.from_url(
-            url,
-            encoding="utf-8",
-            decode_responses=True
-        )
+        return redis.from_url(url, encoding="utf-8", decode_responses=True)
 
     @staticmethod
     async def create_all(dependencies_config: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
@@ -172,18 +162,18 @@ class ResourceManager:
     async def _cleanup_resource(self, name: str, resource: Any) -> None:
         """Clean up a single resource based on its type."""
         # HTTP client cleanup
-        if hasattr(resource, 'aclose'):
+        if hasattr(resource, "aclose"):
             logger.debug(f"Closing HTTP client '{name}'")
             await resource.aclose()
 
         # PostgreSQL pool cleanup
-        elif hasattr(resource, 'close') and hasattr(resource, 'wait_closed'):
+        elif hasattr(resource, "close") and hasattr(resource, "wait_closed"):
             logger.debug(f"Closing PostgreSQL pool '{name}'")
             await resource.close()
             await resource.wait_closed()
 
         # Redis client cleanup
-        elif hasattr(resource, 'close') and not hasattr(resource, 'wait_closed'):
+        elif hasattr(resource, "close") and not hasattr(resource, "wait_closed"):
             logger.debug(f"Closing Redis client '{name}'")
             await resource.close()
 

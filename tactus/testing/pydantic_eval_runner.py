@@ -506,4 +506,3 @@ class TactusPydanticEvalRunner:
                 )
 
         return len(violations) == 0, violations
-
