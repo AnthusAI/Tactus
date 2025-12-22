@@ -735,6 +735,27 @@ class TactusRuntime:
                 except Exception as e:
                     logger.error(f"Failed to create DSL toolset '{name}': {e}", exc_info=True)
 
+        # 6. Register individual Lua tool() declarations
+        if hasattr(self, "registry") and self.registry and hasattr(self.registry, "lua_tools"):
+            try:
+                from tactus.adapters.lua_tools import LuaToolsAdapter
+
+                lua_adapter = LuaToolsAdapter(tool_primitive=self.tool_primitive)
+
+                for tool_name, tool_spec in self.registry.lua_tools.items():
+                    try:
+                        toolset = lua_adapter.create_single_tool_toolset(tool_name, tool_spec)
+                        self.toolset_registry[tool_name] = toolset
+                        logger.info(f"Registered Lua tool '{tool_name}' as toolset")
+                    except Exception as e:
+                        logger.error(
+                            f"Failed to create Lua tool '{tool_name}': {e}", exc_info=True
+                        )
+            except ImportError as e:
+                logger.warning(
+                    f"Could not import LuaToolsAdapter: {e} - Lua tools will not be available"
+                )
+
         logger.info(
             f"Toolset registry initialized with {len(self.toolset_registry)} toolset(s): {list(self.toolset_registry.keys())}"
         )
@@ -747,6 +768,7 @@ class TactusRuntime:
 
         Supports toolset types:
         - plugin: Load from local Python files
+        - lua: Lua function tools
         - mcp: Reference MCP server toolset
         - filtered: Filter tools from source toolset
         - combined: Merge multiple toolsets
@@ -763,6 +785,17 @@ class TactusRuntime:
         from pydantic_ai.toolsets import CombinedToolset
 
         toolset_type = definition.get("type")
+
+        if toolset_type == "lua":
+            # Lua function toolset
+            try:
+                from tactus.adapters.lua_tools import LuaToolsAdapter
+
+                lua_adapter = LuaToolsAdapter(tool_primitive=self.tool_primitive)
+                return lua_adapter.create_lua_toolset(name, definition)
+            except ImportError as e:
+                logger.error(f"Could not import LuaToolsAdapter: {e}")
+                return None
 
         if toolset_type == "plugin":
             # Load from local paths
@@ -1036,14 +1069,31 @@ class TactusRuntime:
                 f"Agent '{agent_name}' using provider '{provider_name}' with model '{model_id}'"
             )
 
-            # BREAKING CHANGE: Remove support for 'tools' parameter
-            if "tools" in agent_config:
-                raise ValueError(
-                    f"Agent '{agent_name}' uses deprecated 'tools' parameter. "
-                    f"Please migrate to 'toolsets' parameter. "
-                    f"Example: toolsets = {{}} for no tools, or toolsets = {{'done'}} for done tool only. "
-                    f"See migration guide in docs."
-                )
+            # Handle inline Lua function tools
+            inline_tools_toolset = None
+            if "inline_tool_defs" in agent_config and agent_config["inline_tool_defs"]:
+                tools_spec = agent_config["inline_tool_defs"]
+                # These are inline tool definitions (dicts with 'handler' key)
+                if isinstance(tools_spec, list):
+                    inline_tool_specs = [
+                        t for t in tools_spec if isinstance(t, dict) and "handler" in t
+                    ]
+                    if inline_tool_specs:
+                        # These are inline Lua function tools
+                        try:
+                            from tactus.adapters.lua_tools import LuaToolsAdapter
+
+                            lua_adapter = LuaToolsAdapter(tool_primitive=self.tool_primitive)
+                            inline_tools_toolset = lua_adapter.create_inline_tools_toolset(
+                                agent_name, inline_tool_specs
+                            )
+                            logger.info(
+                                f"Agent '{agent_name}' has {len(inline_tool_specs)} inline Lua tools"
+                            )
+                        except ImportError as e:
+                            logger.error(
+                                f"Could not import LuaToolsAdapter for agent '{agent_name}': {e}"
+                            )
 
             # Get toolsets for this agent
             # Use a sentinel value to distinguish "not present" from "present but None/empty"
@@ -1099,6 +1149,16 @@ class TactusRuntime:
                 # Parse toolset expressions
                 filtered_toolsets = self._parse_toolset_expressions(agent_toolsets_config)
                 logger.info(f"Agent '{agent_name}' toolsets: {agent_toolsets_config}")
+
+            # Append inline tools toolset if present
+            if inline_tools_toolset:
+                if filtered_toolsets is None:
+                    # Agent had no toolsets, create list with just inline tools
+                    filtered_toolsets = [inline_tools_toolset]
+                else:
+                    # Append to existing toolsets
+                    filtered_toolsets.append(inline_tools_toolset)
+                logger.debug(f"Added inline tools toolset to agent '{agent_name}'")
 
             # Legacy: Keep empty tools list for AgentPrimitive constructor
             filtered_tools = []
@@ -1646,6 +1706,9 @@ class TactusRuntime:
                     "max_turns": agent.max_turns,
                     "disable_streaming": agent.disable_streaming,
                 }
+                # Include inline tool definitions if present
+                if hasattr(agent, "inline_tool_defs") and agent.inline_tool_defs:
+                    config["agents"][name]["inline_tool_defs"] = agent.inline_tool_defs
                 if agent.initial_message:
                     config["agents"][name]["initial_message"] = agent.initial_message
                 if agent.output:

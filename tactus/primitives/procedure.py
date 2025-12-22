@@ -423,3 +423,4 @@ class ProcedurePrimitive:
                     return f.read()
 
         raise FileNotFoundError(f"Procedure '{name}' not found. Searched: {search_paths}")
+

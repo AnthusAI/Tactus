@@ -231,6 +231,9 @@ class BehaveEnvironmentGenerator:
         mock_tools_json = json.dumps(mock_tools or {}).replace("'", "\\'")
         params_json = json.dumps(params or {}).replace("'", "\\'")
 
+        # Convert procedure_file to absolute path so it works from temp behave directory
+        absolute_procedure_file = Path(procedure_file).resolve()
+
         with open(env_file, "w") as f:
             f.write('"""\n')
             f.write("Behave environment for Tactus BDD testing.\n")
@@ -257,8 +260,8 @@ class BehaveEnvironmentGenerator:
             f.write("    # Initialize custom step manager\n")
             f.write("    context.custom_steps = CustomStepManager()\n")
             f.write("    \n")
-            f.write("    # Store test configuration\n")
-            f.write(f"    context.procedure_file = Path(r'{procedure_file}')\n")
+            f.write("    # Store test configuration (using absolute path)\n")
+            f.write(f"    context.procedure_file = Path(r'{absolute_procedure_file}')\n")
             f.write(f"    context.mock_tools = json.loads('{mock_tools_json}')\n")
             f.write(f"    context.params = json.loads('{params_json}')\n")
             f.write(f"    context.mocked = {mocked}\n\n")
@@ -349,3 +352,4 @@ def setup_behave_directory(
 
     logger.info(f"Behave directory setup complete: {work_dir}")
     return work_dir
+

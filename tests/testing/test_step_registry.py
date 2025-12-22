@@ -128,3 +128,4 @@ def test_invalid_regex_pattern():
 
     with pytest.raises(ValueError, match="Invalid step pattern"):
         registry.register(r"invalid [regex", my_step)
+

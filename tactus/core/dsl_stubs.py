@@ -78,6 +78,10 @@ def create_dsl_stubs(builder: RegistryBuilder) -> dict[str, Callable]:
         """Register an agent with its configuration."""
         config_dict = lua_table_to_dict(config)
 
+        # NOTE: Inline tools (with 'handler' key) are kept in the 'tools' field
+        # and will be processed by runtime during agent setup. We don't register
+        # them in registry.lua_tools to avoid double-processing.
+
         # Extract output schema if present (support both 'output' and 'output_type')
         # output_type is preferred (aligned with pydantic-ai)
         output_schema = None
@@ -151,6 +155,17 @@ def create_dsl_stubs(builder: RegistryBuilder) -> dict[str, Callable]:
     def _toolset(toolset_name: str, config) -> None:
         """Register a toolset definition."""
         builder.register_toolset(toolset_name, lua_table_to_dict(config))
+
+    def _tool(tool_name: str, config, handler_fn) -> None:
+        """Register an individual Lua tool.
+
+        Args:
+            tool_name: Name of the tool
+            config: Table with description, parameters
+            handler_fn: Lua function to call when tool is invoked
+        """
+        config_dict = lua_table_to_dict(config)
+        builder.register_tool(tool_name, config_dict, handler_fn)
 
     def _hitl(hitl_name: str, config) -> None:
         """Register a HITL interaction point."""
@@ -256,6 +271,7 @@ def create_dsl_stubs(builder: RegistryBuilder) -> dict[str, Callable]:
         "procedure": _procedure,
         "prompt": _prompt,
         "toolset": _toolset,
+        "tool": _tool,
         "hitl": _hitl,
         "stages": _stages,
         "specification": _specification,
@@ -286,3 +302,4 @@ def create_dsl_stubs(builder: RegistryBuilder) -> dict[str, Callable]:
         "equals": _equals,
         "matches": _matches,
     }
+

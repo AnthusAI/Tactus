@@ -94,7 +94,9 @@ class MCPServerManager:
                     )
                 else:
                     logger.error(f"Failed to connect to MCP server '{name}': {e}", exc_info=True)
-                raise
+                # Don't raise - allow procedure to continue without this MCP server
+                logger.info(f"Continuing without MCP server '{name}'")
+                continue
 
         return self
 
@@ -151,3 +153,4 @@ class MCPServerManager:
             List of MCPServerStdio instances (which are AbstractToolset)
         """
         return self.servers
+

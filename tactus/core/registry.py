@@ -5,10 +5,13 @@ This module provides Pydantic models for collecting and validating
 procedure declarations from .tac files.
 """
 
+import logging
 from enum import Enum
 from typing import Any, Optional, Union
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError, ConfigDict
+
+logger = logging.getLogger(__name__)
 
 
 class ParameterType(str, Enum):
@@ -74,6 +77,9 @@ class AgentDeclaration(BaseModel):
     tools: list[Union[str, dict[str, Any]]] = Field(
         default_factory=list
     )  # Supports toolset expressions
+    inline_tool_defs: list[dict[str, Any]] = Field(
+        default_factory=list
+    )  # Inline tool definitions with Lua handlers
     output: Optional[AgentOutputSchema] = None  # Legacy field
     output_type: Optional[AgentOutputSchema] = None  # Aligned with pydantic-ai
     message_history: Optional[MessageHistoryConfiguration] = None
@@ -81,6 +87,8 @@ class AgentDeclaration(BaseModel):
     disable_streaming: bool = (
         False  # Disable streaming for models that don't support tools in streaming mode
     )
+
+    model_config = ConfigDict(extra='allow')
 
 
 class HITLDeclaration(BaseModel):
@@ -139,6 +147,7 @@ class ProcedureRegistry(BaseModel):
     outputs: dict[str, OutputFieldDeclaration] = Field(default_factory=dict)
     agents: dict[str, AgentDeclaration] = Field(default_factory=dict)
     toolsets: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    lua_tools: dict[str, dict[str, Any]] = Field(default_factory=dict)  # Lua function tools
     hitl_points: dict[str, HITLDeclaration] = Field(default_factory=dict)
     stages: list[str] = Field(default_factory=list)
     specifications: list[SpecificationDeclaration] = Field(default_factory=list)
@@ -232,9 +241,17 @@ class RegistryBuilder:
             config["output_type"] = AgentOutputSchema(fields=fields)
 
         # Handle toolsets -> tools rename (backward compatibility)
-        # The Lua DSL uses "toolsets" but AgentDeclaration expects "tools"
-        if "toolsets" in config and "tools" not in config:
-            config["tools"] = config.pop("toolsets")
+        # The Lua DSL uses "toolsets" for toolset references and "tools" for inline tool definitions
+        # AgentDeclaration expects "tools" for toolset references
+        if "toolsets" in config:
+            if "tools" in config:
+                # Both exist: tools = inline defs, toolsets = references
+                # Keep inline defs in a temp field, use toolsets as tools
+                config["inline_tool_defs"] = config.pop("tools")
+                config["tools"] = config.pop("toolsets")
+            else:
+                # Only toolsets exists: rename to tools
+                config["tools"] = config.pop("toolsets")
 
         # Apply defaults
         if "provider" not in config and self.registry.default_provider:
@@ -274,6 +291,20 @@ class RegistryBuilder:
     def register_toolset(self, name: str, config: dict) -> None:
         """Register a toolset definition from DSL."""
         self.registry.toolsets[name] = config
+
+    def register_tool(self, name: str, config: dict, lua_handler: Any) -> None:
+        """Register an individual Lua tool declaration.
+
+        Args:
+            name: Tool name
+            config: Dict with description, parameters
+            lua_handler: Lupa function reference
+        """
+        self.registry.lua_tools[name] = {
+            "description": config.get("description", ""),
+            "parameters": config.get("parameters", {}),
+            "handler": lua_handler
+        }
 
     def set_stages(self, stage_names: list[str]) -> None:
         """Set stage names."""
@@ -392,3 +423,4 @@ class RegistryBuilder:
             warnings=warnings,
             registry=self.registry if len(errors) == 0 else None,
         )
+

@@ -120,3 +120,4 @@ def word_count(text: str) -> str:
 - Average word length: {avg_word_length:.1f} characters
 - Average words per sentence: {word_count / sentence_count:.1f}
 """
+

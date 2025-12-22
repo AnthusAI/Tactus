@@ -60,3 +60,4 @@ class IDELogHandler:
             except queue.Empty:
                 break
         return events
+
