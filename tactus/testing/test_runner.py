@@ -159,10 +159,13 @@ class TactusTestRunner:
             "-m",
             "behave",
             str(work_dir),
-            "--tags", tag_filter,
+            "--tags",
+            tag_filter,
             "--no-capture",
-            "--format", "json",
-            "--outfile", f"{work_dir}/results.json"
+            "--format",
+            "json",
+            "--outfile",
+            f"{work_dir}/results.json",
         ]
 
         logger.debug(f"Running behave subprocess: {' '.join(cmd)}")
@@ -174,7 +177,7 @@ class TactusTestRunner:
                 text=True,
                 timeout=600,  # 10 minute timeout
                 cwd=work_dir,
-                env=os.environ.copy()  # Inherit environment variables
+                env=os.environ.copy(),  # Inherit environment variables
             )
 
             # Check if behave ran successfully (even if tests failed)
@@ -188,6 +191,7 @@ class TactusTestRunner:
 
             # Parse JSON results
             import json
+
             results_file = Path(work_dir) / "results.json"
             if not results_file.exists():
                 raise RuntimeError(f"Behave results file not found: {results_file}")
@@ -205,7 +209,7 @@ class TactusTestRunner:
                 except json.JSONDecodeError:
                     # Multiple JSON objects - split and parse each
                     behave_results = []
-                    for line in content.split('\n'):
+                    for line in content.split("\n"):
                         line = line.strip()
                         if line:
                             try:
@@ -430,4 +434,3 @@ class TactusTestRunner:
                 logger.debug(f"Cleaned up work directory: {self.work_dir}")
             except Exception as e:
                 logger.warning(f"Failed to cleanup work directory: {e}")
-

@@ -8,7 +8,6 @@ Supports:
 """
 
 import logging
-import asyncio
 from inspect import Parameter, Signature
 from typing import Any, Dict, List, Optional, Callable
 from pydantic_ai.toolsets import FunctionToolset
@@ -78,9 +77,7 @@ class LuaToolsAdapter:
             wrapped_fn = self._create_wrapped_function(tool_name, tool_spec)
             wrapped_functions.append(wrapped_fn)
 
-        logger.info(
-            f"Created Lua toolset '{toolset_name}' with {len(wrapped_functions)} tools"
-        )
+        logger.info(f"Created Lua toolset '{toolset_name}' with {len(wrapped_functions)} tools")
         return FunctionToolset(tools=wrapped_functions)
 
     def create_inline_tools_toolset(
@@ -115,9 +112,7 @@ class LuaToolsAdapter:
         )
         return FunctionToolset(tools=wrapped_functions)
 
-    def _create_wrapped_function(
-        self, tool_name: str, tool_spec: Dict[str, Any]
-    ) -> Callable:
+    def _create_wrapped_function(self, tool_name: str, tool_spec: Dict[str, Any]) -> Callable:
         """
         Create a Python async function that wraps a Lua handler.
 
@@ -179,9 +174,7 @@ class LuaToolsAdapter:
 
             if required:
                 param = Parameter(
-                    param_name,
-                    Parameter.POSITIONAL_OR_KEYWORD,
-                    annotation=param_type
+                    param_name, Parameter.POSITIONAL_OR_KEYWORD, annotation=param_type
                 )
             else:
                 default = param_spec.get("default")
@@ -189,7 +182,7 @@ class LuaToolsAdapter:
                     param_name,
                     Parameter.POSITIONAL_OR_KEYWORD,
                     default=default,
-                    annotation=Optional[param_type]
+                    annotation=Optional[param_type],
                 )
             sig_params.append(param)
 

@@ -6,7 +6,7 @@ external dependencies (HTTP clients, databases, caches) that procedures need.
 """
 
 from enum import Enum
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 import logging
 
 logger = logging.getLogger(__name__)

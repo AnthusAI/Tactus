@@ -6,7 +6,6 @@ that include both framework dependencies and user-declared dependencies.
 """
 
 import logging
-from dataclasses import dataclass, field
 from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)

@@ -88,7 +88,7 @@ class AgentDeclaration(BaseModel):
         False  # Disable streaming for models that don't support tools in streaming mode
     )
 
-    model_config = ConfigDict(extra='allow')
+    model_config = ConfigDict(extra="allow")
 
 
 class HITLDeclaration(BaseModel):
@@ -277,7 +277,7 @@ class RegistryBuilder:
         dependency_config = {
             "name": name,
             "type": config.get("type"),
-            "config": config  # Store the entire config dict
+            "config": config,  # Store the entire config dict
         }
         try:
             self.registry.dependencies[name] = DependencyDeclaration(**dependency_config)
@@ -303,7 +303,7 @@ class RegistryBuilder:
         self.registry.lua_tools[name] = {
             "description": config.get("description", ""),
             "parameters": config.get("parameters", {}),
-            "handler": lua_handler
+            "handler": lua_handler,
         }
 
     def set_stages(self, stage_names: list[str]) -> None:
@@ -423,4 +423,3 @@ class RegistryBuilder:
             warnings=warnings,
             registry=self.registry if len(errors) == 0 else None,
         )
-
