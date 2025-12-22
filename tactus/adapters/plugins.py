@@ -417,4 +417,3 @@ class PluginLoader:
         except Exception as e:
             logger.error(f"Failed to create tool from function '{name}': {e}", exc_info=True)
             return None
-

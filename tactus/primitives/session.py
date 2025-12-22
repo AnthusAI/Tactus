@@ -150,4 +150,3 @@ class SessionPrimitive:
         """
         # TODO: Implement when graph primitives are added
         pass
-

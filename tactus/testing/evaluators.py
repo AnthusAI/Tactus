@@ -632,4 +632,3 @@ def _create_range_evaluator(config: EvaluatorConfig) -> Evaluator:
         max_val = getattr(config, "max_value", None)
 
     return NumericRange(field=config.field, min_value=min_val, max_value=max_val)
-

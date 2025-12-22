@@ -105,6 +105,7 @@ class AgentPrimitive:
         if deps_class:
             # Use provided deps class (already generated)
             from tactus.primitives.deps_generator import create_agent_deps_instance
+
             self.deps = create_agent_deps_instance(
                 deps_class=deps_class,
                 state_primitive=state_primitive,
@@ -115,7 +116,11 @@ class AgentPrimitive:
             )
         elif user_dependencies:
             # Generate deps class dynamically
-            from tactus.primitives.deps_generator import generate_agent_deps_class, create_agent_deps_instance
+            from tactus.primitives.deps_generator import (
+                generate_agent_deps_class,
+                create_agent_deps_instance,
+            )
+
             deps_class = generate_agent_deps_class(user_dependencies)
             self.deps = create_agent_deps_instance(
                 deps_class=deps_class,

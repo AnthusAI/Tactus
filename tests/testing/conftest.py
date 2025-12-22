@@ -79,4 +79,3 @@ def clear_behave_state(request):
     # Clear after test if it's a Behave test
     if "test_e2e" in request.node.nodeid:
         _clear_behave_modules()
-

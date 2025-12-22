@@ -66,4 +66,3 @@ class StepRegistry:
         """Clear all registered steps."""
         self._steps.clear()
         self._step_patterns.clear()
-

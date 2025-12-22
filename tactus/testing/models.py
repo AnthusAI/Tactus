@@ -113,4 +113,3 @@ class EvaluationResult(BaseModel):
     consistency_score: float  # 0.0 to 1.0
     is_flaky: bool
     individual_results: List[ScenarioResult] = Field(default_factory=list)
-

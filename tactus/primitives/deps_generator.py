@@ -11,9 +11,7 @@ from typing import Any, Dict, Optional
 logger = logging.getLogger(__name__)
 
 
-def generate_agent_deps_class(
-    user_dependencies: Optional[Dict[str, Any]] = None
-) -> type:
+def generate_agent_deps_class(user_dependencies: Optional[Dict[str, Any]] = None) -> type:
     """
     Generate a dynamic AgentDeps class with user-declared dependencies.
 
@@ -37,6 +35,7 @@ def generate_agent_deps_class(
     if not user_dependencies:
         # No user dependencies - return base AgentDeps
         from tactus.primitives.agent import AgentDeps
+
         return AgentDeps
 
     logger.debug(f"Generating AgentDeps with user dependencies: {list(user_dependencies.keys())}")
@@ -64,7 +63,7 @@ def generate_agent_deps_class(
     GeneratedAgentDeps = make_dataclass(
         "GeneratedAgentDeps",
         fields,
-        namespace={"__doc__": "Generated AgentDeps with user-declared dependencies."}
+        namespace={"__doc__": "Generated AgentDeps with user-declared dependencies."},
     )
 
     return GeneratedAgentDeps

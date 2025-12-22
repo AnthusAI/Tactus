@@ -206,4 +206,3 @@ def test_tool_with_complex_args_and_results():
     last_call = tool.last_call("complex_tool")
     assert last_call["args"]["nested"]["list"] == [1, 2, 3]
     assert last_call["result"]["data"][0]["name"] == "item1"
-
