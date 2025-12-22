@@ -282,7 +282,9 @@ class BehaveEnvironmentGenerator:
             f.write("    \n")
             f.write("    # Create mock registry for Gherkin steps to configure\n")
             f.write("    if context.mocked:\n")
-            f.write("        context.mock_registry = UnifiedMockRegistry(hitl_handler=MockHITLHandler())\n")
+            f.write(
+                "        context.mock_registry = UnifiedMockRegistry(hitl_handler=MockHITLHandler())\n"
+            )
             f.write("        # Share mock registry with TactusTestContext\n")
             f.write("        context.tac.mock_registry = context.mock_registry\n\n")
 
@@ -352,4 +354,3 @@ def setup_behave_directory(
 
     logger.info(f"Behave directory setup complete: {work_dir}")
     return work_dir
-

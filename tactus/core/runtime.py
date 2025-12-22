@@ -748,9 +748,7 @@ class TactusRuntime:
                         self.toolset_registry[tool_name] = toolset
                         logger.info(f"Registered Lua tool '{tool_name}' as toolset")
                     except Exception as e:
-                        logger.error(
-                            f"Failed to create Lua tool '{tool_name}': {e}", exc_info=True
-                        )
+                        logger.error(f"Failed to create Lua tool '{tool_name}': {e}", exc_info=True)
             except ImportError as e:
                 logger.warning(
                     f"Could not import LuaToolsAdapter: {e} - Lua tools will not be available"
@@ -967,7 +965,9 @@ class TactusRuntime:
             for dep_name, dep_instance in self.user_dependencies.items():
                 await self.dependency_manager.add_resource(dep_name, dep_instance)
 
-            logger.info(f"Successfully initialized dependencies: {list(self.user_dependencies.keys())}")
+            logger.info(
+                f"Successfully initialized dependencies: {list(self.user_dependencies.keys())}"
+            )
 
         except Exception as e:
             logger.error(f"Failed to initialize dependencies: {e}")

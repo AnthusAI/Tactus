@@ -7,7 +7,7 @@ and HITL interactions, usable in BDD tests and evaluations.
 
 import logging
 from typing import Dict, Any, Optional
-from tactus.testing.mock_dependencies import MockHTTPClient, MockDatabase, MockRedis, MockDependencyFactory
+from tactus.testing.mock_dependencies import MockHTTPClient, MockDatabase, MockRedis
 from tactus.testing.mock_hitl import MockHITLHandler
 
 logger = logging.getLogger(__name__)

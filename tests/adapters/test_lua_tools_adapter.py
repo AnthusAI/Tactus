@@ -1,7 +1,6 @@
 """Unit tests for LuaToolsAdapter."""
 
 import pytest
-import asyncio
 from tactus.adapters.lua_tools import LuaToolsAdapter
 from tactus.core.lua_sandbox import LuaSandbox
 
@@ -27,19 +26,19 @@ class TestLuaToolsAdapter:
         """Test Lua type to Python type mapping."""
         adapter = LuaToolsAdapter()
 
-        assert adapter._map_lua_type("string") == str
-        assert adapter._map_lua_type("number") == float
-        assert adapter._map_lua_type("integer") == int
-        assert adapter._map_lua_type("boolean") == bool
-        assert adapter._map_lua_type("table") == dict
-        assert adapter._map_lua_type("array") == list
+        assert adapter._map_lua_type("string") is str
+        assert adapter._map_lua_type("number") is float
+        assert adapter._map_lua_type("integer") is int
+        assert adapter._map_lua_type("boolean") is bool
+        assert adapter._map_lua_type("table") is dict
+        assert adapter._map_lua_type("array") is list
 
         # Case insensitive
-        assert adapter._map_lua_type("STRING") == str
-        assert adapter._map_lua_type("Number") == float
+        assert adapter._map_lua_type("STRING") is str
+        assert adapter._map_lua_type("Number") is float
 
         # Unknown type defaults to str
-        assert adapter._map_lua_type("unknown") == str
+        assert adapter._map_lua_type("unknown") is str
 
     def test_create_parameter_model_empty(self):
         """Test creating parameter model with no parameters."""
@@ -90,7 +89,7 @@ class TestLuaToolsAdapter:
         assert "x" in annotations
         assert "y" in annotations
         assert "return" in annotations
-        assert annotations["return"] == str
+        assert annotations["return"] is str
 
     def test_single_tool_toolset_creation(self):
         """Test creating a single-tool toolset."""

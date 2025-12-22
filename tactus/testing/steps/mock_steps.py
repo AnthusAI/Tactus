@@ -7,7 +7,6 @@ dependencies and HITL interactions using natural language.
 
 import json
 import logging
-from typing import Any, Dict
 
 from behave import given, when, then
 
