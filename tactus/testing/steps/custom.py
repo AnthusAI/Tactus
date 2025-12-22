@@ -67,3 +67,4 @@ class CustomStepManager:
     def clear(self) -> None:
         """Clear all custom steps."""
         self.custom_steps.clear()
+

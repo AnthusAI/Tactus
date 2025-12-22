@@ -229,3 +229,4 @@ Feature: Multi-Model Comparison
     And the procedure should complete successfully
     And the result should include responses from 8 models
 ]])
+

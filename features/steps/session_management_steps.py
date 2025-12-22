@@ -300,3 +300,4 @@ def step_impl(context):
 def step_impl(context):
     metrics = [row["metric"] for row in context.table] if context.table else []
     assert {"average_session_duration", "message_count", "human_interactions"}.issuperset(metrics)
+

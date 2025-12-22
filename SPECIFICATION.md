@@ -1301,6 +1301,191 @@ agents:
 
 ---
 
+## Lua Function Tools
+
+Tactus supports defining tools as Lua functions directly within `.tac` files. These tools can perform custom operations and are automatically converted to Pydantic AI function toolsets.
+
+### Individual tool() Declarations
+
+Define single tools that can be referenced by name:
+
+```lua
+tool("calculate_tip", {
+    description = "Calculate tip amount for a bill",
+    parameters = {
+        bill_amount = {
+            type = "number",
+            description = "Total bill amount in dollars",
+            required = true
+        },
+        tip_percentage = {
+            type = "number",
+            description = "Tip percentage (e.g., 15 for 15%)",
+            required = true
+        }
+    }
+}, function(args)
+    local tip = args.bill_amount * (args.tip_percentage / 100)
+    local total = args.bill_amount + tip
+    return string.format("Tip: $%.2f, Total: $%.2f", tip, total)
+end)
+
+-- Reference the tool by name in agent toolsets
+agent("assistant", {
+    provider = "openai",
+    toolsets = {"calculate_tip", "done"}
+})
+```
+
+Each `tool()` declaration creates a single-tool toolset accessible by the tool's name.
+
+### toolset() with type="lua"
+
+Group multiple related tools into a named toolset:
+
+```lua
+toolset("math_tools", {
+    type = "lua",
+    tools = {
+        {
+            name = "add",
+            description = "Add two numbers",
+            parameters = {
+                a = {type = "number", description = "First number", required = true},
+                b = {type = "number", description = "Second number", required = true}
+            },
+            handler = function(args)
+                return tostring(args.a + args.b)
+            end
+        },
+        {
+            name = "multiply",
+            description = "Multiply two numbers",
+            parameters = {
+                a = {type = "number", required = true},
+                b = {type = "number", required = true}
+            },
+            handler = function(args)
+                return tostring(args.a * args.b)
+            end
+        }
+    }
+})
+
+agent("calculator", {
+    provider = "openai",
+    toolsets = {"math_tools", "done"}
+})
+```
+
+This approach groups related tools and makes them available as a single toolset reference.
+
+### Inline Agent Tools
+
+Define tools directly within agent configuration:
+
+```lua
+agent("text_processor", {
+    provider = "openai",
+    system_prompt = "You process text",
+    tools = {
+        {
+            name = "uppercase",
+            description = "Convert text to uppercase",
+            parameters = {
+                text = {type = "string", description = "Text to convert", required = true}
+            },
+            handler = function(args)
+                return string.upper(args.text)
+            end
+        },
+        {
+            name = "reverse",
+            description = "Reverse text",
+            parameters = {
+                text = {type = "string", required = true}
+            },
+            handler = function(args)
+                return string.reverse(args.text)
+            end
+        }
+    },
+    toolsets = {"done"}  -- Can mix inline tools with toolsets
+})
+```
+
+Inline tools are automatically prefixed with the agent name (e.g., `text_processor_uppercase`).
+
+### Parameter Types
+
+Supported parameter types:
+
+- `"string"` - Text values
+- `"number"` - Floating-point numbers
+- `"integer"` - Whole numbers
+- `"boolean"` - true/false values
+- `"table"` - Lua tables (converted to Python dicts)
+- `"array"` - Lua arrays (converted to Python lists)
+
+### Parameter Properties
+
+- `type`: The parameter type (required)
+- `description`: Helps the LLM understand the parameter (recommended)
+- `required`: Whether the parameter must be provided (default: true)
+- `default`: Default value if not provided (only for optional parameters)
+
+### Tool Function Signatures
+
+Tool handler functions receive a single argument - a table containing all parameters:
+
+```lua
+handler = function(args)
+    -- args is a table: {param1 = value1, param2 = value2, ...}
+    local result = args.param1 + args.param2
+    return tostring(result)  -- Should return a string
+end
+```
+
+### Integration with Tool Primitive
+
+Lua function tools fully integrate with the `Tool` primitive for tracking:
+
+```lua
+procedure(function()
+    Assistant.turn("Calculate something")
+
+    -- Check if tool was called
+    if Tool.called("calculate_tip") then
+        Log.info("Tip calculator was used")
+
+        -- Get the last call details
+        local call = Tool.last_call("calculate_tip")
+        Log.info("Args: " .. tostring(call.args.bill_amount))
+        Log.info("Result: " .. call.result)
+    end
+
+    return {result = "done"}
+end)
+```
+
+### Best Practices
+
+1. **Clear Descriptions**: Provide detailed descriptions for both tools and parameters
+2. **Type Safety**: Use appropriate types for parameters
+3. **Error Handling**: Validate inputs and return error messages for invalid data
+4. **Return Values**: Always return strings from handler functions
+5. **Naming**: Use descriptive names that indicate the tool's purpose
+
+### Examples
+
+For comprehensive examples and patterns, see:
+- `examples/18-feature-lua-tools-individual.tac`
+- `examples/18-feature-lua-tools-toolset.tac`
+- `examples/18-feature-lua-tools-inline.tac`
+- [docs/TOOLS.md](docs/TOOLS.md) for detailed guide
+
+---
+
 ## Invoking Procedures
 
 Procedures can be invoked in multiple ways:

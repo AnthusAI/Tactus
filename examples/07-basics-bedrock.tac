@@ -71,3 +71,4 @@ Feature: AWS Bedrock Integration
     Then the done tool should be called
     And the procedure should complete successfully
 ]])
+

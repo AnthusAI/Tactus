@@ -494,7 +494,37 @@ def test(
         from tactus.testing.evaluation_runner import TactusEvaluationRunner
         from tactus.testing.mock_tools import create_default_mocks
         from tactus.validation import TactusValidator
+        from tactus.core.config_manager import ConfigManager
         import json
+
+        # Load configuration and export all values as environment variables
+        config_mgr = ConfigManager()
+        config = config_mgr.load_cascade(procedure_file)
+
+        # Export config values as environment variables (matching ConfigManager's env_mappings)
+        env_mappings = {
+            "openai_api_key": "OPENAI_API_KEY",
+            "google_api_key": "GOOGLE_API_KEY",
+            ("aws", "access_key_id"): "AWS_ACCESS_KEY_ID",
+            ("aws", "secret_access_key"): "AWS_SECRET_ACCESS_KEY",
+            ("aws", "default_region"): "AWS_DEFAULT_REGION",
+        }
+
+        for config_key, env_key in env_mappings.items():
+            # Skip if environment variable is already set
+            if env_key in os.environ:
+                continue
+
+            # Get value from config
+            if isinstance(config_key, tuple):
+                # Nested key (e.g., aws.access_key_id)
+                value = config.get(config_key[0], {}).get(config_key[1])
+            else:
+                value = config.get(config_key)
+
+            # Set environment variable if value exists
+            if value:
+                os.environ[env_key] = str(value)
 
         # Validate and extract specifications
         validator = TactusValidator()

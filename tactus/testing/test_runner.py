@@ -7,10 +7,12 @@ Runs tests with parallel scenario execution using multiprocessing.
 import importlib.util
 import logging
 import os
+import sys
+import subprocess
 import multiprocessing
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from .models import (
     ParsedFeature,
@@ -138,10 +140,7 @@ class TactusTestRunner:
     @staticmethod
     def _run_single_scenario(scenario_name: str, work_dir: str) -> ScenarioResult:
         """
-        Run a single scenario (called in subprocess).
-
-        Note: Clears Behave's global step registry to prevent conflicts
-        when running multiple tests in the same process.
+        Run a single scenario in subprocess to avoid event loop conflicts.
 
         Args:
             scenario_name: Name of scenario to run
@@ -150,75 +149,139 @@ class TactusTestRunner:
         Returns:
             ScenarioResult
         """
-        from behave.runner import Runner
-        from behave.configuration import Configuration
-        import sys
-        import importlib
-
-        # Clear Behave's global step registry to prevent conflicts
-        # IMPORTANT: We call registry.clear() instead of creating a new registry
-        # because the @step decorator has a closure reference to the registry object.
-        # If we create a new object, the decorator still uses the old one!
-        import behave.step_registry
-
-        behave.step_registry.registry.clear()
-
-        # Clear Python's module cache for any previously loaded step modules
-        # Be very aggressive - clear ALL step-related modules
-        modules_to_remove = [
-            mod_name
-            for mod_name in list(sys.modules.keys())
-            if any(
-                [
-                    "tactus_steps_" in mod_name,
-                    "steps.tactus_steps_" in mod_name,
-                    mod_name == "steps",
-                    mod_name.startswith("steps.") and "tactus" in mod_name,
-                ]
-            )
-        ]
-        for mod_name in modules_to_remove:
-            try:
-                del sys.modules[mod_name]
-            except KeyError:
-                pass
-
-        # Invalidate import caches
-        importlib.invalidate_caches()
-
         # Create tag filter for this scenario
         sanitized_name = scenario_name.lower().replace(" ", "_")
         tag_filter = f"scenario_{sanitized_name}"
 
-        # Configure Behave
-        config = Configuration(
-            command_args=[str(work_dir)],
-            tags=[tag_filter],
-            format=["null"],  # Suppress output
-            show_timings=True,
+        # Run behave in subprocess to isolate event loops
+        cmd = [
+            sys.executable,
+            "-m",
+            "behave",
+            str(work_dir),
+            "--tags", tag_filter,
+            "--no-capture",
+            "--format", "json",
+            "--outfile", f"{work_dir}/results.json"
+        ]
+
+        logger.debug(f"Running behave subprocess: {' '.join(cmd)}")
+
+        try:
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=600,  # 10 minute timeout
+                cwd=work_dir,
+                env=os.environ.copy()  # Inherit environment variables
+            )
+
+            # Check if behave ran successfully (even if tests failed)
+            if result.returncode not in [0, 1]:
+                # Return code 0 = all passed, 1 = some failed, other = error
+                raise RuntimeError(
+                    f"Behave subprocess failed with return code {result.returncode}\n"
+                    f"STDOUT: {result.stdout}\n"
+                    f"STDERR: {result.stderr}"
+                )
+
+            # Parse JSON results
+            import json
+            results_file = Path(work_dir) / "results.json"
+            if not results_file.exists():
+                raise RuntimeError(f"Behave results file not found: {results_file}")
+
+            # Behave may write multiple JSON objects (one per feature run)
+            # We need to parse them separately and combine
+            with open(results_file) as f:
+                content = f.read().strip()
+                if not content:
+                    raise RuntimeError("Behave results file is empty")
+
+                # Try to parse as single JSON first
+                try:
+                    behave_results = json.loads(content)
+                except json.JSONDecodeError:
+                    # Multiple JSON objects - split and parse each
+                    behave_results = []
+                    for line in content.split('\n'):
+                        line = line.strip()
+                        if line:
+                            try:
+                                obj = json.loads(line)
+                                if isinstance(obj, list):
+                                    behave_results.extend(obj)
+                                else:
+                                    behave_results.append(obj)
+                            except json.JSONDecodeError:
+                                continue
+
+            # Extract the scenario result
+            for feature_data in behave_results:
+                for element in feature_data.get("elements", []):
+                    if element.get("name") == scenario_name:
+                        return TactusTestRunner._convert_json_scenario_result(element)
+
+            # Scenario not found (shouldn't happen)
+            raise RuntimeError(f"Scenario '{scenario_name}' not found in Behave JSON results")
+
+        except subprocess.TimeoutExpired:
+            raise RuntimeError(f"Scenario '{scenario_name}' timed out after 10 minutes")
+        except Exception as e:
+            logger.error(f"Error running scenario '{scenario_name}': {e}", exc_info=True)
+            raise
+
+    @staticmethod
+    def _convert_json_scenario_result(scenario_data: Dict[str, Any]) -> ScenarioResult:
+        """Convert Behave JSON scenario data to ScenarioResult."""
+        steps = []
+        for step_data in scenario_data.get("steps", []):
+            result = step_data.get("result", {})
+            steps.append(
+                StepResult(
+                    keyword=step_data.get("keyword", ""),
+                    text=step_data.get("name", ""),
+                    status=result.get("status", "skipped"),
+                    duration=result.get("duration", 0.0),
+                    error_message=result.get("error_message"),
+                )
+            )
+
+        # Calculate total duration from steps
+        total_duration = sum(s.duration for s in steps)
+
+        # Extract tags
+        tags = [tag.replace("@", "") for tag in scenario_data.get("tags", [])]
+
+        # Extract execution metrics from scenario properties (if attached by hook)
+        # These would be in the scenario_data dict if the hook sets them
+        total_cost = scenario_data.get("total_cost", 0.0)
+        total_tokens = scenario_data.get("total_tokens", 0)
+        iterations = scenario_data.get("iterations", 0)
+        tools_used = scenario_data.get("tools_used", [])
+        llm_calls = scenario_data.get("llm_calls", 0)
+
+        # Determine overall status
+        status = scenario_data.get("status", "passed")
+
+        return ScenarioResult(
+            name=scenario_data.get("name", ""),
+            status=status,
+            duration=total_duration,
+            steps=steps,
+            tags=tags,
+            timestamp=datetime.now(),
+            total_cost=total_cost,
+            total_tokens=total_tokens,
+            iterations=iterations,
+            tools_used=tools_used,
+            llm_calls=llm_calls,
         )
-        # Prevent behave from searching parent directories for step files
-        work_dir = Path(work_dir)  # Ensure Path object
-        config.paths = [str(work_dir)]
-        # Explicitly set step_paths to only this work_dir
-        config.step_paths = [str(work_dir / "steps")]
-
-        # Run Behave
-        runner = Runner(config)
-        runner.run()
-
-        # Extract results from Behave
-        for feature in runner.features:
-            for scenario in feature.scenarios:
-                if scenario.name == scenario_name:
-                    return TactusTestRunner._convert_scenario_result(scenario)
-
-        # Scenario not found (shouldn't happen)
-        raise RuntimeError(f"Scenario '{scenario_name}' not found in Behave results")
 
     @staticmethod
     def _convert_scenario_result(behave_scenario) -> ScenarioResult:
-        """Convert Behave scenario to ScenarioResult."""
+        """Convert Behave scenario object to ScenarioResult (legacy method)."""
         steps = []
         for behave_step in behave_scenario.steps:
             steps.append(
@@ -367,3 +430,4 @@ class TactusTestRunner:
                 logger.debug(f"Cleaned up work directory: {self.work_dir}")
             except Exception as e:
                 logger.warning(f"Failed to cleanup work directory: {e}")
+

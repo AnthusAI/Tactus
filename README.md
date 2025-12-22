@@ -1254,9 +1254,56 @@ Open http://localhost:3000 in your browser to use the IDE.
 - Hover documentation
 - Signature help
 
+## Defining Tools with Lua Functions
+
+Tactus allows you to define custom tools as Lua functions directly within your `.tac` files. This gives agents the ability to perform custom operations without requiring external Python plugins or MCP servers.
+
+### Three Approaches
+
+**1. Individual Tools:**
+```lua
+tool("calculate_tip", {
+    description = "Calculate tip amount",
+    parameters = {
+        bill = {type = "number", required = true},
+        percent = {type = "number", required = true}
+    }
+}, function(args)
+    return tostring(args.bill * args.percent / 100)
+end)
+
+agent("assistant", {
+    toolsets = {"calculate_tip", "done"}
+})
+```
+
+**2. Grouped Toolsets:**
+```lua
+toolset("math_tools", {
+    type = "lua",
+    tools = {
+        {name = "add", parameters = {...}, handler = function(args) ... end},
+        {name = "multiply", parameters = {...}, handler = function(args) ... end}
+    }
+})
+```
+
+**3. Inline Agent Tools:**
+```lua
+agent("assistant", {
+    tools = {
+        {name = "uppercase", parameters = {...}, handler = function(args) ... end}
+    },
+    toolsets = {"done"}
+})
+```
+
+**Learn more:** See [docs/TOOLS.md](docs/TOOLS.md) for comprehensive documentation with examples and best practices.
+
 ## Documentation
 
 - [**Specification (DSL Reference)**](SPECIFICATION.md) - The official specification for the Tactus domain-specific language.
+- [**Tools Guide**](docs/TOOLS.md) - Comprehensive guide to defining tools with Lua functions.
 - [**Implementation Guide**](IMPLEMENTATION.md) - Maps the specification to the actual codebase implementation. Shows where each feature is implemented, what's complete, and what's missing relative to the specification.
 - [**Testing Strategy**](tactus/testing/README.md) - Testing approach, frameworks, and guidelines for adding new tests.
 - [**Examples**](examples/) - Run additional example procedures to see Tactus in action

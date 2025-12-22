@@ -14,11 +14,12 @@ from tactus.adapters.file_storage import FileStorage
 async def test_mcp_server_connection():
     """Test connecting to MCP server via MCPServerManager."""
     from tactus.adapters.mcp_manager import MCPServerManager
+    import sys
 
     # Configure test MCP server
     config = {
         "test_server": {
-            "command": "python",
+            "command": sys.executable,  # Use current Python interpreter
             "args": ["-m", "tests.fixtures.test_mcp_server"],
             "env": {},
         }
@@ -44,6 +45,7 @@ async def test_mcp_server_connection():
 )
 async def test_mcp_tools_in_procedure(tmp_path):
     """Test using MCP tools in a Tactus procedure."""
+    import sys
 
     # Create a simple procedure that uses MCP tools
     procedure_source = """
@@ -76,7 +78,7 @@ agents:
     # Configure MCP server
     mcp_servers = {
         "test_server": {
-            "command": "python",
+            "command": sys.executable,  # Use current Python interpreter
             "args": ["-m", "tests.fixtures.test_mcp_server"],
             "env": {},
         }
@@ -105,10 +107,11 @@ async def test_mcp_tool_prefixing():
     from tactus.adapters.mcp_manager import MCPServerManager
     from pydantic_ai import Agent
     from pydantic_ai.models.test import TestModel
+    import sys
 
     config = {
         "test_server": {
-            "command": "python",
+            "command": sys.executable,  # Use current Python interpreter
             "args": ["-m", "tests.fixtures.test_mcp_server"],
         }
     }
@@ -157,3 +160,4 @@ async def test_mcp_env_var_substitution():
 
     # Cleanup
     del os.environ["TEST_TOKEN"]
+
