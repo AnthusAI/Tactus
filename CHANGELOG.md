@@ -2,6 +2,31 @@
 
 <!-- version list -->
 
+## v0.8.0 (2025-12-25)
+
+### Chores
+
+- Apply black and ruff linter fixes to Lua tools feature
+  ([`67c5e9d`](https://github.com/AnthusAI/Tactus/commit/67c5e9d0b1ac554e90d85124b5a3bcf113e8d2c7))
+
+### Code Style
+
+- Apply black formatting to entire codebase
+  ([`28e25dd`](https://github.com/AnthusAI/Tactus/commit/28e25dd42248a96e01d8331d9da17d1ec5d9d9e0))
+
+### Features
+
+- Implement comprehensive durable execution system
+  ([`ff924e9`](https://github.com/AnthusAI/Tactus/commit/ff924e994073bcc71004d2fcde7bab60b38dcee9))
+
+- Implement comprehensive durable execution system
+  ([`672cb50`](https://github.com/AnthusAI/Tactus/commit/672cb50550c745117e99f4cc832c81d40a76e294))
+
+### Breaking Changes
+
+- Replace params/outputs syntax with input/output/state
+
+
 ## v0.7.0 (2025-12-16)
 
 
