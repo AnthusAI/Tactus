@@ -51,4 +51,3 @@ Key points:
 
 For more information, visit: https://en.wikipedia.org/wiki/{topic.replace(' ', '_')}
 """
-

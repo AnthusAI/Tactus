@@ -101,4 +101,3 @@ def tip_calculator(bill_amount: float, tip_percentage: float, split_ways: int = 
         result += f"- Split {split_ways} ways: ${per_person:.2f} per person"
 
     return result
-
