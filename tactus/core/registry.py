@@ -6,7 +6,6 @@ procedure declarations from .tac files.
 """
 
 import logging
-from enum import Enum
 from typing import Any, Optional, Union
 
 from pydantic import BaseModel, Field, ValidationError, ConfigDict
@@ -14,40 +13,15 @@ from pydantic import BaseModel, Field, ValidationError, ConfigDict
 logger = logging.getLogger(__name__)
 
 
-class ParameterType(str, Enum):
-    """Parameter type enumeration."""
-
-    STRING = "string"
-    NUMBER = "number"
-    BOOLEAN = "boolean"
-    ARRAY = "array"
-    OBJECT = "object"
-
-
-class ParameterDeclaration(BaseModel):
-    """Parameter declaration from DSL."""
-
-    name: str
-    parameter_type: ParameterType = Field(alias="type")
-    required: bool = False
-    default: Any = None
-    description: Optional[str] = None
-    enum: Optional[list[str]] = None
-
-    class Config:
-        populate_by_name = True
-
-
 class OutputFieldDeclaration(BaseModel):
     """Output field declaration from DSL."""
 
     name: str
-    field_type: ParameterType = Field(alias="type")
+    field_type: str = Field(alias="type")  # string, number, boolean, array, object
     required: bool = False
     description: Optional[str] = None
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class MessageHistoryConfiguration(BaseModel):
@@ -101,8 +75,7 @@ class HITLDeclaration(BaseModel):
     default: Any = None
     options: Optional[list[dict[str, Any]]] = None
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class ScenarioDeclaration(BaseModel):
@@ -130,8 +103,7 @@ class DependencyDeclaration(BaseModel):
     dependency_type: str = Field(alias="type")  # http_client, postgres, redis
     config: dict[str, Any] = Field(default_factory=dict)  # Configuration dict
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class ProcedureRegistry(BaseModel):
@@ -143,9 +115,11 @@ class ProcedureRegistry(BaseModel):
     description: Optional[str] = None
 
     # Declarations
-    parameters: dict[str, ParameterDeclaration] = Field(default_factory=dict)
-    outputs: dict[str, OutputFieldDeclaration] = Field(default_factory=dict)
+    input_schema: dict[str, Any] = Field(default_factory=dict)
+    output_schema: dict[str, Any] = Field(default_factory=dict)
+    state_schema: dict[str, Any] = Field(default_factory=dict)
     agents: dict[str, AgentDeclaration] = Field(default_factory=dict)
+    models: dict[str, dict[str, Any]] = Field(default_factory=dict)  # ML models
     toolsets: dict[str, dict[str, Any]] = Field(default_factory=dict)
     lua_tools: dict[str, dict[str, Any]] = Field(default_factory=dict)  # Lua function tools
     hitl_points: dict[str, HITLDeclaration] = Field(default_factory=dict)
@@ -180,6 +154,11 @@ class ProcedureRegistry(BaseModel):
     # The procedure function (lupa reference, not executed during registration)
     procedure_function: Any = Field(default=None, exclude=True)
 
+    # Script mode support (top-level input/output without explicit main procedure)
+    script_mode: bool = False
+    top_level_input_schema: dict[str, Any] = Field(default_factory=dict)
+    top_level_output_schema: dict[str, Any] = Field(default_factory=dict)
+
     # Source locations for error messages (declaration_name -> (line, col))
     source_locations: dict[str, tuple[int, int]] = Field(default_factory=dict)
 
@@ -209,21 +188,17 @@ class RegistryBuilder:
         self.registry = ProcedureRegistry()
         self.validation_messages: list[ValidationMessage] = []
 
-    def register_parameter(self, name: str, config: dict) -> None:
-        """Register a parameter declaration."""
-        config["name"] = name
-        try:
-            self.registry.parameters[name] = ParameterDeclaration(**config)
-        except ValidationError as e:
-            self._add_error(f"Invalid parameter '{name}': {e}")
+    def register_input_schema(self, schema: dict) -> None:
+        """Register input schema declaration."""
+        self.registry.input_schema = schema
 
-    def register_output(self, name: str, config: dict) -> None:
-        """Register an output field declaration."""
-        config["name"] = name
-        try:
-            self.registry.outputs[name] = OutputFieldDeclaration(**config)
-        except ValidationError as e:
-            self._add_error(f"Invalid output '{name}': {e}")
+    def register_output_schema(self, schema: dict) -> None:
+        """Register output schema declaration."""
+        self.registry.output_schema = schema
+
+    def register_state_schema(self, schema: dict) -> None:
+        """Register state schema declaration."""
+        self.registry.state_schema = schema
 
     def register_agent(self, name: str, config: dict, output_schema: Optional[dict] = None) -> None:
         """Register an agent declaration."""
@@ -262,6 +237,11 @@ class RegistryBuilder:
             self.registry.agents[name] = AgentDeclaration(**config)
         except ValidationError as e:
             self._add_error(f"Invalid agent '{name}': {e}")
+
+    def register_model(self, name: str, config: dict) -> None:
+        """Register a model declaration."""
+        config["name"] = name
+        self.registry.models[name] = config
 
     def register_hitl(self, name: str, config: dict) -> None:
         """Register a HITL interaction point."""
@@ -323,6 +303,16 @@ class RegistryBuilder:
     def set_procedure(self, lua_function) -> None:
         """Store Lua function reference for later execution."""
         self.registry.procedure_function = lua_function
+
+    def register_top_level_input(self, schema: dict) -> None:
+        """Register top-level input schema for script mode."""
+        self.registry.top_level_input_schema = schema
+        self.registry.script_mode = True
+
+    def register_top_level_output(self, schema: dict) -> None:
+        """Register top-level output schema for script mode."""
+        self.registry.top_level_output_schema = schema
+        self.registry.script_mode = True
 
     def set_default_provider(self, provider: str) -> None:
         """Set default provider for agents."""

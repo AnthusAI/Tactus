@@ -9,7 +9,7 @@ agent("researcher", {
 })
 
 procedure({
-    params = {
+    input = {
         topic = {
             type = "string",
             required = false,
@@ -17,14 +17,15 @@ procedure({
             description = "Topic to research"
         }
     },
-    outputs = {
+    output = {
         summary = {
             type = "string",
             required = true
         }
-    }
+    },
+    state = {}
 }, function()
-    Log.info("Starting research", {topic = params.topic})
+    Log.info("Starting research", {topic = input.topic})
     
     repeat
         -- Main turn: agent has all tools (done in this simple example)
@@ -51,7 +52,7 @@ procedure({
     })
     
     return {
-        summary = "Research completed on: " .. params.topic
+        summary = "Research completed on: " .. input.topic
     }
 end)
 

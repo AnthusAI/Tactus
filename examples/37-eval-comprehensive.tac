@@ -22,13 +22,13 @@ Return JSON with: {phone, email, score}]],
 })
 
 procedure({
-    params = {
+    input = {
         raw_contact = {
             type = "string",
             required = true
         }
     },
-    outputs = {
+    output = {
         phone = {
             type = "string",
             required = false
@@ -44,6 +44,13 @@ procedure({
         formatted = {
             type = "boolean",
             required = true
+        }
+    },
+    state = {
+        formatting_started = {
+            type = "boolean",
+            default = false,
+            description = "Formatting has started"
         }
     }
 }, function()

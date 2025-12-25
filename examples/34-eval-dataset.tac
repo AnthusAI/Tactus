@@ -13,13 +13,13 @@ Always start your response with "TASK_COMPLETE: " followed by your actual work.]
 })
 
 procedure({
-    params = {
+    input = {
         task = {
             type = "string",
             required = true
         }
     },
-    outputs = {
+    output = {
         output = {
             type = "string",
             required = true
@@ -28,7 +28,8 @@ procedure({
             type = "boolean",
             required = true
         }
-    }
+    },
+    state = {}
 }, function()
     -- Have agent complete the task
     Completer.turn()

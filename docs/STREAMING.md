@@ -22,11 +22,12 @@ procedure(function()
     MyAgent.turn()
 end)
 
--- ❌ STREAMING DISABLED - Has structured outputs
+-- ❌ STREAMING DISABLED - Has structured output
 procedure({
-    outputs = {
+    output = {
         result = { type = "string", required = true }
-    }
+    },
+    state = {}
 }, function()
     MyAgent.turn()
 end)

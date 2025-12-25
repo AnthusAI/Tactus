@@ -27,14 +27,14 @@ Always follow this format exactly.]],
 
 -- Procedure
 procedure({
-    params = {
+    input = {
         task = {
             type = "string",
             required = true,
             description = "The task to complete"
         }
     },
-    outputs = {
+    output = {
         output = {
             type = "string",
             required = true,
@@ -45,9 +45,10 @@ procedure({
             required = true,
             description = "Whether task was completed"
         }
-    }
+    },
+    state = {}
 }, function()
-    Log.info("Starting task", {task = params.task})
+    Log.info("Starting task", {task = input.task})
     
     -- Have agent complete the task
     -- The initial_message template will inject the task parameter

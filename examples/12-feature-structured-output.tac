@@ -11,7 +11,7 @@ agent("extractor", {
 - population: estimated population (number, optional)
 
 Be concise and accurate.]],
-    initial_message = "{params.query}",
+    initial_message = "{input.query}",
 
     -- Structured output (aligned with pydantic-ai's output_type)
     output_type = {
@@ -22,18 +22,19 @@ Be concise and accurate.]],
 })
 
 procedure({
-    params = {
+    input = {
         query = {
             type = "string",
             default = "Tell me about Paris, France"
         }
     },
-    outputs = {
+    output = {
         city_data = {type = "object", required = true},
         tokens_used = {type = "number", required = true}
-    }
+    },
+    state = {}
 }, function()
-    Log.info("Starting structured output demo", {query = params.query})
+    Log.info("Starting structured output demo", {query = input.query})
     
     -- Agent returns ResultPrimitive (not raw data)
     local result = Extractor.turn()

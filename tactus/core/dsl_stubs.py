@@ -105,28 +105,27 @@ def create_dsl_stubs(builder: RegistryBuilder) -> dict[str, Callable]:
         Store procedure function for later execution.
 
         Supports two syntaxes:
-        1. New: procedure({params = {...}, outputs = {...}, message_history = {...}}, function() ... end)
-        2. Old: procedure(function() ... end)
+        1. procedure({input = {...}, output = {...}, state = {...}}, function() ... end)
+        2. procedure(function() ... end)
         """
         if fn is None:
-            # Old syntax: procedure(function)
+            # Simple syntax: procedure(function)
             builder.set_procedure(config_or_fn)
         else:
-            # New syntax: procedure(config, function)
+            # Full syntax: procedure(config, function)
             config = lua_table_to_dict(config_or_fn)
 
-            # Extract and register params
-            if "params" in config:
-                for param_name, param_config in config["params"].items():
-                    builder.register_parameter(param_name, param_config)
+            # Extract and register input schema
+            if "input" in config:
+                builder.register_input_schema(config["input"])
 
-            # Extract and register outputs
-            if "outputs" in config:
-                for output_name, output_config in config["outputs"].items():
-                    # Add the name to the config for registration
-                    output_config_with_name = dict(output_config)
-                    output_config_with_name["name"] = output_name
-                    builder.register_output(output_name, output_config_with_name)
+            # Extract and register output schema
+            if "output" in config:
+                builder.register_output_schema(config["output"])
+
+            # Extract and register state schema
+            if "state" in config:
+                builder.register_state_schema(config["state"])
 
             # Extract and register dependencies
             if "dependencies" in config:
@@ -170,6 +169,10 @@ def create_dsl_stubs(builder: RegistryBuilder) -> dict[str, Callable]:
     def _hitl(hitl_name: str, config) -> None:
         """Register a HITL interaction point."""
         builder.register_hitl(hitl_name, lua_table_to_dict(config))
+
+    def _model(model_name: str, config) -> None:
+        """Register a model for ML inference."""
+        builder.register_model(model_name, lua_table_to_dict(config))
 
     def _stages(*stage_names) -> None:
         """Register stage names."""
@@ -264,10 +267,43 @@ def create_dsl_stubs(builder: RegistryBuilder) -> dict[str, Callable]:
         """Matcher: matches regex pattern."""
         return ("matches", pattern)
 
+    def _input(schema) -> None:
+        """
+        Top-level input schema declaration for script mode.
+
+        Used when there's no explicit main procedure - defines input
+        for the top-level script code.
+
+        Example:
+            input {
+                query = {type = "string", required = true},
+                limit = {type = "number", default = 10}
+            }
+        """
+        schema_dict = lua_table_to_dict(schema)
+        builder.register_top_level_input(schema_dict)
+
+    def _output(schema) -> None:
+        """
+        Top-level output schema declaration for script mode.
+
+        Used when there's no explicit main procedure - defines output
+        for the top-level script code.
+
+        Example:
+            output {
+                result = {type = "string", required = true},
+                count = {type = "number", required = true}
+            }
+        """
+        schema_dict = lua_table_to_dict(schema)
+        builder.register_top_level_output(schema_dict)
+
     return {
         # Core declarations
         # Component declarations
         "agent": _agent,
+        "model": _model,
         "procedure": _procedure,
         "prompt": _prompt,
         "toolset": _toolset,
@@ -281,6 +317,9 @@ def create_dsl_stubs(builder: RegistryBuilder) -> dict[str, Callable]:
         "evaluation": _evaluation,
         # Pydantic Evals Integration
         "evaluations": _evaluations,
+        # Script mode (top-level declarations)
+        "input": _input,
+        "output": _output,
         # Settings
         "default_provider": _default_provider,
         "default_model": _default_model,

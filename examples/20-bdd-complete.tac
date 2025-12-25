@@ -5,16 +5,16 @@
 agent("processor", {
   provider = "openai",
   model = "gpt-4o-mini",
-  system_prompt = "Process the task: {params.task}. Call done when finished.",
+  system_prompt = "Process the task: {input.task}. Call done when finished.",
   initial_message = "Start processing",
 })
 
 -- Stages
 stages({"setup", "processing", "validation", "complete"})
 
--- Procedure with parameters and outputs defined inline
+-- Procedure with input and output defined inline
 procedure({
-    params = {
+    input = {
         task = {
             type = "string",
             required = false,
@@ -28,7 +28,7 @@ procedure({
             description = "Number of iterations"
         },
     },
-    outputs = {
+    output = {
         status = {
             type = "string",
             required = true,
@@ -39,17 +39,39 @@ procedure({
             required = true,
             description = "Items processed"
         },
+    },
+    state = {
+        items_processed = {
+            type = "number",
+            default = 0,
+            description = "Items processed counter"
+        },
+        errors = {
+            type = "number",
+            default = 0,
+            description = "Error count"
+        },
+        validation_passed = {
+            type = "boolean",
+            default = false,
+            description = "Validation result"
+        },
+        last_even = {
+            type = "number",
+            default = 0,
+            description = "Last even number"
+        }
     }
 }, function()
   -- Setup phase
   Stage.set("setup")
   State.set("items_processed", 0)
   State.set("errors", 0)
-  
+
   -- Processing phase
   Stage.set("processing")
-  
-  local target = params.iterations or 3
+
+  local target = input.iterations or 3
   for i = 1, target do
     State.set("items_processed", i)
     

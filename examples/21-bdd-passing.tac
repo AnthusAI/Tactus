@@ -11,9 +11,9 @@ agent("worker", {
 -- Stages
 stages({"initializing", "working", "complete"})
 
--- Procedure with parameters and outputs defined inline
+-- Procedure with input, output, and state defined inline
 procedure({
-    params = {
+    input = {
         count = {
             type = "number",
             required = false,
@@ -21,36 +21,46 @@ procedure({
             description = "Number of iterations to perform"
         },
     },
-    outputs = {
+    output = {
         result = {
             type = "string",
             required = true,
             description = "Final result message"
         },
+    },
+    state = {
+        counter = {
+            type = "number",
+            default = 0,
+            description = "Working counter"
+        },
+        items = {
+            type = "array",
+            default = {},
+            description = "List of items"
+        }
     }
 }, function()
   -- Initialize
   Stage.set("initializing")
-  State.set("counter", 0)
-  State.set("items", {})
-  
+
   -- Do work
   Stage.set("working")
-  
-  local target = params.count or 3
+
+  local target = input.count or 3
   for i = 1, target do
     State.set("counter", i)
     local items = State.get("items") or {}
     table.insert(items, "item_" .. i)
     State.set("items", items)
   end
-  
+
   -- Simulate agent turn (will call done tool)
   Worker.turn()
-  
+
   -- Complete
   Stage.set("complete")
-  
+
   return {
     result = "Processed " .. State.get("counter") .. " items"
   }

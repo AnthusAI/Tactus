@@ -141,6 +141,9 @@ class TactusRuntime:
         # Agent primitives (one per agent)
         self.agents: Dict[str, Any] = {}
 
+        # Model primitives (one per model)
+        self.models: Dict[str, Any] = {}
+
         # Toolset registry (name -> AbstractToolset instance)
         self.toolset_registry: Dict[str, Any] = {}
 
@@ -318,6 +321,9 @@ class TactusRuntime:
 
             # Always set up agents - they may use providers other than OpenAI (e.g., Bedrock)
             await self._setup_agents(context or {})
+
+            # Setup models for ML inference
+            await self._setup_models()
 
             # 9. Inject primitives into Lua
             logger.info("Step 9: Injecting primitives into Lua environment")
@@ -580,7 +586,9 @@ class TactusRuntime:
 
     async def _initialize_primitives(self):
         """Initialize all primitive objects."""
-        self.state_primitive = StatePrimitive()
+        # Get state schema from registry if available
+        state_schema = self.registry.state_schema if self.registry else {}
+        self.state_primitive = StatePrimitive(state_schema=state_schema)
         self.iterations_primitive = IterationsPrimitive()
         self.stop_primitive = StopPrimitive()
 
@@ -1230,11 +1238,44 @@ class TactusRuntime:
                 disable_streaming=agent_config.get("disable_streaming", False),
                 message_history_filter=message_history_filter,
                 user_dependencies=self.user_dependencies if self.user_dependencies else None,
+                execution_context=self.execution_context,
             )
 
             self.agents[agent_name] = agent_primitive
 
             logger.info(f"Agent '{agent_name}' configured successfully with model '{model_name}'")
+
+    async def _setup_models(self):
+        """
+        Setup model primitives for ML inference.
+
+        Creates ModelPrimitive instances for each model declaration
+        and stores them in self.models dict.
+        """
+        # Get model configurations from registry
+        if not self.registry or not self.registry.models:
+            logger.debug("No models defined in configuration - skipping model setup")
+            return
+
+        from tactus.primitives.model import ModelPrimitive
+
+        # Setup each model
+        for model_name, model_config in self.registry.models.items():
+            logger.info(f"Setting up model: {model_name}")
+
+            try:
+                model_primitive = ModelPrimitive(
+                    model_name=model_name,
+                    config=model_config,
+                    context=self.execution_context,
+                )
+
+                self.models[model_name] = model_primitive
+                logger.info(f"Model '{model_name}' configured successfully")
+
+            except Exception as e:
+                logger.error(f"Failed to setup model '{model_name}': {e}")
+                raise
 
     def _create_pydantic_model_from_output_type(self, output_type_schema, model_name: str) -> type:
         """
@@ -1351,33 +1392,33 @@ class TactusRuntime:
 
     def _inject_primitives(self):
         """Inject all primitives into Lua global scope."""
-        # Inject params with default values, then override with context values
-        if "params" in self.config:
-            params_config = self.config["params"]
-            param_values = {}
+        # Inject input with default values, then override with context values
+        if "input" in self.config:
+            input_config = self.config["input"]
+            input_values = {}
             # Start with defaults
-            for param_name, param_def in params_config.items():
-                if "default" in param_def:
-                    param_values[param_name] = param_def["default"]
+            for input_name, input_def in input_config.items():
+                if isinstance(input_def, dict) and "default" in input_def:
+                    input_values[input_name] = input_def["default"]
             # Override with context values
-            for param_name in params_config.keys():
-                if param_name in self.context:
-                    param_values[param_name] = self.context[param_name]
+            for input_name in input_config.keys():
+                if input_name in self.context:
+                    input_values[input_name] = self.context[input_name]
 
             # Validate enum constraints
-            for param_name, param_value in param_values.items():
-                if param_name in params_config:
-                    param_def = params_config[param_name]
-                    if "enum" in param_def and param_def["enum"]:
-                        allowed_values = param_def["enum"]
-                        if param_value not in allowed_values:
+            for input_name, input_value in input_values.items():
+                if input_name in input_config:
+                    input_def = input_config[input_name]
+                    if isinstance(input_def, dict) and "enum" in input_def and input_def["enum"]:
+                        allowed_values = input_def["enum"]
+                        if input_value not in allowed_values:
                             raise ValueError(
-                                f"Parameter '{param_name}' has invalid value '{param_value}'. "
+                                f"Input '{input_name}' has invalid value '{input_value}'. "
                                 f"Allowed values: {allowed_values}"
                             )
 
-            self.lua_sandbox.set_global("params", param_values)
-            logger.info(f"Injected params into Lua sandbox: {param_values}")
+            self.lua_sandbox.set_global("input", input_values)
+            logger.info(f"Injected input into Lua sandbox: {input_values}")
 
         # Inject shared primitives
         if self.state_primitive:
@@ -1395,6 +1436,8 @@ class TactusRuntime:
         # Inject checkpoint primitives
         if self.step_primitive:
             self.lua_sandbox.inject_primitive("Step", self.step_primitive)
+            # Also inject checkpoint() as a global function for convenience
+            self.lua_sandbox.inject_primitive("checkpoint", self.step_primitive.checkpoint)
         if self.checkpoint_primitive:
             self.lua_sandbox.inject_primitive("Checkpoint", self.checkpoint_primitive)
             logger.debug("Step and Checkpoint primitives injected")
@@ -1460,6 +1503,13 @@ class TactusRuntime:
             lua_name = agent_name.capitalize()
             self.lua_sandbox.inject_primitive(lua_name, agent_primitive)
             logger.info(f"Injected agent primitive: {lua_name}")
+
+        # Inject model primitives (capitalized names)
+        for model_name, model_primitive in self.models.items():
+            # Capitalize first letter for Lua convention (IntentClassifier, Embedder, etc.)
+            lua_name = model_name.capitalize()
+            self.lua_sandbox.inject_primitive(lua_name, model_primitive)
+            logger.info(f"Injected model primitive: {lua_name}")
 
         logger.debug("All primitives injected into Lua sandbox")
 
@@ -1534,14 +1584,14 @@ class TactusRuntime:
             if context:
                 template_vars.update(context)
 
-            # Add params from config with default values
-            if "params" in self.config:
-                params = self.config["params"]
-                param_values = {}
-                for param_name, param_def in params.items():
-                    if "default" in param_def:
-                        param_values[param_name] = param_def["default"]
-                template_vars["params"] = param_values
+            # Add input from config with default values
+            if "input" in self.config:
+                input_config = self.config["input"]
+                input_values = {}
+                for input_name, input_def in input_config.items():
+                    if isinstance(input_def, dict) and "default" in input_def:
+                        input_values[input_name] = input_def["default"]
+                template_vars["input"] = input_values
 
             # Add state (for dynamic templates)
             if self.state_primitive:
@@ -1653,44 +1703,30 @@ class TactusRuntime:
 
     def _registry_to_config(self, registry: ProcedureRegistry) -> Dict[str, Any]:
         """
-        Convert registry to legacy config dict format for compatibility.
+        Convert registry to config dict format.
 
         Args:
             registry: ProcedureRegistry
 
         Returns:
-            Config dict in YAML format
+            Config dict
         """
         config = {}
 
         if registry.description:
             config["description"] = registry.description
 
-        # Convert parameters
-        if registry.parameters:
-            config["params"] = {}
-            for name, param in registry.parameters.items():
-                config["params"][name] = {
-                    "type": param.parameter_type.value,
-                    "required": param.required,
-                }
-                if param.default is not None:
-                    config["params"][name]["default"] = param.default
-                if param.description:
-                    config["params"][name]["description"] = param.description
-                if param.enum:
-                    config["params"][name]["enum"] = param.enum
+        # Convert input schema
+        if registry.input_schema:
+            config["input"] = registry.input_schema
 
-        # Convert outputs
-        if registry.outputs:
-            config["outputs"] = {}
-            for name, output in registry.outputs.items():
-                config["outputs"][name] = {
-                    "type": output.field_type.value,
-                    "required": output.required,
-                }
-                if output.description:
-                    config["outputs"][name]["description"] = output.description
+        # Convert output schema
+        if registry.output_schema:
+            config["outputs"] = registry.output_schema
+
+        # Convert state schema
+        if registry.state_schema:
+            config["state"] = registry.state_schema
 
         # Convert agents
         if registry.agents:

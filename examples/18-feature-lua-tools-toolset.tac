@@ -111,7 +111,7 @@ Available tools:
 - square_root: Calculate square roots
 
 After calling the math tool, call done with the result.]],
-    initial_message = "{params.operation}",
+    initial_message = "{input.operation}",
     toolsets = {
         "math_tools",  -- Reference the entire toolset
         "done"
@@ -120,14 +120,14 @@ After calling the math tool, call done with the result.]],
 
 -- Main workflow
 procedure({
-    params = {
+    input = {
         operation = {
             type = "string",
             default = "What is 5 plus 3?",
             description = "Mathematical operation to perform"
         }
     },
-    outputs = {
+    output = {
         answer = {
             type = "string",
             required = true,
@@ -138,7 +138,8 @@ procedure({
             required = true,
             description = "Whether the task was completed"
         }
-    }
+    },
+    state = {}
 }, function()
     local max_turns = 10
     local turn_count = 0
