@@ -61,6 +61,7 @@ class AgentPrimitive:
         toolsets: Optional[List] = None,
         user_dependencies: Optional[Dict[str, Any]] = None,
         deps_class: Optional[type] = None,
+        execution_context: Optional[Any] = None,
     ):
         """
         Initialize agent primitive.
@@ -80,6 +81,7 @@ class AgentPrimitive:
             chat_recorder: Optional chat recorder
             result_type: Optional Pydantic model for structured output
             model_settings: Optional dict of model-specific settings (temperature, top_p, etc.)
+            execution_context: Optional ExecutionContext for checkpointing
         """
         self.name = name
         self.system_prompt_template = system_prompt_template
@@ -100,6 +102,7 @@ class AgentPrimitive:
         self.disable_streaming = disable_streaming
         self.message_history_filter = message_history_filter
         self.user_dependencies = user_dependencies
+        self.execution_context = execution_context
 
         # Create dependencies (with dynamic class if user dependencies exist)
         if deps_class:
@@ -290,6 +293,17 @@ class AgentPrimitive:
         """
         logger.info(f"Agent '{self.name}' turn() called")
 
+        # If execution_context is available, wrap with checkpoint
+        if self.execution_context:
+            return self.execution_context.checkpoint(
+                lambda: self._execute_turn(opts),
+                "agent_turn"
+            )
+        else:
+            return self._execute_turn(opts)
+
+    def _execute_turn(self, opts: Optional[Dict[str, Any]] = None) -> ResultPrimitive:
+        """Execute the agent turn logic (extracted for checkpointing)."""
         # Emit agent turn started event
         if self.log_handler:
             try:

@@ -1,12 +1,56 @@
 # Tactus
 
-**Tactus**: A tactical programming language for accomplishing tasks with agents reliably, affordably, and accurately. At scale, with regulatory compliance in mind.
+**Tactus**: A durable, token-efficient programming language for AI agents that never lose their place.
 
-There is no shortage of options for ways to set up tasks for agents.  There are new agent development frameworks every week, positioned in different ways.  Tactus is one of those.
+## A Programming Language for Agents
 
-Instead of a framework for a programming language like Python or Javascript, Tactus is a programming language.  It's designed to be embedded in AI appliccations and systems that need to solve tasks with agents, especially when the agent code is user-contributed data.  
+**Why do we need a special programming language for agents? Can't we just use LangGraph, Pydantic AI, Google ADK, or another agent framework?**
 
-It runs on a sandboxed Lua VM that can only access the tools you give it.  It has a way to plug human-in-the-loop interactions into your own application UI or your comunincation channel, so that your users can approve things and provide input and monitor processes through chat messages or emails or in-app UI, or a combination.  Behavior testing and ML-style evaluations are built in as first-class concepts, for enabling self-evolving agents that can validate and evaluate themselves.
+The answer lies in a fundamental architectural challenge: Unlike traditional programs that run continuously from start to finish, AI agents must be able to **suspend execution and wait**—for human approval, for external reviews, for asynchronous events. This requires a runtime that can pause mid-execution, persist complete state, and resume exactly where it left off.
+
+**Consider this simple agent workflow:**
+
+```lua
+-- Tactus: Simple and durable
+repeat
+    Researcher.turn()
+
+    if Tool.called("expensive_analysis") then
+        local approved = Human.approve({message = "Review results?"})
+        if not approved then return {rejected = true} end
+    end
+until Tool.called("done")
+```
+
+**Now try implementing this in any general-purpose language (Python, JavaScript, Go, etc.).** You immediately face problems:
+
+1. **Where does execution pause?** `Human.approve()` needs to suspend the entire workflow, save state, and return control to your web server
+2. **How do you serialize the call stack?** Most language runtimes don't support serializing execution state—you can't just `pickle.dump(locals())`
+3. **How do you restore context?** When the human responds, you need to reconstruct: the agent's conversation history, the loop iteration, the conditional branch, local variables
+4. **How do you avoid duplicate work?** Re-running from the start means re-calling the LLM, re-running the expensive analysis tool
+
+**The framework solution requires building your own runtime:**
+- Manual state machine with explicit states (`AWAITING_TOOL`, `AWAITING_APPROVAL`, etc.)
+- Serialization layer for conversation history, tool results, loop counters
+- Replay logic to skip already-completed operations
+- Coordination between your application framework and agent execution
+
+**This is what existing agent frameworks force you to build yourself.** Whether LangGraph's state graphs, Pydantic AI's workflows, or Google ADK's agents—they all require you to manually manage state persistence and resumption.
+
+**Tactus provides this runtime as a language feature.** Every operation is automatically checkpointed. Suspension and resumption are transparent. Your workflow logic stays simple and readable—no manual state machines, no serialization code, no replay logic.
+
+**When the workflow pauses for human approval?** It resumes from that exact point. The agent conversation, tool calls, and human decision are all preserved. No wasted tokens, no duplicate work.
+
+**Why this enables omni-channel deployment:** Because your workflow logic is defined once in a token-efficient Lua file and plugged into any application—web apps, mobile apps, chat systems, voice interfaces. The durable runtime handles suspension and resumption transparently, making agents first-class citizens in larger systems. You write the agent logic once; the runtime adapts it to any channel.
+
+Your entire workflow—agents, logic, data transformations—lives in one sandboxed Lua file that's:
+
+- **Durable**: Automatic checkpointing + replay for agent turns, model inference, sub-procedures, HITL
+- **Portable**: Deploy the same workflow across channels without rewriting
+- **Safe**: Sandboxed VM that only accesses the tools you explicitly grant
+- **Token-efficient**: Simple Lua syntax with minimal noise—perfect for feeding back into LLM context
+- **Self-modifiable**: Agents can read and rewrite their own workflow definitions for self-evolution
+- **Verifiable**: First-class BDD testing and ML evaluations built into the language
 
 ## Quick Start
 
@@ -28,7 +72,7 @@ agent("greeter", {
   model = "gpt-4o-mini",
 
   system_prompt = [[
-    You are a friendly greeter. Greet the user by name: {params.name}
+    You are a friendly greeter. Greet the user by name: {input.name}
     When done, call the done tool.
   ]],
 
@@ -38,14 +82,14 @@ agent("greeter", {
 })
 
 procedure({
-  params = {
+  input = {
     name = {
       type = "string",
       default = "World"
     }
   },
-  
-  outputs = {
+
+  output = {
     completed = {
       type = "boolean",
       required = true
@@ -54,7 +98,9 @@ procedure({
       type = "string",
       required = true
     }
-  }
+  },
+
+  state = {}
 }, function()
   -- Loop until the agent decides to use the 'done' tool
   repeat
@@ -114,16 +160,18 @@ This runs the test 10 times and reports success rate and consistency metrics, he
 1. **Agents** (top level): Define reusable agents with models, prompts, and tools. When you define an agent named `greeter`, the primitive `Greeter.turn()` becomes available in Lua.
 
 2. **Procedure** with config: Takes two arguments:
-   - **Config table**: Contains `params` (inputs) and `outputs` (validated return values)
+   - **Config table**: Contains `input` (inputs), `output` (validated return values), and `state` (persistent working data)
    - **Function**: Your workflow logic in Lua with explicit control flow
 
-3. **Parameters** (`params`): Define typed inputs with defaults. These can be overridden at runtime and are available in templates as `{params.name}`.
+3. **Input Parameters** (`input`): Define typed inputs with defaults. These can be overridden at runtime and are available in templates as `{input.name}`.
 
-4. **Outputs** (`outputs`): Define the structure of return values. Tactus validates that your procedure returns the declared fields with correct types.
+4. **Output Schema** (`output`): Define the structure of return values. Tactus validates that your procedure returns the declared fields with correct types.
 
-5. **Specifications** (`specifications`): Gherkin BDD tests that verify your agent's behavior. These are first-class citizens in Tactus—you can run them with `tactus test` or evaluate consistency with `tactus evaluate`.
+5. **State Schema** (`state`): Define persistent working variables with types and defaults. State is preserved across checkpoints.
 
-**Key insight:** Parameters and outputs are defined *inside* the procedure config because they belong to the procedure. Agents are defined at the top level because they're reusable across procedures.
+6. **Specifications** (`specifications`): Gherkin BDD tests that verify your agent's behavior. These are first-class citizens in Tactus—you can run them with `tactus test` or evaluate consistency with `tactus evaluate`.
+
+**Key insight:** Input, output, and state are defined *inside* the procedure config because they belong to the procedure. Agents are defined at the top level because they're reusable across procedures.
 
 ## Key Features
 
@@ -646,7 +694,7 @@ This separation means your agent logic remains the same, while the interface ada
 
 ```lua
 procedure({
-  params = {
+  input = {
     topic = {
       type = "string",
       required = true,
@@ -665,16 +713,18 @@ procedure({
       type = "boolean",
       default = true
     }
-  }
+  },
+
+  state = {}
 }, function()
-  -- Access parameters
-  local topic = params.topic
-  local depth = params.depth
+  -- Access input parameters
+  local topic = input.topic
+  local depth = input.depth
   -- ...
 end)
 ```
 
-Parameters are accessed in templates as `{params.topic}` and in Lua as `params.topic`.
+Input parameters are accessed in templates as `{input.topic}` and in Lua as `input.topic`.
 
 ### Multi-Model and Multi-Provider Support
 
@@ -1129,16 +1179,20 @@ These frameworks are valuable if you're committed to a specific vendor's ecosyst
 
 ## Complete Feature List
 
-- **Imperative Lua DSL**: Define agent workflows with full programmatic control
+- **Durable Execution**: Automatic position-based checkpointing for all operations (agent turns, model predictions, sub-procedure calls, HITL interactions) with replay-based recovery—resume from exactly where you left off after crashes, timeouts, or pauses
+- **Model Primitive**: First-class support for ML inference (PyTorch, HTTP, HuggingFace Transformers) with automatic checkpointing—distinct from conversational agents for classification, prediction, and transformation tasks
+- **Script Mode**: Write procedures without explicit `main` definitions—top-level `input`/`output` declarations and code automatically wrapped as the main procedure
+- **State Management**: Typed, schema-validated persistent state with automatic initialization from defaults and runtime validation
+- **Explicit Checkpoints**: Manual `checkpoint()` primitive for saving state at strategic points without suspending execution
+- **Imperative Lua DSL**: Define agent workflows with full programmatic control using a token-efficient, sandboxed language designed for AI manipulation
 - **Multi-Provider Support**: Use OpenAI and AWS Bedrock models in the same workflow
 - **Multi-Model Support**: Different agents can use different models (GPT-4o, Claude, etc.)
-- **Human-in-the-Loop**: Built-in support for human approval, input, and review
+- **Human-in-the-Loop**: Built-in support for human approval, input, and review with automatic checkpointing
 - **Cost & Performance Tracking**: Granular tracking of costs, tokens, latency, retries, cache usage, and comprehensive metrics per agent and procedure
 - **BDD Testing**: First-class Gherkin specifications for testing agent behavior
 - **Asynchronous Execution**: Native async I/O for efficient LLM workflows
 - **Context Engineering**: Fine-grained control over conversation history per agent
-- **Typed Parameters**: JSON Schema validation with UI generation support
-- **Checkpointing**: Automatic workflow checkpointing and resume
+- **Typed Input/Output**: JSON Schema validation with UI generation support using `input`/`output`/`state` declarations
 - **Pluggable Backends**: Storage, HITL, and chat recording via Pydantic protocols
 - **LLM Integration**: Works with OpenAI and Bedrock via [pydantic-ai](https://github.com/pydantic/pydantic-ai)
 - **Standalone CLI**: Run workflows without any infrastructure

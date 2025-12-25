@@ -82,7 +82,7 @@ agent("calculator", {
 IMPORTANT: You MUST call the appropriate tool for EVERY calculation. Never calculate directly.
 
 After calling the calculation tool, call done with the result.]],
-    initial_message = "{params.task}",
+    initial_message = "{input.task}",
     toolsets = {
         -- Reference individual tools by name
         "calculate_tip",
@@ -94,14 +94,14 @@ After calling the calculation tool, call done with the result.]],
 
 -- Main workflow
 procedure({
-    params = {
+    input = {
         task = {
             type = "string",
             default = "Calculate 20% tip on $50",
             description = "Calculation task to perform"
         }
     },
-    outputs = {
+    output = {
         result = {
             type = "string",
             required = true,
@@ -112,7 +112,8 @@ procedure({
             required = true,
             description = "Whether the task was completed successfully"
         }
-    }
+    },
+    state = {}
 }, function()
     local max_turns = 5
     local turn_count = 0

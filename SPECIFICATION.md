@@ -14,7 +14,7 @@ The Procedure DSL enables defining agentic workflows as configuration. It combin
 
 **Key Principles:**
 
-1. **Uniform Recursion** — A procedure is a procedure, whether invoked externally or by another procedure. Same params, outputs, prompts, async capabilities everywhere.
+1. **Uniform Recursion** — A procedure is a procedure, whether invoked externally or by another procedure. Same input, output, prompts, async capabilities everywhere.
 
 2. **Human-in-the-Loop** — Procedures can request human approval, input, or review. Humans can monitor, intervene, and collaborate with running procedures.
 
@@ -36,10 +36,10 @@ agent("worker", {
 -- Stages (optional)
 stages({"planning", "executing", "complete"})
 
--- Procedure with parameters and outputs defined inline
+-- Procedure with input and output defined inline
 procedure({
-    -- Parameters (inputs to the procedure)
-    params = {
+    -- Input (inputs to the procedure)
+    input = {
         task = {
             type = "string",
             required = true,
@@ -50,9 +50,9 @@ procedure({
             default = 10
         }
     },
-    
-    -- Outputs (validated return values)
-    outputs = {
+
+    -- Output (validated return values)
+    output = {
         result = {
             type = "string",
             required = true,
@@ -62,15 +62,18 @@ procedure({
             type = "boolean",
             required = true
         }
-    }
+    },
+
+    -- State (persistent working data)
+    state = {}
 }, function()
     -- Procedure logic here
-    local task = params.task
+    local task = input.task
     Log.info("Starting task", {task = task})
-    
+
     repeat
         Worker.turn()
-    until Tool.called("done") or Iterations.exceeded(params.max_iterations)
+    until Tool.called("done") or Iterations.exceeded(input.max_iterations)
     
     return {
         result = "Task completed",
@@ -92,20 +95,20 @@ Feature: Task Processing
 **Key structure:**
 - **Agents** at top level (reusable)
 - **procedure()** takes two arguments:
-  1. Config table with `params` and `outputs`
+  1. Config table with `input`, `output`, and `state`
   2. Function containing the procedure logic
-- **Parameters** and **outputs** are defined inside the procedure config, not at top level
+- **Input** and **output** are defined inside the procedure config, not at top level
 - **specifications()** at top level for BDD tests
 
 ---
 
-## Parameters
+## Input
 
-Parameter schema defines what the procedure accepts. Validated before execution.
+Input schema defines what the procedure accepts. Validated before execution.
 
 ```lua
 procedure({
-    params = {
+    input = {
         topic = {
             type = "string",
             required = true,
@@ -124,28 +127,30 @@ procedure({
             type = "boolean",
             default = true
         }
-    }
+    },
+
+    state = {}
 }, function()
-    -- Access parameters
-    local topic = params.topic
-    local depth = params.depth
+    -- Access input
+    local topic = input.topic
+    local depth = input.depth
     -- ...
 end)
 ```
 
 **Type options:** `string`, `number`, `boolean`, `array`, `object`
 
-Parameters are accessed in templates as `{params.topic}` and in Lua as `params.topic`.
+Input values are accessed in templates as `{input.topic}` and in Lua as `input.topic`.
 
 ---
 
-## Outputs
+## Output
 
 Output schema defines what the procedure returns. Validated after execution.
 
 ```lua
 procedure({
-    outputs = {
+    output = {
         findings = {
             type = "string",
             required = true,
@@ -160,7 +165,9 @@ procedure({
             type = "array",
             required = false
         }
-    }
+    },
+
+    state = {}
 }, function()
     -- Procedure logic
     return {
@@ -171,12 +178,12 @@ procedure({
 end)
 ```
 
-When `outputs` is present:
+When `output` is present:
 1. Required fields are validated to exist
 2. Types are checked
 3. Only declared fields are returned (internal data stripped)
 
-When `outputs` is omitted, the procedure can return anything without validation.
+When `output` is omitted, the procedure can return anything without validation.
 
 ---
 
@@ -530,13 +537,13 @@ Validation that runs before the procedure executes:
 ```yaml
 guards:
   - |
-    if not File.exists(params.file_path) then
-      return false, "File not found: " .. params.file_path
+    if not File.exists(input.file_path) then
+      return false, "File not found: " .. input.file_path
     end
     return true
-    
+
   - |
-    if params.depth > 10 then
+    if input.depth > 10 then
       return false, "Depth cannot exceed 10"
     end
     return true
@@ -556,7 +563,7 @@ Declare resources your procedure needs (HTTP APIs, databases, caches, etc.):
 
 ```lua
 procedure({
-    params = {
+    input = {
         city = {type = "string", required = true}
     },
 
@@ -579,7 +586,9 @@ procedure({
             type = "redis",
             url = env.REDIS_URL
         }
-    }
+    },
+
+    state = {}
 }, function()
     -- Dependencies are automatically created and available
     -- Tools (via MCP) can access them through the dependency injection system
@@ -724,8 +733,8 @@ Dependencies are **recreated** on procedure restart (after checkpoint). The depe
 
 | Namespace | Source | Example |
 |-----------|--------|---------|
-| `params` | Input parameters | `{params.topic}` |
-| `outputs` | (In return_prompt) Final values | `{outputs.findings}` |
+| `input` | Input parameters | `{input.topic}` |
+| `output` | (In return_prompt) Final values | `{output.findings}` |
 | `context` | Runtime context from caller | `{context.parent_id}` |
 | `state` | Mutable procedure state | `{state.items_processed}` |
 | `prepared` | Output of agent's `prepare` hook | `{prepared.file_contents}` |
@@ -1096,26 +1105,28 @@ version: 1.0.0
 procedures:
   researcher:
     description: "Researches a topic"
-    
-    params:
+
+    input:
       query:
         type: string
         required: true
-    
-    outputs:
+
+    output:
       findings:
         type: string
         required: true
-    
+
+    state: {}
+
     return_prompt: |
       Summarize your research findings.
-    
+
     agents:
       worker:
         system_prompt: |
-          Research: {params.query}
+          Research: {input.query}
         tools: [search, done]
-    
+
     procedure: |
       repeat
         Worker.turn()
@@ -1147,11 +1158,11 @@ agents:
         current_time = os.date(),
         data = load_context_data()
       }
-    
+
     system_prompt: |
-      You are processing: {params.task}
+      You are processing: {input.task}
       Context: {prepared.data}
-    
+
     initial_message: |
       Begin working on the task.
     
@@ -1576,12 +1587,12 @@ Step.run(name, fn)
 
 -- Examples:
 local champion = Step.run("load_champion", function()
-  return Tools.plexus_get_score({score_id = params.score_id})
+  return Tools.plexus_get_score({score_id = input.score_id})
 end)
 
 local metrics = Step.run("evaluate_champion", function()
   return Tools.plexus_run_evaluation({
-    score_id = params.score_id,
+    score_id = input.score_id,
     version = "champion"
   })
 end)
@@ -1818,7 +1829,7 @@ local matcher = matches("^[A-Z][a-z]+$")
 -- Returns: ("matches", "^[A-Z][a-z]+$")
 
 -- Usage for validation
-local name = params.name
+local name = input.name
 if string.match(name, "^[A-Z][a-z]+$") then
     Log.info("Valid name format")
 end
@@ -1871,7 +1882,7 @@ end
 
 -- Usage
 local check_range = between(1, 100)
-if check_range(params.count) then
+if check_range(input.count) then
     Log.info("Count is in valid range")
 end
 ```
@@ -1885,7 +1896,7 @@ name: content_pipeline
 version: 1.0.0
 description: Generate and publish content with human oversight
 
-params:
+input:
   topic:
     type: string
     required: true
@@ -1894,13 +1905,15 @@ params:
     enum: [blog, docs, internal]
     required: true
 
-outputs:
+output:
   published:
     type: boolean
     required: true
   url:
     type: string
     required: false
+
+state: {}
 
 hitl:
   review_content:
@@ -1911,18 +1924,18 @@ hitl:
       - {label: "Approve", type: "action"}
       - {label: "Reject", type: "cancel"}
       - {label: "Revise", type: "action"}
-    
+
   confirm_publish:
     type: approval
-    message: "Publish to {params.target}?"
+    message: "Publish to {input.target}?"
     timeout: 3600
     default: false
 
 agents:
   writer:
     system_prompt: |
-      You write content about: {params.topic}
-      Target: {params.target}
+      You write content about: {input.topic}
+      Target: {input.target}
     tools:
       - research
       - write_draft
@@ -1942,7 +1955,7 @@ procedure: |
   Human.notify({
     message = "Starting content generation",
     level = "info",
-    context = {topic = params.topic, target = params.target}
+    context = {topic = input.topic, target = input.target}
   })
   
   Stage.set("writing")
@@ -1974,19 +1987,19 @@ procedure: |
     State.set("revision_feedback", review.feedback)
     -- ... revision logic ...
   end
-  
+
   local final_content = review.edited_artifact or draft
-  
+
   -- Approval to publish
   Stage.set("publishing")
   local approved = Human.approve("confirm_publish")
-  
+
   if not approved then
     return {published = false, reason = "not_approved"}
   end
-  
+
   local url = Step.run("publish", function()
-    return publish_content(final_content, params.target)
+    return publish_content(final_content, input.target)
   end)
   
   Human.notify({
@@ -2007,7 +2020,7 @@ procedure: |
 name: batch_processor
 version: 1.0.0
 
-params:
+input:
   items:
     type: array
     required: true
@@ -2015,13 +2028,15 @@ params:
     type: number
     default: 0.1
 
-outputs:
+output:
   processed:
     type: number
     required: true
   failed:
     type: number
     required: true
+
+state: {}
 
 stages:
   - processing
@@ -2030,11 +2045,11 @@ stages:
 procedure: |
   local processed = 0
   local failed = 0
-  local total = #params.items
-  
+  local total = #input.items
+
   Stage.set("processing")
-  
-  for i, item in ipairs(params.items) do
+
+  for i, item in ipairs(input.items) do
     local ok, result = pcall(process_item, item)
     
     if ok then
@@ -2054,14 +2069,14 @@ procedure: |
     
     -- Alert if failure rate exceeds threshold
     local failure_rate = failed / i
-    if failure_rate > params.threshold then
+    if failure_rate > input.threshold then
       System.alert({
         message = "Failure rate exceeded threshold",
         level = "warning",
         source = "batch_processor",
         context = {
           failure_rate = failure_rate,
-          threshold = params.threshold,
+          threshold = input.threshold,
           processed = i,
           failed = failed
         }
@@ -2111,7 +2126,7 @@ description: |
   evaluates them against the champion, and requests approval
   to promote improvements.
 
-params:
+input:
   score_id:
     type: string
     required: true
@@ -2122,7 +2137,7 @@ params:
     type: number
     default: 3
 
-outputs:
+output:
   promoted:
     type: boolean
     required: true
@@ -2135,6 +2150,8 @@ outputs:
   rejection_reason:
     type: string
     required: false
+
+state: {}
 
 hitl:
   approval_to_promote:
@@ -2156,19 +2173,19 @@ stages:
 
 prompts:
   analysis_system: |
-    You are a Score optimization specialist. Analyze the current 
+    You are a Score optimization specialist. Analyze the current
     champion Score's performance and identify improvement opportunities.
-    
-    Score ID: {params.score_id}
+
+    Score ID: {input.score_id}
     Champion metrics: {state.champion_metrics}
     Error patterns: {state.error_analysis}
 
   drafting_system: |
     Based on your analysis, draft an improved Score configuration.
-    
+
     Analysis findings: {state.analysis_findings}
     Human feedback (if any): {state.human_feedback}
-    
+
     Be conservative - small targeted improvements are better than
     sweeping changes.
 
@@ -2199,26 +2216,26 @@ procedure: |
   Stage.set("analyzing")
   
   State.set("champion_config", Step.run("load_champion", function()
-    return Tools.plexus_get_score({score_id = params.score_id})
+    return Tools.plexus_get_score({score_id = input.score_id})
   end))
-  
+
   -- Run fresh evaluation on champion (checkpointed)
   State.set("champion_metrics", Step.run("evaluate_champion", function()
     return Tools.plexus_run_evaluation({
-      score_id = params.score_id,
+      score_id = input.score_id,
       version = "champion",
       test_set = "validation"
     })
   end))
-  
+
   State.set("error_analysis", Step.run("analyze_errors", function()
     return Tools.plexus_analyze_errors({
-      score_id = params.score_id,
+      score_id = input.score_id,
       limit = 100
     })
   end))
-  
-  while attempt <= params.max_attempts do
+
+  while attempt <= input.max_attempts do
     Log.info("Optimization attempt " .. attempt)
     
     -- Agent analyzes the data
@@ -2251,7 +2268,7 @@ procedure: |
     
     local eval_result = Step.run("evaluate_candidate_" .. attempt, function()
       return Tools.plexus_run_evaluation({
-        score_id = params.score_id,
+        score_id = input.score_id,
         config = candidate_config,
         test_set = "validation"
       })
@@ -2268,10 +2285,10 @@ procedure: |
     
     local improvement = comparison.improvement_percentage
     Log.info("Improvement: " .. (improvement * 100) .. "%")
-    
-    if improvement < params.improvement_threshold then
-      if attempt < params.max_attempts then
-        State.set("human_feedback", "Auto-retry: " .. 
+
+    if improvement < input.improvement_threshold then
+      if attempt < input.max_attempts then
+        State.set("human_feedback", "Auto-retry: " ..
           (improvement * 100) .. "% below threshold")
         attempt = attempt + 1
       else
@@ -2299,10 +2316,10 @@ procedure: |
       
       if review.decision == "Approve" then
         Stage.set("promoting")
-        
+
         local result = Step.run("promote", function()
           return Tools.plexus_promote_score_version({
-            score_id = params.score_id,
+            score_id = input.score_id,
             config = candidate_config
           })
         end)
@@ -2463,7 +2480,7 @@ Code between checkpoints must be deterministic:
 
 ```lua
 -- GOOD: Deterministic
-local items = params.items
+local items = input.items
 for i, item in ipairs(items) do
   Worker.turn({inject = "Process: " .. item})
 end
@@ -2638,7 +2655,7 @@ Tests are executed using Behave programmatically with:
 
 ## Summary
 
-**Uniform Recursion:** Procedures work identically at all levels—same params, outputs, prompts, async, HITL.
+**Uniform Recursion:** Procedures work identically at all levels—same input, output, prompts, async, HITL.
 
 **Human-in-the-Loop:** First-class primitives for approval, input, review, notification, and escalation.
 

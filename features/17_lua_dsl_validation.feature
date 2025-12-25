@@ -55,53 +55,57 @@ Feature: Lua DSL Validation
     Then validation should fail
     And the error should mention "provider"
 
-  Scenario: Valid parameter declaration
+  Scenario: Valid input declaration
     Given a Lua DSL file with content:
       """
-      parameter("topic", {
-        type = "string",
-        required = true,
-        description = "Research topic"
-      })
-      
       agent("worker", {
         provider = "openai",
         model = "gpt-4o",
         system_prompt = "Test",
         tools = {}
       })
-      
-      procedure(function()
+
+      procedure({
+        input = {
+          topic = {
+            type = "string",
+            required = true,
+            description = "Research topic"
+          }
+        }
+      }, function()
         return {}
       end)
       """
     When I validate the file
     Then validation should succeed
-    And it should recognize 1 parameter declaration
+    And the input_schema should contain field "topic"
 
   Scenario: Valid output declaration
     Given a Lua DSL file with content:
       """
-      output("result", {
-        type = "string",
-        required = true,
-        description = "Result"
-      })
-      
       agent("worker", {
         provider = "openai",
         model = "gpt-4o",
         system_prompt = "Test",
         tools = {}
       })
-      
-      procedure(function()
+
+      procedure({
+        output = {
+          result = {
+            type = "string",
+            required = true,
+            description = "Result"
+          }
+        }
+      }, function()
         return {}
       end)
       """
     When I validate the file
     Then validation should succeed
-    And it should recognize 1 output declaration
+    And the output_schema should contain field "result"
 
   Scenario: Quick validation mode
     Given a Lua DSL file "examples/04-basics-simple-agent.tac"

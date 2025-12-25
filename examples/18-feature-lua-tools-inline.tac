@@ -25,7 +25,7 @@ Available tools:
 - repeat_text: Repeat text a specified number of times
 
 After calling the tool, call done with the tool's result.]],
-    initial_message = "{params.message}",
+    initial_message = "{input.message}",
     -- Inline tool definitions specific to this agent
     tools = {
         {
@@ -95,14 +95,14 @@ After calling the tool, call done with the tool's result.]],
 
 -- Main workflow
 procedure({
-    params = {
+    input = {
         message = {
             type = "string",
             default = "Convert 'hello world' to uppercase",
             description = "Text processing request"
         }
     },
-    outputs = {
+    output = {
         result = {
             type = "string",
             required = true,
@@ -118,7 +118,8 @@ procedure({
             required = true,
             description = "Whether the task was completed"
         }
-    }
+    },
+    state = {}
 }, function()
     local max_turns = 5
     local turn_count = 0

@@ -12,18 +12,19 @@ Call the 'done' tool with your greeting.]],
 })
 
 procedure({
-    params = {
+    input = {
         name = {
             type = "string",
             required = true
         }
     },
-    outputs = {
+    output = {
         greeting = {
             type = "string",
             required = true
         }
-    }
+    },
+    state = {}
 }, function()
     -- Have agent generate greeting
     Greeter.turn()

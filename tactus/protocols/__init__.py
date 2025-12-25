@@ -6,7 +6,7 @@ This module exports all Pydantic models and protocol definitions for Tactus.
 
 # Core models
 from tactus.protocols.models import (
-    CheckpointData,
+    CheckpointEntry,
     ProcedureMetadata,
     HITLRequest,
     HITLResponse,
@@ -23,7 +23,7 @@ from tactus.protocols.config import TactusConfig, ProcedureConfig
 
 __all__ = [
     # Models
-    "CheckpointData",
+    "CheckpointEntry",
     "ProcedureMetadata",
     "HITLRequest",
     "HITLResponse",

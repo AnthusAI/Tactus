@@ -15,13 +15,13 @@ IMPORTANT: Always call the done tool immediately with your formatted result.]],
 })
 
 procedure({
-    params = {
+    input = {
         task = {
             type = "string",
             required = true
         }
     },
-    outputs = {
+    output = {
         result = {
             type = "string",
             required = true
@@ -34,7 +34,8 @@ procedure({
             type = "object",
             required = false
         }
-    }
+    },
+    state = {}
 }, function()
     -- Have agent complete the task
     Formatter.turn()

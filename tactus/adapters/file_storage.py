@@ -1,7 +1,7 @@
 """
 File-based storage backend for Tactus.
 
-Stores procedure metadata and checkpoints as JSON files on disk.
+Stores procedure metadata and execution log as JSON files on disk.
 """
 
 import json
@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Optional, Dict
 from datetime import datetime
 
-from tactus.protocols.models import ProcedureMetadata, CheckpointData
+from tactus.protocols.models import ProcedureMetadata, CheckpointEntry
 
 
 class FileStorage:
@@ -64,122 +64,52 @@ class FileStorage:
             # Create new metadata
             return ProcedureMetadata(procedure_id=procedure_id)
 
-        # Convert stored checkpoint data back to CheckpointData objects
-        checkpoints = {}
-        for name, ckpt_data in data.get("checkpoints", {}).items():
-            checkpoints[name] = CheckpointData(
-                name=name,
-                result=ckpt_data["result"],
-                completed_at=datetime.fromisoformat(ckpt_data["completed_at"]),
-            )
+        # Convert stored execution log back to CheckpointEntry objects
+        execution_log = []
+        for entry_data in data.get("execution_log", []):
+            execution_log.append(CheckpointEntry(
+                position=entry_data["position"],
+                type=entry_data["type"],
+                result=entry_data["result"],
+                timestamp=datetime.fromisoformat(entry_data["timestamp"]),
+                duration_ms=entry_data.get("duration_ms"),
+                input_hash=entry_data.get("input_hash"),
+            ))
 
         return ProcedureMetadata(
             procedure_id=procedure_id,
-            checkpoints=checkpoints,
+            execution_log=execution_log,
+            replay_index=data.get("replay_index", 0),
             state=data.get("state", {}),
+            lua_state=data.get("lua_state", {}),
             status=data.get("status", "RUNNING"),
             waiting_on_message_id=data.get("waiting_on_message_id"),
         )
 
-    def save_procedure_metadata(self, metadata: ProcedureMetadata) -> None:
+    def save_procedure_metadata(self, procedure_id: str, metadata: ProcedureMetadata) -> None:
         """Save procedure metadata to file."""
         # Convert to serializable dict
         data = {
             "procedure_id": metadata.procedure_id,
-            "checkpoints": {
-                name: {
-                    "name": ckpt.name,
-                    "result": ckpt.result,
-                    "completed_at": ckpt.completed_at.isoformat(),
+            "execution_log": [
+                {
+                    "position": entry.position,
+                    "type": entry.type,
+                    "result": entry.result,
+                    "timestamp": entry.timestamp.isoformat(),
+                    "duration_ms": entry.duration_ms,
+                    "input_hash": entry.input_hash,
                 }
-                for name, ckpt in metadata.checkpoints.items()
-            },
+                for entry in metadata.execution_log
+            ],
+            "replay_index": metadata.replay_index,
             "state": metadata.state,
+            "lua_state": metadata.lua_state,
             "status": metadata.status,
             "waiting_on_message_id": metadata.waiting_on_message_id,
         }
 
-        self._write_file(metadata.procedure_id, data)
-
-    def checkpoint_save(self, procedure_id: str, name: str, result: Any) -> None:
-        """Save a checkpoint."""
-        metadata = self.load_procedure_metadata(procedure_id)
-        metadata.checkpoints[name] = CheckpointData(
-            name=name, result=result, completed_at=datetime.now()
-        )
-        self.save_procedure_metadata(metadata)
-
-    def checkpoint_get(self, procedure_id: str, name: str) -> Optional[Any]:
-        """Get checkpoint result."""
-        metadata = self.load_procedure_metadata(procedure_id)
-        checkpoint = metadata.checkpoints.get(name)
-        return checkpoint.result if checkpoint else None
-
-    def checkpoint_exists(self, procedure_id: str, name: str) -> bool:
-        """Check if checkpoint exists."""
-        metadata = self.load_procedure_metadata(procedure_id)
-        return name in metadata.checkpoints
-
-    def checkpoint_clear_all(self, procedure_id: str) -> None:
-        """Clear all checkpoints."""
-        metadata = self.load_procedure_metadata(procedure_id)
-        metadata.checkpoints = {}
-        self.save_procedure_metadata(metadata)
-
-    def checkpoint_clear_after(self, procedure_id: str, name: str) -> None:
-        """Clear checkpoint and all subsequent ones."""
-        # For file storage, we don't have ordering info
-        # Just clear the named checkpoint
-        metadata = self.load_procedure_metadata(procedure_id)
-        if name in metadata.checkpoints:
-            del metadata.checkpoints[name]
-            self.save_procedure_metadata(metadata)
-
-    def state_get(self, procedure_id: str, key: str, default: Any = None) -> Any:
-        """Get state value."""
-        metadata = self.load_procedure_metadata(procedure_id)
-        return metadata.state.get(key, default)
-
-    def state_set(self, procedure_id: str, key: str, value: Any) -> None:
-        """Set state value."""
-        metadata = self.load_procedure_metadata(procedure_id)
-        metadata.state[key] = value
-        self.save_procedure_metadata(metadata)
-
-    def state_delete(self, procedure_id: str, key: str) -> None:
-        """Delete state key."""
-        metadata = self.load_procedure_metadata(procedure_id)
-        if key in metadata.state:
-            del metadata.state[key]
-            self.save_procedure_metadata(metadata)
-
-    def state_clear(self, procedure_id: str) -> None:
-        """Clear all state."""
-        metadata = self.load_procedure_metadata(procedure_id)
-        metadata.state = {}
-        self.save_procedure_metadata(metadata)
-
-    def get_status(self, procedure_id: str) -> str:
-        """Get procedure status."""
-        metadata = self.load_procedure_metadata(procedure_id)
-        return metadata.status
-
-    def set_status(self, procedure_id: str, status: str) -> None:
-        """Set procedure status."""
-        metadata = self.load_procedure_metadata(procedure_id)
-        metadata.status = status
-        self.save_procedure_metadata(metadata)
-
-    def set_waiting_on_message(self, procedure_id: str, message_id: Optional[str]) -> None:
-        """Set waiting on message ID."""
-        metadata = self.load_procedure_metadata(procedure_id)
-        metadata.waiting_on_message_id = message_id
-        self.save_procedure_metadata(metadata)
-
-    def get_waiting_on_message(self, procedure_id: str) -> Optional[str]:
-        """Get waiting on message ID."""
-        metadata = self.load_procedure_metadata(procedure_id)
-        return metadata.waiting_on_message_id
+        self._write_file(procedure_id, data)
 
     def update_procedure_status(
         self, procedure_id: str, status: str, waiting_on_message_id: Optional[str] = None
@@ -188,7 +118,7 @@ class FileStorage:
         metadata = self.load_procedure_metadata(procedure_id)
         metadata.status = status
         metadata.waiting_on_message_id = waiting_on_message_id
-        self.save_procedure_metadata(metadata)
+        self.save_procedure_metadata(procedure_id, metadata)
 
     def get_state(self, procedure_id: str) -> Dict[str, Any]:
         """Get mutable state dictionary."""
@@ -199,4 +129,4 @@ class FileStorage:
         """Set mutable state dictionary."""
         metadata = self.load_procedure_metadata(procedure_id)
         metadata.state = state
-        self.save_procedure_metadata(metadata)
+        self.save_procedure_metadata(procedure_id, metadata)

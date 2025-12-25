@@ -1,161 +1,165 @@
-Feature: Parameter Declarations
+Feature: Input Declarations (Procedure Parameters)
   As a workflow developer
-  I want to declare typed parameters with validation
+  I want to declare typed inputs with validation
   So that I can ensure correct inputs and generate UIs automatically
 
   Background:
     Given a Tactus validation environment
 
-  Scenario: Simple string parameter with default value
+  Scenario: Simple string input with default value
     Given a Lua DSL file with content:
       """
-      parameter("name", {
-        type = "string",
-        default = "World"
-      })
-      
       agent("worker", {
         provider = "openai",
-        system_prompt = "Hello {params.name}",
+        system_prompt = "Hello {input.name}",
         tools = {}
       })
-      
-      procedure(function()
-        return { greeting = "Hello, " .. params.name }
+
+      procedure({
+        input = {
+          name = {
+            type = "string",
+            default = "World"
+          }
+        }
+      }, function()
+        return { greeting = "Hello, " .. input.name }
       end)
       """
     When I validate the file
     Then validation should succeed
-    And it should recognize 1 parameter declaration
+    And the input_schema should contain field "name"
 
-  Scenario: Required parameter validation
+  Scenario: Required input validation
     Given a Lua DSL file with content:
       """
-      parameter("topic", {
-        type = "string",
-        required = true,
-        description = "Research topic"
-      })
-      
       agent("worker", {
         provider = "openai",
-        system_prompt = "Research {params.topic}",
+        system_prompt = "Research {input.topic}",
         tools = {}
       })
-      
-      procedure(function()
-        return { result = params.topic }
+
+      procedure({
+        input = {
+          topic = {
+            type = "string",
+            required = true,
+            description = "Research topic"
+          }
+        }
+      }, function()
+        return { result = input.topic }
       end)
       """
     When I validate the file
     Then validation should succeed
-    And it should recognize 1 parameter declaration
+    And the input_schema should contain field "topic"
 
-  Scenario: Multiple parameter types
+  Scenario: Multiple input types
     Given a Lua DSL file with content:
       """
-      parameter("name", {
-        type = "string",
-        required = true
-      })
-      
-      parameter("count", {
-        type = "number",
-        default = 5
-      })
-      
-      parameter("enabled", {
-        type = "boolean",
-        default = true
-      })
-      
       agent("worker", {
         provider = "openai",
-        system_prompt = "Process {params.name}",
+        system_prompt = "Process {input.name}",
         tools = {}
       })
-      
-      procedure(function()
-        return { 
-          name = params.name,
-          count = params.count,
-          enabled = params.enabled
+
+      procedure({
+        input = {
+          name = {
+            type = "string",
+            required = true
+          },
+          count = {
+            type = "number",
+            default = 5
+          },
+          enabled = {
+            type = "boolean",
+            default = true
+          }
+        }
+      }, function()
+        return {
+          name = input.name,
+          count = input.count,
+          enabled = input.enabled
         }
       end)
       """
     When I validate the file
     Then validation should succeed
-    And it should recognize 3 parameter declarations
+    And the input_schema should have 3 fields
 
-  Scenario: Parameter with enum values
+  Scenario: Input with enum values
     Given a Lua DSL file with content:
       """
-      parameter("level", {
-        type = "string",
-        enum = {"low", "medium", "high"},
-        default = "medium"
-      })
-      
       agent("worker", {
         provider = "openai",
-        system_prompt = "Level: {params.level}",
+        system_prompt = "Level: {input.level}",
         tools = {}
       })
-      
-      procedure(function()
-        return { level = params.level }
+
+      procedure({
+        input = {
+          level = {
+            type = "string",
+            enum = {"low", "medium", "high"},
+            default = "medium"
+          }
+        }
+      }, function()
+        return { level = input.level }
       end)
       """
     When I validate the file
     Then validation should succeed
-    And it should recognize 1 parameter declaration
+    And the input_schema should contain field "level"
 
-  Scenario: Parameter used in template substitution
+  Scenario: Input used in template substitution
     Given a Lua DSL file with content:
       """
-      parameter("topic", {
-        type = "string",
-        default = "AI"
-      })
-      
       agent("worker", {
         provider = "openai",
-        system_prompt = "You are researching: {params.topic}",
+        system_prompt = "You are researching: {input.topic}",
         tools = {}
       })
-      
-      procedure(function()
+
+      procedure({
+        input = {
+          topic = {
+            type = "string",
+            default = "AI"
+          }
+        }
+      }, function()
         return { result = "done" }
       end)
       """
     When I validate the file
     Then validation should succeed
-    And the agent system_prompt should contain "{params.topic}"
+    And the agent system_prompt should contain "{input.topic}"
 
-  Scenario: Parameter accessed in Lua code
+  Scenario: Input accessed in Lua code
     Given a Lua DSL file with content:
       """
-      parameter("multiplier", {
-        type = "number",
-        default = 2
-      })
-      
       agent("worker", {
         provider = "openai",
         system_prompt = "Calculate",
         tools = {}
       })
-      
-      procedure(function()
-        local result = 10 * params.multiplier
+
+      procedure({
+        input = {
+          multiplier = {
+            type = "number",
+            default = 2
+          }
+        }
+      }, function()
+        local result = 10 * input.multiplier
         return { result = result }
       end)
       """
     When I validate the file
     Then validation should succeed
-
-
-
-
-
-

@@ -30,12 +30,13 @@ def example_workflow_file(tmp_path):
 })
 
 procedure({
-    outputs = {
+    output = {
         result = {
             type = "string",
             required = true
         }
-    }
+    },
+    state = {}
 }, function()
     return { result = "test" }
 end)
@@ -103,20 +104,21 @@ def test_cli_run_with_parameters(cli_runner, tmp_path):
 })
 
 procedure({
-    params = {
+    input = {
         name = {
             type = "string",
             default = "World"
         }
     },
-    outputs = {
+    output = {
         greeting = {
             type = "string",
             required = true
         }
-    }
+    },
+    state = {}
 }, function()
-    return { greeting = "Hello, " .. params.name }
+    return { greeting = "Hello, " .. input.name }
 end)
 """
     workflow_file = tmp_path / "params.tac"

@@ -12,22 +12,33 @@ def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-class CheckpointData(BaseModel):
-    """A single checkpoint in a procedure execution."""
+class CheckpointEntry(BaseModel):
+    """A single checkpoint entry in the execution log (position-based)."""
 
-    name: str = Field(..., description="Unique checkpoint name")
-    result: Any = Field(..., description="Result value from the checkpointed step")
-    completed_at: datetime = Field(..., description="Timestamp when checkpoint was created")
+    position: int = Field(..., description="Checkpoint position (0, 1, 2, ...)")
+    type: str = Field(
+        ...,
+        description="Checkpoint type: agent_turn, model_predict, procedure_call, hitl_approval, explicit_checkpoint",
+    )
+    result: Any = Field(..., description="Result value from the checkpointed operation")
+    timestamp: datetime = Field(..., description="When checkpoint was created")
+    duration_ms: Optional[float] = Field(None, description="Operation duration in milliseconds")
+    input_hash: Optional[str] = Field(
+        None, description="Hash of inputs for determinism checking"
+    )
 
     model_config = {"arbitrary_types_allowed": True}
 
 
 class ProcedureMetadata(BaseModel):
-    """Complete metadata for a procedure run."""
+    """Complete metadata for a procedure run (position-based execution log)."""
 
     procedure_id: str = Field(..., description="Unique procedure identifier")
-    checkpoints: Dict[str, CheckpointData] = Field(
-        default_factory=dict, description="Map of checkpoint names to checkpoint data"
+    execution_log: list[CheckpointEntry] = Field(
+        default_factory=list, description="Position-based execution log (ordered list of checkpoints)"
+    )
+    replay_index: int = Field(
+        default=0, description="Current replay position (next checkpoint to execute)"
     )
     state: Dict[str, Any] = Field(default_factory=dict, description="Mutable state dictionary")
     lua_state: Dict[str, Any] = Field(

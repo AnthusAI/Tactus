@@ -121,10 +121,11 @@ def step_impl(context):
 @when('I run "tactus validate {filepath}"')
 def step_impl(context, filepath):
     """Run the tactus validate CLI command."""
+    import sys
     project_root = Path(__file__).parent.parent.parent
     full_path = project_root / filepath
     result = subprocess.run(
-        ["tactus", "validate", str(full_path)],
+        [sys.executable, "-m", "tactus.cli.app", "validate", str(full_path)],
         capture_output=True,
         text=True,
     )
@@ -137,8 +138,9 @@ def step_impl(context, filepath):
 @when('I run "tactus validate" on the file')
 def step_impl(context):
     """Run tactus validate on the temporary file."""
+    import sys
     result = subprocess.run(
-        ["tactus", "validate", str(context.lua_file)],
+        [sys.executable, "-m", "tactus.cli.app", "validate", str(context.lua_file)],
         capture_output=True,
         text=True,
     )
@@ -246,22 +248,77 @@ def step_impl(context):
     assert context.validation_result.valid, f"Validation failed: {context.validation_result.errors}"
 
 
+@then('the state_schema should contain field "{field_name}"')
+def step_impl(context, field_name):
+    """Assert that the state schema contains a specific field."""
+    assert context.validation_result is not None
+    assert context.validation_result.registry is not None
+    assert field_name in context.validation_result.registry.state_schema, \
+        f"Field '{field_name}' not found in state_schema. Available fields: {list(context.validation_result.registry.state_schema.keys())}"
+
+
 @then("it should recognize {count:d} parameter declaration")
 @then("it should recognize {count:d} parameter declarations")
 def step_impl(context, count):
-    """Assert the number of parameter declarations."""
+    """Assert the number of parameter declarations (deprecated - use input_schema)."""
     assert context.validation_result is not None
     assert context.validation_result.registry is not None
-    assert len(context.validation_result.registry.parameters) == count
+    # Old syntax - check input_schema instead
+    assert len(context.validation_result.registry.input_schema) == count
 
 
 @then("it should recognize {count:d} output declaration")
 @then("it should recognize {count:d} output declarations")
 def step_impl(context, count):
-    """Assert the number of output declarations."""
+    """Assert the number of output declarations (deprecated - use output_schema)."""
     assert context.validation_result is not None
     assert context.validation_result.registry is not None
-    assert len(context.validation_result.registry.outputs) == count
+    # Old syntax - check output_schema instead
+    assert len(context.validation_result.registry.output_schema) == count
+
+
+@then('the input_schema should contain field "{field_name}"')
+def step_impl(context, field_name):
+    """Assert that input_schema contains a specific field."""
+    assert context.validation_result is not None
+    assert context.validation_result.registry is not None
+    assert (
+        field_name in context.validation_result.registry.input_schema
+    ), f"Field '{field_name}' not found in input_schema. Available fields: {list(context.validation_result.registry.input_schema.keys())}"
+
+
+@then('the output_schema should contain field "{field_name}"')
+def step_impl(context, field_name):
+    """Assert that output_schema contains a specific field."""
+    assert context.validation_result is not None
+    assert context.validation_result.registry is not None
+    assert (
+        field_name in context.validation_result.registry.output_schema
+    ), f"Field '{field_name}' not found in output_schema. Available fields: {list(context.validation_result.registry.output_schema.keys())}"
+
+
+@then("the input_schema should have {count:d} field")
+@then("the input_schema should have {count:d} fields")
+def step_impl(context, count):
+    """Assert the number of fields in input_schema."""
+    assert context.validation_result is not None
+    assert context.validation_result.registry is not None
+    actual_count = len(context.validation_result.registry.input_schema)
+    assert (
+        actual_count == count
+    ), f"Expected {count} input fields, but found {actual_count}: {list(context.validation_result.registry.input_schema.keys())}"
+
+
+@then("the output_schema should have {count:d} field")
+@then("the output_schema should have {count:d} fields")
+def step_impl(context, count):
+    """Assert the number of fields in output_schema."""
+    assert context.validation_result is not None
+    assert context.validation_result.registry is not None
+    actual_count = len(context.validation_result.registry.output_schema)
+    assert (
+        actual_count == count
+    ), f"Expected {count} output fields, but found {actual_count}: {list(context.validation_result.registry.output_schema.keys())}"
 
 
 @then("it should only check syntax")
@@ -392,3 +449,19 @@ def step_impl(context):
     assert context.validation_result is not None
     assert context.validation_result.valid, "Validation should succeed"
     assert len(context.validation_result.warnings) > 0, "Expected warnings but found none"
+
+
+@then("it should recognize model declarations")
+def step_impl(context):
+    """Assert that model declarations were found."""
+    assert context.validation_result is not None
+    assert context.validation_result.registry is not None
+    assert len(context.validation_result.registry.models) > 0, "No models found in registry"
+
+
+@then("it should recognize multiple model declarations")
+def step_impl(context):
+    """Assert that multiple model declarations were found."""
+    assert context.validation_result is not None
+    assert context.validation_result.registry is not None
+    assert len(context.validation_result.registry.models) > 1, f"Expected multiple models, found {len(context.validation_result.registry.models)}"

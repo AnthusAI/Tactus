@@ -171,13 +171,22 @@ class TactusTestRunner:
         logger.debug(f"Running behave subprocess: {' '.join(cmd)}")
 
         try:
+            # Ensure tactus module is importable in subprocess
+            env = os.environ.copy()
+            # Add parent directory to PYTHONPATH so tactus can be imported
+            project_root = Path(__file__).parent.parent.parent  # Go up to project root
+            if 'PYTHONPATH' in env:
+                env['PYTHONPATH'] = f"{project_root}:{env['PYTHONPATH']}"
+            else:
+                env['PYTHONPATH'] = str(project_root)
+
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
                 timeout=600,  # 10 minute timeout
                 cwd=work_dir,
-                env=os.environ.copy(),  # Inherit environment variables
+                env=env,
             )
 
             # Check if behave ran successfully (even if tests failed)
@@ -194,7 +203,12 @@ class TactusTestRunner:
 
             results_file = Path(work_dir) / "results.json"
             if not results_file.exists():
-                raise RuntimeError(f"Behave results file not found: {results_file}")
+                raise RuntimeError(
+                    f"Behave results file not found: {results_file}\n"
+                    f"Return code: {result.returncode}\n"
+                    f"STDOUT: {result.stdout}\n"
+                    f"STDERR: {result.stderr}"
+                )
 
             # Behave may write multiple JSON objects (one per feature run)
             # We need to parse them separately and combine

@@ -26,9 +26,8 @@ class TactusDSLVisitor(LuaParserVisitor):
         "name",
         "version",
         "description",
-        "parameter",
-        "output",
         "agent",
+        "model",
         "procedure",
         "prompt",
         "hitl",
@@ -117,36 +116,31 @@ class TactusDSLVisitor(LuaParserVisitor):
         elif func_name == "version":
             if args and len(args) >= 1:
                 self.builder.set_version(args[0])
-        elif func_name == "parameter":
-            if args and len(args) >= 2:
-                self.builder.register_parameter(
-                    args[0], args[1] if isinstance(args[1], dict) else {}
-                )
-        elif func_name == "output":
-            if args and len(args) >= 2:
-                self.builder.register_output(args[0], args[1] if isinstance(args[1], dict) else {})
         elif func_name == "agent":
             if args and len(args) >= 2:
                 self.builder.register_agent(args[0], args[1] if isinstance(args[1], dict) else {})
+        elif func_name == "model":
+            if args and len(args) >= 2:
+                self.builder.register_model(args[0], args[1] if isinstance(args[1], dict) else {})
         elif func_name == "procedure":
-            # For procedure, mark that it exists and extract inline parameters/outputs if present
+            # For procedure, mark that it exists and extract inline input/output/state if present
             self.builder.set_procedure(True)
 
-            # Check if first argument is a table constructor with params/outputs
+            # Check if first argument is a table constructor with input/output/state
             if args and len(args) >= 1 and isinstance(args[0], dict):
                 config = args[0]
 
-                # Extract inline parameters
-                if "params" in config and isinstance(config["params"], dict):
-                    for param_name, param_config in config["params"].items():
-                        if isinstance(param_config, dict):
-                            self.builder.register_parameter(param_name, param_config)
+                # Extract inline input schema
+                if "input" in config and isinstance(config["input"], dict):
+                    self.builder.register_input_schema(config["input"])
 
-                # Extract inline outputs
-                if "outputs" in config and isinstance(config["outputs"], dict):
-                    for output_name, output_config in config["outputs"].items():
-                        if isinstance(output_config, dict):
-                            self.builder.register_output(output_name, output_config)
+                # Extract inline output schema
+                if "output" in config and isinstance(config["output"], dict):
+                    self.builder.register_output_schema(config["output"])
+
+                # Extract inline state schema
+                if "state" in config and isinstance(config["state"], dict):
+                    self.builder.register_state_schema(config["state"])
         elif func_name == "prompt":
             if args and len(args) >= 2:
                 self.builder.register_prompt(args[0], args[1])

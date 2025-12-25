@@ -1,7 +1,7 @@
 """
 Storage backend protocol for Tactus.
 
-Defines the interface for persisting procedure state, checkpoints, and metadata.
+Defines the interface for persisting procedure state, execution log, and metadata.
 Implementations can use any storage backend (memory, files, databases, etc.).
 """
 
@@ -13,8 +13,11 @@ class StorageBackend(Protocol):
     """
     Protocol for storage backends.
 
-    Implementations provide persistence for procedure state and checkpoints.
+    Implementations provide persistence for procedure state and execution log.
     This allows Tactus to work with any storage system (memory, files, databases, etc.).
+
+    Position-based checkpointing: All checkpoints are stored in ProcedureMetadata.execution_log
+    as an ordered list. No named checkpoint methods needed.
     """
 
     def load_procedure_metadata(self, procedure_id: str) -> ProcedureMetadata:
@@ -25,19 +28,20 @@ class StorageBackend(Protocol):
             procedure_id: Unique procedure identifier
 
         Returns:
-            ProcedureMetadata with all state, checkpoints, and status
+            ProcedureMetadata with execution_log, state, replay_index, and status
 
         Raises:
             StorageError: If loading fails
         """
         ...
 
-    def save_procedure_metadata(self, metadata: ProcedureMetadata) -> None:
+    def save_procedure_metadata(self, procedure_id: str, metadata: ProcedureMetadata) -> None:
         """
         Save complete procedure metadata to storage.
 
         Args:
-            metadata: ProcedureMetadata to persist
+            procedure_id: Unique procedure identifier
+            metadata: ProcedureMetadata to persist (includes execution_log)
 
         Raises:
             StorageError: If saving fails
@@ -57,71 +61,6 @@ class StorageBackend(Protocol):
 
         Raises:
             StorageError: If update fails
-        """
-        ...
-
-    def checkpoint_exists(self, procedure_id: str, name: str) -> bool:
-        """
-        Check if a checkpoint exists.
-
-        Args:
-            procedure_id: Unique procedure identifier
-            name: Checkpoint name
-
-        Returns:
-            True if checkpoint exists
-        """
-        ...
-
-    def checkpoint_get(self, procedure_id: str, name: str) -> Optional[Any]:
-        """
-        Get checkpoint value.
-
-        Args:
-            procedure_id: Unique procedure identifier
-            name: Checkpoint name
-
-        Returns:
-            Checkpoint result value, or None if not found
-        """
-        ...
-
-    def checkpoint_save(self, procedure_id: str, name: str, result: Any) -> None:
-        """
-        Save a checkpoint.
-
-        Args:
-            procedure_id: Unique procedure identifier
-            name: Checkpoint name
-            result: Result value to checkpoint
-
-        Raises:
-            StorageError: If saving fails
-        """
-        ...
-
-    def checkpoint_clear_all(self, procedure_id: str) -> None:
-        """
-        Clear all checkpoints for a procedure.
-
-        Args:
-            procedure_id: Unique procedure identifier
-
-        Raises:
-            StorageError: If clearing fails
-        """
-        ...
-
-    def checkpoint_clear_after(self, procedure_id: str, name: str) -> None:
-        """
-        Clear a checkpoint and all subsequent ones (by timestamp).
-
-        Args:
-            procedure_id: Unique procedure identifier
-            name: Checkpoint name to clear from
-
-        Raises:
-            StorageError: If clearing fails
         """
         ...
 
