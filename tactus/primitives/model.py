@@ -89,6 +89,7 @@ class ModelPrimitive:
             return self.backend.predict_sync(input_data)
 
         # With context - checkpoint the operation
+
         return self.context.checkpoint(
             fn=lambda: self._execute_predict(input_data),
             operation_type="model_predict",
