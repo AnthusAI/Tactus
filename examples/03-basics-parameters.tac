@@ -9,9 +9,9 @@ agent("worker", {
     toolsets = {},
 })
 
--- Procedure with parameters and outputs defined inline
+-- Procedure with input and output defined inline
 procedure({
-    params = {
+    input = {
         task = {
             type = "string",
             default = "default task",
@@ -23,17 +23,24 @@ procedure({
             description = "Number of iterations to perform",
         },
     },
-    outputs = {
+    output = {
         result = {
             type = "string",
             required = true,
             description = "Summary of the completed work",
         },
+    },
+    state = {
+        iterations = {
+            type = "number",
+            default = 0,
+            description = "Counter for iterations"
+        }
     }
 }, function()
-    -- Access parameters
-    local task = params.task
-    local count = params.count
+    -- Access input
+    local task = input.task
+    local count = input.count
 
     Log.info("Running task", {task = task, count = count})
 

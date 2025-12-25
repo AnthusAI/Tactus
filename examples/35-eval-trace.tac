@@ -24,13 +24,13 @@ Review the research and call 'done' with your assessment.]],
 })
 
 procedure({
-    params = {
+    input = {
         topic = {
             type = "string",
             required = true
         }
     },
-    outputs = {
+    output = {
         research = {
             type = "string",
             required = true
@@ -38,6 +38,13 @@ procedure({
         reviewed = {
             type = "boolean",
             required = true
+        }
+    },
+    state = {
+        research_started = {
+            type = "boolean",
+            default = false,
+            description = "Research has started"
         }
     }
 }, function()

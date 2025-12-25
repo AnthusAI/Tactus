@@ -11,22 +11,23 @@ agent("greeter", {
 
 -- Procedure
 procedure({
-    params = {
+    input = {
         name = {
             type = "string",
             required = true,
             description = "Name to greet"
         }
     },
-    outputs = {
+    output = {
         greeting = {
             type = "string",
             required = true,
             description = "The greeting message"
         }
-    }
+    },
+    state = {}
 }, function()
-    Log.info("Generating greeting", {name = params.name})
+    Log.info("Generating greeting", {name = input.name})
     
     -- Have agent generate greeting
     Greeter.turn()

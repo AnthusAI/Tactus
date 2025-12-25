@@ -24,7 +24,7 @@ IMPORTANT WORKFLOW:
 4. DO NOT ask follow-up questions - just call done with the result
 
 You MUST call the 'done' tool after getting the calculation result.]],
-    initial_message = "{params.task}",
+    initial_message = "{input.task}",
     toolsets = {
         -- All local plugin tools (loaded from tool_paths in config)
         "plugin",
@@ -36,13 +36,13 @@ You MUST call the 'done' tool after getting the calculation result.]],
 
 -- Main workflow
 procedure({
-    params = {
+    input = {
         task = {
             type = "string",
             default = "Calculate the mortgage payment for a $300,000 loan at 6.5% interest for 30 years",
         },
     },
-    outputs = {
+    output = {
         answer = {
             type = "string",
             required = true,
@@ -53,7 +53,8 @@ procedure({
             required = true,
             description = "Whether the task was completed successfully",
         },
-    }
+    },
+    state = {}
 }, function()
     local result
     local max_turns = 5  -- Safety limit to prevent infinite loops

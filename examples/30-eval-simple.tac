@@ -3,13 +3,13 @@
 
 -- Simple procedure that just returns a greeting
 procedure({
-    params = {
+    input = {
         name = {
             type = "string",
             required = true
         }
     },
-    outputs = {
+    output = {
         greeting = {
             type = "string",
             required = true
@@ -18,10 +18,11 @@ procedure({
             type = "number",
             required = true
         }
-    }
+    },
+    state = {}
 }, function()
-    local greeting = "Hello, " .. params.name .. "!"
-    
+    local greeting = "Hello, " .. input.name .. "!"
+
     return {
         greeting = greeting,
         length = string.len(greeting)

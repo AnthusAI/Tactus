@@ -90,9 +90,9 @@ def step_impl(context):
     import asyncio
     from tactus.core.config_manager import ConfigManager
 
-    # Skip if no OpenAI API key is available (CI environment)
+    # Skip if no OpenAI API key is available
     if not os.environ.get("OPENAI_API_KEY"):
-        context.scenario.skip("Skipping: OPENAI_API_KEY not set (CI environment)")
+        context.scenario.skip("Skipping: OPENAI_API_KEY not set")
         return
 
     # Determine format

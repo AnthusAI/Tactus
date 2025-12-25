@@ -129,7 +129,7 @@ version("1.0.0")
 agent("researcher", {
   provider = "openai",
   model = "gpt-4o-mini",
-  system_prompt = "Research: {params.topic}",
+  system_prompt = "Research: {input.topic}",
   tools = {"search", "done"}
 })
 

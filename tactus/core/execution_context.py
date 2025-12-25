@@ -1,38 +1,39 @@
 """
 Execution context abstraction for Tactus runtime.
 
-Provides execution backend support with checkpointing and HITL capabilities.
+Provides execution backend support with position-based checkpointing and HITL capabilities.
 Uses pluggable storage and HITL handlers via protocols.
 """
 
 from abc import ABC, abstractmethod
 from typing import Any, Optional, Callable, List, Dict
 from datetime import datetime, timezone
+import time
 
 from tactus.protocols.storage import StorageBackend
 from tactus.protocols.hitl import HITLHandler
-from tactus.protocols.models import HITLRequest, HITLResponse
+from tactus.protocols.models import HITLRequest, HITLResponse, CheckpointEntry
 
 
 class ExecutionContext(ABC):
     """
     Abstract execution context for procedure workflows.
 
-    Provides checkpointing and HITL capabilities. Implementations
+    Provides position-based checkpointing and HITL capabilities. Implementations
     determine how to persist state and handle human interactions.
     """
 
     @abstractmethod
-    def step_run(self, name: str, fn: Callable[[], Any]) -> Any:
+    def checkpoint(self, fn: Callable[[], Any], checkpoint_type: str) -> Any:
         """
-        Execute fn with checkpointing. On replay, return stored result.
+        Execute fn with position-based checkpointing. On replay, return stored result.
 
         Args:
-            name: Unique checkpoint name
             fn: Function to execute (should be deterministic)
+            checkpoint_type: Type of checkpoint (agent_turn, model_predict, procedure_call, etc.)
 
         Returns:
-            Result of fn() on first execution, cached result on replay
+            Result of fn() on first execution, cached result from execution log on replay
         """
         pass
 
@@ -76,22 +77,17 @@ class ExecutionContext(ABC):
 
     @abstractmethod
     def checkpoint_clear_all(self) -> None:
-        """Clear all checkpoints. Used for testing."""
+        """Clear all checkpoints (execution log). Used for testing."""
         pass
 
     @abstractmethod
-    def checkpoint_clear_after(self, name: str) -> None:
-        """Clear checkpoint and all subsequent ones. Used for testing."""
+    def checkpoint_clear_after(self, position: int) -> None:
+        """Clear checkpoint at position and all subsequent ones. Used for testing."""
         pass
 
     @abstractmethod
-    def checkpoint_exists(self, name: str) -> bool:
-        """Check if checkpoint exists."""
-        pass
-
-    @abstractmethod
-    def checkpoint_get(self, name: str) -> Optional[Any]:
-        """Get cached checkpoint value, or None if not found."""
+    def next_position(self) -> int:
+        """Get the next checkpoint position."""
         pass
 
 
@@ -99,6 +95,7 @@ class BaseExecutionContext(ExecutionContext):
     """
     Base execution context using pluggable storage and HITL handlers.
 
+    Uses position-based checkpointing with execution log for replay.
     This implementation works with any StorageBackend and HITLHandler,
     making it suitable for various deployment scenarios (CLI, web, API, etc.).
     """
@@ -114,25 +111,53 @@ class BaseExecutionContext(ExecutionContext):
 
         Args:
             procedure_id: ID of the running procedure
-            storage_backend: Storage backend for checkpoints and state
+            storage_backend: Storage backend for execution log and state
             hitl_handler: Optional HITL handler for human interactions
         """
         self.procedure_id = procedure_id
         self.storage = storage_backend
         self.hitl = hitl_handler
 
-        # Load procedure metadata
+        # Load procedure metadata (contains execution_log and replay_index)
         self.metadata = self.storage.load_procedure_metadata(procedure_id)
 
-    def step_run(self, name: str, fn: Callable[[], Any]) -> Any:
-        """Execute with checkpoint replay."""
-        if self.storage.checkpoint_exists(self.procedure_id, name):
-            # Replay: return cached result
-            return self.storage.checkpoint_get(self.procedure_id, name)
+    def checkpoint(self, fn: Callable[[], Any], checkpoint_type: str) -> Any:
+        """
+        Execute fn with position-based checkpointing.
 
-        # Execute and cache
+        On replay, returns cached result from execution log.
+        On first execution, runs fn(), records in log, and returns result.
+        """
+        current_position = self.metadata.replay_index
+
+        # Check if we're in replay mode (checkpoint exists at this position)
+        if current_position < len(self.metadata.execution_log):
+            # Replay mode: return cached result
+            entry = self.metadata.execution_log[current_position]
+            self.metadata.replay_index += 1
+            return entry.result
+
+        # Execute mode: run function and record checkpoint
+        start_time = time.time()
         result = fn()
-        self.storage.checkpoint_save(self.procedure_id, name, result)
+        duration_ms = (time.time() - start_time) * 1000
+
+        # Create checkpoint entry
+        entry = CheckpointEntry(
+            position=current_position,
+            type=checkpoint_type,
+            result=result,
+            timestamp=datetime.now(timezone.utc),
+            duration_ms=duration_ms,
+        )
+
+        # Add to execution log
+        self.metadata.execution_log.append(entry)
+        self.metadata.replay_index += 1
+
+        # Persist metadata
+        self.storage.save_procedure_metadata(self.procedure_id, self.metadata)
+
         return result
 
     def wait_for_human(
@@ -170,37 +195,33 @@ class BaseExecutionContext(ExecutionContext):
 
     def sleep(self, seconds: int) -> None:
         """
-        Sleep by creating a checkpoint.
+        Sleep with checkpointing.
 
-        Note: This is a simple implementation. Production systems
-        may want scheduled resume mechanisms.
+        On replay, skips the sleep. On first execution, sleeps and checkpoints.
         """
-        import time
 
-        checkpoint_name = f"sleep_{datetime.now(timezone.utc).isoformat()}"
-
-        # Check if we already slept
-        if not self.storage.checkpoint_exists(self.procedure_id, checkpoint_name):
-            # First time - actually sleep
+        def sleep_fn():
             time.sleep(seconds)
-            # Save checkpoint
-            self.storage.checkpoint_save(self.procedure_id, checkpoint_name, None)
+            return None
+
+        self.checkpoint(sleep_fn, "sleep")
 
     def checkpoint_clear_all(self) -> None:
-        """Clear all checkpoints."""
-        self.storage.checkpoint_clear_all(self.procedure_id)
+        """Clear all checkpoints (execution log)."""
+        self.metadata.execution_log.clear()
+        self.metadata.replay_index = 0
+        self.storage.save_procedure_metadata(self.procedure_id, self.metadata)
 
-    def checkpoint_clear_after(self, name: str) -> None:
-        """Clear checkpoint and all subsequent ones."""
-        self.storage.checkpoint_clear_after(self.procedure_id, name)
+    def checkpoint_clear_after(self, position: int) -> None:
+        """Clear checkpoint at position and all subsequent ones."""
+        # Keep only checkpoints before the given position
+        self.metadata.execution_log = self.metadata.execution_log[:position]
+        self.metadata.replay_index = min(self.metadata.replay_index, position)
+        self.storage.save_procedure_metadata(self.procedure_id, self.metadata)
 
-    def checkpoint_exists(self, name: str) -> bool:
-        """Check if checkpoint exists."""
-        return self.storage.checkpoint_exists(self.procedure_id, name)
-
-    def checkpoint_get(self, name: str) -> Optional[Any]:
-        """Get cached checkpoint value."""
-        return self.storage.checkpoint_get(self.procedure_id, name)
+    def next_position(self) -> int:
+        """Get the next checkpoint position."""
+        return self.metadata.replay_index
 
     def store_procedure_handle(self, handle: Any) -> None:
         """

@@ -345,16 +345,16 @@ def validate(
                             "provider": agent.provider,
                             "model": agent.model,
                         }
-                    for name, output in result.registry.outputs.items():
+                    for name, output in result.registry.output_schema.items():
                         config["outputs"][name] = {
-                            "type": output.field_type.value,
-                            "required": output.required,
+                            "type": output.get("type", "string"),
+                            "required": output.get("required", False),
                         }
-                    for name, param in result.registry.parameters.items():
+                    for name, param in result.registry.input_schema.items():
                         config["params"][name] = {
-                            "type": param.parameter_type.value,
-                            "required": param.required,
-                            "default": param.default,
+                            "type": param.get("type", "string"),
+                            "required": param.get("required", False),
+                            "default": param.get("default"),
                         }
                 else:
                     config = {}
