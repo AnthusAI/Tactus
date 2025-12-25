@@ -9,51 +9,53 @@ Feature: Output Schema Declarations
   Scenario: Simple string output
     Given a Lua DSL file with content:
       """
-      output("result", {
-        type = "string",
-        required = true,
-        description = "The result"
-      })
-      
       agent("worker", {
         provider = "openai",
         system_prompt = "Work",
         tools = {}
       })
-      
-      procedure(function()
+
+      procedure({
+        output = {
+          result = {
+            type = "string",
+            required = true,
+            description = "The result"
+          }
+        }
+      }, function()
         return { result = "done" }
       end)
       """
     When I validate the file
     Then validation should succeed
-    And it should recognize 1 output declaration
+    And the output_schema should contain field "result"
 
   Scenario: Multiple output fields with different types
     Given a Lua DSL file with content:
       """
-      output("summary", {
-        type = "string",
-        required = true
-      })
-      
-      output("count", {
-        type = "number",
-        required = true
-      })
-      
-      output("success", {
-        type = "boolean",
-        required = false
-      })
-      
       agent("worker", {
         provider = "openai",
         system_prompt = "Work",
         tools = {}
       })
-      
-      procedure(function()
+
+      procedure({
+        output = {
+          summary = {
+            type = "string",
+            required = true
+          },
+          count = {
+            type = "number",
+            required = true
+          },
+          success = {
+            type = "boolean",
+            required = false
+          }
+        }
+      }, function()
         return {
           summary = "All done",
           count = 42,
@@ -63,51 +65,54 @@ Feature: Output Schema Declarations
       """
     When I validate the file
     Then validation should succeed
-    And it should recognize 3 output declarations
+    And the output_schema should have 3 fields
 
   Scenario: Optional output field
     Given a Lua DSL file with content:
       """
-      output("result", {
-        type = "string",
-        required = true
-      })
-      
-      output("details", {
-        type = "string",
-        required = false,
-        description = "Optional details"
-      })
-      
       agent("worker", {
         provider = "openai",
         system_prompt = "Work",
         tools = {}
       })
-      
-      procedure(function()
+
+      procedure({
+        output = {
+          result = {
+            type = "string",
+            required = true
+          },
+          details = {
+            type = "string",
+            required = false,
+            description = "Optional details"
+          }
+        }
+      }, function()
         return { result = "done" }
       end)
       """
     When I validate the file
     Then validation should succeed
-    And it should recognize 2 output declarations
+    And the output_schema should have 2 fields
 
   Scenario: Output schema validation at runtime
     Given a Lua DSL file with content:
       """
-      output("result", {
-        type = "string",
-        required = true
-      })
-      
       agent("worker", {
         provider = "openai",
         system_prompt = "Work",
         tools = {}
       })
-      
-      procedure(function()
+
+      procedure({
+        output = {
+          result = {
+            type = "string",
+            required = true
+          }
+        }
+      }, function()
         return { result = "done" }
       end)
       """
@@ -117,51 +122,49 @@ Feature: Output Schema Declarations
   Scenario: Array output type
     Given a Lua DSL file with content:
       """
-      output("items", {
-        type = "array",
-        required = true,
-        description = "List of items"
-      })
-      
       agent("worker", {
         provider = "openai",
         system_prompt = "Work",
         tools = {}
       })
-      
-      procedure(function()
+
+      procedure({
+        output = {
+          items = {
+            type = "array",
+            required = true,
+            description = "List of items"
+          }
+        }
+      }, function()
         return { items = {"a", "b", "c"} }
       end)
       """
     When I validate the file
     Then validation should succeed
-    And it should recognize 1 output declaration
+    And the output_schema should contain field "items"
 
   Scenario: Object output type
     Given a Lua DSL file with content:
       """
-      output("metadata", {
-        type = "object",
-        required = false,
-        description = "Metadata object"
-      })
-      
       agent("worker", {
         provider = "openai",
         system_prompt = "Work",
         tools = {}
       })
-      
-      procedure(function()
+
+      procedure({
+        output = {
+          metadata = {
+            type = "object",
+            required = false,
+            description = "Metadata object"
+          }
+        }
+      }, function()
         return { metadata = {key = "value"} }
       end)
       """
     When I validate the file
     Then validation should succeed
-    And it should recognize 1 output declaration
-
-
-
-
-
-
+    And the output_schema should contain field "metadata"

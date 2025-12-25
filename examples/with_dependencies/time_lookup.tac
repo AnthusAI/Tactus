@@ -27,7 +27,7 @@ Available tools:
 })
 
 procedure({
-    params = {
+    input = {
         timezone = {
             type = "string",
             required = true,
@@ -43,17 +43,18 @@ procedure({
         }
     },
 
-    outputs = {
+    output = {
         datetime = {type = "string", required = true},
         timezone = {type = "string", required = true}
-    }
+    },
+    state = {}
 }, function()
     -- Execute agent turn
     Time_agent.turn()
 
     return {
         datetime = "dependency_test",
-        timezone = params.timezone
+        timezone = input.timezone
     }
 end)
 

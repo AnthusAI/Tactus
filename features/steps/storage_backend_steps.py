@@ -6,6 +6,8 @@ from behave import given, when, then
 from tactus.core.execution_context import BaseExecutionContext
 from tactus.adapters.memory import MemoryStorage
 from tactus.adapters.file_storage import FileStorage
+from tactus.protocols.models import CheckpointEntry
+from datetime import datetime, timezone
 import tempfile
 import shutil
 import os
@@ -24,22 +26,26 @@ def step_impl(context):
 @when("I execute a workflow that sets state")
 def step_impl(context):
     """Execute workflow that sets state."""
-    context.storage.state_set(context.procedure_id, "test_key", "test_value")
-    context.storage.state_set(context.procedure_id, "another_key", 42)
+    state = context.storage.get_state(context.procedure_id)
+    state["test_key"] = "test_value"
+    state["another_key"] = 42
+    context.storage.set_state(context.procedure_id, state)
 
 
 @then("state should be stored in memory")
 def step_impl(context):
     """Verify state is in memory."""
-    assert context.storage.state_get(context.procedure_id, "test_key") == "test_value"
-    assert context.storage.state_get(context.procedure_id, "another_key") == 42
+    state = context.storage.get_state(context.procedure_id)
+    assert state["test_key"] == "test_value"
+    assert state["another_key"] == 42
 
 
 @then("it should be available within the same session")
 def step_impl(context):
     """Verify state is accessible in same session."""
     # Access state through same storage instance
-    assert context.storage.state_get(context.procedure_id, "test_key") == "test_value"
+    state = context.storage.get_state(context.procedure_id)
+    assert state["test_key"] == "test_value"
 
 
 @then("it should not persist after restart")
@@ -48,7 +54,8 @@ def step_impl(context):
     # Create a new storage instance (simulating restart)
     new_storage = MemoryStorage()
     # State should not exist in new instance
-    assert new_storage.state_get(context.procedure_id, "test_key") is None
+    state = new_storage.get_state(context.procedure_id)
+    assert "test_key" not in state
 
 
 @given("a Tactus runtime with file-based storage")
@@ -74,7 +81,9 @@ def step_impl(context, directory):
 @when('I execute a workflow that sets state "{key}" to "{value}"')
 def step_impl(context, key, value):
     """Set state with specific key and value."""
-    context.storage.state_set(context.procedure_id, key, value)
+    state = context.storage.get_state(context.procedure_id)
+    state[key] = value
+    context.storage.set_state(context.procedure_id, state)
 
 
 @then("a file should be created in the storage directory")
@@ -109,7 +118,8 @@ def step_impl(context):
 @then('state "{key}" should still equal "{value}"')
 def step_impl(context, key, value):
     """Verify state persisted across restart."""
-    actual = context.storage.state_get(context.procedure_id, key)
+    state = context.storage.get_state(context.procedure_id)
+    actual = state.get(key)
     assert actual == value, f"Expected {value}, got {actual}"
 
 
@@ -126,16 +136,24 @@ def step_impl(context, step_nums):
     # Parse step numbers: "1, 2, 3" or "1 and 2" -> [1, 2, 3]
     step_nums_normalized = step_nums.replace(" and ", ", ")
     steps = [s.strip() for s in step_nums_normalized.split(",")]
-    for step_num in steps:
-        checkpoint_name = f"step{step_num}"
-        context.storage.checkpoint_save(context.procedure_id, checkpoint_name, f"result_{step_num}")
+
+    metadata = context.storage.load_procedure_metadata(context.procedure_id)
+    for i, step_num in enumerate(steps):
+        entry = CheckpointEntry(
+            position=i,
+            type="explicit_checkpoint",
+            result=f"result_{step_num}",
+            timestamp=datetime.now(timezone.utc)
+        )
+        metadata.execution_log.append(entry)
+    context.storage.save_procedure_metadata(context.procedure_id, metadata)
 
 
 @given("state contains accumulated results")
 def step_impl(context):
     """Set up state with accumulated results."""
-    context.storage.state_set(context.procedure_id, "results", ["result_1", "result_2", "result_3"])
-    context.storage.state_set(context.procedure_id, "count", 3)
+    state = {"results": ["result_1", "result_2", "result_3"], "count": 3}
+    context.storage.set_state(context.procedure_id, state)
 
 
 @when('I initialize the runtime with procedure_id "{procedure_id}"')
@@ -156,18 +174,20 @@ def step_impl(context):
 @then("checkpoints should be available")
 def step_impl(context):
     """Verify checkpoints are accessible."""
-    assert context.storage.checkpoint_exists(context.procedure_id, "step1")
-    assert context.storage.checkpoint_exists(context.procedure_id, "step2")
-    assert context.storage.checkpoint_exists(context.procedure_id, "step3")
+    metadata = context.storage.load_procedure_metadata(context.procedure_id)
+    assert len(metadata.execution_log) >= 3, "Expected at least 3 checkpoints"
+    # Verify we have checkpoint results
+    assert metadata.execution_log[0].result == "result_1"
+    assert metadata.execution_log[1].result == "result_2"
+    assert metadata.execution_log[2].result == "result_3"
 
 
 @then("state should be restored")
 def step_impl(context):
     """Verify state is restored."""
-    results = context.storage.state_get(context.procedure_id, "results")
-    count = context.storage.state_get(context.procedure_id, "count")
-    assert results == ["result_1", "result_2", "result_3"]
-    assert count == 3
+    state = context.storage.get_state(context.procedure_id)
+    assert state["results"] == ["result_1", "result_2", "result_3"]
+    assert state["count"] == 3
 
 
 @given('two workflows "{workflow_a}" and "{workflow_b}"')
@@ -181,21 +201,42 @@ def step_impl(context, workflow_a, workflow_b):
 @when('"{workflow_id}" saves checkpoint "{checkpoint_name}" with value "{value}"')
 def step_impl(context, workflow_id, checkpoint_name, value):
     """Save checkpoint for specific workflow."""
-    context.storage.checkpoint_save(workflow_id, checkpoint_name, value)
+    metadata = context.storage.load_procedure_metadata(workflow_id)
+    position = len(metadata.execution_log)
+    entry = CheckpointEntry(
+        position=position,
+        type="explicit_checkpoint",
+        result=value,
+        timestamp=datetime.now(timezone.utc)
+    )
+    metadata.execution_log.append(entry)
+    context.storage.save_procedure_metadata(workflow_id, metadata)
+
+    # Track the position for later retrieval
+    if not hasattr(context, 'checkpoint_positions'):
+        context.checkpoint_positions = {}
+    if workflow_id not in context.checkpoint_positions:
+        context.checkpoint_positions[workflow_id] = {}
+    context.checkpoint_positions[workflow_id][checkpoint_name] = position
 
 
 @then('"{workflow_id}" checkpoint should contain "{expected}"')
 def step_impl(context, workflow_id, expected):
     """Verify workflow checkpoint has expected value."""
-    actual = context.storage.checkpoint_get(workflow_id, "step1")
+    metadata = context.storage.load_procedure_metadata(workflow_id)
+    # Get the first checkpoint (position 0)
+    assert len(metadata.execution_log) > 0, "Expected at least one checkpoint"
+    actual = metadata.execution_log[0].result
     assert actual == expected, f"Expected {expected}, got {actual}"
 
 
 @then("checkpoints should not interfere with each other")
 def step_impl(context):
     """Verify isolation between workflows."""
-    a_value = context.storage.checkpoint_get(context.workflow_a, "step1")
-    b_value = context.storage.checkpoint_get(context.workflow_b, "step1")
+    metadata_a = context.storage.load_procedure_metadata(context.workflow_a)
+    metadata_b = context.storage.load_procedure_metadata(context.workflow_b)
+    a_value = metadata_a.execution_log[0].result
+    b_value = metadata_b.execution_log[0].result
     assert a_value != b_value, "Workflows should have different checkpoint values"
 
 
@@ -208,33 +249,39 @@ def step_impl(context):
         procedure_id=context.procedure_id, storage_backend=context.storage
     )
     # Create several checkpoints
-    context.storage.checkpoint_save(context.procedure_id, "step1", "result1")
-    context.storage.checkpoint_save(context.procedure_id, "step2", "result2")
-    context.storage.checkpoint_save(context.procedure_id, "step3", "result3")
+    metadata = context.storage.load_procedure_metadata(context.procedure_id)
+    for i, result in enumerate(["result1", "result2", "result3"]):
+        entry = CheckpointEntry(
+            position=i,
+            type="explicit_checkpoint",
+            result=result,
+            timestamp=datetime.now(timezone.utc)
+        )
+        metadata.execution_log.append(entry)
+    context.storage.save_procedure_metadata(context.procedure_id, metadata)
 
 
 @given("state contains multiple keys")
 def step_impl(context):
     """Set up state with multiple keys."""
-    context.storage.state_set(context.procedure_id, "key1", "value1")
-    context.storage.state_set(context.procedure_id, "key2", "value2")
-    context.storage.state_set(context.procedure_id, "key3", "value3")
+    state = {"key1": "value1", "key2": "value2", "key3": "value3"}
+    context.storage.set_state(context.procedure_id, state)
 
 
 @then("no checkpoints should exist")
 def step_impl(context):
     """Verify no checkpoints exist."""
-    assert not context.storage.checkpoint_exists(context.procedure_id, "step1")
-    assert not context.storage.checkpoint_exists(context.procedure_id, "step2")
-    assert not context.storage.checkpoint_exists(context.procedure_id, "step3")
+    metadata = context.storage.load_procedure_metadata(context.procedure_id)
+    assert len(metadata.execution_log) == 0, "Expected no checkpoints"
 
 
 @then("state should remain intact")
 def step_impl(context):
     """Verify state was not cleared."""
-    assert context.storage.state_get(context.procedure_id, "key1") == "value1"
-    assert context.storage.state_get(context.procedure_id, "key2") == "value2"
-    assert context.storage.state_get(context.procedure_id, "key3") == "value3"
+    state = context.storage.get_state(context.procedure_id)
+    assert state["key1"] == "value1"
+    assert state["key2"] == "value2"
+    assert state["key3"] == "value3"
 
 
 @given("a file-based storage with read-only directory")
@@ -252,7 +299,8 @@ def step_impl(context):
 def step_impl(context):
     """Try to save state (should fail)."""
     try:
-        context.storage.state_set(context.procedure_id, "key", "value")
+        state = {"key": "value"}
+        context.storage.set_state(context.procedure_id, state)
         context.error = None
     except Exception as e:
         context.error = e
@@ -283,15 +331,28 @@ def step_impl(context):
     """Simulate concurrent workflow execution."""
     # Simulate by running sequentially (actual concurrency would need threading)
     for workflow_id in context.workflows:
-        context.storage.state_set(workflow_id, "status", f"running_{workflow_id}")
-        context.storage.checkpoint_save(workflow_id, "step1", f"result_{workflow_id}")
+        # Set state
+        state = {"status": f"running_{workflow_id}"}
+        context.storage.set_state(workflow_id, state)
+
+        # Save checkpoint
+        metadata = context.storage.load_procedure_metadata(workflow_id)
+        entry = CheckpointEntry(
+            position=0,
+            type="explicit_checkpoint",
+            result=f"result_{workflow_id}",
+            timestamp=datetime.now(timezone.utc)
+        )
+        metadata.execution_log.append(entry)
+        context.storage.save_procedure_metadata(workflow_id, metadata)
 
 
 @then("each workflow should have isolated state")
 def step_impl(context):
     """Verify each workflow has its own state."""
     for workflow_id in context.workflows:
-        status = context.storage.state_get(workflow_id, "status")
+        state = context.storage.get_state(workflow_id)
+        status = state.get("status")
         assert status == f"running_{workflow_id}", f"Expected isolated status for {workflow_id}"
 
 
@@ -299,7 +360,8 @@ def step_impl(context):
 def step_impl(context):
     """Verify no data corruption."""
     for workflow_id in context.workflows:
-        result = context.storage.checkpoint_get(workflow_id, "step1")
+        metadata = context.storage.load_procedure_metadata(workflow_id)
+        result = metadata.execution_log[0].result
         assert (
             result == f"result_{workflow_id}"
         ), f"Expected uncorrupted checkpoint for {workflow_id}"
@@ -310,8 +372,21 @@ def step_impl(context):
     """Set up workflow with in-memory storage."""
     context.procedure_id = "migration_test"
     context.memory_storage = MemoryStorage()
-    context.memory_storage.state_set(context.procedure_id, "migrated_key", "migrated_value")
-    context.memory_storage.checkpoint_save(context.procedure_id, "checkpoint1", "checkpoint_result")
+
+    # Set state
+    state = {"migrated_key": "migrated_value"}
+    context.memory_storage.set_state(context.procedure_id, state)
+
+    # Save checkpoint
+    metadata = context.memory_storage.load_procedure_metadata(context.procedure_id)
+    entry = CheckpointEntry(
+        position=0,
+        type="explicit_checkpoint",
+        result="checkpoint_result",
+        timestamp=datetime.now(timezone.utc)
+    )
+    metadata.execution_log.append(entry)
+    context.memory_storage.save_procedure_metadata(context.procedure_id, metadata)
 
 
 @when("I switch to file-based storage")
@@ -322,20 +397,23 @@ def step_impl(context):
 
     # Manually migrate data
     metadata = context.memory_storage.load_procedure_metadata(context.procedure_id)
-    context.file_storage.save_procedure_metadata(metadata)
+    context.file_storage.save_procedure_metadata(context.procedure_id, metadata)
 
 
 @then("existing state should be preserved")
 def step_impl(context):
     """Verify state was preserved."""
-    value = context.file_storage.state_get(context.procedure_id, "migrated_key")
+    state = context.file_storage.get_state(context.procedure_id)
+    value = state.get("migrated_key")
     assert value == "migrated_value", f"Expected 'migrated_value', got {value}"
 
 
 @then("the workflow should continue seamlessly")
 def step_impl(context):
     """Verify checkpoint was preserved."""
-    result = context.file_storage.checkpoint_get(context.procedure_id, "checkpoint1")
+    metadata = context.file_storage.load_procedure_metadata(context.procedure_id)
+    assert len(metadata.execution_log) > 0, "Expected checkpoint to be preserved"
+    result = metadata.execution_log[0].result
     assert result == "checkpoint_result", "Expected checkpoint to be preserved"
 
     # Cleanup

@@ -10,13 +10,13 @@ agent("chatbot", {
 
 -- Procedure with message_history configuration
 procedure({
-    params = {
+    input = {
         user_message = {
             type = "string",
             default = "Hello, how are you?"
         }
     },
-    outputs = {
+    output = {
         response = {
             type = "string",
             required = true
@@ -26,7 +26,8 @@ procedure({
             required = true
         }
     },
-    
+    state = {},
+
     -- Procedure-level message_history config (aligned with pydantic-ai)
     message_history = {
         mode = "isolated",  -- Each agent gets its own history
@@ -34,12 +35,12 @@ procedure({
     }
 }, function()
     Log.info("Message history demo starting")
-    
+
     -- Manually add a user message to the message history
     MessageHistory.inject_system("You are having a friendly conversation")
     MessageHistory.append({
         role = "user",
-        content = params.user_message
+        content = input.user_message
     })
     
     -- Have the agent respond

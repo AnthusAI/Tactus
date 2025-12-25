@@ -23,10 +23,22 @@ class StatePrimitive:
     progress, accumulate results, and coordinate between agents.
     """
 
-    def __init__(self):
-        """Initialize state storage."""
+    def __init__(self, state_schema: Dict[str, Any] = None):
+        """
+        Initialize state storage.
+
+        Args:
+            state_schema: Optional state schema with field definitions and defaults
+        """
         self._state: Dict[str, Any] = {}
-        logger.debug("StatePrimitive initialized")
+        self._schema: Dict[str, Any] = state_schema or {}
+
+        # Initialize state with defaults from schema
+        for key, field_def in self._schema.items():
+            if isinstance(field_def, dict) and "default" in field_def:
+                self._state[key] = field_def["default"]
+
+        logger.debug(f"StatePrimitive initialized with {len(self._schema)} schema fields")
 
     def get(self, key: str, default: Any = None) -> Any:
         """
@@ -57,6 +69,17 @@ class StatePrimitive:
         Example (Lua):
             State.set("current_phase", "exploration")
         """
+        # Validate against schema if present
+        if key in self._schema:
+            field_def = self._schema[key]
+            if isinstance(field_def, dict) and "type" in field_def:
+                expected_type = field_def["type"]
+                if not self._validate_type(value, expected_type):
+                    logger.warning(
+                        f"State.set('{key}'): value type {type(value).__name__} "
+                        f"does not match schema type {expected_type}"
+                    )
+
         self._state[key] = value
         logger.debug(f"State.set('{key}', {value})")
 
@@ -128,6 +151,32 @@ class StatePrimitive:
         """Clear all state (mainly for testing)."""
         self._state.clear()
         logger.debug("State.clear() - all state cleared")
+
+    def _validate_type(self, value: Any, expected_type: str) -> bool:
+        """
+        Validate value against expected type from schema.
+
+        Args:
+            value: Value to validate
+            expected_type: Expected type string (string, number, boolean, array, object)
+
+        Returns:
+            True if value matches expected type, False otherwise
+        """
+        type_mapping = {
+            "string": str,
+            "number": (int, float),
+            "boolean": bool,
+            "array": list,
+            "object": dict,
+        }
+
+        expected_python_type = type_mapping.get(expected_type)
+        if expected_python_type is None:
+            logger.warning(f"Unknown type in schema: {expected_type}")
+            return True  # Allow unknown types
+
+        return isinstance(value, expected_python_type)
 
     def __repr__(self) -> str:
         return f"StatePrimitive({len(self._state)} keys)"

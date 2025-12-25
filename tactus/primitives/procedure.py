@@ -98,7 +98,10 @@ class ProcedurePrimitive:
 
     def run(self, name: str, params: Optional[Dict[str, Any]] = None) -> Any:
         """
-        Synchronous procedure invocation.
+        Synchronous procedure invocation with auto-checkpointing.
+
+        Sub-procedure calls are automatically checkpointed for durability.
+        On replay, the cached result is returned without re-executing.
 
         Args:
             name: Procedure name or file path
@@ -120,52 +123,57 @@ class ProcedurePrimitive:
         # Normalize params
         params = params or {}
 
-        try:
-            # Load procedure source
-            source = self._load_procedure_source(name)
-
-            # Create runtime for sub-procedure
-            runtime = self.runtime_factory(name, params)
-
-            # Execute synchronously (runtime.execute is async, so we need to run it)
-            import asyncio
-
+        # Wrap execution in checkpoint for durability
+        def execute_procedure():
             try:
-                loop = asyncio.get_running_loop()
-                # We're already in an async context, use run_until_complete would fail
-                # Instead, we need to await it, but we're in a sync function
-                # Solution: Create a task and wait for it
-                result = asyncio.create_task(
-                    runtime.execute(source=source, context=params, format="lua")
-                )
-                # This won't work in sync context - we need to handle this differently
-                # For now, use run_until_complete in a new loop
-                raise RuntimeError("Cannot run nested async in sync context")
-            except RuntimeError:
-                # No running loop or nested loop issue - create new one
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                result = loop.run_until_complete(
-                    runtime.execute(source=source, context=params, format="lua")
-                )
-                loop.close()
+                # Load procedure source
+                source = self._load_procedure_source(name)
 
-            # Extract result from execution response
-            if result.get("success"):
-                logger.info(f"Procedure '{name}' completed successfully")
-                return result.get("result")
-            else:
-                error_msg = result.get("error", "Unknown error")
-                logger.error(f"Procedure '{name}' failed: {error_msg}")
-                raise ProcedureExecutionError(f"Procedure '{name}' failed: {error_msg}")
+                # Create runtime for sub-procedure
+                runtime = self.runtime_factory(name, params)
 
-        except ProcedureExecutionError:
-            raise
-        except ProcedureRecursionError:
-            raise
-        except Exception as e:
-            logger.error(f"Error executing procedure '{name}': {e}")
-            raise ProcedureExecutionError(f"Failed to execute procedure '{name}': {e}")
+                # Execute synchronously (runtime.execute is async, so we need to run it)
+                import asyncio
+
+                try:
+                    loop = asyncio.get_running_loop()
+                    # We're already in an async context, use run_until_complete would fail
+                    # Instead, we need to await it, but we're in a sync function
+                    # Solution: Create a task and wait for it
+                    result = asyncio.create_task(
+                        runtime.execute(source=source, context=params, format="lua")
+                    )
+                    # This won't work in sync context - we need to handle this differently
+                    # For now, use run_until_complete in a new loop
+                    raise RuntimeError("Cannot run nested async in sync context")
+                except RuntimeError:
+                    # No running loop or nested loop issue - create new one
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    result = loop.run_until_complete(
+                        runtime.execute(source=source, context=params, format="lua")
+                    )
+                    loop.close()
+
+                # Extract result from execution response
+                if result.get("success"):
+                    logger.info(f"Procedure '{name}' completed successfully")
+                    return result.get("result")
+                else:
+                    error_msg = result.get("error", "Unknown error")
+                    logger.error(f"Procedure '{name}' failed: {error_msg}")
+                    raise ProcedureExecutionError(f"Procedure '{name}' failed: {error_msg}")
+
+            except ProcedureExecutionError:
+                raise
+            except ProcedureRecursionError:
+                raise
+            except Exception as e:
+                logger.error(f"Error executing procedure '{name}': {e}")
+                raise ProcedureExecutionError(f"Failed to execute procedure '{name}': {e}")
+
+        # Auto-checkpoint sub-procedure call
+        return self.execution_context.checkpoint(execute_procedure, "procedure_call")
 
     def spawn(self, name: str, params: Optional[Dict[str, Any]] = None) -> ProcedureHandle:
         """

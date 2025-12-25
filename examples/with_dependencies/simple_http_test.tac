@@ -14,7 +14,7 @@ agent("test_agent", {
 })
 
 procedure({
-    params = {
+    input = {
         city = {type = "string", required = true}
     },
 
@@ -26,10 +26,11 @@ procedure({
         }
     },
 
-    outputs = {
+    output = {
         success = {type = "boolean", required = true},
         message = {type = "string", required = true}
-    }
+    },
+    state = {}
 }, function()
     -- Simple procedure that just completes
     -- In a real use case, the agent's tools would use test_api via ctx.deps.test_api

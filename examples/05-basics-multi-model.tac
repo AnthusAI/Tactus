@@ -8,7 +8,7 @@ agent("researcher", {
     system_prompt = [[You are a researcher. Provide brief research findings (2-3 paragraphs maximum).
 IMPORTANT: You MUST call the 'done' tool when finished, passing your research as the 'reason' argument.
 ]],
-    initial_message = "Please research this topic and call done when finished: {params.topic}",
+    initial_message = "Please research this topic and call done when finished: {input.topic}",
 })
 
 agent("summarizer", {
@@ -20,13 +20,20 @@ IMPORTANT: You MUST call the 'done' tool when finished, passing your summary as 
     initial_message = "Please summarize the following research and call done when finished:\n\n{research}",
 })
 
--- Procedure with parameters defined inline
+-- Procedure with input defined inline
 procedure({
-    params = {
+    input = {
         topic = {
             type = "string",
             default = "artificial intelligence",
         },
+    },
+    state = {
+        research = {
+            type = "string",
+            default = "",
+            description = "Research findings"
+        }
     }
 }, function()
     -- Research phase with GPT-4o

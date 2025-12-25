@@ -100,9 +100,10 @@ def step_when_procedure_executes(context):
 def step_when_workflow_validated(context):
     """Validate the workflow."""
     import subprocess
+    import sys
 
     result = subprocess.run(
-        ["python", "-m", "tactus.cli.app", "validate", context.workflow_file],
+        [sys.executable, "-m", "tactus.cli.app", "validate", context.workflow_file],
         capture_output=True,
         text=True,
     )

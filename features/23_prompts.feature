@@ -9,20 +9,22 @@ Feature: Prompt Templates
   Scenario: Simple prompt template
     Given a Lua DSL file with content:
       """
-      prompt("greeting", "Hello, {params.name}! How can I help you today?")
-      
-      parameter("name", {
-        type = "string",
-        default = "User"
-      })
-      
+      prompt("greeting", "Hello, {input.name}! How can I help you today?")
+
       agent("worker", {
         provider = "openai",
         system_prompt = prompts.greeting,
         tools = {}
       })
-      
-      procedure(function()
+
+      procedure({
+        input = {
+          name = {
+            type = "string",
+            default = "User"
+          }
+        }
+      }, function()
         return { result = "done" }
       end)
       """
@@ -35,13 +37,13 @@ Feature: Prompt Templates
       prompt("intro", "Welcome to the system")
       prompt("task", "Please complete the following task")
       prompt("outro", "Thank you for using our service")
-      
+
       agent("worker", {
         provider = "openai",
         system_prompt = prompts.intro,
         tools = {}
       })
-      
+
       procedure(function()
         return { result = "done" }
       end)
@@ -57,13 +59,13 @@ Feature: Prompt Templates
         Your goal is to help the user.
         Be concise and accurate.
       ]])
-      
+
       agent("worker", {
         provider = "openai",
         system_prompt = prompts.detailed,
         tools = {}
       })
-      
+
       procedure(function()
         return { result = "done" }
       end)
@@ -71,31 +73,27 @@ Feature: Prompt Templates
     When I validate the file
     Then validation should succeed
 
-  Scenario: Prompt template with parameter substitution
+  Scenario: Prompt template with input substitution
     Given a Lua DSL file with content:
       """
-      prompt("task_prompt", "Research the topic: {params.topic}")
-      
-      parameter("topic", {
-        type = "string",
-        required = true
-      })
-      
+      prompt("task_prompt", "Research the topic: {input.topic}")
+
       agent("researcher", {
         provider = "openai",
         system_prompt = prompts.task_prompt,
         tools = {}
       })
-      
-      procedure(function()
+
+      procedure({
+        input = {
+          topic = {
+            type = "string",
+            required = true
+          }
+        }
+      }, function()
         return { result = "done" }
       end)
       """
     When I validate the file
     Then validation should succeed
-
-
-
-
-
-

@@ -1,10 +1,10 @@
 """
 Step primitive for checkpointed operations.
 
-Provides Step.run() for checkpointing arbitrary operations that aren't agent turns.
+Provides checkpoint() for creating explicit checkpoints in procedures.
 """
 
-from typing import Any, Callable, Optional
+from typing import Any, Callable
 import logging
 
 logger = logging.getLogger(__name__)
@@ -15,15 +15,15 @@ class StepPrimitive:
     Step primitive for checkpointing operations.
 
     Example usage:
-        local metrics = Step.run("evaluate_model", function()
+        local metrics = checkpoint(function()
             return some_evaluation_function({
-                model_id = params.model_id,
+                model_id = input.model_id,
                 version = "champion"
             })
         end)
 
-    On first execution: runs the function and caches result
-    On replay: returns cached result without re-executing
+    On first execution: runs the function and caches result at current position
+    On replay: returns cached result from execution log
     """
 
     def __init__(self, execution_context):
@@ -35,25 +35,24 @@ class StepPrimitive:
         """
         self.execution_context = execution_context
 
-    def run(self, name: str, fn: Callable[[], Any]) -> Any:
+    def checkpoint(self, fn: Callable[[], Any]) -> Any:
         """
-        Execute function with checkpointing.
+        Execute function with position-based checkpointing.
 
         Args:
-            name: Unique checkpoint name
             fn: Function to execute (must be deterministic)
 
         Returns:
             Result of fn() on first execution, cached result on replay
         """
-        logger.debug(f"Step.run('{name}')")
+        logger.debug(f"checkpoint() at position {self.execution_context.next_position()}")
 
         try:
-            result = self.execution_context.step_run(name, fn)
-            logger.debug(f"Step.run('{name}') completed successfully")
+            result = self.execution_context.checkpoint(fn, "explicit_checkpoint")
+            logger.debug(f"checkpoint() completed successfully")
             return result
         except Exception as e:
-            logger.error(f"Step.run('{name}') failed: {e}")
+            logger.error(f"checkpoint() failed: {e}")
             raise
 
 
@@ -61,7 +60,7 @@ class CheckpointPrimitive:
     """
     Checkpoint management primitive.
 
-    Provides checkpoint inspection and clearing operations for testing.
+    Provides checkpoint clearing operations for testing.
     """
 
     def __init__(self, execution_context):
@@ -83,50 +82,28 @@ class CheckpointPrimitive:
         logger.info("Clearing all checkpoints")
         self.execution_context.checkpoint_clear_all()
 
-    def clear_after(self, name: str) -> None:
+    def clear_after(self, position: int) -> None:
         """
-        Clear checkpoint and all subsequent ones.
+        Clear checkpoint at position and all subsequent ones.
 
         Args:
-            name: Checkpoint name to clear from
+            position: Checkpoint position to clear from
 
         Example:
-            Checkpoint.clear_after("evaluate_candidate_1")
+            Checkpoint.clear_after(3)  -- Clear checkpoint 3 and beyond
         """
-        logger.info(f"Clearing checkpoints after '{name}'")
-        self.execution_context.checkpoint_clear_after(name)
+        logger.info(f"Clearing checkpoints after position {position}")
+        self.execution_context.checkpoint_clear_after(position)
 
-    def exists(self, name: str) -> bool:
+    def next_position(self) -> int:
         """
-        Check if checkpoint exists.
-
-        Args:
-            name: Checkpoint name
+        Get the next checkpoint position.
 
         Returns:
-            True if checkpoint exists
+            Next position in execution log
 
         Example:
-            if Checkpoint.exists("load_champion") then
-                -- Already loaded
-            end
+            local pos = Checkpoint.next_position()
+            print("Next checkpoint will be at position: " .. pos)
         """
-        return self.execution_context.checkpoint_exists(name)
-
-    def get(self, name: str) -> Optional[Any]:
-        """
-        Get cached checkpoint value.
-
-        Args:
-            name: Checkpoint name
-
-        Returns:
-            Cached value or None if not found
-
-        Example:
-            local cached = Checkpoint.get("evaluate_champion")
-            if cached then
-                use_cached_value(cached)
-            end
-        """
-        return self.execution_context.checkpoint_get(name)
+        return self.execution_context.next_position()

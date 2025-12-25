@@ -7,6 +7,7 @@ Examples are organized by category with numbered prefixes for easy navigation:
 - **10-19**: Feature demonstrations (state, message history, structured output)
 - **20-29**: BDD testing examples
 - **30-39**: Evaluation examples
+- **40-49**: Durability features (models, sub-procedures, checkpoints)
 - **90-99**: Miscellaneous utilities
 
 ## Running Examples
@@ -255,6 +256,124 @@ Comprehensive evaluation suite:
 **Run:**
 ```bash
 tactus eval examples/37-eval-comprehensive.tac --runs 10
+```
+
+### Durability Features (40-49)
+
+#### 39-model-simple.tac
+
+Simple model primitive example:
+- HTTP-based model inference
+- Model prediction with auto-checkpointing
+- Using httpbin.org for testing
+
+**Run:**
+```bash
+tactus run examples/39-model-simple.tac --param text="Hello world"
+```
+
+#### 40-model-text-classifier.tac
+
+Text classification with routing:
+- Sentiment analysis model
+- Agent routing based on model output
+- HTTP model backend
+
+**Run:**
+```bash
+tactus run examples/40-model-text-classifier.tac --param text="I love this product!"
+```
+
+#### 41-model-pytorch.tac
+
+PyTorch model integration:
+- Loading .pt model files
+- PyTorch inference with auto-checkpointing
+- Agent response based on model prediction
+
+**Requirements:**
+```bash
+pip install torch
+cd examples/models
+python create_sentiment_model.py
+```
+
+**Run:**
+```bash
+tactus run examples/41-model-pytorch.tac --param customer_message="This is great!"
+```
+
+#### 43-sub-procedure-simple.tac
+
+Simple sub-procedure composition:
+- Calling helper procedures
+- Auto-checkpointing of sub-procedure calls
+- Result aggregation
+
+**Run:**
+```bash
+tactus run examples/43-sub-procedure-simple.tac --param numbers="[2,3,4]"
+```
+
+#### 44-sub-procedure-composition.tac
+
+Complex sub-procedure composition:
+- Multi-step data processing pipeline
+- Multiple sub-procedure calls
+- Agent integration with sub-procedures
+- Durable workflow composition
+
+**Run:**
+```bash
+tactus run examples/44-sub-procedure-composition.tac --param numbers="[5,10,15]"
+```
+
+#### 45-sub-procedure-recursive.tac
+
+Recursive sub-procedure calls:
+- Factorial calculation via recursion
+- Auto-checkpointing of recursive calls
+- Recursion depth tracking
+
+**Run:**
+```bash
+tactus run examples/45-sub-procedure-recursive.tac --param n=5
+```
+
+#### 46-checkpoint-explicit.tac
+
+Explicit checkpoint primitive:
+- Manual state checkpointing with checkpoint()
+- Granular control over durability
+- Checkpoint counter tracking
+
+**Run:**
+```bash
+tactus run examples/46-checkpoint-explicit.tac --param numbers="[2,4,6]"
+```
+
+#### 47-checkpoint-expensive-ops.tac
+
+Checkpointing expensive operations:
+- Cache results of expensive computations
+- Skip expensive work on replay
+- Performance optimization through checkpointing
+
+**Run:**
+```bash
+tactus run examples/47-checkpoint-expensive-ops.tac --param iterations=1000
+```
+
+#### 48-script-mode-simple.tac
+
+Script mode with top-level input/output:
+- No explicit procedure() definition needed
+- Top-level input and output declarations
+- Simplified syntax for simple workflows
+
+**Run:**
+```bash
+tactus run examples/48-script-mode-simple.tac --param name="Alice"
 ```
 
 ### Miscellaneous (90-99)

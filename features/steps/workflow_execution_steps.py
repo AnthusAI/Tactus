@@ -382,23 +382,22 @@ def step_impl(context):
     context.resumed_execution = []
     context.completed_steps = []
 
-    # First, identify which steps have checkpoints
+    # Get execution log to check which steps have checkpoints
+    metadata = context.execution_context.storage.load_procedure_metadata(context.procedure_id)
+
+    # First, identify which steps have checkpoints (by position in execution log)
     for i, step in enumerate(steps, 1):
-        checkpoint_name = f"step{i}"
-        if context.execution_context.storage.checkpoint_exists(
-            context.procedure_id, checkpoint_name
-        ):
+        position = i - 1  # Positions are 0-indexed
+        if position < len(metadata.execution_log):
             context.completed_steps.append(i)
 
     # Now execute, skipping checkpointed steps
     for i, step in enumerate(steps, 1):
         step_id = step.get("id")
-        checkpoint_name = f"step{i}"
+        position = i - 1  # Positions are 0-indexed
 
-        # Check if checkpoint exists
-        if context.execution_context.storage.checkpoint_exists(
-            context.procedure_id, checkpoint_name
-        ):
+        # Check if checkpoint exists at this position
+        if position < len(metadata.execution_log):
             # Skip this step (already completed)
             context.resumed_execution.append(f"skipped_{step_id}")
         else:
@@ -431,10 +430,10 @@ def step_impl(context, step_num):
 @then("state should be restored from checkpoints")
 def step_impl(context):
     """Verify state was restored."""
-    # Check that checkpointed steps have their state
+    # Check that checkpointed steps exist in execution log
+    metadata = context.execution_context.storage.load_procedure_metadata(context.procedure_id)
     for step_num in context.completed_steps:
-        checkpoint_name = f"step{step_num}"
-        result = context.execution_context.storage.checkpoint_get(
-            context.procedure_id, checkpoint_name
-        )
-        assert result is not None, f"Checkpoint {checkpoint_name} should exist"
+        position = step_num - 1  # Positions are 0-indexed
+        assert position < len(metadata.execution_log), f"Checkpoint at position {position} (step {step_num}) should exist"
+        result = metadata.execution_log[position].result
+        assert result is not None, f"Checkpoint at position {position} should have a result"

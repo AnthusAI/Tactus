@@ -9,8 +9,10 @@ and teardown plumbing.
 from __future__ import annotations
 
 import logging
+import os
 import shutil
 import tempfile
+import yaml
 from pathlib import Path
 
 
@@ -18,6 +20,37 @@ def before_all(context):
     """Run once before all tests."""
     context.config.setup_logging()
     logging.basicConfig(level=logging.INFO)
+
+    # Load .tactus/config.yml and export to environment
+    tactus_config_path = Path.cwd() / ".tactus" / "config.yml"
+    if tactus_config_path.exists():
+        with open(tactus_config_path) as f:
+            tactus_config = yaml.safe_load(f) or {}
+
+        # Export config values as environment variables (matching ConfigManager's env_mappings)
+        env_mappings = {
+            "openai_api_key": "OPENAI_API_KEY",
+            "google_api_key": "GOOGLE_API_KEY",
+            ("aws", "access_key_id"): "AWS_ACCESS_KEY_ID",
+            ("aws", "secret_access_key"): "AWS_SECRET_ACCESS_KEY",
+            ("aws", "default_region"): "AWS_DEFAULT_REGION",
+        }
+
+        for config_key, env_key in env_mappings.items():
+            # Skip if environment variable is already set
+            if env_key in os.environ:
+                continue
+
+            # Get value from config
+            if isinstance(config_key, tuple):
+                # Nested key (e.g., aws.access_key_id)
+                value = tactus_config.get(config_key[0], {}).get(config_key[1])
+            else:
+                value = tactus_config.get(config_key)
+
+            # Set environment variable if value exists
+            if value:
+                os.environ[env_key] = str(value)
 
 
 def before_scenario(context, scenario):

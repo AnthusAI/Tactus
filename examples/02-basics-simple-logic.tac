@@ -4,9 +4,9 @@
 -- Stages
 stages({"start", "middle", "end"})
 
--- Procedure with parameters and outputs defined inline
+-- Procedure with input, output, and state defined inline
 procedure({
-    params = {
+    input = {
         target_count = {
             type = "number",
             required = false,
@@ -14,7 +14,7 @@ procedure({
             description = "Target counter value"
         },
     },
-    outputs = {
+    output = {
         final_count = {
             type = "number",
             required = true,
@@ -25,26 +25,37 @@ procedure({
             required = true,
             description = "Status message"
         },
+    },
+    state = {
+        counter = {
+            type = "number",
+            default = 0,
+            description = "Working counter"
+        },
+        message = {
+            type = "string",
+            default = "",
+            description = "Working message"
+        }
     }
 }, function()
   -- Initialize
   Stage.set("start")
-  State.set("counter", 0)
-  
+
   -- Do work
-  local target = params.target_count or 5
+  local target = input.target_count or 5
   for i = 1, target do
     State.set("counter", i)
   end
-  
+
   -- Transition to middle
   Stage.set("middle")
   State.set("message", "halfway")
-  
+
   -- Complete
   Stage.set("end")
   State.set("message", "complete")
-  
+
   return {
     final_count = State.get("counter"),
     message = State.get("message")
