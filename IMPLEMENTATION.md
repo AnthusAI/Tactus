@@ -1471,9 +1471,53 @@ Storage backend determines persistence format. File-based, memory-based, and fut
 
 ### Determinism Requirements
 
-**Status**: ⚠️ **No Enforcement**
+**Status**: ✅ **Implemented with Runtime Warnings**
 
-Code between checkpoints should be deterministic, but there's no validation. Non-deterministic code will cause replay issues.
+Code between checkpoints must be deterministic for correct replay behavior. Tactus now provides comprehensive determinism safety through:
+
+**1. Runtime Warnings**
+- Safe library wrappers intercept non-deterministic functions
+- Warns when called outside checkpoint boundaries
+- Prevents replay divergence bugs
+
+**Protected Functions:**
+- `math.random()`, `math.randomseed()` - Random number generation
+- `os.time()`, `os.date()`, `os.clock()` - Time-based operations
+- `os.getenv()` - Environment variables (can change between executions)
+- `os.tmpname()` - Generates unique temporary filenames
+- `File.read()`, `File.write()`, `File.exists()`, `File.size()` - File I/O operations
+
+**2. Strict Mode** (optional)
+- Turn warnings into errors with `strict_determinism: true` in config
+- Recommended for production to enforce determinism
+
+**3. Safe Patterns**
+```lua
+-- ✅ Safe: Wrap in Step.checkpoint
+state.x = Step.checkpoint(function()
+    return math.random(100)
+end)
+
+-- ✅ Safe: Checkpoint immediately after
+state.x = math.random(100)
+checkpoint()
+
+-- ❌ Unsafe: Random value used across checkpoints
+local x = math.random(100)  -- WARNING!
+Worker.turn()  -- Checkpoint
+if x > 50 then  -- Diverges on replay
+    Publisher.turn()
+end
+```
+
+**Implementation:**
+- Checkpoint scope tracking via `ExecutionContext._inside_checkpoint`
+- Safe library wrappers in `tactus/utils/safe_libraries.py`
+- Integration in `LuaSandbox` replaces standard `math` and `os` libraries
+- File primitive warnings in `tactus/primitives/file.py`
+
+**Documentation:**
+See [docs/DURABILITY.md](docs/DURABILITY.md) section "Determinism Requirements" for comprehensive guide.
 
 ### Resume Strategies
 
@@ -1718,6 +1762,9 @@ tactus/
 │   └── dependencies/
 │       └── registry.py         # ResourceFactory, ResourceManager
 │
+├── utils/
+│   └── safe_libraries.py       # Safe wrappers for non-deterministic functions [NEW]
+│
 ├── primitives/
 │   ├── agent.py                # AgentPrimitive (LLM integration)
 │   ├── model.py                # ModelPrimitive (ML inference) [NEW]
@@ -1798,8 +1845,9 @@ To align the implementation with the specification:
 12. ✅ **State Schema Validation** - Runtime validation with defaults and type checking
 13. ✅ **BDD Testing Framework** - Comprehensive Gherkin integration with built-in steps
 14. ✅ **Pydantic Evaluations** - Multi-run consistency evaluation
+15. ✅ **Determinism Safety Warnings** - Runtime warnings for non-deterministic operations outside checkpoints
 
-**Test Status**: 146/146 pytest + 233/233 behave scenarios passing
+**Test Status**: 156/156 pytest + 233/233 behave scenarios passing
 
 ### High Priority
 1. **Guards** - Add pre-execution validation
