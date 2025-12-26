@@ -182,7 +182,10 @@ class TactusRuntime:
         try:
             # 0. Setup Lua sandbox FIRST (needed for both YAML and Lua DSL)
             logger.info("Step 0: Setting up Lua sandbox")
-            self.lua_sandbox = LuaSandbox()
+            strict_determinism = self.external_config.get("strict_determinism", False)
+            self.lua_sandbox = LuaSandbox(
+                execution_context=None, strict_determinism=strict_determinism
+            )
 
             # 0b. For Lua DSL, inject placeholder primitives BEFORE parsing
             # so they're available in the procedure function's closure
@@ -274,8 +277,13 @@ class TactusRuntime:
                 procedure_id=self.procedure_id,
                 storage_backend=self.storage_backend,
                 hitl_handler=self.hitl_handler,
+                strict_determinism=strict_determinism,
             )
             logger.debug("BaseExecutionContext created")
+
+            # 6b. Attach execution context to sandbox for determinism checking
+            self.lua_sandbox.set_execution_context(self.execution_context)
+            logger.debug("ExecutionContext connected to LuaSandbox for determinism checking")
 
             # 7. Initialize HITL and checkpoint primitives (require execution_context)
             logger.info("Step 7: Initializing HITL and checkpoint primitives")
@@ -295,7 +303,7 @@ class TactusRuntime:
             )
             self.json_primitive = JsonPrimitive(lua_sandbox=self.lua_sandbox)
             self.retry_primitive = RetryPrimitive()
-            self.file_primitive = FilePrimitive()
+            self.file_primitive = FilePrimitive(execution_context=self.execution_context)
 
             # Initialize Procedure primitive (requires execution_context)
             max_depth = self.config.get("max_depth", 5) if self.config else 5
@@ -1602,6 +1610,7 @@ class TactusRuntime:
                         state_schema=main_proc["state_schema"],
                         execution_context=self.execution_context,
                         lua_sandbox=self.lua_sandbox,
+                        is_main=True,  # Main procedure is not checkpointed
                     )
 
                     # Gather input parameters from context, applying defaults

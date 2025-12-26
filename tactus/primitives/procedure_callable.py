@@ -36,6 +36,7 @@ class ProcedureCallable:
         state_schema: Dict[str, Any],
         execution_context,  # ExecutionContext instance
         lua_sandbox,  # LuaSandbox instance
+        is_main: bool = False,  # Whether this is the main entry procedure
     ):
         """
         Initialize a callable procedure wrapper.
@@ -48,6 +49,7 @@ class ProcedureCallable:
             state_schema: State initialization schema
             execution_context: ExecutionContext for checkpointing
             lua_sandbox: LuaSandbox for Lua global management
+            is_main: If True, don't checkpoint (main is entry point)
         """
         self.name = name
         self.procedure_function = procedure_function
@@ -56,6 +58,7 @@ class ProcedureCallable:
         self.state_schema = state_schema
         self.execution_context = execution_context
         self.lua_sandbox = lua_sandbox
+        self.is_main = is_main
 
     def __call__(self, params: Optional[Dict[str, Any]] = None) -> Any:
         """
@@ -126,11 +129,16 @@ class ProcedureCallable:
                 if prev_state is not None:
                     self.lua_sandbox.set_global("state", prev_state)
 
-        # Use existing checkpoint infrastructure
-        # This handles both execution and replay automatically
-        return self.execution_context.checkpoint(
-            execute_procedure, checkpoint_type="procedure_call"
-        )
+        # Use existing checkpoint infrastructure for sub-procedures
+        # Main procedure is NOT checkpointed (it's the entry point)
+        if self.is_main:
+            # Main procedure: execute directly without checkpointing
+            return execute_procedure()
+        else:
+            # Sub-procedure: checkpoint for automatic replay
+            return self.execution_context.checkpoint(
+                execute_procedure, checkpoint_type="procedure_call"
+            )
 
     def _validate_input(self, params: Dict[str, Any]) -> None:
         """

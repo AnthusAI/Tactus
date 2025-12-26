@@ -680,68 +680,315 @@ await runtime.execute("customer_support.tactus.lua", context)
 
 ## Determinism Requirements
 
-### The Problem
+Tactus uses checkpoint-and-replay execution. **Code between checkpoints runs from the beginning on every resume**, so it must be deterministic.
 
-Code outside checkpointed operations can break replay:
+### The Problem: Replay Divergence
+
+Non-deterministic code between checkpoints causes execution path divergence:
 
 ```lua
--- Non-deterministic: different value on each replay
-local timestamp = os.time()
-Worker.turn()
-Log.info("Started at: " .. timestamp)  -- Different each replay!
+-- ❌ UNSAFE: Different value on each replay!
+local x = math.random(100)
+Worker.turn()  -- Checkpoint
+if x > 50 then  -- Condition evaluates differently on replay!
+    Publisher.turn()
+end
 ```
+
+This leads to:
+- Checkpoints accessed in wrong order
+- State corruption
+- "Checkpoint not found" errors
+- Difficult-to-debug inconsistencies
+
+### Safe Patterns
+
+**✅ Pattern 1: Wrap in Step.checkpoint**
+
+```lua
+-- Safe: random value checkpointed before use
+state.x = Step.checkpoint(function()
+    return math.random(100)
+end)
+Worker.turn()
+if state.x > 50 then
+    Publisher.turn()
+end
+```
+
+**✅ Pattern 2: Use checkpoint() primitive**
+
+```lua
+-- Safe: checkpoint immediately after non-deterministic operation
+state.x = math.random(100)
+checkpoint()  -- Save state now
+Worker.turn()
+if state.x > 50 then
+    Publisher.turn()
+end
+```
+
+**✅ Pattern 3: Inside agent/model operations (auto-checkpointed)**
+
+```lua
+-- Safe: math.random() used inside an agent prompt (already checkpointed)
+Worker = agent "worker" {
+    model = "claude-sonnet-4",
+    system_prompt = function()
+        local request_id = math.random(100000)  -- Safe: inside checkpointed operation
+        return "You are agent " .. request_id
+    end
+}
+Worker.turn()
+```
+
+### Non-Deterministic Functions
+
+These functions trigger warnings if called outside a checkpoint:
+
+| Function | Type | Risk Level | Why Non-Deterministic |
+|----------|------|------------|----------------------|
+| `math.random()` | Random | High | Different value each execution |
+| `math.randomseed()` | Random | High | Seeds random generator |
+| `os.time()` | Time | High | Current timestamp changes |
+| `os.date()` | Time | High | Current date/time changes |
+| `os.clock()` | Time | High | CPU time varies |
+| `os.getenv()` | Environment | High | Environment variables can change |
+| `os.tmpname()` | System | High | Generates unique temporary filenames |
+
+### Other Sources of Non-Determinism
+
+**Important:** Beyond the wrapped Lua functions above, these operations are also non-deterministic and should be checkpointed:
+
+**File I/O (File primitive):**
+```lua
+-- ❌ UNSAFE: File contents can change between executions
+local data = File.read("config.json")
+Worker.turn()
+-- data might be different if file changed
+
+-- ✅ SAFE: Checkpoint the file read
+state.data = Step.checkpoint(function()
+    return File.read("config.json")
+end)
+Worker.turn()
+-- state.data is preserved from checkpoint
+```
+
+**Network I/O (Tool primitive with HTTP/API calls):**
+```lua
+-- ❌ UNSAFE: API responses vary
+local response = http_client.get("https://api.example.com/data")
+Worker.turn()
+
+-- ✅ SAFE: Checkpoint the API call
+state.response = Step.checkpoint(function()
+    return http_client.get("https://api.example.com/data")
+end)
+```
+
+**File existence checks:**
+```lua
+-- ❌ UNSAFE: Files can be created/deleted
+if File.exists("output.txt") then
+    -- File might exist on first run but not replay
+end
+
+-- ✅ SAFE: Checkpoint the check
+state.file_exists = Step.checkpoint(function()
+    return File.exists("output.txt")
+end)
+if state.file_exists then
+    -- Consistent on replay
+end
+```
+
+**Best Practice:** Any operation that touches external state (files, network, databases, environment) should be wrapped in `Step.checkpoint()` or called from within an already-checkpointed operation (like inside an agent's tool).
+
+### Runtime Warnings
+
+Tactus automatically detects non-deterministic operations outside checkpoints:
+
+```lua
+main = procedure("main", {
+    input = {},
+    output = {value = {type = "number"}}
+}, function()
+    local x = math.random()  -- ⚠️ WARNING!
+    return {value = x}
+end)
+```
+
+Output:
+```
+======================================================================
+DETERMINISM WARNING: math.random() called outside checkpoint
+======================================================================
+
+Non-deterministic operations must be wrapped in checkpoints for durability.
+
+To fix, wrap your code in a checkpoint:
+
+  -- Lua example:
+  local random_value = Step.checkpoint(function()
+    return math.random()
+  end)
+
+Or use checkpoint() directly:
+
+  local result = checkpoint(function()
+    -- Your non-deterministic code here
+    return math.random()
+  end)
+
+Why: Tactus uses checkpointing for durable execution. Operations outside
+checkpoints may produce different results on replay, breaking determinism.
+
+======================================================================
+```
+
+### Strict Mode (Recommended for Production)
+
+Enable strict mode to turn warnings into errors:
+
+**Via `.tac.yml` config:**
+```yaml
+strict_determinism: true
+```
+
+**Via Python API:**
+```python
+runtime = TactusRuntime(
+    storage=storage,
+    external_config={"strict_determinism": True}
+)
+```
+
+With strict mode enabled, non-deterministic operations outside checkpoints will **halt execution** instead of just warning.
 
 ### Multi-Layer Protection
 
-**1. Parser Linting (Static Analysis)**
+Tactus provides multiple layers of determinism protection:
 
-Detects at parse time:
-- Non-deterministic functions outside checkpoints (`math.random`, `os.time`)
+**1. Runtime Warnings (Implemented)**
+
+Safe library wrappers intercept non-deterministic functions and warn when called outside checkpoints. This catches errors at execution time.
+
+**2. Strict Mode (Implemented)**
+
+Throws errors instead of warnings. Use this in production to enforce determinism.
+
+**3. Parser Linting (Future)**
+
+Static analysis will detect at parse time:
+- Non-deterministic functions outside checkpoints
 - State mutations outside checkpoints
 - Variables used across checkpoint boundaries
 
 ```
 Warning: os.time() called outside checkpoint at line 5
   Suggestion: Store result in state before checkpoint
-  
+
 Warning: Local variable 'timestamp' used after checkpoint at line 7
   Suggestion: Use state.timestamp instead
 ```
 
-**2. Runtime Detection**
+**4. Determinism Testing (Recommended)**
 
-Instrument non-deterministic functions to warn when called outside checkpoints:
-
-```python
-def instrumented_random():
-    if not context.inside_checkpoint:
-        logger.warning("math.random called outside checkpoint - may break replay")
-    return random.random()
-```
-
-**3. Strict Mode**
-
-Development flag that throws errors on potential determinism violations:
+Write tests that verify deterministic execution:
 
 ```python
-runtime = TactusRuntime(
-    storage=storage,
-    strict_determinism=True  # Errors instead of warnings
-)
+import pytest
+from tactus.core.runtime import TactusRuntime
+from tactus.adapters.memory import MemoryStorage
+
+@pytest.mark.asyncio
+async def test_procedure_determinism():
+    """Test that procedure produces identical execution logs."""
+    source = "..." # Your procedure code
+    storage = MemoryStorage()
+
+    # Run twice with same input
+    runtime1 = TactusRuntime(procedure_id="run1", storage_backend=storage)
+    result1 = await runtime1.execute(source=source, context={}, format="lua")
+
+    runtime2 = TactusRuntime(procedure_id="run2", storage_backend=storage)
+    result2 = await runtime2.execute(source=source, context={}, format="lua")
+
+    # Verify execution logs match
+    assert result1["success"] and result2["success"]
+    assert result1["result"] == result2["result"]
 ```
 
-**4. Determinism Testing**
+### Common Mistakes
 
-Automated test that runs procedure twice and verifies identical execution logs:
-
-```python
-async def test_determinism(procedure_path: str):
-    run1 = await runtime.execute(procedure_path, context)
-    run2 = await runtime.execute(procedure_path, context)
-    
-    assert run1.execution_log == run2.execution_log, \
-        "Non-deterministic execution detected"
+**❌ Mistake 1: Random numbers in local variables**
+```lua
+local request_id = math.random(100000)  -- ⚠️ Lost on replay
+Worker.turn()
+Log.info("Request ID: " .. request_id)  -- ❌ undefined on replay
 ```
+
+**✅ Fix: Use state**
+```lua
+state.request_id = Step.checkpoint(function()
+    return math.random(100000)
+end)
+Worker.turn()
+Log.info("Request ID: " .. state.request_id)  -- ✅ Available on replay
+```
+
+**❌ Mistake 2: Timestamps outside checkpoints**
+```lua
+local start_time = os.time()  -- ⚠️ Different on each replay
+Worker.turn()
+local elapsed = os.time() - start_time  -- ❌ Wrong calculation
+```
+
+**✅ Fix: Checkpoint before use**
+```lua
+state.start_time = Step.checkpoint(function()
+    return os.time()
+end)
+Worker.turn()
+state.end_time = Step.checkpoint(function()
+    return os.time()
+end)
+local elapsed = state.end_time - state.start_time  -- ✅ Correct
+```
+
+**❌ Mistake 3: Conditional logic based on non-checkpointed random values**
+```lua
+if math.random() > 0.5 then  -- ⚠️ Different condition on replay
+    Worker.turn()
+else
+    Publisher.turn()
+end
+```
+
+**✅ Fix: Checkpoint the decision**
+```lua
+state.should_use_worker = Step.checkpoint(function()
+    return math.random() > 0.5
+end)
+
+if state.should_use_worker then
+    Worker.turn()
+else
+    Publisher.turn()
+end
+```
+
+### Why Checkpoint-and-Replay?
+
+Tactus uses checkpoint-and-replay (like AWS Lambda Durable Functions) rather than state snapshots (like LangGraph) because:
+
+1. **Simplicity**: Only need to persist operation results, not full memory state
+2. **Debuggability**: Execution log shows exactly what happened
+3. **Portability**: Same checkpoints work across different runtime environments
+4. **Efficiency**: No need to serialize/deserialize large state objects
+
+The trade-off is requiring deterministic code between checkpoints, which these safety features help enforce.
 
 ## Runtime Architecture
 

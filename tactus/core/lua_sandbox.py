@@ -32,10 +32,20 @@ class LuaSandboxError(Exception):
 class LuaSandbox:
     """Sandboxed Lua execution environment for procedure workflows."""
 
-    def __init__(self):
-        """Initialize the Lua sandbox."""
+    def __init__(self, execution_context: Optional[Any] = None, strict_determinism: bool = False):
+        """
+        Initialize the Lua sandbox.
+
+        Args:
+            execution_context: Optional ExecutionContext for checkpoint scope tracking
+            strict_determinism: If True, raise errors instead of warnings for non-deterministic ops
+        """
         if not LUPA_AVAILABLE:
             raise LuaSandboxError("lupa library not available. Install with: pip install lupa")
+
+        # Store context for safe libraries
+        self.execution_context = execution_context
+        self.strict_determinism = strict_determinism
 
         # Create Lua runtime with safety restrictions
         self.lua = LuaRuntime(unpack_returned_tuples=True, attribute_filter=self._attribute_filter)
@@ -103,7 +113,7 @@ class LuaSandbox:
         # (These are already available by default, just documenting them)
         safe_functions = {
             # Math
-            "math",  # Math library (safe)
+            "math",  # Math library (will be replaced with safe version if context available)
             "tonumber",  # Convert to number
             "tostring",  # Convert to string
             # String operations
@@ -126,7 +136,30 @@ class LuaSandbox:
         # Just log what's available - no need to explicitly set
         logger.debug(f"Safe Lua functions available: {', '.join(safe_functions)}")
 
+        # Replace math and os libraries with safe versions if context available
+        if self.execution_context is not None:
+            from tactus.utils.safe_libraries import (
+                create_safe_math_library,
+                create_safe_os_library,
+            )
+
+            def get_context():
+                return self.execution_context
+
+            safe_math_dict = create_safe_math_library(get_context, self.strict_determinism)
+            safe_os_dict = create_safe_os_library(get_context, self.strict_determinism)
+
+            safe_math_table = self._dict_to_lua_table(safe_math_dict)
+            safe_os_table = self._dict_to_lua_table(safe_os_dict)
+
+            self.lua.globals()["math"] = safe_math_table
+            self.lua.globals()["os"] = safe_os_table
+
+            logger.info("Installed safe math and os libraries with determinism checking")
+            return  # Skip default os.date setup below
+
         # Add safe subset of os module (only date function for timestamps)
+        # This is a fallback when no execution context is available (testing/REPL)
         from datetime import datetime
 
         def safe_date(format_str=None):
@@ -149,6 +182,18 @@ class LuaSandbox:
         safe_os = self.lua.table(date=safe_date)
         self.lua.globals()["os"] = safe_os
         logger.debug("Added safe os.date() function")
+
+    def set_execution_context(self, context: Any):
+        """
+        Set or update execution context and refresh safe libraries.
+
+        Args:
+            context: ExecutionContext instance
+        """
+        self.execution_context = context
+        # Re-setup safe globals with context
+        self._setup_safe_globals()
+        logger.debug("ExecutionContext attached to LuaSandbox")
 
     def inject_primitive(self, name: str, primitive_obj: Any):
         """
