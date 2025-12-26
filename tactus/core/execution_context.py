@@ -105,6 +105,7 @@ class BaseExecutionContext(ExecutionContext):
         procedure_id: str,
         storage_backend: StorageBackend,
         hitl_handler: Optional[HITLHandler] = None,
+        strict_determinism: bool = False,
     ):
         """
         Initialize base execution context.
@@ -113,10 +114,15 @@ class BaseExecutionContext(ExecutionContext):
             procedure_id: ID of the running procedure
             storage_backend: Storage backend for execution log and state
             hitl_handler: Optional HITL handler for human interactions
+            strict_determinism: If True, raise errors for non-deterministic operations outside checkpoints
         """
         self.procedure_id = procedure_id
         self.storage = storage_backend
         self.hitl = hitl_handler
+        self.strict_determinism = strict_determinism
+
+        # Checkpoint scope tracking for determinism safety
+        self._inside_checkpoint = False
 
         # Load procedure metadata (contains execution_log and replay_index)
         self.metadata = self.storage.load_procedure_metadata(procedure_id)
@@ -137,19 +143,26 @@ class BaseExecutionContext(ExecutionContext):
             self.metadata.replay_index += 1
             return entry.result
 
-        # Execute mode: run function and record checkpoint
-        start_time = time.time()
-        result = fn()
-        duration_ms = (time.time() - start_time) * 1000
+        # Execute mode: run function with checkpoint scope tracking
+        old_checkpoint_flag = self._inside_checkpoint
+        self._inside_checkpoint = True
 
-        # Create checkpoint entry
-        entry = CheckpointEntry(
-            position=current_position,
-            type=checkpoint_type,
-            result=result,
-            timestamp=datetime.now(timezone.utc),
-            duration_ms=duration_ms,
-        )
+        try:
+            start_time = time.time()
+            result = fn()
+            duration_ms = (time.time() - start_time) * 1000
+
+            # Create checkpoint entry
+            entry = CheckpointEntry(
+                position=current_position,
+                type=checkpoint_type,
+                result=result,
+                timestamp=datetime.now(timezone.utc),
+                duration_ms=duration_ms,
+            )
+        finally:
+            # Always restore checkpoint flag, even if fn() raises
+            self._inside_checkpoint = old_checkpoint_flag
 
         # Add to execution log
         self.metadata.execution_log.append(entry)

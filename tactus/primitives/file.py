@@ -24,17 +24,42 @@ class FilePrimitive:
     - Write data to files
     - Check file existence
     - Get file metadata
+
+    Note: File operations are non-deterministic (files can change between executions).
+    Wrap in Step.checkpoint() for durability.
     """
 
-    def __init__(self, base_path: Optional[str] = None):
+    def __init__(self, base_path: Optional[str] = None, execution_context=None):
         """
         Initialize File primitive.
 
         Args:
             base_path: Optional base directory for relative paths (defaults to cwd)
+            execution_context: Optional ExecutionContext for determinism checking
         """
         self.base_path = Path(base_path) if base_path else Path.cwd()
+        self.execution_context = execution_context
         logger.debug(f"FilePrimitive initialized with base_path: {self.base_path}")
+
+    def _check_determinism(self, operation: str):
+        """Warn if file operation called outside checkpoint."""
+        if self.execution_context and not getattr(self.execution_context, "_inside_checkpoint", False):
+            import warnings
+            warnings.warn(
+                f"\n{'='*70}\n"
+                f"DETERMINISM WARNING: File.{operation}() called outside checkpoint\n"
+                f"{'='*70}\n\n"
+                f"File operations are non-deterministic - file contents can change between executions.\n\n"
+                f"To fix, wrap in Step.checkpoint():\n\n"
+                f"  state.data = Step.checkpoint(function()\n"
+                f"    return File.{operation}(...)\n"
+                f"  end)\n\n"
+                f"Why: Files can be modified, deleted, or created between procedure executions,\n"
+                f"causing different behavior on replay.\n"
+                f"\n{'='*70}\n",
+                UserWarning,
+                stacklevel=3
+            )
 
     def read(self, path: str) -> str:
         """
@@ -54,6 +79,7 @@ class FilePrimitive:
             local config = File.read("config.json")
             Log.info("Config loaded", {length = #config})
         """
+        self._check_determinism("read")
         file_path = self._resolve_path(path)
 
         try:
@@ -92,6 +118,7 @@ class FilePrimitive:
             File.write("output.json", data)
             Log.info("Data written")
         """
+        self._check_determinism("write")
         file_path = self._resolve_path(path)
 
         try:
@@ -128,6 +155,7 @@ class FilePrimitive:
                 Log.info("No cache found")
             end
         """
+        self._check_determinism("exists")
         file_path = self._resolve_path(path)
         exists = file_path.exists() and file_path.is_file()
         logger.debug(f"File exists check for {file_path}: {exists}")
@@ -150,6 +178,7 @@ class FilePrimitive:
             local size = File.size("data.csv")
             Log.info("File size", {bytes = size, kb = size / 1024})
         """
+        self._check_determinism("size")
         file_path = self._resolve_path(path)
 
         if not file_path.exists():
