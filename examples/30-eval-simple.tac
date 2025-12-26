@@ -2,7 +2,7 @@
 -- Demonstrates evaluation without requiring OpenAI API
 
 -- Simple procedure that just returns a greeting
-procedure({
+main = procedure("main", {
     input = {
         name = {
             type = "string",

@@ -41,7 +41,7 @@ model("my_classifier", {
     labels = {"class1", "class2", "class3"}
 })
 
-procedure({
+main = procedure("main", {
     input = {data = {type = "array"}},
     output = {prediction = {type = "string"}},
     state = {}

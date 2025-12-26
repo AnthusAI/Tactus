@@ -65,7 +65,7 @@ Feature: Lua DSL Validation
         tools = {}
       })
 
-      procedure({
+      main = procedure("main", {
         input = {
           topic = {
             type = "string",
@@ -91,7 +91,7 @@ Feature: Lua DSL Validation
         tools = {}
       })
 
-      procedure({
+      main = procedure("main", {
         output = {
           result = {
             type = "string",

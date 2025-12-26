@@ -8,7 +8,7 @@ agent("tester", {
     initial_message = "Start test",
 })
 
-procedure({}, function()
+main = procedure("main", {}, function()
     Log.info("Test 1: Agent with tools - should call done")
     Tester.turn()
     

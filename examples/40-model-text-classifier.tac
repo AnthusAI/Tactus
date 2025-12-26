@@ -35,7 +35,7 @@ Call done when you've provided a helpful response.
     tools = {"done"}
 })
 
-procedure({
+main = procedure("main", {
     input = {
         customer_message = {
             type = "string",

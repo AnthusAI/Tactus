@@ -5,7 +5,7 @@
 -- workflow where state should be persisted, enabling more granular
 -- control over durability.
 
-procedure({
+main = procedure("main", {
     input = {
         numbers = {
             type = "array",

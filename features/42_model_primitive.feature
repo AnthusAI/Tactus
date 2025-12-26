@@ -22,7 +22,7 @@ Feature: Model Primitive for ML Inference
         tools = {}
       })
 
-      procedure({
+      main = procedure("main", {
         input = {text = {type = "string"}},
         output = {intent = {type = "string"}},
         state = {}
@@ -43,7 +43,7 @@ Feature: Model Primitive for ML Inference
         timeout = 30.0
       })
 
-      procedure({
+      main = procedure("main", {
         output = {result = {type = "string"}},
         state = {}
       }, function()
@@ -63,7 +63,7 @@ Feature: Model Primitive for ML Inference
         labels = {"negative", "neutral", "positive"}
       })
 
-      procedure({
+      main = procedure("main", {
         output = {result = {type = "string"}},
         state = {}
       }, function()
@@ -80,7 +80,7 @@ Feature: Model Primitive for ML Inference
         endpoint = "https://api.example.com"
       })
 
-      procedure({
+      main = procedure("main", {
         output = {result = {type = "string"}},
         state = {}
       }, function()
@@ -103,7 +103,7 @@ Feature: Model Primitive for ML Inference
         endpoint = "https://api.example.com/sentiment"
       })
 
-      procedure({
+      main = procedure("main", {
         output = {result = {type = "string"}},
         state = {}
       }, function()
@@ -122,7 +122,7 @@ Feature: Model Primitive for ML Inference
         endpoint = "https://httpbin.org/post"
       })
 
-      procedure({
+      main = procedure("main", {
         input = {text = {type = "string", default = "test"}},
         output = {classification = {type = "string"}},
         state = {}

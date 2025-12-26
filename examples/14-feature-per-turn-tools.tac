@@ -8,7 +8,7 @@ agent("researcher", {
     initial_message = "Start researching the topic",
 })
 
-procedure({
+main = procedure("main", {
     input = {
         topic = {
             type = "string",

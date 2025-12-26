@@ -14,7 +14,7 @@ IMPORTANT: Always call the done tool immediately with your formatted result.]],
     request_limit = 5
 })
 
-procedure({
+main = procedure("main", {
     input = {
         task = {
             type = "string",

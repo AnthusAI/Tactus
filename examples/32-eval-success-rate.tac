@@ -26,7 +26,7 @@ Always follow this format exactly.]],
 })
 
 -- Procedure
-procedure({
+main = procedure("main", {
     input = {
         task = {
             type = "string",

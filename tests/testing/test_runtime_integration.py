@@ -169,7 +169,7 @@ agent("worker", {
 
 stages({"start", "end"})
 
-procedure(function()
+main = procedure("main", function()
   Stage.set("start")
   State.set("test_key", "test_value")
   Stage.set("end")
@@ -219,7 +219,7 @@ agent("worker", {
   tools = {"done"}
 })
 
-procedure(function()
+main = procedure("main", function()
   Worker.turn()
   return {success = true}
 end)

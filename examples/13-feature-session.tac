@@ -9,7 +9,7 @@ agent("chatbot", {
 })
 
 -- Procedure with message_history configuration
-procedure({
+main = procedure("main", {
     input = {
         user_message = {
             type = "string",

@@ -14,12 +14,12 @@ Feature: BDD Specifications (Gherkin)
         system_prompt = "Work",
         tools = {"done"}
       })
-      
-      procedure(function()
+
+      main = procedure("main", function()
         Worker.turn()
         return { result = "done" }
       end)
-      
+
       specifications([[
       Feature: Basic Test
         Scenario: Worker completes task
@@ -42,7 +42,7 @@ Feature: BDD Specifications (Gherkin)
       
       stages({"start", "working", "done"})
       
-      procedure(function()
+      main = procedure("main", function()
         Stage.set("start")
         Stage.set("working")
         Worker.turn()
@@ -76,7 +76,7 @@ Feature: BDD Specifications (Gherkin)
         tools = {"done"}
       })
       
-      procedure(function()
+      main = procedure("main", function()
         State.set("counter", 0)
         State.set("counter", 5)
         Worker.turn()
@@ -104,12 +104,12 @@ Feature: BDD Specifications (Gherkin)
         system_prompt = "Work",
         tools = {"search", "done"}
       })
-      
-      procedure(function()
+
+      main = procedure("main", function()
         Worker.turn()
         return { result = "done" }
       end)
-      
+
       specifications([[
       Feature: Tool Usage
       
@@ -131,7 +131,7 @@ Feature: BDD Specifications (Gherkin)
         tools = {}
       })
       
-      procedure(function()
+      main = procedure("main", function()
         return { result = "done" }
       end)
       """

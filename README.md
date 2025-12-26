@@ -81,7 +81,7 @@ agent("greeter", {
   tools = {"done"}
 })
 
-procedure({
+main = procedure("main", {
   input = {
     name = {
       type = "string",
@@ -242,11 +242,11 @@ agent("researcher", {
   tools = {"search", "analyze", "done"}
 })
 
-procedure({}, function()
+main = procedure("main", {}, function()
   repeat
     -- Main turn: agent has all tools
     Researcher.turn()
-    
+
     -- After each tool call, ask agent to summarize with NO tools
     if Tool.called("search") or Tool.called("analyze") then
       Researcher.turn({
@@ -254,7 +254,7 @@ procedure({}, function()
         tools = {}  -- No tools for this turn!
       })
     end
-    
+
   until Tool.called("done")
 end)
 ```
@@ -693,7 +693,7 @@ Parameters in Tactus are more than just variables—they form a **contract** def
 This separation means your agent logic remains the same, while the interface adapts to where it's running.
 
 ```lua
-procedure({
+main = procedure("main", {
   input = {
     topic = {
       type = "string",

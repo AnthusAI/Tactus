@@ -119,7 +119,7 @@ After calling the math tool, call done with the result.]],
 })
 
 -- Main workflow
-procedure({
+main = procedure("main", {
     input = {
         operation = {
             type = "string",

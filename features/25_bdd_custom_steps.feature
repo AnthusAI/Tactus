@@ -14,8 +14,8 @@ Feature: BDD Custom Step Definitions
         system_prompt = "Work",
         tools = {"done"}
       })
-      
-      procedure(function()
+
+      main = procedure("main", function()
         State.set("custom_value", 42)
         Worker.turn()
         return { result = "done" }
@@ -45,8 +45,8 @@ Feature: BDD Custom Step Definitions
         system_prompt = "Work",
         tools = {"done"}
       })
-      
-      procedure(function()
+
+      main = procedure("main", function()
         State.set("x", 10)
         State.set("y", 20)
         Worker.turn()
@@ -81,8 +81,8 @@ Feature: BDD Custom Step Definitions
         system_prompt = "Work",
         tools = {"done"}
       })
-      
-      procedure(function()
+
+      main = procedure("main", function()
         State.set("items", {"a", "b", "c"})
         Worker.turn()
         return { result = "done" }

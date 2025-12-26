@@ -109,7 +109,7 @@ agent("nova_lite", {
 
 
 -- Procedure to run all models and collect responses
-procedure(function()
+main = procedure("main", function()
     Log.info("Starting multi-model comparison")
     
     local results = {}

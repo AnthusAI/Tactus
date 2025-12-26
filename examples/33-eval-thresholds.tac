@@ -11,7 +11,7 @@ Call the 'done' tool with your greeting.]],
     initial_message = "Generate a greeting for {name}",
 })
 
-procedure({
+main = procedure("main", {
     input = {
         name = {
             type = "string",

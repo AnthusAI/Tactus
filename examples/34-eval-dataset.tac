@@ -12,7 +12,7 @@ Always start your response with "TASK_COMPLETE: " followed by your actual work.]
     initial_message = "{task}\n\nPlease complete this task now.",
 })
 
-procedure({
+main = procedure("main", {
     input = {
         task = {
             type = "string",

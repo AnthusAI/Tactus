@@ -18,7 +18,7 @@ When done, call the done tool with your answer.]],
 })
 
 -- Procedure demonstrating DSL toolset usage
-procedure({
+main = procedure("main", {
     outputs = {
         calculation_result = {
             type = "string",

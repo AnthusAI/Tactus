@@ -10,14 +10,14 @@ Feature: Execution Settings (async, max_depth, max_turns)
     Given a Lua DSL file with content:
       """
       async(true)
-      
+
       agent("worker", {
         provider = "openai",
         system_prompt = "Work",
         tools = {}
       })
-      
-      procedure(function()
+
+      main = procedure("main", function()
         return { result = "done" }
       end)
       """
@@ -28,14 +28,14 @@ Feature: Execution Settings (async, max_depth, max_turns)
     Given a Lua DSL file with content:
       """
       max_depth(10)
-      
+
       agent("worker", {
         provider = "openai",
         system_prompt = "Work",
         tools = {}
       })
-      
-      procedure(function()
+
+      main = procedure("main", function()
         return { result = "done" }
       end)
       """
@@ -46,14 +46,14 @@ Feature: Execution Settings (async, max_depth, max_turns)
     Given a Lua DSL file with content:
       """
       max_turns(100)
-      
+
       agent("worker", {
         provider = "openai",
         system_prompt = "Work",
         tools = {}
       })
-      
-      procedure(function()
+
+      main = procedure("main", function()
         return { result = "done" }
       end)
       """
@@ -66,14 +66,14 @@ Feature: Execution Settings (async, max_depth, max_turns)
       async(true)
       max_depth(5)
       max_turns(50)
-      
+
       agent("worker", {
         provider = "openai",
         system_prompt = "Work",
         tools = {}
       })
-      
-      procedure(function()
+
+      main = procedure("main", function()
         return { result = "done" }
       end)
       """
@@ -88,8 +88,8 @@ Feature: Execution Settings (async, max_depth, max_turns)
         system_prompt = "Work",
         tools = {}
       })
-      
-      procedure(function()
+
+      main = procedure("main", function()
         return { result = "done" }
       end)
       """

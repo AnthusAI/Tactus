@@ -123,24 +123,45 @@ class TactusDSLVisitor(LuaParserVisitor):
             if args and len(args) >= 2:
                 self.builder.register_model(args[0], args[1] if isinstance(args[1], dict) else {})
         elif func_name == "procedure":
-            # For procedure, mark that it exists and extract inline input/output/state if present
-            self.builder.set_procedure(True)
+            # For named procedures: procedure("name", {config}, function)
+            # or procedure("name", function)
+            # First argument MUST be the name (string)
+            # Note: args may contain None for unparseable expressions (like functions)
+            if args and len(args) >= 2:
+                # First arg must be a string (procedure name)
+                proc_name = args[0] if isinstance(args[0], str) else None
+                if not proc_name:
+                    # Invalid: first arg must be string name
+                    return
 
-            # Check if first argument is a table constructor with input/output/state
-            if args and len(args) >= 1 and isinstance(args[0], dict):
-                config = args[0]
+                # Register that this named procedure exists (validation needs to know about 'main')
+                # We use a stub/placeholder since the actual function will be registered at runtime
+                self.builder.register_named_procedure(
+                    proc_name,
+                    None,  # Function not available during validation
+                    {},  # Input schema extracted below
+                    {},  # Output schema extracted below
+                    {},  # State schema extracted below
+                )
 
-                # Extract inline input schema
-                if "input" in config and isinstance(config["input"], dict):
-                    self.builder.register_input_schema(config["input"])
+                # Check second argument - either config table or function
+                # If it's a dict, extract schemas; if None (function), skip schema extraction
+                if args[1] is not None and isinstance(args[1], dict):
+                    # procedure("name", {config}, function)
+                    config = args[1]
 
-                # Extract inline output schema
-                if "output" in config and isinstance(config["output"], dict):
-                    self.builder.register_output_schema(config["output"])
+                    # Extract inline input schema
+                    if "input" in config and isinstance(config["input"], dict):
+                        self.builder.register_input_schema(config["input"])
 
-                # Extract inline state schema
-                if "state" in config and isinstance(config["state"], dict):
-                    self.builder.register_state_schema(config["state"])
+                    # Extract inline output schema
+                    if "output" in config and isinstance(config["output"], dict):
+                        self.builder.register_output_schema(config["output"])
+
+                    # Extract inline state schema
+                    if "state" in config and isinstance(config["state"], dict):
+                        self.builder.register_state_schema(config["state"])
+                # else: procedure("name", function) - args[1] is None (unparseable function literal)
         elif func_name == "prompt":
             if args and len(args) >= 2:
                 self.builder.register_prompt(args[0], args[1])
@@ -198,7 +219,13 @@ class TactusDSLVisitor(LuaParserVisitor):
                 self.builder.set_max_turns(args[0])
 
     def _extract_arguments(self, ctx: LuaParser.FunctioncallContext) -> list:
-        """Extract function arguments from parse tree."""
+        """Extract function arguments from parse tree.
+
+        Returns a list where:
+        - Parseable expressions are included as Python values
+        - Unparseable expressions (like functions) are included as None placeholders
+        This allows checking total argument count for validation.
+        """
         args = []
 
         # functioncall has args() children
@@ -215,8 +242,8 @@ class TactusDSLVisitor(LuaParserVisitor):
                 explist = args_ctx.explist()
                 for exp in explist.exp():
                     value = self._parse_expression(exp)
-                    if value is not None:
-                        args.append(value)
+                    # Include None placeholders to preserve argument count
+                    args.append(value)
             elif args_ctx.tableconstructor():
                 # Table constructor argument
                 table = self._parse_table_constructor(args_ctx.tableconstructor())

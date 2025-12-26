@@ -13,7 +13,7 @@ agent("processor", {
 stages({"setup", "processing", "validation", "complete"})
 
 -- Procedure with input and output defined inline
-procedure({
+main = procedure("main", {
     input = {
         task = {
             type = "string",

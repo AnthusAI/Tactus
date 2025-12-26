@@ -1,7 +1,7 @@
 -- Sum Helper Procedure
 -- Calculates the sum of an array of numbers
 
-procedure({
+main = procedure("main", {
     input = {
         values = {
             type = "array",

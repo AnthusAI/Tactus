@@ -10,7 +10,7 @@ model("intent_classifier", {
     timeout = 10.0
 })
 
-procedure({
+main = procedure("main", {
     input = {
         text = {
             type = "string",

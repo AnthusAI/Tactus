@@ -49,7 +49,7 @@ tactus test time_lookup.tac --integration --param timezone=America/New_York
 ### Declaring Dependencies
 
 ```lua
-procedure({
+main = procedure("main", {
     dependencies = {
         my_api = {
             type = "http_client",

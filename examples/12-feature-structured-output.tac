@@ -21,7 +21,7 @@ Be concise and accurate.]],
     }
 })
 
-procedure({
+main = procedure("main", {
     input = {
         query = {
             type = "string",

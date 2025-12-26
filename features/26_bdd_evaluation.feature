@@ -14,12 +14,12 @@ Feature: BDD Evaluation Configuration
         system_prompt = "Work",
         tools = {"done"}
       })
-      
-      procedure(function()
+
+      main = procedure("main", function()
         Worker.turn()
         return { result = "done" }
       end)
-      
+
       specifications([[
       Feature: Basic Test
         Scenario: Works
@@ -44,12 +44,12 @@ Feature: BDD Evaluation Configuration
         system_prompt = "Work",
         tools = {"done"}
       })
-      
-      procedure(function()
+
+      main = procedure("main", function()
         Worker.turn()
         return { result = "done" }
       end)
-      
+
       specifications([[
       Feature: Test
         Scenario: Works
@@ -73,12 +73,12 @@ Feature: BDD Evaluation Configuration
         system_prompt = "Work",
         tools = {"done"}
       })
-      
-      procedure(function()
+
+      main = procedure("main", function()
         Worker.turn()
         return { result = "done" }
       end)
-      
+
       specifications([[
       Feature: Test
         Scenario: Works
@@ -103,12 +103,12 @@ Feature: BDD Evaluation Configuration
         system_prompt = "Work",
         tools = {"done"}
       })
-      
-      procedure(function()
+
+      main = procedure("main", function()
         Worker.turn()
         return { result = "done" }
       end)
-      
+
       specifications([[
       Feature: Test
         Scenario: Works

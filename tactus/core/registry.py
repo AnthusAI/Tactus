@@ -151,8 +151,9 @@ class ProcedureRegistry(BaseModel):
     default_provider: Optional[str] = None
     default_model: Optional[str] = None
 
-    # The procedure function (lupa reference, not executed during registration)
-    procedure_function: Any = Field(default=None, exclude=True)
+    # Named procedures (for in-file sub-procedures)
+    named_procedures: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    # Structure: {"proc_name": {"function": <lua_ref>, "input_schema": {...}, ...}}
 
     # Script mode support (top-level input/output without explicit main procedure)
     script_mode: bool = False
@@ -300,9 +301,30 @@ class RegistryBuilder:
         except ValidationError as e:
             self._add_error(f"Invalid specification '{name}': {e}")
 
-    def set_procedure(self, lua_function) -> None:
-        """Store Lua function reference for later execution."""
-        self.registry.procedure_function = lua_function
+    def register_named_procedure(
+        self,
+        name: str,
+        lua_function: Any,
+        input_schema: dict[str, Any],
+        output_schema: dict[str, Any],
+        state_schema: dict[str, Any],
+    ) -> None:
+        """
+        Register a named procedure for in-file calling.
+
+        Args:
+            name: Procedure name
+            lua_function: Lua function reference
+            input_schema: Input validation schema
+            output_schema: Output validation schema
+            state_schema: State initialization schema
+        """
+        self.registry.named_procedures[name] = {
+            "function": lua_function,
+            "input_schema": input_schema,
+            "output_schema": output_schema,
+            "state_schema": state_schema,
+        }
 
     def register_top_level_input(self, schema: dict) -> None:
         """Register top-level input schema for script mode."""
@@ -379,9 +401,14 @@ class RegistryBuilder:
         errors = []
         warnings = []
 
-        # Required fields
-        if not self.registry.procedure_function:
-            errors.append(ValidationMessage(level="error", message="procedure is required"))
+        # Required field - named 'main' procedure
+        if "main" not in self.registry.named_procedures:
+            errors.append(
+                ValidationMessage(
+                    level="error",
+                    message="named 'main' procedure is required",
+                )
+            )
 
         # Agent validation
         for agent in self.registry.agents.values():

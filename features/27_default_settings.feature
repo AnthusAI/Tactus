@@ -10,13 +10,13 @@ Feature: Default Provider and Model Settings
     Given a Lua DSL file with content:
       """
       default_provider("openai")
-      
+
       agent("worker", {
         system_prompt = "Work",
         tools = {}
       })
-      
-      procedure(function()
+
+      main = procedure("main", function()
         return { result = "done" }
       end)
       """
@@ -27,14 +27,14 @@ Feature: Default Provider and Model Settings
     Given a Lua DSL file with content:
       """
       default_model("gpt-4o-mini")
-      
+
       agent("worker", {
         provider = "openai",
         system_prompt = "Work",
         tools = {}
       })
-      
-      procedure(function()
+
+      main = procedure("main", function()
         return { result = "done" }
       end)
       """
@@ -46,13 +46,13 @@ Feature: Default Provider and Model Settings
       """
       default_provider("openai")
       default_model("gpt-4o")
-      
+
       agent("worker", {
         system_prompt = "Work",
         tools = {}
       })
-      
-      procedure(function()
+
+      main = procedure("main", function()
         return { result = "done" }
       end)
       """
@@ -63,14 +63,14 @@ Feature: Default Provider and Model Settings
     Given a Lua DSL file with content:
       """
       default_provider("openai")
-      
+
       agent("worker", {
         provider = "bedrock",
         system_prompt = "Work",
         tools = {}
       })
-      
-      procedure(function()
+
+      main = procedure("main", function()
         return { result = "done" }
       end)
       """
@@ -82,18 +82,18 @@ Feature: Default Provider and Model Settings
       """
       default_provider("openai")
       default_model("gpt-4o-mini")
-      
+
       agent("worker1", {
         system_prompt = "Work 1",
         tools = {}
       })
-      
+
       agent("worker2", {
         system_prompt = "Work 2",
         tools = {}
       })
-      
-      procedure(function()
+
+      main = procedure("main", function()
         return { result = "done" }
       end)
       """

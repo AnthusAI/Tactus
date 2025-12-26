@@ -37,7 +37,7 @@ agent("worker", {
 stages({"planning", "executing", "complete"})
 
 -- Procedure with input and output defined inline
-procedure({
+main = procedure("main", {
     -- Input (inputs to the procedure)
     input = {
         task = {
@@ -74,7 +74,7 @@ procedure({
     repeat
         Worker.turn()
     until Tool.called("done") or Iterations.exceeded(input.max_iterations)
-    
+
     return {
         result = "Task completed",
         success = true
@@ -107,7 +107,7 @@ Feature: Task Processing
 Input schema defines what the procedure accepts. Validated before execution.
 
 ```lua
-procedure({
+main = procedure("main", {
     input = {
         topic = {
             type = "string",
@@ -149,7 +149,7 @@ Input values are accessed in templates as `{input.topic}` and in Lua as `input.t
 Output schema defines what the procedure returns. Validated after execution.
 
 ```lua
-procedure({
+main = procedure("main", {
     output = {
         findings = {
             type = "string",
@@ -196,7 +196,7 @@ Message history configuration controls how conversation history is managed acros
 **Lua DSL format (.tac):**
 
 ```lua
-procedure({
+main = procedure("main", {
     message_history = {
         mode = "isolated",  -- or "shared"
         max_tokens = 120000,
@@ -301,19 +301,19 @@ This ensures type-safe, structured outputs from agents.
 **Example:**
 
 ```lua
-procedure({}, function()
+main = procedure("main", {}, function()
     local result = Agent.turn()
-    
+
     -- Access response data
     Log.info("Response", {data = result.data})
-    
+
     -- Access token usage
     Log.info("Tokens used", {
         prompt = result.usage.prompt_tokens,
         completion = result.usage.completion_tokens,
         total = result.usage.total_tokens
     })
-    
+
     -- Access messages
     local messages = result.new_messages()
     for i, msg in ipairs(messages) do
@@ -332,9 +332,9 @@ agent("extractor", {
     }
 })
 
-procedure({}, function()
+main = procedure("main", {}, function()
     local result = Extractor.turn()
-    
+
     -- Access structured data fields
     Log.info("Extracted", {
         city = result.data.city,
@@ -562,7 +562,7 @@ Tactus supports declaring external resource dependencies (HTTP clients, database
 Declare resources your procedure needs (HTTP APIs, databases, caches, etc.):
 
 ```lua
-procedure({
+main = procedure("main", {
     input = {
         city = {type = "string", required = true}
     },
@@ -711,7 +711,7 @@ Child procedures inherit parent dependencies:
 
 ```lua
 -- Parent procedure
-procedure({
+main = procedure("main", {
     dependencies = {
         api_client = {type = "http_client", base_url = "https://api.example.com"}
     }
@@ -1462,7 +1462,7 @@ end
 Lua function tools fully integrate with the `Tool` primitive for tracking:
 
 ```lua
-procedure(function()
+main = procedure("main", function()
     Assistant.turn("Calculate something")
 
     -- Check if tool was called

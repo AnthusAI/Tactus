@@ -5,7 +5,7 @@
 -- and on replay, the cached result is returned without re-executing.
 
 -- Main procedure that calls a sub-procedure
-procedure({
+main = procedure("main", {
     input = {
         numbers = {
             type = "array",

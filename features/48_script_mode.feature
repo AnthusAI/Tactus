@@ -13,7 +13,7 @@ Feature: Script Mode Entry Points
         name = {type = "string", required = true}
       }
 
-      procedure({
+      main = procedure("main", {
         output = {result = {type = "string", required = true}},
         state = {}
       }, function()
@@ -30,7 +30,7 @@ Feature: Script Mode Entry Points
         greeting = {type = "string", required = true}
       }
 
-      procedure({
+      main = procedure("main", {
         input = {name = {type = "string", default = "World"}},
         state = {}
       }, function()
@@ -51,7 +51,7 @@ Feature: Script Mode Entry Points
         result = {type = "number", required = true}
       }
 
-      procedure({state = {}}, function()
+      main = procedure("main", {state = {}}, function()
         return {result = input.value * 2}
       end)
       """
@@ -71,7 +71,7 @@ Feature: Script Mode Entry Points
         full_name = {type = "string", required = true}
       }
 
-      procedure({state = {}}, function()
+      main = procedure("main", {state = {}}, function()
         return {full_name = input.first_name .. " " .. input.last_name}
       end)
       """
@@ -91,7 +91,7 @@ Feature: Script Mode Entry Points
         lowercase = {type = "string", required = true}
       }
 
-      procedure({state = {}}, function()
+      main = procedure("main", {state = {}}, function()
         return {
           length = #input.text,
           uppercase = string.upper(input.text),

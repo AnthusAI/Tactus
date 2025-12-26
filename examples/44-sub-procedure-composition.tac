@@ -24,7 +24,7 @@ Call done when finished.
     tools = {"done"}
 })
 
-procedure({
+main = procedure("main", {
     input = {
         numbers = {
             type = "array",

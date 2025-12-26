@@ -4,7 +4,7 @@
 -- operations. On replay, expensive operations are skipped and
 -- cached results are returned instantly.
 
-procedure({
+main = procedure("main", {
     input = {
         iterations = {
             type = "number",

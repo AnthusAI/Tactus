@@ -18,12 +18,12 @@ When running a procedure in the IDE, agent responses are streamed in real-time:
 
 ```lua
 -- ✅ STREAMING WORKS - No outputs defined
-procedure(function()
+main = procedure("main", {}, function()
     MyAgent.turn()
 end)
 
 -- ❌ STREAMING DISABLED - Has structured output
-procedure({
+main = procedure("main", {
     output = {
         result = { type = "string", required = true }
     },
@@ -90,7 +90,7 @@ agent("storyteller", {
     tools = {"done"},
 })
 
-procedure(function()
+main = procedure("main", {}, function()
     Storyteller.turn()  -- This will stream!
 end)
 ```

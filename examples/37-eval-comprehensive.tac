@@ -21,7 +21,7 @@ Return JSON with: {phone, email, score}]],
     toolsets = {"validate"}
 })
 
-procedure({
+main = procedure("main", {
     input = {
         raw_contact = {
             type = "string",

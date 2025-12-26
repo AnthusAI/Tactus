@@ -14,8 +14,8 @@ Feature: Matchers (contains, equals, matches)
         system_prompt = "Work",
         tools = {}
       })
-      
-      procedure(function()
+
+      main = procedure("main", function()
         local text = "Hello World"
         local match = contains("World")
         -- Matchers return a tuple that can be used for validation
@@ -33,8 +33,8 @@ Feature: Matchers (contains, equals, matches)
         system_prompt = "Work",
         tools = {}
       })
-      
-      procedure(function()
+
+      main = procedure("main", function()
         local text = "exact"
         local match = equals("exact")
         return { result = "done" }
@@ -51,8 +51,8 @@ Feature: Matchers (contains, equals, matches)
         system_prompt = "Work",
         tools = {}
       })
-      
-      procedure(function()
+
+      main = procedure("main", function()
         local text = "test123"
         local match = matches("test[0-9]+")
         return { result = "done" }
@@ -69,8 +69,8 @@ Feature: Matchers (contains, equals, matches)
         system_prompt = "Work",
         tools = {}
       })
-      
-      procedure(function()
+
+      main = procedure("main", function()
         local m1 = contains("test")
         local m2 = equals("exact")
         local m3 = matches("[a-z]+")
@@ -88,8 +88,8 @@ Feature: Matchers (contains, equals, matches)
         system_prompt = "Work",
         tools = {}
       })
-      
-      procedure(function()
+
+      main = procedure("main", function()
         return { result = "done" }
       end)
       """

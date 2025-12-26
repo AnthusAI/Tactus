@@ -28,7 +28,7 @@ Call the greet tool with the name "Alice" and then call done.
 })
 
 -- Execute procedure
-procedure({}, function()
+main = procedure("main", {}, function()
     Log.info("Testing MCP tool")
     
     -- Single turn should be enough

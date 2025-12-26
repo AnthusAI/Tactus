@@ -66,6 +66,13 @@ def lua_table_to_dict(lua_table):
         return lua_table
 
 
+def _normalize_schema(schema):
+    """Convert empty list to empty dict (lua_table_to_dict converts {} to [])."""
+    if isinstance(schema, list) and len(schema) == 0:
+        return {}
+    return schema
+
+
 def create_dsl_stubs(builder: RegistryBuilder) -> dict[str, Callable]:
     """
     Create DSL stub functions that populate the registry.
@@ -73,6 +80,8 @@ def create_dsl_stubs(builder: RegistryBuilder) -> dict[str, Callable]:
     These functions are injected into the Lua environment before
     executing the .tac file.
     """
+    # Global registry for named procedure stubs to find their implementations
+    _procedure_registry = {}
 
     def _agent(agent_name: str, config) -> None:
         """Register an agent with its configuration."""
@@ -100,52 +109,77 @@ def create_dsl_stubs(builder: RegistryBuilder) -> dict[str, Callable]:
 
         builder.register_agent(agent_name, config_dict, output_schema)
 
-    def _procedure(config_or_fn, fn=None) -> None:
+    def _procedure(name, config_or_fn, fn=None):
         """
-        Store procedure function for later execution.
+        Register a named procedure.
 
         Supports two syntaxes:
-        1. procedure({input = {...}, output = {...}, state = {...}}, function() ... end)
-        2. procedure(function() ... end)
+        1. procedure("name", {config}, function)  # with config
+        2. procedure("name", function)            # without config
+
+        Args:
+            name: Procedure name (string)
+            config_or_fn: Either config table or function
+            fn: Function (if config_or_fn is config table)
+
+        Returns:
+            Stub that will be replaced with ProcedureCallable at runtime
         """
-        if fn is None:
-            # Simple syntax: procedure(function)
-            builder.set_procedure(config_or_fn)
-        else:
-            # Full syntax: procedure(config, function)
+        # Validate first argument is a string
+        if not isinstance(name, str):
+            raise TypeError(
+                f"procedure() first argument must be a string name, got {type(name).__name__}"
+            )
+
+        # Determine if we have config or just function
+        if callable(config_or_fn) and not hasattr(config_or_fn, "items"):
+            # procedure("name", function)
+            config = {}
+            fn = config_or_fn
+        elif hasattr(config_or_fn, "items"):
+            # procedure("name", {config}, function)
+            if fn is None:
+                raise TypeError(
+                    "procedure() requires a function as the last argument when config is provided"
+                )
             config = lua_table_to_dict(config_or_fn)
+            # Normalize empty config (lua {} -> python [])
+            config = _normalize_schema(config)
+        else:
+            raise TypeError(
+                f"procedure() second argument must be config table or function, "
+                f"got {type(config_or_fn).__name__}"
+            )
 
-            # Extract and register input schema
-            if "input" in config:
-                builder.register_input_schema(config["input"])
+        # Extract schemas (normalize empty lists to dicts)
+        input_schema = _normalize_schema(config.get("input", {}))
+        output_schema = _normalize_schema(config.get("output", {}))
+        state_schema = _normalize_schema(config.get("state", {}))
 
-            # Extract and register output schema
-            if "output" in config:
-                builder.register_output_schema(config["output"])
+        # Register named procedure
+        builder.register_named_procedure(name, fn, input_schema, output_schema, state_schema)
 
-            # Extract and register state schema
-            if "state" in config:
-                builder.register_state_schema(config["state"])
+        # Return a stub that will delegate to the registry at call time
+        class NamedProcedureStub:
+            """
+            Stub that delegates to the actual ProcedureCallable when called.
+            This gets replaced during runtime initialization.
+            """
 
-            # Extract and register dependencies
-            if "dependencies" in config:
-                for dep_name, dep_config in config["dependencies"].items():
-                    builder.register_dependency(dep_name, dep_config)
+            def __init__(self, proc_name, registry):
+                self.name = proc_name
+                self.registry = registry
 
-            # Extract and register message_history config (aligned with pydantic-ai)
-            if "message_history" in config:
-                builder.set_message_history_config(config["message_history"])
+            def __call__(self, *args):
+                # Look up the real implementation from the registry
+                if self.name in self.registry:
+                    return self.registry[self.name](*args)
+                else:
+                    raise RuntimeError(f"Named procedure '{self.name}' not initialized yet")
 
-            # Extract and register custom prompts
-            if "return_prompt" in config:
-                builder.set_return_prompt(config["return_prompt"])
-            if "error_prompt" in config:
-                builder.set_error_prompt(config["error_prompt"])
-            if "status_prompt" in config:
-                builder.set_status_prompt(config["status_prompt"])
-
-            # Store the procedure function
-            builder.set_procedure(fn)
+        stub = NamedProcedureStub(name, _procedure_registry)
+        _procedure_registry[name] = stub  # Store stub temporarily
+        return stub
 
     def _prompt(prompt_name: str, content: str) -> None:
         """Register a prompt template."""
