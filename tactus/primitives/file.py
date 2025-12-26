@@ -43,22 +43,27 @@ class FilePrimitive:
 
     def _check_determinism(self, operation: str):
         """Warn if file operation called outside checkpoint."""
-        if self.execution_context and not getattr(self.execution_context, "_inside_checkpoint", False):
+        if self.execution_context and not getattr(
+            self.execution_context, "_inside_checkpoint", False
+        ):
             import warnings
+
             warnings.warn(
-                f"\n{'='*70}\n"
+                f"\n{'=' * 70}\n"
                 f"DETERMINISM WARNING: File.{operation}() called outside checkpoint\n"
-                f"{'='*70}\n\n"
-                f"File operations are non-deterministic - file contents can change between executions.\n\n"
+                f"{'=' * 70}\n\n"
+                f"File operations are non-deterministic - "
+                f"file contents can change between executions.\n\n"
                 f"To fix, wrap in Step.checkpoint():\n\n"
                 f"  state.data = Step.checkpoint(function()\n"
                 f"    return File.{operation}(...)\n"
                 f"  end)\n\n"
-                f"Why: Files can be modified, deleted, or created between procedure executions,\n"
+                f"Why: Files can be modified, deleted, or created "
+                f"between procedure executions,\n"
                 f"causing different behavior on replay.\n"
-                f"\n{'='*70}\n",
+                f"\n{'=' * 70}\n",
                 UserWarning,
-                stacklevel=3
+                stacklevel=3,
             )
 
     def read(self, path: str) -> str:

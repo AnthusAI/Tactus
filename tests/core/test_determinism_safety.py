@@ -70,9 +70,7 @@ class TestDeterminismWarnings:
 
             # No determinism warnings should be emitted
             warning_messages = [str(warning.message) for warning in w]
-            determinism_warnings = [
-                msg for msg in warning_messages if "DETERMINISM WARNING" in msg
-            ]
+            determinism_warnings = [msg for msg in warning_messages if "DETERMINISM WARNING" in msg]
             assert len(determinism_warnings) == 0
 
         assert result["success"] is True
@@ -148,9 +146,7 @@ class TestDeterminismWarnings:
 
             # No determinism warnings
             warning_messages = [str(warning.message) for warning in w]
-            determinism_warnings = [
-                msg for msg in warning_messages if "DETERMINISM WARNING" in msg
-            ]
+            determinism_warnings = [msg for msg in warning_messages if "DETERMINISM WARNING" in msg]
             assert len(determinism_warnings) == 0
 
         assert result["success"] is True
@@ -212,9 +208,7 @@ class TestDeterminismWarnings:
 
             # No determinism warnings
             warning_messages = [str(warning.message) for warning in w]
-            determinism_warnings = [
-                msg for msg in warning_messages if "DETERMINISM WARNING" in msg
-            ]
+            determinism_warnings = [msg for msg in warning_messages if "DETERMINISM WARNING" in msg]
             assert len(determinism_warnings) == 0
 
         assert result["success"] is True
@@ -225,11 +219,15 @@ class TestDeterminismWarnings:
         source = """
         main = procedure("main", {
             input = {},
-            output = {a = {type = "number"}, b = {type = "number"}, c = {type = "number"}}
+            output = {
+                a = {type = "number"},
+                b = {type = "number"},
+                c = {type = "number"}
+            }
         }, function()
             local a = Step.checkpoint(function() return math.random() end)  -- [0, 1)
             local b = Step.checkpoint(function() return math.random(10) end)  -- [1, 10]
-            local c = Step.checkpoint(function() return math.random(5, 15) end)  -- [5, 15]
+            local c = Step.checkpoint(function() return math.random(5, 15) end)
             return {a = a, b = b, c = c}
         end)
         """
@@ -267,9 +265,7 @@ class TestDeterminismWarnings:
 
             # Find the determinism warning
             warning_messages = [str(warning.message) for warning in w]
-            determinism_warnings = [
-                msg for msg in warning_messages if "DETERMINISM WARNING" in msg
-            ]
+            determinism_warnings = [msg for msg in warning_messages if "DETERMINISM WARNING" in msg]
 
             assert len(determinism_warnings) > 0
             msg = determinism_warnings[0]
