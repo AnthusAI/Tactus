@@ -9,7 +9,7 @@ Feature: Sub-Procedure Auto-Checkpointing
   Scenario: Sub-procedure calls are recognized in validation
     Given a Lua DSL file with content:
       """
-      procedure({
+      main = procedure("main", {
         input = {value = {type = "number"}},
         output = {result = {type = "number"}},
         state = {}
@@ -24,7 +24,7 @@ Feature: Sub-Procedure Auto-Checkpointing
   Scenario: Nested procedures can be composed
     Given a Lua DSL file with content:
       """
-      procedure({
+      main = procedure("main", {
         input = {
           numbers = {type = "array", default = {1, 2, 3}}
         },
@@ -45,7 +45,7 @@ Feature: Sub-Procedure Auto-Checkpointing
   Scenario: Multiple sub-procedures can be called
     Given a Lua DSL file with content:
       """
-      procedure({
+      main = procedure("main", {
         input = {
           numbers = {type = "array", default = {2, 3}}
         },
@@ -73,7 +73,7 @@ Feature: Sub-Procedure Auto-Checkpointing
   Scenario: Recursive procedure calls are supported
     Given a Lua DSL file with content:
       """
-      procedure({
+      main = procedure("main", {
         input = {n = {type = "number", default = 5}},
         output = {result = {type = "number", required = true}},
         state = {}
@@ -91,7 +91,7 @@ Feature: Sub-Procedure Auto-Checkpointing
   Scenario: Sub-procedure execution is checkpointed
     Given a Lua DSL file with content:
       """
-      procedure({
+      main = procedure("main", {
         input = {values = {type = "array", default = {10, 20, 30}}},
         output = {total = {type = "number", required = true}},
         state = {checkpointed = {type = "boolean", default = false}}

@@ -10,7 +10,7 @@ agent("worker", {
 })
 
 -- Procedure with outputs defined inline
-procedure({
+main = procedure("main", {
     outputs = {
         success = {
             type = "boolean",

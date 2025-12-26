@@ -93,7 +93,7 @@ After calling the calculation tool, call done with the result.]],
 })
 
 -- Main workflow
-procedure({
+main = procedure("main", {
     input = {
         task = {
             type = "string",

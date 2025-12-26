@@ -17,7 +17,7 @@ IMPORTANT: Always call the done tool after providing your answer.]],
 })
 
 -- Procedure demonstrating Bedrock usage
-procedure(function()
+main = procedure("main", function()
     Log.info("Testing AWS Bedrock with Claude 4.5 Haiku")
 
     -- ReAct loop: Keep turning until the agent calls done

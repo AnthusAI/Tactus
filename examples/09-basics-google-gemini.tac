@@ -32,7 +32,7 @@ IMPORTANT: Always call the done tool after providing your answer.]],
 })
 
 -- Procedure demonstrating multiple Gemini models
-procedure(function()
+main = procedure("main", function()
     Log.info("Testing Google Gemini with multiple models")
 
     local max_turns = 3

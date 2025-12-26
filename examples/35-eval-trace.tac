@@ -23,7 +23,7 @@ Review the research and call 'done' with your assessment.]],
     initial_message = "Review this research: {research}",
 })
 
-procedure({
+main = procedure("main", {
     input = {
         topic = {
             type = "string",

@@ -132,7 +132,7 @@ agent("worker", {
 
 stages({"start", "end"})
 
-procedure(function()
+main = procedure("main", function()
   Stage.set("start")
   Worker.turn()
   Stage.set("end")

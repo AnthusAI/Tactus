@@ -10,14 +10,14 @@ Feature: Custom Prompts (return, error, status)
     Given a Lua DSL file with content:
       """
       return_prompt("Summarize your work concisely")
-      
+
       agent("worker", {
         provider = "openai",
         system_prompt = "Work",
         tools = {}
       })
-      
-      procedure(function()
+
+      main = procedure("main", function()
         return { result = "done" }
       end)
       """
@@ -28,14 +28,14 @@ Feature: Custom Prompts (return, error, status)
     Given a Lua DSL file with content:
       """
       error_prompt("Explain what went wrong and any partial progress")
-      
+
       agent("worker", {
         provider = "openai",
         system_prompt = "Work",
         tools = {}
       })
-      
-      procedure(function()
+
+      main = procedure("main", function()
         return { result = "done" }
       end)
       """
@@ -46,14 +46,14 @@ Feature: Custom Prompts (return, error, status)
     Given a Lua DSL file with content:
       """
       status_prompt("Provide a brief progress update")
-      
+
       agent("worker", {
         provider = "openai",
         system_prompt = "Work",
         tools = {}
       })
-      
-      procedure(function()
+
+      main = procedure("main", function()
         return { result = "done" }
       end)
       """
@@ -66,14 +66,14 @@ Feature: Custom Prompts (return, error, status)
       return_prompt("Summarize your work")
       error_prompt("Explain the error")
       status_prompt("Report progress")
-      
+
       agent("worker", {
         provider = "openai",
         system_prompt = "Work",
         tools = {}
       })
-      
-      procedure(function()
+
+      main = procedure("main", function()
         return { result = "done" }
       end)
       """
@@ -100,8 +100,8 @@ Feature: Custom Prompts (return, error, status)
         system_prompt = "Work",
         tools = {}
       })
-      
-      procedure(function()
+
+      main = procedure("main", function()
         return { result = "done" }
       end)
       """

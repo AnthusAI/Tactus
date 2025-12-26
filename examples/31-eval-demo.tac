@@ -10,7 +10,7 @@ agent("greeter", {
 })
 
 -- Procedure
-procedure({
+main = procedure("main", {
     input = {
         name = {
             type = "string",

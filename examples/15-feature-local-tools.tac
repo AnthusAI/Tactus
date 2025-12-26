@@ -35,7 +35,7 @@ You MUST call the 'done' tool after getting the calculation result.]],
 })
 
 -- Main workflow
-procedure({
+main = procedure("main", {
     input = {
         task = {
             type = "string",

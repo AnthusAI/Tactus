@@ -1,7 +1,7 @@
 -- Product Helper Procedure
 -- Calculates the product of an array of numbers
 
-procedure({
+main = procedure("main", {
     input = {
         values = {
             type = "array",

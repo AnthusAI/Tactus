@@ -153,7 +153,7 @@ Parses and validates procedure YAML configurations.
 Input is now defined inside the `procedure()` config table:
 
 ```lua
-procedure({
+main = procedure("main", {
     input = {
         task = {
             type = "string",
@@ -206,7 +206,7 @@ return {result = "done"}
 Output is now defined inside the `procedure()` config table:
 
 ```lua
-procedure({
+main = procedure("main", {
     output = {
         result = {
             type = "string",
@@ -459,7 +459,7 @@ The runtime automatically creates, manages, and cleans up these resources, injec
 #### Declaration Syntax
 
 ```lua
-procedure "customer_lookup" {
+main = procedure("main", {
     dependencies = {
         api_client = {
             type = "http_client",
@@ -478,13 +478,12 @@ procedure "customer_lookup" {
         }
     },
     input = {...},
-    output = {...},
-    run = function()
-        -- Dependencies available to agents via AgentDeps
-        Worker.turn()
-        return {...}
-    end
-}
+    output = {...}
+}, function()
+    -- Dependencies available to agents via AgentDeps
+    Worker.turn()
+    return {...}
+end)
 ```
 
 #### Supported Resource Types
@@ -584,15 +583,14 @@ Child procedures **share** parent dependencies:
 
 ```lua
 -- Parent declares dependencies
-main = procedure "main" {
+main = procedure("main", {
     dependencies = {
         api = {type = "http_client", base_url = "..."}
-    },
-    run = function()
-        -- Child procedures inherit parent's dependencies
-        result = helper_procedure({...})
-    end
-}
+    }
+}, function()
+    -- Child procedures inherit parent's dependencies
+    result = helper_procedure({...})
+end)
 ```
 
 #### Checkpoint/Restart Behavior
@@ -605,7 +603,7 @@ Dependencies are **recreated** on restart:
 #### Example Usage
 
 ```lua
-procedure "weather_lookup" {
+main = procedure("main", {
     dependencies = {
         weather_api = {
             type = "http_client",
@@ -622,21 +620,20 @@ procedure "weather_lookup" {
     output = {
         temperature = {type = "number"},
         condition = {type = "string"}
-    },
-    run = function()
-        Worker = agent "worker" {
-            model = "claude-sonnet-4-20250514",
-            system_prompt = "You look up weather information.",
-            tools = {weather_lookup_tool}  -- Tool uses weather_api from deps
-        }
+    }
+}, function()
+    Worker = agent("worker", {
+        model = "claude-sonnet-4-20250514",
+        system_prompt = "You look up weather information.",
+        tools = {weather_lookup_tool}  -- Tool uses weather_api from deps
+    })
 
-        Worker.turn({inject = "Get weather for " .. input.location})
-        return {
-            temperature = state.temp,
-            condition = state.condition
-        }
-    end
-}
+    Worker.turn({inject = "Get weather for " .. input.location})
+    return {
+        temperature = state.temp,
+        condition = state.condition
+    }
+end)
 ```
 
 #### Current Limitations
@@ -1145,7 +1142,7 @@ until Tool.called("done")
 
 **Example:**
 ```lua
-procedure({
+main = procedure("main", {
     message_history = {
         mode = "isolated",
         max_tokens = 120000

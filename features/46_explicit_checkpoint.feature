@@ -9,7 +9,7 @@ Feature: Explicit Checkpoint Primitive
   Scenario: checkpoint() function is available globally
     Given a Lua DSL file with content:
       """
-      procedure({
+      main = procedure("main", {
         output = {result = {type = "number", required = true}},
         state = {}
       }, function()
@@ -25,7 +25,7 @@ Feature: Explicit Checkpoint Primitive
   Scenario: Explicit checkpoints save state
     Given a Lua DSL file with content:
       """
-      procedure({
+      main = procedure("main", {
         input = {value = {type = "number", default = 10}},
         output = {result = {type = "number", required = true}},
         state = {computed = {type = "number", default = 0}}
@@ -42,7 +42,7 @@ Feature: Explicit Checkpoint Primitive
   Scenario: Multiple explicit checkpoints
     Given a Lua DSL file with content:
       """
-      procedure({
+      main = procedure("main", {
         input = {x = {type = "number", default = 5}},
         output = {
           step1 = {type = "number", required = true},
@@ -72,7 +72,7 @@ Feature: Explicit Checkpoint Primitive
   Scenario: Checkpointing expensive operations
     Given a Lua DSL file with content:
       """
-      procedure({
+      main = procedure("main", {
         input = {iterations = {type = "number", default = 100}},
         output = {result = {type = "number", required = true}},
         state = {}
@@ -93,7 +93,7 @@ Feature: Explicit Checkpoint Primitive
   Scenario: Checkpoint with state updates
     Given a Lua DSL file with content:
       """
-      procedure({
+      main = procedure("main", {
         output = {total = {type = "number", required = true}},
         state = {
           count = {type = "number", default = 0},
@@ -123,7 +123,7 @@ Feature: Explicit Checkpoint Primitive
   Scenario: Checkpoint vs Checkpoint primitive
     Given a Lua DSL file with content:
       """
-      procedure({
+      main = procedure("main", {
         output = {
           result = {type = "number", required = true},
           position = {type = "number", required = true}

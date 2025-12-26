@@ -31,7 +31,7 @@ Call done when finished.
     tools = {"done"}
 })
 
-procedure({
+main = procedure("main", {
     input = {
         customer_message = {
             type = "string",

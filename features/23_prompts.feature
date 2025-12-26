@@ -17,7 +17,7 @@ Feature: Prompt Templates
         tools = {}
       })
 
-      procedure({
+      main = procedure("main", {
         input = {
           name = {
             type = "string",
@@ -44,7 +44,7 @@ Feature: Prompt Templates
         tools = {}
       })
 
-      procedure(function()
+      main = procedure("main", function()
         return { result = "done" }
       end)
       """
@@ -66,7 +66,7 @@ Feature: Prompt Templates
         tools = {}
       })
 
-      procedure(function()
+      main = procedure("main", function()
         return { result = "done" }
       end)
       """
@@ -84,7 +84,7 @@ Feature: Prompt Templates
         tools = {}
       })
 
-      procedure({
+      main = procedure("main", {
         input = {
           topic = {
             type = "string",

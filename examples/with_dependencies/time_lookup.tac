@@ -26,7 +26,7 @@ Available tools:
     tools = {"done"}
 })
 
-procedure({
+main = procedure("main", {
     input = {
         timezone = {
             type = "string",

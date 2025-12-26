@@ -52,7 +52,7 @@ Steps:
 })
 
 -- Execute procedure
-procedure({}, function()
+main = procedure("main", {}, function()
     Log.info("Starting MCP server test")
     
     -- Let agent work through the calculation

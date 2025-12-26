@@ -15,7 +15,7 @@ Feature: Input Declarations (Procedure Parameters)
         tools = {}
       })
 
-      procedure({
+      main = procedure("main", {
         input = {
           name = {
             type = "string",
@@ -39,7 +39,7 @@ Feature: Input Declarations (Procedure Parameters)
         tools = {}
       })
 
-      procedure({
+      main = procedure("main", {
         input = {
           topic = {
             type = "string",
@@ -64,7 +64,7 @@ Feature: Input Declarations (Procedure Parameters)
         tools = {}
       })
 
-      procedure({
+      main = procedure("main", {
         input = {
           name = {
             type = "string",
@@ -100,7 +100,7 @@ Feature: Input Declarations (Procedure Parameters)
         tools = {}
       })
 
-      procedure({
+      main = procedure("main", {
         input = {
           level = {
             type = "string",
@@ -125,7 +125,7 @@ Feature: Input Declarations (Procedure Parameters)
         tools = {}
       })
 
-      procedure({
+      main = procedure("main", {
         input = {
           topic = {
             type = "string",
@@ -149,7 +149,7 @@ Feature: Input Declarations (Procedure Parameters)
         tools = {}
       })
 
-      procedure({
+      main = procedure("main", {
         input = {
           multiplier = {
             type = "number",

@@ -228,7 +228,8 @@ def step_impl(context):
     """Assert that a procedure declaration was found."""
     assert context.validation_result is not None
     assert context.validation_result.registry is not None
-    assert context.validation_result.registry.procedure_function is not None
+    # Check for named 'main' procedure (new required syntax)
+    assert "main" in context.validation_result.registry.named_procedures
 
 
 @then("it should recognize agent declarations")

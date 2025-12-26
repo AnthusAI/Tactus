@@ -18,8 +18,8 @@ Feature: Session Filters
           filter = filters.last_n(10)
         }
       })
-      
-      procedure(function()
+
+      main = procedure("main", function()
         return { result = "done" }
       end)
       """
@@ -38,8 +38,8 @@ Feature: Session Filters
           filter = filters.token_budget(4000)
         }
       })
-      
-      procedure(function()
+
+      main = procedure("main", function()
         return { result = "done" }
       end)
       """
@@ -58,8 +58,8 @@ Feature: Session Filters
           filter = filters.by_role("user")
         }
       })
-      
-      procedure(function()
+
+      main = procedure("main", function()
         return { result = "done" }
       end)
       """
@@ -81,8 +81,8 @@ Feature: Session Filters
           )
         }
       })
-      
-      procedure(function()
+
+      main = procedure("main", function()
         return { result = "done" }
       end)
       """
@@ -97,8 +97,8 @@ Feature: Session Filters
         system_prompt = "Work",
         tools = {}
       })
-      
-      procedure(function()
+
+      main = procedure("main", function()
         return { result = "done" }
       end)
       """

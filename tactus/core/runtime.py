@@ -311,6 +311,10 @@ class TactusRuntime:
             logger.info("Step 7.5: Initializing toolset registry")
             await self._initialize_toolsets()
 
+            # 7.6. Initialize named procedure callables
+            logger.info("Step 7.6: Initializing named procedure callables")
+            await self._initialize_named_procedures()
+
             # 8. Setup agents with LLMs and tools
             logger.info("Step 8: Setting up agents")
             # Set OpenAI API key in environment if provided (for OpenAI agents)
@@ -765,6 +769,59 @@ class TactusRuntime:
         logger.info(
             f"Toolset registry initialized with {len(self.toolset_registry)} toolset(s): {list(self.toolset_registry.keys())}"
         )
+
+    async def _initialize_named_procedures(self):
+        """
+        Initialize named procedure callables and inject them into Lua sandbox.
+
+        Converts named procedure registrations into ProcedureCallable instances
+        that can be called directly from Lua code with automatic checkpointing.
+        """
+        if not self.registry or not self.registry.named_procedures:
+            logger.debug("No named procedures to initialize")
+            return
+
+        from tactus.primitives.procedure_callable import ProcedureCallable
+
+        for proc_name, proc_def in self.registry.named_procedures.items():
+            try:
+                logger.debug(
+                    f"Processing named procedure '{proc_name}': "
+                    f"function={proc_def['function']}, type={type(proc_def['function'])}"
+                )
+
+                # Create callable wrapper
+                callable_wrapper = ProcedureCallable(
+                    name=proc_name,
+                    procedure_function=proc_def["function"],
+                    input_schema=proc_def["input_schema"],
+                    output_schema=proc_def["output_schema"],
+                    state_schema=proc_def["state_schema"],
+                    execution_context=self.execution_context,
+                    lua_sandbox=self.lua_sandbox,
+                )
+
+                # Get the old stub (if it exists) to update its registry
+                try:
+                    old_value = self.lua_sandbox.lua.globals()[proc_name]
+                    if old_value and hasattr(old_value, "registry"):
+                        # Update the stub's registry so it delegates to the real callable
+                        old_value.registry[proc_name] = callable_wrapper
+                except (KeyError, AttributeError):
+                    # Stub doesn't exist in globals yet, that's fine
+                    pass
+
+                # Inject into Lua globals (replaces placeholder)
+                self.lua_sandbox.lua.globals()[proc_name] = callable_wrapper
+
+                logger.info(f"Registered named procedure: {proc_name}")
+            except Exception as e:
+                logger.error(
+                    f"Failed to initialize named procedure '{proc_name}': {e}",
+                    exc_info=True,
+                )
+
+        logger.info(f"Initialized {len(self.registry.named_procedures)} named procedure(s)")
 
     async def _create_toolset_from_config(
         self, name: str, definition: Dict[str, Any]
@@ -1517,39 +1574,83 @@ class TactusRuntime:
         """
         Execute the Lua procedure code.
 
+        Looks for named 'main' procedure first, falls back to anonymous procedure.
+
         Returns:
             Result from Lua procedure execution
         """
-        if self.registry and self.registry.procedure_function:
-            # New DSL: call the stored procedure function
-            logger.debug("Executing procedure function from registry")
-            try:
-                # The procedure function is already a Lua function reference
-                # Call it directly
-                result = self.registry.procedure_function()
+        if self.registry:
+            # Check for named 'main' procedure first
+            if "main" in self.registry.named_procedures:
+                logger.info("Executing named 'main' procedure")
+                try:
+                    main_proc = self.registry.named_procedures["main"]
 
-                # Convert Lua table result to Python dict if needed
-                if result is not None and hasattr(result, "items"):
-                    result = lua_table_to_dict(result)
+                    logger.debug(
+                        f"Executing main: function={main_proc['function']}, "
+                        f"type={type(main_proc['function'])}"
+                    )
 
-                logger.info("Procedure execution completed successfully")
-                return result
-            except Exception as e:
-                logger.error(f"Procedure execution failed: {e}")
-                raise LuaSandboxError(f"Procedure execution failed: {e}")
-        else:
-            # Legacy YAML: execute procedure code string
-            procedure_code = self.config["procedure"]
-            logger.debug(f"Executing procedure code ({len(procedure_code)} bytes)")
+                    # Create callable wrapper for main
+                    from tactus.primitives.procedure_callable import ProcedureCallable
 
-            try:
-                result = self.lua_sandbox.execute(procedure_code)
-                logger.info("Procedure execution completed successfully")
-                return result
+                    main_callable = ProcedureCallable(
+                        name="main",
+                        procedure_function=main_proc["function"],
+                        input_schema=main_proc["input_schema"],
+                        output_schema=main_proc["output_schema"],
+                        state_schema=main_proc["state_schema"],
+                        execution_context=self.execution_context,
+                        lua_sandbox=self.lua_sandbox,
+                    )
 
-            except LuaSandboxError as e:
-                logger.error(f"Procedure execution failed: {e}")
-                raise
+                    # Gather input parameters from context, applying defaults
+                    input_params = {}
+                    for key, field_def in main_proc["input_schema"].items():
+                        # Check context first
+                        if hasattr(self, "context") and self.context and key in self.context:
+                            input_params[key] = self.context[key]
+                        # Apply default if available and not required
+                        elif isinstance(field_def, dict) and "default" in field_def:
+                            input_params[key] = field_def["default"]
+                        # If required and not in context, it will fail validation in ProcedureCallable
+
+                    logger.debug(f"Calling main with input_params: {input_params}")
+
+                    # Execute main procedure
+                    result = main_callable(input_params)
+
+                    # Convert Lua table result to Python dict if needed
+                    # Check for lupa table (not Python dict/list)
+                    if (
+                        result is not None
+                        and hasattr(result, "items")
+                        and not isinstance(result, (dict, list))
+                    ):
+                        result = lua_table_to_dict(result)
+
+                    logger.info("Named 'main' procedure execution completed successfully")
+                    return result
+                except Exception as e:
+                    logger.error(f"Named 'main' procedure execution failed: {e}")
+                    raise LuaSandboxError(f"Named 'main' procedure execution failed: {e}")
+
+            else:
+                # No main procedure found
+                raise RuntimeError("Named 'main' procedure not found in registry")
+
+        # Legacy YAML: execute procedure code string
+        procedure_code = self.config["procedure"]
+        logger.debug(f"Executing legacy procedure code ({len(procedure_code)} bytes)")
+
+        try:
+            result = self.lua_sandbox.execute(procedure_code)
+            logger.info("Legacy procedure execution completed successfully")
+            return result
+
+        except LuaSandboxError as e:
+            logger.error(f"Legacy procedure execution failed: {e}")
+            raise
 
     def _process_template(self, template: str, context: Dict[str, Any]) -> str:
         """

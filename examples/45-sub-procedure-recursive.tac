@@ -4,7 +4,7 @@
 -- This example implements a factorial calculator using recursive
 -- sub-procedure calls. Each recursive call is checkpointed.
 
-procedure({
+main = procedure("main", {
     input = {
         n = {
             type = "number",

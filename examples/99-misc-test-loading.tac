@@ -5,7 +5,7 @@ agent("test_agent", {
   system_prompt = "You are a helpful assistant. Respond briefly.",
 })
 
-procedure(function()
+main = procedure("main", function()
   log("Starting test...")
   local result = test_agent.turn()
   log("Agent responded: " .. result.data)

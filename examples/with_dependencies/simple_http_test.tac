@@ -13,7 +13,7 @@ agent("test_agent", {
     tools = {"done"}
 })
 
-procedure({
+main = procedure("main", {
     input = {
         city = {type = "string", required = true}
     },

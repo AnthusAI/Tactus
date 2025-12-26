@@ -5,7 +5,7 @@
 stages({"start", "middle", "end"})
 
 -- Procedure with input, output, and state defined inline
-procedure({
+main = procedure("main", {
     input = {
         target_count = {
             type = "number",

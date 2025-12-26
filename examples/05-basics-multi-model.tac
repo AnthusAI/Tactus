@@ -21,7 +21,7 @@ IMPORTANT: You MUST call the 'done' tool when finished, passing your summary as 
 })
 
 -- Procedure with input defined inline
-procedure({
+main = procedure("main", {
     input = {
         topic = {
             type = "string",

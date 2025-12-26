@@ -94,7 +94,7 @@ After calling the tool, call done with the tool's result.]],
 })
 
 -- Main workflow
-procedure({
+main = procedure("main", {
     input = {
         message = {
             type = "string",

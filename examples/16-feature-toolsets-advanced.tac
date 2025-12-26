@@ -75,7 +75,7 @@ agent("observer", {
 })
 
 -- Main procedure demonstrating each agent
-procedure({
+main = procedure("main", {
     outputs = {
         analyst_tools = {
             type = "string",

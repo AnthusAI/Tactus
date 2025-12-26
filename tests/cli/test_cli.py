@@ -29,7 +29,7 @@ def example_workflow_file(tmp_path):
     tools = {}
 })
 
-procedure({
+main = procedure("main", {
     output = {
         result = {
             type = "string",
@@ -103,7 +103,7 @@ def test_cli_run_with_parameters(cli_runner, tmp_path):
     tools = {}
 })
 
-procedure({
+main = procedure("main", {
     input = {
         name = {
             type = "string",

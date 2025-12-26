@@ -17,7 +17,7 @@ When asked to write a story:
 })
 
 -- Simple procedure: one turn to generate and stream the story
-procedure(function()
+main = procedure("main", function()
     Log.info("Starting streaming test - watch the text appear in real-time!")
 
     -- Single turn - the agent writes the complete story

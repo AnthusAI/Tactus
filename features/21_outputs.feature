@@ -15,7 +15,7 @@ Feature: Output Schema Declarations
         tools = {}
       })
 
-      procedure({
+      main = procedure("main", {
         output = {
           result = {
             type = "string",
@@ -40,7 +40,7 @@ Feature: Output Schema Declarations
         tools = {}
       })
 
-      procedure({
+      main = procedure("main", {
         output = {
           summary = {
             type = "string",
@@ -76,7 +76,7 @@ Feature: Output Schema Declarations
         tools = {}
       })
 
-      procedure({
+      main = procedure("main", {
         output = {
           result = {
             type = "string",
@@ -105,7 +105,7 @@ Feature: Output Schema Declarations
         tools = {}
       })
 
-      procedure({
+      main = procedure("main", {
         output = {
           result = {
             type = "string",
@@ -128,7 +128,7 @@ Feature: Output Schema Declarations
         tools = {}
       })
 
-      procedure({
+      main = procedure("main", {
         output = {
           items = {
             type = "array",
@@ -153,7 +153,7 @@ Feature: Output Schema Declarations
         tools = {}
       })
 
-      procedure({
+      main = procedure("main", {
         output = {
           metadata = {
             type = "object",

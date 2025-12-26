@@ -12,7 +12,7 @@ the done tool with the greeting message.
 })
 
 -- Procedure with outputs defined inline
-procedure({
+main = procedure("main", {
     outputs = {
         greeting = {
             type = "string",

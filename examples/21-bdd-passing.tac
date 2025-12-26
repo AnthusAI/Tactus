@@ -12,7 +12,7 @@ agent("worker", {
 stages({"initializing", "working", "complete"})
 
 -- Procedure with input, output, and state defined inline
-procedure({
+main = procedure("main", {
     input = {
         count = {
             type = "number",
