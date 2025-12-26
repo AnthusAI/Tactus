@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.10.0 (2025-12-26)
+
+### Code Style
+
+- Apply black formatting to determinism safety feature
+  ([`1a88e88`](https://github.com/AnthusAI/Tactus/commit/1a88e88e975c70dee53305b6bf803bb354a43476))
+
+
 ## v0.9.0 (2025-12-26)
 
 
