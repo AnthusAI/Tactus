@@ -54,10 +54,11 @@ def warn_if_unsafe(operation_name: str, get_context: Callable[[], Optional[Any]]
 
             if not inside_checkpoint:
                 message = (
-                    f"\n{'='*70}\n"
+                    f"\n{'=' * 70}\n"
                     f"DETERMINISM WARNING: {operation_name} called outside checkpoint\n"
-                    f"{'='*70}\n\n"
-                    f"Non-deterministic operations must be wrapped in checkpoints for durability.\n\n"
+                    f"{'=' * 70}\n\n"
+                    f"Non-deterministic operations must be wrapped in checkpoints "
+                    f"for durability.\n\n"
                     f"To fix, wrap your code in a checkpoint:\n\n"
                     f"  -- Lua example:\n"
                     f"  local random_value = Step.checkpoint(function()\n"
@@ -68,9 +69,11 @@ def warn_if_unsafe(operation_name: str, get_context: Callable[[], Optional[Any]]
                     f"    -- Your non-deterministic code here\n"
                     f"    return {operation_name}\n"
                     f"  end)\n\n"
-                    f"Why: Tactus uses checkpointing for durable execution. Operations outside\n"
-                    f"checkpoints may produce different results on replay, breaking determinism.\n"
-                    f"\n{'='*70}\n"
+                    f"Why: Tactus uses checkpointing for durable execution. "
+                    f"Operations outside\n"
+                    f"checkpoints may produce different results on replay, "
+                    f"breaking determinism.\n"
+                    f"\n{'=' * 70}\n"
                 )
 
                 # Check strict mode
@@ -212,12 +215,14 @@ def create_safe_os_library(get_context: Callable, strict_mode: bool = False):
     def safe_getenv(varname):
         """Safe os.getenv() with checkpoint warning - environment variables can change."""
         import os
+
         return os.getenv(varname)
 
     @warn_if_unsafe("os.tmpname()", get_context)
     def safe_tmpname():
         """Safe os.tmpname() with checkpoint warning - generates unique temporary filenames."""
         import tempfile
+
         return tempfile.mktemp()
 
     return {
