@@ -168,3 +168,4 @@ Feature: Output Schema Declarations
     When I validate the file
     Then validation should succeed
     And the output_schema should contain field "metadata"
+

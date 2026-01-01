@@ -153,6 +153,11 @@ class TactusTestRunner:
         sanitized_name = scenario_name.lower().replace(" ", "_")
         tag_filter = f"scenario_{sanitized_name}"
 
+        # Use unique results file to avoid conflicts when running in parallel
+        import uuid
+
+        results_filename = f"results_{uuid.uuid4().hex[:8]}.json"
+
         # Run behave in subprocess to isolate event loops
         cmd = [
             sys.executable,
@@ -165,7 +170,7 @@ class TactusTestRunner:
             "--format",
             "json",
             "--outfile",
-            f"{work_dir}/results.json",
+            f"{work_dir}/{results_filename}",
         ]
 
         logger.debug(f"Running behave subprocess: {' '.join(cmd)}")
@@ -201,10 +206,11 @@ class TactusTestRunner:
             # Parse JSON results
             import json
 
-            results_file = Path(work_dir) / "results.json"
+            results_file = Path(work_dir) / results_filename
             if not results_file.exists():
                 raise RuntimeError(
                     f"Behave results file not found: {results_file}\n"
+                    f"Command: {' '.join(cmd)}\n"
                     f"Return code: {result.returncode}\n"
                     f"STDOUT: {result.stdout}\n"
                     f"STDERR: {result.stderr}"
@@ -236,13 +242,28 @@ class TactusTestRunner:
                                 continue
 
             # Extract the scenario result
+            found_scenarios = []
             for feature_data in behave_results:
                 for element in feature_data.get("elements", []):
-                    if element.get("name") == scenario_name:
-                        return TactusTestRunner._convert_json_scenario_result(element)
+                    element_name = element.get("name")
+                    found_scenarios.append(element_name)
+                    if element_name == scenario_name:
+                        scenario_result = TactusTestRunner._convert_json_scenario_result(element)
+                        # Clean up results file
+                        try:
+                            results_file.unlink()
+                        except Exception:
+                            pass
+                        return scenario_result
 
             # Scenario not found (shouldn't happen)
-            raise RuntimeError(f"Scenario '{scenario_name}' not found in Behave JSON results")
+            raise RuntimeError(
+                f"Scenario '{scenario_name}' not found in Behave JSON results. "
+                f"Found scenarios: {found_scenarios}. "
+                f"Tag filter used: scenario_{scenario_name.lower().replace(' ', '_')}. "
+                f"Command: {' '.join(cmd)}. "
+                f"Behave output: {result.stdout[:500]}"
+            )
 
         except subprocess.TimeoutExpired:
             raise RuntimeError(f"Scenario '{scenario_name}' timed out after 10 minutes")

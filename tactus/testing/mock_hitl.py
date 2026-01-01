@@ -169,3 +169,4 @@ class MockHITLHandler:
         """
         self.default_responses[message_prefix] = value
         logger.debug(f"Configured mock HITL response for message: {message_prefix}")
+

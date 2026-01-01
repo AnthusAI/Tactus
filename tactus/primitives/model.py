@@ -89,10 +89,24 @@ class ModelPrimitive:
             return self.backend.predict_sync(input_data)
 
         # With context - checkpoint the operation
+        # Capture source location
+        import inspect
+
+        frame = inspect.currentframe()
+        if frame and frame.f_back:
+            caller_frame = frame.f_back
+            source_info = {
+                "file": caller_frame.f_code.co_filename,
+                "line": caller_frame.f_lineno,
+                "function": caller_frame.f_code.co_name,
+            }
+        else:
+            source_info = None
 
         return self.context.checkpoint(
             fn=lambda: self._execute_predict(input_data),
-            operation_type="model_predict",
+            checkpoint_type="model_predict",
+            source_info=source_info,
         )
 
     def _execute_predict(self, input_data: Any) -> Any:

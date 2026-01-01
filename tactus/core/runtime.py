@@ -79,6 +79,7 @@ class TactusRuntime:
         recursion_depth: int = 0,
         tool_paths: Optional[list] = None,
         external_config: Optional[Dict[str, Any]] = None,
+        run_id: Optional[str] = None,
     ):
         """
         Initialize the Tactus runtime.
@@ -96,6 +97,7 @@ class TactusRuntime:
             skip_agents: If True, skip agent setup and execution (for testing)
             tool_paths: Optional list of paths to scan for local Python tool plugins
             external_config: Optional external config (from .tac.yml) to merge with DSL config
+            run_id: Optional run identifier for tagging checkpoints
         """
         self.procedure_id = procedure_id
         self.storage_backend = storage_backend
@@ -111,6 +113,7 @@ class TactusRuntime:
         self.skip_agents = skip_agents
         self.recursion_depth = recursion_depth
         self.external_config = external_config or {}
+        self.run_id = run_id
 
         # Will be initialized during setup
         self.config: Optional[Dict[str, Any]] = None  # Legacy YAML support
@@ -279,6 +282,10 @@ class TactusRuntime:
                 hitl_handler=self.hitl_handler,
                 strict_determinism=strict_determinism,
             )
+
+            # Set run_id if provided
+            if self.run_id:
+                self.execution_context.set_run_id(self.run_id)
             logger.debug("BaseExecutionContext created")
 
             # 6b. Attach execution context to sandbox for determinism checking

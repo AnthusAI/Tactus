@@ -211,6 +211,28 @@ import { Bot, CircleCheck, ChevronDown } from 'lucide-react';
 <Bot className="h-5 w-5 text-muted-foreground stroke-[2]" />
 ```
 
+### CLI and Logging Standards
+
+When working on CLI output, logging, or documentation:
+
+- **NEVER use emojis** - Always use Unicode symbols instead
+- **CLI Output**: Use box-drawing characters (│ ─ ├ └), arrows (→ ←), bullets (•), checkmarks (✓ ✗)
+- **Logging**: Use plain text or Unicode symbols for status indicators
+- **Documentation**: Use Unicode symbols or standard markdown formatting
+
+Example symbols:
+```python
+# Good - Unicode symbols
+print("✓ Test passed")
+print("✗ Test failed")
+print("→ Processing...")
+print("• Item 1")
+
+# Bad - Emojis
+print("✅ Test passed")  # ❌ Don't use
+print("🔥 Error")       # ❌ Don't use
+```
+
 ## Testing Requirements
 
 Before declaring any change complete:

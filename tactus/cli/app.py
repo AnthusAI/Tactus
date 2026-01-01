@@ -1129,6 +1129,229 @@ def ide(
         console.print("[green]✓ IDE stopped[/green]")
 
 
+@app.command(name="trace-list")
+def trace_list(
+    procedure: Optional[str] = typer.Option(None, help="Filter by procedure name"),
+    status: Optional[str] = typer.Option(None, help="Filter by status (RUNNING, COMPLETED, FAILED)"),
+    limit: int = typer.Option(20, help="Maximum number of runs to display"),
+    storage_path: Optional[Path] = typer.Option(None, help="Path for file storage"),
+):
+    """List execution traces."""
+    from tactus.tracing import TraceManager
+
+    # Initialize storage
+    if storage_path:
+        storage = FileStorage(str(storage_path))
+    else:
+        storage = FileStorage()
+
+    trace_mgr = TraceManager(storage)
+
+    try:
+        # Get runs
+        runs = trace_mgr.list_runs(procedure_name=procedure, limit=limit)
+
+        # Filter by status if specified
+        if status:
+            runs = [r for r in runs if r.status == status]
+
+        if not runs:
+            console.print("[yellow]No execution traces found[/yellow]")
+            return
+
+        # Display table
+        table = Table(title="Execution Traces")
+        table.add_column("Run ID", style="cyan", no_wrap=True)
+        table.add_column("Procedure", style="green")
+        table.add_column("Status", style="yellow")
+        table.add_column("Started", style="blue")
+        table.add_column("Duration")
+        table.add_column("Checkpoints", justify="right")
+
+        for run in runs:
+            # Format duration
+            if run.end_time:
+                duration = run.end_time - run.start_time
+                duration_str = f"{duration.total_seconds():.1f}s"
+            else:
+                duration_str = "running..."
+
+            # Color status
+            status_color = {
+                "RUNNING": "yellow",
+                "COMPLETED": "green",
+                "FAILED": "red",
+                "PAUSED": "blue",
+            }.get(run.status, "white")
+
+            table.add_row(
+                run.run_id[:8],  # Show first 8 chars of run ID
+                run.procedure_name,
+                f"[{status_color}]{run.status}[/{status_color}]",
+                run.start_time.strftime("%Y-%m-%d %H:%M"),
+                duration_str,
+                str(len(run.execution_log)),
+            )
+
+        console.print(table)
+
+    except Exception as e:
+        console.print(f"[red]Error listing traces: {e}[/red]")
+        raise typer.Exit(1)
+
+
+@app.command(name="trace-show")
+def trace_show(
+    run_id: str = typer.Argument(..., help="Run ID to display"),
+    position: Optional[int] = typer.Option(None, help="Show specific checkpoint position"),
+    storage_path: Optional[Path] = typer.Option(None, help="Path for file storage"),
+):
+    """Show detailed trace information."""
+    from tactus.tracing import TraceManager
+    from rich.syntax import Syntax
+    from rich.json import JSON
+
+    # Initialize storage
+    if storage_path:
+        storage = FileStorage(str(storage_path))
+    else:
+        storage = FileStorage()
+
+    trace_mgr = TraceManager(storage)
+
+    try:
+        run = trace_mgr.get_run(run_id)
+
+        if position is not None:
+            # Show specific checkpoint
+            checkpoint = trace_mgr.get_checkpoint(run_id, position)
+
+            console.print(Panel(f"[bold]Checkpoint {position}[/bold]", style="blue"))
+            console.print(f"[cyan]Type:[/cyan] {checkpoint.type}")
+            console.print(f"[cyan]Timestamp:[/cyan] {checkpoint.timestamp}")
+
+            if checkpoint.duration_ms:
+                console.print(f"[cyan]Duration:[/cyan] {checkpoint.duration_ms:.2f}ms")
+
+            if checkpoint.source_location:
+                console.print(f"\n[bold]Source Location:[/bold]")
+                console.print(f"  [cyan]File:[/cyan] {checkpoint.source_location.file}")
+                console.print(f"  [cyan]Line:[/cyan] {checkpoint.source_location.line}")
+                if checkpoint.source_location.function:
+                    console.print(f"  [cyan]Function:[/cyan] {checkpoint.source_location.function}")
+
+                if checkpoint.source_location.code_context:
+                    console.print(f"\n[bold]Code Context:[/bold]")
+                    syntax = Syntax(
+                        checkpoint.source_location.code_context,
+                        "lua",
+                        theme="monokai",
+                        line_numbers=True,
+                        start_line=checkpoint.source_location.line - 3,
+                    )
+                    console.print(syntax)
+
+            if checkpoint.captured_vars:
+                console.print(f"\n[bold]Captured State:[/bold]")
+                console.print(JSON(str(checkpoint.captured_vars)))
+
+            console.print(f"\n[bold]Result:[/bold]")
+            console.print(JSON(str(checkpoint.result)))
+
+        else:
+            # Show full trace summary
+            console.print(Panel(f"[bold]Execution Trace: {run_id}[/bold]", style="blue"))
+            console.print(f"[cyan]Procedure:[/cyan] {run.procedure_name}")
+            console.print(f"[cyan]File:[/cyan] {run.file_path}")
+            console.print(f"[cyan]Status:[/cyan] {run.status}")
+            console.print(f"[cyan]Started:[/cyan] {run.start_time}")
+
+            if run.end_time:
+                duration = run.end_time - run.start_time
+                console.print(f"[cyan]Ended:[/cyan] {run.end_time}")
+                console.print(f"[cyan]Duration:[/cyan] {duration.total_seconds():.2f}s")
+
+            console.print(f"\n[bold]Checkpoints ({len(run.execution_log)}):[/bold]")
+
+            # Show checkpoint table
+            table = Table()
+            table.add_column("Pos", justify="right", style="cyan")
+            table.add_column("Type", style="green")
+            table.add_column("Duration", justify="right")
+            table.add_column("Source", style="blue")
+
+            for cp in run.execution_log:
+                duration_str = f"{cp.duration_ms:.1f}ms" if cp.duration_ms else "-"
+
+                source_str = ""
+                if cp.source_location:
+                    source_str = f"{Path(cp.source_location.file).name}:{cp.source_location.line}"
+
+                table.add_row(
+                    str(cp.position),
+                    cp.type,
+                    duration_str,
+                    source_str,
+                )
+
+            console.print(table)
+
+            # Show statistics
+            stats = trace_mgr.get_statistics(run_id)
+            console.print(f"\n[bold]Statistics:[/bold]")
+            console.print(f"  Total duration: {stats['total_duration_ms']:.2f}ms")
+            console.print(f"  Checkpoints with source locations: {stats['has_source_locations']}")
+            console.print(f"  Checkpoints by type:")
+            for cp_type, count in stats["checkpoints_by_type"].items():
+                console.print(f"    {cp_type}: {count}")
+
+    except FileNotFoundError:
+        console.print(f"[red]Run {run_id} not found[/red]")
+        raise typer.Exit(1)
+    except IndexError:
+        console.print(f"[red]Checkpoint position {position} out of range[/red]")
+        raise typer.Exit(1)
+    except Exception as e:
+        console.print(f"[red]Error showing trace: {e}[/red]")
+        raise typer.Exit(1)
+
+
+@app.command(name="trace-export")
+def trace_export(
+    run_id: str = typer.Argument(..., help="Run ID to export"),
+    output: Path = typer.Argument(..., help="Output file path"),
+    format: str = typer.Option("json", help="Export format (json)"),
+    storage_path: Optional[Path] = typer.Option(None, help="Path for file storage"),
+):
+    """Export trace to file."""
+    from tactus.tracing import TraceManager
+
+    # Initialize storage
+    if storage_path:
+        storage = FileStorage(str(storage_path))
+    else:
+        storage = FileStorage()
+
+    trace_mgr = TraceManager(storage)
+
+    try:
+        data = trace_mgr.export_trace(run_id, format)
+
+        output.write_text(data)
+
+        console.print(f"[green]Exported trace to {output}[/green]")
+
+    except FileNotFoundError:
+        console.print(f"[red]Run {run_id} not found[/red]")
+        raise typer.Exit(1)
+    except ValueError as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise typer.Exit(1)
+    except Exception as e:
+        console.print(f"[red]Error exporting trace: {e}[/red]")
+        raise typer.Exit(1)
+
+
 def main():
     """Main entry point for the CLI."""
     # Load configuration before processing any commands
@@ -1146,6 +1369,9 @@ def main():
             "eval",
             "version",
             "ide",
+            "trace-list",
+            "trace-show",
+            "trace-export",
         ]:
             # Check if it's a file that exists
             potential_file = Path(first_arg)

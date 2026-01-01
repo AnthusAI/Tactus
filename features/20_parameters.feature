@@ -163,3 +163,4 @@ Feature: Input Declarations (Procedure Parameters)
       """
     When I validate the file
     Then validation should succeed
+
