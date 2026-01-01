@@ -2,9 +2,7 @@
 Tests for execution tracing and debugging features.
 """
 
-import pytest
 import tempfile
-from pathlib import Path
 from datetime import datetime, timezone
 
 from tactus.protocols.models import (

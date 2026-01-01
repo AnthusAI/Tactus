@@ -1234,14 +1234,14 @@ def trace_show(
                 console.print(f"[cyan]Duration:[/cyan] {checkpoint.duration_ms:.2f}ms")
 
             if checkpoint.source_location:
-                console.print(f"\n[bold]Source Location:[/bold]")
+                console.print("\n[bold]Source Location:[/bold]")
                 console.print(f"  [cyan]File:[/cyan] {checkpoint.source_location.file}")
                 console.print(f"  [cyan]Line:[/cyan] {checkpoint.source_location.line}")
                 if checkpoint.source_location.function:
                     console.print(f"  [cyan]Function:[/cyan] {checkpoint.source_location.function}")
 
                 if checkpoint.source_location.code_context:
-                    console.print(f"\n[bold]Code Context:[/bold]")
+                    console.print("\n[bold]Code Context:[/bold]")
                     syntax = Syntax(
                         checkpoint.source_location.code_context,
                         "lua",
@@ -1252,10 +1252,10 @@ def trace_show(
                     console.print(syntax)
 
             if checkpoint.captured_vars:
-                console.print(f"\n[bold]Captured State:[/bold]")
+                console.print("\n[bold]Captured State:[/bold]")
                 console.print(JSON(str(checkpoint.captured_vars)))
 
-            console.print(f"\n[bold]Result:[/bold]")
+            console.print("\n[bold]Result:[/bold]")
             console.print(JSON(str(checkpoint.result)))
 
         else:
@@ -1298,10 +1298,10 @@ def trace_show(
 
             # Show statistics
             stats = trace_mgr.get_statistics(run_id)
-            console.print(f"\n[bold]Statistics:[/bold]")
+            console.print("\n[bold]Statistics:[/bold]")
             console.print(f"  Total duration: {stats['total_duration_ms']:.2f}ms")
             console.print(f"  Checkpoints with source locations: {stats['has_source_locations']}")
-            console.print(f"  Checkpoints by type:")
+            console.print("  Checkpoints by type:")
             for cp_type, count in stats["checkpoints_by_type"].items():
                 console.print(f"    {cp_type}: {count}")
 
