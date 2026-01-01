@@ -59,3 +59,41 @@ export const WithCustomColor: Story = {
     </div>
   ),
 };
+
+export const WithoutText: Story = {
+  args: {
+    showText: false,
+  },
+  render: (args) => (
+    <div className="p-8 bg-background text-foreground">
+      <Logo {...args} />
+    </div>
+  ),
+};
+
+export const IconOnly: Story = {
+  args: {
+    showText: false,
+  },
+  render: (args) => (
+    <div className="p-8 bg-background text-foreground">
+      <div style={{ width: '50px', height: '50px' }}>
+        <Logo {...args} />
+      </div>
+    </div>
+  ),
+};
+
+export const LargeDesignView: Story = {
+  args: {},
+  render: (args) => (
+    <div className="min-h-screen flex items-center justify-center bg-background text-foreground p-8">
+      <div style={{ fontSize: '8rem' }}>
+        <Logo {...args} />
+      </div>
+    </div>
+  ),
+  parameters: {
+    layout: 'fullscreen',
+  },
+};

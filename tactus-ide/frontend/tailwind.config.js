@@ -9,6 +9,7 @@ export default {
     extend: {
       fontFamily: {
         jersey: ['"Jersey 20"', 'cursive'],
+        'alegreya-sc': ['"Alegreya Sans SC"', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",
