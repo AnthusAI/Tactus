@@ -2,6 +2,25 @@
 
 <!-- version list -->
 
+## v0.11.0 (2026-01-01)
+
+### Code Style
+
+- Fix ruff linting errors
+  ([`17c6aee`](https://github.com/AnthusAI/Tactus/commit/17c6aeeb34b3c743fe9b1990b8cdff617dcac9a8))
+
+- Fix ruff linting errors and apply black formatting
+  ([`846366d`](https://github.com/AnthusAI/Tactus/commit/846366db43f78c92d8559b32a98e4bd4b285c277))
+
+### Features
+
+- **checkpoints**: Add run boundaries and persistent event storage
+  ([`73404b7`](https://github.com/AnthusAI/Tactus/commit/73404b7681c9a4b30c420228a2b116891a5ef014))
+
+- **checkpoints**: Add run boundaries and persistent event storage
+  ([`913d5bd`](https://github.com/AnthusAI/Tactus/commit/913d5bdf24900a214a18831fe8c3511f5115fa02))
+
+
 ## v0.10.0 (2025-12-26)
 
 ### Code Style
