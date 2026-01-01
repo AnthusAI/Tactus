@@ -2,20 +2,23 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
-export interface LogoProps extends React.SVGProps<SVGSVGElement> {}
+export interface LogoProps extends React.HTMLAttributes<HTMLDivElement> {
+  showText?: boolean;
+}
 
-const Logo = React.forwardRef<SVGSVGElement, LogoProps>(
-  ({ className, ...props }, ref) => {
+const Logo = React.forwardRef<HTMLDivElement, LogoProps>(
+  ({ className, showText = true, ...props }, ref) => {
     return (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="150 280 2100 1250"
-        width="100%"
-        height="100%"
-        ref={ref}
-        className={cn("logo", className)}
-        {...props}
-      >
+      <div ref={ref} className={cn("flex items-baseline gap-[0.075em]", className)} {...props}>
+        {showText && (
+          <span className="font-extrabold font-alegreya-sc tracking-wider whitespace-nowrap">Tactus</span>
+        )}
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="150 280 2100 1250"
+          className="h-[1em] w-auto flex-shrink-0"
+          style={{ transform: 'translateY(0.025em) scale(0.95)', transformOrigin: 'bottom' }}
+        >
         <path fill="currentColor" stroke="none"
           d="
         M679.163086,1477.694946
@@ -566,7 +569,8 @@ const Logo = React.forwardRef<SVGSVGElement, LogoProps>(
           C1347.354370,1076.836548 1349.359131,1079.358154 1353.141968,1082.896606
           C1338.955688,1084.173706 1326.910767,1085.258057 1313.883057,1086.342529
         z"/>
-      </svg>
+        </svg>
+      </div>
     )
   }
 )

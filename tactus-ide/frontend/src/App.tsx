@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { nanoid } from 'nanoid';
-import { Editor } from './Editor';
+import { Editor, EditorHandle } from './Editor';
 import { FileTree } from './components/FileTree';
 import { ResultsSidebar } from './components/ResultsSidebar';
 import { ResizeHandle } from './components/ResizeHandle';
@@ -107,10 +107,13 @@ const AppContent: React.FC = () => {
 
   // Results history and metadata state
   const [resultsHistory, setResultsHistory] = useState<ResultsHistoryState>({});
-  const [activeTab, setActiveTab] = useState<'procedure' | 'results' | 'checkpoints'>('procedure');
+  const [activeTab, setActiveTab] = useState<'procedure' | 'results'>('procedure');
   const [procedureMetadata, setProcedureMetadata] = useState<ProcedureMetadata | null>(null);
   const [metadataLoading, setMetadataLoading] = useState(false);
   const [currentRunId, setCurrentRunId] = useState<string | null>(null);
+
+  // Editor ref for programmatic navigation
+  const editorRef = useRef<EditorHandle>(null);
 
   // Load workspace info on mount and auto-open examples folder
   useEffect(() => {
@@ -224,6 +227,26 @@ const AppContent: React.FC = () => {
       console.error('Error loading file:', error);
     }
   }, [fetchProcedureMetadata]);
+
+  // Handle jumping to source from checkpoint
+  const handleJumpToSource = useCallback(async (filePath: string, lineNumber: number) => {
+    console.log('Jump to source called:', { filePath, lineNumber });
+
+    // First open the file
+    await handleFileSelect(filePath);
+    console.log('File opened, waiting to reveal line...');
+
+    // Then reveal the line in the editor (with a small delay to ensure editor has rendered)
+    setTimeout(() => {
+      console.log('Attempting to reveal line, editorRef.current:', !!editorRef.current);
+      if (editorRef.current) {
+        editorRef.current.revealLine(lineNumber);
+        console.log('Line revealed successfully');
+      } else {
+        console.error('Editor ref is null!');
+      }
+    }, 100);
+  }, [handleFileSelect]);
 
   // Handle file save
   const handleSave = useCallback(async () => {
@@ -602,10 +625,16 @@ const AppContent: React.FC = () => {
         const currentRun = fileHistory.runs.find((run) => run.id === currentRunId);
         if (!currentRun) return prev;
 
+        // Extract run_id from completion event if available
+        let backendRunId = currentRunId;
+        const lastEvent = events[events.length - 1];
+        if (lastEvent?.event_type === 'execution' && lastEvent.details?.run_id) {
+          backendRunId = lastEvent.details.run_id;
+        }
+
         // Determine status from events
         let status: RunHistory['status'] = 'running';
         if (!isStreaming) {
-          const lastEvent = events[events.length - 1];
           if (lastEvent?.event_type === 'execution') {
             if (lastEvent.lifecycle_stage === 'error') status = 'error';
             else if (lastEvent.lifecycle_stage === 'complete') status = 'success';
@@ -618,12 +647,17 @@ const AppContent: React.FC = () => {
           }
         }
 
-        // Update current run with new events and status
+        // Update current run with new events, status, and backend run ID
         const updatedRuns = fileHistory.runs.map((run) =>
           run.id === currentRunId
-            ? { ...run, events: [...events], status }
+            ? { ...run, id: backendRunId, events: [...events], status }
             : run
         );
+
+        // Update currentRunId if it changed
+        if (backendRunId !== currentRunId && !isStreaming) {
+          setCurrentRunId(backendRunId);
+        }
 
         return {
           ...prev,
@@ -664,10 +698,7 @@ const AppContent: React.FC = () => {
       {!isElectron && (
         <div className="flex items-center justify-between h-12 px-4 border-b bg-card">
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-[0.1em]">
-              <span className="font-semibold font-jersey text-xl tracking-wider">Tactus</span>
-              <Logo className="h-[1rem] w-auto -translate-y-[0.135rem] scale-110" />
-            </div>
+            <Logo className="text-xl font-semibold" />
             <Menubar className="border-0 bg-transparent shadow-none">
               {ALL_COMMAND_GROUPS.map((group) => (
                 <MenubarMenu key={group.label}>
@@ -768,6 +799,7 @@ const AppContent: React.FC = () => {
               )}
               <div className="flex-1 min-h-0">
                 <Editor
+                  ref={editorRef}
                   initialValue={fileContent}
                   onValueChange={(value) => {
                     setFileContent(value);
@@ -806,6 +838,7 @@ const AppContent: React.FC = () => {
                 resultsHistory={currentFile ? resultsHistory[currentFile] : null}
                 isRunning={isStreaming}
                 onToggleRunExpansion={handleToggleRunExpansion}
+                onJumpToSource={handleJumpToSource}
               />
             </div>
           </>
