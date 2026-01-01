@@ -182,3 +182,4 @@ def step_impl(context):
 def step_impl(context):
     responses = context.parallel_results[0]["responses"]
     assert all("result" in response for response in responses)
+

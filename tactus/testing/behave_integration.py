@@ -354,3 +354,4 @@ def setup_behave_directory(
 
     logger.info(f"Behave directory setup complete: {work_dir}")
     return work_dir
+

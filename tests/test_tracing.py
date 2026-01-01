@@ -2,7 +2,9 @@
 Tests for execution tracing and debugging features.
 """
 
+import pytest
 import tempfile
+from pathlib import Path
 from datetime import datetime, timezone
 
 from tactus.protocols.models import (
@@ -482,16 +484,12 @@ class TestTraceManager:
             assert len(comparison["differences"]) > 0
 
             # Should detect type mismatch
-            type_diffs = [
-                d for d in comparison["differences"] if d["type"] == "checkpoint_type_mismatch"
-            ]
+            type_diffs = [d for d in comparison["differences"] if d["type"] == "checkpoint_type_mismatch"]
             assert len(type_diffs) == 1
             assert type_diffs[0]["position"] == 1
 
             # Should detect source location mismatch
-            loc_diffs = [
-                d for d in comparison["differences"] if d["type"] == "source_location_mismatch"
-            ]
+            loc_diffs = [d for d in comparison["differences"] if d["type"] == "source_location_mismatch"]
             assert len(loc_diffs) == 1
 
     def test_export_trace(self):
@@ -630,9 +628,7 @@ class TestExecutionContextTracing:
                 "function": frame1.f_code.co_name,
             }
 
-            result1 = context.checkpoint(
-                lambda: "result1", "test_checkpoint_1", source_info=source_info1
-            )
+            result1 = context.checkpoint(lambda: "result1", "test_checkpoint_1", source_info=source_info1)
             assert result1 == "result1"
 
             # Second checkpoint with different line
@@ -643,9 +639,7 @@ class TestExecutionContextTracing:
                 "function": frame2.f_code.co_name,
             }
 
-            result2 = context.checkpoint(
-                lambda: "result2", "test_checkpoint_2", source_info=source_info2
-            )
+            result2 = context.checkpoint(lambda: "result2", "test_checkpoint_2", source_info=source_info2)
             assert result2 == "result2"
 
             # Verify both checkpoints have source locations

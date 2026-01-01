@@ -45,9 +45,9 @@ export const ResultsSidebar: React.FC<ResultsSidebarProps> = ({
   const [selectedPosition, setSelectedPosition] = useState<number | null>(null);
 
   // Extract procedure name from current file path
-  // The backend saves runs with the filename (without extension) as the procedure_name
+  // The backend saves runs with "ide-{filename}" as the procedure_name
   const procedureName = currentFile
-    ? currentFile.split('/').pop()?.replace('.tac', '') || undefined
+    ? `ide-${currentFile.split('/').pop()?.replace('.tac', '')}` || undefined
     : undefined;
 
   // Auto-refresh runs list every 3 seconds when on Results OR Checkpoints tab
