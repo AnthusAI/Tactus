@@ -112,4 +112,3 @@ class EvaluationResultSummary(BaseModel):
 
     # Per-case results
     case_results: List[Dict[str, Any]] = Field(default_factory=list)
-

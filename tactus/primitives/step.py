@@ -62,7 +62,9 @@ class StepPrimitive:
             source_info = None
 
         try:
-            result = self.execution_context.checkpoint(fn, "explicit_checkpoint", source_info=source_info)
+            result = self.execution_context.checkpoint(
+                fn, "explicit_checkpoint", source_info=source_info
+            )
             logger.debug("checkpoint() completed successfully")
             return result
         except Exception as e:

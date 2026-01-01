@@ -120,4 +120,3 @@ def create_default_mocks() -> Dict[str, Any]:
         "write_file": {"success": True, "path": "/tmp/test.txt"},
         "read_file": {"content": "test content"},
     }
-

@@ -113,4 +113,3 @@ Feature: And/But Keywords
     assert scenario.steps[1].keyword == "And"
     assert scenario.steps[4].keyword == "And"
     assert scenario.steps[5].keyword == "But"
-

@@ -151,4 +151,3 @@ def test_non_python_file_skipped(plugin_loader, tmp_path):
 
     tools = plugin_loader.load_from_paths([str(text_file)])
     assert tools == []
-

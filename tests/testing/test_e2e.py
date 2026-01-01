@@ -177,4 +177,3 @@ def test_parameter_passing():
     assert test_result.total_scenarios > 0
 
     runner.cleanup()
-

@@ -249,4 +249,3 @@ def setup_default_mocks():
         provider.set_response(f"Mock response from {model}")
         register_mock_provider(f"openai:{model}", provider)
         register_mock_provider(model, provider)
-
