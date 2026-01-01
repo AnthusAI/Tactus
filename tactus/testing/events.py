@@ -92,4 +92,3 @@ class EvaluationProgressEvent(BaseModel):
     completed_runs: int
     total_runs: int
     timestamp: datetime = Field(default_factory=datetime.now)
-

@@ -31,4 +31,3 @@ def test_retry_exhausts_attempts():
     with patch("tactus.primitives.retry.time.sleep", lambda *_: None):
         with pytest.raises(Exception):
             primitive.with_backoff(always_fail, {"max_attempts": 2, "initial_delay": 0})
-

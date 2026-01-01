@@ -38,7 +38,9 @@ class TraceManager:
 
     # Run Management
 
-    def list_runs(self, procedure_name: Optional[str] = None, limit: Optional[int] = None) -> List[ExecutionRun]:
+    def list_runs(
+        self, procedure_name: Optional[str] = None, limit: Optional[int] = None
+    ) -> List[ExecutionRun]:
         """
         List all execution runs, optionally filtered by procedure name.
 
@@ -94,7 +96,9 @@ class TraceManager:
         run = self.get_run(run_id)
 
         if position < 0 or position >= len(run.execution_log):
-            raise IndexError(f"Checkpoint position {position} out of range (0-{len(run.execution_log)-1})")
+            raise IndexError(
+                f"Checkpoint position {position} out of range (0-{len(run.execution_log)-1})"
+            )
 
         return run.execution_log[position]
 
@@ -123,9 +127,7 @@ class TraceManager:
 
     # Breakpoint Management
 
-    def set_breakpoint(
-        self, file: str, line: int, condition: Optional[str] = None
-    ) -> Breakpoint:
+    def set_breakpoint(self, file: str, line: int, condition: Optional[str] = None) -> Breakpoint:
         """
         Set a breakpoint at file:line.
 
@@ -240,15 +242,15 @@ class TraceManager:
         # Search for first checkpoint with source location >= line
         for checkpoint in run.execution_log:
             if checkpoint.source_location:
-                if (checkpoint.source_location.file == file and
-                    checkpoint.source_location.line >= line):
+                if (
+                    checkpoint.source_location.file == file
+                    and checkpoint.source_location.line >= line
+                ):
                     return checkpoint
 
         return None
 
-    def find_checkpoints_by_type(
-        self, run_id: str, checkpoint_type: str
-    ) -> List[CheckpointEntry]:
+    def find_checkpoints_by_type(self, run_id: str, checkpoint_type: str) -> List[CheckpointEntry]:
         """
         Find all checkpoints of a specific type.
 
@@ -299,11 +301,13 @@ class TraceManager:
 
         # Compare checkpoint counts
         if len(run1.execution_log) != len(run2.execution_log):
-            comparison["differences"].append({
-                "type": "checkpoint_count_mismatch",
-                "run1_count": len(run1.execution_log),
-                "run2_count": len(run2.execution_log),
-            })
+            comparison["differences"].append(
+                {
+                    "type": "checkpoint_count_mismatch",
+                    "run1_count": len(run1.execution_log),
+                    "run2_count": len(run2.execution_log),
+                }
+            )
 
         # Compare checkpoints position by position
         for i in range(min(len(run1.execution_log), len(run2.execution_log))):
@@ -312,30 +316,36 @@ class TraceManager:
 
             # Compare types
             if cp1.type != cp2.type:
-                comparison["differences"].append({
-                    "type": "checkpoint_type_mismatch",
-                    "position": i,
-                    "run1_type": cp1.type,
-                    "run2_type": cp2.type,
-                })
+                comparison["differences"].append(
+                    {
+                        "type": "checkpoint_type_mismatch",
+                        "position": i,
+                        "run1_type": cp1.type,
+                        "run2_type": cp2.type,
+                    }
+                )
 
             # Compare source locations
             if cp1.source_location and cp2.source_location:
                 if cp1.source_location.line != cp2.source_location.line:
-                    comparison["differences"].append({
-                        "type": "source_location_mismatch",
-                        "position": i,
-                        "run1_line": cp1.source_location.line,
-                        "run2_line": cp2.source_location.line,
-                    })
+                    comparison["differences"].append(
+                        {
+                            "type": "source_location_mismatch",
+                            "position": i,
+                            "run1_line": cp1.source_location.line,
+                            "run2_line": cp2.source_location.line,
+                        }
+                    )
 
             # Compare results (simple equality check)
             if cp1.result != cp2.result:
-                comparison["differences"].append({
-                    "type": "result_mismatch",
-                    "position": i,
-                    "checkpoint_type": cp1.type,
-                })
+                comparison["differences"].append(
+                    {
+                        "type": "result_mismatch",
+                        "position": i,
+                        "checkpoint_type": cp1.type,
+                    }
+                )
 
         return comparison
 
@@ -359,6 +369,7 @@ class TraceManager:
 
         if format == "json":
             import json
+
             return json.dumps(run.model_dump(), indent=2, default=str)
         else:
             raise ValueError(f"Unsupported export format: {format}")

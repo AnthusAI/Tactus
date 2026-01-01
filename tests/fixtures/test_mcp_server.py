@@ -69,4 +69,3 @@ def multiply(x: float, y: float) -> float:
 if __name__ == "__main__":
     # Run the server when executed directly
     mcp.run()
-
