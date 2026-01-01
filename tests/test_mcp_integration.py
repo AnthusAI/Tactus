@@ -160,3 +160,4 @@ async def test_mcp_env_var_substitution():
 
     # Cleanup
     del os.environ["TEST_TOKEN"]
+

@@ -249,3 +249,4 @@ def test_cascade_priority_order(tmp_path, config_manager, monkeypatch):
     assert "./sidecar_tools" in result["tool_paths"]
     # Root tool_paths should also be included (lists extend)
     assert "./root_tools" in result["tool_paths"]
+

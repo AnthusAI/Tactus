@@ -136,8 +136,22 @@ class ProcedureCallable:
             return execute_procedure()
         else:
             # Sub-procedure: checkpoint for automatic replay
+            # Capture source location
+            import inspect
+
+            frame = inspect.currentframe()
+            if frame and frame.f_back:
+                caller_frame = frame.f_back
+                source_info = {
+                    "file": caller_frame.f_code.co_filename,
+                    "line": caller_frame.f_lineno,
+                    "function": caller_frame.f_code.co_name,
+                }
+            else:
+                source_info = None
+
             return self.execution_context.checkpoint(
-                execute_procedure, checkpoint_type="procedure_call"
+                execute_procedure, checkpoint_type="procedure_call", source_info=source_info
             )
 
     def _validate_input(self, params: Dict[str, Any]) -> None:

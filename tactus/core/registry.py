@@ -440,3 +440,4 @@ class RegistryBuilder:
             warnings=warnings,
             registry=self.registry if len(errors) == 0 else None,
         )
+

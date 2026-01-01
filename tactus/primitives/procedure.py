@@ -173,7 +173,23 @@ class ProcedurePrimitive:
                 raise ProcedureExecutionError(f"Failed to execute procedure '{name}': {e}")
 
         # Auto-checkpoint sub-procedure call
-        return self.execution_context.checkpoint(execute_procedure, "procedure_call")
+        # Capture source location
+        import inspect
+
+        frame = inspect.currentframe()
+        if frame and frame.f_back:
+            caller_frame = frame.f_back
+            source_info = {
+                "file": caller_frame.f_code.co_filename,
+                "line": caller_frame.f_lineno,
+                "function": caller_frame.f_code.co_name,
+            }
+        else:
+            source_info = None
+
+        return self.execution_context.checkpoint(
+            execute_procedure, "procedure_call", source_info=source_info
+        )
 
     def spawn(self, name: str, params: Optional[Dict[str, Any]] = None) -> ProcedureHandle:
         """
@@ -431,3 +447,4 @@ class ProcedurePrimitive:
                     return f.read()
 
         raise FileNotFoundError(f"Procedure '{name}' not found. Searched: {search_paths}")
+
