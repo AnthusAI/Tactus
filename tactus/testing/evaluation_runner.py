@@ -220,3 +220,4 @@ class TactusEvaluationRunner(TactusTestRunner):
 
         # Consistency is the fraction of runs that match the most common pattern
         return most_common_count / len(results)
+
