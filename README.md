@@ -1,56 +1,360 @@
 # Tactus
 
-**Tactus**: A durable, token-efficient programming language for AI agents that never lose their place.
+**A programming language for AI agents that never lose their place.**
 
-## A Programming Language for Agents
+Tactus is a programming language with durable execution built in. Write normal imperative code—loops, conditionals, function calls—and the runtime transparently checkpoints every operation. When execution suspends for human approval, crashes, or times out, it resumes exactly where it left off.
 
-**Why do we need a special programming language for agents? Can't we just use LangGraph, Pydantic AI, Google ADK, or another agent framework?**
+## The Problem: Agents Need to Wait
 
-The answer lies in a fundamental architectural challenge: Unlike traditional programs that run continuously from start to finish, AI agents must be able to **suspend execution and wait**—for human approval, for external reviews, for asynchronous events. This requires a runtime that can pause mid-execution, persist complete state, and resume exactly where it left off.
+Real-world agents can't run to completion in one shot. They need to:
 
-**Consider this simple agent workflow:**
+- **Wait for humans**: Approval gates, reviews, input requests
+- **Survive failures**: Network timeouts, API errors, process crashes
+- **Run for days**: Complex tasks that span hours or weeks
+- **Coordinate**: Wait for other agents, external systems, scheduled events
+
+Traditional agent frameworks don't solve this. They give you tools for building agents, but the durability problem—persisting state, resuming execution, replaying completed work—is left to you.
+
+## The Solution: Transparent Checkpointing
+
+With Tactus, durability is built into the language:
 
 ```lua
--- Tactus: Simple and durable
+-- This looks like it runs straight through
 repeat
-    Researcher.turn()
+  Researcher.turn()
+until Tool.called("done")
 
-    if Tool.called("expensive_analysis") then
-        local approved = Human.approve({message = "Review results?"})
-        if not approved then return {rejected = true} end
-    end
+-- But here execution might suspend for days
+local approved = Human.approve({message = "Deploy to production?"})
+
+-- When the human responds, execution resumes exactly here
+if approved then
+  deploy()
+end
+```
+
+Every agent turn, every tool call, every human interaction is automatically checkpointed. No state machines. No manual serialization. No replay logic.
+
+### Compare: Graph-Based vs. Imperative Durability
+
+LangGraph does support persistence—when you compile a graph with a checkpointer, it saves state at every "super-step" (node boundary). But you're still designing a state machine:
+
+```python
+# LangGraph: Define state, nodes, and edges explicitly
+class State(TypedDict):
+    messages: list
+    research_complete: bool
+    approved: bool | None
+
+graph = StateGraph(State)
+graph.add_node("research", research_node)
+graph.add_node("wait_approval", wait_approval_node)
+graph.add_node("deploy", deploy_node)
+graph.add_edge("research", "wait_approval")
+graph.add_conditional_edges("wait_approval", route_on_approval, {
+    "approved": "deploy",
+    "rejected": END
+})
+
+# Add checkpointer for persistence
+memory = SqliteSaver.from_conn_string(":memory:")
+app = graph.compile(checkpointer=memory)
+```
+
+This is powerful, but your workflow must be expressed as a graph. Nodes, edges, conditional routing. The structure is explicit.
+
+**With Tactus**, you write imperative code. Loops, conditionals, function calls—the control flow you already know:
+
+```lua
+repeat Researcher.turn() until Tool.called("done")
+local approved = Human.approve({message = "Deploy?"})
+if approved then deploy() end
+```
+
+Same workflow. No graph definition. The runtime checkpoints every operation transparently—agent turns, tool calls, human interactions—and resumes exactly where execution left off.
+
+The difference isn't whether checkpointing exists, but how you express your workflow. Graphs vs. imperative code. Explicit structure vs. transparent durability.
+
+---
+
+## Everything as Code
+
+Tactus isn't just durable—it's designed for agents that build and modify other agents.
+
+Most frameworks scatter agent logic across Python classes, decorators, YAML files, and configuration objects. This is opaque to AI. An agent can't easily read, understand, and improve its own definition when it's spread across a codebase.
+
+Tactus takes a different approach: **the entire agent definition is a single, readable file.**
+
+```lua
+agent("researcher", {
+  model = "gpt-4o",
+  system_prompt = "Research the topic thoroughly.",
+  tools = {"search", "analyze", "done"}
+})
+
+main = procedure("main", {
+  input = { topic = { type = "string", required = true } },
+  output = { findings = { type = "string", required = true } }
+}, function()
+  repeat
+    Researcher.turn()
+  until Tool.called("done")
+  return { findings = Tool.last_result("done") }
+end)
+
+specifications([[
+Feature: Research
+  Scenario: Completes research
+    When the researcher agent takes turns
+    Then the search tool should be called at least once
+]])
+```
+
+Agents, orchestration, contracts, and tests—all in one file. All in a minimal syntax that fits in context windows and produces clean diffs.
+
+This enables:
+
+- **Self-evolution**: An agent reads its own definition, identifies improvements, rewrites itself
+- **Agent-building agents**: A meta-agent that designs and iterates on specialized agents
+- **Transparent iteration**: When an agent modifies code, you can diff the changes
+
+---
+
+## Safe Embedding
+
+Tactus is designed for platforms that run user-contributed agent definitions—like n8n or Zapier, but where the automations are intelligent agents.
+
+This requires true sandboxing. User A's agent can't escape to affect user B. Can't access the filesystem. Can't make network calls. Unless you explicitly provide tools that grant these capabilities.
+
+Python can't be safely sandboxed. Lua was designed for it—decades of proven use in game modding, nginx plugins, Redis scripts.
+
+Tactus agents run in a restricted Lua VM:
+
+- No filesystem access by default
+- No network access by default
+- No environment variable access by default
+- The tools you provide are the *only* capabilities the agent has
+
+This makes Tactus safe for:
+
+- Multi-tenant platforms running user-contributed agents
+- Embedding in applications where untrusted code is a concern
+- Letting AI agents write and execute their own orchestration logic
+
+---
+
+## Omnichannel Human-in-the-Loop
+
+When an agent needs human input, *how* that request reaches the human depends on the channel. The agent shouldn't care.
+
+Tactus separates the *what* from the *how*:
+
+```lua
+local approved = Human.approve({
+  message = "Deploy to production?",
+  context = {version = "2.1.0", environment = "prod"}
+})
+```
+
+The agent declares what it needs. The platform decides how to render it:
+
+| Channel | Rendering |
+|---------|-----------|
+| **Web** | Modal with Approve/Reject buttons |
+| **Slack** | Interactive message with button actions |
+| **SMS** | "Deploy v2.1.0 to prod? Reply YES or NO" |
+| **Voice** | "Should I deploy version 2.1.0 to production?" |
+| **Email** | Message with approve/reject links |
+
+Because procedures declare typed inputs, platforms can auto-generate UI for any channel:
+
+```lua
+main = procedure("main", {
+  input = {
+    topic = { type = "string", required = true },
+    depth = { type = "string", enum = {"shallow", "deep"}, default = "shallow" }
+  }
+}, function() ... end)
+```
+
+A web app renders a form. Slack renders a modal. SMS runs a structured conversation.
+
+One agent definition. Every channel.
+
+---
+
+## Testing Built In
+
+When agents modify agents, verification is essential. Tactus makes BDD specifications part of the language:
+
+```lua
+specifications([[
+Feature: Research Task
+  Scenario: Agent completes research
+    Given the procedure has started
+    When the researcher agent takes turns
+    Then the search tool should be called at least once
+    And the done tool should be called exactly once
+]])
+```
+
+Run tests with `tactus test`. Measure consistency with `tactus test --runs 10`. When an agent rewrites itself, the tests verify it still works.
+
+---
+
+## The Broader Context
+
+Tactus serves a paradigm shift in programming: from anticipating every scenario to providing capabilities and goals.
+
+Traditional code requires you to handle every case—every header name, every format, every edge condition. Miss one and your program breaks.
+
+Agent programming inverts this: give an agent tools, describe the goal, let intelligence handle the rest.
+
+```lua
+agent("importer", {
+  system_prompt = "Extract contacts from the data. File each one you find.",
+  tools = {"file_contact", "done"}
+})
+```
+
+When a new format appears—unexpected headers, mixed delimiters, a language you didn't anticipate—the agent adapts. No code changes.
+
+See [Give an Agent a Tool](https://github.com/AnthusAI/Give-an-Agent-a-Tool) for a deep dive on this paradigm shift.
+
+---
+
+## What This Enables
+
+**Agent platforms**: Build your own n8n/Zapier where users define intelligent agents. Tactus handles sandboxing, durability, and multi-tenancy.
+
+**Self-evolving agents**: Agents that read their own definitions, identify improvements, and rewrite themselves.
+
+**Agents building agents**: A meta-agent that designs, tests, and iterates on specialized agents for specific tasks.
+
+**Omnichannel deployment**: Write agent logic once. Deploy across web, mobile, Slack, SMS, voice, email.
+
+**Long-running workflows**: Agents that wait for humans, coordinate with external systems, and run for days without losing progress.
+
+---
+
+## Tools
+
+Tools are the capabilities you give to agents. Tactus supports multiple ways to define and connect tools.
+
+### MCP Server Integration
+
+Connect to [Model Context Protocol](https://modelcontextprotocol.io/) servers to access external tool ecosystems:
+
+```yaml
+# .tactus/config.yml
+mcp_servers:
+  plexus:
+    command: "python"
+    args: ["-m", "plexus.mcp"]
+    env:
+      PLEXUS_API_KEY: "${PLEXUS_API_KEY}"
+
+  filesystem:
+    command: "npx"
+    args: ["-y", "@modelcontextprotocol/server-filesystem", "/workspace"]
+```
+
+Tools from MCP servers are automatically namespaced:
+
+```lua
+agent("worker", {
+  tools = {
+    "plexus_score_info",       -- From plexus server
+    "filesystem_read_file",    -- From filesystem server
+    "done"
+  }
+})
+```
+
+### Inline Lua Tools
+
+Define tools directly in your `.tac` file—no external servers required:
+
+**Individual tools:**
+
+```lua
+tool("calculate_tip", {
+  description = "Calculate tip amount for a bill",
+  parameters = {
+    amount = {type = "number", required = true},
+    percent = {type = "number", required = true}
+  }
+}, function(args)
+  return string.format("$%.2f", args.amount * args.percent / 100)
+end)
+
+agent("assistant", {
+  tools = {"calculate_tip", "done"}
+})
+```
+
+**Grouped toolsets:**
+
+```lua
+toolset("math_tools", {
+  type = "lua",
+  tools = {
+    {name = "add", parameters = {...}, handler = function(args) ... end},
+    {name = "multiply", parameters = {...}, handler = function(args) ... end}
+  }
+})
+
+agent("calculator", {
+  toolsets = {"math_tools", "done"}
+})
+```
+
+**Inline agent tools:**
+
+```lua
+agent("text_processor", {
+  tools = {
+    {name = "uppercase", parameters = {...}, handler = function(args)
+      return string.upper(args.text)
+    end}
+  },
+  toolsets = {"done"}
+})
+```
+
+### Tool Tracking
+
+Check which tools were called and access their results:
+
+```lua
+if Tool.called("search") then
+  local result = Tool.last_result("search")
+  local call = Tool.last_call("search")  -- {args = {...}, result = "..."}
+end
+```
+
+### Per-Turn Tool Control
+
+Control which tools are available on each turn—essential for patterns like tool result summarization:
+
+```lua
+repeat
+  Researcher.turn()  -- Has all tools
+
+  if Tool.called("search") then
+    -- Summarize with NO tools (prevents recursive calls)
+    Researcher.turn({
+      inject = "Summarize the search results",
+      tools = {}
+    })
+  end
 until Tool.called("done")
 ```
 
-**Now try implementing this in any general-purpose language (Python, JavaScript, Go, etc.).** You immediately face problems:
+See [docs/TOOLS.md](docs/TOOLS.md) for the complete tools reference.
 
-1. **Where does execution pause?** `Human.approve()` needs to suspend the entire workflow, save state, and return control to your web server
-2. **How do you serialize the call stack?** Most language runtimes don't support serializing execution state—you can't just `pickle.dump(locals())`
-3. **How do you restore context?** When the human responds, you need to reconstruct: the agent's conversation history, the loop iteration, the conditional branch, local variables
-4. **How do you avoid duplicate work?** Re-running from the start means re-calling the LLM, re-running the expensive analysis tool
-
-**The framework solution requires building your own runtime:**
-- Manual state machine with explicit states (`AWAITING_TOOL`, `AWAITING_APPROVAL`, etc.)
-- Serialization layer for conversation history, tool results, loop counters
-- Replay logic to skip already-completed operations
-- Coordination between your application framework and agent execution
-
-**This is what existing agent frameworks force you to build yourself.** Whether LangGraph's state graphs, Pydantic AI's workflows, or Google ADK's agents—they all require you to manually manage state persistence and resumption.
-
-**Tactus provides this runtime as a language feature.** Every operation is automatically checkpointed. Suspension and resumption are transparent. Your workflow logic stays simple and readable—no manual state machines, no serialization code, no replay logic.
-
-**When the workflow pauses for human approval?** It resumes from that exact point. The agent conversation, tool calls, and human decision are all preserved. No wasted tokens, no duplicate work.
-
-**Why this enables omni-channel deployment:** Because your workflow logic is defined once in a token-efficient Lua file and plugged into any application—web apps, mobile apps, chat systems, voice interfaces. The durable runtime handles suspension and resumption transparently, making agents first-class citizens in larger systems. You write the agent logic once; the runtime adapts it to any channel.
-
-Your entire workflow—agents, logic, data transformations—lives in one sandboxed Lua file that's:
-
-- **Durable**: Automatic checkpointing + replay for agent turns, model inference, sub-procedures, HITL
-- **Portable**: Deploy the same workflow across channels without rewriting
-- **Safe**: Sandboxed VM that only accesses the tools you explicitly grant
-- **Token-efficient**: Simple Lua syntax with minimal noise—perfect for feeding back into LLM context
-- **Self-modifiable**: Agents can read and rewrite their own workflow definitions for self-evolution
-- **Verifiable**: First-class BDD testing and ML evaluations built into the language
+---
 
 ## Quick Start
 
@@ -60,173 +364,76 @@ Your entire workflow—agents, logic, data transformations—lives in one sandbo
 pip install tactus
 ```
 
-### Your First Procedure: Hello and Done
+### Your First Procedure
 
-Here's a complete working example that demonstrates the core concepts of Tactus. We define an agent with a goal and a tool, orchestrate with Lua, and include a test specification.
-
-Create a file `hello.tac`:
+Create `hello.tac`:
 
 ```lua
 agent("greeter", {
   provider = "openai",
   model = "gpt-4o-mini",
-
   system_prompt = [[
     You are a friendly greeter. Greet the user by name: {input.name}
     When done, call the done tool.
   ]],
-
-  initial_message = "Please greet the user.",
-
   tools = {"done"}
 })
 
 main = procedure("main", {
   input = {
-    name = {
-      type = "string",
-      default = "World"
-    }
+    name = { type = "string", default = "World" }
   },
-
   output = {
-    completed = {
-      type = "boolean",
-      required = true
-    },
-    greeting = {
-      type = "string",
-      required = true
-    }
-  },
-
-  state = {}
+    greeting = { type = "string", required = true }
+  }
 }, function()
-  -- Loop until the agent decides to use the 'done' tool
   repeat
-    Greeter.turn()  -- Give the agent a turn to think and act
+    Greeter.turn()
   until Tool.called("done")
 
-  -- Return the result captured from the tool call
-  return {
-    completed = true,
-    greeting = Tool.last_call("done").args.reason
-  }
+  return { greeting = Tool.last_result("done") }
 end)
 
 specifications([[
-Feature: Greeting Workflow
-
-  Scenario: Agent greets user and completes
-    Given the procedure has started
+Feature: Greeting
+  Scenario: Agent greets and completes
     When the greeter agent takes turns
     Then the done tool should be called exactly once
     And the procedure should complete successfully
-    And the output completed should be True
-    And the output greeting should exist
 ]])
 ```
 
-**Run the procedure:**
+**Run it:**
 
 ```bash
 export OPENAI_API_KEY=your-key
 tactus run hello.tac
 ```
 
-**Test the procedure to verify behavior:**
+**Test it:**
 
 ```bash
 tactus test hello.tac
 ```
 
-This runs the Gherkin specification and verifies that the agent behaves correctly. You'll see output like:
-
-```
-Feature: Greeting Workflow
-  Scenario: Agent greets user and completes ... passed
-```
-
-**Evaluate consistency across multiple runs:**
+**Evaluate consistency:**
 
 ```bash
 tactus test hello.tac --runs 10
 ```
 
-This runs the test 10 times and reports success rate and consistency metrics, helping you identify flaky behavior.
+---
 
-**What's happening here:**
+## Documentation
 
-1. **Agents** (top level): Define reusable agents with models, prompts, and tools. When you define an agent named `greeter`, the primitive `Greeter.turn()` becomes available in Lua.
+- **[SPECIFICATION.md](SPECIFICATION.md)** — Complete DSL reference
+- **[IMPLEMENTATION.md](IMPLEMENTATION.md)** — Implementation status and architecture
+- **[docs/TOOLS.md](docs/TOOLS.md)** — Tools and MCP integration guide
+- **[examples/](examples/)** — Example procedures
 
-2. **Procedure** with config: Takes two arguments:
-   - **Config table**: Contains `input` (inputs), `output` (validated return values), and `state` (persistent working data)
-   - **Function**: Your workflow logic in Lua with explicit control flow
-
-3. **Input Parameters** (`input`): Define typed inputs with defaults. These can be overridden at runtime and are available in templates as `{input.name}`.
-
-4. **Output Schema** (`output`): Define the structure of return values. Tactus validates that your procedure returns the declared fields with correct types.
-
-5. **State Schema** (`state`): Define persistent working variables with types and defaults. State is preserved across checkpoints.
-
-6. **Specifications** (`specifications`): Gherkin BDD tests that verify your agent's behavior. These are first-class citizens in Tactus—you can run them with `tactus test` or evaluate consistency with `tactus evaluate`.
-
-**Key insight:** Input, output, and state are defined *inside* the procedure config because they belong to the procedure. Agents are defined at the top level because they're reusable across procedures.
+---
 
 ## Key Features
-
-### Programmatic Orchestration (Lua)
-
-Tactus is a **new programming language** for AI agents. Unlike rigid configuration files, Tactus programs are written in Lua, giving you full programmatic control over execution flow. A Tactus program isn't just a script—it's a defined unit of work with declared **inputs (parameters)** and **outputs**.
-
-**You control the structure:**
-
-```lua
-procedure: |
-  -- Explicit loops
-  repeat
-    Worker.turn()
-  until Tool.called("done") or Iterations.exceeded(20)
-  
-  -- Conditionals
-  if State.get("needs_review") then
-    local approved = Human.approve({message = "Continue?"})
-    if not approved then
-      return {completed = false, reason = "rejected"}
-    end
-  end
-  
-  -- Error handling
-  local ok, result = pcall(function()
-    return Procedure.run("risky_task", params)
-  end)
-  
-  if not ok then
-    Log.error("Task failed: " .. tostring(result))
-    return {success = false, error = result}
-  end
-  
-  -- Return structured results
-  return {
-    success = true,
-    items_processed = State.get("count"),
-    result = result
-  }
-```
-
-**Why Lua?**
-
-Most agent frameworks rely on Python (e.g., LangChain, CrewAI). While powerful, Python presents challenges for autonomous agents: it is difficult to sandbox, its significant whitespace is fragile when generated by AI, and it carries a lot of syntactic noise.
-
-Tactus moves agent logic into a **DSL built on Lua** to solve these problems:
-
--   **Sandboxed & Safe**: Tactus agents run in a secure VM designed for isolation. Unlike Python, which exposes the host system, Tactus procedures can only access what you explicitly grant them.
--   **Malleable "Agent as Code"**: Lua's syntax is simple and robust, lacking Python's delicate whitespace requirements. This makes it safe for AI models to generate and modify their own code.
--   **High Signal-to-Noise**: The DSL is optimized for agent development. The code is concise and token-efficient, making it ideal for feeding back into an LLM's context window for self-evolution.
--   **Introspection**: A Tactus program is a structured document, not just an opaque script. The custom parser allows external tools to analyze, visualize, and build UIs for a procedure *without running it*.
--   **Explicit Control**: You get standard programming constructs (loops, conditionals, error handling) rather than hidden planning logic.
-
-This introspection capability enables the next feature: the ability to define a rigorous **interface contract** that any application can read.
 
 ### Per-Turn Tool Control
 
@@ -282,75 +489,6 @@ Researcher.turn({
 ```
 
 See `examples/14-feature-per-turn-tools.tac` for a complete working example.
-
-### MCP Server Integration
-
-Tactus provides first-class support for [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) servers, allowing you to connect to external tool providers and use their tools in your procedures.
-
-**Configuration** (`.tactus/config.yml`):
-
-```yaml
-mcp_servers:
-  plexus:
-    command: "python"
-    args:
-      - "-m"
-      - "plexus.mcp"
-    env:
-      PLEXUS_ACCOUNT_KEY: "${PLEXUS_ACCOUNT_KEY}"
-      PLEXUS_API_KEY: "${PLEXUS_API_KEY}"
-  
-  filesystem:
-    command: "npx"
-    args:
-      - "-y"
-      - "@modelcontextprotocol/server-filesystem"
-      - "/workspace"
-```
-
-**Tool Namespacing:**
-
-Tools from MCP servers are automatically prefixed with the server name to prevent conflicts:
-
-```lua
-agent("worker", {
-    provider = "openai",
-    model = "gpt-4o",
-    tools = {
-        "plexus_score_info",           -- From plexus server
-        "plexus_evaluation_run",       -- From plexus server
-        "filesystem_read_file",        -- From filesystem server
-        "filesystem_write_file",       -- From filesystem server
-        "done"
-    }
-})
-```
-
-**How it works:**
-
-1. **Stdio Transport**: Each MCP server runs as a subprocess with stdio communication
-2. **Automatic Discovery**: Tools are loaded from servers at runtime
-3. **Native Integration**: Uses Pydantic AI's `MCPServerStdio` under the hood
-4. **Tool Tracking**: All MCP tool calls are tracked via `Tool.called()` and `Tool.last_result()`
-
-**Environment Variables:**
-
-Use `${VAR}` syntax in config to reference environment variables:
-
-```yaml
-mcp_servers:
-  github:
-    command: "npx"
-    args: ["-y", "@modelcontextprotocol/server-github"]
-    env:
-      GITHUB_TOKEN: "${GITHUB_TOKEN}"  # Reads from system env
-```
-
-**Multiple Servers:**
-
-You can configure multiple MCP servers and use tools from all of them in the same procedure. Each server's tools are independently namespaced.
-
-See `examples/40-mcp-test.tac` for a complete working example.
 
 ### Testing & Evaluation: Two Different Concerns
 
@@ -681,51 +819,6 @@ When thresholds are not met, `tactus eval` exits with code 1, enabling CI/CD int
 - [`examples/33-eval-thresholds.tac`](examples/33-eval-thresholds.tac) - CI/CD quality gates
 - [`examples/37-eval-comprehensive.tac`](examples/37-eval-comprehensive.tac) - All features combined
 
-### Typed Parameters & The Contract
-
-Parameters in Tactus are more than just variables—they form a **contract** defined by the program. Because parameters are typed and structured (strings, numbers, enums, booleans), any application can use the Tactus parser to **introspect** a program and automatically generate a UI appropriate for the channel:
-
-*   **Mobile App**: Native forms and inputs.
-*   **Chat Bot**: Interactive cards or guided conversation flows.
-*   **SMS**: A structured text-based interview.
-*   **Microsoft Teams**: Rich Adaptive Cards.
-
-This separation means your agent logic remains the same, while the interface adapts to where it's running.
-
-```lua
-main = procedure("main", {
-  input = {
-    topic = {
-      type = "string",
-      required = true,
-      description = "The topic to research"
-    },
-    depth = {
-      type = "string",
-      enum = {"shallow", "deep"},
-      default = "shallow"
-    },
-    max_results = {
-      type = "number",
-      default = 10
-    },
-    include_sources = {
-      type = "boolean",
-      default = true
-    }
-  },
-
-  state = {}
-}, function()
-  -- Access input parameters
-  local topic = input.topic
-  local depth = input.depth
-  -- ...
-end)
-```
-
-Input parameters are accessed in templates as `{input.topic}` and in Lua as `input.topic`.
-
 ### Multi-Model and Multi-Provider Support
 
 Use different models and providers for different tasks within the same workflow. **Every agent must specify a `provider:`** (either directly or via `default_provider:` at the procedure level).
@@ -921,9 +1014,9 @@ Session.load_from_node(checkpoint_node)
 - **Privacy**: Hide sensitive information from certain agents
 - **Debugging**: Control visibility for testing and development
 
-### Human-in-the-Loop (HITL)
+### Advanced HITL Patterns
 
-Tactus has first-class support for human oversight and collaboration. You can request approval, input, or review at any point in your workflow.
+Beyond the omnichannel HITL described earlier, Tactus provides detailed primitives for human oversight and collaboration. You can request approval, input, or review at any point in your workflow.
 
 **Request approval before critical actions:**
 
@@ -1043,45 +1136,6 @@ This helps you:
 - **Debug performance**: Track latency and duration issues
 - **Monitor reliability**: See retry patterns and validation failures
 - **Measure efficiency**: Track cache hit rates and savings
-
-### Gherkin BDD Testing
-
-Tactus has **first-class support for behavior-driven testing** using Gherkin syntax. Write natural language specifications directly in your procedure files:
-
-```lua
-specifications([[
-Feature: Research Task Completion
-
-  Scenario: Agent completes basic research
-    Given the procedure has started
-    When the researcher agent takes turns
-    Then the search tool should be called at least once
-    And the done tool should be called exactly once
-    And the procedure should complete successfully
-]])
-```
-
-**Run tests:**
-```bash
-# Run all scenarios once
-tactus test procedure.tac
-
-# Evaluate consistency (run 10 times per scenario)
-tactus test procedure.tac --runs 10
-```
-
-**Evaluation output:**
-```
-Scenario: Agent completes basic research
-  Success Rate: 90% (9/10)
-  Duration: 1.23s (±0.15s)
-  Consistency: 90%
-  ⚠️  FLAKY - Inconsistent results detected
-```
-
-The framework provides rich built-in steps for testing Tactus primitives (tools, stages, state, iterations) and supports custom Lua step definitions. Tests run in parallel for fast feedback, and evaluations measure consistency and reliability across multiple runs.
-
-See [tactus/testing/README.md](tactus/testing/README.md) for complete documentation.
 
 ## Philosophy & Research
 
@@ -1307,62 +1361,6 @@ Open http://localhost:3000 in your browser to use the IDE.
 - Context-aware completions
 - Hover documentation
 - Signature help
-
-## Defining Tools with Lua Functions
-
-Tactus allows you to define custom tools as Lua functions directly within your `.tac` files. This gives agents the ability to perform custom operations without requiring external Python plugins or MCP servers.
-
-### Three Approaches
-
-**1. Individual Tools:**
-```lua
-tool("calculate_tip", {
-    description = "Calculate tip amount",
-    parameters = {
-        bill = {type = "number", required = true},
-        percent = {type = "number", required = true}
-    }
-}, function(args)
-    return tostring(args.bill * args.percent / 100)
-end)
-
-agent("assistant", {
-    toolsets = {"calculate_tip", "done"}
-})
-```
-
-**2. Grouped Toolsets:**
-```lua
-toolset("math_tools", {
-    type = "lua",
-    tools = {
-        {name = "add", parameters = {...}, handler = function(args) ... end},
-        {name = "multiply", parameters = {...}, handler = function(args) ... end}
-    }
-})
-```
-
-**3. Inline Agent Tools:**
-```lua
-agent("assistant", {
-    tools = {
-        {name = "uppercase", parameters = {...}, handler = function(args) ... end}
-    },
-    toolsets = {"done"}
-})
-```
-
-**Learn more:** See [docs/TOOLS.md](docs/TOOLS.md) for comprehensive documentation with examples and best practices.
-
-## Documentation
-
-- [**Specification (DSL Reference)**](SPECIFICATION.md) - The official specification for the Tactus domain-specific language.
-- [**Tools Guide**](docs/TOOLS.md) - Comprehensive guide to defining tools with Lua functions.
-- [**Implementation Guide**](IMPLEMENTATION.md) - Maps the specification to the actual codebase implementation. Shows where each feature is implemented, what's complete, and what's missing relative to the specification.
-- [**Testing Strategy**](tactus/testing/README.md) - Testing approach, frameworks, and guidelines for adding new tests.
-- [**Examples**](examples/) - Run additional example procedures to see Tactus in action
-- **Primitives Reference** (See `tactus/primitives/`)
-- **Storage Adapters** (See `tactus/adapters/`)
 
 ## Integration
 

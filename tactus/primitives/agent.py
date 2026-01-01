@@ -295,7 +295,23 @@ class AgentPrimitive:
 
         # If execution_context is available, wrap with checkpoint
         if self.execution_context:
-            return self.execution_context.checkpoint(lambda: self._execute_turn(opts), "agent_turn")
+            # Capture source location using Python's inspect module
+            import inspect
+
+            frame = inspect.currentframe()
+            if frame and frame.f_back:
+                caller_frame = frame.f_back
+                source_info = {
+                    "file": caller_frame.f_code.co_filename,
+                    "line": caller_frame.f_lineno,
+                    "function": caller_frame.f_code.co_name,
+                }
+            else:
+                source_info = None
+
+            return self.execution_context.checkpoint(
+                lambda: self._execute_turn(opts), "agent_turn", source_info=source_info
+            )
         else:
             return self._execute_turn(opts)
 

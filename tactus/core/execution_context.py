@@ -12,7 +12,14 @@ import time
 
 from tactus.protocols.storage import StorageBackend
 from tactus.protocols.hitl import HITLHandler
-from tactus.protocols.models import HITLRequest, HITLResponse, CheckpointEntry
+from tactus.protocols.models import (
+    HITLRequest,
+    HITLResponse,
+    CheckpointEntry,
+    SourceLocation,
+    ExecutionRun,
+)
+import uuid
 
 
 class ExecutionContext(ABC):
@@ -24,13 +31,19 @@ class ExecutionContext(ABC):
     """
 
     @abstractmethod
-    def checkpoint(self, fn: Callable[[], Any], checkpoint_type: str) -> Any:
+    def checkpoint(
+        self,
+        fn: Callable[[], Any],
+        checkpoint_type: str,
+        source_info: Optional[Dict[str, Any]] = None,
+    ) -> Any:
         """
         Execute fn with position-based checkpointing. On replay, return stored result.
 
         Args:
             fn: Function to execute (should be deterministic)
             checkpoint_type: Type of checkpoint (agent_turn, model_predict, procedure_call, etc.)
+            source_info: Optional dict with {file, line, function} for debugging
 
         Returns:
             Result of fn() on first execution, cached result from execution log on replay
@@ -124,12 +137,24 @@ class BaseExecutionContext(ExecutionContext):
         # Checkpoint scope tracking for determinism safety
         self._inside_checkpoint = False
 
+        # Run ID tracking for distinguishing between different executions
+        self.current_run_id: Optional[str] = None
+
         # Load procedure metadata (contains execution_log and replay_index)
         self.metadata = self.storage.load_procedure_metadata(procedure_id)
 
-    def checkpoint(self, fn: Callable[[], Any], checkpoint_type: str) -> Any:
+    def set_run_id(self, run_id: str) -> None:
+        """Set the run_id for subsequent checkpoints in this execution."""
+        self.current_run_id = run_id
+
+    def checkpoint(
+        self,
+        fn: Callable[[], Any],
+        checkpoint_type: str,
+        source_info: Optional[Dict[str, Any]] = None,
+    ) -> Any:
         """
-        Execute fn with position-based checkpointing.
+        Execute fn with position-based checkpointing and source tracking.
 
         On replay, returns cached result from execution log.
         On first execution, runs fn(), records in log, and returns result.
@@ -147,18 +172,33 @@ class BaseExecutionContext(ExecutionContext):
         old_checkpoint_flag = self._inside_checkpoint
         self._inside_checkpoint = True
 
+        # Capture source location if provided
+        source_location = None
+        if source_info:
+            source_location = SourceLocation(
+                file=source_info["file"],
+                line=source_info["line"],
+                function=source_info.get("function"),
+                code_context=self._get_code_context(source_info["file"], source_info["line"]),
+            )
+
         try:
             start_time = time.time()
             result = fn()
             duration_ms = (time.time() - start_time) * 1000
 
-            # Create checkpoint entry
+            # Create checkpoint entry with source location and run_id (if available)
             entry = CheckpointEntry(
                 position=current_position,
                 type=checkpoint_type,
                 result=result,
                 timestamp=datetime.now(timezone.utc),
                 duration_ms=duration_ms,
+                run_id=self.current_run_id,  # Can be None for backward compatibility
+                source_location=source_location,
+                captured_vars=(
+                    self.metadata.state.copy() if hasattr(self.metadata, "state") else None
+                ),
             )
         finally:
             # Always restore checkpoint flag, even if fn() raises
@@ -172,6 +212,17 @@ class BaseExecutionContext(ExecutionContext):
         self.storage.save_procedure_metadata(self.procedure_id, self.metadata)
 
         return result
+
+    def _get_code_context(self, file_path: str, line: int, context_lines: int = 3) -> Optional[str]:
+        """Read source file and extract surrounding lines for debugging."""
+        try:
+            with open(file_path, "r") as f:
+                lines = f.readlines()
+                start = max(0, line - context_lines - 1)
+                end = min(len(lines), line + context_lines)
+                return "".join(lines[start:end])
+        except Exception:
+            return None
 
     def wait_for_human(
         self,
@@ -303,6 +354,48 @@ class BaseExecutionContext(ExecutionContext):
                 handle["completed_at"] = datetime.now(timezone.utc).isoformat()
 
             self.storage.save_procedure_metadata(self.procedure_id, self.metadata)
+
+    def save_execution_run(
+        self, procedure_name: str, file_path: str, status: str = "COMPLETED"
+    ) -> str:
+        """
+        Convert current execution to ExecutionRun and save for tracing.
+
+        Args:
+            procedure_name: Name of the procedure
+            file_path: Path to the .tac file
+            status: Run status (COMPLETED, FAILED, etc.)
+
+        Returns:
+            The run_id of the saved run
+        """
+        # Generate run ID
+        run_id = str(uuid.uuid4())
+
+        # Determine start time from first checkpoint or now
+        start_time = (
+            self.metadata.execution_log[0].timestamp
+            if self.metadata.execution_log
+            else datetime.now(timezone.utc)
+        )
+
+        # Create ExecutionRun
+        run = ExecutionRun(
+            run_id=run_id,
+            procedure_name=procedure_name,
+            file_path=file_path,
+            start_time=start_time,
+            end_time=datetime.now(timezone.utc),
+            status=status,
+            execution_log=self.metadata.execution_log.copy(),
+            final_state=self.metadata.state.copy() if hasattr(self.metadata, "state") else {},
+            breakpoints=[],
+        )
+
+        # Save to storage
+        self.storage.save_run(run)
+
+        return run_id
 
 
 class InMemoryExecutionContext(BaseExecutionContext):

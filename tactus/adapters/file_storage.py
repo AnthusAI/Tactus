@@ -6,10 +6,16 @@ Stores procedure metadata and execution log as JSON files on disk.
 
 import json
 from pathlib import Path
-from typing import Any, Optional, Dict
+from typing import Any, Optional, Dict, List
 from datetime import datetime
 
-from tactus.protocols.models import ProcedureMetadata, CheckpointEntry
+from tactus.protocols.models import (
+    ProcedureMetadata,
+    CheckpointEntry,
+    ExecutionRun,
+    Breakpoint,
+    SourceLocation,
+)
 
 
 class FileStorage:
@@ -28,7 +34,27 @@ class FileStorage:
             storage_dir: Directory to store procedure files
         """
         self.storage_dir = Path(storage_dir).expanduser()
-        self.storage_dir.mkdir(parents=True, exist_ok=True)
+
+        # Try to create directories, but don't fail if we can't
+        # This allows read-only testing and defers errors to write operations
+        try:
+            self.storage_dir.mkdir(parents=True, exist_ok=True)
+        except (PermissionError, OSError):
+            pass  # Defer error to actual write operations
+
+        # Create subdirectories for tracing
+        self.traces_dir = self.storage_dir / "traces"
+        self.runs_dir = self.traces_dir / "runs"
+        self.breakpoints_dir = self.traces_dir / "breakpoints"
+        self.index_file = self.traces_dir / "index.json"
+
+        # Try to create subdirectories, but defer errors to write operations
+        try:
+            self.traces_dir.mkdir(parents=True, exist_ok=True)
+            self.runs_dir.mkdir(parents=True, exist_ok=True)
+            self.breakpoints_dir.mkdir(parents=True, exist_ok=True)
+        except (PermissionError, OSError):
+            pass  # Defer error to actual write operations
 
     def _get_file_path(self, procedure_id: str) -> Path:
         """Get the file path for a procedure."""
@@ -67,6 +93,11 @@ class FileStorage:
         # Convert stored execution log back to CheckpointEntry objects
         execution_log = []
         for entry_data in data.get("execution_log", []):
+            # Rebuild SourceLocation if present
+            source_location = None
+            if entry_data.get("source_location"):
+                source_location = SourceLocation(**entry_data["source_location"])
+
             execution_log.append(
                 CheckpointEntry(
                     position=entry_data["position"],
@@ -75,6 +106,9 @@ class FileStorage:
                     timestamp=datetime.fromisoformat(entry_data["timestamp"]),
                     duration_ms=entry_data.get("duration_ms"),
                     input_hash=entry_data.get("input_hash"),
+                    run_id=entry_data["run_id"],
+                    source_location=source_location,
+                    captured_vars=entry_data.get("captured_vars"),
                 )
             )
 
@@ -101,6 +135,11 @@ class FileStorage:
                     "timestamp": entry.timestamp.isoformat(),
                     "duration_ms": entry.duration_ms,
                     "input_hash": entry.input_hash,
+                    "run_id": entry.run_id,
+                    "source_location": (
+                        entry.source_location.model_dump() if entry.source_location else None
+                    ),
+                    "captured_vars": entry.captured_vars,
                 }
                 for entry in metadata.execution_log
             ],
@@ -132,3 +171,197 @@ class FileStorage:
         metadata = self.load_procedure_metadata(procedure_id)
         metadata.state = state
         self.save_procedure_metadata(procedure_id, metadata)
+
+    # Tracing & Debugging Methods
+
+    def _load_index(self) -> Dict[str, Any]:
+        """Load the run index."""
+        if not self.index_file.exists():
+            return {}
+
+        try:
+            with open(self.index_file, "r") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError):
+            return {}
+
+    def _save_index(self, index: Dict[str, Any]) -> None:
+        """Save the run index."""
+        try:
+            with open(self.index_file, "w") as f:
+                json.dump(index, f, indent=2, default=str)
+        except (IOError, OSError) as e:
+            raise RuntimeError(f"Failed to write index file: {e}")
+
+    def _update_index(self, run: ExecutionRun) -> None:
+        """Update index with run metadata."""
+        index = self._load_index()
+
+        index[run.run_id] = {
+            "procedure_name": run.procedure_name,
+            "file_path": run.file_path,
+            "start_time": run.start_time.isoformat(),
+            "status": run.status,
+        }
+
+        self._save_index(index)
+
+    def save_run(self, run: ExecutionRun) -> None:
+        """
+        Save complete run data.
+
+        Args:
+            run: Execution run to save
+        """
+        run_path = self.runs_dir / f"{run.run_id}.json"
+
+        # Convert to dict with proper serialization
+        data = run.model_dump()
+
+        # Convert datetime objects to ISO strings
+        if isinstance(data.get("start_time"), datetime):
+            data["start_time"] = data["start_time"].isoformat()
+        if data.get("end_time") and isinstance(data.get("end_time"), datetime):
+            data["end_time"] = data["end_time"].isoformat()
+
+        # Convert checkpoint timestamps
+        for checkpoint in data.get("execution_log", []):
+            if isinstance(checkpoint.get("timestamp"), datetime):
+                checkpoint["timestamp"] = checkpoint["timestamp"].isoformat()
+
+        try:
+            with open(run_path, "w") as f:
+                json.dump(data, f, indent=2, default=str)
+        except (IOError, OSError) as e:
+            raise RuntimeError(f"Failed to save run {run.run_id}: {e}")
+
+        # Update index
+        self._update_index(run)
+
+    def load_run(self, run_id: str) -> ExecutionRun:
+        """
+        Load complete run data.
+
+        Args:
+            run_id: Run identifier
+
+        Returns:
+            Execution run
+
+        Raises:
+            FileNotFoundError: If run not found
+        """
+        run_path = self.runs_dir / f"{run_id}.json"
+
+        if not run_path.exists():
+            raise FileNotFoundError(f"Run {run_id} not found")
+
+        try:
+            with open(run_path, "r") as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, IOError) as e:
+            raise RuntimeError(f"Failed to load run {run_id}: {e}")
+
+        # Convert timestamps back to datetime objects
+        if data.get("start_time"):
+            data["start_time"] = datetime.fromisoformat(data["start_time"])
+        if data.get("end_time"):
+            data["end_time"] = datetime.fromisoformat(data["end_time"])
+
+        # Convert checkpoint timestamps and rebuild CheckpointEntry objects
+        execution_log = []
+        for cp_data in data.get("execution_log", []):
+            if cp_data.get("timestamp"):
+                cp_data["timestamp"] = datetime.fromisoformat(cp_data["timestamp"])
+
+            # Rebuild SourceLocation if present
+            if cp_data.get("source_location"):
+                cp_data["source_location"] = SourceLocation(**cp_data["source_location"])
+
+            execution_log.append(CheckpointEntry(**cp_data))
+
+        data["execution_log"] = execution_log
+
+        # Rebuild Breakpoint objects
+        breakpoints = []
+        for bp_data in data.get("breakpoints", []):
+            breakpoints.append(Breakpoint(**bp_data))
+
+        data["breakpoints"] = breakpoints
+
+        return ExecutionRun(**data)
+
+    def list_runs(self, procedure_name: Optional[str] = None) -> List[ExecutionRun]:
+        """
+        List all runs, optionally filtered by procedure name.
+
+        Args:
+            procedure_name: Optional procedure name filter
+
+        Returns:
+            List of execution runs, sorted by start time (newest first)
+        """
+        index = self._load_index()
+
+        # Filter by procedure name if specified
+        if procedure_name:
+            run_ids = [
+                rid for rid, info in index.items() if info.get("procedure_name") == procedure_name
+            ]
+        else:
+            run_ids = list(index.keys())
+
+        # Load all matching runs
+        runs = []
+        for run_id in run_ids:
+            try:
+                runs.append(self.load_run(run_id))
+            except (FileNotFoundError, RuntimeError):
+                # Skip corrupted or missing runs
+                continue
+
+        # Sort by start time (newest first)
+        runs.sort(key=lambda r: r.start_time, reverse=True)
+
+        return runs
+
+    def save_breakpoints(self, procedure_name: str, breakpoints: List[Breakpoint]) -> None:
+        """
+        Save breakpoints for a procedure.
+
+        Args:
+            procedure_name: Procedure name
+            breakpoints: List of breakpoints
+        """
+        bp_path = self.breakpoints_dir / f"{procedure_name}.json"
+
+        data = [bp.model_dump() for bp in breakpoints]
+
+        try:
+            with open(bp_path, "w") as f:
+                json.dump(data, f, indent=2)
+        except (IOError, OSError) as e:
+            raise RuntimeError(f"Failed to save breakpoints for {procedure_name}: {e}")
+
+    def load_breakpoints(self, procedure_name: str) -> List[Breakpoint]:
+        """
+        Load breakpoints for a procedure.
+
+        Args:
+            procedure_name: Procedure name
+
+        Returns:
+            List of breakpoints
+        """
+        bp_path = self.breakpoints_dir / f"{procedure_name}.json"
+
+        if not bp_path.exists():
+            return []
+
+        try:
+            with open(bp_path, "r") as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, IOError):
+            return []
+
+        return [Breakpoint(**bp_data) for bp_data in data]
