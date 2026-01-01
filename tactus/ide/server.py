@@ -447,25 +447,8 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             # Build metadata response
             metadata = {
                 "description": registry.description,
-                "parameters": {
-                    name: {
-                        "name": param.name,
-                        "type": param.parameter_type,
-                        "required": param.required,
-                        "default": param.default,
-                        "description": getattr(param, "description", None),
-                    }
-                    for name, param in registry.parameters.items()
-                },
-                "outputs": {
-                    name: {
-                        "name": output.name,
-                        "type": output.field_type,
-                        "required": output.required,
-                        "description": getattr(output, "description", None),
-                    }
-                    for name, output in registry.outputs.items()
-                },
+                "parameters": registry.input_schema if registry.input_schema else {},
+                "outputs": registry.output_schema if registry.output_schema else {},
                 "agents": {
                     name: {
                         "name": agent.name,
@@ -686,6 +669,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             def generate_events():
                 """Generator function that yields SSE events."""
                 log_handler = None
+                all_events = []  # Collect all events to save at the end
                 try:
                     # Send start event
                     import json
@@ -693,14 +677,20 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                     from tactus.adapters.ide_log import IDELogHandler
                     from tactus.core.runtime import TactusRuntime
                     from tactus.adapters.file_storage import FileStorage
+                    from nanoid import generate
+
+                    # Generate unique run_id for this execution
+                    run_id = generate(size=21)
 
                     start_event = {
                         "event_type": "execution",
                         "lifecycle_stage": "start",
                         "procedure_id": procedure_id,
+                        "run_id": run_id,
                         "timestamp": datetime.utcnow().isoformat() + "Z",
                         "details": {"path": file_path},
                     }
+                    all_events.append(start_event)
                     yield f"data: {json.dumps(start_event)}\n\n"
 
                     # Create IDE log handler to collect structured events
@@ -716,12 +706,13 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                     )
                     storage_backend = FileStorage(storage_dir=storage_dir)
 
-                    # Create runtime with log handler
+                    # Create runtime with log handler and run_id
                     runtime = TactusRuntime(
                         procedure_id=procedure_id,
                         storage_backend=storage_backend,
                         hitl_handler=None,  # No HITL in IDE streaming mode
                         log_handler=log_handler,
+                        run_id=run_id,
                     )
 
                     # Read procedure source
@@ -766,6 +757,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                                 ):
                                     iso_string += "Z"
                                 event_dict["timestamp"] = iso_string
+                                all_events.append(event_dict)
                                 yield f"data: {json.dumps(event_dict)}\n\n"
                             except Exception as e:
                                 logger.error(f"Error serializing event: {e}", exc_info=True)
@@ -788,6 +780,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                             ):
                                 iso_string += "Z"
                             event_dict["timestamp"] = iso_string
+                            all_events.append(event_dict)
                             yield f"data: {json.dumps(event_dict)}\n\n"
                         except Exception as e:
                             logger.error(f"Error serializing event: {e}", exc_info=True)
@@ -815,7 +808,36 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                             "timestamp": datetime.utcnow().isoformat() + "Z",
                             "details": {"success": True},
                         }
+                    all_events.append(complete_event)
                     yield f"data: {json.dumps(complete_event)}\n\n"
+
+                    # Consolidate streaming chunks before saving to disk
+                    # Keep only the final accumulated text for each agent
+                    consolidated_events = []
+                    stream_chunks_by_agent = {}
+
+                    for event in all_events:
+                        if event.get("event_type") == "agent_stream_chunk":
+                            # Track by agent name, keeping only the latest
+                            agent_name = event.get("agent_name")
+                            stream_chunks_by_agent[agent_name] = event
+                        else:
+                            consolidated_events.append(event)
+
+                    # Add the final consolidated chunks
+                    consolidated_events.extend(stream_chunks_by_agent.values())
+
+                    # Save consolidated events to disk
+                    try:
+                        from pathlib import Path as PathLib
+
+                        events_dir = PathLib(storage_dir) / "events"
+                        events_dir.mkdir(parents=True, exist_ok=True)
+                        events_file = events_dir / f"{run_id}.json"
+                        with open(events_file, "w") as f:
+                            json.dump(consolidated_events, f, indent=2)
+                    except Exception as e:
+                        logger.error(f"Failed to save events for run {run_id}: {e}", exc_info=True)
 
                 except Exception as e:
                     logger.error(f"Error in streaming execution: {e}", exc_info=True)
@@ -1410,6 +1432,270 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
 
         except Exception as e:
             logger.error(f"Error setting up Pydantic Evals: {e}", exc_info=True)
+            return jsonify({"error": str(e)}), 500
+
+    @app.route("/api/traces/runs", methods=["GET"])
+    def list_trace_runs():
+        """List all execution runs by grouping checkpoints by run_id."""
+        try:
+            from pathlib import Path as PathLib
+            from tactus.adapters.file_storage import FileStorage
+            from collections import defaultdict
+
+            # Get optional query params
+            procedure = request.args.get("procedure")
+            limit = int(request.args.get("limit", "50"))
+
+            # Create storage backend
+            storage_dir = (
+                str(PathLib(WORKSPACE_ROOT) / ".tac" / "storage")
+                if WORKSPACE_ROOT
+                else "~/.tactus/storage"
+            )
+            storage_backend = FileStorage(storage_dir=storage_dir)
+
+            # Load procedure metadata
+            if not procedure:
+                return jsonify({"runs": []})
+
+            metadata = storage_backend.load_procedure_metadata(procedure)
+
+            # Group checkpoints by run_id
+            runs_dict = defaultdict(list)
+            for checkpoint in metadata.execution_log:
+                runs_dict[checkpoint.run_id].append(checkpoint)
+
+            # Build runs list
+            runs_data = []
+            for run_id, checkpoints in runs_dict.items():
+                # Sort checkpoints by position
+                checkpoints.sort(key=lambda c: c.position)
+
+                # Get start/end times
+                start_time = checkpoints[0].timestamp if checkpoints else None
+                end_time = checkpoints[-1].timestamp if checkpoints else None
+
+                runs_data.append(
+                    {
+                        "run_id": run_id,
+                        "procedure_name": procedure,
+                        "start_time": start_time.isoformat() if start_time else None,
+                        "end_time": end_time.isoformat() if end_time else None,
+                        "status": "COMPLETED",  # Can be enhanced later
+                        "checkpoint_count": len(checkpoints),
+                    }
+                )
+
+            # Sort by start_time (most recent first)
+            runs_data.sort(key=lambda r: r["start_time"] or "", reverse=True)
+
+            # Apply limit
+            runs_data = runs_data[:limit]
+
+            return jsonify({"runs": runs_data})
+        except Exception as e:
+            logger.error(f"Error listing trace runs: {e}", exc_info=True)
+            return jsonify({"error": str(e)}), 500
+
+    @app.route("/api/traces/runs/<run_id>", methods=["GET"])
+    def get_trace_run(run_id: str):
+        """Get a specific execution run by filtering checkpoints by run_id."""
+        try:
+            from pathlib import Path as PathLib
+            from tactus.adapters.file_storage import FileStorage
+
+            # Get procedure name from query param or try to find it
+            procedure = request.args.get("procedure")
+            if not procedure:
+                return jsonify({"error": "procedure parameter required"}), 400
+
+            # Create storage backend
+            storage_dir = (
+                str(PathLib(WORKSPACE_ROOT) / ".tac" / "storage")
+                if WORKSPACE_ROOT
+                else "~/.tactus/storage"
+            )
+            storage_backend = FileStorage(storage_dir=storage_dir)
+
+            # Load procedure metadata
+            metadata = storage_backend.load_procedure_metadata(procedure)
+
+            # Filter checkpoints by run_id
+            run_checkpoints = [cp for cp in metadata.execution_log if cp.run_id == run_id]
+
+            if not run_checkpoints:
+                return jsonify({"error": f"Run not found: {run_id}"}), 404
+
+            # Sort by position
+            run_checkpoints.sort(key=lambda c: c.position)
+
+            # Get start/end times
+            start_time = run_checkpoints[0].timestamp if run_checkpoints else None
+            end_time = run_checkpoints[-1].timestamp if run_checkpoints else None
+
+            # Convert to API format
+            run_dict = {
+                "run_id": run_id,
+                "procedure_name": procedure,
+                "file_path": "",
+                "start_time": start_time.isoformat() if start_time else None,
+                "end_time": end_time.isoformat() if end_time else None,
+                "status": "COMPLETED",
+                "execution_log": [
+                    {
+                        "position": cp.position,
+                        "type": cp.type,
+                        "result": cp.result,
+                        "timestamp": cp.timestamp.isoformat() if cp.timestamp else None,
+                        "duration_ms": cp.duration_ms,
+                        "source_location": (
+                            cp.source_location.model_dump() if cp.source_location else None
+                        ),
+                        "captured_vars": cp.captured_vars,
+                    }
+                    for cp in run_checkpoints
+                ],
+                "final_state": metadata.state,
+                "breakpoints": [],
+            }
+
+            return jsonify(run_dict)
+        except Exception as e:
+            logger.error(f"Error getting trace run {run_id}: {e}", exc_info=True)
+            return jsonify({"error": str(e)}), 500
+
+    @app.route("/api/traces/runs/<run_id>/checkpoints/<int:position>", methods=["GET"])
+    def get_checkpoint(run_id: str, position: int):
+        """Get a specific checkpoint from a run by filtering by run_id."""
+        try:
+            from pathlib import Path as PathLib
+            from tactus.adapters.file_storage import FileStorage
+
+            # Get procedure name from query param
+            procedure = request.args.get("procedure")
+            if not procedure:
+                return jsonify({"error": "procedure parameter required"}), 400
+
+            # Create storage backend
+            storage_dir = (
+                str(PathLib(WORKSPACE_ROOT) / ".tac" / "storage")
+                if WORKSPACE_ROOT
+                else "~/.tactus/storage"
+            )
+            storage_backend = FileStorage(storage_dir=storage_dir)
+
+            # Load procedure metadata
+            metadata = storage_backend.load_procedure_metadata(procedure)
+
+            # Find checkpoint by run_id and position
+            checkpoint = next(
+                (
+                    cp
+                    for cp in metadata.execution_log
+                    if cp.run_id == run_id and cp.position == position
+                ),
+                None,
+            )
+
+            if not checkpoint:
+                return (
+                    jsonify({"error": f"Checkpoint position {position} not found in run {run_id}"}),
+                    404,
+                )
+
+            # Convert to API format
+            cp_dict = {
+                "position": checkpoint.position,
+                "type": checkpoint.type,
+                "result": checkpoint.result,
+                "timestamp": checkpoint.timestamp.isoformat() if checkpoint.timestamp else None,
+                "duration_ms": checkpoint.duration_ms,
+                "source_location": (
+                    checkpoint.source_location.model_dump() if checkpoint.source_location else None
+                ),
+                "captured_vars": checkpoint.captured_vars,
+            }
+
+            return jsonify(cp_dict)
+        except Exception as e:
+            logger.error(f"Error getting checkpoint {run_id}@{position}: {e}", exc_info=True)
+            return jsonify({"error": str(e)}), 500
+
+    @app.route("/api/traces/runs/<run_id>/statistics", methods=["GET"])
+    def get_run_statistics(run_id: str):
+        """Get statistics for a run by filtering checkpoints by run_id."""
+        try:
+            from pathlib import Path as PathLib
+            from tactus.adapters.file_storage import FileStorage
+            from collections import Counter
+
+            # Get procedure name from query param
+            procedure = request.args.get("procedure")
+            if not procedure:
+                return jsonify({"error": "procedure parameter required"}), 400
+
+            # Create storage backend
+            storage_dir = (
+                str(PathLib(WORKSPACE_ROOT) / ".tac" / "storage")
+                if WORKSPACE_ROOT
+                else "~/.tactus/storage"
+            )
+            storage_backend = FileStorage(storage_dir=storage_dir)
+
+            # Load procedure metadata
+            metadata = storage_backend.load_procedure_metadata(procedure)
+
+            # Filter checkpoints by run_id
+            run_checkpoints = [cp for cp in metadata.execution_log if cp.run_id == run_id]
+
+            if not run_checkpoints:
+                return jsonify({"error": f"Run not found: {run_id}"}), 404
+
+            # Calculate statistics
+            checkpoint_types = Counter(cp.type for cp in run_checkpoints)
+            total_duration = sum(cp.duration_ms or 0 for cp in run_checkpoints)
+            has_source_locations = sum(1 for cp in run_checkpoints if cp.source_location)
+
+            stats = {
+                "run_id": run_id,
+                "procedure": procedure,
+                "status": "COMPLETED",
+                "total_checkpoints": len(run_checkpoints),
+                "checkpoints_by_type": dict(checkpoint_types),
+                "total_duration_ms": total_duration,
+                "has_source_locations": has_source_locations,
+            }
+
+            return jsonify(stats)
+        except Exception as e:
+            logger.error(f"Error getting statistics for {run_id}: {e}", exc_info=True)
+            return jsonify({"error": str(e)}), 500
+
+    @app.route("/api/traces/runs/<run_id>/events", methods=["GET"])
+    def get_run_events(run_id: str):
+        """Get all SSE events for a specific run."""
+        try:
+            from pathlib import Path as PathLib
+
+            # Determine storage directory
+            storage_dir = (
+                str(PathLib(WORKSPACE_ROOT) / ".tac" / "storage")
+                if WORKSPACE_ROOT
+                else "~/.tactus/storage"
+            )
+            events_dir = PathLib(storage_dir) / "events"
+            events_file = events_dir / f"{run_id}.json"
+
+            if not events_file.exists():
+                return jsonify({"error": f"Events not found for run {run_id}"}), 404
+
+            # Load events from file
+            with open(events_file, "r") as f:
+                events = json.load(f)
+
+            return jsonify({"events": events})
+        except Exception as e:
+            logger.error(f"Error getting events for {run_id}: {e}", exc_info=True)
             return jsonify({"error": str(e)}), 500
 
     @app.route("/api/lsp", methods=["POST"])

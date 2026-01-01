@@ -4,9 +4,7 @@
 -- Agents (defined at top level - reusable across procedures)
 agent("greeter", {
     provider = "openai",
-    system_prompt = [[You are a friendly assistant. When asked to greet someone, 
-provide a warm, friendly greeting. When you're done, call 
-the done tool with the greeting message.
+    system_prompt = [[You are a friendly assistant. When asked to greet someone, provide a warm, friendly greeting. When you're done, call the done tool with the greeting message.  Do not use emojis.
 ]],
     initial_message = "Please greet the user with a friendly message",
 })

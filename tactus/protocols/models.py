@@ -12,6 +12,17 @@ def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+class SourceLocation(BaseModel):
+    """Source code location for a checkpoint."""
+
+    file: str = Field(..., description="Absolute path to .tac file")
+    line: int = Field(..., description="Line number (1-indexed)")
+    function: Optional[str] = Field(None, description="Function/procedure name")
+    code_context: Optional[str] = Field(None, description="3 lines of surrounding code")
+
+    model_config = {"arbitrary_types_allowed": True}
+
+
 class CheckpointEntry(BaseModel):
     """A single checkpoint entry in the execution log (position-based)."""
 
@@ -24,6 +35,17 @@ class CheckpointEntry(BaseModel):
     timestamp: datetime = Field(..., description="When checkpoint was created")
     duration_ms: Optional[float] = Field(None, description="Operation duration in milliseconds")
     input_hash: Optional[str] = Field(None, description="Hash of inputs for determinism checking")
+    run_id: Optional[str] = Field(
+        None, description="Unique identifier for the run that created this checkpoint"
+    )
+
+    # NEW: Debugging/tracing fields
+    source_location: Optional[SourceLocation] = Field(
+        None, description="Source code location where checkpoint was created"
+    )
+    captured_vars: Optional[Dict[str, Any]] = Field(
+        None, description="State snapshot at checkpoint"
+    )
 
     model_config = {"arbitrary_types_allowed": True}
 
@@ -239,6 +261,39 @@ class ChatMessage(BaseModel):
     )
     metadata: Optional[Dict[str, Any]] = Field(
         default=None, description="Additional message metadata"
+    )
+
+    model_config = {"arbitrary_types_allowed": True}
+
+
+class Breakpoint(BaseModel):
+    """A breakpoint set by the user for debugging."""
+
+    breakpoint_id: str = Field(..., description="Unique breakpoint identifier")
+    file: str = Field(..., description="File path where breakpoint is set")
+    line: int = Field(..., description="Line number (1-indexed)")
+    condition: Optional[str] = Field(None, description="Python expression to evaluate")
+    enabled: bool = Field(default=True, description="Whether breakpoint is active")
+    hit_count: int = Field(default=0, description="Number of times breakpoint has been hit")
+
+    model_config = {"arbitrary_types_allowed": True}
+
+
+class ExecutionRun(BaseModel):
+    """A complete procedure execution with tracing data."""
+
+    run_id: str = Field(..., description="Unique run identifier")
+    procedure_name: str = Field(..., description="Name of the procedure")
+    file_path: str = Field(..., description="Path to the .tac file")
+    start_time: datetime = Field(..., description="When execution started")
+    end_time: Optional[datetime] = Field(None, description="When execution completed")
+    status: str = Field(..., description="RUNNING, PAUSED, COMPLETED, FAILED")
+    execution_log: list[CheckpointEntry] = Field(
+        default_factory=list, description="All checkpoints from this run"
+    )
+    final_state: Dict[str, Any] = Field(default_factory=dict, description="Final state dictionary")
+    breakpoints: list[Breakpoint] = Field(
+        default_factory=list, description="Breakpoints for this run"
     )
 
     model_config = {"arbitrary_types_allowed": True}

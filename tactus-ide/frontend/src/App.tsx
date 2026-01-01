@@ -107,7 +107,7 @@ const AppContent: React.FC = () => {
 
   // Results history and metadata state
   const [resultsHistory, setResultsHistory] = useState<ResultsHistoryState>({});
-  const [activeTab, setActiveTab] = useState<'procedure' | 'results'>('procedure');
+  const [activeTab, setActiveTab] = useState<'procedure' | 'results' | 'checkpoints'>('procedure');
   const [procedureMetadata, setProcedureMetadata] = useState<ProcedureMetadata | null>(null);
   const [metadataLoading, setMetadataLoading] = useState(false);
   const [currentRunId, setCurrentRunId] = useState<string | null>(null);
@@ -306,7 +306,7 @@ const AppContent: React.FC = () => {
       // Collapse all previous runs
       const updatedRuns = fileHistory.runs.map((run) => ({ ...run, isExpanded: false }));
 
-      // Add new run at the END (bottom of list)
+      // Add new run at the BEGINNING (top of list) since newest should be first
       const newRun: RunHistory = {
         id: runId,
         timestamp: new Date().toISOString(),
@@ -316,8 +316,8 @@ const AppContent: React.FC = () => {
         status: 'running',
       };
 
-      // Keep all runs (no limit)
-      const allRuns = [...updatedRuns, newRun];
+      // Add new run at the top, keep existing persisted runs
+      const allRuns = [newRun, ...updatedRuns];
       return {
         ...prev,
         [currentFile]: {
@@ -519,6 +519,79 @@ const AppContent: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // Load persistent runs from storage when file changes
+  useEffect(() => {
+    if (!currentFile) return;
+
+    const loadPersistedRuns = async () => {
+      try {
+        // Extract procedure name from file path
+        const fileName = currentFile.split('/').pop();
+        if (!fileName || !fileName.endsWith('.tac')) return;
+
+        const procedureName = 'ide-' + fileName.replace('.tac', '');
+
+        // Fetch runs from trace API
+        const response = await fetch(apiUrl(`/api/traces/runs?procedure=${encodeURIComponent(procedureName)}&limit=50`));
+        if (!response.ok) return;
+
+        const data = await response.json();
+        const runs = data.runs || [];
+
+        if (runs.length === 0) return;
+
+        // Load events for each run in parallel
+        const runsWithEvents = await Promise.all(
+          runs.map(async (run: any) => {
+            try {
+              // Try to load events for this run
+              const eventsResponse = await fetch(apiUrl(`/api/traces/runs/${run.run_id}/events`));
+              const events = eventsResponse.ok ? (await eventsResponse.json()).events || [] : [];
+
+              return {
+                id: run.run_id,
+                timestamp: run.start_time,
+                operationType: 'run' as const,
+                events: events,
+                isExpanded: false,
+                status: run.status === 'COMPLETED' ? 'success' as const
+                      : run.status === 'FAILED' ? 'failed' as const
+                      : run.status === 'RUNNING' ? 'running' as const
+                      : 'error' as const,
+              };
+            } catch (err) {
+              // If events can't be loaded, return run without events
+              return {
+                id: run.run_id,
+                timestamp: run.start_time,
+                operationType: 'run' as const,
+                events: [],
+                isExpanded: false,
+                status: run.status === 'COMPLETED' ? 'success' as const
+                      : run.status === 'FAILED' ? 'failed' as const
+                      : run.status === 'RUNNING' ? 'running' as const
+                      : 'error' as const,
+              };
+            }
+          })
+        );
+
+        // Update results history with persisted runs
+        setResultsHistory((prev) => ({
+          ...prev,
+          [currentFile]: {
+            filePath: currentFile,
+            runs: runsWithEvents,
+          },
+        }));
+      } catch (error) {
+        console.error('Failed to load persisted runs:', error);
+      }
+    };
+
+    loadPersistedRuns();
+  }, [currentFile]);
+
   // Sync streaming events into current run
   useEffect(() => {
     if (currentFile && currentRunId && events.length > 0) {
@@ -586,7 +659,7 @@ const AppContent: React.FC = () => {
   }, [currentFile]);
 
   return (
-    <div className="flex flex-col h-screen bg-background text-foreground dark">
+    <div className="flex flex-col h-screen bg-background text-foreground">
       {/* Top bar - only show in browser mode */}
       {!isElectron && (
         <div className="flex items-center justify-between h-12 px-4 border-b bg-card">

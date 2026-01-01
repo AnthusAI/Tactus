@@ -363,10 +363,13 @@ def run_procedure_stream():
                 # Create log handler to capture structured events
                 log_handler = IDELogHandler()
 
-                # Create runtime with log handler
+                # Create runtime with log handler and FileStorage for persistence
+                from tactus.adapters.file_storage import FileStorage
+                storage = FileStorage()
+
                 runtime = TactusRuntime(
                     procedure_id=procedure_id,
-                    storage_backend=MemoryStorage(),
+                    storage_backend=storage,
                     log_handler=log_handler,
                 )
 
@@ -382,8 +385,33 @@ def run_procedure_stream():
                             runtime.execute(source_content, context={}, format="lua")
                         )
                         result_container["result"] = result
+
+                        # Save execution as ExecutionRun for tracing/debugging
+                        logger.info(f"Attempting to save ExecutionRun: execution_context={runtime.execution_context is not None}")
+                        if runtime.execution_context:
+                            status = "COMPLETED" if result.get("success") else "FAILED"
+                            run_id = runtime.execution_context.save_execution_run(
+                                procedure_name=procedure_id,
+                                file_path=str(path),
+                                status=status
+                            )
+                            logger.info(f"Saved ExecutionRun with ID: {run_id}")
+                        else:
+                            logger.warning("No execution_context available - ExecutionRun not saved!")
                     except Exception as e:
+                        logger.error(f"Error in run_procedure: {e}", exc_info=True)
                         result_container["error"] = e
+                        # Save failed execution run
+                        try:
+                            if runtime.execution_context:
+                                run_id = runtime.execution_context.save_execution_run(
+                                    procedure_name=procedure_id,
+                                    file_path=str(path),
+                                    status="FAILED"
+                                )
+                                logger.info(f"Saved FAILED ExecutionRun with ID: {run_id}")
+                        except Exception as save_error:
+                            logger.error(f"Failed to save ExecutionRun: {save_error}", exc_info=True)
 
                 execution_thread = threading.Thread(target=run_procedure)
                 execution_thread.start()
@@ -948,6 +976,362 @@ def handle_lsp_notification(message):
         lsp_server.handle_notification(message)
     except Exception as e:
         logger.error(f"Error handling LSP notification: {e}")
+
+
+# ============================================================================
+# Trace & Debugging API Endpoints
+# ============================================================================
+
+
+@app.route("/api/traces/runs", methods=["GET"])
+def list_trace_runs():
+    """
+    List all execution runs with optional filtering.
+
+    Query parameters:
+        - procedure: Filter by procedure name
+        - status: Filter by status (RUNNING, COMPLETED, FAILED, PAUSED)
+        - limit: Maximum number of runs to return
+    """
+    try:
+        from tactus.adapters.file_storage import FileStorage
+        from tactus.tracing import TraceManager
+
+        # Get query parameters
+        procedure = request.args.get("procedure")
+        status = request.args.get("status")
+        limit = request.args.get("limit", type=int)
+
+        # Initialize storage and trace manager
+        storage = FileStorage()
+        trace_mgr = TraceManager(storage)
+
+        # List runs
+        runs = trace_mgr.list_runs(procedure_name=procedure, limit=limit)
+
+        # Filter by status if specified
+        if status:
+            runs = [r for r in runs if r.status == status]
+
+        # Convert to JSON-serializable format
+        runs_data = []
+        for run in runs:
+            runs_data.append(
+                {
+                    "run_id": run.run_id,
+                    "procedure_name": run.procedure_name,
+                    "file_path": run.file_path,
+                    "start_time": run.start_time.isoformat(),
+                    "end_time": run.end_time.isoformat() if run.end_time else None,
+                    "status": run.status,
+                    "checkpoint_count": len(run.execution_log),
+                }
+            )
+
+        return jsonify({"runs": runs_data})
+
+    except Exception as e:
+        logger.error(f"Error listing trace runs: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/traces/runs/<run_id>", methods=["GET"])
+def get_trace_run(run_id):
+    """
+    Get complete run data including all checkpoints.
+
+    Path parameters:
+        - run_id: Run identifier
+    """
+    try:
+        from tactus.adapters.file_storage import FileStorage
+        from tactus.tracing import TraceManager
+
+        storage = FileStorage()
+        trace_mgr = TraceManager(storage)
+
+        run = trace_mgr.get_run(run_id)
+
+        # Convert to JSON-serializable format
+        run_data = {
+            "run_id": run.run_id,
+            "procedure_name": run.procedure_name,
+            "file_path": run.file_path,
+            "start_time": run.start_time.isoformat(),
+            "end_time": run.end_time.isoformat() if run.end_time else None,
+            "status": run.status,
+            "final_state": run.final_state,
+            "execution_log": [
+                {
+                    "position": cp.position,
+                    "type": cp.type,
+                    "result": cp.result,
+                    "timestamp": cp.timestamp.isoformat(),
+                    "duration_ms": cp.duration_ms,
+                    "source_location": (
+                        {
+                            "file": cp.source_location.file,
+                            "line": cp.source_location.line,
+                            "function": cp.source_location.function,
+                            "code_context": cp.source_location.code_context,
+                        }
+                        if cp.source_location
+                        else None
+                    ),
+                    "captured_vars": cp.captured_vars,
+                }
+                for cp in run.execution_log
+            ],
+            "breakpoints": [
+                {
+                    "breakpoint_id": bp.breakpoint_id,
+                    "file": bp.file,
+                    "line": bp.line,
+                    "condition": bp.condition,
+                    "enabled": bp.enabled,
+                    "hit_count": bp.hit_count,
+                }
+                for bp in run.breakpoints
+            ],
+        }
+
+        return jsonify(run_data)
+
+    except FileNotFoundError:
+        return jsonify({"error": f"Run {run_id} not found"}), 404
+    except Exception as e:
+        logger.error(f"Error getting trace run: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/traces/runs/<run_id>/checkpoints/<int:position>", methods=["GET"])
+def get_checkpoint(run_id, position):
+    """
+    Get a specific checkpoint from a run.
+
+    Path parameters:
+        - run_id: Run identifier
+        - position: Checkpoint position (0-indexed)
+    """
+    try:
+        from tactus.adapters.file_storage import FileStorage
+        from tactus.tracing import TraceManager
+
+        storage = FileStorage()
+        trace_mgr = TraceManager(storage)
+
+        checkpoint = trace_mgr.get_checkpoint(run_id, position)
+
+        # Convert to JSON-serializable format
+        checkpoint_data = {
+            "position": checkpoint.position,
+            "type": checkpoint.type,
+            "result": checkpoint.result,
+            "timestamp": checkpoint.timestamp.isoformat(),
+            "duration_ms": checkpoint.duration_ms,
+            "source_location": (
+                {
+                    "file": checkpoint.source_location.file,
+                    "line": checkpoint.source_location.line,
+                    "function": checkpoint.source_location.function,
+                    "code_context": checkpoint.source_location.code_context,
+                }
+                if checkpoint.source_location
+                else None
+            ),
+            "captured_vars": checkpoint.captured_vars,
+        }
+
+        return jsonify(checkpoint_data)
+
+    except FileNotFoundError:
+        return jsonify({"error": f"Run {run_id} not found"}), 404
+    except IndexError:
+        return jsonify({"error": f"Checkpoint {position} not found"}), 404
+    except Exception as e:
+        logger.error(f"Error getting checkpoint: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/traces/runs/<run_id>/checkpoints", methods=["GET"])
+def get_checkpoints_range(run_id):
+    """
+    Get a range of checkpoints from a run.
+
+    Path parameters:
+        - run_id: Run identifier
+
+    Query parameters:
+        - start: Start position (inclusive, default 0)
+        - end: End position (exclusive, default all)
+    """
+    try:
+        from tactus.adapters.file_storage import FileStorage
+        from tactus.tracing import TraceManager
+
+        storage = FileStorage()
+        trace_mgr = TraceManager(storage)
+
+        start = request.args.get("start", 0, type=int)
+        end = request.args.get("end", type=int)
+
+        checkpoints = trace_mgr.get_checkpoints(run_id, start=start, end=end)
+
+        # Convert to JSON-serializable format
+        checkpoints_data = [
+            {
+                "position": cp.position,
+                "type": cp.type,
+                "result": cp.result,
+                "timestamp": cp.timestamp.isoformat(),
+                "duration_ms": cp.duration_ms,
+                "source_location": (
+                    {
+                        "file": cp.source_location.file,
+                        "line": cp.source_location.line,
+                        "function": cp.source_location.function,
+                        "code_context": cp.source_location.code_context,
+                    }
+                    if cp.source_location
+                    else None
+                ),
+                "captured_vars": cp.captured_vars,
+            }
+            for cp in checkpoints
+        ]
+
+        return jsonify({"checkpoints": checkpoints_data})
+
+    except FileNotFoundError:
+        return jsonify({"error": f"Run {run_id} not found"}), 404
+    except Exception as e:
+        logger.error(f"Error getting checkpoints: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/traces/runs/<run_id>/statistics", methods=["GET"])
+def get_run_statistics(run_id):
+    """
+    Get statistics about a run.
+
+    Path parameters:
+        - run_id: Run identifier
+    """
+    try:
+        from tactus.adapters.file_storage import FileStorage
+        from tactus.tracing import TraceManager
+
+        storage = FileStorage()
+        trace_mgr = TraceManager(storage)
+
+        stats = trace_mgr.get_statistics(run_id)
+
+        return jsonify(stats)
+
+    except FileNotFoundError:
+        return jsonify({"error": f"Run {run_id} not found"}), 404
+    except Exception as e:
+        logger.error(f"Error getting statistics: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/traces/breakpoints/<procedure_name>", methods=["GET", "POST"])
+def manage_breakpoints(procedure_name):
+    """
+    Manage breakpoints for a procedure.
+
+    GET: List breakpoints
+    POST: Set a new breakpoint
+    """
+    try:
+        from tactus.adapters.file_storage import FileStorage
+        from tactus.tracing import TraceManager
+
+        storage = FileStorage()
+        trace_mgr = TraceManager(storage)
+
+        if request.method == "GET":
+            # List breakpoints
+            breakpoints = trace_mgr.list_breakpoints(file=procedure_name)
+
+            breakpoints_data = [
+                {
+                    "breakpoint_id": bp.breakpoint_id,
+                    "file": bp.file,
+                    "line": bp.line,
+                    "condition": bp.condition,
+                    "enabled": bp.enabled,
+                    "hit_count": bp.hit_count,
+                }
+                for bp in breakpoints
+            ]
+
+            return jsonify({"breakpoints": breakpoints_data})
+
+        elif request.method == "POST":
+            # Set breakpoint
+            data = request.json
+            line = data.get("line")
+            condition = data.get("condition")
+
+            if line is None:
+                return jsonify({"error": "Missing 'line' parameter"}), 400
+
+            breakpoint = trace_mgr.set_breakpoint(
+                file=procedure_name, line=line, condition=condition
+            )
+
+            return (
+                jsonify(
+                    {
+                        "breakpoint_id": breakpoint.breakpoint_id,
+                        "file": breakpoint.file,
+                        "line": breakpoint.line,
+                        "condition": breakpoint.condition,
+                        "enabled": breakpoint.enabled,
+                        "hit_count": breakpoint.hit_count,
+                    }
+                ),
+                201,
+            )
+
+    except Exception as e:
+        logger.error(f"Error managing breakpoints: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/traces/compare", methods=["POST"])
+def compare_runs():
+    """
+    Compare two execution runs for debugging non-determinism.
+
+    Request body:
+        - run_id1: First run identifier
+        - run_id2: Second run identifier
+    """
+    try:
+        from tactus.adapters.file_storage import FileStorage
+        from tactus.tracing import TraceManager
+
+        data = request.json
+        run_id1 = data.get("run_id1")
+        run_id2 = data.get("run_id2")
+
+        if not run_id1 or not run_id2:
+            return jsonify({"error": "Missing run_id1 or run_id2"}), 400
+
+        storage = FileStorage()
+        trace_mgr = TraceManager(storage)
+
+        comparison = trace_mgr.compare_runs(run_id1, run_id2)
+
+        return jsonify(comparison)
+
+    except FileNotFoundError as e:
+        return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        logger.error(f"Error comparing runs: {e}")
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == "__main__":
