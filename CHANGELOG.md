@@ -2,19 +2,8 @@
 
 <!-- version list -->
 
-## Unreleased
+## v0.12.0 (2026-01-01)
 
-### Features
-
-- **inputs**: Comprehensive input system across CLI, SDK, and GUI
-  - CLI: Added `--interactive` flag for interactive input prompting
-  - CLI: Automatic prompting for missing required inputs
-  - CLI: Support for all data types (string, number, boolean, array, object)
-  - GUI: Modal dialog for input collection before procedure execution
-  - GUI: Type-specific form controls (text, number, checkbox, textarea, dropdown)
-  - SDK: Full support for passing inputs via context parameter
-  - Data: Seamless Python to Lua conversion (lists to 1-indexed tables, dicts to tables)
-  - Fixed critical bug where CLI parameters were parsed twice, breaking array/object inputs
 
 ## v0.11.0 (2026-01-01)
 
