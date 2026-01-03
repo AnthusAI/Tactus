@@ -62,9 +62,9 @@ The IDE uses a two-layer validation approach:
 - Vite (dev server + build tool)
 
 **Backend:**
-- Python Flask
+- Python Flask server at `tactus/ide/server.py`
 - Language Server Protocol (LSP)
-- WebSocket for real-time communication
+- Server-Sent Events (SSE) for streaming execution
 - Tactus runtime integration
 
 **Desktop:**
@@ -83,7 +83,7 @@ The IDE uses a two-layer validation approach:
 
 2. **Edit files:**
    - Frontend: `tactus-ide/frontend/src/**/*`
-   - Backend: `tactus/ide/server.py` or `tactus-ide/backend/app.py`
+   - Backend: `tactus/ide/server.py` (the one and only backend server)
    - Components: `tactus-ide/frontend/src/components/**/*`
 
 3. **See changes instantly:**
@@ -130,8 +130,11 @@ tactus-ide/
 │   ├── package.json
 │   └── vite.config.ts       # Vite configuration
 └── backend/
-    ├── app.py               # Flask API server
-    └── requirements.txt
+    ├── lsp_server.py        # LSP protocol implementation
+    └── tactus_lsp_handler.py # LSP handler for validation
+
+tactus/ide/
+└── server.py                # Flask backend server (THE backend)
 ```
 
 ## Features

@@ -646,30 +646,46 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             logger.error(f"Error running procedure {file_path}: {e}")
             return jsonify({"error": str(e)}), 500
 
-    @app.route("/api/run/stream", methods=["GET"])
+    @app.route("/api/run/stream", methods=["GET", "POST"])
     def run_procedure_stream():
         """
         Run a Tactus procedure with SSE streaming output.
 
-        Query params:
-        - path: workspace-relative path to procedure file (required)
-        - inputs: JSON-encoded input parameters (optional)
+        For GET:
+        - path: workspace-relative path to procedure file (required, query param)
+        - inputs: JSON-encoded input parameters (optional, query param)
+
+        For POST:
+        - path: workspace-relative path to procedure file (required, JSON body)
+        - content: optional file content to save before running (JSON body)
+        - inputs: input parameters as object (optional, JSON body)
         """
-        file_path = request.args.get("path")
-        inputs_json = request.args.get("inputs", "{}")
+        if request.method == "POST":
+            data = request.json or {}
+            file_path = data.get("path")
+            content = data.get("content")
+            inputs = data.get("inputs", {})
+        else:
+            file_path = request.args.get("path")
+            content = None
+            inputs_json = request.args.get("inputs", "{}")
+            # Parse inputs JSON for GET
+            try:
+                inputs = json.loads(inputs_json) if inputs_json else {}
+            except json.JSONDecodeError as e:
+                return jsonify({"error": f"Invalid 'inputs' JSON: {e}"}), 400
 
         if not file_path:
             return jsonify({"error": "Missing 'path' parameter"}), 400
 
-        # Parse inputs JSON
-        try:
-            inputs = json.loads(inputs_json) if inputs_json else {}
-        except json.JSONDecodeError as e:
-            return jsonify({"error": f"Invalid 'inputs' JSON: {e}"}), 400
-
         try:
             # Resolve path within workspace
             path = _resolve_workspace_path(file_path)
+
+            # Save content if provided (POST requests can include file content)
+            if content is not None:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(content)
 
             # Ensure file exists
             if not path.exists():
