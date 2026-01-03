@@ -53,29 +53,30 @@ async def test_integration():
     if runtime.execution_context:
         status = "COMPLETED" if success else "FAILED"
         run_id = runtime.execution_context.save_execution_run(
-            procedure_name="checkpoint_test",
-            file_path=str(example_path.absolute()),
-            status=status
+            procedure_name="checkpoint_test", file_path=str(example_path.absolute()), status=status
         )
         print(f"✓ Saved ExecutionRun with ID: {run_id}")
 
         # Verify it was saved
         try:
             loaded_run = storage.load_run(run_id)
-            print(f"✓ Successfully loaded run back from storage")
+            print("✓ Successfully loaded run back from storage")
             print(f"  - Status: {loaded_run.status}")
             print(f"  - Checkpoints: {len(loaded_run.execution_log)}")
 
             # Test API
             print("\n→ Testing TraceManager API...")
             from tactus.tracing import TraceManager
+
             trace_mgr = TraceManager(storage)
 
             runs = trace_mgr.list_runs(limit=10)
             print(f"✓ Found {len(runs)} total runs")
 
             for i, run in enumerate(runs[-3:], 1):
-                print(f"  {i}. {run.procedure_name}: {run.status} ({len(run.execution_log)} checkpoints)")
+                print(
+                    f"  {i}. {run.procedure_name}: {run.status} ({len(run.execution_log)} checkpoints)"
+                )
 
             print("\n" + "=" * 60)
             print("✓ ALL TESTS PASSED")
@@ -90,6 +91,7 @@ async def test_integration():
         except Exception as e:
             print(f"❌ Failed to load run: {e}")
             import traceback
+
             traceback.print_exc()
             return False
     else:

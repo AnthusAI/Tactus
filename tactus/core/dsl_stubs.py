@@ -73,12 +73,16 @@ def _normalize_schema(schema):
     return schema
 
 
-def create_dsl_stubs(builder: RegistryBuilder) -> dict[str, Callable]:
+def create_dsl_stubs(builder: RegistryBuilder, tool_primitive: Any = None) -> dict[str, Callable]:
     """
     Create DSL stub functions that populate the registry.
 
     These functions are injected into the Lua environment before
     executing the .tac file.
+
+    Args:
+        builder: RegistryBuilder to register declarations
+        tool_primitive: Optional ToolPrimitive for creating callable ToolHandles
     """
     # Global registry for named procedure stubs to find their implementations
     _procedure_registry = {}
@@ -189,16 +193,42 @@ def create_dsl_stubs(builder: RegistryBuilder) -> dict[str, Callable]:
         """Register a toolset definition."""
         builder.register_toolset(toolset_name, lua_table_to_dict(config))
 
-    def _tool(tool_name: str, config, handler_fn) -> None:
-        """Register an individual Lua tool.
+    def _tool(tool_name: str, config, handler_fn):
+        """
+        Register an individual Lua tool and return a callable ToolHandle.
+
+        Syntax matches agent() and procedure(): name first, config second, function third.
 
         Args:
-            tool_name: Name of the tool
-            config: Table with description, parameters
-            handler_fn: Lua function to call when tool is invoked
+            tool_name: Name of the tool (used for tracking and agent toolsets)
+            config: Configuration table with description and parameters
+            handler_fn: Lua function that implements the tool
+
+        Returns:
+            ToolHandle that can be called directly to execute the tool
+
+        Example (Lua):
+            local calculate_tip = tool("calculate_tip", {
+                description = "Calculate tip amount for a bill",
+                parameters = {
+                    bill_amount = {type = "number", required = true},
+                    tip_percentage = {type = "number", required = true}
+                }
+            }, function(args)
+                return args.bill_amount * args.tip_percentage / 100
+            end)
+
+            local result = calculate_tip({bill_amount = 50, tip_percentage = 20})
         """
+        from tactus.primitives.tool_handle import ToolHandle
+
         config_dict = lua_table_to_dict(config)
+
+        # Register in builder (for agent toolsets)
         builder.register_tool(tool_name, config_dict, handler_fn)
+
+        # Return callable ToolHandle for direct invocation
+        return ToolHandle(tool_name, handler_fn, tool_primitive)
 
     def _hitl(hitl_name: str, config) -> None:
         """Register a HITL interaction point."""

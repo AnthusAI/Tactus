@@ -7,6 +7,7 @@ interface MessageFeedProps {
   events: AnyEvent[];
   clustered?: boolean;
   showFullLogs?: boolean;
+  onJumpToSource?: (filePath: string, lineNumber: number) => void;
 }
 
 /**
@@ -40,10 +41,11 @@ function clusterEvents(events: AnyEvent[]): (LogEvent[] | AnyEvent)[] {
   return clusters;
 }
 
-export const MessageFeed: React.FC<MessageFeedProps> = ({ 
-  events, 
+export const MessageFeed: React.FC<MessageFeedProps> = ({
+  events,
   clustered = false,
-  showFullLogs = false 
+  showFullLogs = false,
+  onJumpToSource
 }) => {
   const displayItems = useMemo(() => {
     return clustered ? clusterEvents(events) : events;
@@ -53,13 +55,13 @@ export const MessageFeed: React.FC<MessageFeedProps> = ({
     <div className="flex flex-col">
       {displayItems.map((item, index) => {
         const isAlternate = index % 2 === 1;
-        
+
         if (Array.isArray(item)) {
           // It's a log cluster
           return (
-            <LogCluster 
-              key={index} 
-              events={item} 
+            <LogCluster
+              key={index}
+              events={item}
               showFullLogs={showFullLogs}
               isAlternate={isAlternate}
             />
@@ -67,10 +69,11 @@ export const MessageFeed: React.FC<MessageFeedProps> = ({
         } else {
           // It's a single event
           return (
-            <EventRenderer 
-              key={index} 
-              event={item} 
+            <EventRenderer
+              key={index}
+              event={item}
               isAlternate={isAlternate}
+              onJumpToSource={onJumpToSource}
             />
           );
         }

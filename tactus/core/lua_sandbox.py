@@ -92,7 +92,6 @@ class LuaSandbox:
         dangerous_modules = [
             "io",  # File I/O
             "os",  # Operating system operations
-            "debug",  # Debug library (can break sandbox)
             "package",  # Module loading
             "dofile",  # Load and execute files
             "loadfile",  # Load files
@@ -106,6 +105,21 @@ class LuaSandbox:
             if module in lua_globals:
                 lua_globals[module] = None
                 logger.debug(f"Removed dangerous module/function: {module}")
+
+        # Whitelist only safe debug functions for source location tracking
+        # Keep debug.getinfo but remove dangerous debug functions
+        if "debug" in lua_globals:
+            self.lua.execute(
+                """
+                if debug then
+                    local safe_debug = {
+                        getinfo = debug.getinfo
+                    }
+                    debug = safe_debug
+                end
+            """
+            )
+            logger.debug("Replaced debug module with safe_debug (only getinfo allowed)")
 
     def _setup_safe_globals(self):
         """Setup safe global functions and utilities."""

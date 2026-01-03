@@ -13,8 +13,9 @@ import os
 os.environ["PYDANTIC_DISABLE_PLUGINS"] = "1"
 
 import asyncio
+import json
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 import logging
 import sys
 
@@ -22,6 +23,7 @@ import typer
 from rich.console import Console
 from rich.logging import RichHandler
 from rich.panel import Panel
+from rich.prompt import Prompt, Confirm
 from rich.table import Table
 from dotyaml import load_config
 
@@ -118,6 +120,204 @@ def setup_logging(verbose: bool = False):
     )
 
 
+def _parse_value(value_str: str, field_type: str) -> Any:
+    """
+    Parse a string value into the appropriate type.
+
+    Args:
+        value_str: The string value to parse
+        field_type: The expected type (string, number, boolean, array, object)
+
+    Returns:
+        The parsed value in the appropriate type
+    """
+    if field_type == "boolean":
+        return value_str.lower() in ("true", "yes", "1", "y")
+    elif field_type == "number":
+        try:
+            if "." in value_str:
+                return float(value_str)
+            return int(value_str)
+        except ValueError:
+            return 0
+    elif field_type == "array":
+        try:
+            return json.loads(value_str)
+        except json.JSONDecodeError:
+            # Try to parse as comma-separated values
+            if value_str.strip():
+                return [v.strip() for v in value_str.split(",")]
+            return []
+    elif field_type == "object":
+        try:
+            return json.loads(value_str)
+        except json.JSONDecodeError:
+            return {}
+    else:
+        return value_str
+
+
+def _prompt_for_inputs(console: Console, input_schema: dict, provided_params: dict) -> dict:
+    """
+    Interactively prompt user for procedure inputs.
+
+    Displays all inputs with their types, descriptions, and defaults,
+    then prompts the user to confirm or modify each value.
+
+    Args:
+        console: Rich Console for output
+        input_schema: Dict of input name -> field definition
+        provided_params: Already provided --param values
+
+    Returns:
+        Dict of resolved input values
+    """
+    if not input_schema:
+        return provided_params.copy()
+
+    console.print(Panel("[bold]Procedure Inputs[/bold]", style="blue"))
+
+    # Display input schema summary
+    table = Table(title="Input Parameters")
+    table.add_column("Name", style="cyan")
+    table.add_column("Type", style="magenta")
+    table.add_column("Required", style="yellow")
+    table.add_column("Default", style="green")
+    table.add_column("Current", style="blue")
+
+    for name, field in input_schema.items():
+        required = "Yes" if field.get("required") else "No"
+        default = str(field.get("default", "-")) if field.get("default") is not None else "-"
+        current = str(provided_params.get(name, "-")) if name in provided_params else "-"
+        table.add_row(name, field.get("type", "string"), required, default, current)
+
+    console.print(table)
+    console.print()
+
+    # Prompt for each input
+    resolved = {}
+    for name, field in input_schema.items():
+        field_type = field.get("type", "string")
+        description = field.get("description", "")
+        required = field.get("required", False)
+        enum_values = field.get("enum")
+
+        # Determine current value (provided > default)
+        if name in provided_params:
+            current_value = provided_params[name]
+        elif field.get("default") is not None:
+            current_value = field.get("default")
+        else:
+            current_value = None
+
+        # Build prompt message
+        prompt_msg = f"[cyan]{name}[/cyan]"
+        if description:
+            prompt_msg += f" [dim]({description})[/dim]"
+        if required:
+            prompt_msg += " [yellow]*[/yellow]"
+
+        # Handle different types
+        if field_type == "boolean":
+            default_bool = bool(current_value) if current_value is not None else False
+            value = Confirm.ask(prompt_msg, default=default_bool, console=console)
+
+        elif enum_values and isinstance(enum_values, list):
+            # Show enum options
+            console.print(f"\n{prompt_msg}")
+            console.print("[dim]Options:[/dim]")
+            for i, opt in enumerate(enum_values, 1):
+                console.print(f"  {i}. [cyan]{opt}[/cyan]")
+
+            # Find default index
+            default_idx = "1"
+            if current_value in enum_values:
+                default_idx = str(enum_values.index(current_value) + 1)
+
+            while True:
+                choice_str = Prompt.ask(
+                    "Select option (number or value)",
+                    default=default_idx,
+                    console=console,
+                )
+                # Try as number first
+                try:
+                    choice = int(choice_str)
+                    if 1 <= choice <= len(enum_values):
+                        value = enum_values[choice - 1]
+                        break
+                except ValueError:
+                    # Try as direct value
+                    if choice_str in enum_values:
+                        value = choice_str
+                        break
+                console.print(
+                    f"[red]Invalid choice. Enter 1-{len(enum_values)} or a valid option.[/red]"
+                )
+
+        elif field_type == "array":
+            # Format default as JSON string
+            if isinstance(current_value, list):
+                default_str = json.dumps(current_value)
+            elif current_value is not None:
+                default_str = str(current_value)
+            else:
+                default_str = "[]"
+
+            console.print(f"\n{prompt_msg}")
+            console.print("[dim]Enter JSON array (e.g., [1, 2, 3]) or comma-separated values[/dim]")
+            value_str = Prompt.ask("Value", default=default_str, console=console)
+            value = _parse_value(value_str, "array")
+
+        elif field_type == "object":
+            # Format default as JSON string
+            if isinstance(current_value, dict):
+                default_str = json.dumps(current_value)
+            elif current_value is not None:
+                default_str = str(current_value)
+            else:
+                default_str = "{}"
+
+            console.print(f"\n{prompt_msg}")
+            console.print('[dim]Enter JSON object (e.g., {"key": "value"})[/dim]')
+            value_str = Prompt.ask("Value", default=default_str, console=console)
+            value = _parse_value(value_str, "object")
+
+        elif field_type == "number":
+            default_str = str(current_value) if current_value is not None else ""
+            value_str = Prompt.ask(prompt_msg, default=default_str, console=console)
+            value = _parse_value(value_str, "number")
+
+        else:
+            # String or unknown type
+            default_str = str(current_value) if current_value is not None else ""
+            value = Prompt.ask(prompt_msg, default=default_str, console=console)
+
+        resolved[name] = value
+
+    console.print()
+    return resolved
+
+
+def _check_missing_required_inputs(input_schema: dict, provided_params: dict) -> list:
+    """
+    Check for missing required inputs that have no defaults.
+
+    Args:
+        input_schema: Dict of input name -> field definition
+        provided_params: Provided parameter values
+
+    Returns:
+        List of missing required input names
+    """
+    missing = []
+    for name, field in input_schema.items():
+        if field.get("required", False):
+            if name not in provided_params and field.get("default") is None:
+                missing.append(name)
+    return missing
+
+
 @app.command()
 def run(
     workflow_file: Path = typer.Argument(..., help="Path to workflow file (.tac)"),
@@ -128,6 +328,9 @@ def run(
     ),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose logging"),
     param: Optional[list[str]] = typer.Option(None, help="Parameters in format key=value"),
+    interactive: bool = typer.Option(
+        False, "--interactive", "-i", help="Interactively prompt for all inputs"
+    ),
 ):
     """
     Run a Tactus workflow.
@@ -142,6 +345,9 @@ def run(
 
         # Pass parameters
         tactus run workflow.tac --param task="Analyze data" --param count=5
+
+        # Interactive mode - prompt for all inputs
+        tactus run workflow.tac -i
     """
     setup_logging(verbose)
 
@@ -156,7 +362,20 @@ def run(
     # Read workflow file
     source_content = workflow_file.read_text()
 
-    # Parse parameters
+    # For Lua DSL files, extract input schema first
+    input_schema = {}
+    if file_format == "lua":
+        try:
+            validator = TactusValidator()
+            validation_result = validator.validate(source_content, ValidationMode.QUICK)
+            if validation_result.registry:
+                input_schema = validation_result.registry.input_schema or {}
+        except Exception as e:
+            # If validation fails, we'll continue without input schema
+            if verbose:
+                console.print(f"[dim]Warning: Could not extract input schema: {e}[/dim]")
+
+    # Parse parameters from CLI with type information from schema
     context = {}
     if param:
         for p in param:
@@ -166,7 +385,49 @@ def run(
                 )
                 raise typer.Exit(1)
             key, value = p.split("=", 1)
-            context[key] = value
+
+            # Use type information from schema if available
+            if input_schema and key in input_schema:
+                field_def = input_schema[key]
+                if isinstance(field_def, dict):
+                    field_type = field_def.get("type", "string")
+                    context[key] = _parse_value(value, field_type)
+                    if verbose:
+                        console.print(
+                            f"[dim]Parsed {key} as {field_type}: {context[key]} (type: {type(context[key]).__name__})[/dim]"
+                        )
+                else:
+                    # Fallback to JSON parsing
+                    try:
+                        context[key] = json.loads(value)
+                    except json.JSONDecodeError:
+                        context[key] = value
+            else:
+                # No schema info, try to parse JSON values
+                try:
+                    context[key] = json.loads(value)
+                    if verbose:
+                        console.print(
+                            f"[dim]JSON parsed {key}: {context[key]} (type: {type(context[key]).__name__})[/dim]"
+                        )
+                except json.JSONDecodeError:
+                    context[key] = value
+                    if verbose:
+                        console.print(f"[dim]String parsed {key}: {context[key]}[/dim]")
+
+    # Handle interactive mode or missing required inputs
+    if input_schema:
+        missing_required = _check_missing_required_inputs(input_schema, context)
+
+        if interactive:
+            # Interactive mode: prompt for all inputs
+            context = _prompt_for_inputs(console, input_schema, context)
+        elif missing_required:
+            # Missing required inputs - prompt for them
+            console.print(
+                f"[yellow]Missing required inputs: {', '.join(missing_required)}[/yellow]\n"
+            )
+            context = _prompt_for_inputs(console, input_schema, context)
 
     # Setup storage backend
     if storage == "memory":
@@ -205,13 +466,9 @@ def run(
     # Get MCP servers from merged config
     mcp_servers = merged_config.get("mcp_servers", {})
 
-    # Override context params with CLI params (CLI takes precedence)
-    if param:
-        # Merge: CLI params override config params
-        for p in param:
-            if "=" in p:
-                key, value = p.split("=", 1)
-                context[key] = value
+    # Note: CLI params have already been parsed and added to context above
+    # This section used to re-parse them, but that would override the
+    # properly JSON-parsed values with raw strings
 
     # Create log handler for Rich formatting
     from tactus.adapters.cli_log import CLILogHandler
@@ -235,14 +492,12 @@ def run(
         openai_api_key=api_key,
         log_handler=log_handler,
         tool_paths=tool_paths,
+        source_file_path=str(workflow_file),
     )
 
     # Execute procedure
     console.print(
-        Panel(
-            f"Running procedure: [bold]{workflow_file.name}[/bold] ({file_format} format)",
-            style="blue",
-        )
+        f"[blue]Running procedure:[/blue] [bold]{workflow_file.name}[/bold] ({file_format} format)\n"
     )
 
     try:
@@ -253,7 +508,8 @@ def run(
 
             # Display results
             if result.get("result"):
-                console.print(Panel(str(result["result"]), title="Result", style="green"))
+                console.print("\n[green]Result:[/green]")
+                console.print(f"  {result['result']}")
 
             # Display state
             if result.get("state"):
@@ -441,6 +697,113 @@ def validate(
         console.print(f"[red]{e}[/red]")
         if verbose:
             console.print_exception()
+        raise typer.Exit(1)
+
+
+@app.command()
+def info(
+    workflow_file: Path = typer.Argument(..., help="Path to workflow file (.tac or .lua)"),
+):
+    """
+    Display procedure metadata (agents, tools, parameters, outputs).
+
+    Examples:
+
+        tactus info workflow.tac
+    """
+    # Check if file exists
+    if not workflow_file.exists():
+        console.print(f"[red]Error:[/red] Workflow file not found: {workflow_file}")
+        raise typer.Exit(1)
+
+    # Determine format based on extension
+    file_format = "lua" if workflow_file.suffix in [".tac", ".lua"] else "yaml"
+
+    # Read workflow file
+    source_content = workflow_file.read_text()
+
+    console.print(f"[blue]Procedure info:[/blue] [bold]{workflow_file.name}[/bold]\n")
+
+    try:
+        if file_format == "lua":
+            # Use validator to parse procedure
+            validator = TactusValidator()
+            result = validator.validate(source_content, ValidationMode.FULL)
+
+            if not result.valid:
+                console.print("[red]✗ Invalid procedure - cannot display info[/red]\n")
+                for error in result.errors:
+                    console.print(f"  [red]•[/red] {error.message}")
+                raise typer.Exit(1)
+
+            registry = result.registry
+
+            # Display procedure name
+            if registry.description:
+                console.print(f"[cyan]Description:[/cyan] {registry.description}\n")
+
+            # Show parameters (input)
+            if registry.input_schema:
+                console.print("[cyan]Parameters:[/cyan]")
+                for name, field_config in registry.input_schema.items():
+                    field_type = field_config.get("type", "any")
+                    required = field_config.get("required", False)
+                    default = field_config.get("default")
+                    req_str = "[yellow](required)[/yellow]" if required else ""
+                    default_str = f" [dim]default: {default}[/dim]" if default is not None else ""
+                    console.print(f"  [bold]{name}[/bold]: {field_type} {req_str}{default_str}")
+                console.print()
+
+            # Show outputs
+            if registry.output_schema:
+                console.print("[cyan]Outputs:[/cyan]")
+                for name, field_config in registry.output_schema.items():
+                    field_type = field_config.get("type", "any")
+                    required = field_config.get("required", False)
+                    description = field_config.get("description", "")
+                    req_str = "[yellow](required)[/yellow]" if required else ""
+                    desc_str = f" [dim]- {description}[/dim]" if description else ""
+                    console.print(f"  [bold]{name}[/bold]: {field_type} {req_str}{desc_str}")
+                console.print()
+
+            # Show agents
+            if registry.agents:
+                console.print("[cyan]Agents:[/cyan]")
+                for name, agent_def in registry.agents.items():
+                    console.print(f"  [bold]{name}[/bold]:")
+                    console.print(f"    Provider: {agent_def.provider}")
+                    if agent_def.model:
+                        model_str = (
+                            agent_def.model
+                            if isinstance(agent_def.model, str)
+                            else agent_def.model.get("name", "default")
+                        )
+                        console.print(f"    Model: {model_str}")
+                    if agent_def.tools:
+                        tools_str = ", ".join(agent_def.tools)
+                        console.print(f"    Tools: {tools_str}")
+                    if agent_def.system_prompt:
+                        # Show first 100 chars of system prompt
+                        prompt_preview = (
+                            agent_def.system_prompt[:100] + "..."
+                            if len(agent_def.system_prompt) > 100
+                            else agent_def.system_prompt
+                        )
+                        console.print(f"    Prompt: [dim]{prompt_preview}[/dim]")
+                    console.print()
+
+            # Show specifications
+            if registry.specifications:
+                console.print(
+                    f"[cyan]Specifications:[/cyan] {len(registry.specifications)} scenario(s)"
+                )
+
+        else:
+            console.print("[red]Only .tac/.lua files are supported for info command[/red]")
+            raise typer.Exit(1)
+
+    except Exception as e:
+        console.print(f"\n[red]✗ Error displaying info:[/red] {e}")
         raise typer.Exit(1)
 
 

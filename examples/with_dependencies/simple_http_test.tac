@@ -6,11 +6,21 @@
 -- 3. Agent can use the dependency (via MCP tool)
 -- 4. BDD tests can mock the dependency
 
+-- Define completion tool
+tool("done", {
+    description = "Signal completion of the task",
+    parameters = {
+        reason = {type = "string", required = true, description = "Completion message"}
+    }
+}, function(args)
+    return "Done: " .. args.reason
+end)
+
 agent("test_agent", {
     provider = "openai",
     model = "gpt-4o",
     system_prompt = "You are a test agent",
-    tools = {"done"}
+    toolsets = {"done"}
 })
 
 main = procedure("main", {

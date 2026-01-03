@@ -80,6 +80,7 @@ class TactusRuntime:
         tool_paths: Optional[list] = None,
         external_config: Optional[Dict[str, Any]] = None,
         run_id: Optional[str] = None,
+        source_file_path: Optional[str] = None,
     ):
         """
         Initialize the Tactus runtime.
@@ -98,6 +99,7 @@ class TactusRuntime:
             tool_paths: Optional list of paths to scan for local Python tool plugins
             external_config: Optional external config (from .tac.yml) to merge with DSL config
             run_id: Optional run identifier for tagging checkpoints
+            source_file_path: Optional path to the .tac file being executed (for accurate source locations)
         """
         self.procedure_id = procedure_id
         self.storage_backend = storage_backend
@@ -114,6 +116,7 @@ class TactusRuntime:
         self.recursion_depth = recursion_depth
         self.external_config = external_config or {}
         self.run_id = run_id
+        self.source_file_path = source_file_path
 
         # Will be initialized during setup
         self.config: Optional[Dict[str, Any]] = None  # Legacy YAML support
@@ -192,6 +195,7 @@ class TactusRuntime:
 
             # 0b. For Lua DSL, inject placeholder primitives BEFORE parsing
             # so they're available in the procedure function's closure
+            placeholder_tool = None  # Will be set for Lua DSL
             if format == "lua":
                 logger.debug("Pre-injecting placeholder primitives for Lua DSL parsing")
                 # Import here to avoid issues with YAML format
@@ -202,7 +206,10 @@ class TactusRuntime:
                 # Create minimal primitives that don't need full config
                 placeholder_log = LuaLogPrimitive(procedure_id=self.procedure_id)
                 placeholder_state = LuaStatePrimitive()
-                placeholder_tool = LuaToolPrimitive()
+                # Create tool primitive with log_handler so direct tool calls are tracked
+                placeholder_tool = LuaToolPrimitive(
+                    log_handler=self.log_handler, procedure_id=self.procedure_id
+                )
                 placeholder_params = {}  # Empty params dict
                 self.lua_sandbox.inject_primitive("Log", placeholder_log)
                 self.lua_sandbox.inject_primitive("State", placeholder_state)  # Capital S
@@ -213,7 +220,8 @@ class TactusRuntime:
             # 1. Parse configuration (Lua DSL or YAML)
             if format == "lua":
                 logger.info("Step 1: Parsing Lua DSL configuration")
-                self.registry = self._parse_declarations(source)
+                # Pass placeholder_tool so tool() can return callable ToolHandles
+                self.registry = self._parse_declarations(source, placeholder_tool)
                 logger.info("Loaded procedure from Lua DSL")
                 # Convert registry to config dict for compatibility
                 self.config = self._registry_to_config(self.registry)
@@ -255,7 +263,8 @@ class TactusRuntime:
 
             # 4. Initialize primitives
             logger.info("Step 4: Initializing primitives")
-            await self._initialize_primitives()
+            # Pass placeholder_tool so direct tool calls are tracked in the same primitive
+            await self._initialize_primitives(placeholder_tool=placeholder_tool)
 
             # 4b. Initialize template resolver and session manager
             self.template_resolver = TemplateResolver(
@@ -281,6 +290,7 @@ class TactusRuntime:
                 storage_backend=self.storage_backend,
                 hitl_handler=self.hitl_handler,
                 strict_determinism=strict_determinism,
+                log_handler=self.log_handler,
             )
 
             # Set run_id if provided
@@ -288,8 +298,23 @@ class TactusRuntime:
                 self.execution_context.set_run_id(self.run_id)
             logger.debug("BaseExecutionContext created")
 
+            # Set .tac file path for accurate source location capture
+            if format == "lua" and self.source_file_path:
+                self.execution_context.set_tac_file(self.source_file_path, source)
+                logger.info(f"✓ Set .tac file path: {self.source_file_path}")
+                with open("/tmp/tactus-debug.log", "a") as f:
+                    f.write(f"DEBUG: Set .tac file path: {self.source_file_path}\n")
+            elif format == "lua":
+                logger.warning("✗ .tac file path NOT set - source_file_path is None or empty")
+                with open("/tmp/tactus-debug.log", "a") as f:
+                    f.write(
+                        f"DEBUG: .tac file path NOT set - source_file_path={self.source_file_path}\n"
+                    )
+
             # 6b. Attach execution context to sandbox for determinism checking
             self.lua_sandbox.set_execution_context(self.execution_context)
+            # Also store lua_sandbox reference on execution_context for debug.getinfo access
+            self.execution_context.set_lua_sandbox(self.lua_sandbox)
             logger.debug("ExecutionContext connected to LuaSandbox for determinism checking")
 
             # 7. Initialize HITL and checkpoint primitives (require execution_context)
@@ -411,6 +436,26 @@ class TactusRuntime:
             if self.log_handler:
                 from tactus.protocols.models import ExecutionSummaryEvent
 
+                # Compute checkpoint metrics from execution log
+                checkpoint_count = 0
+                checkpoint_types = {}
+                checkpoint_duration_ms = 0.0
+
+                if self.execution_context and hasattr(self.execution_context, "metadata"):
+                    checkpoints = self.execution_context.metadata.execution_log
+                    checkpoint_count = len(checkpoints)
+
+                    for checkpoint in checkpoints:
+                        # Count by type
+                        checkpoint_type = checkpoint.type
+                        checkpoint_types[checkpoint_type] = (
+                            checkpoint_types.get(checkpoint_type, 0) + 1
+                        )
+
+                        # Sum durations
+                        if checkpoint.duration_ms:
+                            checkpoint_duration_ms += checkpoint.duration_ms
+
                 summary_event = ExecutionSummaryEvent(
                     result=validated_result,
                     final_state=final_state,
@@ -422,6 +467,11 @@ class TactusRuntime:
                     total_cost=total_cost,
                     total_tokens=total_tokens,
                     cost_breakdown=cost_breakdown,
+                    checkpoint_count=checkpoint_count,
+                    checkpoint_types=checkpoint_types,
+                    checkpoint_duration_ms=(
+                        checkpoint_duration_ms if checkpoint_duration_ms > 0 else None
+                    ),
                     exit_code=0,  # Success
                 )
                 self.log_handler.log(summary_event)
@@ -603,8 +653,14 @@ class TactusRuntime:
                 except Exception as e:
                     logger.warning(f"Error cleaning up dependencies: {e}")
 
-    async def _initialize_primitives(self):
-        """Initialize all primitive objects."""
+    async def _initialize_primitives(self, placeholder_tool: Optional[ToolPrimitive] = None):
+        """Initialize all primitive objects.
+
+        Args:
+            placeholder_tool: Optional ToolPrimitive created during DSL parsing.
+                              If provided, it will be reused to preserve direct tool
+                              call tracking from ToolHandles.
+        """
         # Get state schema from registry if available
         state_schema = self.registry.state_schema if self.registry else {}
         self.state_primitive = StatePrimitive(state_schema=state_schema)
@@ -615,8 +671,17 @@ class TactusRuntime:
         if self._injected_tool_primitive:
             self.tool_primitive = self._injected_tool_primitive
             logger.info("Using injected tool primitive (mock mode)")
+        elif placeholder_tool:
+            # Reuse placeholder_tool so direct tool calls from ToolHandles are tracked
+            self.tool_primitive = placeholder_tool
+            logger.debug("Reusing placeholder tool primitive for direct tool call tracking")
         else:
-            self.tool_primitive = ToolPrimitive()
+            self.tool_primitive = ToolPrimitive(
+                log_handler=self.log_handler, procedure_id=self.procedure_id
+            )
+
+        # Connect tool primitive to runtime for Tool.get() support
+        self.tool_primitive.set_runtime(self)
 
         # Initialize toolset primitive (needs runtime reference for resolution)
         from tactus.primitives.toolset import ToolsetPrimitive
@@ -647,48 +712,18 @@ class TactusRuntime:
 
     async def _initialize_toolsets(self):
         """
-        Load and register all toolsets from config and built-in sources.
+        Load and register all toolsets from config and DSL-defined sources.
 
         This method:
-        1. Registers built-in toolsets (like "done")
-        2. Loads config-defined toolsets from YAML
-        3. Registers MCP toolsets by server name
-        4. Registers plugin toolset if tool_paths configured
+        1. Loads config-defined toolsets from YAML
+        2. Registers MCP toolsets by server name
+        3. Registers plugin toolset if tool_paths configured
+        4. Registers DSL-defined toolsets (from tool() declarations)
+
+        Note: There are no built-in toolsets. Programmers must define their own
+        tools using tool() declarations in their .tac files.
         """
-        from pydantic_ai.toolsets import FunctionToolset
-
-        # 1. Register built-in "done" toolset (always available)
-        try:
-            # Create done function that integrates with tool_primitive and stop_primitive
-            def done(reason: str = "Task completed") -> str:
-                """
-                Signal that the agent has completed its task.
-
-                Args:
-                    reason: Explanation of what was accomplished
-
-                Returns:
-                    Confirmation message
-                """
-                # Record the tool call
-                if self.tool_primitive:
-                    self.tool_primitive.record_call("done", {"reason": reason}, "Done")
-                    logger.debug(f"Recorded done tool call: {reason}")
-
-                # Request stop
-                if self.stop_primitive:
-                    self.stop_primitive.request(reason)
-                    logger.debug(f"Requested stop: {reason}")
-
-                return f"Done: {reason}"
-
-            builtin_done_toolset = FunctionToolset(tools=[done])
-            self.toolset_registry["done"] = builtin_done_toolset
-            logger.info("Registered built-in 'done' toolset")
-        except Exception as e:
-            logger.error(f"Failed to create built-in 'done' toolset: {e}", exc_info=True)
-
-        # 2. Load config-defined toolsets
+        # 1. Load config-defined toolsets
         config_toolsets = self.config.get("toolsets", {})
         for name, definition in config_toolsets.items():
             try:
@@ -1489,7 +1524,30 @@ class TactusRuntime:
                                 f"Allowed values: {allowed_values}"
                             )
 
-            self.lua_sandbox.set_global("input", input_values)
+            # Convert Python lists/dicts to Lua tables for proper array/object handling
+            def convert_to_lua(value):
+                """Recursively convert Python lists and dicts to Lua tables."""
+                if isinstance(value, list):
+                    # Convert Python list to Lua table (1-indexed)
+                    lua_table = self.lua_sandbox.lua.table()
+                    for i, item in enumerate(value, 1):
+                        lua_table[i] = convert_to_lua(item)
+                    return lua_table
+                elif isinstance(value, dict):
+                    # Convert Python dict to Lua table
+                    lua_table = self.lua_sandbox.lua.table()
+                    for k, v in value.items():
+                        lua_table[k] = convert_to_lua(v)
+                    return lua_table
+                else:
+                    return value
+
+            # Convert all inputs, creating a new Lua table for the input object
+            lua_input = self.lua_sandbox.lua.table()
+            for key, value in input_values.items():
+                lua_input[key] = convert_to_lua(value)
+
+            self.lua_sandbox.set_global("input", lua_input)
             logger.info(f"Injected input into Lua sandbox: {input_values}")
 
         # Inject shared primitives
@@ -1508,8 +1566,33 @@ class TactusRuntime:
         # Inject checkpoint primitives
         if self.step_primitive:
             self.lua_sandbox.inject_primitive("Step", self.step_primitive)
-            # Also inject checkpoint() as a global function for convenience
-            self.lua_sandbox.inject_primitive("checkpoint", self.step_primitive.checkpoint)
+
+            # Inject checkpoint as _python_checkpoint, then wrap it with Lua code
+            # that captures source location using debug.getinfo
+            self.lua_sandbox.inject_primitive("_python_checkpoint", self.step_primitive.checkpoint)
+
+            # Create Lua wrapper that captures source location before calling Python
+            self.lua_sandbox.lua.execute(
+                """
+                function checkpoint(fn)
+                    -- Capture caller's source location (2 levels up: this wrapper -> caller)
+                    local info = debug.getinfo(2, 'Sl')
+                    if info then
+                        local source_info = {
+                            file = info.source,
+                            line = info.currentline or 0
+                        }
+                        -- Call Python checkpoint with source location
+                        return _python_checkpoint(fn, source_info)
+                    else
+                        -- Fallback if debug info not available
+                        return _python_checkpoint(fn, nil)
+                    end
+                end
+            """
+            )
+            logger.debug("Checkpoint wrapper injected with Lua source location tracking")
+
         if self.checkpoint_primitive:
             self.lua_sandbox.inject_primitive("Checkpoint", self.checkpoint_primitive)
             logger.debug("Step and Checkpoint primitives injected")
@@ -1778,12 +1861,15 @@ class TactusRuntime:
             return self.stop_primitive.requested()
         return False
 
-    def _parse_declarations(self, source: str) -> ProcedureRegistry:
+    def _parse_declarations(
+        self, source: str, tool_primitive: Optional[ToolPrimitive] = None
+    ) -> ProcedureRegistry:
         """
         Execute .tac to collect declarations.
 
         Args:
             source: Lua DSL source code
+            tool_primitive: Optional ToolPrimitive for creating callable ToolHandles
 
         Returns:
             ProcedureRegistry with all declarations
@@ -1796,8 +1882,8 @@ class TactusRuntime:
         # Use the existing sandbox so procedure functions have access to primitives
         sandbox = self.lua_sandbox
 
-        # Inject DSL stubs
-        stubs = create_dsl_stubs(builder)
+        # Inject DSL stubs (pass tool_primitive so tool() can return callable handles)
+        stubs = create_dsl_stubs(builder, tool_primitive)
         for name, stub in stubs.items():
             sandbox.set_global(name, stub)
 

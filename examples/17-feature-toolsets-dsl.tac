@@ -1,6 +1,16 @@
 -- DSL Toolset Integration Example
 -- Demonstrates defining toolsets directly in the .tac file using the toolset() function
 
+-- Define completion tool
+tool("done", {
+    description = "Signal completion of the task",
+    parameters = {
+        reason = {type = "string", required = true, description = "Completion message"}
+    }
+}, function(args)
+    return "Done: " .. args.reason
+end)
+
 -- Define a custom toolset using DSL
 toolset("math_tools", {
     type = "plugin",

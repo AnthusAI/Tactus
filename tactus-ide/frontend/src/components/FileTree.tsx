@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ChevronRight, ChevronDown, Folder, File, Code } from 'lucide-react';
+import { ChevronRight, ChevronDown, Folder, File, FilePlay } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface TreeEntry {
@@ -70,7 +70,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({ entry, level, onFileSelect, selecte
       return expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />;
     }
     if (isTactusFile) {
-      return <Code className="h-4 w-4 text-blue-500" />;
+      return <FilePlay className="h-4 w-4 text-blue-500" />;
     }
     return <File className="h-4 w-4" />;
   };

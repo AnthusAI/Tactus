@@ -203,12 +203,47 @@ export interface AgentStreamChunkEvent extends BaseEvent {
   procedure_id?: string;
 }
 
-export type AnyEvent = 
+export interface AgentTurnEvent extends BaseEvent {
+  event_type: 'agent_turn';
+  agent_name: string;
+  stage: 'started' | 'completed';
+  duration_ms?: number;
+  timestamp: string;
+  procedure_id?: string;
+}
+
+export interface ToolCallEvent extends BaseEvent {
+  event_type: 'tool_call';
+  agent_name: string;
+  tool_name: string;
+  tool_args: Record<string, any>;
+  tool_result: any;
+  duration_ms?: number;
+  timestamp: string;
+  procedure_id?: string;
+}
+
+export interface CheckpointCreatedEvent extends BaseEvent {
+  event_type: 'checkpoint_created';
+  checkpoint_position: number;
+  checkpoint_type: string;
+  duration_ms?: number;
+  source_location?: {
+    file: string;
+    line: number;
+    function?: string;
+    code_context?: string;
+  };
+  timestamp: string;
+  procedure_id?: string;
+}
+
+export type AnyEvent =
   | LogEvent
   | CostEvent
-  | ExecutionEvent 
-  | OutputEvent 
-  | ValidationEvent 
+  | ExecutionEvent
+  | OutputEvent
+  | ValidationEvent
   | ExecutionSummaryEvent
   | TestStartedEvent
   | TestCompletedEvent
@@ -218,7 +253,10 @@ export type AnyEvent =
   | EvaluationCompletedEvent
   | EvaluationProgressEvent
   | LoadingEvent
-  | AgentStreamChunkEvent;
+  | AgentStreamChunkEvent
+  | AgentTurnEvent
+  | ToolCallEvent
+  | CheckpointCreatedEvent;
 
 
 

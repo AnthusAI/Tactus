@@ -225,6 +225,13 @@ class ExecutionSummaryEvent(BaseModel):
     total_tokens: int = Field(default=0, description="Total tokens used")
     cost_breakdown: list[Any] = Field(default_factory=list, description="Per-call cost details")
 
+    # Checkpoint tracking
+    checkpoint_count: int = Field(default=0, description="Total number of checkpoints")
+    checkpoint_types: Dict[str, int] = Field(
+        default_factory=dict, description="Checkpoint count by type"
+    )
+    checkpoint_duration_ms: Optional[float] = Field(None, description="Total checkpoint duration")
+
     # Exit code and error information
     exit_code: Optional[int] = Field(
         default=0, description="Exit code (0 for success, non-zero for error)"
@@ -236,6 +243,41 @@ class ExecutionSummaryEvent(BaseModel):
         default=None, description="Error type/class name if execution failed"
     )
     traceback: Optional[str] = Field(default=None, description="Full traceback if execution failed")
+
+    model_config = {"arbitrary_types_allowed": True}
+
+
+class ToolCallEvent(BaseModel):
+    """Event emitted when a tool is called by an agent."""
+
+    event_type: str = Field(default="tool_call", description="Event type")
+    agent_name: str = Field(..., description="Agent that called the tool")
+    tool_name: str = Field(..., description="Name of the tool called")
+    tool_args: Dict[str, Any] = Field(
+        default_factory=dict, description="Arguments passed to the tool"
+    )
+    tool_result: Any = Field(None, description="Result returned by the tool")
+    duration_ms: Optional[float] = Field(
+        None, description="Tool execution duration in milliseconds"
+    )
+    timestamp: datetime = Field(default_factory=utc_now, description="Event timestamp")
+    procedure_id: Optional[str] = Field(None, description="Procedure identifier")
+
+    model_config = {"arbitrary_types_allowed": True}
+
+
+class CheckpointCreatedEvent(BaseModel):
+    """Event emitted when a checkpoint is created during execution."""
+
+    event_type: str = Field(default="checkpoint_created", description="Event type")
+    checkpoint_position: int = Field(..., description="Checkpoint position (0, 1, 2, ...)")
+    checkpoint_type: str = Field(
+        ..., description="Checkpoint type (agent_turn, model_predict, etc.)"
+    )
+    duration_ms: Optional[float] = Field(None, description="Operation duration in milliseconds")
+    source_location: Optional[SourceLocation] = Field(None, description="Source code location")
+    timestamp: datetime = Field(default_factory=utc_now, description="Event timestamp")
+    procedure_id: Optional[str] = Field(None, description="Procedure identifier")
 
     model_config = {"arbitrary_types_allowed": True}
 

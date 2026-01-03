@@ -2,6 +2,16 @@
 -- Demonstrates using Claude 4.5 Haiku via AWS Bedrock
 -- Requires AWS credentials in .tactus/config.yml
 
+-- Define completion tool
+tool("done", {
+    description = "Signal completion of the task",
+    parameters = {
+        reason = {type = "string", required = true, description = "Completion message"}
+    }
+}, function(args)
+    return "Done: " .. args.reason
+end)
+
 -- Agent using Claude 4.5 Haiku via Bedrock (using inference profile)
 agent("haiku_assistant", {
     provider = "bedrock",

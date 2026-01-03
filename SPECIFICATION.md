@@ -25,12 +25,22 @@ The Procedure DSL enables defining agentic workflows as configuration. It combin
 **Recommended format** for defining procedures. Lua DSL provides better cohesion by grouping parameters and outputs with the procedure logic.
 
 ```lua
+-- Define completion tool explicitly
+tool("done", {
+    description = "Signal completion of the task",
+    parameters = {
+        reason = {type = "string", required = true, description = "Completion message"}
+    }
+}, function(args)
+    return "Done: " .. args.reason
+end)
+
 -- Agents are defined at top level (reusable across procedures)
 agent("worker", {
     provider = "openai",
     model = "gpt-4o",
     system_prompt = "You are a helpful assistant",
-    tools = {"done"}
+    toolsets = {"done"}  -- References the explicitly defined tool above
 })
 
 -- Stages (optional)
@@ -126,6 +136,16 @@ main = procedure("main", {
         include_sources = {
             type = "boolean",
             default = true
+        },
+        tags = {
+            type = "array",
+            default = {},
+            description = "Tags to filter results"
+        },
+        config = {
+            type = "object",
+            default = {},
+            description = "Advanced configuration options"
         }
     },
 
@@ -134,11 +154,49 @@ main = procedure("main", {
     -- Access input
     local topic = input.topic
     local depth = input.depth
-    -- ...
+
+    -- Arrays are converted to 1-indexed Lua tables
+    for i, tag in ipairs(input.tags) do
+        log("Tag " .. i .. ": " .. tag)
+    end
+
+    -- Objects work as Lua tables
+    if input.config.verbose then
+        log("Verbose mode enabled")
+    end
 end)
 ```
 
 **Type options:** `string`, `number`, `boolean`, `array`, `object`
+
+**Input Sources:**
+
+1. **CLI Parameters**: Pass inputs via `--param key=value`
+   - Arrays: `--param items='[1,2,3]'` or `--param tags="a,b,c"`
+   - Objects: `--param config='{"key":"value"}'`
+   - Booleans: `--param enabled=true`
+   - Numbers: `--param count=5`
+
+2. **Interactive CLI**: Use `--interactive` flag or let CLI prompt for missing required inputs
+   - Shows all inputs in a table with types, descriptions, and defaults
+   - Allows confirmation or modification of each value
+   - Type-appropriate prompts (boolean yes/no, enum selection, JSON for arrays/objects)
+
+3. **GUI Modal**: Automatic form generation before procedure execution
+   - Text inputs for strings
+   - Number inputs for numbers
+   - Checkboxes for booleans
+   - Textareas for arrays/objects (JSON format)
+   - Dropdowns for enums
+
+4. **SDK**: Pass via `context` parameter to `runtime.execute(source, context)`
+
+**Data Type Conversion:**
+
+- Python lists → Lua tables (1-indexed)
+- Python dicts → Lua tables
+- Nested structures are recursively converted
+- Lua code can use standard table operations (`#array`, `ipairs()`, `pairs()`)
 
 Input values are accessed in templates as `{input.topic}` and in Lua as `input.topic`.
 
@@ -228,8 +286,8 @@ agent("researcher", {
     provider = "openai",
     model = "gpt-4o",
     system_prompt = "Research the topic",
-    tools = {"search", "done"},
-    
+    toolsets = {"search", "done"},  -- "done" must be explicitly defined via tool()
+
     message_history = {
         source = "shared",  -- Use shared history
         filter = filters.compose(
@@ -253,8 +311,8 @@ agent("extractor", {
     provider = "openai",
     model = "gpt-4o",
     system_prompt = "Extract structured data from user input",
-    tools = {"done"},
-    
+    toolsets = {"done"},  -- "done" must be explicitly defined via tool()
+
     -- Define structured output schema (aligned with pydantic-ai's output_type)
     output_type = {
         name = {type = "string", required = true},
@@ -1321,6 +1379,16 @@ Tactus supports defining tools as Lua functions directly within `.tac` files. Th
 Define single tools that can be referenced by name:
 
 ```lua
+-- Define completion tool (required - no built-in done tool)
+tool("done", {
+    description = "Signal completion of the task",
+    parameters = {
+        reason = {type = "string", required = true, description = "Completion message"}
+    }
+}, function(args)
+    return "Done: " .. args.reason
+end)
+
 tool("calculate_tip", {
     description = "Calculate tip amount for a bill",
     parameters = {
@@ -1341,14 +1409,67 @@ tool("calculate_tip", {
     return string.format("Tip: $%.2f, Total: $%.2f", tip, total)
 end)
 
--- Reference the tool by name in agent toolsets
+-- Reference tools by name in agent toolsets
 agent("assistant", {
     provider = "openai",
-    toolsets = {"calculate_tip", "done"}
+    toolsets = {"calculate_tip", "done"}  -- Both tools explicitly defined above
 })
 ```
 
 Each `tool()` declaration creates a single-tool toolset accessible by the tool's name.
+
+### Direct Tool Invocation
+
+The `tool()` function returns a callable handle, enabling direct tool invocation from Lua code without agent involvement. This gives programmers deterministic control over when tools execute:
+
+```lua
+-- tool() returns a callable - assign it to use directly
+local calculate_tip = tool("calculate_tip", {
+    description = "Calculate tip amount for a bill",
+    parameters = {
+        bill_amount = {type = "number", required = true},
+        tip_percentage = {type = "number", required = true}
+    }
+}, function(args)
+    local tip = args.bill_amount * (args.tip_percentage / 100)
+    return string.format("Tip: $%.2f", tip)
+end)
+
+local split_bill = tool("split_bill", {
+    description = "Split a bill among people",
+    parameters = {
+        total = {type = "number", required = true},
+        people = {type = "integer", required = true}
+    }
+}, function(args)
+    return string.format("$%.2f per person", args.total / args.people)
+end)
+
+-- Call tools directly - deterministic, no LLM involvement
+local tip_result = calculate_tip({bill_amount = 50, tip_percentage = 20})
+local split_result = split_bill({total = 60, people = 3})
+
+-- Pass multiple results to agent via context
+Assistant.turn({
+    context = {
+        tip_calculation = tip_result,
+        split_calculation = split_result
+    }
+})
+```
+
+Benefits of direct tool invocation:
+- **Deterministic control**: Programmer decides exactly which tools run and when
+- **Composable results**: Combine multiple tool outputs before passing to agents
+- **Reduced token usage**: Tools run without LLM overhead
+- **Testability**: Direct tool calls are easier to unit test
+
+For external tools (MCP servers, plugins), use `Tool.get()`:
+
+```lua
+local web_search = Tool.get("web_search")  -- From MCP server
+local result = web_search({query = "weather"})
+```
 
 ### toolset() with type="lua"
 
@@ -1385,7 +1506,7 @@ toolset("math_tools", {
 
 agent("calculator", {
     provider = "openai",
-    toolsets = {"math_tools", "done"}
+    toolsets = {"math_tools", "done"}  -- "done" must be explicitly defined via tool()
 })
 ```
 
@@ -1421,11 +1542,34 @@ agent("text_processor", {
             end
         }
     },
-    toolsets = {"done"}  -- Can mix inline tools with toolsets
+    toolsets = {"done"}  -- "done" must be explicitly defined via tool()
 })
 ```
 
 Inline tools are automatically prefixed with the agent name (e.g., `text_processor_uppercase`).
+
+**Note: `tools` vs `toolsets` in Agent Config**
+
+In agent configuration:
+- `tools` - For **inline tool definitions** (objects with `name`, `handler`, `parameters`)
+- `toolsets` - For **referencing named toolsets** (strings like `"done"`, `"calculate_tip"`)
+
+```lua
+agent("example", {
+    -- Inline tool definitions (objects with handlers)
+    tools = {
+        {name = "my_tool", handler = function(args) ... end, ...}
+    },
+    -- References to named toolsets (strings)
+    toolsets = {"done", "calculate_tip", "math_tools"}
+})
+```
+
+In `Agent.turn()` per-turn overrides, `tools` specifies which tool names are available for that turn:
+```lua
+Worker.turn({tools = {"search", "done"}})  -- Only these tools for this turn
+Worker.turn({tools = {}})                   -- No tools for this turn
+```
 
 ### Parameter Types
 
@@ -1660,6 +1804,7 @@ The `turn()` method accepts an optional table to override behavior for a single 
 
 **Available overrides:**
 - `inject` (string) - Message to inject for this turn (overrides normal conversation flow)
+- `context` (table) - Key-value pairs to pass as context to the agent (formatted as structured input)
 - `tools` (list of strings) - Tool names available for this turn (empty list = no tools)
 - `temperature` (number) - Override temperature for this turn
 - `max_tokens` (number) - Override max_tokens for this turn
@@ -1673,6 +1818,15 @@ Worker.turn()
 
 -- Turn with injected message (still has all tools)
 Worker.turn({inject = "Focus on security aspects"})
+
+-- Turn with context from tool results (for deterministic tool calling)
+Worker.turn({
+    context = {
+        tip_calculation = tip_result,
+        split_calculation = split_result,
+        original_bill = "$50.00"
+    }
+})
 
 -- Turn with no tools (for summarization)
 Worker.turn({
@@ -1749,6 +1903,7 @@ Stop.reason()
 Tool.called(name)
 Tool.last_result(name)
 Tool.last_call(name)
+Tool.get(name)  -- Get handle to external tool for direct invocation
 Iterations.current()
 Iterations.exceeded(n)
 ```

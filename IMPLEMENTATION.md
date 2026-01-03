@@ -195,6 +195,25 @@ return {result = "done"}
 
 **Template Support**: ✅ Input accessible in templates via `{input.name}`
 
+**CLI Input System**: ✅ Comprehensive input handling
+- `--param key=value` for all types (string, number, boolean, array, object)
+- `--interactive` flag for interactive prompting
+- Automatic prompting for missing required inputs
+- Rich tables showing all inputs with types, descriptions, and defaults
+- Type-specific prompts (boolean yes/no, enum selection, JSON for arrays/objects)
+
+**GUI Input System**: ✅ Modal dialog before execution
+- `ProcedureInputsModal` component with type-specific form controls
+- `ProcedureInputsDisplay` component for showing inputs in results
+- Automatic type detection and appropriate input controls
+- Support for all types including arrays and objects
+
+**Data Type Conversion**: ✅ Python to Lua seamless conversion
+- Python lists → Lua tables (1-indexed)
+- Python dicts → Lua tables
+- Recursive conversion for nested structures
+- Standard Lua table operations work (`#array`, `ipairs()`, `pairs()`)
+
 **Status**: ✅ **Fully Implemented**
 
 ### Output (formerly Outputs)
@@ -1314,11 +1333,30 @@ procedure "order_fulfillment" {
 - ✅ `Tool.called(name)` - Check if tool was called
 - ✅ `Tool.last_result(name)` - Get last result
 - ✅ `Tool.last_call(name)` - Get full call info (name, args, result)
+- ✅ `Tool.get(name)` - Get callable handle to external tool (MCP, plugin)
 
 **Implementation:**
 - Tracks all tool calls in `_tool_calls` list
 - Maintains `_last_calls` dict for quick lookup
 - Records calls automatically when tools execute
+- `Tool.get()` retrieves ToolHandle from runtime's toolset registry for direct invocation
+
+#### Direct Tool Invocation (`tactus/primitives/tool_handle.py`)
+
+**Status**: ✅ **Fully Implemented**
+
+The `tool()` DSL function returns a `ToolHandle` that enables direct tool invocation:
+
+```lua
+local calculate_tip = tool("calculate_tip", {...}, function(args) ... end)
+local result = calculate_tip({bill_amount = 50})  -- Direct invocation
+```
+
+**Implementation:**
+- `ToolHandle` wraps tool function with call tracking
+- Handles both sync and async tool functions (MCP tools)
+- Records all direct calls via `tool_primitive.record_call()`
+- Syntax: `tool("name", {config}, function)` - matches agent/procedure pattern
 
 #### Graph Primitives
 

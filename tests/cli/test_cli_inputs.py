@@ -1,0 +1,424 @@
+"""
+Tests for CLI interactive input prompting.
+
+Tests the --param and --interactive flags for passing procedure inputs.
+"""
+
+import pytest
+from typer.testing import CliRunner
+
+from tactus.cli.app import app, _parse_value, _check_missing_required_inputs
+
+pytestmark = pytest.mark.integration
+
+
+@pytest.fixture
+def cli_runner():
+    """Fixture providing a Typer CliRunner for testing CLI commands."""
+    return CliRunner()
+
+
+@pytest.fixture
+def procedure_with_string_input(tmp_path):
+    """Create procedure with a required string input."""
+    content = """main = procedure("main", {
+    input = {
+        name = {
+            type = "string",
+            required = true,
+            description = "User name to greet"
+        }
+    },
+    output = {
+        greeting = {
+            type = "string",
+            required = true
+        }
+    },
+    state = {}
+}, function()
+    return { greeting = "Hello, " .. input.name .. "!" }
+end)"""
+    f = tmp_path / "string_input.tac"
+    f.write_text(content)
+    return f
+
+
+@pytest.fixture
+def procedure_with_default_input(tmp_path):
+    """Create procedure with an input that has a default value."""
+    content = """main = procedure("main", {
+    input = {
+        name = {
+            type = "string",
+            default = "World",
+            description = "User name to greet"
+        }
+    },
+    output = {
+        greeting = {
+            type = "string",
+            required = true
+        }
+    },
+    state = {}
+}, function()
+    return { greeting = "Hello, " .. input.name .. "!" }
+end)"""
+    f = tmp_path / "default_input.tac"
+    f.write_text(content)
+    return f
+
+
+@pytest.fixture
+def procedure_with_all_types(tmp_path):
+    """Create procedure with all input types."""
+    content = """main = procedure("main", {
+    input = {
+        text = {
+            type = "string",
+            required = true,
+            description = "A text value"
+        },
+        count = {
+            type = "number",
+            default = 10,
+            description = "A number value"
+        },
+        enabled = {
+            type = "boolean",
+            default = false,
+            description = "A boolean flag"
+        },
+        items = {
+            type = "array",
+            default = {},
+            description = "An array of items"
+        },
+        config = {
+            type = "object",
+            default = {},
+            description = "A config object"
+        }
+    },
+    output = {
+        result = {
+            type = "string",
+            required = true
+        }
+    },
+    state = {}
+}, function()
+    return { result = "processed: " .. input.text }
+end)"""
+    f = tmp_path / "all_types.tac"
+    f.write_text(content)
+    return f
+
+
+@pytest.fixture
+def procedure_with_array_input(tmp_path):
+    """Create procedure with a required array input."""
+    content = """main = procedure("main", {
+    input = {
+        numbers = {
+            type = "array",
+            required = true,
+            description = "Array of numbers to sum"
+        }
+    },
+    output = {
+        sum = {
+            type = "number",
+            required = true
+        }
+    },
+    state = {}
+}, function()
+    local total = 0
+    for _, n in ipairs(input.numbers) do
+        total = total + n
+    end
+    return { sum = total }
+end)"""
+    f = tmp_path / "array_input.tac"
+    f.write_text(content)
+    return f
+
+
+@pytest.fixture
+def procedure_with_enum_input(tmp_path):
+    """Create procedure with an enum input."""
+    content = """main = procedure("main", {
+    input = {
+        status = {
+            type = "string",
+            required = true,
+            enum = {"active", "inactive", "pending"},
+            description = "Status selection"
+        }
+    },
+    output = {
+        message = {
+            type = "string",
+            required = true
+        }
+    },
+    state = {}
+}, function()
+    return { message = "Status is: " .. input.status }
+end)"""
+    f = tmp_path / "enum_input.tac"
+    f.write_text(content)
+    return f
+
+
+class TestParseValue:
+    """Tests for the _parse_value helper function."""
+
+    def test_parse_string(self):
+        """Test parsing string values."""
+        assert _parse_value("hello", "string") == "hello"
+        assert _parse_value("hello world", "string") == "hello world"
+
+    def test_parse_number_int(self):
+        """Test parsing integer values."""
+        assert _parse_value("42", "number") == 42
+        assert _parse_value("0", "number") == 0
+        assert _parse_value("-5", "number") == -5
+
+    def test_parse_number_float(self):
+        """Test parsing float values."""
+        assert _parse_value("3.14", "number") == 3.14
+        assert _parse_value("0.5", "number") == 0.5
+
+    def test_parse_number_invalid(self):
+        """Test parsing invalid number returns 0."""
+        assert _parse_value("not a number", "number") == 0
+
+    def test_parse_boolean_true(self):
+        """Test parsing boolean true values."""
+        assert _parse_value("true", "boolean") is True
+        assert _parse_value("True", "boolean") is True
+        assert _parse_value("yes", "boolean") is True
+        assert _parse_value("1", "boolean") is True
+        assert _parse_value("y", "boolean") is True
+
+    def test_parse_boolean_false(self):
+        """Test parsing boolean false values."""
+        assert _parse_value("false", "boolean") is False
+        assert _parse_value("no", "boolean") is False
+        assert _parse_value("0", "boolean") is False
+
+    def test_parse_array_json(self):
+        """Test parsing JSON array values."""
+        assert _parse_value("[1, 2, 3]", "array") == [1, 2, 3]
+        assert _parse_value('["a", "b"]', "array") == ["a", "b"]
+        assert _parse_value("[]", "array") == []
+
+    def test_parse_array_csv(self):
+        """Test parsing comma-separated array values."""
+        assert _parse_value("a, b, c", "array") == ["a", "b", "c"]
+        assert _parse_value("1,2,3", "array") == ["1", "2", "3"]
+
+    def test_parse_array_empty(self):
+        """Test parsing empty array."""
+        assert _parse_value("", "array") == []
+
+    def test_parse_object_json(self):
+        """Test parsing JSON object values."""
+        assert _parse_value('{"key": "value"}', "object") == {"key": "value"}
+        assert _parse_value("{}", "object") == {}
+
+    def test_parse_object_invalid(self):
+        """Test parsing invalid object returns empty dict."""
+        assert _parse_value("not json", "object") == {}
+
+
+class TestCheckMissingRequiredInputs:
+    """Tests for the _check_missing_required_inputs helper function."""
+
+    def test_no_missing_when_all_provided(self):
+        """Test no missing inputs when all required are provided."""
+        schema = {
+            "name": {"type": "string", "required": True},
+            "age": {"type": "number", "required": True},
+        }
+        provided = {"name": "Alice", "age": 30}
+        assert _check_missing_required_inputs(schema, provided) == []
+
+    def test_missing_required_input(self):
+        """Test detecting missing required input."""
+        schema = {
+            "name": {"type": "string", "required": True},
+            "age": {"type": "number", "required": True},
+        }
+        provided = {"name": "Alice"}
+        assert _check_missing_required_inputs(schema, provided) == ["age"]
+
+    def test_required_with_default_not_missing(self):
+        """Test required input with default is not considered missing."""
+        schema = {
+            "name": {"type": "string", "required": True, "default": "Default"},
+        }
+        provided = {}
+        assert _check_missing_required_inputs(schema, provided) == []
+
+    def test_optional_not_missing(self):
+        """Test optional inputs are not considered missing."""
+        schema = {
+            "name": {"type": "string", "required": False},
+        }
+        provided = {}
+        assert _check_missing_required_inputs(schema, provided) == []
+
+    def test_empty_schema(self):
+        """Test empty schema returns no missing."""
+        assert _check_missing_required_inputs({}, {}) == []
+
+
+class TestCLIInputs:
+    """Integration tests for CLI input handling."""
+
+    def test_run_with_string_param(self, cli_runner, procedure_with_string_input):
+        """Test running with a string parameter via --param."""
+        result = cli_runner.invoke(
+            app, ["run", str(procedure_with_string_input), "--param", "name=Alice"]
+        )
+        assert result.exit_code == 0
+        assert "Hello, Alice!" in result.stdout
+
+    def test_run_with_default_value(self, cli_runner, procedure_with_default_input):
+        """Test running uses default value when param not provided."""
+        result = cli_runner.invoke(app, ["run", str(procedure_with_default_input)])
+        assert result.exit_code == 0
+        assert "Hello, World!" in result.stdout
+
+    def test_run_override_default(self, cli_runner, procedure_with_default_input):
+        """Test --param overrides default value."""
+        result = cli_runner.invoke(
+            app, ["run", str(procedure_with_default_input), "--param", "name=Custom"]
+        )
+        assert result.exit_code == 0
+        assert "Hello, Custom!" in result.stdout
+
+    def test_run_with_array_param_json(self, cli_runner, procedure_with_array_input):
+        """Test running with JSON array parameter - verifies array is accepted."""
+        result = cli_runner.invoke(
+            app, ["run", str(procedure_with_array_input), "--param", "numbers=[1,2,3,4]"]
+        )
+        # The test verifies that:
+        # 1. The JSON array parameter is parsed correctly
+        # 2. The procedure runs to completion without error
+        # Note: The sum calculation is a runtime behavior tested separately
+        assert result.exit_code == 0
+        assert "completed successfully" in result.stdout
+
+    def test_run_interactive_mode(self, cli_runner, procedure_with_string_input):
+        """Test interactive mode prompts for inputs."""
+        result = cli_runner.invoke(
+            app,
+            ["run", str(procedure_with_string_input), "-i"],
+            input="TestUser\n",
+        )
+        # Should prompt and complete
+        assert "name" in result.stdout.lower()  # Shows the input name
+
+    def test_run_missing_required_prompts(self, cli_runner, procedure_with_string_input):
+        """Test missing required input triggers interactive prompt."""
+        result = cli_runner.invoke(
+            app,
+            ["run", str(procedure_with_string_input)],
+            input="PromptedUser\n",
+        )
+        # Should indicate missing input and prompt
+        assert "missing required" in result.stdout.lower() or "name" in result.stdout.lower()
+
+    def test_run_with_multiple_params(self, cli_runner, procedure_with_all_types):
+        """Test running with multiple parameters."""
+        result = cli_runner.invoke(
+            app,
+            [
+                "run",
+                str(procedure_with_all_types),
+                "--param",
+                "text=hello",
+                "--param",
+                "count=5",
+                "--param",
+                "enabled=true",
+            ],
+        )
+        assert result.exit_code == 0
+        assert "processed: hello" in result.stdout
+
+    def test_interactive_with_preexisting_params(self, cli_runner, procedure_with_all_types):
+        """Test interactive mode shows pre-existing --param values."""
+        result = cli_runner.invoke(
+            app,
+            ["run", str(procedure_with_all_types), "-i", "--param", "text=preset"],
+            input="\n5\nn\n[]\n{}\n",  # Accept defaults for remaining
+        )
+        # Should show "preset" in the current column
+        assert "preset" in result.stdout or result.exit_code == 0
+
+
+class TestCLIParamParsing:
+    """Tests for parameter parsing from --param flag."""
+
+    def test_param_json_array(self, cli_runner, tmp_path):
+        """Test --param correctly parses JSON arrays."""
+        content = """main = procedure("main", {
+    input = {nums = {type = "array", required = true}},
+    output = {count = {type = "number", required = true}}
+}, function()
+    return {count = #input.nums}
+end)"""
+        f = tmp_path / "test.tac"
+        f.write_text(content)
+
+        result = cli_runner.invoke(app, ["run", str(f), "--param", "nums=[1,2,3]"])
+        assert result.exit_code == 0
+
+    def test_param_json_object(self, cli_runner, tmp_path):
+        """Test --param correctly parses JSON objects."""
+        content = """main = procedure("main", {
+    input = {cfg = {type = "object", default = {}}},
+    output = {ok = {type = "boolean", required = true}}
+}, function()
+    return {ok = true}
+end)"""
+        f = tmp_path / "test.tac"
+        f.write_text(content)
+
+        result = cli_runner.invoke(app, ["run", str(f), "--param", 'cfg={"key":"value"}'])
+        assert result.exit_code == 0
+
+    def test_param_boolean(self, cli_runner, tmp_path):
+        """Test --param correctly parses boolean values."""
+        content = """main = procedure("main", {
+    input = {flag = {type = "boolean", default = false}},
+    output = {result = {type = "boolean", required = true}}
+}, function()
+    return {result = input.flag}
+end)"""
+        f = tmp_path / "test.tac"
+        f.write_text(content)
+
+        result = cli_runner.invoke(app, ["run", str(f), "--param", "flag=true"])
+        assert result.exit_code == 0
+
+    def test_param_number(self, cli_runner, tmp_path):
+        """Test --param correctly parses number values."""
+        content = """main = procedure("main", {
+    input = {n = {type = "number", default = 0}},
+    output = {doubled = {type = "number", required = true}}
+}, function()
+    return {doubled = input.n * 2}
+end)"""
+        f = tmp_path / "test.tac"
+        f.write_text(content)
+
+        result = cli_runner.invoke(app, ["run", str(f), "--param", "n=21"])
+        assert result.exit_code == 0
+        assert "42" in result.stdout

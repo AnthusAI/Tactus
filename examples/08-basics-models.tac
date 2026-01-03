@@ -3,6 +3,16 @@
 -- Shows cost differences across providers and model sizes
 -- Requires OpenAI API key and AWS Bedrock credentials in .tactus/config.yml (region: us-east-1)
 
+-- Define completion tool
+tool("done", {
+    description = "Signal completion of the task",
+    parameters = {
+        reason = {type = "string", required = true, description = "Completion message"}
+    }
+}, function(args)
+    return "Done: " .. args.reason
+end)
+
 -- Common prompt for all models
 local common_prompt = "Explain quantum entanglement in exactly 2 sentences."
 
@@ -12,7 +22,7 @@ agent("gpt4o", {
     model = "gpt-4o",
     system_prompt = "You are a physics expert. Be concise and accurate.",
     initial_message = common_prompt,
-    tools = {"done"},
+    toolsets = {"done"},
     model_settings = {
         temperature = 0.7,
         top_p = 0.9,
@@ -24,7 +34,7 @@ agent("gpt4o_mini", {
     model = "gpt-4o-mini",
     system_prompt = "You are a physics expert. Be concise and accurate.",
     initial_message = common_prompt,
-    tools = {"done"},
+    toolsets = {"done"},
     model_settings = {
         temperature = 0.7,
         top_p = 0.9,
@@ -36,7 +46,7 @@ agent("gpt35_turbo", {
     model = "gpt-3.5-turbo",
     system_prompt = "You are a physics expert. Be concise and accurate.",
     initial_message = common_prompt,
-    tools = {"done"},
+    toolsets = {"done"},
     model_settings = {
         temperature = 0.7,
         top_p = 0.9,

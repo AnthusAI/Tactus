@@ -9,6 +9,16 @@
 --
 -- Model predictions are automatically checkpointed for durability.
 
+-- Define completion tool
+tool("done", {
+    description = "Signal completion of the task",
+    parameters = {
+        reason = {type = "string", required = true, description = "Completion message"}
+    }
+}, function(args)
+    return "Done: " .. args.reason
+end)
+
 -- Define a sentiment classifier model (HTTP endpoint)
 model("sentiment_classifier", {
     type = "http",
@@ -32,7 +42,7 @@ The customer's message sentiment is: {state.sentiment}
 Respond appropriately to the customer's message.
 Call done when you've provided a helpful response.
 ]],
-    tools = {"done"}
+    toolsets = {"done"}
 })
 
 main = procedure("main", {

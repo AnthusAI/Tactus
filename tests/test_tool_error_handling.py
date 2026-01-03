@@ -177,8 +177,8 @@ def create_test_agent(tools=None, **kwargs):
 
 
 @pytest.mark.asyncio
-async def test_done_tool_with_none_primitives():
-    """Test that done tool handles None primitives gracefully."""
+async def test_agent_with_none_primitives():
+    """Test that agent handles None primitives gracefully."""
 
     def dummy_tool(x: int) -> int:
         """A simple test tool."""
@@ -195,14 +195,9 @@ async def test_done_tool_with_none_primitives():
 
     # Agent should be created successfully
     assert agent is not None
-    assert len(agent.all_tools) == 2  # dummy_tool + done
-
-    # Find the done tool
-    done_tool = next(t for t in agent.all_tools if t.name == "done")
-
-    # Call done tool - should not crash even with None primitives
-    result = await done_tool.function("Completed", success=True)
-    assert "Done" in result
+    # With no done tool auto-injection, we only have the dummy_tool
+    assert len(agent.all_tools) == 1
+    assert agent.all_tools[0].name == "dummy_tool"
 
 
 def test_agent_filter_nonexistent_tool_runtime():

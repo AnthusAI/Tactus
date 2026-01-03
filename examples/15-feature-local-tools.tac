@@ -11,6 +11,16 @@ To run this example:
 2. Run: tactus run examples/15-feature-local-tools.tac --param task="Calculate mortgage for $300,000 at 6.5% for 30 years"
 ]]--
 
+-- Define completion tool
+tool("done", {
+    description = "Signal completion of the task",
+    parameters = {
+        reason = {type = "string", required = true, description = "Completion message"}
+    }
+}, function(args)
+    return "Done: " .. args.reason
+end)
+
 -- Agent with access to local tools
 agent("assistant", {
     provider = "openai",
@@ -29,7 +39,7 @@ You MUST call the 'done' tool after getting the calculation result.]],
         -- All local plugin tools (loaded from tool_paths in config)
         "plugin",
 
-        -- Built-in done tool
+        -- Completion tool (defined above)
         "done"
     }
 })

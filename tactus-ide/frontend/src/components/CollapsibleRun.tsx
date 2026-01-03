@@ -9,17 +9,21 @@ import {
   AlertCircle,
   IterationCw,
   TestTube,
-  BarChart2
+  BarChart2,
+  ArrowUpRight
 } from 'lucide-react';
 import { MessageFeed } from './MessageFeed';
+import { CheckpointSummary } from './CheckpointSummary';
+import { ProcedureInputsDisplay } from './ProcedureInputsDisplay';
 
 interface CollapsibleRunProps {
   run: RunHistory;
   isExpanded: boolean;
   onToggle: () => void;
+  onJumpToSource?: (filePath: string, lineNumber: number) => void;
 }
 
-export const CollapsibleRun: React.FC<CollapsibleRunProps> = ({ run, isExpanded, onToggle }) => {
+export const CollapsibleRun: React.FC<CollapsibleRunProps> = ({ run, isExpanded, onToggle, onJumpToSource }) => {
   // Operation type icons
   const operationIcon = {
     run: <IterationCw className="h-4 w-4" />,
@@ -35,6 +39,9 @@ export const CollapsibleRun: React.FC<CollapsibleRunProps> = ({ run, isExpanded,
     failed: <XCircle className="h-4 w-4 text-red-500" />,
     error: <AlertCircle className="h-4 w-4 text-red-500" />,
   }[run.status];
+
+  // Find the most recent checkpoint with a source location
+  const latestCheckpointWithSource = run.checkpoints?.find(cp => cp.source_location);
 
   const formatTimestamp = (timestamp: string) => {
     // Handle both Unix timestamp (number as string) and ISO string formats
@@ -55,32 +62,73 @@ export const CollapsibleRun: React.FC<CollapsibleRunProps> = ({ run, isExpanded,
 
   return (
     <div className="border-b border-border/50">
-      <button
-        onClick={onToggle}
-        className="w-full px-3 py-2 flex items-center justify-between hover:bg-muted/30 transition-colors"
-      >
-        <div className="flex items-center gap-2">
-          <span className="text-muted-foreground">{operationIcon}</span>
-          {statusIcon}
-          <span className="text-sm font-medium capitalize">{run.operationType}</span>
-          <span className="text-xs text-muted-foreground">{formatTimestamp(run.timestamp)}</span>
-        </div>
-        {isExpanded ? (
-          <ChevronUp className="h-4 w-4 text-muted-foreground" />
-        ) : (
-          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+      <div className="flex items-center">
+        <button
+          onClick={onToggle}
+          className="flex-1 px-3 py-2 flex items-center justify-between hover:bg-muted/30 transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground">{operationIcon}</span>
+            {statusIcon}
+            <span className="text-sm font-medium capitalize">{run.operationType}</span>
+            <span className="text-xs text-muted-foreground">{formatTimestamp(run.timestamp)}</span>
+            {!isExpanded && run.checkpoints && run.checkpoints.length > 0 && (
+              <>
+                <span className="text-xs text-muted-foreground">•</span>
+                <span className="text-xs text-muted-foreground">
+                  {run.checkpoints.length} checkpoint{run.checkpoints.length !== 1 ? 's' : ''}
+                </span>
+              </>
+            )}
+          </div>
+          {isExpanded ? (
+            <ChevronUp className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          )}
+        </button>
+        {/* Jump to Source button in collapsed state */}
+        {!isExpanded && latestCheckpointWithSource && onJumpToSource && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onJumpToSource(
+                latestCheckpointWithSource.source_location!.file,
+                latestCheckpointWithSource.source_location!.line
+              );
+            }}
+            className="px-2 py-2 hover:bg-muted/30 transition-colors border-l border-border/30"
+            title={`Jump to ${latestCheckpointWithSource.source_location!.file.split('/').pop()}:${latestCheckpointWithSource.source_location!.line}`}
+          >
+            <ArrowUpRight className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+          </button>
         )}
-      </button>
+      </div>
+
+      {/* Show inputs at top of expanded run if available */}
+      {isExpanded && run.inputs && Object.keys(run.inputs).length > 0 && (
+        <ProcedureInputsDisplay inputs={run.inputs} />
+      )}
 
       {isExpanded && run.events.length > 0 && (
         <div className="border-t border-border/30">
-          <MessageFeed events={run.events} clustered={true} showFullLogs={false} />
+          <MessageFeed events={run.events} clustered={false} showFullLogs={false} onJumpToSource={onJumpToSource} />
         </div>
       )}
 
       {isExpanded && run.events.length === 0 && (
         <div className="px-3 py-4 text-sm text-muted-foreground text-center border-t border-border/30">
           No events yet
+        </div>
+      )}
+
+      {isExpanded && run.checkpoints && run.checkpoints.length > 0 && (
+        <CheckpointSummary checkpoints={run.checkpoints} onJumpToSource={onJumpToSource} />
+      )}
+
+      {isExpanded && (
+        <div style={{ display: 'none' }}>
+          Debug: checkpoints={JSON.stringify({ hasCheckpoints: !!run.checkpoints, count: run.checkpoints?.length })}
         </div>
       )}
     </div>

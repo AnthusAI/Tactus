@@ -4,12 +4,10 @@ Agent-Tool Integration Tests
 Tests for how AgentPrimitive integrates with tools (both local and MCP).
 """
 
-import pytest
 from pydantic_ai import Tool
 from tactus.primitives.agent import AgentPrimitive
-from tactus.primitives.tool import ToolPrimitive
 from tactus.primitives.state import StatePrimitive
-from tactus.primitives.control import StopPrimitive, IterationsPrimitive
+from tactus.primitives.control import IterationsPrimitive
 
 
 def create_test_agent(tools=None, **kwargs):
@@ -44,11 +42,10 @@ def test_agent_initialization_with_tools():
     # Create agent with tool
     agent = create_test_agent(tools=[calc_tool])
 
-    # Agent should have tools (calculate + done)
-    assert len(agent.all_tools) == 2
+    # Agent should have exactly the tools provided (no auto-injection)
+    assert len(agent.all_tools) == 1
     tool_names = [t.name for t in agent.all_tools]
     assert "calculate" in tool_names
-    assert "done" in tool_names
 
 
 def test_agent_initialization_without_tools():
@@ -75,8 +72,8 @@ def test_agent_tool_filtering_by_name():
 
     agent = create_test_agent(tools=[tool_a_wrapped, tool_b_wrapped])
 
-    # All tools (including done)
-    assert len(agent.all_tools) == 3
+    # All tools (exactly what was provided)
+    assert len(agent.all_tools) == 2
 
     # Filter to specific tools
     filtered = agent._filter_tools_by_name(["tool_a"])
@@ -89,11 +86,6 @@ def test_agent_tool_filtering_by_name():
     tool_names = [t.name for t in filtered]
     assert "tool_a" in tool_names
     assert "tool_b" in tool_names
-
-    # Filter to done tool
-    filtered = agent._filter_tools_by_name(["done"])
-    assert len(filtered) == 1
-    assert filtered[0].name == "done"
 
 
 def test_get_tools_for_turn_default():
@@ -142,91 +134,6 @@ def test_get_tools_for_turn_with_override():
     # Override with None (use default)
     result = agent._get_tools_for_turn({"tools": None})
     assert result is None
-
-
-def test_done_tool_injection():
-    """Test that the 'done' tool is automatically injected when tools are provided."""
-
-    def my_tool(x: int) -> int:
-        """My tool."""
-        return x
-
-    my_tool_wrapped = Tool(my_tool, name="my_tool")
-    agent = create_test_agent(tools=[my_tool_wrapped])
-
-    # Should have my_tool + done
-    assert len(agent.all_tools) == 2
-    tool_names = [t.name for t in agent.all_tools]
-    assert "my_tool" in tool_names
-    assert "done" in tool_names
-
-    # Find the done tool
-    done_tool = next(t for t in agent.all_tools if t.name == "done")
-    assert done_tool.description == "Signal completion of the task"
-
-
-def test_done_tool_not_injected_without_tools():
-    """Test that the 'done' tool is NOT injected when no tools are provided."""
-    agent = create_test_agent(tools=None)
-
-    # Should have no tools
-    assert len(agent.all_tools) == 0
-
-
-@pytest.mark.asyncio
-async def test_done_tool_records_in_tool_primitive():
-    """Test that calling the done tool records in ToolPrimitive."""
-    tool_primitive = ToolPrimitive()
-    stop_primitive = StopPrimitive()
-
-    test_tool = Tool(lambda x: x, name="test_tool")
-    agent = create_test_agent(
-        tools=[test_tool],
-        tool_primitive=tool_primitive,
-        stop_primitive=stop_primitive,
-    )
-
-    # Find and call the done tool
-    done_tool = next(t for t in agent.all_tools if t.name == "done")
-    await done_tool.function("Task completed", success=True)
-
-    # Should record in tool_primitive
-    assert tool_primitive.called("done")
-    assert tool_primitive.get_call_count("done") == 1
-    last_call = tool_primitive.last_call("done")
-    assert last_call["args"]["reason"] == "Task completed"
-    assert last_call["args"]["success"] is True
-    assert last_call["result"] == "Done"
-
-    # Should also request stop
-    assert stop_primitive.requested() is True
-    assert stop_primitive.reason() == "Task completed"
-
-
-@pytest.mark.asyncio
-async def test_done_tool_with_failure():
-    """Test that the done tool handles failure cases."""
-    tool_primitive = ToolPrimitive()
-    stop_primitive = StopPrimitive()
-
-    test_tool = Tool(lambda x: x, name="test_tool")
-    agent = create_test_agent(
-        tools=[test_tool],
-        tool_primitive=tool_primitive,
-        stop_primitive=stop_primitive,
-    )
-
-    # Find and call the done tool with failure
-    done_tool = next(t for t in agent.all_tools if t.name == "done")
-    await done_tool.function("Something went wrong", success=False)
-
-    # Should record in tool_primitive
-    assert tool_primitive.called("done")
-    last_call = tool_primitive.last_call("done")
-    assert last_call["args"]["success"] is False
-
-    # Stop reason should include "Failed:"
-    assert stop_primitive.reason() == "Failed: Something went wrong"
 
 
 def test_agent_repr():
@@ -317,8 +224,8 @@ def test_agent_tools_with_complex_signatures():
     complex_tool_wrapped = Tool(complex_tool, name="complex_tool")
     agent = create_test_agent(tools=[complex_tool_wrapped])
 
-    # Should successfully create agent with complex tool
-    assert len(agent.all_tools) == 2  # complex_tool + done
+    # Should successfully create agent with exactly the tools provided
+    assert len(agent.all_tools) == 1
     tool = next(t for t in agent.all_tools if t.name == "complex_tool")
     assert tool.description == "Tool with complex signature."
 
@@ -340,7 +247,7 @@ def test_multiple_agents_independent_tools():
     agent1 = create_test_agent(name="agent1", tools=[tool_a_wrapped])
     agent2 = create_test_agent(name="agent2", tools=[tool_b_wrapped])
 
-    # Agents should have independent tool sets
+    # Agents should have independent tool sets (exactly what was provided)
     agent1_tools = [t.name for t in agent1.all_tools]
     agent2_tools = [t.name for t in agent2.all_tools]
 
@@ -349,6 +256,6 @@ def test_multiple_agents_independent_tools():
     assert "tool_b" not in agent1_tools
     assert "tool_b" in agent2_tools
 
-    # Both should have done tool
-    assert "done" in agent1_tools
-    assert "done" in agent2_tools
+    # Each agent has exactly one tool
+    assert len(agent1_tools) == 1
+    assert len(agent2_tools) == 1

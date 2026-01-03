@@ -8,7 +8,9 @@ Uses pluggable storage and HITL handlers via protocols.
 from abc import ABC, abstractmethod
 from typing import Any, Optional, Callable, List, Dict
 from datetime import datetime, timezone
+import logging
 import time
+import uuid
 
 from tactus.protocols.storage import StorageBackend
 from tactus.protocols.hitl import HITLHandler
@@ -19,7 +21,8 @@ from tactus.protocols.models import (
     SourceLocation,
     ExecutionRun,
 )
-import uuid
+
+logger = logging.getLogger(__name__)
 
 
 class ExecutionContext(ABC):
@@ -119,6 +122,7 @@ class BaseExecutionContext(ExecutionContext):
         storage_backend: StorageBackend,
         hitl_handler: Optional[HITLHandler] = None,
         strict_determinism: bool = False,
+        log_handler=None,
     ):
         """
         Initialize base execution context.
@@ -128,11 +132,13 @@ class BaseExecutionContext(ExecutionContext):
             storage_backend: Storage backend for execution log and state
             hitl_handler: Optional HITL handler for human interactions
             strict_determinism: If True, raise errors for non-deterministic operations outside checkpoints
+            log_handler: Optional log handler for emitting events
         """
         self.procedure_id = procedure_id
         self.storage = storage_backend
         self.hitl = hitl_handler
         self.strict_determinism = strict_determinism
+        self.log_handler = log_handler
 
         # Checkpoint scope tracking for determinism safety
         self._inside_checkpoint = False
@@ -140,12 +146,34 @@ class BaseExecutionContext(ExecutionContext):
         # Run ID tracking for distinguishing between different executions
         self.current_run_id: Optional[str] = None
 
+        # .tac file tracking for accurate source locations
+        self.current_tac_file: Optional[str] = None
+        self.current_tac_content: Optional[str] = None
+
+        # Lua sandbox reference for debug.getinfo access
+        self.lua_sandbox: Optional[Any] = None
+
         # Load procedure metadata (contains execution_log and replay_index)
         self.metadata = self.storage.load_procedure_metadata(procedure_id)
 
     def set_run_id(self, run_id: str) -> None:
         """Set the run_id for subsequent checkpoints in this execution."""
         self.current_run_id = run_id
+
+    def set_tac_file(self, file_path: str, content: Optional[str] = None) -> None:
+        """
+        Store the currently executing .tac file for accurate source location capture.
+
+        Args:
+            file_path: Path to the .tac file being executed
+            content: Optional content of the .tac file (for code context)
+        """
+        self.current_tac_file = file_path
+        self.current_tac_content = content
+
+    def set_lua_sandbox(self, lua_sandbox: Any) -> None:
+        """Store reference to Lua sandbox for debug.getinfo access."""
+        self.lua_sandbox = lua_sandbox
 
     def checkpoint(
         self,
@@ -181,6 +209,14 @@ class BaseExecutionContext(ExecutionContext):
                 function=source_info.get("function"),
                 code_context=self._get_code_context(source_info["file"], source_info["line"]),
             )
+        elif self.current_tac_file:
+            # Use .tac file context if no source_info provided
+            source_location = SourceLocation(
+                file=self.current_tac_file,
+                line=0,  # Will be improved with Lua line tracking
+                function="unknown",
+                code_context=None,  # Can be added later if needed
+            )
 
         try:
             start_time = time.time()
@@ -207,6 +243,22 @@ class BaseExecutionContext(ExecutionContext):
         # Add to execution log
         self.metadata.execution_log.append(entry)
         self.metadata.replay_index += 1
+
+        # Emit checkpoint created event if we have a log handler
+        if self.log_handler:
+            try:
+                from tactus.protocols.models import CheckpointCreatedEvent
+
+                event = CheckpointCreatedEvent(
+                    checkpoint_position=current_position,
+                    checkpoint_type=checkpoint_type,
+                    duration_ms=duration_ms,
+                    source_location=source_location,
+                    procedure_id=self.procedure_id,
+                )
+                self.log_handler.log(event)
+            except Exception as e:
+                logger.warning(f"Failed to emit checkpoint event: {e}")
 
         # Persist metadata
         self.storage.save_procedure_metadata(self.procedure_id, self.metadata)

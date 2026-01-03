@@ -4,6 +4,7 @@ export interface ParameterDeclaration {
   required: boolean;
   default?: any;
   description?: string;
+  enum?: string[];  // Allowed values for enum constraints
 }
 
 export interface OutputFieldDeclaration {

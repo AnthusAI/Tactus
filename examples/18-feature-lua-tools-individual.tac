@@ -9,6 +9,16 @@ To run this example:
 tactus run examples/18-feature-lua-tools-individual.tac --param task="Calculate 15% tip on a $50 bill"
 ]]--
 
+-- Define completion tool
+tool("done", {
+    description = "Signal completion of the task",
+    parameters = {
+        reason = {type = "string", required = true, description = "Completion message"}
+    }
+}, function(args)
+    return "Done: " .. args.reason
+end)
+
 -- Define individual tools using the tool() function
 tool("calculate_tip", {
     description = "Calculate tip amount for a bill",

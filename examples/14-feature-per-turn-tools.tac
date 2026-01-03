@@ -1,6 +1,16 @@
 -- Per-Turn Tool Control Example
 -- Demonstrates dynamic tool availability for specific turns
 
+-- Define completion tool
+tool("done", {
+    description = "Signal completion of the task",
+    parameters = {
+        reason = {type = "string", required = true, description = "Completion message"}
+    }
+}, function(args)
+    return "Done: " .. args.reason
+end)
+
 agent("researcher", {
     provider = "openai",
     model = "gpt-4o-mini",

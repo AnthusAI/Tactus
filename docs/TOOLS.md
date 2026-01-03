@@ -38,7 +38,17 @@ All three approaches are powered by Pydantic AI's function toolset feature and i
 Here's the simplest example:
 
 ```lua
--- Define a tool
+-- Define completion tool (required - no built-in done tool)
+tool("done", {
+    description = "Signal completion of the task",
+    parameters = {
+        reason = {type = "string", required = true, description = "Completion message"}
+    }
+}, function(args)
+    return "Done: " .. args.reason
+end)
+
+-- Define a custom tool
 tool("greet", {
     description = "Greet someone by name",
     parameters = {
@@ -48,11 +58,11 @@ tool("greet", {
     return "Hello, " .. args.name .. "!"
 end)
 
--- Use it in an agent
+-- Use tools in an agent
 agent("assistant", {
     provider = "openai",
     system_prompt = "You are a friendly assistant",
-    toolsets = {"greet", "done"}
+    toolsets = {"greet", "done"}  -- Both tools explicitly defined above
 })
 
 procedure(function()
@@ -61,7 +71,7 @@ procedure(function()
 end)
 ```
 
-That's it! The agent can now call your Lua function as a tool.
+That's it! The agent can now call your Lua functions as tools.
 
 ## Three Approaches
 
@@ -85,7 +95,7 @@ end)
 
 agent("assistant", {
     provider = "openai",
-    toolsets = {"calculate_tip", "done"}  -- Reference by name
+    toolsets = {"calculate_tip", "done"}  -- Both must be explicitly defined via tool()
 })
 ```
 
@@ -136,7 +146,7 @@ toolset("math_tools", {
 
 agent("calculator", {
     provider = "openai",
-    toolsets = {"math_tools", "done"}  -- All tools in one reference
+    toolsets = {"math_tools", "done"}  -- "done" must be explicitly defined via tool()
 })
 ```
 
@@ -182,7 +192,7 @@ agent("text_processor", {
             end
         }
     },
-    toolsets = {"done"}  -- Can mix inline tools with toolsets
+    toolsets = {"done"}  -- "done" must be explicitly defined via tool()
 })
 ```
 
@@ -608,7 +618,7 @@ agent("content_editor", {
             end
         }
     },
-    toolsets = {"done"}
+    toolsets = {"done"}  -- "done" must be explicitly defined via tool()
 })
 ```
 

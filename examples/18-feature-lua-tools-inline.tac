@@ -8,6 +8,16 @@ To run this example:
 tactus run examples/18-feature-lua-tools-inline.tac --param message="Hello, World!"
 ]]--
 
+-- Define completion tool
+tool("done", {
+    description = "Signal completion of the task",
+    parameters = {
+        reason = {type = "string", required = true, description = "Completion message"}
+    }
+}, function(args)
+    return "Done: " .. args.reason
+end)
+
 -- Agent with inline Lua function tools
 agent("text_processor", {
     provider = "openai",

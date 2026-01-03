@@ -9,9 +9,9 @@ export interface LogoProps extends React.HTMLAttributes<HTMLDivElement> {
 const Logo = React.forwardRef<HTMLDivElement, LogoProps>(
   ({ className, showText = true, ...props }, ref) => {
     return (
-      <div ref={ref} className={cn("flex items-baseline gap-[0.075em]", className)} {...props}>
+      <div ref={ref} className={cn("flex items-baseline gap-[0.01em]", className)} {...props}>
         {showText && (
-          <span className="font-extrabold font-alegreya-sc tracking-wider whitespace-nowrap">Tactus</span>
+          <span className="font-extrabold font-alegreya-sc whitespace-nowrap">Tactus</span>
         )}
         <svg
           xmlns="http://www.w3.org/2000/svg"

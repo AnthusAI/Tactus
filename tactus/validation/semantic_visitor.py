@@ -45,6 +45,7 @@ class TactusDSLVisitor(LuaParserVisitor):
         "async",
         "max_depth",
         "max_turns",
+        "tool",  # Lua-defined tools
     }
 
     def __init__(self):
@@ -217,6 +218,15 @@ class TactusDSLVisitor(LuaParserVisitor):
         elif func_name == "max_turns":
             if args and len(args) >= 1:
                 self.builder.set_max_turns(args[0])
+        elif func_name == "tool":
+            # tool("name", {config}, function) - matches agent/procedure pattern
+            if args and len(args) >= 2:
+                # First arg must be name (string)
+                if isinstance(args[0], str):
+                    tool_name = args[0]
+                    config = args[1] if isinstance(args[1], dict) else {}
+                    # Register the tool (function isn't available during validation)
+                    self.builder.register_tool(tool_name, config, None)
 
     def _extract_arguments(self, ctx: LuaParser.FunctioncallContext) -> list:
         """Extract function arguments from parse tree.
