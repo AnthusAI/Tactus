@@ -7,6 +7,16 @@
 -- This example shows a data processing pipeline composed of
 -- multiple sub-procedures that transform and analyze data.
 
+-- Define completion tool
+tool("done", {
+    description = "Signal completion of the task",
+    parameters = {
+        reason = {type = "string", required = true, description = "Completion message"}
+    }
+}, function(args)
+    return "Done: " .. args.reason
+end)
+
 agent("analyst", {
     provider = "openai",
     model = "gpt-4o-mini",
@@ -21,7 +31,7 @@ The processed data shows:
 Provide a brief analysis of these statistics.
 Call done when finished.
 ]],
-    tools = {"done"}
+    toolsets = {"done"}
 })
 
 main = procedure("main", {

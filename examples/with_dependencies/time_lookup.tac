@@ -12,6 +12,16 @@
 -- exposed as an MCP tool that the agent can call. For now, this
 -- example just demonstrates that dependencies are properly initialized.
 
+-- Define completion tool
+tool("done", {
+    description = "Signal completion of the task",
+    parameters = {
+        reason = {type = "string", required = true, description = "Completion message"}
+    }
+}, function(args)
+    return "Done: " .. args.reason
+end)
+
 agent("time_agent", {
     provider = "openai",
     model = "gpt-4o",
@@ -23,7 +33,7 @@ For this test, just call done immediately.
 Available tools:
 - done: Mark task as complete
 ]],
-    tools = {"done"}
+    toolsets = {"done"}
 })
 
 main = procedure("main", {

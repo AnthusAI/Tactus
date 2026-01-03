@@ -278,6 +278,100 @@ Tactus has two distinct testing mechanisms that serve different purposes:
 - Handle errors gracefully with proper exception types
 - Keep implementations simple and maintainable
 
+## Using the CLI for Development
+
+The Tactus CLI provides powerful tools for developing and debugging agents.
+
+### Running and Debugging Procedures
+
+When you run a procedure with `tactus run`, you get real-time visibility into what's happening:
+
+```bash
+tactus run examples/04-basics-simple-agent.tac
+```
+
+Output shows:
+- **Agent activity**: See when agents start processing and complete
+- **Tool calls**: See what tools agents call with full arguments and results
+- **Agent responses**: See the actual text/reasoning from the LLM
+- **Cost tracking**: Monitor tokens and costs for each LLM call
+- **Summary**: Final iteration count, tools used, total cost
+
+Example output:
+```
+Running procedure: 04-basics-simple-agent.tac (lua format)
+
+→ Agent greeter: Waiting for response...
+Hello! I'll help you with that task.
+✓ Agent greeter: Completed 1204ms
+→ Tool done
+  Args: {
+  "reason": "Hello there! I hope you're having a wonderful day."
+}
+  Result: Done
+$ Cost greeter: $0.001267 (354 tokens, openai:gpt-4o, 1204ms)
+
+✓ Procedure completed: 1 iterations, 1 tools used
+
+$ Cost Summary
+  Total Cost: $0.001267
+  Total Tokens: 354
+```
+
+### Inspecting Procedure Structure
+
+Use `tactus info` to view procedure metadata without running it:
+
+```bash
+tactus info examples/04-basics-simple-agent.tac
+```
+
+This shows:
+- **Parameters**: What inputs the procedure expects
+- **Outputs**: What results it returns
+- **Agents**: Configuration for each agent (provider, model, tools, prompt preview)
+- **Specifications**: Count of BDD test scenarios
+
+This is useful for:
+- Understanding what a procedure does before running it
+- Checking agent configurations
+- Verifying tool availability
+- Documentation and code review
+
+### Debugging Agent Issues
+
+If an agent doesn't work as expected, the CLI output helps you diagnose:
+
+1. **Agent never calls done tool**: Look for tool call events (→ Tool). If you don't see any, check:
+   - Does the agent definition include `tools = {"done"}`?
+   - Does the system prompt mention calling the done tool?
+
+2. **Agent calls wrong tool**: Tool call events show arguments. Check:
+   - Are tool names correct in the agent config?
+   - Does the system prompt clearly explain which tools to use?
+
+3. **High costs/token usage**: Cost events show per-call breakdown. Look for:
+   - Agents making too many turns (increase max_turns or improve prompts)
+   - Large context windows (check message history filtering)
+   - Repeated tool calls (agent might be stuck in a loop)
+
+4. **Slow execution**: Timing information shows where delays occur:
+   - Agent turns show duration (e.g., "1204ms")
+   - Multiple slow turns indicate LLM performance issues
+   - Consider using faster models for simple tasks
+
+### CLI Output Format
+
+The CLI uses Unicode symbols (not emojis) for compatibility:
+
+- `→` Agent or tool activity starting
+- `✓` Successful completion
+- `✗` Error or failure
+- `$` Cost information
+- `•` List items
+
+All output is plain text with optional ANSI colors for readability in terminals.
+
 ## Project Status
 
 Tactus is a standalone workflow engine extracted from a larger project. It is:

@@ -72,7 +72,6 @@ agents:
         initial_message: "Start"
         toolsets:
             - test_server
-            - done
 """
 
     # Configure MCP server

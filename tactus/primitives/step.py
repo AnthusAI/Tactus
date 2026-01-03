@@ -35,31 +35,58 @@ class StepPrimitive:
         """
         self.execution_context = execution_context
 
-    def checkpoint(self, fn: Callable[[], Any]) -> Any:
+    def checkpoint(self, fn: Callable[[], Any], lua_source_info=None) -> Any:
         """
         Execute function with position-based checkpointing.
 
         Args:
             fn: Function to execute (must be deterministic)
+            lua_source_info: Optional dict with Lua source location {file, line, function}
 
         Returns:
             Result of fn() on first execution, cached result on replay
         """
         logger.debug(f"checkpoint() at position {self.execution_context.next_position()}")
 
-        # Capture source location
-        import inspect
+        # Prioritize Lua source info over Python stack inspection
+        if lua_source_info:
+            # Convert Lua table to dict if needed (lupa might pass a LuaTable object)
+            try:
+                if hasattr(lua_source_info, "items"):
+                    # It's already dict-like
+                    lua_dict = (
+                        dict(lua_source_info.items())
+                        if hasattr(lua_source_info, "items")
+                        else lua_source_info
+                    )
+                else:
+                    # Try to convert if it's a LuaTable
+                    lua_dict = dict(lua_source_info)
+            except Exception:
+                # Fallback - treat as dict
+                lua_dict = lua_source_info if isinstance(lua_source_info, dict) else {}
 
-        frame = inspect.currentframe()
-        if frame and frame.f_back:
-            caller_frame = frame.f_back
+            # Use source info from Lua debug.getinfo
             source_info = {
-                "file": caller_frame.f_code.co_filename,
-                "line": caller_frame.f_lineno,
-                "function": caller_frame.f_code.co_name,
+                "file": self.execution_context.current_tac_file or lua_dict.get("file", "unknown"),
+                "line": lua_dict.get("line", 0),
+                "function": lua_dict.get("function", "unknown"),
             }
+            logger.debug(f"Using Lua source info: {source_info}")
         else:
-            source_info = None
+            # Fallback to Python stack inspection (for backward compatibility)
+            import inspect
+
+            frame = inspect.currentframe()
+            if frame and frame.f_back:
+                caller_frame = frame.f_back
+                source_info = {
+                    "file": caller_frame.f_code.co_filename,
+                    "line": caller_frame.f_lineno,
+                    "function": caller_frame.f_code.co_name,
+                }
+            else:
+                source_info = None
 
         try:
             result = self.execution_context.checkpoint(

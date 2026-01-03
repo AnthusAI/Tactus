@@ -173,19 +173,58 @@ class ProcedurePrimitive:
                 raise ProcedureExecutionError(f"Failed to execute procedure '{name}': {e}")
 
         # Auto-checkpoint sub-procedure call
-        # Capture source location
-        import inspect
+        # Try to capture Lua source location if available
+        source_info = None
 
-        frame = inspect.currentframe()
-        if frame and frame.f_back:
-            caller_frame = frame.f_back
-            source_info = {
-                "file": caller_frame.f_code.co_filename,
-                "line": caller_frame.f_lineno,
-                "function": caller_frame.f_code.co_name,
-            }
-        else:
-            source_info = None
+        try:
+            # Get debug.getinfo function from Lua globals
+            lua_globals = self.lua_sandbox.lua.globals()
+            if hasattr(lua_globals, "debug") and hasattr(lua_globals.debug, "getinfo"):
+                # Try different stack levels to find the Lua caller
+                debug_info = None
+                for level in [1, 2, 3, 4]:
+                    try:
+                        info = lua_globals.debug.getinfo(level, "Sl")
+                        if info:
+                            lua_dict = dict(info.items()) if hasattr(info, "items") else {}
+                            source = lua_dict.get("source", "")
+                            line = lua_dict.get("currentline", -1)
+                            # Look for a valid source location (not -1, not C function, not internal)
+                            if (
+                                line > 0
+                                and source
+                                and not source.startswith("=[C]")
+                                and not source.startswith("[string")
+                            ):
+                                debug_info = lua_dict
+                                break
+                    except Exception:
+                        continue
+
+                if debug_info:
+                    source_info = {
+                        "file": self.execution_context.current_tac_file
+                        or debug_info.get("source", "unknown"),
+                        "line": debug_info.get("currentline", 0),
+                        "function": debug_info.get("name", name),
+                    }
+        except Exception:
+            pass
+
+        # If we still don't have source_info, use fallback
+        if not source_info:
+            import inspect
+
+            frame = inspect.currentframe()
+            if frame and frame.f_back:
+                caller_frame = frame.f_back
+                # Use .tac file if available, otherwise use Python file
+                source_info = {
+                    "file": self.execution_context.current_tac_file
+                    or caller_frame.f_code.co_filename,
+                    "line": 0,  # Line number unknown without Lua debug
+                    "function": name,
+                }
 
         return self.execution_context.checkpoint(
             execute_procedure, "procedure_call", source_info=source_info

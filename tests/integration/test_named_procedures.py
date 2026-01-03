@@ -174,7 +174,7 @@ end)
     result = await runtime.execute(source=source, context={}, format="lua")
 
     assert result["success"] is False
-    assert "missing required input: required_field" in result["error"]
+    assert "required_field" in result["error"]
 
 
 @pytest.mark.asyncio

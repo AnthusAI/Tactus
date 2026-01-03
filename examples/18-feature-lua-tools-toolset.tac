@@ -9,6 +9,16 @@ To run this example:
 tactus run examples/18-feature-lua-tools-toolset.tac --param operation="add 15 and 27"
 ]]--
 
+-- Define completion tool
+tool("done", {
+    description = "Signal completion of the task",
+    parameters = {
+        reason = {type = "string", required = true, description = "Completion message"}
+    }
+}, function(args)
+    return "Done: " .. args.reason
+end)
+
 -- Define a toolset containing multiple math tools
 toolset("math_tools", {
     type = "lua",

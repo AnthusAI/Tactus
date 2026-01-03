@@ -1,4 +1,5 @@
 import { AnyEvent } from './events';
+import { CheckpointEntry } from './tracing';
 
 export interface RunHistory {
   id: string;
@@ -7,6 +8,8 @@ export interface RunHistory {
   events: AnyEvent[];
   isExpanded: boolean;
   status: 'running' | 'success' | 'failed' | 'error';
+  checkpoints?: CheckpointEntry[];
+  inputs?: Record<string, any>;  // Input parameters used for this run
 }
 
 export interface FileResultsHistory {

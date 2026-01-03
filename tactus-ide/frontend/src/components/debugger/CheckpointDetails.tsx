@@ -3,13 +3,16 @@
  */
 
 import React, { useState } from 'react';
+import { ArrowUpRight } from 'lucide-react';
 import type { CheckpointEntry } from '../../types/tracing';
+import { Button } from '../ui/button';
 
 interface CheckpointDetailsProps {
   checkpoint: CheckpointEntry;
+  onJumpToSource?: (filePath: string, lineNumber: number) => void;
 }
 
-export const CheckpointDetails: React.FC<CheckpointDetailsProps> = ({ checkpoint }) => {
+export const CheckpointDetails: React.FC<CheckpointDetailsProps> = ({ checkpoint, onJumpToSource }) => {
   const [activeTab, setActiveTab] = useState<'result' | 'state' | 'context'>('result');
 
   const formatTimestamp = (timestamp: string) => {
@@ -144,26 +147,62 @@ export const CheckpointDetails: React.FC<CheckpointDetailsProps> = ({ checkpoint
             {checkpoint.source_location ? (
               <>
                 <div className="mb-4">
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-                    Location
-                  </div>
-                  <div className="font-mono text-sm text-gray-900 dark:text-gray-100">
-                    {checkpoint.source_location.file}:{checkpoint.source_location.line}
-                  </div>
-                  {checkpoint.source_location.function && (
-                    <div className="font-mono text-sm text-gray-600 dark:text-gray-400">
-                      in {checkpoint.source_location.function}()
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                        Location
+                      </div>
+                      <div className="font-mono text-sm text-gray-900 dark:text-gray-100 break-all">
+                        {checkpoint.source_location.file}:{checkpoint.source_location.line}
+                      </div>
+                      {checkpoint.source_location.function && (
+                        <div className="font-mono text-sm text-gray-600 dark:text-gray-400">
+                          in {checkpoint.source_location.function}()
+                        </div>
+                      )}
                     </div>
+                  </div>
+                  {onJumpToSource && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        console.log('Jump to source clicked:', {
+                          file: checkpoint.source_location!.file,
+                          line: checkpoint.source_location!.line
+                        });
+                        onJumpToSource(
+                          checkpoint.source_location!.file,
+                          checkpoint.source_location!.line
+                        );
+                      }}
+                      className="w-full"
+                    >
+                      <ArrowUpRight className="h-4 w-4 mr-1" />
+                      Jump to Source (Line {checkpoint.source_location.line})
+                    </Button>
                   )}
                 </div>
 
                 {checkpoint.source_location.code_context && (
                   <div>
                     <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-                      Code Context
+                      Code Context (Line {checkpoint.source_location.line})
                     </div>
-                    <pre className="bg-gray-50 dark:bg-gray-800 p-3 rounded text-xs overflow-x-auto">
-                      <code>{checkpoint.source_location.code_context}</code>
+                    <pre className="bg-gray-50 dark:bg-gray-800 p-3 rounded text-xs overflow-x-auto max-w-full">
+                      <code className="whitespace-pre">{checkpoint.source_location.code_context.split('\n').map((line, idx, arr) => {
+                        // Find the middle line (the checkpoint line)
+                        const middleIdx = Math.floor(arr.length / 2);
+                        const isCheckpointLine = idx === middleIdx;
+                        return (
+                          <div
+                            key={idx}
+                            className={isCheckpointLine ? 'bg-yellow-200 dark:bg-yellow-900/50 -mx-3 px-3' : ''}
+                          >
+                            {line}
+                          </div>
+                        );
+                      })}</code>
                     </pre>
                   </div>
                 )}

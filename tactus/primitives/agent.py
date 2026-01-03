@@ -142,26 +142,10 @@ class AgentPrimitive:
                 output_schema_guidance=output_schema_guidance,
             )
 
-        # Create "done" tool if any tools are specified
-        # For models without tool support, we don't add any tools (including done)
+        # Use provided tools directly (no built-in tools injected)
+        # For models without tool support, we don't add any tools
         if tools:
-
-            async def done_tool(reason: str, success: bool = True) -> str:
-                """Signal completion of the task."""
-                if self.stop_primitive:
-                    self.stop_primitive.request(reason if success else f"Failed: {reason}")
-                if self.tool_primitive:
-                    self.tool_primitive.record_call(
-                        "done", {"reason": reason, "success": success}, "Done"
-                    )
-                return f"Done: {reason} (success: {success})"
-
-            done_tool_instance = Tool(
-                done_tool, name="done", description="Signal completion of the task"
-            )
-
-            # Combine all tools (MCP tools + done tool)
-            all_tools = list(tools) + [done_tool_instance]
+            all_tools = list(tools)
         else:
             # No tools for this agent (model doesn't support tool calling)
             all_tools = []
@@ -265,9 +249,7 @@ class AgentPrimitive:
         self.message_history: List[ModelMessage] = []
         self._initialized = False
 
-        logger.info(
-            f"AgentPrimitive '{name}' initialized with {len(all_tools)} tools (including 'done')"
-        )
+        logger.info(f"AgentPrimitive '{name}' initialized with {len(all_tools)} tools")
 
     def turn(self, opts: Optional[Dict[str, Any]] = None) -> ResultPrimitive:
         """
@@ -295,19 +277,77 @@ class AgentPrimitive:
 
         # If execution_context is available, wrap with checkpoint
         if self.execution_context:
-            # Capture source location using Python's inspect module
-            import inspect
+            # Try to capture Lua source location if available
+            source_info = None
 
-            frame = inspect.currentframe()
-            if frame and frame.f_back:
-                caller_frame = frame.f_back
-                source_info = {
-                    "file": caller_frame.f_code.co_filename,
-                    "line": caller_frame.f_lineno,
-                    "function": caller_frame.f_code.co_name,
-                }
-            else:
-                source_info = None
+            try:
+                # Get debug.getinfo function from Lua globals via execution_context
+                lua_sandbox = self.execution_context.lua_sandbox
+                if not lua_sandbox:
+                    raise AttributeError("No lua_sandbox on execution_context")
+                lua_globals = lua_sandbox.lua.globals()
+                with open("/tmp/tactus-debug.log", "a") as f:
+                    f.write(f"DEBUG agent.py: Trying debug.getinfo for {self.name}\n")
+                    f.write(f"DEBUG agent.py: has debug={hasattr(lua_globals, 'debug')}\n")
+                if hasattr(lua_globals, "debug") and hasattr(lua_globals.debug, "getinfo"):
+                    # Try different stack levels to find the Lua caller
+                    debug_info = None
+                    for level in [1, 2, 3, 4, 5, 6, 7, 8]:
+                        try:
+                            info = lua_globals.debug.getinfo(level, "Sl")
+                            if info:
+                                lua_dict = dict(info.items()) if hasattr(info, "items") else {}
+                                source = lua_dict.get("source", "")
+                                line = lua_dict.get("currentline", -1)
+                                with open("/tmp/tactus-debug.log", "a") as f:
+                                    f.write(
+                                        f"DEBUG agent.py: Level {level}: source={source}, line={line}\n"
+                                    )
+                                # Look for a valid source location (not -1, not C function)
+                                # Accept [string "<python>"] sources since that's our Lua code
+                                if line > 0 and source:
+                                    if source.startswith("=[C]"):
+                                        continue  # Skip C functions
+                                    debug_info = lua_dict
+                                    with open("/tmp/tactus-debug.log", "a") as f:
+                                        f.write(
+                                            f"DEBUG agent.py: Found valid source at level {level}\n"
+                                        )
+                                    break
+                        except Exception as inner_e:
+                            with open("/tmp/tactus-debug.log", "a") as f:
+                                f.write(f"DEBUG agent.py: Level {level} error: {inner_e}\n")
+                            continue
+
+                    if debug_info:
+                        source_info = {
+                            "file": self.execution_context.current_tac_file
+                            or debug_info.get("source", "unknown"),
+                            "line": debug_info.get("currentline", 0),
+                            "function": debug_info.get("name", self.name),
+                        }
+                        with open("/tmp/tactus-debug.log", "a") as f:
+                            f.write(f"DEBUG agent.py: Final source_info: {source_info}\n")
+            except Exception as e:
+                with open("/tmp/tactus-debug.log", "a") as f:
+                    f.write(f"DEBUG agent.py: Exception: {e}\n")
+
+            # If we still don't have source_info, use fallback
+            if not source_info:
+                import inspect
+
+                frame = inspect.currentframe()
+                if frame and frame.f_back:
+                    caller_frame = frame.f_back
+                    # Use .tac file if available, otherwise use Python file
+                    source_info = {
+                        "file": self.execution_context.current_tac_file
+                        or caller_frame.f_code.co_filename,
+                        "line": 0,  # Line number unknown without Lua debug
+                        "function": self.name,
+                    }
+                    with open("/tmp/tactus-debug.log", "a") as f:
+                        f.write(f"DEBUG agent.py: Using fallback, source_info: {source_info}\n")
 
             return self.execution_context.checkpoint(
                 lambda: self._execute_turn(opts), "agent_turn", source_info=source_info
@@ -436,19 +476,99 @@ class AgentPrimitive:
 
     def _get_user_input_for_turn(self, opts: Optional[Dict[str, Any]]) -> Optional[str]:
         """
-        Get user input for this turn, respecting inject override.
+        Get user input for this turn, respecting inject and context overrides.
 
         Args:
-            opts: Optional dict with 'inject' key
+            opts: Optional dict with 'inject' and/or 'context' keys
+                - inject: String message to inject
+                - context: Dict of key-value pairs to format as context
 
         Returns:
             User input message for this turn
+
+        Example (Lua):
+            Agent.turn({
+                context = {
+                    tip_result = "Tip: $10.00",
+                    split_result = "$15.00 per person"
+                }
+            })
         """
-        if opts and "inject" in opts:
-            return opts["inject"]
+        if not opts:
+            # Default behavior
+            return self.initial_message if not self.message_history else None
+
+        # Convert Lua table to dict if needed
+        opts_dict = self._lua_table_to_dict(opts) if hasattr(opts, "items") else opts
+
+        # Handle context parameter - format as structured input for LLM
+        if "context" in opts_dict:
+            context = opts_dict["context"]
+            context_str = self._format_context(context)
+
+            # Combine with inject if both provided
+            if opts_dict.get("inject"):
+                return f"{opts_dict['inject']}\n\nContext:\n{context_str}"
+            return f"Context:\n{context_str}"
+
+        if "inject" in opts_dict:
+            return opts_dict["inject"]
 
         # Default behavior
         return self.initial_message if not self.message_history else None
+
+    def _lua_table_to_dict(self, lua_table) -> Dict[str, Any]:
+        """Convert Lua table to Python dict recursively."""
+        if lua_table is None:
+            return {}
+        if not hasattr(lua_table, "items"):
+            return lua_table if isinstance(lua_table, dict) else {}
+
+        result = {}
+        try:
+            for key, value in lua_table.items():
+                if hasattr(value, "items"):
+                    result[key] = self._lua_table_to_dict(value)
+                else:
+                    result[key] = value
+        except (TypeError, AttributeError):
+            # Fallback for different Lua table types
+            try:
+                for key in lua_table:
+                    result[key] = lua_table[key]
+            except Exception:
+                pass
+        return result
+
+    def _format_context(self, context: Any) -> str:
+        """
+        Format context dict/table for LLM consumption.
+
+        Args:
+            context: Dict or Lua table of key-value pairs
+
+        Returns:
+            Formatted string representation
+        """
+        # Convert Lua table to dict if needed
+        if hasattr(context, "items"):
+            try:
+                context_dict = dict(context.items())
+            except (TypeError, AttributeError):
+                context_dict = {}
+                for key in context:
+                    context_dict[key] = context[key]
+        elif isinstance(context, dict):
+            context_dict = context
+        else:
+            # Unknown type - convert to string
+            return str(context)
+
+        # Format as key-value pairs
+        lines = []
+        for key, value in context_dict.items():
+            lines.append(f"- {key}: {value}")
+        return "\n".join(lines)
 
     def _get_model_settings_for_turn(self, opts: Optional[Dict[str, Any]]) -> Dict[str, Any]:
         """
@@ -578,8 +698,10 @@ class AgentPrimitive:
                 )
             else:
                 # First turn - start new conversation
+                # Use user_input if provided (e.g., context), otherwise fall back to initial_message
+                first_turn_message = user_input if user_input else (self.initial_message or "Hello")
                 result = await self.agent.run(
-                    self.initial_message or "Hello",
+                    first_turn_message,
                     deps=self.deps,
                     output_type=self.result_type,
                     model_settings=turn_model_settings,
@@ -731,8 +853,10 @@ class AgentPrimitive:
                 )
             else:
                 # First turn - start new conversation
+                # Use user_input if provided (e.g., context), otherwise fall back to initial_message
+                first_turn_message = user_input if user_input else (self.initial_message or "Hello")
                 result = await self.agent.run(
-                    self.initial_message or "Hello",
+                    first_turn_message,
                     deps=self.deps,
                     output_type=self.result_type,
                     event_stream_handler=stream_handler,

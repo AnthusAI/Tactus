@@ -40,6 +40,7 @@ import { ThemeProvider } from './components/theme-provider';
 import { ResultsHistoryState, RunHistory } from './types/results';
 import { ProcedureMetadata } from './types/metadata';
 import { AnyEvent, TestCompletedEvent } from './types/events';
+import { ProcedureInputsModal } from './components/ProcedureInputsModal';
 
 // Detect if running in Electron (moved inside component for runtime evaluation)
 
@@ -111,6 +112,10 @@ const AppContent: React.FC = () => {
   const [procedureMetadata, setProcedureMetadata] = useState<ProcedureMetadata | null>(null);
   const [metadataLoading, setMetadataLoading] = useState(false);
   const [currentRunId, setCurrentRunId] = useState<string | null>(null);
+
+  // Input modal state
+  const [inputModalOpen, setInputModalOpen] = useState(false);
+  const [pendingInputs, setPendingInputs] = useState<Record<string, any> | null>(null);
 
   // Editor ref for programmatic navigation
   const editorRef = useRef<EditorHandle>(null);
@@ -206,7 +211,7 @@ const AppContent: React.FC = () => {
   }, []);
 
   // Handle file selection
-  const handleFileSelect = useCallback(async (path: string) => {
+  const handleFileSelect = useCallback(async (path: string, switchTab: boolean = true) => {
     try {
       const response = await fetch(apiUrl(`/api/file?path=${encodeURIComponent(path)}`));
       if (response.ok) {
@@ -215,8 +220,10 @@ const AppContent: React.FC = () => {
         setFileContent(data.content);
         setHasUnsavedChanges(false);
 
-        // Switch to Procedure tab
-        setActiveTab('procedure');
+        // Only switch to Procedure tab if requested (default true for backward compatibility)
+        if (switchTab) {
+          setActiveTab('procedure');
+        }
 
         // Fetch metadata
         fetchProcedureMetadata(path);
@@ -232,8 +239,8 @@ const AppContent: React.FC = () => {
   const handleJumpToSource = useCallback(async (filePath: string, lineNumber: number) => {
     console.log('Jump to source called:', { filePath, lineNumber });
 
-    // First open the file
-    await handleFileSelect(filePath);
+    // First open the file (but don't switch tabs)
+    await handleFileSelect(filePath, false);
     console.log('File opened, waiting to reveal line...');
 
     // Then reveal the line in the editor (with a small delay to ensure editor has rendered)
@@ -329,7 +336,7 @@ const AppContent: React.FC = () => {
       // Collapse all previous runs
       const updatedRuns = fileHistory.runs.map((run) => ({ ...run, isExpanded: false }));
 
-      // Add new run at the BEGINNING (top of list) since newest should be first
+      // Add new run at the END (bottom of list) since newest should be last
       const newRun: RunHistory = {
         id: runId,
         timestamp: new Date().toISOString(),
@@ -339,8 +346,8 @@ const AppContent: React.FC = () => {
         status: 'running',
       };
 
-      // Add new run at the top, keep existing persisted runs
-      const allRuns = [newRun, ...updatedRuns];
+      // Add new run at the bottom, keep existing persisted runs
+      const allRuns = [...updatedRuns, newRun];
       return {
         ...prev,
         [currentFile]: {
@@ -392,18 +399,29 @@ const AppContent: React.FC = () => {
     }
   }, [currentFile, fileContent, createNewRun]);
 
-  // Run current file with streaming
-  const handleRun = useCallback(async () => {
-    if (!currentFile) {
-      alert('Please select a file to run');
-      return;
-    }
+  // Execute run with inputs (called after modal submission or directly if no inputs)
+  const executeRunWithInputs = useCallback(async (inputs: Record<string, any>) => {
+    if (!currentFile) return;
 
     // Clear stream first to reset events
     setStreamUrl(null);
 
-    // Create new run entry
-    createNewRun('run');
+    // Create new run entry with inputs
+    const runId = createNewRun('run');
+
+    // Store inputs in the run history
+    if (currentFile) {
+      setResultsHistory(prev => {
+        const fileHistory = prev[currentFile] || { filePath: currentFile, runs: [] };
+        const updatedRuns = fileHistory.runs.map(run =>
+          run.id === runId ? { ...run, inputs } : run
+        );
+        return {
+          ...prev,
+          [currentFile]: { ...fileHistory, runs: updatedRuns },
+        };
+      });
+    }
 
     // Clear old results
     setRunResult(null);
@@ -420,13 +438,37 @@ const AppContent: React.FC = () => {
         }),
       });
 
-      // Then start streaming (GET request, no content in URL)
-      const url = apiUrl(`/api/run/stream?path=${encodeURIComponent(currentFile)}`);
+      // Build URL with inputs parameter
+      const inputsParam = Object.keys(inputs).length > 0
+        ? `&inputs=${encodeURIComponent(JSON.stringify(inputs))}`
+        : '';
+      const url = apiUrl(`/api/run/stream?path=${encodeURIComponent(currentFile)}${inputsParam}`);
       setStreamUrl(url);
     } catch (error) {
       console.error('Error saving file before run:', error);
     }
   }, [currentFile, fileContent, createNewRun]);
+
+  // Run current file with streaming
+  const handleRun = useCallback(async () => {
+    if (!currentFile) {
+      alert('Please select a file to run');
+      return;
+    }
+
+    // Check if procedure has input parameters
+    const hasInputs = procedureMetadata?.parameters &&
+      Object.keys(procedureMetadata.parameters).length > 0;
+
+    if (hasInputs) {
+      // Show modal to collect inputs
+      setInputModalOpen(true);
+      return;
+    }
+
+    // No inputs needed, run directly
+    executeRunWithInputs({});
+  }, [currentFile, procedureMetadata, executeRunWithInputs]);
 
   // Test current file
   const handleTest = useCallback(async () => {
@@ -872,6 +914,20 @@ const AppContent: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Procedure Inputs Modal */}
+      {procedureMetadata?.parameters && (
+        <ProcedureInputsModal
+          open={inputModalOpen}
+          onOpenChange={setInputModalOpen}
+          parameters={procedureMetadata.parameters}
+          onSubmit={(values) => {
+            setInputModalOpen(false);
+            executeRunWithInputs(values);
+          }}
+          onCancel={() => setInputModalOpen(false)}
+        />
+      )}
     </div>
   );
 };

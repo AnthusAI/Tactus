@@ -317,15 +317,17 @@ def run_procedure_stream():
     Run a Tactus procedure with SSE streaming output.
 
     For GET: Query param 'path' (required)
-    For POST: JSON body with 'path' (required) and optional 'content'
+    For POST: JSON body with 'path' (required), optional 'content', and optional 'inputs'
     """
     if request.method == "POST":
         data = request.json or {}
         file_path = data.get("path")
         content = data.get("content")
+        inputs = data.get("inputs", {})  # Input parameters for the procedure
     else:
         file_path = request.args.get("path")
         content = None  # Don't pass content via URL params (too large)
+        inputs = {}  # No inputs via GET
 
     if not file_path:
         return jsonify({"error": "Missing 'path' parameter"}), 400
@@ -350,7 +352,6 @@ def run_procedure_stream():
             try:
                 from tactus.core import TactusRuntime
                 from tactus.adapters.ide_log import IDELogHandler
-                from tactus.adapters.memory import MemoryStorage
                 import asyncio
                 import threading
 
@@ -365,12 +366,14 @@ def run_procedure_stream():
 
                 # Create runtime with log handler and FileStorage for persistence
                 from tactus.adapters.file_storage import FileStorage
+
                 storage = FileStorage()
 
                 runtime = TactusRuntime(
                     procedure_id=procedure_id,
                     storage_backend=storage,
                     log_handler=log_handler,
+                    source_file_path=str(path),
                 )
 
                 # Read procedure content
@@ -382,22 +385,25 @@ def run_procedure_stream():
                 def run_procedure():
                     try:
                         result = asyncio.run(
-                            runtime.execute(source_content, context={}, format="lua")
+                            runtime.execute(source_content, context=inputs, format="lua")
                         )
                         result_container["result"] = result
 
                         # Save execution as ExecutionRun for tracing/debugging
-                        logger.info(f"Attempting to save ExecutionRun: execution_context={runtime.execution_context is not None}")
+                        logger.info(
+                            f"Attempting to save ExecutionRun: execution_context={runtime.execution_context is not None}"
+                        )
                         if runtime.execution_context:
                             status = "COMPLETED" if result.get("success") else "FAILED"
                             run_id = runtime.execution_context.save_execution_run(
-                                procedure_name=procedure_id,
-                                file_path=str(path),
-                                status=status
+                                procedure_name=procedure_id, file_path=str(path), status=status
                             )
+                            result_container["run_id"] = run_id
                             logger.info(f"Saved ExecutionRun with ID: {run_id}")
                         else:
-                            logger.warning("No execution_context available - ExecutionRun not saved!")
+                            logger.warning(
+                                "No execution_context available - ExecutionRun not saved!"
+                            )
                     except Exception as e:
                         logger.error(f"Error in run_procedure: {e}", exc_info=True)
                         result_container["error"] = e
@@ -407,11 +413,14 @@ def run_procedure_stream():
                                 run_id = runtime.execution_context.save_execution_run(
                                     procedure_name=procedure_id,
                                     file_path=str(path),
-                                    status="FAILED"
+                                    status="FAILED",
                                 )
+                                result_container["run_id"] = run_id
                                 logger.info(f"Saved FAILED ExecutionRun with ID: {run_id}")
                         except Exception as save_error:
-                            logger.error(f"Failed to save ExecutionRun: {save_error}", exc_info=True)
+                            logger.error(
+                                f"Failed to save ExecutionRun: {save_error}", exc_info=True
+                            )
 
                 execution_thread = threading.Thread(target=run_procedure)
                 execution_thread.start()
@@ -451,13 +460,17 @@ def run_procedure_stream():
                     raise result_container["error"]
 
                 result = result_container.get("result", {})
+                run_id = result_container.get("run_id")
 
                 # Send completion event
                 complete_event = ExecutionEvent(
                     lifecycle_stage="complete" if result.get("success") else "error",
                     procedure_id=procedure_id,
                     exit_code=0 if result.get("success") else 1,
-                    details={"success": result.get("success", False)},
+                    details={
+                        "success": result.get("success", False),
+                        "run_id": run_id,
+                    },
                 )
                 yield f"data: {complete_event.model_dump_json()}\n\n"
 

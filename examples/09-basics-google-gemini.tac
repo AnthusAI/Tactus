@@ -3,6 +3,16 @@
 -- Note: Gemini 3 Flash doesn't appear to be available yet via API
 -- Requires GOOGLE_API_KEY in .tactus/config.yml
 
+-- Define completion tool
+tool("done", {
+    description = "Signal completion of the task",
+    parameters = {
+        reason = {type = "string", required = true, description = "Completion message"}
+    }
+}, function(args)
+    return "Done: " .. args.reason
+end)
+
 -- Agent using Gemini 3 Pro (most capable model)
 agent("gemini_pro", {
     provider = "google-gla",

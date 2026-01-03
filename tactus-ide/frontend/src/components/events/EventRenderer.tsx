@@ -13,19 +13,22 @@ import {
   TestScenarioCompletedEventComponent, 
   TestCompletedEventComponent 
 } from './TestEventComponent';
-import { 
-  EvaluationStartedEventComponent, 
-  EvaluationProgressEventComponent, 
-  EvaluationCompletedEventComponent 
+import {
+  EvaluationStartedEventComponent,
+  EvaluationProgressEventComponent,
+  EvaluationCompletedEventComponent
 } from './EvaluationEventComponent';
+import { ToolCallEventComponent } from './ToolCallEventComponent';
+import { CheckpointEventComponent } from './CheckpointEventComponent';
 import { BaseEventComponent } from './BaseEventComponent';
 
 interface EventRendererProps {
   event: AnyEvent;
   isAlternate?: boolean;
+  onJumpToSource?: (filePath: string, lineNumber: number) => void;
 }
 
-export const EventRenderer: React.FC<EventRendererProps> = ({ event, isAlternate }) => {
+export const EventRenderer: React.FC<EventRendererProps> = ({ event, isAlternate, onJumpToSource }) => {
   // Convert AgentTurnEvent to LoadingEvent for display
   if (event.event_type === 'agent_turn') {
     const agentEvent = event as any;
@@ -39,16 +42,8 @@ export const EventRenderer: React.FC<EventRendererProps> = ({ event, isAlternate
       };
       return <LoadingEventComponent event={loadingEvent as any} isAlternate={isAlternate} />;
     } else if (agentEvent.stage === 'completed') {
-      // Show as a log event: "Agent {name} completed"
-      const logEvent = {
-        event_type: 'log',
-        level: 'INFO',
-        message: `Agent ${agentEvent.agent_name} completed`,
-        context: null,
-        timestamp: agentEvent.timestamp,
-        procedure_id: agentEvent.procedure_id,
-      };
-      return <LogEventComponent event={logEvent as any} isAlternate={isAlternate} />;
+      // Don't show a separate "completed" message - the cost event shows the response
+      return null;
     }
   }
   
@@ -87,6 +82,10 @@ export const EventRenderer: React.FC<EventRendererProps> = ({ event, isAlternate
       return <EvaluationProgressEventComponent event={event} isAlternate={isAlternate} />;
     case 'evaluation_completed':
       return <EvaluationCompletedEventComponent event={event} isAlternate={isAlternate} />;
+    case 'tool_call':
+      return <ToolCallEventComponent event={event} isAlternate={isAlternate} />;
+    case 'checkpoint_created':
+      return <CheckpointEventComponent event={event} isAlternate={isAlternate} onJumpToSource={onJumpToSource} />;
     default:
       return (
         <BaseEventComponent isAlternate={isAlternate} className="py-2 px-3 text-sm text-muted-foreground">

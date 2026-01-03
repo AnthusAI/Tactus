@@ -173,14 +173,42 @@ Because procedures declare typed inputs, platforms can auto-generate UI for any 
 main = procedure("main", {
   input = {
     topic = { type = "string", required = true },
-    depth = { type = "string", enum = {"shallow", "deep"}, default = "shallow" }
+    depth = { type = "string", enum = {"shallow", "deep"}, default = "shallow" },
+    max_results = { type = "number", default = 10 },
+    include_sources = { type = "boolean", default = true },
+    tags = { type = "array", default = {} },
+    config = { type = "object", default = {} }
   }
-}, function() ... end)
+}, function()
+  -- Access inputs directly in Lua
+  log("Researching: " .. input.topic)
+  log("Depth: " .. input.depth)
+  log("Max results: " .. input.max_results)
+
+  -- Arrays and objects work seamlessly
+  for i, tag in ipairs(input.tags) do
+    log("Tag " .. i .. ": " .. tag)
+  end
+
+  -- ... rest of procedure
+end)
 ```
 
-A web app renders a form. Slack renders a modal. SMS runs a structured conversation.
+**Input Types Supported:**
+- `string`: Text values with optional enums for constrained choices
+- `number`: Integers and floats
+- `boolean`: True/false values
+- `array`: Lists of values (converted to 1-indexed Lua tables)
+- `object`: Key-value dictionaries (converted to Lua tables)
 
-One agent definition. Every channel.
+**Input Sources:**
+- **CLI**: Parameters via `--param`, interactive prompting, or automatic prompting for missing required inputs
+- **GUI**: Modal dialog before execution with type-appropriate form controls
+- **SDK**: Direct passing via `context` parameter to `runtime.execute()`
+
+A web app renders a form. Slack renders a modal. SMS runs a structured conversation. The CLI provides interactive prompts.
+
+One agent definition. Every channel. Type-safe inputs everywhere.
 
 ---
 
@@ -320,6 +348,34 @@ agent("text_processor", {
     end}
   },
   toolsets = {"done"}
+})
+```
+
+### Direct Tool Invocation
+
+Call tools directly from Lua code for deterministic control:
+
+```lua
+-- tool() returns a callable - assign it for direct use
+local calculate_tip = tool("calculate_tip", {
+  description = "Calculate tip",
+  parameters = {
+    amount = {type = "number", required = true},
+    percent = {type = "number", required = true}
+  }
+}, function(args)
+  return args.amount * args.percent / 100
+end)
+
+-- Call directly - no LLM involvement
+local tip = calculate_tip({amount = 50, percent = 20})
+
+-- Pass results to agent via context
+Summarizer.turn({
+  context = {
+    tip_calculation = tip,
+    original_amount = "$50.00"
+  }
 })
 ```
 
@@ -1281,22 +1337,106 @@ result = await runtime.execute(yaml_config, context)
 
 ## CLI Commands
 
+### Running Procedures
+
 ```bash
-# Run a workflow (displays real-time cost tracking and summary)
+# Run a procedure
 tactus run workflow.tac
-tactus run workflow.tac --param task="Analyze data"
 
-# Validate a workflow
-tactus validate workflow.tac
+# Run with parameters (supports all types)
+tactus run workflow.tac --param name="Alice" --param count=5
+tactus run workflow.tac --param enabled=true --param items='[1,2,3]'
+tactus run workflow.tac --param config='{"key":"value","nested":{"data":true}}'
 
-# Test a workflow (run Gherkin specifications with cost tracking)
-tactus test workflow.tac
+# Interactive mode - prompts for all inputs with confirmation
+tactus run workflow.tac --interactive
 
-# Evaluate consistency across multiple runs (includes cost metrics)
-tactus evaluate workflow.tac --runs 10
+# Missing required inputs will prompt automatically
+tactus run workflow.tac  # If procedure has required inputs, you'll be prompted
+
+# Use file storage (instead of memory)
+tactus run workflow.tac --storage file --storage-path ./data
 ```
 
-All commands that execute workflows display comprehensive cost and performance metrics, including per-call costs, total costs, token usage, and timing information.
+The CLI automatically parses parameter types:
+- **Strings**: Direct values or quoted strings
+- **Numbers**: Integers or floats are auto-detected
+- **Booleans**: `true`, `false`, `yes`, `no`, `1`, `0`
+- **Arrays**: JSON arrays like `'[1,2,3]'` or comma-separated `"a,b,c"`
+- **Objects**: JSON objects like `'{"key":"value"}'`
+
+When you run a procedure, you'll see real-time execution output:
+
+```
+Running procedure: workflow.tac (lua format)
+
+→ Agent researcher: Waiting for response...
+Hello! I'll help you with that task.
+✓ Agent researcher: Completed 1204ms
+→ Tool done {"reason": "Task completed successfully"}
+  Result: Done
+$ Cost researcher: $0.001267 (354 tokens, openai:gpt-4o, 1204ms)
+
+✓ Procedure completed: 1 iterations, 1 tools used
+
+$ Cost Summary
+  Total Cost: $0.001267
+  Total Tokens: 354
+```
+
+### Inspecting Procedures
+
+```bash
+# View procedure metadata (agents, tools, parameters, outputs)
+tactus info workflow.tac
+```
+
+Example output:
+
+```
+Procedure info: workflow.tac
+
+Parameters:
+  task: string (required)
+  count: number default: 3
+
+Outputs:
+  result: string (required) - Summary of the completed work
+
+Agents:
+  researcher:
+    Provider: openai
+    Model: gpt-4o
+    Tools: search, analyze, done
+    Prompt: You are a research assistant...
+```
+
+### Validation and Testing
+
+```bash
+# Validate syntax and structure
+tactus validate workflow.tac
+
+# Run BDD specifications
+tactus test workflow.tac
+
+# Test consistency across multiple runs
+tactus test workflow.tac --runs 10
+
+# Evaluate with Pydantic AI Evals
+tactus eval workflow.tac --runs 10
+```
+
+### Understanding Output
+
+The CLI displays several types of events:
+
+- **→ Agent [name]**: Agent is processing (starts with → symbol)
+- **✓ Agent [name]**: Agent completed (shows duration)
+- **→ Tool [name]**: Tool was called (shows arguments and result)
+- **$ Cost [name]**: Cost breakdown (tokens, model, duration)
+
+All commands that execute workflows display comprehensive cost and performance metrics.
 
 ## Tactus IDE
 

@@ -1,20 +1,16 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Loader2 } from 'lucide-react';
 import { FileResultsHistory } from '@/types/results';
 import { ProcedureMetadata } from '@/types/metadata';
+import { CheckpointEntry } from '@/types/tracing';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ProcedureTab } from './ProcedureTab';
 import { CollapsibleRun } from './CollapsibleRun';
-import { CheckpointList } from './debugger/CheckpointList';
-import { CheckpointDetails } from './debugger/CheckpointDetails';
-import { RunSelector } from './debugger/RunSelector';
-import { StatisticsPanel } from './debugger/StatisticsPanel';
-import { useRunList, useRun } from '../hooks/useTracing';
 
 interface ResultsSidebarProps {
   currentFile: string | null;
-  activeTab: 'procedure' | 'results' | 'checkpoints';
-  onTabChange: (tab: 'procedure' | 'results' | 'checkpoints') => void;
+  activeTab: 'procedure' | 'results';
+  onTabChange: (tab: 'procedure' | 'results') => void;
 
   // Procedure tab
   procedureMetadata: ProcedureMetadata | null;
@@ -24,6 +20,7 @@ interface ResultsSidebarProps {
   resultsHistory: FileResultsHistory | null;
   isRunning: boolean;
   onToggleRunExpansion: (runId: string) => void;
+  onJumpToSource?: (filePath: string, lineNumber: number) => void;
 }
 
 export const ResultsSidebar: React.FC<ResultsSidebarProps> = ({
@@ -35,14 +32,11 @@ export const ResultsSidebar: React.FC<ResultsSidebarProps> = ({
   resultsHistory,
   isRunning,
   onToggleRunExpansion,
+  onJumpToSource,
 }) => {
   const resultsContentRef = useRef<HTMLDivElement>(null);
   const lastRunCountRef = useRef<number>(0);
   const shouldAutoScrollRef = useRef<boolean>(true);
-
-  // Checkpoints tab state
-  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
-  const [selectedPosition, setSelectedPosition] = useState<number | null>(null);
 
   // Extract procedure name from current file path
   // The backend saves runs with "ide-{filename}" as the procedure_name
@@ -50,31 +44,98 @@ export const ResultsSidebar: React.FC<ResultsSidebarProps> = ({
     ? `ide-${currentFile.split('/').pop()?.replace('.tac', '')}` || undefined
     : undefined;
 
-  // Auto-refresh runs list every 3 seconds when on Results OR Checkpoints tab
-  // Filter by current procedure name
-  const { runs: persistedRuns, loading: runsLoading } = useRunList({
-    procedure: procedureName,
-    limit: 50,
-    autoRefresh: activeTab === 'results' || activeTab === 'checkpoints',
-    refreshInterval: 3000
-  });
-  const { run, loading: runLoading } = useRun(selectedRunId, procedureName);
+  // Fetch and cache checkpoint data for runs
+  const [checkpointCache, setCheckpointCache] = useState<Map<string, CheckpointEntry[]>>(new Map());
+  const [fetchingRuns, setFetchingRuns] = useState<Set<string>>(new Set());
+  const [failedRuns, setFailedRuns] = useState<Set<string>>(new Set());
 
-  // Both tabs use the same data source
-  const runs = persistedRuns;
-
-  const selectedCheckpoint = run
-    ? run.execution_log.find((cp) => cp.position === selectedPosition)
-    : undefined;
-
-  // Auto-scroll to bottom when NEW runs are added
+  // Clear caches when file changes
   useEffect(() => {
-    const currentRunCount = resultsHistory?.runs.length || 0;
+    setCheckpointCache(new Map());
+    setFetchingRuns(new Set());
+    setFailedRuns(new Set());
+  }, [currentFile]);
 
-    // Auto-scroll if the number of runs increased (new run added)
+  // Fetch checkpoints for a specific run when needed
+  const fetchCheckpointsForRun = useCallback(async (runId: string) => {
+    // Skip if already failed
+    if (failedRuns.has(runId)) {
+      return [];
+    }
+
+    try {
+      const url = `${import.meta.env.VITE_BACKEND_URL || ''}/api/traces/runs/${runId}/checkpoints?procedure=${encodeURIComponent(procedureName || '')}`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        // Mark as failed to prevent retries
+        if (response.status === 404) {
+          setFailedRuns(prev => new Set(prev).add(runId));
+        }
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      const checkpoints = data.checkpoints || [];
+
+      // Cache the result
+      setCheckpointCache(prev => new Map(prev).set(runId, checkpoints));
+      setFetchingRuns(prev => {
+        const next = new Set(prev);
+        next.delete(runId);
+        return next;
+      });
+
+      return checkpoints;
+    } catch (error) {
+      console.error(`Failed to fetch checkpoints for run ${runId}:`, error);
+      setFetchingRuns(prev => {
+        const next = new Set(prev);
+        next.delete(runId);
+        return next;
+      });
+      return [];
+    }
+  }, [procedureName, failedRuns]);
+
+  // Merge checkpoint data from cache into results history
+  const resultsWithCheckpoints = React.useMemo(() => {
+    if (!resultsHistory) {
+      return resultsHistory;
+    }
+
+    return {
+      ...resultsHistory,
+      runs: resultsHistory.runs.map((run) => {
+        const checkpoints = checkpointCache.get(run.id);
+        return {
+          ...run,
+          checkpoints: checkpoints || undefined,
+        };
+      })
+    };
+  }, [resultsHistory, checkpointCache]);
+
+  // Auto-fetch checkpoints for expanded runs
+  useEffect(() => {
+    if (!resultsHistory) return;
+
+    resultsHistory.runs.forEach((run) => {
+      if (run.isExpanded && !checkpointCache.has(run.id) && !fetchingRuns.has(run.id) && !failedRuns.has(run.id)) {
+        setFetchingRuns(prev => new Set(prev).add(run.id));
+        fetchCheckpointsForRun(run.id);
+      }
+    });
+  }, [resultsHistory, checkpointCache, fetchingRuns, failedRuns, fetchCheckpointsForRun]);
+
+  // Auto-scroll to bottom when content changes (new runs or new events)
+  useEffect(() => {
+    // Only auto-scroll if:
+    // 1. We're on the Results tab
+    // 2. The user hasn't manually scrolled away from bottom
+    // 3. There's content to scroll
     if (activeTab === 'results' &&
-        resultsContentRef.current &&
-        currentRunCount > lastRunCountRef.current) {
+        shouldAutoScrollRef.current &&
+        resultsContentRef.current) {
       // Use setTimeout with requestAnimationFrame to ensure DOM has fully updated
       setTimeout(() => {
         requestAnimationFrame(() => {
@@ -83,6 +144,26 @@ export const ResultsSidebar: React.FC<ResultsSidebarProps> = ({
           }
         });
       }, 50);
+    }
+  }, [resultsHistory, activeTab]); // Trigger on any resultsHistory change
+
+  // Track run count changes separately (for initial scroll on new runs)
+  useEffect(() => {
+    const currentRunCount = resultsHistory?.runs.length || 0;
+
+    // When a new run is added, always scroll to bottom regardless of user scroll position
+    if (currentRunCount > lastRunCountRef.current) {
+      shouldAutoScrollRef.current = true;
+
+      if (activeTab === 'results' && resultsContentRef.current) {
+        setTimeout(() => {
+          requestAnimationFrame(() => {
+            if (resultsContentRef.current) {
+              resultsContentRef.current.scrollTop = resultsContentRef.current.scrollHeight;
+            }
+          });
+        }, 50);
+      }
     }
 
     lastRunCountRef.current = currentRunCount;
@@ -97,33 +178,25 @@ export const ResultsSidebar: React.FC<ResultsSidebarProps> = ({
     }
   };
 
-  // Get status text
-  const getStatus = () => {
-    if (isRunning) return 'Running...';
-    if (!resultsHistory || resultsHistory.runs.length === 0) return 'Ready';
-
-    // Check status of most recent run (last in array)
-    const latestRun = resultsHistory.runs[resultsHistory.runs.length - 1];
-    if (latestRun.status === 'success') return 'Completed';
-    if (latestRun.status === 'failed') return 'Failed';
-    if (latestRun.status === 'error') return 'Error';
-
-    return 'Ready';
-  };
-
-  const handleRunSelect = (runId: string) => {
-    setSelectedRunId(runId);
-    setSelectedPosition(null);
-  };
-
-  const handleCheckpointSelect = (position: number) => {
-    setSelectedPosition(position);
-  };
+  // When switching to Results tab, enable auto-scroll
+  useEffect(() => {
+    if (activeTab === 'results') {
+      shouldAutoScrollRef.current = true;
+      // Scroll to bottom when switching to Results tab
+      if (resultsContentRef.current) {
+        setTimeout(() => {
+          if (resultsContentRef.current) {
+            resultsContentRef.current.scrollTop = resultsContentRef.current.scrollHeight;
+          }
+        }, 50);
+      }
+    }
+  }, [activeTab]);
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={(value) => onTabChange(value as 'procedure' | 'results' | 'checkpoints')} className="flex flex-col h-full">
+      <Tabs value={activeTab} onValueChange={(value) => onTabChange(value as 'procedure' | 'results')} className="flex flex-col flex-1 min-h-0">
         <div className="h-10 px-2 border-b flex items-center justify-between bg-muted/30 flex-shrink-0">
           <TabsList className="h-8">
             <TabsTrigger value="procedure" className="text-xs">
@@ -132,94 +205,44 @@ export const ResultsSidebar: React.FC<ResultsSidebarProps> = ({
             <TabsTrigger value="results" className="text-xs">
               Results
             </TabsTrigger>
-            <TabsTrigger value="checkpoints" className="text-xs">
-              Checkpoints
-            </TabsTrigger>
           </TabsList>
 
-          {activeTab === 'results' && (
+          {activeTab === 'results' && isRunning && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              {isRunning && <Loader2 className="h-3 w-3 animate-spin" />}
-              <span>{getStatus()}</span>
+              <Loader2 className="h-3 w-3 animate-spin" />
+              <span>Running...</span>
             </div>
           )}
         </div>
 
-        {/* Procedure Tab Content */}
-        <TabsContent value="procedure" className="h-0 flex-1 m-0">
-          <ProcedureTab metadata={procedureMetadata} loading={metadataLoading} />
-        </TabsContent>
+        {/* Tab Content Container - uses relative positioning for absolute TabsContent children */}
+        <div className="flex-1 relative min-h-0">
+          {/* Procedure Tab Content */}
+          <TabsContent value="procedure" className="absolute inset-0 m-0 data-[state=inactive]:pointer-events-none">
+            <ProcedureTab metadata={procedureMetadata} loading={metadataLoading} />
+          </TabsContent>
 
-        {/* Results Tab Content */}
-        <TabsContent value="results" className="h-0 flex-1 m-0 overflow-hidden">
-          {!resultsHistory || resultsHistory.runs.length === 0 ? (
-            <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
-              No results yet
-            </div>
-          ) : (
-            <div ref={resultsContentRef} className="h-full overflow-y-auto" onScroll={handleScroll}>
-              {resultsHistory.runs.map((run) => (
-                <CollapsibleRun
-                  key={run.id}
-                  run={run}
-                  isExpanded={run.isExpanded}
-                  onToggle={() => onToggleRunExpansion(run.id)}
-                />
-              ))}
-            </div>
-          )}
-        </TabsContent>
-
-        {/* Checkpoints Tab Content */}
-        <TabsContent value="checkpoints" className="h-0 flex-1 m-0 overflow-hidden flex flex-col">
-          {/* Run Selector */}
-          <div className="p-3 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
-            <RunSelector
-              runs={runs}
-              selectedRunId={selectedRunId}
-              onSelect={handleRunSelect}
-              loading={runsLoading}
-            />
-          </div>
-
-          {/* Content Area */}
-          <div className="flex-1 flex flex-col overflow-hidden">
-            {runLoading ? (
-              <div className="flex-1 flex items-center justify-center">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          {/* Results Tab Content */}
+          <TabsContent value="results" className="absolute inset-0 m-0 flex flex-col overflow-hidden data-[state=inactive]:pointer-events-none">
+            {!resultsWithCheckpoints || resultsWithCheckpoints.runs.length === 0 ? (
+              <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+                No results yet
               </div>
-            ) : run ? (
-              <>
-                {/* Checkpoint List */}
-                <div className="flex-1 overflow-hidden">
-                  <CheckpointList
-                    checkpoints={run.execution_log}
-                    selectedPosition={selectedPosition}
-                    onSelect={handleCheckpointSelect}
-                  />
-                </div>
-
-                {/* Selected Checkpoint Details - shown when a checkpoint is selected */}
-                {selectedCheckpoint && (
-                  <div className="border-t border-gray-200 dark:border-gray-700 max-h-[50%] overflow-hidden flex flex-col">
-                    <CheckpointDetails checkpoint={selectedCheckpoint} />
-                  </div>
-                )}
-
-                {/* Statistics Panel - shown when no checkpoint is selected */}
-                {!selectedCheckpoint && (
-                  <div className="border-t border-gray-200 dark:border-gray-700">
-                    <StatisticsPanel runId={run.run_id} procedure={procedureName} />
-                  </div>
-                )}
-              </>
             ) : (
-              <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
-                Select a run to view checkpoints
+              <div ref={resultsContentRef} className="h-full overflow-y-auto" onScroll={handleScroll}>
+                {resultsWithCheckpoints.runs.map((run) => (
+                  <CollapsibleRun
+                    key={run.id}
+                    run={run}
+                    isExpanded={run.isExpanded}
+                    onToggle={() => onToggleRunExpansion(run.id)}
+                    onJumpToSource={onJumpToSource}
+                  />
+                ))}
               </div>
             )}
-          </div>
-        </TabsContent>
+          </TabsContent>
+        </div>
       </Tabs>
     </div>
   );

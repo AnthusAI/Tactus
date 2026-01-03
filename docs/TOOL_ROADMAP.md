@@ -17,9 +17,18 @@ agent("worker", {
 
 **After:**
 ```lua
+-- Define completion tool explicitly (no built-in done tool)
+tool("done", {
+    description = "Signal completion of the task",
+    parameters = {
+        reason = {type = "string", required = true, description = "Completion message"}
+    }
+}, function(args)
+    return "Done: " .. args.reason
+end)
+
 agent("worker", {
-    -- ✅ "done" tool available by default
-    -- No toolsets parameter needed for basic usage
+    toolsets = {"done"}  -- References the explicitly defined tool above
 })
 
 -- Or explicitly control toolsets
@@ -31,16 +40,17 @@ agent("analyst", {
 ### Key Improvements
 
 1. **Unified Architecture**: Both MCP servers and plugin tools use `FunctionToolset`
-2. **Built-in Toolsets**: The `done` toolset is available and can be explicitly requested
+2. **Explicit Tools**: All tools (including completion tools like "done") must be explicitly defined
 3. **Composability**: Foundation for filtering, prefixing, and combining toolsets
 4. **Cleaner Code**: Consistent toolset handling throughout the runtime
 5. **Multi-Provider Support**: Validated with OpenAI, AWS Bedrock (Claude, Llama, Nova models)
 
 ### Migration Guide
 
-- **Use `toolsets` parameter**: `toolsets = {"done"}` to include the done tool
+- **Define tools explicitly**: Use `tool("done", {...}, handler)` to define a completion tool
+- **Reference in toolsets**: Use `toolsets = {"done"}` to give agents access to the tool
 - **For no tools**: Use `toolsets = {}` for explicitly no tools (e.g., models without tool support)
-- **Default behavior**: Omit `toolsets` to use default_toolsets from config (if configured)
+- **No built-in done tool**: You must explicitly define any completion/done tool you need
 - All example files have been migrated
 - Tests passing with new architecture
 
@@ -91,11 +101,9 @@ toolsets:
     sources:
       - financial
       - search_only
-      - done
 
-# Default toolsets for all agents
-default_toolsets:
-  - done
+# Note: There is no built-in "done" toolset. Define completion tools explicitly via tool().
+# default_toolsets can reference any toolsets you've defined in config or via tool() in .tac files.
 ```
 
 **Supported Toolset Types:**
@@ -129,7 +137,7 @@ agent("analyst", {
         -- Rename tools
         {name = "tools", rename = {old_name = "new_name"}},
 
-        -- Built-in done tool
+        -- Completion tool (must be explicitly defined via tool())
         "done"
     }
 })
@@ -186,7 +194,7 @@ All toolsets are registered by name in the runtime:
 
 ```python
 runtime.toolset_registry = {
-    'done': <FunctionToolset>,           # Built-in
+    'done': <FunctionToolset>,           # From explicit tool() definition
     'plugin': <FunctionToolset>,         # From tool_paths
     'test_server': <MCPToolset>,         # From MCP server
     'financial': <FunctionToolset>,      # Config-defined
@@ -346,7 +354,7 @@ agent("financial_advisor", {
 - Uses `importlib` for dynamic imports
 - Uses `inspect` to find public functions
 - Wraps functions in `pydantic_ai.Tool`
-- Integrates with `TactusRuntime` alongside MCP tools
+- Integrates with `TactusRuntime` alongside MCP tools and Lua-defined tools
 
 **Testing Status**:
 - ✅ Unit tests: `tests/adapters/test_plugins.py` (10 tests, all passing)
@@ -413,17 +421,23 @@ default_model: "gpt-4o-mini"
 Tools are registered in agent definitions and automatically converted to Pydantic AI `Tool` instances:
 
 ```lua
+-- Define tools explicitly
+tool("done", {
+    description = "Signal completion of the task",
+    parameters = {reason = {type = "string", required = true}}
+}, function(args) return "Done: " .. args.reason end)
+
 agent("worker", {
     provider = "openai",
     model = "gpt-4o",
     system_prompt = "You are a helpful assistant",
-    tools = {"search", "analyze", "done"}
+    toolsets = {"search", "analyze", "done"}  -- All must be explicitly defined
 })
 ```
 
-**Implementation**: 
+**Implementation**:
 - Tools loaded from MCP server via `PydanticAIMCPAdapter` ([`tactus/adapters/mcp.py`](../tactus/adapters/mcp.py))
-- Automatic "done" tool injection for all agents
+- Tools defined via `tool()` in Lua are converted to Pydantic AI toolsets
 - Tool call tracking via `ToolPrimitive` ([`tactus/primitives/tool.py`](../tactus/primitives/tool.py))
 
 **Pydantic AI Features Used**:

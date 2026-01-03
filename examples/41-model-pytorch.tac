@@ -8,6 +8,16 @@
 --   model = YourModel()
 --   torch.save(model, "sentiment_classifier.pt")
 
+-- Define completion tool
+tool("done", {
+    description = "Signal completion of the task",
+    parameters = {
+        reason = {type = "string", required = true, description = "Completion message"}
+    }
+}, function(args)
+    return "Done: " .. args.reason
+end)
+
 -- Define a PyTorch sentiment classifier
 -- (This requires the .pt file to exist and PyTorch to be installed)
 model("sentiment_classifier", {
@@ -28,7 +38,7 @@ The detected sentiment is: {state.sentiment}
 Respond appropriately based on the sentiment.
 Call done when finished.
 ]],
-    tools = {"done"}
+    toolsets = {"done"}
 })
 
 main = procedure("main", {

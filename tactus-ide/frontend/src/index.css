@@ -126,6 +126,17 @@ html.dark .highlighted-line {
   background-color: rgba(251, 191, 36, 0.15) !important;
 }
 
+/* Persistent highlight for jump to source */
+.highlighted-line-persistent {
+  background-color: rgba(251, 191, 36, 0.1) !important;
+  border-left: 3px solid #fbbf24 !important;
+}
+
+html.dark .highlighted-line-persistent {
+  background-color: rgba(251, 191, 36, 0.08) !important;
+  border-left: 3px solid #fbbf24 !important;
+}
+
 .highlighted-line-glyph {
   background-color: #fbbf24 !important;
   width: 4px !important;

@@ -103,8 +103,31 @@ class ProcedureCallable:
                 prev_state = None
 
             try:
+                # Convert Python lists/dicts to Lua tables before setting as input
+                def convert_to_lua(value):
+                    """Recursively convert Python lists and dicts to Lua tables."""
+                    if isinstance(value, list):
+                        # Convert Python list to Lua table (1-indexed)
+                        lua_table = self.lua_sandbox.lua.table()
+                        for i, item in enumerate(value, 1):
+                            lua_table[i] = convert_to_lua(item)
+                        return lua_table
+                    elif isinstance(value, dict):
+                        # Convert Python dict to Lua table
+                        lua_table = self.lua_sandbox.lua.table()
+                        for k, v in value.items():
+                            lua_table[k] = convert_to_lua(v)
+                        return lua_table
+                    else:
+                        return value
+
+                # Convert params to Lua-compatible format
+                lua_params = self.lua_sandbox.lua.table()
+                for key, value in params.items():
+                    lua_params[key] = convert_to_lua(value)
+
                 # Set sub-procedure's isolated input/state
-                self.lua_sandbox.set_global("input", params)
+                self.lua_sandbox.set_global("input", lua_params)
                 self.lua_sandbox.set_global("state", self._initialize_state())
 
                 # Execute the procedure function
@@ -136,19 +159,74 @@ class ProcedureCallable:
             return execute_procedure()
         else:
             # Sub-procedure: checkpoint for automatic replay
-            # Capture source location
-            import inspect
+            # Try to capture Lua source location if available
+            source_info = None
 
-            frame = inspect.currentframe()
-            if frame and frame.f_back:
-                caller_frame = frame.f_back
-                source_info = {
-                    "file": caller_frame.f_code.co_filename,
-                    "line": caller_frame.f_lineno,
-                    "function": caller_frame.f_code.co_name,
-                }
-            else:
-                source_info = None
+            # First try to get Lua debug info
+            # When called from Lua, we need to find the Lua caller's location
+            try:
+                # Get debug.getinfo function from Lua globals
+                lua_globals = self.lua_sandbox.lua.globals()
+                if hasattr(lua_globals, "debug") and hasattr(lua_globals.debug, "getinfo"):
+                    # Try different stack levels to find the Lua caller
+                    debug_info = None
+                    with open("/tmp/tactus-debug.log", "a") as f:
+                        f.write(f"DEBUG: Trying debug.getinfo for {self.name}\n")
+                    for level in [1, 2, 3, 4, 5, 6, 7, 8]:
+                        try:
+                            info = lua_globals.debug.getinfo(level, "Sl")
+                            if info:
+                                lua_dict = dict(info.items()) if hasattr(info, "items") else {}
+                                source = lua_dict.get("source", "")
+                                line = lua_dict.get("currentline", -1)
+                                with open("/tmp/tactus-debug.log", "a") as f:
+                                    f.write(f"DEBUG: Level {level}: source={source}, line={line}\n")
+                                # Look for a valid source location (not -1, not C function)
+                                # Accept [string "<python>"] sources since that's our Lua code
+                                if line > 0 and source:
+                                    if source.startswith("=[C]"):
+                                        continue  # Skip C functions
+                                    debug_info = lua_dict
+                                    with open("/tmp/tactus-debug.log", "a") as f:
+                                        f.write(f"DEBUG: Found valid source at level {level}\n")
+                                    break
+                        except Exception as inner_e:
+                            with open("/tmp/tactus-debug.log", "a") as f:
+                                f.write(f"DEBUG: Level {level} error: {inner_e}\n")
+                            continue
+
+                    if debug_info:
+                        source_info = {
+                            "file": self.execution_context.current_tac_file
+                            or debug_info.get("source", "unknown"),
+                            "line": debug_info.get("currentline", 0),
+                            "function": debug_info.get("name", self.name),
+                        }
+                        with open("/tmp/tactus-debug.log", "a") as f:
+                            f.write(f"DEBUG: Final source_info: {source_info}\n")
+            except Exception as e:
+                with open("/tmp/tactus-debug.log", "a") as f:
+                    f.write(f"DEBUG: Exception getting Lua debug info: {e}\n")
+
+            # If we still don't have source_info, use fallback
+            if not source_info:
+                import inspect
+
+                frame = inspect.currentframe()
+                if frame and frame.f_back:
+                    caller_frame = frame.f_back
+                    # Use .tac file if available, otherwise use Python file
+                    tac_file = self.execution_context.current_tac_file
+                    python_file = caller_frame.f_code.co_filename
+                    with open("/tmp/tactus-debug.log", "a") as f:
+                        f.write(
+                            f"DEBUG: Fallback - current_tac_file={tac_file}, python_file={python_file}\n"
+                        )
+                    source_info = {
+                        "file": tac_file or python_file,
+                        "line": 0,  # Line number unknown without Lua debug
+                        "function": self.name,
+                    }
 
             return self.execution_context.checkpoint(
                 execute_procedure, checkpoint_type="procedure_call", source_info=source_info
@@ -164,12 +242,24 @@ class ProcedureCallable:
         Raises:
             ValueError: If required fields are missing
         """
+        missing_inputs = []
         for field_name, field_def in self.input_schema.items():
             if isinstance(field_def, dict) and field_def.get("required", False):
                 if field_name not in params:
-                    raise ValueError(
-                        f"Procedure '{self.name}' missing required input: {field_name}"
+                    field_type = field_def.get("type", "any")
+                    field_desc = field_def.get("description", "")
+                    missing_inputs.append(
+                        f"  - {field_name} ({field_type}): {field_desc}"
+                        if field_desc
+                        else f"  - {field_name} ({field_type})"
                     )
+
+        if missing_inputs:
+            inputs_list = "\n".join(missing_inputs)
+            raise ValueError(
+                f"Procedure '{self.name}' requires input parameters that were not provided:\n{inputs_list}\n\n"
+                f"To run this procedure, provide the required inputs via the API or use a test specification."
+            )
 
     def _validate_output(self, result: Any) -> None:
         """

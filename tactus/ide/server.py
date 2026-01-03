@@ -384,13 +384,16 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
 
             registry = result.registry
 
-            # Extract tools from agents and toolsets
+            # Extract tools from agents, toolsets, and lua_tools
             all_tools = set()
             for agent in registry.agents.values():
                 all_tools.update(agent.tools)
             for toolset in registry.toolsets.values():
                 if isinstance(toolset, dict) and "tools" in toolset:
                     all_tools.update(toolset["tools"])
+            # Include Lua-defined tools (from tool() function calls)
+            if hasattr(registry, "lua_tools") and registry.lua_tools:
+                all_tools.update(registry.lua_tools.keys())
 
             # Parse specifications if present
             specifications_data = None
@@ -648,13 +651,21 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
         """
         Run a Tactus procedure with SSE streaming output.
 
-        Query param:
+        Query params:
         - path: workspace-relative path to procedure file (required)
+        - inputs: JSON-encoded input parameters (optional)
         """
         file_path = request.args.get("path")
+        inputs_json = request.args.get("inputs", "{}")
 
         if not file_path:
             return jsonify({"error": "Missing 'path' parameter"}), 400
+
+        # Parse inputs JSON
+        try:
+            inputs = json.loads(inputs_json) if inputs_json else {}
+        except json.JSONDecodeError as e:
+            return jsonify({"error": f"Invalid 'inputs' JSON: {e}"}), 400
 
         try:
             # Resolve path within workspace
@@ -689,6 +700,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                         "run_id": run_id,
                         "timestamp": datetime.utcnow().isoformat() + "Z",
                         "details": {"path": file_path},
+                        "inputs": inputs,  # Include inputs in start event
                     }
                     all_events.append(start_event)
                     yield f"data: {json.dumps(start_event)}\n\n"
@@ -713,6 +725,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                         hitl_handler=None,  # No HITL in IDE streaming mode
                         log_handler=log_handler,
                         run_id=run_id,
+                        source_file_path=str(path),
                     )
 
                     # Read procedure source
@@ -723,12 +736,17 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
 
                     result_container = {"result": None, "error": None, "done": False}
 
+                    # Capture inputs in closure scope for the thread
+                    procedure_inputs = inputs
+
                     def run_procedure():
                         try:
                             # Create new event loop for this thread
                             loop = asyncio.new_event_loop()
                             asyncio.set_event_loop(loop)
-                            result = loop.run_until_complete(runtime.execute(source, format="lua"))
+                            result = loop.run_until_complete(
+                                runtime.execute(source, context=procedure_inputs, format="lua")
+                            )
                             result_container["result"] = result
                         except Exception as e:
                             result_container["error"] = e

@@ -13,6 +13,16 @@ To run:
 tactus run examples/16-feature-toolsets-advanced.tac --param task="Calculate a mortgage"
 ]]--
 
+-- Define completion tool
+tool("done", {
+    description = "Signal completion of the task",
+    parameters = {
+        reason = {type = "string", required = true, description = "Completion message"}
+    }
+}, function(args)
+    return "Done: " .. args.reason
+end)
+
 -- Agent 1: Uses config-defined combined toolset
 agent("analyst", {
     provider = "openai",
