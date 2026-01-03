@@ -1,92 +1,49 @@
 # Tactus IDE Backend
 
-Flask-based LSP server providing semantic language intelligence for the Tactus IDE.
+## Architecture Clarification
 
-## Architecture
+**Important:** The actual backend server is located at `tactus/ide/server.py`, not in this directory.
 
-The backend focuses on **semantic validation** and intelligence features.
-Syntax validation is handled client-side by the TypeScript parser for instant feedback.
+This directory contains supporting modules used by the backend server:
 
-## Features
+- `lsp_server.py` - LSP protocol implementation (JSON-RPC message handling)
+- `tactus_lsp_handler.py` - LSP handler for Tactus validation and intelligence
+- `logging_capture.py` - Event collection for streaming execution
+- `events.py` - Event models for SSE streaming
 
-- **Language Server Protocol (LSP)**: Semantic language support
-- **ANTLR-based validation**: Uses Tactus parser for full validation
-- **SSE support**: Server-Sent Events for procedure execution output (future)
-- **File operations**: Read/write `.tac` files
+## The Backend Server
 
-## Prerequisites
-
-- **Python 3.11+** (required for Tactus package)
-
-Check your version:
-```bash
-python --version  # Should be 3.11 or higher
+The Flask backend server is at:
+```
+tactus/ide/server.py
 ```
 
-## Running
-
+It's integrated into the main `tactus` package so it can be run as:
 ```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Install Tactus package (from project root)
-cd ../..
-pip install -e .
-
-# Run the server
-cd tactus-ide/backend
-python app.py  # Starts on port 5001 (5000 is used by macOS AirPlay)
+python -m tactus.ide.server
 ```
 
-**Note**: If you get a Python version error, see the [GETTING_STARTED.md](../GETTING_STARTED.md#troubleshooting) guide for instructions on setting up Python 3.11+.
+Or via the development script:
+```bash
+make dev-ide
+```
 
-## LSP Capabilities
+## Why This Structure?
 
-### Semantic Validation
-- Missing required fields (e.g., agent without provider)
-- Cross-reference errors (e.g., undefined agent referenced)
-- Type mismatches
-- Duplicate declarations
+The backend server is in `tactus/ide/` (not `tactus-ide/backend/`) because:
 
-### Completions
-- Context-aware suggestions based on parsed registry
-- Agent names when typing in procedure
-- Parameter names in agent config
-- Tool names from agent tools list
+1. **Package Integration**: It needs to import from `tactus.core`, `tactus.validation`, etc.
+2. **Distribution**: It's part of the installed `tactus` package
+3. **Simplicity**: One backend server, not multiple versions
 
-### Hover
-- Agent configuration details
-- Parameter types and defaults
-- Output field definitions
-- Documentation links
+The modules in this directory (`tactus-ide/backend/`) are imported by the server but don't run independently.
 
-### Signature Help
-- Function parameter hints for DSL functions
-- Expected config fields for agents, parameters, outputs
+## Development
 
-## Integration
+When developing the IDE backend:
 
-The backend uses the existing Tactus validation infrastructure:
-- `tactus.validation.validator.TactusValidator`
-- `tactus.core.registry.ProcedureRegistry`
-- ANTLR-generated parser from `tactus/validation/generated/`
+1. Edit `tactus/ide/server.py` for API endpoints and server logic
+2. Edit files in this directory for LSP protocol and supporting functionality
+3. Run `make dev-ide` to test changes with auto-reload
 
-## Hybrid Validation
-
-The backend assumes syntax is already validated client-side:
-- Client sends only semantically meaningful changes
-- Backend focuses on cross-references and context
-- Reduces load and latency
-- Graceful degradation if backend unavailable
-
-
-
-
-
-
-
-
-
-
-
-
+The dev script watches both directories and auto-restarts on changes.

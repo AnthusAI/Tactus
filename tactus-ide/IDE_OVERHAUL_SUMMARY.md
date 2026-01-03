@@ -5,14 +5,14 @@ Complete overhaul of the Tactus IDE to create a modern, VSCode-like development 
 
 ## What Was Implemented
 
-### 1. Backend Workspace Management (`tactus-ide/backend/app.py`)
+### 1. Backend Workspace Management (`tactus/ide/server.py`)
 - **Workspace API**: 
   - `POST /api/workspace` - Set workspace root and change working directory
   - `GET /api/workspace` - Get current workspace info
   - `GET /api/tree` - List directory contents with workspace sandboxing
 - **Secure File Operations**: Updated `/api/file` to only accept workspace-relative paths with path traversal protection
 - **Validation API**: `POST /api/validate` - Validate Tactus procedure code using existing validator
-- **Execution API**: `POST /api/run` - Run Tactus procedures via CLI with timeout protection
+- **Execution API**: `POST /api/run/stream` - Run Tactus procedures with SSE streaming (supports GET and POST)
 
 ### 2. Frontend UI Overhaul (`tactus-ide/frontend/src/`)
 - **Modern Stack**: Added Tailwind CSS, shadcn/ui components, and lucide-react icons
@@ -83,7 +83,8 @@ In-App Menu → Direct → executeCommand() → Registered Handler
 ## Files Modified/Created
 
 ### Backend
-- Modified: `tactus-ide/backend/app.py` (workspace APIs, validation, run)
+- Modified: `tactus/ide/server.py` (workspace APIs, validation, streaming execution)
+- Supporting modules in `tactus-ide/backend/` (LSP protocol, event handling)
 
 ### Frontend Core
 - Modified: `tactus-ide/frontend/package.json` (added dependencies)

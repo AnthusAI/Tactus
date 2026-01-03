@@ -428,24 +428,19 @@ const AppContent: React.FC = () => {
     setValidationResult(null);
 
     try {
-      // First, save the file content
-      await fetch(apiUrl('/api/file'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          path: currentFile,
-          content: fileContent,
-        }),
-      });
-
-      // Build URL with inputs parameter
-      const inputsParam = Object.keys(inputs).length > 0
-        ? `&inputs=${encodeURIComponent(JSON.stringify(inputs))}`
-        : '';
-      const url = apiUrl(`/api/run/stream?path=${encodeURIComponent(currentFile)}${inputsParam}`);
-      setStreamUrl(url);
+      // Use POST request with inputs in body for SSE streaming
+      // The useEventStream hook will detect this is a POST config and use fetch streaming
+      const url = apiUrl('/api/run/stream');
+      const requestBody = {
+        path: currentFile,
+        content: fileContent,
+        inputs: inputs,
+      };
+      
+      // Pass POST config as JSON string to useEventStream
+      setStreamUrl(JSON.stringify({ url, method: 'POST', body: requestBody }));
     } catch (error) {
-      console.error('Error saving file before run:', error);
+      console.error('Error preparing run request:', error);
     }
   }, [currentFile, fileContent, createNewRun]);
 
