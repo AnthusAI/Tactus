@@ -21,9 +21,9 @@ agent("test_agent", {
     model = "gpt-4o",
     system_prompt = "You are a test agent",
     toolsets = {"done"}
-})
+}
 
-main = procedure("main", {
+procedure "main" {
     input = {
         city = {type = "string", required = true}
     },
@@ -41,7 +41,9 @@ main = procedure("main", {
         message = {type = "string", required = true}
     },
     state = {}
-}, function()
+,
+
+function()
     -- Simple procedure that just completes
     -- In a real use case, the agent's tools would use test_api via ctx.deps.test_api
 
@@ -51,7 +53,8 @@ main = procedure("main", {
         success = true,
         message = "Dependencies initialized successfully"
     }
-end)
+end
+}
 
 specifications([[
 Feature: HTTP Dependency Injection

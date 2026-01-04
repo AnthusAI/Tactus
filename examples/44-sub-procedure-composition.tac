@@ -17,7 +17,7 @@ tool("done", {
     return "Done: " .. args.reason
 end)
 
-agent("analyst", {
+agent "analyst" {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[
@@ -32,9 +32,9 @@ Provide a brief analysis of these statistics.
 Call done when finished.
 ]],
     toolsets = {"done"}
-})
+}
 
-main = procedure("main", {
+procedure "main" {
     input = {
         numbers = {
             type = "array",
@@ -69,7 +69,9 @@ main = procedure("main", {
         product = {type = "number", default = 1},
         average = {type = "number", default = 0}
     }
-}, function()
+,
+
+function()
     -- Step 1: Calculate sum (auto-checkpointed)
     local sum_result = Procedure.run("examples/helpers/sum.tac", {
         values = input.numbers
@@ -86,7 +88,7 @@ main = procedure("main", {
     state.average = state.sum / #input.numbers
 
     -- Step 4: Get AI analysis (auto-checkpointed agent turn)
-    Analyst.turn({})
+    Agent("analyst").turn({})
 
     return {
         sum = state.sum,
@@ -94,7 +96,8 @@ main = procedure("main", {
         average = state.average,
         analysis = Analyst.output
     }
-end)
+end
+}
 
 -- BDD Specifications
 specifications([[

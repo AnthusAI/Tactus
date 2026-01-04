@@ -4,7 +4,7 @@
 -- This example implements a factorial calculator using recursive
 -- sub-procedure calls. Each recursive call is checkpointed.
 
-main = procedure("main", {
+procedure "main" {
     input = {
         n = {
             type = "number",
@@ -27,7 +27,9 @@ main = procedure("main", {
     state = {
         recursion_depth = {type = "number", default = 0}
     }
-}, function()
+,
+
+function()
     -- Base case: factorial(0) = 1, factorial(1) = 1
     if input.n <= 1 then
         return {
@@ -50,7 +52,8 @@ main = procedure("main", {
         result = factorial,
         depth = state.recursion_depth
     }
-end)
+end
+}
 
 -- BDD Specifications
 specifications([[

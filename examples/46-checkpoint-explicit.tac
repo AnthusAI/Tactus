@@ -5,7 +5,7 @@
 -- workflow where state should be persisted, enabling more granular
 -- control over durability.
 
-main = procedure("main", {
+procedure "main" {
     input = {
         numbers = {
             type = "array",
@@ -35,8 +35,8 @@ main = procedure("main", {
         product = {type = "number", default = 1},
         count = {type = "number", default = 0},
         checkpoint_count = {type = "number", default = 0}
-    }
-}, function()
+    },
+    function()
     -- Step 1: Calculate sum
     for i = 1, #input.numbers do
         state.sum = state.sum + input.numbers[i]
@@ -74,7 +74,8 @@ main = procedure("main", {
         product = state.product,
         average = average
     }
-end)
+end
+}
 
 -- BDD Specifications
 specifications([[

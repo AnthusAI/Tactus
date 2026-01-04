@@ -34,9 +34,9 @@ Available tools:
 - done: Mark task as complete
 ]],
     toolsets = {"done"}
-})
+}
 
-main = procedure("main", {
+procedure "main" {
     input = {
         timezone = {
             type = "string",
@@ -58,7 +58,9 @@ main = procedure("main", {
         timezone = {type = "string", required = true}
     },
     state = {}
-}, function()
+,
+
+function()
     -- Execute agent turn
     Time_agent.turn()
 
@@ -66,7 +68,8 @@ main = procedure("main", {
         datetime = "dependency_test",
         timezone = input.timezone
     }
-end)
+end
+}
 
 -- BDD Specifications
 

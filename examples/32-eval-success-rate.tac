@@ -26,7 +26,7 @@ Always follow this format exactly.]],
 })
 
 -- Procedure
-main = procedure("main", {
+procedure "main" {
     input = {
         task = {
             type = "string",
@@ -47,12 +47,14 @@ main = procedure("main", {
         }
     },
     state = {}
-}, function()
+,
+
+function()
     Log.info("Starting task", {task = input.task})
     
     -- Have agent complete the task
     -- The initial_message template will inject the task parameter
-    Completer.turn()
+    Agent("completer").turn()
     
     -- Get result from done tool
     local output = "Task not completed - agent did not call done tool"
@@ -70,7 +72,8 @@ main = procedure("main", {
         output = output,
         completed = completed
     }
-end)
+end
+}
 
 -- BDD Specifications (workflow correctness)
 specifications([[
@@ -131,4 +134,5 @@ Score 1.0 if the task was completed successfully, 0.0 if it failed or was incomp
             model = "openai:gpt-4o-mini"
         }
     }
-})
+}
+)

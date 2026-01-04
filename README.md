@@ -87,7 +87,7 @@ Most frameworks scatter agent logic across Python classes, decorators, YAML file
 Tactus takes a different approach: **the entire agent definition is a single, readable file.**
 
 ```lua
-agent("researcher", {
+agent "researcher" {
   model = "gpt-4o",
   system_prompt = "Research the topic thoroughly.",
   tools = {"search", "analyze", "done"}
@@ -98,7 +98,7 @@ main = procedure("main", {
   output = { findings = { type = "string", required = true } }
 }, function()
   repeat
-    Researcher.turn()
+    Agent("researcher").turn()
   until Tool.called("done")
   return { findings = Tool.last_result("done") }
 end)
@@ -240,7 +240,7 @@ Traditional code requires you to handle every case—every header name, every fo
 Agent programming inverts this: give an agent tools, describe the goal, let intelligence handle the rest.
 
 ```lua
-agent("importer", {
+agent "importer" {
   system_prompt = "Extract contacts from the data. File each one you find.",
   tools = {"file_contact", "done"}
 })
@@ -291,7 +291,7 @@ mcp_servers:
 Tools from MCP servers are automatically namespaced:
 
 ```lua
-agent("worker", {
+agent "worker" {
   tools = {
     "plexus_score_info",       -- From plexus server
     "filesystem_read_file",    -- From filesystem server
@@ -317,7 +317,7 @@ tool("calculate_tip", {
   return string.format("$%.2f", args.amount * args.percent / 100)
 end)
 
-agent("assistant", {
+agent "assistant" {
   tools = {"calculate_tip", "done"}
 })
 ```
@@ -333,7 +333,7 @@ toolset("math_tools", {
   }
 })
 
-agent("calculator", {
+agent "calculator" {
   toolsets = {"math_tools", "done"}
 })
 ```
@@ -341,7 +341,7 @@ agent("calculator", {
 **Inline agent tools:**
 
 ```lua
-agent("text_processor", {
+agent "text_processor" {
   tools = {
     {name = "uppercase", parameters = {...}, handler = function(args)
       return string.upper(args.text)
@@ -425,7 +425,7 @@ pip install tactus
 Create `hello.tac`:
 
 ```lua
-agent("greeter", {
+agent "greeter" {
   provider = "openai",
   model = "gpt-4o-mini",
   system_prompt = [[
@@ -444,7 +444,7 @@ main = procedure("main", {
   }
 }, function()
   repeat
-    Greeter.turn()
+    Agent("greeter").turn()
   until Tool.called("done")
 
   return { greeting = Tool.last_result("done") }
@@ -485,6 +485,7 @@ tactus test hello.tac --runs 10
 - **[SPECIFICATION.md](SPECIFICATION.md)** — Complete DSL reference
 - **[IMPLEMENTATION.md](IMPLEMENTATION.md)** — Implementation status and architecture
 - **[docs/TOOLS.md](docs/TOOLS.md)** — Tools and MCP integration guide
+- **[docs/FILE_IO.md](docs/FILE_IO.md)** — File I/O operations guide (CSV, TSV, Parquet, HDF5, Excel)
 - **[examples/](examples/)** — Example procedures
 
 ---
@@ -498,7 +499,7 @@ Tactus gives you fine-grained control over what tools an agent has access to on 
 **The Pattern:**
 
 ```lua
-agent("researcher", {
+agent "researcher" {
   provider = "openai",
   model = "gpt-4o",
   system_prompt = "You are a research assistant.",
@@ -508,11 +509,11 @@ agent("researcher", {
 main = procedure("main", {}, function()
   repeat
     -- Main turn: agent has all tools
-    Researcher.turn()
+    Agent("researcher").turn()
 
     -- After each tool call, ask agent to summarize with NO tools
     if Tool.called("search") or Tool.called("analyze") then
-      Researcher.turn({
+      Agent("researcher").turn({
         inject = "Summarize the tool results above in 2-3 sentences",
         tools = {}  -- No tools for this turn!
       })
@@ -545,6 +546,35 @@ Researcher.turn({
 ```
 
 See `examples/14-feature-per-turn-tools.tac` for a complete working example.
+
+### File I/O Operations
+
+Tactus provides safe file I/O operations for reading and writing data files, with all operations restricted to the current working directory for security.
+
+**Supported Formats:**
+- **CSV/TSV** — Tabular data with automatic header handling
+- **JSON** — Structured data using File.read/write with Json.encode/decode
+- **Parquet** — Columnar storage for analytics (via pyarrow)
+- **HDF5** — Scientific data with multiple datasets (via h5py)
+- **Excel** — Spreadsheets with sheet support (via openpyxl)
+- **Raw text** — Plain text files and configurations
+
+**Example:**
+```lua
+-- Read CSV data
+local data = Csv.read("sales.csv")
+
+-- Process data (0-indexed access)
+for i = 0, data:len() - 1 do
+    local row = data[i]
+    -- process row...
+end
+
+-- Write results
+Csv.write("results.csv", processed_data)
+```
+
+See [`docs/FILE_IO.md`](docs/FILE_IO.md) for the complete API reference and [`examples/52-file-io-basics.tac`](examples/52-file-io-basics.tac) through [`examples/58-text-file-io.tac`](examples/58-text-file-io.tac) for working examples.
 
 ### Testing & Evaluation: Two Different Concerns
 
@@ -884,14 +914,14 @@ Use different models and providers for different tasks within the same workflow.
 **Mix models for different capabilities:**
 
 ```lua
-agent("researcher", {
+agent "researcher" {
   provider = "openai",
   model = "gpt-4o",  -- Use GPT-4o for complex research
   system_prompt = "Research the topic thoroughly...",
   tools = {"search", "done"}
 })
 
-agent("summarizer", {
+agent "summarizer" {
   provider = "openai",
   model = "gpt-4o-mini",  -- Use GPT-4o-mini for simple summarization
   system_prompt = "Summarize the findings concisely...",
@@ -902,14 +932,14 @@ agent("summarizer", {
 **Mix providers (OpenAI + Bedrock):**
 
 ```lua
-agent("openai_analyst", {
+agent "openai_analyst" {
   provider = "openai",
   model = "gpt-4o",
   system_prompt = "Analyze the data...",
   tools = {"done"}
 })
 
-agent("bedrock_reviewer", {
+agent "bedrock_reviewer" {
   provider = "bedrock",
   model = "anthropic.claude-3-5-sonnet-20240620-v1:0",
   system_prompt = "Review the analysis...",
@@ -920,7 +950,7 @@ agent("bedrock_reviewer", {
 **Configure model-specific parameters:**
 
 ```lua
-agent("creative_writer", {
+agent "creative_writer" {
   provider = "openai",
   model = {
     name = "gpt-4o",
@@ -931,7 +961,7 @@ agent("creative_writer", {
   tools = {"done"}
 })
 
-agent("reasoning_agent", {
+agent "reasoning_agent" {
   provider = "openai",
   model = {
     name = "gpt-5",  -- Reasoning model
@@ -1025,7 +1055,7 @@ Every message has a classification that determines visibility:
 **Filter conversation history per agent:**
 
 ```lua
-agent("worker", {
+agent "worker" {
   system_prompt = "Process the task...",
   tools = {"search", "analyze", "done"},
 

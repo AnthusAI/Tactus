@@ -20,14 +20,14 @@ tool("done", {
 end)
 
 -- Define a sentiment classifier model (HTTP endpoint)
-model("sentiment_classifier", {
+model "sentiment_classifier" {
     type = "http",
     endpoint = "https://api.example.com/classify/sentiment",
     timeout = 10.0
-})
+}
 
 -- Define an agent that routes based on sentiment
-agent("support_agent", {
+agent "support_agent" {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[
@@ -43,9 +43,9 @@ Respond appropriately to the customer's message.
 Call done when you've provided a helpful response.
 ]],
     toolsets = {"done"}
-})
+}
 
-main = procedure("main", {
+procedure "main" {
     input = {
         customer_message = {
             type = "string",
@@ -68,9 +68,11 @@ main = procedure("main", {
     state = {
         sentiment = {type = "string", default = "unknown"}
     }
-}, function()
+,
+
+function()
     -- 1. Classify sentiment with ML model (checkpointed)
-    state.sentiment = Sentiment_classifier.predict({
+    state.sentiment = Model("sentiment_classifier").predict({
         text = input.customer_message
     })
 
@@ -81,7 +83,8 @@ main = procedure("main", {
         sentiment = state.sentiment,
         response = Support_agent.output
     }
-end)
+end
+}
 
 -- BDD Specifications
 specifications([[

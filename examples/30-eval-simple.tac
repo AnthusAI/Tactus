@@ -2,7 +2,7 @@
 -- Demonstrates evaluation without requiring OpenAI API
 
 -- Simple procedure that just returns a greeting
-main = procedure("main", {
+procedure "main" {
     input = {
         name = {
             type = "string",
@@ -20,14 +20,17 @@ main = procedure("main", {
         }
     },
     state = {}
-}, function()
+,
+
+function()
     local greeting = "Hello, " .. input.name .. "!"
 
     return {
         greeting = greeting,
         length = string.len(greeting)
     }
-end)
+end
+}
 
 -- Pydantic Evals (output quality)
 evaluations({
@@ -79,4 +82,5 @@ evaluations({
     
     runs = 1,
     parallel = true
-})
+}
+)

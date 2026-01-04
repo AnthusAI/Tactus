@@ -6,11 +6,11 @@ agent("worker", {
     provider = "openai",
     system_prompt = "A worker agent",
     initial_message = "Processing task",
-    toolsets = {},
+    toolsets = {}
 })
 
 -- Procedure with input and output defined inline
-main = procedure("main", {
+procedure "main" {
     input = {
         task = {
             type = "string",
@@ -37,7 +37,9 @@ main = procedure("main", {
             description = "Counter for iterations"
         }
     }
-}, function()
+,
+
+function()
     -- Access input
     local task = input.task
     local count = input.count
@@ -56,7 +58,8 @@ main = procedure("main", {
     return {
       result = "Completed " .. task .. " with " .. final_iterations .. " iterations"
     }
-end)
+end
+}
 
 -- BDD Specifications
 specifications([[

@@ -15,44 +15,47 @@ To run this example:
 tactus run examples/19-feature-direct-tool-calls.tac --param bill=100 --param tip_pct=20 --param people=4
 ]]--
 
--- tool() returns a callable - syntax matches agent() and procedure()
-local calculate_tip = tool("calculate_tip", {
+-- tool() returns a callable - assign to variables for direct calls
+local calculate_tip = tool "calculate_tip" {
     description = "Calculate tip amount for a bill",
     parameters = {
         bill_amount = {type = "number", required = true, description = "Total bill amount"},
         tip_percentage = {type = "number", required = true, description = "Tip percentage"}
-    }
-}, function(args)
-    local tip = args.bill_amount * (args.tip_percentage / 100)
-    local total = args.bill_amount + tip
-    return string.format("Bill: $%.2f, Tip (%.0f%%): $%.2f, Total: $%.2f",
-        args.bill_amount, args.tip_percentage, tip, total)
-end)
+    },
+    function(args)
+        local tip = args.bill_amount * (args.tip_percentage / 100)
+        local total = args.bill_amount + tip
+        return string.format("Bill: $%.2f, Tip (%.0f%%): $%.2f, Total: $%.2f",
+            args.bill_amount, args.tip_percentage, tip, total)
+    end
+}
 
-local split_bill = tool("split_bill", {
+local split_bill = tool "split_bill" {
     description = "Split a bill total among multiple people",
     parameters = {
         total_amount = {type = "number", required = true, description = "Total to split"},
         num_people = {type = "integer", required = true, description = "Number of people"}
-    }
-}, function(args)
-    local per_person = args.total_amount / args.num_people
-    return string.format("Split $%.2f among %d people = $%.2f per person",
-        args.total_amount, args.num_people, per_person)
-end)
+    },
+    function(args)
+        local per_person = args.total_amount / args.num_people
+        return string.format("Split $%.2f among %d people = $%.2f per person",
+            args.total_amount, args.num_people, per_person)
+    end
+}
 
 -- Define completion tool
-tool("done", {
+tool "done" {
     description = "Signal completion of the task",
     parameters = {
         reason = {type = "string", required = true, description = "Completion message"}
-    }
-}, function(args)
-    return "Done: " .. args.reason
-end)
+    },
+    function(args)
+        return "Done: " .. args.reason
+    end
+}
 
 -- Agent for summarizing (only has done tool - doesn't need calculation tools)
-agent("summarizer", {
+agent "summarizer" {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[You are a helpful assistant that summarizes calculation results.
@@ -62,10 +65,10 @@ that explains what was calculated and the final amounts.
 
 After summarizing, call the 'done' tool with your summary as the reason.]],
     toolsets = {"done"}
-})
+}
 
 -- Main procedure with DETERMINISTIC tool calls
-main = procedure("main", {
+procedure "main" {
     input = {
         bill = {type = "number", default = 100, description = "Original bill amount"},
         tip_pct = {type = "number", default = 20, description = "Tip percentage"},
@@ -76,7 +79,9 @@ main = procedure("main", {
         split_result = {type = "string", required = true, description = "Bill split result"},
         summary = {type = "string", required = true, description = "Agent summary"}
     }
-}, function()
+,
+
+function()
     Log.info("Starting direct tool call example...")
 
     -- Call tools DIRECTLY - deterministic, no LLM involvement!
@@ -100,7 +105,7 @@ main = procedure("main", {
     -- Pass multiple tool results to agent via context
     -- This is more efficient than having the agent call tools itself
     Log.info("Asking agent to summarize results...")
-    Summarizer.turn({
+    Agent("summarizer").turn({
         context = {
             tip_calculation = tip_result,
             split_calculation = split_result,
@@ -113,7 +118,7 @@ main = procedure("main", {
     local max_turns = 3
     local turn_count = 1
     while not Tool.called("done") and turn_count < max_turns do
-        Summarizer.turn()
+        Agent("summarizer").turn()
         turn_count = turn_count + 1
     end
 
@@ -128,7 +133,8 @@ main = procedure("main", {
         split_result = split_result,
         summary = summary
     }
-end)
+end
+}
 
 -- BDD Specifications
 specifications([[

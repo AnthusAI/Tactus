@@ -21,7 +21,7 @@ Return JSON with: {phone, email, score}]],
     toolsets = {"validate"}
 })
 
-main = procedure("main", {
+procedure "main" {
     input = {
         raw_contact = {
             type = "string",
@@ -53,11 +53,13 @@ main = procedure("main", {
             description = "Formatting has started"
         }
     }
-}, function()
+,
+
+function()
     State.set("formatting_started", true)
     
     -- Have agent format the contact
-    ContactFormatter.turn()
+    Agent("contact_formatter").turn()
     
     -- Extract result
     if Tool.called("done") then
@@ -76,7 +78,8 @@ main = procedure("main", {
     return {
         formatted = false
     }
-end)
+end
+}
 
 -- BDD Specifications
 specifications([[
@@ -175,4 +178,5 @@ Score 0.0 otherwise.
         max_duration = 15.0,      -- Max 15 seconds
         max_tokens_per_run = 1000 -- Max 1000 tokens
     }
-})
+}
+)

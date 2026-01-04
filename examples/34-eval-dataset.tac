@@ -12,7 +12,7 @@ Always start your response with "TASK_COMPLETE: " followed by your actual work.]
     initial_message = "{task}\n\nPlease complete this task now.",
 })
 
-main = procedure("main", {
+procedure "main" {
     input = {
         task = {
             type = "string",
@@ -30,9 +30,11 @@ main = procedure("main", {
         }
     },
     state = {}
-}, function()
+,
+
+function()
     -- Have agent complete the task
-    Completer.turn()
+    Agent("completer").turn()
     
     -- Get result
     local output = "Task not completed"
@@ -47,7 +49,8 @@ main = procedure("main", {
         output = output,
         completed = completed
     }
-end)
+end
+}
 
 -- BDD Specifications
 specifications([[
@@ -99,4 +102,5 @@ Score 0.0 if the task was not completed or output is inadequate.
             model = "openai:gpt-4o-mini"
         }
     }
-})
+}
+)

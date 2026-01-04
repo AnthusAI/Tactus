@@ -9,17 +9,18 @@ tactus run examples/18-feature-lua-tools-inline.tac --param message="Hello, Worl
 ]]--
 
 -- Define completion tool
-tool("done", {
+tool "done" {
     description = "Signal completion of the task",
-    parameters = {
-        reason = {type = "string", required = true, description = "Completion message"}
-    }
-}, function(args)
+        parameters = {
+            reason = {type = "string", required = true, description = "Completion message"}
+        },
+    function(args)
     return "Done: " .. args.reason
-end)
+end
+}
 
 -- Agent with inline Lua function tools
-agent("text_processor", {
+agent "text_processor" {
     provider = "openai",
     model = "gpt-4o-mini",
     tool_choice = "required",
@@ -101,10 +102,10 @@ After calling the tool, call done with the tool's result.]],
     toolsets = {
         "done"  -- Can still use regular toolsets alongside inline tools
     }
-})
+}
 
 -- Main workflow
-main = procedure("main", {
+procedure "main" {
     input = {
         message = {
             type = "string",
@@ -130,13 +131,15 @@ main = procedure("main", {
         }
     },
     state = {}
-}, function()
+,
+
+function()
     local max_turns = 5
     local turn_count = 0
     local result
 
     repeat
-        result = Text_processor.turn()
+        result = Agent("text_processor").turn()
         turn_count = turn_count + 1
 
     until Tool.called("done") or turn_count >= max_turns
@@ -174,7 +177,8 @@ main = procedure("main", {
         tools_used = tools_used,
         completed = Tool.called("done")
     }
-end)
+end
+}
 
 -- BDD Specifications
 specifications([[

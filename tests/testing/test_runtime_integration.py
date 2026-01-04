@@ -160,16 +160,16 @@ async def test_context_primitive_capture():
     """Test that primitives are captured after execution."""
     # Create a minimal procedure that uses primitives
     procedure_code = """
-agent("worker", {
+agent "worker" {
   provider = "openai",
   model = "gpt-4o-mini",
   system_prompt = "Test",
   tools = {"done"}
-})
+}
 
 stages({"start", "end"})
 
-main = procedure("main", function()
+main = procedure("main", {}, function()
   Stage.set("start")
   State.set("test_key", "test_value")
   Stage.set("end")
@@ -212,7 +212,7 @@ async def test_real_execution_with_llm():
 name("test_real")
 version("1.0.0")
 
-agent("worker", {
+agent "worker" {
   provider = "openai",
   model = "gpt-4o-mini",
   system_prompt = "Say hello and call the done tool.",
@@ -220,7 +220,7 @@ agent("worker", {
 })
 
 main = procedure("main", function()
-  Worker.turn()
+  Agent("worker").turn()
   return {success = true}
 end)
 """

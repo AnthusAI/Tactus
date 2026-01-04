@@ -29,7 +29,7 @@ Prerequisites:
 -- MCP Server Test Example
 
 -- Define agent with MCP tools
-agent("calculator", {
+agent "calculator" {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[
@@ -49,10 +49,11 @@ Steps:
         "test_server_multiply",
         "done"
     }
-})
+}
 
 -- Execute procedure
-main = procedure("main", {}, function()
+procedure "main" {
+    function()
     Log.info("Starting MCP server test")
     
     -- Let agent work through the calculation
@@ -60,7 +61,7 @@ main = procedure("main", {}, function()
     local turn_count = 0
     
     repeat
-        Calculator.turn()
+        Agent("calculator").turn()
         turn_count = turn_count + 1
         
         -- Log tool calls
@@ -89,6 +90,7 @@ main = procedure("main", {}, function()
             error = "Did not complete in time"
         }
     end
-end)
+end
+}
 
 

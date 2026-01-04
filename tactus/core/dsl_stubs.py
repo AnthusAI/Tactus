@@ -3,11 +3,23 @@ DSL stub functions for Lua execution.
 
 These functions are injected into the Lua sandbox before executing
 .tac files. They populate the registry with declarations.
+
+New Syntax (curried functions):
+    agent "greeter" { config }      -- agent(name)(config)
+    tool "done" { handler = fn }    -- tool(name)(config)
+    procedure "main" { run = fn }   -- procedure(name)(config)
+    model "classifier" { config }   -- model(name)(config)
+
+Lookup functions:
+    Agent("greeter").turn()         -- Look up and use agent
+    Tool("done")({args})            -- Look up and call tool
+    Model("classifier").predict()   -- Look up and use model
 """
 
-from typing import Any, Callable
+from typing import Any, Callable, Dict
 
 from .registry import RegistryBuilder
+from tactus.primitives.handles import AgentHandle, ModelHandle, AgentLookup, ModelLookup
 
 
 def lua_table_to_dict(lua_table):
@@ -83,51 +95,137 @@ def create_dsl_stubs(builder: RegistryBuilder, tool_primitive: Any = None) -> di
     Args:
         builder: RegistryBuilder to register declarations
         tool_primitive: Optional ToolPrimitive for creating callable ToolHandles
+
+    Returns:
+        Dict of DSL functions to inject into Lua, including:
+        - Lowercase definition functions: agent, tool, procedure, model
+        - Uppercase lookup functions: Agent, Tool, Model
     """
+    # Registries for handle lookup
+    _agent_registry: Dict[str, AgentHandle] = {}
+    _tool_registry: Dict[str, Any] = {}  # ToolHandle instances
+    _model_registry: Dict[str, ModelHandle] = {}
+
     # Global registry for named procedure stubs to find their implementations
     _procedure_registry = {}
 
-    def _agent(agent_name: str, config) -> None:
-        """Register an agent with its configuration."""
-        config_dict = lua_table_to_dict(config)
-
-        # NOTE: Inline tools (with 'handler' key) are kept in the 'tools' field
-        # and will be processed by runtime during agent setup. We don't register
-        # them in registry.lua_tools to avoid double-processing.
-
-        # Extract output schema if present (support both 'output' and 'output_type')
-        # output_type is preferred (aligned with pydantic-ai)
-        output_schema = None
-        if "output_type" in config_dict:
-            output_config = config_dict["output_type"]
-            if isinstance(output_config, dict):
-                output_schema = output_config
-        elif "output" in config_dict:
-            output_config = config_dict["output"]
-            if isinstance(output_config, dict):
-                output_schema = output_config
-
-        # Support 'session' as an alias for 'message_history'
-        if "session" in config_dict and "message_history" not in config_dict:
-            config_dict["message_history"] = config_dict["session"]
-
-        builder.register_agent(agent_name, config_dict, output_schema)
-
-    def _procedure(name, config_or_fn, fn=None):
+    def _agent(agent_name: str, config=None):
         """
-        Register a named procedure.
+        Agent definition supporting both old and new syntax.
 
-        Supports two syntaxes:
-        1. procedure("name", {config}, function)  # with config
-        2. procedure("name", function)            # without config
+        Old syntax (deprecated):
+            agent("name", {config})
+
+        New syntax (curried):
+            agent "name" { config }
+
+        Args:
+            agent_name: Agent name (string identifier)
+            config: Optional config dict (for old syntax)
+
+        Returns:
+            Function that accepts config (new syntax) or AgentHandle (old syntax)
+        """
+        # Check if this is old-style 2-argument call
+        if config is not None:
+            # Old syntax: agent("name", {config})
+            config_dict = lua_table_to_dict(config)
+
+            # NOTE: Inline tools (with 'handler' key) are kept in the 'tools' field
+            # and will be processed by runtime during agent setup. We don't register
+            # them in registry.lua_tools to avoid double-processing.
+
+            # Extract output schema if present (support both 'output' and 'output_type')
+            # output_type is preferred (aligned with pydantic-ai)
+            output_schema = None
+            if "output_type" in config_dict:
+                output_config = config_dict["output_type"]
+                if isinstance(output_config, dict):
+                    output_schema = output_config
+            elif "output" in config_dict:
+                output_config = config_dict["output"]
+                if isinstance(output_config, dict):
+                    output_schema = output_config
+
+            # Support 'session' as an alias for 'message_history'
+            if "session" in config_dict and "message_history" not in config_dict:
+                config_dict["message_history"] = config_dict["session"]
+
+            builder.register_agent(agent_name, config_dict, output_schema)
+
+            # Create and register handle for lookup
+            handle = AgentHandle(agent_name)
+            _agent_registry[agent_name] = handle
+            return handle
+
+        # New curried syntax - return a function that accepts config
+        def accept_config(config) -> AgentHandle:
+            """Accept config and register agent."""
+            config_dict = lua_table_to_dict(config)
+
+            # NOTE: Inline tools (with 'handler' key) are kept in the 'tools' field
+            # and will be processed by runtime during agent setup. We don't register
+            # them in registry.lua_tools to avoid double-processing.
+
+            # Extract output schema if present (support both 'output' and 'output_type')
+            # output_type is preferred (aligned with pydantic-ai)
+            output_schema = None
+            if "output_type" in config_dict:
+                output_config = config_dict["output_type"]
+                if isinstance(output_config, dict):
+                    output_schema = output_config
+            elif "output" in config_dict:
+                output_config = config_dict["output"]
+                if isinstance(output_config, dict):
+                    output_schema = output_config
+
+            # Support 'session' as an alias for 'message_history'
+            if "session" in config_dict and "message_history" not in config_dict:
+                config_dict["message_history"] = config_dict["session"]
+
+            builder.register_agent(agent_name, config_dict, output_schema)
+
+            # Create and register handle for lookup
+            handle = AgentHandle(agent_name)
+            _agent_registry[agent_name] = handle
+            return handle
+
+        return accept_config
+
+    def _procedure(name: str, config=None, run_fn=None):
+        """
+        Procedure definition supporting both old and new syntax.
+
+        Old syntax (deprecated):
+            procedure("main", {config}, function() ... end)
+
+        New syntax (curried):
+            procedure "main" { config with function as last element }
 
         Args:
             name: Procedure name (string)
-            config_or_fn: Either config table or function
-            fn: Function (if config_or_fn is config table)
+            config: Optional config dict (for old syntax)
+            run_fn: Optional function (for old syntax)
 
         Returns:
-            Stub that will be replaced with ProcedureCallable at runtime
+            Function that accepts config (new syntax) or ProcedureStub (old syntax)
+
+        Example (New Lua):
+            procedure "main" {
+                input = {...},
+                output = {...},
+                function()
+                    -- procedure body
+                end
+            }
+
+        Example (Old Lua - deprecated):
+            procedure("main", {
+                input = {...},
+                output = {...}
+            }, function()
+                -- procedure body
+            end)
         """
         # Validate first argument is a string
         if not isinstance(name, str):
@@ -135,55 +233,133 @@ def create_dsl_stubs(builder: RegistryBuilder, tool_primitive: Any = None) -> di
                 f"procedure() first argument must be a string name, got {type(name).__name__}"
             )
 
-        # Determine if we have config or just function
-        if callable(config_or_fn) and not hasattr(config_or_fn, "items"):
-            # procedure("name", function)
-            config = {}
-            fn = config_or_fn
-        elif hasattr(config_or_fn, "items"):
-            # procedure("name", {config}, function)
-            if fn is None:
-                raise TypeError(
-                    "procedure() requires a function as the last argument when config is provided"
-                )
-            config = lua_table_to_dict(config_or_fn)
+        # Check if this is old-style 3-argument call
+        if config is not None or run_fn is not None:
+            # Old syntax: procedure("name", {config}, function)
+            # Convert config if needed
+            if config is not None:
+                config_dict = lua_table_to_dict(config)
+            else:
+                config_dict = {}
+
             # Normalize empty config (lua {} -> python [])
-            config = _normalize_schema(config)
-        else:
-            raise TypeError(
-                f"procedure() second argument must be config table or function, "
-                f"got {type(config_or_fn).__name__}"
+            if isinstance(config_dict, list) and len(config_dict) == 0:
+                config_dict = {}
+
+            if run_fn is None:
+                raise TypeError(
+                    f"procedure '{name}' requires a function in old syntax. "
+                    f"Use: procedure('{name}', {{config}}, function() ... end)"
+                )
+
+            # Extract schemas (normalize empty lists to dicts)
+            input_schema = _normalize_schema(config_dict.get("input", {}))
+            output_schema = _normalize_schema(config_dict.get("output", {}))
+            state_schema = _normalize_schema(config_dict.get("state", {}))
+
+            # Register named procedure
+            builder.register_named_procedure(
+                name, run_fn, input_schema, output_schema, state_schema
             )
 
-        # Extract schemas (normalize empty lists to dicts)
-        input_schema = _normalize_schema(config.get("input", {}))
-        output_schema = _normalize_schema(config.get("output", {}))
-        state_schema = _normalize_schema(config.get("state", {}))
+            # Return a stub that will delegate to the registry at call time
+            class NamedProcedureStub:
+                """
+                Stub that delegates to the actual ProcedureCallable when called.
+                This gets replaced during runtime initialization.
+                """
 
-        # Register named procedure
-        builder.register_named_procedure(name, fn, input_schema, output_schema, state_schema)
+                def __init__(self, proc_name, registry):
+                    self.name = proc_name
+                    self.registry = registry
 
-        # Return a stub that will delegate to the registry at call time
-        class NamedProcedureStub:
-            """
-            Stub that delegates to the actual ProcedureCallable when called.
-            This gets replaced during runtime initialization.
-            """
+                def __call__(self, *args):
+                    # Look up the real implementation from the registry
+                    if self.name in self.registry:
+                        return self.registry[self.name](*args)
+                    else:
+                        raise RuntimeError(f"Named procedure '{self.name}' not initialized yet")
 
-            def __init__(self, proc_name, registry):
-                self.name = proc_name
-                self.registry = registry
+            stub = NamedProcedureStub(name, _procedure_registry)
+            _procedure_registry[name] = stub  # Store stub temporarily
+            return stub
 
-            def __call__(self, *args):
-                # Look up the real implementation from the registry
-                if self.name in self.registry:
-                    return self.registry[self.name](*args)
-                else:
-                    raise RuntimeError(f"Named procedure '{self.name}' not initialized yet")
+        # New curried syntax - return a function that accepts config
+        def accept_config(config):
+            """Accept config (with function as last unnamed element) and register procedure."""
+            # First extract the function from the raw Lua table before conversion
+            # In Lua tables, unnamed elements are stored with numeric indices (1-based)
+            run_fn = None
 
-        stub = NamedProcedureStub(name, _procedure_registry)
-        _procedure_registry[name] = stub  # Store stub temporarily
-        return stub
+            # Check for function in array part of table (numeric indices)
+            if hasattr(config, "__getitem__"):
+                # Try to get function from numeric indices (Lua uses 1-based indexing)
+                for i in range(1, 10):  # Check first few positions
+                    try:
+                        item = config[i]
+                        if callable(item):
+                            run_fn = item
+                            # Remove from table so it doesn't appear in config_dict
+                            config[i] = None
+                            break
+                    except (KeyError, TypeError):
+                        break
+
+            # Now convert to dict (excluding the function we removed)
+            config_dict = lua_table_to_dict(config)
+            # Normalize empty config (lua {} -> python [])
+            if isinstance(config_dict, list) and len(config_dict) == 0:
+                config_dict = {}
+
+            # If we got a list with None values from removing function, clean it up
+            if isinstance(config_dict, list):
+                config_dict = [x for x in config_dict if x is not None]
+                if len(config_dict) == 0:
+                    config_dict = {}
+
+            # If no function found in array part, check for legacy 'run' field
+            if run_fn is None:
+                run_fn = config_dict.pop("run", None)
+
+            if run_fn is None:
+                raise TypeError(
+                    f"procedure '{name}' requires a function. "
+                    f'Use: procedure "{name}" {{ input = {{...}}, function() ... end }}'
+                )
+
+            # Extract schemas (normalize empty lists to dicts)
+            input_schema = _normalize_schema(config_dict.get("input", {}))
+            output_schema = _normalize_schema(config_dict.get("output", {}))
+            state_schema = _normalize_schema(config_dict.get("state", {}))
+
+            # Register named procedure
+            builder.register_named_procedure(
+                name, run_fn, input_schema, output_schema, state_schema
+            )
+
+            # Return a stub that will delegate to the registry at call time
+            class NamedProcedureStub:
+                """
+                Stub that delegates to the actual ProcedureCallable when called.
+                This gets replaced during runtime initialization.
+                """
+
+                def __init__(self, proc_name, registry):
+                    self.name = proc_name
+                    self.registry = registry
+
+                def __call__(self, *args):
+                    # Look up the real implementation from the registry
+                    if self.name in self.registry:
+                        return self.registry[self.name](*args)
+                    else:
+                        raise RuntimeError(f"Named procedure '{self.name}' not initialized yet")
+
+            stub = NamedProcedureStub(name, _procedure_registry)
+            _procedure_registry[name] = stub  # Store stub temporarily
+            return stub
+
+        return accept_config
 
     def _prompt(prompt_name: str, content: str) -> None:
         """Register a prompt template."""
@@ -193,50 +369,117 @@ def create_dsl_stubs(builder: RegistryBuilder, tool_primitive: Any = None) -> di
         """Register a toolset definition."""
         builder.register_toolset(toolset_name, lua_table_to_dict(config))
 
-    def _tool(tool_name: str, config, handler_fn):
+    def _tool(tool_name: str):
         """
-        Register an individual Lua tool and return a callable ToolHandle.
+        Curried tool definition: tool "name" { config with function as last element }
 
-        Syntax matches agent() and procedure(): name first, config second, function third.
+        First call captures name, returns config acceptor.
 
         Args:
             tool_name: Name of the tool (used for tracking and agent toolsets)
-            config: Configuration table with description and parameters
-            handler_fn: Lua function that implements the tool
 
         Returns:
-            ToolHandle that can be called directly to execute the tool
+            Function that accepts config and returns ToolHandle
 
         Example (Lua):
-            local calculate_tip = tool("calculate_tip", {
-                description = "Calculate tip amount for a bill",
+            done = tool "done" {
+                description = "Signal completion",
                 parameters = {
-                    bill_amount = {type = "number", required = true},
-                    tip_percentage = {type = "number", required = true}
-                }
-            }, function(args)
-                return args.bill_amount * args.tip_percentage / 100
-            end)
+                    reason = {type = "string", required = true}
+                },
+                function(args)
+                    return "Done: " .. args.reason
+                end
+            }
 
-            local result = calculate_tip({bill_amount = 50, tip_percentage = 20})
+            local result = done({reason = "finished"})
         """
         from tactus.primitives.tool_handle import ToolHandle
 
-        config_dict = lua_table_to_dict(config)
+        def accept_config(config):
+            """Accept config (with function as last unnamed element) and register tool."""
+            # First extract the function from the raw Lua table before conversion
+            handler_fn = None
 
-        # Register in builder (for agent toolsets)
-        builder.register_tool(tool_name, config_dict, handler_fn)
+            # Check for function in array part of table (numeric indices)
+            if hasattr(config, "__getitem__"):
+                # Try to get function from numeric indices (Lua uses 1-based indexing)
+                for i in range(1, 10):  # Check first few positions
+                    try:
+                        item = config[i]
+                        if callable(item):
+                            handler_fn = item
+                            # Remove from table so it doesn't appear in config_dict
+                            config[i] = None
+                            break
+                    except (KeyError, TypeError):
+                        break
 
-        # Return callable ToolHandle for direct invocation
-        return ToolHandle(tool_name, handler_fn, tool_primitive)
+            # Now convert to dict (excluding the function we removed)
+            config_dict = lua_table_to_dict(config)
+
+            # If we got a list with None values from removing function, clean it up
+            if isinstance(config_dict, list):
+                config_dict = [x for x in config_dict if x is not None]
+                if len(config_dict) == 0:
+                    config_dict = {}
+
+            # If no function found in array part, check for legacy 'handler' field
+            if handler_fn is None:
+                handler_fn = config_dict.pop("handler", None)
+
+            if handler_fn is None:
+                raise TypeError(
+                    f"tool '{tool_name}' requires a function. "
+                    f'Use: tool "{tool_name}" {{ parameters = {{...}}, function(args) ... end }}'
+                )
+
+            # Register in builder (for agent toolsets)
+            builder.register_tool(tool_name, config_dict, handler_fn)
+
+            # Create and register handle for lookup
+            handle = ToolHandle(tool_name, handler_fn, tool_primitive)
+            _tool_registry[tool_name] = handle
+            return handle
+
+        return accept_config
 
     def _hitl(hitl_name: str, config) -> None:
         """Register a HITL interaction point."""
         builder.register_hitl(hitl_name, lua_table_to_dict(config))
 
-    def _model(model_name: str, config) -> None:
-        """Register a model for ML inference."""
-        builder.register_model(model_name, lua_table_to_dict(config))
+    def _model(model_name: str):
+        """
+        Curried model definition: model "name" { config }
+
+        First call captures name, returns config acceptor.
+
+        Args:
+            model_name: Model name (string identifier)
+
+        Returns:
+            Function that accepts config and returns ModelHandle
+
+        Example (Lua):
+            classifier = model "classifier" {
+                type = "pytorch",
+                path = "models/classifier.pt"
+            }
+
+            local result = Model("classifier").predict(data)
+        """
+
+        def accept_config(config) -> ModelHandle:
+            """Accept config and register model."""
+            config_dict = lua_table_to_dict(config)
+            builder.register_model(model_name, config_dict)
+
+            # Create and register handle for lookup
+            handle = ModelHandle(model_name)
+            _model_registry[model_name] = handle
+            return handle
+
+        return accept_config
 
     def _stages(*stage_names) -> None:
         """Register stage names."""
@@ -363,9 +606,71 @@ def create_dsl_stubs(builder: RegistryBuilder, tool_primitive: Any = None) -> di
         schema_dict = lua_table_to_dict(schema)
         builder.register_top_level_output(schema_dict)
 
+    # Type shorthand helper functions
+    def _required(type_name: str, description: str = None) -> dict:
+        """Create a required field of given type."""
+        result = {"type": type_name, "required": True}
+        if description:
+            result["description"] = description
+        return result
+
+    def _string(default: str = None, description: str = None) -> dict:
+        """Create an optional string field."""
+        result = {"type": "string", "required": False}
+        if default is not None:
+            result["default"] = default
+        if description:
+            result["description"] = description
+        return result
+
+    def _number(default: float = None, description: str = None) -> dict:
+        """Create an optional number field."""
+        result = {"type": "number", "required": False}
+        if default is not None:
+            result["default"] = default
+        if description:
+            result["description"] = description
+        return result
+
+    def _boolean(default: bool = None, description: str = None) -> dict:
+        """Create an optional boolean field."""
+        result = {"type": "boolean", "required": False}
+        if default is not None:
+            result["default"] = default
+        if description:
+            result["description"] = description
+        return result
+
+    def _array(default: list = None, description: str = None) -> dict:
+        """Create an optional array field."""
+        result = {"type": "array", "required": False}
+        if default is not None:
+            result["default"] = default if default else []
+        if description:
+            result["description"] = description
+        return result
+
+    def _object(default: dict = None, description: str = None) -> dict:
+        """Create an optional object field."""
+        result = {"type": "object", "required": False}
+        if default is not None:
+            result["default"] = default if default else {}
+        if description:
+            result["description"] = description
+        return result
+
+    # Create lookup functions for uppercase names (Agent, Model)
+    # These allow: Agent("greeter").turn(), Model("classifier").predict()
+    _Agent = AgentLookup(_agent_registry)
+    _Model = ModelLookup(_model_registry)
+
+    # For Tool lookup, we'll add __call__ to ToolPrimitive
+    # Set the tool registry on the primitive so it can do lookups
+    if tool_primitive is not None:
+        tool_primitive.set_tool_registry(_tool_registry)
+
     return {
-        # Core declarations
-        # Component declarations
+        # Core declarations (lowercase - for definitions)
         "agent": _agent,
         "model": _model,
         "procedure": _procedure,
@@ -404,4 +709,20 @@ def create_dsl_stubs(builder: RegistryBuilder, tool_primitive: Any = None) -> di
         "contains": _contains,
         "equals": _equals,
         "matches": _matches,
+        # Lookup functions (uppercase - for accessing registered components)
+        "Agent": _Agent,
+        "Model": _Model,
+        # Type shorthand helpers
+        "required": _required,
+        "string": _string,
+        "number": _number,
+        "boolean": _boolean,
+        "array": _array,
+        "object": _object,
+        # Registries (for runtime to enhance handles)
+        "_registries": {
+            "agent": _agent_registry,
+            "tool": _tool_registry,
+            "model": _model_registry,
+        },
     }

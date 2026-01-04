@@ -1,7 +1,7 @@
 -- Calculator with Array Input
 -- Demonstrates array and enum input handling
 
-main = procedure("main", {
+procedure "main" {
     input = {
         numbers = {
             type = "array",
@@ -38,7 +38,9 @@ main = procedure("main", {
         }
     },
     state = {}
-}, function()
+,
+
+function()
     local numbers = input.numbers
     local op = input.operation
     local result = 0
@@ -102,4 +104,5 @@ main = procedure("main", {
         operation_used = op,
         input_count = count
     }
-end)
+end
+}

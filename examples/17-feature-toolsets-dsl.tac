@@ -2,14 +2,15 @@
 -- Demonstrates defining toolsets directly in the .tac file using the toolset() function
 
 -- Define completion tool
-tool("done", {
+tool "done" {
     description = "Signal completion of the task",
-    parameters = {
-        reason = {type = "string", required = true, description = "Completion message"}
-    }
-}, function(args)
+        parameters = {
+            reason = {type = "string", required = true, description = "Completion message"}
+        },
+    function(args)
     return "Done: " .. args.reason
-end)
+end
+}
 
 -- Define a custom toolset using DSL
 toolset("math_tools", {
@@ -18,17 +19,17 @@ toolset("math_tools", {
 })
 
 -- Agent using DSL-defined toolsets
-agent("calculator", {
+agent "calculator" {
     provider = "openai",
     system_prompt = [[You are a helpful calculator assistant.
 When asked to perform calculations, use the available tools.
 When done, call the done tool with your answer.]],
     initial_message = "Calculate 15% of 200 and tell me the result",
     toolsets = {"math_tools", "done"}
-})
+}
 
 -- Procedure demonstrating DSL toolset usage
-main = procedure("main", {
+procedure "main" {
     outputs = {
         calculation_result = {
             type = "string",
@@ -40,8 +41,8 @@ main = procedure("main", {
             required = true,
             description = "Whether the agent completed successfully"
         }
-    }
-}, function()
+    },
+    function()
     Log.info("Starting DSL toolset example")
 
     -- Programmatic toolset access via Toolset primitive (demonstrates Toolset.get API)
@@ -55,7 +56,7 @@ main = procedure("main", {
     local result
 
     repeat
-        result = Calculator.turn()
+        result = Agent("calculator").turn()
         turn_count = turn_count + 1
     until Tool.called("done") or turn_count >= max_turns
 
@@ -75,7 +76,8 @@ main = procedure("main", {
             completed = false
         }
     end
-end)
+end
+}
 
 -- BDD Specifications
 specifications([[

@@ -1497,6 +1497,54 @@ class TactusRuntime:
 
         return create_model(model_name, **fields)  # noqa: F821
 
+    def _enhance_handles(self):
+        """
+        Connect DSL handles to their actual primitives.
+
+        After primitives are created (AgentPrimitive, ModelPrimitive), this method
+        finds the corresponding handles (AgentHandle, ModelHandle) in the DSL registries
+        and connects them so that .turn() and .predict() calls work.
+
+        This is called from _inject_primitives() after all primitives are ready.
+        """
+        from tactus.primitives.handles import AgentHandle, ModelHandle
+
+        # Get registries (stored during _parse_dsl_source)
+        if not hasattr(self, "_dsl_registries"):
+            logger.debug("No DSL registries found - skipping handle enhancement")
+            return
+
+        agent_registry = self._dsl_registries.get("agent", {})
+        model_registry = self._dsl_registries.get("model", {})
+
+        # Enhance agent handles
+        for agent_name, primitive in self.agents.items():
+            if agent_name in agent_registry:
+                handle = agent_registry[agent_name]
+                if isinstance(handle, AgentHandle):
+                    handle._set_primitive(primitive)
+                    logger.info(f"Enhanced AgentHandle '{agent_name}' with primitive")
+                else:
+                    logger.warning(
+                        f"Agent registry entry '{agent_name}' is not an AgentHandle: {type(handle)}"
+                    )
+
+        # Enhance model handles
+        for model_name, primitive in self.models.items():
+            if model_name in model_registry:
+                handle = model_registry[model_name]
+                if isinstance(handle, ModelHandle):
+                    handle._set_primitive(primitive)
+                    logger.info(f"Enhanced ModelHandle '{model_name}' with primitive")
+                else:
+                    logger.warning(
+                        f"Model registry entry '{model_name}' is not a ModelHandle: {type(handle)}"
+                    )
+
+        logger.debug(
+            f"Handle enhancement complete: {len(agent_registry)} agents, {len(model_registry)} models"
+        )
+
     def _inject_primitives(self):
         """Inject all primitives into Lua global scope."""
         # Inject input with default values, then override with context values
@@ -1652,19 +1700,16 @@ class TactusRuntime:
         self.lua_sandbox.set_global("Sleep", sleep_wrapper)
         logger.info("Injected Sleep function")
 
-        # Inject agent primitives (capitalized names)
-        for agent_name, agent_primitive in self.agents.items():
-            # Capitalize first letter for Lua convention (Worker, Assistant, etc.)
-            lua_name = agent_name.capitalize()
-            self.lua_sandbox.inject_primitive(lua_name, agent_primitive)
-            logger.info(f"Injected agent primitive: {lua_name}")
+        # NOTE: Agent and model primitives are NO LONGER auto-injected with capitalized names.
+        # Instead, use the new syntax:
+        #   agent "greeter" { config }     -- define
+        #   Agent("greeter").turn()        -- lookup and use
+        # Or assign during definition:
+        #   Greeter = agent "greeter" { config }
+        #   Greeter.turn()
 
-        # Inject model primitives (capitalized names)
-        for model_name, model_primitive in self.models.items():
-            # Capitalize first letter for Lua convention (IntentClassifier, Embedder, etc.)
-            lua_name = model_name.capitalize()
-            self.lua_sandbox.inject_primitive(lua_name, model_primitive)
-            logger.info(f"Injected model primitive: {lua_name}")
+        # Enhance DSL handles to connect them to actual primitives
+        self._enhance_handles()
 
         logger.debug("All primitives injected into Lua sandbox")
 
@@ -1884,6 +1929,10 @@ class TactusRuntime:
 
         # Inject DSL stubs (pass tool_primitive so tool() can return callable handles)
         stubs = create_dsl_stubs(builder, tool_primitive)
+
+        # Store registries for later handle enhancement
+        self._dsl_registries = stubs.pop("_registries", {})
+
         for name, stub in stubs.items():
             sandbox.set_global(name, stub)
 

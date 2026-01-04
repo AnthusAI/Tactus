@@ -1,7 +1,7 @@
-.PHONY: help generate-parsers generate-python-parser generate-typescript-parser test-parsers clean-generated dev-ide
+.PHONY: help generate-parsers generate-python-parser generate-typescript-parser test-parsers clean-generated dev-ide test-examples test-examples-fast test-examples-parallel test-examples-bdd
 
 help:
-	@echo "Tactus Parser Generation"
+	@echo "Tactus Parser Generation and Testing"
 	@echo ""
 	@echo "Available targets:"
 	@echo "  generate-parsers        - Generate both Python and TypeScript parsers"
@@ -10,6 +10,12 @@ help:
 	@echo "  test-parsers            - Run parser tests"
 	@echo "  clean-generated         - Remove generated parser files"
 	@echo "  dev-ide                 - Start IDE in dev mode (auto-restart backend + rebuild frontend)"
+	@echo ""
+	@echo "Example Testing:"
+	@echo "  test-examples           - Test all example .tac files (validation + BDD)"
+	@echo "  test-examples-fast      - Test examples without slow/integration tests"
+	@echo "  test-examples-parallel  - Test examples in parallel for speed"
+	@echo "  test-examples-bdd       - Test only examples with BDD specifications"
 	@echo ""
 	@echo "Requirements:"
 	@echo "  - Docker must be running (for parser generation)"
@@ -85,6 +91,27 @@ clean-generated:
 dev-ide:
 	@chmod +x tactus-ide/dev.sh
 	@cd tactus-ide && ./dev.sh
+
+# Test all example .tac files
+test-examples:
+	@echo "Testing all example .tac files..."
+	@echo "This will validate and run BDD tests for all examples"
+	pytest tests/testing/test_all_examples.py -v --tb=short
+
+# Fast test mode - skip slow/integration tests
+test-examples-fast:
+	@echo "Testing examples (fast mode - no integration tests)..."
+	pytest tests/testing/test_all_examples.py -v --tb=short -m "not integration and not slow"
+
+# Parallel test execution for speed
+test-examples-parallel:
+	@echo "Testing examples in parallel..."
+	pytest tests/testing/test_all_examples.py -n auto -v --tb=short
+
+# Test only examples with BDD specifications
+test-examples-bdd:
+	@echo "Testing examples with BDD specifications..."
+	pytest tests/testing/test_all_examples.py::TestAllExamples::test_example_bdd_specs -v --tb=short
 
 
 

@@ -4,20 +4,21 @@
 -- Requires OpenAI API key and AWS Bedrock credentials in .tactus/config.yml (region: us-east-1)
 
 -- Define completion tool
-tool("done", {
+tool "done" {
     description = "Signal completion of the task",
-    parameters = {
-        reason = {type = "string", required = true, description = "Completion message"}
-    }
-}, function(args)
+        parameters = {
+            reason = {type = "string", required = true, description = "Completion message"}
+        },
+    function(args)
     return "Done: " .. args.reason
-end)
+end
+}
 
 -- Common prompt for all models
 local common_prompt = "Explain quantum entanglement in exactly 2 sentences."
 
 -- OpenAI Models
-agent("gpt4o", {
+agent "gpt4o" {
     provider = "openai",
     model = "gpt-4o",
     system_prompt = "You are a physics expert. Be concise and accurate.",
@@ -27,9 +28,9 @@ agent("gpt4o", {
         temperature = 0.7,
         top_p = 0.9,
     }
-})
+}
 
-agent("gpt4o_mini", {
+agent "gpt4o_mini" {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = "You are a physics expert. Be concise and accurate.",
@@ -39,9 +40,9 @@ agent("gpt4o_mini", {
         temperature = 0.7,
         top_p = 0.9,
     }
-})
+}
 
-agent("gpt35_turbo", {
+agent "gpt35_turbo" {
     provider = "openai",
     model = "gpt-3.5-turbo",
     system_prompt = "You are a physics expert. Be concise and accurate.",
@@ -51,10 +52,10 @@ agent("gpt35_turbo", {
         temperature = 0.7,
         top_p = 0.9,
     }
-})
+}
 
 -- Anthropic Models via Bedrock
-agent("claude_haiku", {
+agent "claude_haiku" {
     provider = "bedrock",
     model = "us.anthropic.claude-haiku-4-5-20251001-v1:0",
     system_prompt = "You are a physics expert. Be concise and accurate.",
@@ -63,10 +64,10 @@ agent("claude_haiku", {
     model_settings = {
         temperature = 0.7,
     }
-})
+}
 
 -- Meta Llama Models via Bedrock (doesn't support tool calling)
-agent("llama_8b", {
+agent "llama_8b" {
     provider = "bedrock",
     model = "us.meta.llama3-1-8b-instruct-v1:0",
     system_prompt = "You are a physics expert. Be concise and accurate.",
@@ -76,12 +77,12 @@ agent("llama_8b", {
     model_settings = {
         temperature = 0.7,
     }
-})
+}
 
 -- Models without tool support - just get direct responses
 -- NOTE: Llama 3.2 3B doesn't support tool calling in AWS Bedrock's Converse API.
 -- Tactus automatically detects this and configures the model profile appropriately.
-agent("llama_3b", {
+agent "llama_3b" {
     provider = "bedrock",
     model = "us.meta.llama3-2-3b-instruct-v1:0",
     system_prompt = "You are a physics expert. Be concise and accurate.",
@@ -91,9 +92,9 @@ agent("llama_3b", {
     model_settings = {
         temperature = 0.7,
     }
-})
+}
 
-agent("nova_micro", {
+agent "nova_micro" {
     provider = "bedrock",
     model = "us.amazon.nova-micro-v1:0",
     system_prompt = "You are a physics expert. Be concise and accurate.",
@@ -103,9 +104,9 @@ agent("nova_micro", {
     model_settings = {
         temperature = 0.7,
     }
-})
+}
 
-agent("nova_lite", {
+agent "nova_lite" {
     provider = "bedrock",
     model = "us.amazon.nova-lite-v1:0",
     system_prompt = "You are a physics expert. Be concise and accurate.",
@@ -115,11 +116,12 @@ agent("nova_lite", {
     model_settings = {
         temperature = 0.7,
     }
-})
+}
 
 
 -- Procedure to run all models and collect responses
-main = procedure("main", function()
+procedure "main" {
+    function()
     Log.info("Starting multi-model comparison")
     
     local results = {}
@@ -225,7 +227,8 @@ main = procedure("main", function()
         results = results,
         total_models = 12
     }
-end)
+end
+}
 
 -- BDD Specifications
 specifications([[

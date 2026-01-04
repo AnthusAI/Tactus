@@ -21,7 +21,7 @@ Be concise and accurate.]],
     }
 })
 
-main = procedure("main", {
+procedure "main" {
     input = {
         query = {
             type = "string",
@@ -33,11 +33,13 @@ main = procedure("main", {
         tokens_used = {type = "number", required = true}
     },
     state = {}
-}, function()
+,
+
+function()
     Log.info("Starting structured output demo", {query = input.query})
     
     -- Agent returns ResultPrimitive (not raw data)
-    local result = Extractor.turn()
+    local result = Agent("extractor").turn()
     
     -- Access structured data via result.data
     Log.info("Extracted city information", {
@@ -69,7 +71,8 @@ main = procedure("main", {
         city_data = result.data,
         tokens_used = result.usage.total_tokens
     }
-end)
+end
+}
 
 -- BDD Specifications
 specifications([[

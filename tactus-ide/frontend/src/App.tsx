@@ -324,7 +324,10 @@ const AppContent: React.FC = () => {
   };
 
   // Helper function to create a new run entry
-  const createNewRun = useCallback((operationType: 'validate' | 'test' | 'evaluate' | 'run') => {
+  const createNewRun = useCallback((
+    operationType: 'validate' | 'test' | 'evaluate' | 'run',
+    inputs?: Record<string, any>
+  ) => {
     if (!currentFile) return null;
 
     const runId = nanoid();
@@ -344,6 +347,7 @@ const AppContent: React.FC = () => {
         events: [],
         isExpanded: true,
         status: 'running',
+        inputs, // Include inputs in initial creation
       };
 
       // Add new run at the bottom, keep existing persisted runs
@@ -406,22 +410,8 @@ const AppContent: React.FC = () => {
     // Clear stream first to reset events
     setStreamUrl(null);
 
-    // Create new run entry with inputs
-    const runId = createNewRun('run');
-
-    // Store inputs in the run history
-    if (currentFile) {
-      setResultsHistory(prev => {
-        const fileHistory = prev[currentFile] || { filePath: currentFile, runs: [] };
-        const updatedRuns = fileHistory.runs.map(run =>
-          run.id === runId ? { ...run, inputs } : run
-        );
-        return {
-          ...prev,
-          [currentFile]: { ...fileHistory, runs: updatedRuns },
-        };
-      });
-    }
+    // Create new run entry with inputs (passed directly to avoid race condition)
+    createNewRun('run', inputs);
 
     // Clear old results
     setRunResult(null);

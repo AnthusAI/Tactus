@@ -1,7 +1,7 @@
 -- Input Types Showcase
 -- Demonstrates all supported input types for GUI and CLI testing
 
-main = procedure("main", {
+procedure "main" {
     input = {
         -- String input (required)
         user_name = {
@@ -59,7 +59,9 @@ main = procedure("main", {
         }
     },
     state = {}
-}, function()
+,
+
+function()
     -- Select greeting based on formality and language
     local greetings = {
         english = input.formal and "Dear" or "Hello",
@@ -99,4 +101,5 @@ main = procedure("main", {
         message = message,
         settings = settings
     }
-end)
+end
+}

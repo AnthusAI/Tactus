@@ -11,7 +11,7 @@ Call the 'done' tool with your greeting.]],
     initial_message = "Generate a greeting for {name}",
 })
 
-main = procedure("main", {
+procedure "main" {
     input = {
         name = {
             type = "string",
@@ -25,9 +25,11 @@ main = procedure("main", {
         }
     },
     state = {}
-}, function()
+,
+
+function()
     -- Have agent generate greeting
-    Greeter.turn()
+    Agent("greeter").turn()
     
     -- Get result
     if Tool.called("done") then
@@ -37,7 +39,8 @@ main = procedure("main", {
     end
     
     return {greeting = "No greeting generated"}
-end)
+end
+}
 
 -- BDD Specifications
 specifications([[
@@ -96,4 +99,5 @@ Score 0.0 if the greeting is generic or missing the name.
         max_duration = 10.0,      -- Max 10 seconds per run
         max_tokens_per_run = 500  -- Max 500 tokens per run
     }
-})
+}
+)

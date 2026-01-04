@@ -59,14 +59,14 @@ tool("greet", {
 end)
 
 -- Use tools in an agent
-agent("assistant", {
+agent "assistant" {
     provider = "openai",
     system_prompt = "You are a friendly assistant",
     toolsets = {"greet", "done"}  -- Both tools explicitly defined above
 })
 
 procedure(function()
-    Assistant.turn("Greet Alice")
+    Agent("assistant").turn("Greet Alice")
     return {result = "done"}
 end)
 ```
@@ -93,7 +93,7 @@ tool("calculate_tip", {
     return string.format("Tip: $%.2f", tip)
 end)
 
-agent("assistant", {
+agent "assistant" {
     provider = "openai",
     toolsets = {"calculate_tip", "done"}  -- Both must be explicitly defined via tool()
 })
@@ -144,7 +144,7 @@ toolset("math_tools", {
     }
 })
 
-agent("calculator", {
+agent "calculator" {
     provider = "openai",
     toolsets = {"math_tools", "done"}  -- "done" must be explicitly defined via tool()
 })
@@ -167,7 +167,7 @@ agent("calculator", {
 Define tools directly in the agent configuration:
 
 ```lua
-agent("text_processor", {
+agent "text_processor" {
     provider = "openai",
     system_prompt = "You process text",
     tools = {
@@ -573,7 +573,7 @@ toolset("financial_tools", {
 ### Example 3: Text Processing Pipeline
 
 ```lua
-agent("content_editor", {
+agent "content_editor" {
     provider = "openai",
     system_prompt = "You are a content editing assistant",
     tools = {
@@ -756,7 +756,7 @@ toolset("temperature_tools", {
 })
 
 -- Agent-specific -> inline
-agent("temp_converter", {
+agent "temp_converter" {
     tools = {...}
 })
 ```

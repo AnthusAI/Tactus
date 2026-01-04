@@ -14,17 +14,18 @@ tactus run examples/16-feature-toolsets-advanced.tac --param task="Calculate a m
 ]]--
 
 -- Define completion tool
-tool("done", {
+tool "done" {
     description = "Signal completion of the task",
-    parameters = {
-        reason = {type = "string", required = true, description = "Completion message"}
-    }
-}, function(args)
+        parameters = {
+            reason = {type = "string", required = true, description = "Completion message"}
+        },
+    function(args)
     return "Done: " .. args.reason
-end)
+end
+}
 
 -- Agent 1: Uses config-defined combined toolset
-agent("analyst", {
+agent "analyst" {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[You are a financial analyst with access to calculation tools.
@@ -33,10 +34,10 @@ List the available tools and then call the done tool.]],
     toolsets = {
         "all_tools"  -- References combined toolset from config
     }
-})
+}
 
 -- Agent 2: Uses filtering to include only specific tools
-agent("calculator", {
+agent "calculator" {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[You are a calculator with access to mathematical functions.
@@ -47,10 +48,10 @@ List your tools and call done when finished.]],
         {name = "plugin", include = {"calculate_mortgage", "compound_interest"}},
         "done"
     }
-})
+}
 
 -- Agent 3: Uses prefixing for namespacing
-agent("prefixed_agent", {
+agent "prefixed_agent" {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[You have prefixed tools. List them and call done.]],
@@ -60,10 +61,10 @@ agent("prefixed_agent", {
         {name = "plugin", prefix = "calc_"},
         "done"
     }
-})
+}
 
 -- Agent 4: Uses exclusion to remove specific tools
-agent("restricted", {
+agent "restricted" {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[You have most tools except excluded ones. List them and call done.]],
@@ -73,19 +74,19 @@ agent("restricted", {
         {name = "plugin", exclude = {"web_search", "wikipedia_lookup"}},
         "done"
     }
-})
+}
 
 -- Agent 5: Explicitly no tools (for observation/analysis only)
-agent("observer", {
+agent "observer" {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[You are an observer with no tools. Just respond with your observation.]],
     initial_message = "Observe that you have no tools available.",
     toolsets = {}  -- Explicitly empty - NO tools at all
-})
+}
 
 -- Main procedure demonstrating each agent
-main = procedure("main", {
+procedure "main" {
     outputs = {
         analyst_tools = {
             type = "string",
@@ -108,7 +109,9 @@ main = procedure("main", {
             description = "Observer's response about having no tools"
         }
     }
-}, function()
+,
+
+function()
     Log.info("=== Advanced Toolset Features Demo ===")
 
     -- Helper function to run agent with max turns
@@ -128,20 +131,20 @@ main = procedure("main", {
     end
 
     -- Test Agent 1: Combined toolsets from config
-    local analyst_response = run_agent_with_limit("Agent 1: Combined toolsets", Analyst, 2)
+    local analyst_response = run_agent_with_limit("Agent 1: Combined toolsets", Agent("analyst"), 2)
 
     -- Test Agent 2: Filtered toolset (include specific tools)
-    local calculator_response = run_agent_with_limit("Agent 2: Filtered toolset (include)", Calculator, 2)
+    local calculator_response = run_agent_with_limit("Agent 2: Filtered toolset (include)", Agent("calculator"), 2)
 
     -- Test Agent 3: Prefixed toolset
-    local prefixed_response = run_agent_with_limit("Agent 3: Prefixed toolset", Prefixed_agent, 2)
+    local prefixed_response = run_agent_with_limit("Agent 3: Prefixed toolset", Agent("prefixed_agent"), 2)
 
     -- Test Agent 4: Restricted toolset (exclude specific tools)
-    local restricted_response = run_agent_with_limit("Agent 4: Restricted toolset (exclude)", Restricted, 2)
+    local restricted_response = run_agent_with_limit("Agent 4: Restricted toolset (exclude)", Agent("restricted"), 2)
 
     -- Test Agent 5: No tools (explicitly empty) - only needs 1 turn
     Log.info("Testing Agent 5: No tools")
-    local observer_result = Observer.turn()
+    local observer_result = Agent("observer").turn()
     local observer_response = observer_result.text
     Log.info("Observer response", {text = observer_response})
 
@@ -152,7 +155,8 @@ main = procedure("main", {
         restricted_tools = restricted_response,
         observer_response = observer_response
     }
-end)
+end
+}
 
 -- BDD Specifications
 specifications([[

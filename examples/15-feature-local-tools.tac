@@ -12,17 +12,18 @@ To run this example:
 ]]--
 
 -- Define completion tool
-tool("done", {
+tool "done" {
     description = "Signal completion of the task",
-    parameters = {
-        reason = {type = "string", required = true, description = "Completion message"}
-    }
-}, function(args)
+        parameters = {
+            reason = {type = "string", required = true, description = "Completion message"}
+        },
+    function(args)
     return "Done: " .. args.reason
-end)
+end
+}
 
 -- Agent with access to local tools
-agent("assistant", {
+agent "assistant" {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[You are a helpful assistant with access to tools for calculations.
@@ -42,10 +43,10 @@ You MUST call the 'done' tool after getting the calculation result.]],
         -- Completion tool (defined above)
         "done"
     }
-})
+}
 
 -- Main workflow
-main = procedure("main", {
+procedure "main" {
     input = {
         task = {
             type = "string",
@@ -65,13 +66,15 @@ main = procedure("main", {
         },
     },
     state = {}
-}, function()
+,
+
+function()
     local result
     local max_turns = 5  -- Safety limit to prevent infinite loops
     local turn_count = 0
 
     repeat
-        result = Assistant.turn()
+        result = Agent("assistant").turn()
         turn_count = turn_count + 1
 
         -- Log tool usage for visibility
@@ -100,6 +103,7 @@ main = procedure("main", {
         answer = answer,
         completed = Tool.called("done")
     }
-end)
+end
+}
 
 

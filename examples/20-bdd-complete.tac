@@ -2,18 +2,18 @@
 -- Demonstrates all major features of the BDD testing framework
 
 -- Agent
-agent("processor", {
+agent "processor" {
   provider = "openai",
   model = "gpt-4o-mini",
   system_prompt = "Process the task: {input.task}. Call done when finished.",
   initial_message = "Start processing",
-})
+}
 
 -- Stages
 stages({"setup", "processing", "validation", "complete"})
 
 -- Procedure with input and output defined inline
-main = procedure("main", {
+procedure "main" {
     input = {
         task = {
             type = "string",
@@ -62,7 +62,9 @@ main = procedure("main", {
             description = "Last even number"
         }
     }
-}, function()
+,
+
+function()
   -- Setup phase
   Stage.set("setup")
   State.set("items_processed", 0)
@@ -82,7 +84,7 @@ main = procedure("main", {
   end
   
   -- Agent processes result
-  Processor.turn()
+  Agent("processor").turn()
   
   -- Validation phase
   Stage.set("validation")
@@ -101,7 +103,8 @@ main = procedure("main", {
     status = "success",
     count = State.get("items_processed")
   }
-end)
+end
+}
 
 -- BDD Specifications
 specifications([[

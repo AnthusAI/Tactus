@@ -5,7 +5,7 @@
 stages({"start", "middle", "end"})
 
 -- Procedure with input, output, and state defined inline
-main = procedure("main", {
+procedure "main" {
     input = {
         target_count = {
             type = "number",
@@ -38,7 +38,9 @@ main = procedure("main", {
             description = "Working message"
         }
     }
-}, function()
+,
+
+function()
   -- Initialize
   Stage.set("start")
 
@@ -60,7 +62,8 @@ main = procedure("main", {
     final_count = State.get("counter"),
     message = State.get("message")
   }
-end)
+end
+}
 
 -- BDD Specifications
 specifications([[

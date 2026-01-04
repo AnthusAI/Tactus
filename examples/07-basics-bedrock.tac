@@ -3,17 +3,18 @@
 -- Requires AWS credentials in .tactus/config.yml
 
 -- Define completion tool
-tool("done", {
+tool "done" {
     description = "Signal completion of the task",
-    parameters = {
-        reason = {type = "string", required = true, description = "Completion message"}
-    }
-}, function(args)
+        parameters = {
+            reason = {type = "string", required = true, description = "Completion message"}
+        },
+    function(args)
     return "Done: " .. args.reason
-end)
+end
+}
 
 -- Agent using Claude 4.5 Haiku via Bedrock (using inference profile)
-agent("haiku_assistant", {
+agent "haiku_assistant" {
     provider = "bedrock",
     model = "us.anthropic.claude-haiku-4-5-20251001-v1:0",
     system_prompt = [[You are a helpful assistant powered by Claude 4.5 Haiku running on AWS Bedrock.
@@ -24,10 +25,11 @@ After answering, call the done tool with a brief summary of what you explained.
 IMPORTANT: Always call the done tool after providing your answer.]],
     initial_message = "What are the key benefits of using AWS Bedrock for AI applications?",
     toolsets = {"done"}
-})
+}
 
 -- Procedure demonstrating Bedrock usage
-main = procedure("main", function()
+procedure "main" {
+    function()
     Log.info("Testing AWS Bedrock with Claude 4.5 Haiku")
 
     -- ReAct loop: Keep turning until the agent calls done
@@ -36,7 +38,7 @@ main = procedure("main", function()
     local turn_count = 0
 
     repeat
-        local response = Haiku_assistant.turn()
+        local response = Agent("haiku_assistant").turn()
         turn_count = turn_count + 1
 
         -- Accumulate the response text from each turn using .text property
@@ -68,7 +70,8 @@ main = procedure("main", function()
         turns = turn_count,
         success = Tool.called("done")
     }
-end)
+end
+}
 
 -- BDD Specifications
 specifications([[
