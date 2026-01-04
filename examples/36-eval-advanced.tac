@@ -14,7 +14,7 @@ IMPORTANT: Always call the done tool immediately with your formatted result.]],
     request_limit = 5
 })
 
-main = procedure("main", {
+procedure "main" {
     input = {
         task = {
             type = "string",
@@ -36,9 +36,11 @@ main = procedure("main", {
         }
     },
     state = {}
-}, function()
+,
+
+function()
     -- Have agent complete the task
-    Formatter.turn()
+    Agent("formatter").turn()
     
     -- Get result
     if Tool.called("done") then
@@ -54,7 +56,8 @@ main = procedure("main", {
         result = "Task not completed",
         score = 0
     }
-end)
+end
+}
 
 -- BDD Specifications
 specifications([[
@@ -111,4 +114,5 @@ evaluations({
             }
         }
     }
-})
+}
+)

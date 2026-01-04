@@ -23,7 +23,7 @@ Review the research and call 'done' with your assessment.]],
     initial_message = "Review this research: {research}",
 })
 
-main = procedure("main", {
+procedure "main" {
     input = {
         topic = {
             type = "string",
@@ -47,12 +47,14 @@ main = procedure("main", {
             description = "Research has started"
         }
     }
-}, function()
+,
+
+function()
     -- Track state
     State.set("research_started", true)
     
     -- Researcher does the work
-    Researcher.turn()
+    Agent("researcher").turn()
     
     local research = "No research completed"
     if Tool.called("search") then
@@ -66,7 +68,7 @@ main = procedure("main", {
     end
     
     -- Reviewer checks the work
-    Reviewer.turn()
+    Agent("reviewer").turn()
     
     local reviewed = Tool.called("done")
     
@@ -74,7 +76,8 @@ main = procedure("main", {
         research = research,
         reviewed = reviewed
     }
-end)
+end
+}
 
 -- BDD Specifications
 specifications([[
@@ -162,4 +165,5 @@ Score 0.0 otherwise.
             model = "openai:gpt-4o-mini"
         }
     }
-})
+}
+)

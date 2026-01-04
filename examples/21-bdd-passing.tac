@@ -2,17 +2,17 @@
 -- This example uses simple state manipulation and can be tested with mocked tools
 
 -- Agent definition (will be mocked in tests)
-agent("worker", {
+agent "worker" {
   provider = "openai",
   model = "gpt-4o-mini",
   system_prompt = "You are a worker. Call the done tool when finished.",
-})
+}
 
 -- Stages
 stages({"initializing", "working", "complete"})
 
 -- Procedure with input, output, and state defined inline
-main = procedure("main", {
+procedure "main" {
     input = {
         count = {
             type = "number",
@@ -40,7 +40,9 @@ main = procedure("main", {
             description = "List of items"
         }
     }
-}, function()
+,
+
+function()
   -- Initialize
   Stage.set("initializing")
 
@@ -56,7 +58,7 @@ main = procedure("main", {
   end
 
   -- Simulate agent turn (will call done tool)
-  Worker.turn()
+  Agent("worker").turn()
 
   -- Complete
   Stage.set("complete")
@@ -64,7 +66,8 @@ main = procedure("main", {
   return {
     result = "Processed " .. State.get("counter") .. " items"
   }
-end)
+end
+}
 
 -- BDD Specifications
 specifications([[

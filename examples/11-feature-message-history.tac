@@ -2,14 +2,14 @@
 -- Demonstrates using the MessageHistory primitive to manage conversation history
 -- Aligned with pydantic-ai's message_history concept
 
-agent("chatbot", {
+agent "chatbot" {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = "You are a helpful chatbot. Answer questions concisely.",
-})
+}
 
 -- Procedure with message_history configuration
-main = procedure("main", {
+procedure "main" {
     input = {
         user_message = {
             type = "string",
@@ -33,7 +33,9 @@ main = procedure("main", {
         mode = "isolated",  -- Each agent gets its own history
         max_tokens = 120000
     }
-}, function()
+,
+
+function()
     Log.info("Message history demo starting")
 
     -- Manually add a user message to the message history
@@ -44,7 +46,7 @@ main = procedure("main", {
     })
     
     -- Have the agent respond
-    Chatbot.turn()
+    Agent("chatbot").turn()
     
     -- Get the conversation history (message_history in pydantic-ai terms)
     local history = MessageHistory.get()
@@ -65,7 +67,8 @@ main = procedure("main", {
         response = "Conversation completed",
         history_length = count
     }
-end)
+end
+}
 
 -- BDD Specifications
 specifications([[

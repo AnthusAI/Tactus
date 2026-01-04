@@ -10,80 +10,84 @@ tactus run examples/18-feature-lua-tools-individual.tac --param task="Calculate 
 ]]--
 
 -- Define completion tool
-tool("done", {
+tool "done" {
     description = "Signal completion of the task",
-    parameters = {
-        reason = {type = "string", required = true, description = "Completion message"}
-    }
-}, function(args)
+        parameters = {
+            reason = {type = "string", required = true, description = "Completion message"}
+        },
+    function(args)
     return "Done: " .. args.reason
-end)
+end
+}
 
 -- Define individual tools using the tool() function
-tool("calculate_tip", {
+tool "calculate_tip" {
     description = "Calculate tip amount for a bill",
-    parameters = {
-        bill_amount = {
-            type = "number",
-            description = "Total bill amount in dollars",
-            required = true
+        parameters = {
+            bill_amount = {
+                type = "number",
+                description = "Total bill amount in dollars",
+                required = true
+            },
+            tip_percentage = {
+                type = "number",
+                description = "Tip percentage (e.g., 15 for 15%)",
+                required = true
+            }
         },
-        tip_percentage = {
-            type = "number",
-            description = "Tip percentage (e.g., 15 for 15%)",
-            required = true
-        }
-    }
-}, function(args)
+    function(args)
     local tip = args.bill_amount * (args.tip_percentage / 100)
     local total = args.bill_amount + tip
     return string.format("Bill: $%.2f, Tip (%.0f%%): $%.2f, Total: $%.2f",
         args.bill_amount, args.tip_percentage, tip, total)
-end)
+end
+}
 
-tool("split_bill", {
+tool "split_bill" {
     description = "Split a bill total among multiple people",
-    parameters = {
-        total_amount = {
-            type = "number",
-            description = "Total amount to split",
-            required = true
+        parameters = {
+            total_amount = {
+                type = "number",
+                description = "Total amount to split",
+                required = true
+            },
+            num_people = {
+                type = "integer",
+                description = "Number of people to split among",
+                required = true
+            }
         },
-        num_people = {
-            type = "integer",
-            description = "Number of people to split among",
-            required = true
-        }
-    }
-}, function(args)
+    function(args)
     local per_person = args.total_amount / args.num_people
     return string.format("Split $%.2f among %d people = $%.2f per person",
         args.total_amount, args.num_people, per_person)
-end)
+end
+}
 
-tool("calculate_discount", {
+tool "calculate_discount" {
     description = "Calculate price after discount",
-    parameters = {
-        original_price = {
-            type = "number",
-            description = "Original price",
-            required = true
+        parameters = {
+            original_price = {
+                type = "number",
+                description = "Original price",
+                required = true
+            },
+            discount_percent = {
+                type = "number",
+                description = "Discount percentage",
+                required = true
+            }
         },
-        discount_percent = {
-            type = "number",
-            description = "Discount percentage",
-            required = true
-        }
-    }
-}, function(args)
+    function(args)
     local discount_amount = args.original_price * (args.discount_percent / 100)
     local final_price = args.original_price - discount_amount
     return string.format("Original: $%.2f, Discount (%.0f%%): $%.2f, Final: $%.2f",
         args.original_price, args.discount_percent, discount_amount, final_price)
-end)
+end
+}
 
 -- Agent with access to individual Lua tools
-agent("calculator", {
+agent "calculator" {
     provider = "openai",
     model = "gpt-4o-mini",
     tool_choice = "required",
@@ -100,10 +104,10 @@ After calling the calculation tool, call done with the result.]],
         "calculate_discount",
         "done"
     }
-})
+}
 
 -- Main workflow
-main = procedure("main", {
+procedure "main" {
     input = {
         task = {
             type = "string",
@@ -124,13 +128,15 @@ main = procedure("main", {
         }
     },
     state = {}
-}, function()
+,
+
+function()
     local max_turns = 5
     local turn_count = 0
     local result
 
     repeat
-        result = Calculator.turn()
+        result = Agent("calculator").turn()
         turn_count = turn_count + 1
 
         -- Log tool usage
@@ -158,7 +164,8 @@ main = procedure("main", {
         result = answer,
         completed = Tool.called("done")
     }
-end)
+end
+}
 
 -- BDD Specifications
 specifications([[

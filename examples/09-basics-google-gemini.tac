@@ -4,17 +4,18 @@
 -- Requires GOOGLE_API_KEY in .tactus/config.yml
 
 -- Define completion tool
-tool("done", {
+tool "done" {
     description = "Signal completion of the task",
-    parameters = {
-        reason = {type = "string", required = true, description = "Completion message"}
-    }
-}, function(args)
+        parameters = {
+            reason = {type = "string", required = true, description = "Completion message"}
+        },
+    function(args)
     return "Done: " .. args.reason
-end)
+end
+}
 
 -- Agent using Gemini 3 Pro (most capable model)
-agent("gemini_pro", {
+agent "gemini_pro" {
     provider = "google-gla",
     model = "gemini-3-pro-preview",
     system_prompt = [[You are a helpful assistant powered by Google Gemini 3 Pro.
@@ -25,10 +26,10 @@ After answering, call the done tool with a brief summary of what you explained.
 IMPORTANT: Always call the done tool after providing your answer.]],
     initial_message = "What are the key benefits of using Google Gemini for AI applications?",
     toolsets = {"done"}
-})
+}
 
 -- Agent using Gemini 2.0 Flash (fast, efficient model)
-agent("gemini_flash", {
+agent "gemini_flash" {
     provider = "google-gla",
     model = "gemini-2.0-flash-exp",
     system_prompt = [[You are a helpful assistant powered by Google Gemini 2.0 Flash.
@@ -39,10 +40,11 @@ After answering, call the done tool with a brief summary of what you explained.
 IMPORTANT: Always call the done tool after providing your answer.]],
     initial_message = "Explain the key advantages of using Gemini Flash for fast AI responses.",
     toolsets = {"done"}
-})
+}
 
 -- Procedure demonstrating multiple Gemini models
-main = procedure("main", function()
+procedure "main" {
+    function()
     Log.info("Testing Google Gemini with multiple models")
 
     local max_turns = 3
@@ -53,7 +55,7 @@ main = procedure("main", function()
     local pro_turns = 0
 
     repeat
-        local response = Gemini_pro.turn()
+        local response = Agent("gemini_pro").turn()
         pro_turns = pro_turns + 1
 
         -- Accumulate the response text
@@ -83,7 +85,7 @@ main = procedure("main", function()
     local flash_turns = 0
 
     repeat
-        local response = Gemini_flash.turn()
+        local response = Agent("gemini_flash").turn()
         flash_turns = flash_turns + 1
 
         -- Accumulate the response text
@@ -122,7 +124,8 @@ main = procedure("main", function()
         },
         success = true
     }
-end)
+end
+}
 
 -- BDD Specifications
 specifications([[

@@ -2,15 +2,15 @@
 -- Demonstrates integration of Pydantic Evals with Tactus
 
 -- Agent definition
-agent("greeter", {
+agent "greeter" {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = "You are a friendly greeter. Generate a warm greeting for the given name. Call the done tool with your greeting as the reason.",
     initial_message = "Generate a warm greeting",
-})
+}
 
 -- Procedure
-main = procedure("main", {
+procedure "main" {
     input = {
         name = {
             type = "string",
@@ -26,11 +26,13 @@ main = procedure("main", {
         }
     },
     state = {}
-}, function()
+,
+
+function()
     Log.info("Generating greeting", {name = input.name})
     
     -- Have agent generate greeting
-    Greeter.turn()
+    Agent("greeter").turn()
     
     -- Get greeting from done tool
     local greeting = "Hello!"
@@ -41,7 +43,8 @@ main = procedure("main", {
     return {
         greeting = greeting
     }
-end)
+end
+}
 
 -- BDD Specifications (workflow correctness)
 specifications([[
@@ -105,4 +108,5 @@ evaluations({
     -- Run each case once (increase for consistency measurement)
     runs = 1,
     parallel = true
-})
+}
+)

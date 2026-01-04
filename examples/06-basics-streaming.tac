@@ -3,7 +3,7 @@
 -- Note: Streaming only works when NO structured outputs are defined
 
 -- Simple agent that just writes text (no tools needed for streaming demo)
-agent("storyteller", {
+agent "storyteller" {
     provider = "openai",
     system_prompt = [[You are a creative storyteller. Write engaging short stories.
 
@@ -14,14 +14,15 @@ When asked to write a story:
 - Do NOT ask follow-up questions
 - Do NOT offer to continue or write more]],
     initial_message = "Write a short story about a robot learning to paint.",
-})
+}
 
 -- Simple procedure: one turn to generate and stream the story
-main = procedure("main", function()
+procedure "main" {
+    function()
     Log.info("Starting streaming test - watch the text appear in real-time!")
 
     -- Single turn - the agent writes the complete story
-    local response = Storyteller.turn()
+    local response = Agent("storyteller").turn()
     
     -- Check if done tool was called
     if Tool.called("done") then
@@ -42,4 +43,5 @@ main = procedure("main", function()
           success = true
       }
     end
-end)
+end
+}

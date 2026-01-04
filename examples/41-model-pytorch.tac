@@ -20,14 +20,14 @@ end)
 
 -- Define a PyTorch sentiment classifier
 -- (This requires the .pt file to exist and PyTorch to be installed)
-model("sentiment_classifier", {
+model "sentiment_classifier" {
     type = "pytorch",
     path = "examples/models/sentiment_classifier.pt",
     device = "cpu",
     labels = {"negative", "neutral", "positive"}
-})
+}
 
-agent("support_agent", {
+agent "support_agent" {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[
@@ -39,9 +39,9 @@ Respond appropriately based on the sentiment.
 Call done when finished.
 ]],
     toolsets = {"done"}
-})
+}
 
-main = procedure("main", {
+procedure "main" {
     input = {
         customer_message = {
             type = "string",
@@ -64,7 +64,9 @@ main = procedure("main", {
     state = {
         sentiment = {type = "string", default = "unknown"}
     }
-}, function()
+,
+
+function()
     -- Classify sentiment with PyTorch model
     -- Input: tensor of word indices (for demo, just pass a simple tensor)
     state.sentiment = Sentiment_classifier.predict({1, 2, 3, 4, 5})
@@ -76,7 +78,8 @@ main = procedure("main", {
         sentiment = state.sentiment,
         response = Support_agent.output
     }
-end)
+end
+}
 
 -- BDD Specifications
 specifications([[

@@ -153,6 +153,9 @@ class AgentPrimitive:
         # Store all tools for later reference (for per-turn filtering)
         self.all_tools = all_tools
 
+        # Store toolsets for per-turn toolset overrides
+        self.toolsets = toolsets or []
+
         # Create Pydantic AI Agent with all tools
         # For Bedrock, we need to create a provider with region_name
         if provider and provider.lower() == "bedrock":
@@ -432,22 +435,63 @@ class AgentPrimitive:
         """
         Get tool list for this specific turn, respecting overrides.
 
+        Supports both 'tools' and 'toolsets' parameters with union behavior.
+
         Args:
-            opts: Optional dict with 'tools' key
+            opts: Optional dict with 'tools' and/or 'toolsets' keys
 
         Returns:
             List of Tool instances to use for this turn, or None for default
         """
-        if opts and "tools" in opts:
+        if not opts:
+            return None  # Use agent defaults
+
+        tools_list = []
+        has_tools_override = False
+        has_toolsets_override = False
+
+        # Handle individual tools
+        if "tools" in opts:
+            has_tools_override = True
             tool_names = opts["tools"]
             if tool_names is None:
                 # None means use default tools
                 return None
+            elif tool_names == []:
+                # Empty list means no tools
+                pass  # tools_list remains empty
             elif isinstance(tool_names, list):
                 # Filter to requested tools
-                return self._filter_tools_by_name(tool_names)
+                tools_list.extend(self._filter_tools_by_name(tool_names))
 
-        # Default: use all configured tools (None = use agent's default)
+        # Handle toolsets
+        if "toolsets" in opts:
+            has_toolsets_override = True
+            toolset_names = opts["toolsets"]
+            if toolset_names is None:
+                # None means use default toolsets
+                return None
+            elif toolset_names == []:
+                # Empty list means no tools from toolsets
+                pass  # tools_list remains empty
+            elif isinstance(toolset_names, list):
+                # Expand toolsets to their constituent tools
+                for toolset_name in toolset_names:
+                    toolset_tools = self._get_tools_from_toolset(toolset_name)
+                    tools_list.extend(toolset_tools)
+
+        # If either tools or toolsets was specified (even as empty), return the result
+        if has_tools_override or has_toolsets_override:
+            # Remove duplicates while preserving order
+            seen = set()
+            unique_tools = []
+            for tool in tools_list:
+                if tool.name not in seen:
+                    seen.add(tool.name)
+                    unique_tools.append(tool)
+            return unique_tools
+
+        # Neither tools nor toolsets specified - use defaults
         return None
 
     def _filter_tools_by_name(self, tool_names: List[str]) -> List:
@@ -473,6 +517,64 @@ class AgentPrimitive:
             logger.warning(f"Agent '{self.name}': Requested tools not found: {missing}")
 
         return filtered
+
+    def _get_tools_from_toolset(self, toolset_name: str) -> List:
+        """
+        Expand a toolset name to its constituent tools.
+
+        Args:
+            toolset_name: Name of the toolset to expand
+
+        Returns:
+            List of Tool instances from the toolset, or empty list if not found
+        """
+        # Look through our stored toolsets
+        if self.toolsets:
+            for toolset in self.toolsets:
+                # Check if this toolset matches the requested name
+                # Pydantic AI toolsets may have a 'name' attribute or we check by ID
+                toolset_id = None
+                if hasattr(toolset, "name"):
+                    toolset_id = toolset.name
+                elif hasattr(toolset, "id"):
+                    toolset_id = toolset.id
+
+                if toolset_id == toolset_name:
+                    # Get the tools from this toolset
+                    if hasattr(toolset, "tools"):
+                        # FunctionToolset has a tools attribute
+                        tools_attr = toolset.tools
+                        if isinstance(tools_attr, dict):
+                            # FunctionToolset.tools is a dict {name: Tool}
+                            return list(tools_attr.values())
+                        else:
+                            # Other toolsets might have tools as a list
+                            return list(tools_attr)
+                    elif hasattr(toolset, "get_tools"):
+                        # AbstractToolset has a get_tools method
+                        try:
+                            tools = toolset.get_tools()
+                            if isinstance(tools, dict):
+                                return list(tools.values())
+                            return list(tools) if tools else []
+                        except Exception as e:
+                            logger.warning(
+                                f"Failed to get tools from toolset '{toolset_name}': {e}"
+                            )
+                            return []
+
+        # If not found in stored toolsets, check all_tools for matching names
+        # This handles cases where individual tools are registered as single-tool toolsets
+        matching_tools = []
+        for tool in self.all_tools:
+            if tool.name == toolset_name:
+                matching_tools.append(tool)
+
+        if matching_tools:
+            return matching_tools
+
+        logger.warning(f"Agent '{self.name}': Toolset '{toolset_name}' not found")
+        return []
 
     def _get_user_input_for_turn(self, opts: Optional[Dict[str, Any]]) -> Optional[str]:
         """
@@ -682,7 +784,7 @@ class AgentPrimitive:
 
             agent_context = nullcontext()
 
-        async with agent_context:
+        with agent_context:
             # Run agent with dependencies and message history
             if self.message_history:
                 # Apply filters to message history if configured
@@ -835,7 +937,7 @@ class AgentPrimitive:
 
             agent_context = nullcontext()
 
-        async with agent_context:
+        with agent_context:
             # Run agent with event stream handler
             # Note: Passing event_stream_handler makes agent.run() use streaming internally
             if self.message_history:

@@ -5,6 +5,7 @@ Tests for how AgentPrimitive integrates with tools (both local and MCP).
 """
 
 from pydantic_ai import Tool
+from pydantic_ai.toolsets import FunctionToolset
 from tactus.primitives.agent import AgentPrimitive
 from tactus.primitives.state import StatePrimitive
 from tactus.primitives.control import IterationsPrimitive
@@ -259,3 +260,180 @@ def test_multiple_agents_independent_tools():
     # Each agent has exactly one tool
     assert len(agent1_tools) == 1
     assert len(agent2_tools) == 1
+
+
+# Tests for per-turn toolset overrides
+def test_per_turn_toolsets_override():
+    """Test toolsets parameter in per-turn overrides."""
+
+    # Create test tools
+    def add(x: int, y: int) -> int:
+        return x + y
+
+    def multiply(x: int, y: int) -> int:
+        return x * y
+
+    def divide(x: int, y: int) -> float:
+        return x / y
+
+    add_tool = Tool(add, name="add")
+    multiply_tool = Tool(multiply, name="multiply")
+    divide_tool = Tool(divide, name="divide")
+
+    # Create a mock toolset
+    math_toolset = FunctionToolset(tools=[add_tool, multiply_tool])
+    math_toolset.name = "math_tools"  # Set name attribute for our lookup
+
+    # Create agent with tools and toolsets
+    agent = create_test_agent(tools=[divide_tool], toolsets=[math_toolset])
+
+    # Test with single toolset - should expand to constituent tools
+    result = agent._get_tools_for_turn({"toolsets": ["math_tools"]})
+    assert len(result) == 2
+    tool_names = [t.name for t in result]
+    assert "add" in tool_names
+    assert "multiply" in tool_names
+
+    # Test with empty toolsets (no tools)
+    result = agent._get_tools_for_turn({"toolsets": []})
+    assert len(result) == 0
+
+    # Test with None toolsets (use defaults)
+    result = agent._get_tools_for_turn({"toolsets": None})
+    assert result is None
+
+
+def test_per_turn_tools_and_toolsets_union():
+    """Test union behavior when both tools and toolsets specified."""
+
+    # Create test tools
+    def search(query: str) -> str:
+        return f"Results for {query}"
+
+    def add(x: int, y: int) -> int:
+        return x + y
+
+    def multiply(x: int, y: int) -> int:
+        return x * y
+
+    search_tool = Tool(search, name="search")
+    add_tool = Tool(add, name="add")
+    multiply_tool = Tool(multiply, name="multiply")
+
+    # Create a mock toolset
+    math_toolset = FunctionToolset(tools=[add_tool, multiply_tool])
+    math_toolset.name = "math_tools"  # Set name attribute for our lookup
+
+    # Create agent with both individual tools and toolsets
+    agent = create_test_agent(tools=[search_tool, add_tool, multiply_tool], toolsets=[math_toolset])
+
+    # Test union of tools and toolsets
+    result = agent._get_tools_for_turn({"tools": ["search"], "toolsets": ["math_tools"]})
+
+    # Should have search + math tools (no duplicates)
+    tool_names = [t.name for t in result]
+    assert "search" in tool_names
+    assert "add" in tool_names
+    assert "multiply" in tool_names
+    # No duplicates
+    assert len(tool_names) == len(set(tool_names))
+    assert len(result) == 3  # search, add, multiply
+
+
+def test_per_turn_override_precedence():
+    """Test various combinations of tools/toolsets."""
+
+    def tool_a(x: int) -> int:
+        return x
+
+    def tool_b(x: int) -> int:
+        return x * 2
+
+    tool_a_wrapped = Tool(tool_a, name="tool_a")
+    tool_b_wrapped = Tool(tool_b, name="tool_b")
+
+    # Create a mock toolset
+    test_toolset = FunctionToolset(tools=[tool_a_wrapped, tool_b_wrapped])
+    test_toolset.name = "test_tools"  # Set name attribute for our lookup
+
+    agent = create_test_agent(tools=[tool_a_wrapped, tool_b_wrapped], toolsets=[test_toolset])
+
+    # Both empty = no tools
+    result = agent._get_tools_for_turn({"tools": [], "toolsets": []})
+    assert len(result) == 0
+
+    # One empty, one with values = use the one with values
+    result = agent._get_tools_for_turn({"tools": [], "toolsets": ["test_tools"]})
+    assert len(result) == 2  # Both tools from toolset
+
+    result = agent._get_tools_for_turn({"tools": ["tool_a"], "toolsets": []})
+    assert len(result) == 1
+    assert result[0].name == "tool_a"
+
+    # Neither specified = use defaults
+    result = agent._get_tools_for_turn({})
+    assert result is None
+
+
+def test_toolset_not_found_warning():
+    """Test that requesting a non-existent toolset returns empty list."""
+
+    def my_tool(x: int) -> int:
+        return x
+
+    my_tool_wrapped = Tool(my_tool, name="my_tool")
+    agent = create_test_agent(tools=[my_tool_wrapped])
+
+    # Request non-existent toolset
+    result = agent._get_tools_for_turn({"toolsets": ["nonexistent_toolset"]})
+    assert len(result) == 0
+
+
+def test_duplicate_tools_removed_in_union():
+    """Test that duplicate tools are removed when combining tools and toolsets."""
+
+    def shared_tool(x: int) -> int:
+        return x
+
+    def unique_tool(x: int) -> int:
+        return x * 2
+
+    shared = Tool(shared_tool, name="shared")
+    unique = Tool(unique_tool, name="unique")
+
+    # Create a toolset that includes the shared tool
+    my_toolset = FunctionToolset(tools=[shared])
+    my_toolset.name = "my_toolset"  # Set name attribute for our lookup
+
+    agent = create_test_agent(tools=[shared, unique], toolsets=[my_toolset])
+
+    # Request both the shared tool directly and via toolset
+    result = agent._get_tools_for_turn({"tools": ["shared", "unique"], "toolsets": ["my_toolset"]})
+
+    # Should have no duplicates
+    tool_names = [t.name for t in result]
+    assert tool_names.count("shared") == 1
+    assert tool_names.count("unique") == 1
+    assert len(result) == 2
+
+
+def test_mixed_override_none_values():
+    """Test handling of None values mixed with lists."""
+
+    def tool_a(x: int) -> int:
+        return x
+
+    tool_a_wrapped = Tool(tool_a, name="tool_a")
+    agent = create_test_agent(tools=[tool_a_wrapped])
+
+    # tools=None should return None (use defaults) regardless of toolsets
+    result = agent._get_tools_for_turn({"tools": None, "toolsets": []})
+    assert result is None
+
+    # toolsets=None should return None (use defaults) regardless of tools
+    result = agent._get_tools_for_turn({"tools": [], "toolsets": None})
+    assert result is None
+
+    # Both None = use defaults
+    result = agent._get_tools_for_turn({"tools": None, "toolsets": None})
+    assert result is None

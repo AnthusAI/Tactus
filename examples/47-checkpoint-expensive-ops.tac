@@ -4,7 +4,7 @@
 -- operations. On replay, expensive operations are skipped and
 -- cached results are returned instantly.
 
-main = procedure("main", {
+procedure "main" {
     input = {
         iterations = {
             type = "number",
@@ -31,8 +31,8 @@ main = procedure("main", {
     },
     state = {
         checkpoints_replayed = {type = "number", default = 0}
-    }
-}, function()
+    },
+    function()
     -- Expensive operation 1: Checkpointed for replay
     local result1 = checkpoint(function()
         local sum = 0
@@ -64,7 +64,8 @@ main = procedure("main", {
         result2 = result2,
         total_time_saved = time_saved
     }
-end)
+end
+}
 
 -- BDD Specifications
 specifications([[

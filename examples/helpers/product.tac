@@ -1,7 +1,7 @@
 -- Product Helper Procedure
 -- Calculates the product of an array of numbers
 
-main = procedure("main", {
+procedure "main" {
     input = {
         values = {
             type = "array",
@@ -19,11 +19,14 @@ main = procedure("main", {
     state = {
         total = {type = "number", default = 1}
     }
-}, function()
+,
+
+function()
     -- Calculate product
     for i = 1, #input.values do
         state.total = state.total * input.values[i]
     end
 
     return {result = state.total}
-end)
+end
+}

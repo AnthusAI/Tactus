@@ -2,13 +2,15 @@
 Lua Sandbox - Safe, restricted Lua execution environment.
 
 Provides a sandboxed Lua runtime with:
-- No file system access (io, os removed)
+- Data format libraries restricted to working directory (Csv, Tsv, Parquet, Hdf5, Excel)
+- File and Json primitives injected separately by runtime
 - No dangerous operations (debug, package, require removed)
 - Only whitelisted primitives available
 - Resource limits on CPU time and memory
 """
 
 import logging
+import os
 from typing import Dict, Any, Optional
 
 try:
@@ -46,6 +48,11 @@ class LuaSandbox:
         # Store context for safe libraries
         self.execution_context = execution_context
         self.strict_determinism = strict_determinism
+
+        # Fix base_path at initialization time to prevent security boundary expansion
+        # This ensures file I/O libraries always use the same base path, even if
+        # the working directory changes later (e.g., when set_execution_context is called)
+        self.base_path = os.getcwd()
 
         # Create Lua runtime with safety restrictions
         self.lua = LuaRuntime(unpack_returned_tuples=True, attribute_filter=self._attribute_filter)
@@ -170,6 +177,9 @@ class LuaSandbox:
             self.lua.globals()["os"] = safe_os_table
 
             logger.info("Installed safe math and os libraries with determinism checking")
+
+            # Setup safe file I/O libraries (always available)
+            self._setup_file_io_libraries()
             return  # Skip default os.date setup below
 
         # Add safe subset of os module (only date function for timestamps)
@@ -196,6 +206,43 @@ class LuaSandbox:
         safe_os = self.lua.table(date=safe_date)
         self.lua.globals()["os"] = safe_os
         logger.debug("Added safe os.date() function")
+
+        # Setup safe file I/O libraries (always available)
+        self._setup_file_io_libraries()
+
+    def _setup_file_io_libraries(self):
+        """Setup safe file I/O libraries restricted to working directory.
+
+        Note: File and Json primitives are injected separately by the runtime
+        (FilePrimitive and JsonPrimitive). This method only sets up the data
+        format libraries (Csv, Tsv, Parquet, Hdf5, Excel).
+
+        Security: Uses self.base_path which is fixed at initialization time,
+        preventing security boundary expansion if working directory changes.
+        """
+        from tactus.utils.safe_file_library import (
+            create_safe_csv_library,
+            create_safe_excel_library,
+            create_safe_hdf5_library,
+            create_safe_parquet_library,
+            create_safe_tsv_library,
+        )
+
+        # Use base_path fixed at initialization time (not os.getcwd())
+        # This prevents security boundary expansion if working directory changes
+        base_path = self.base_path
+
+        # Inject data format libraries into Lua globals
+        # Note: File and Json are handled by separate primitives in the runtime
+        self.lua.globals()["Csv"] = self._dict_to_lua_table(create_safe_csv_library(base_path))
+        self.lua.globals()["Tsv"] = self._dict_to_lua_table(create_safe_tsv_library(base_path))
+        self.lua.globals()["Parquet"] = self._dict_to_lua_table(
+            create_safe_parquet_library(base_path)
+        )
+        self.lua.globals()["Hdf5"] = self._dict_to_lua_table(create_safe_hdf5_library(base_path))
+        self.lua.globals()["Excel"] = self._dict_to_lua_table(create_safe_excel_library(base_path))
+
+        logger.debug(f"Injected data format libraries with base_path: {base_path}")
 
     def set_execution_context(self, context: Any):
         """

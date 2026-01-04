@@ -40,6 +40,10 @@ class ToolPrimitive:
 
     Maintains a history of tool calls and their results, allowing
     Lua code to check what tools were used and access their outputs.
+
+    Also supports tool lookup via __call__:
+        Tool("done")({args})  -- Look up and call tool
+        Tool.called("done")   -- Check if tool was called (existing)
     """
 
     def __init__(
@@ -52,7 +56,45 @@ class ToolPrimitive:
         self.agent_name = agent_name
         self.procedure_id = procedure_id
         self._runtime = None  # Will be set by runtime for Tool.get() support
+        self._tool_registry: Dict[str, "ToolHandle"] = {}  # For Tool("name") lookup
         logger.debug("ToolPrimitive initialized")
+
+    def set_tool_registry(self, registry: Dict[str, "ToolHandle"]) -> None:
+        """
+        Set the tool registry for Tool("name") lookup.
+
+        Called by dsl_stubs.create_dsl_stubs() after tools are registered.
+
+        Args:
+            registry: Dict mapping tool names to ToolHandle instances
+        """
+        self._tool_registry = registry
+        logger.debug(f"ToolPrimitive tool registry set with {len(registry)} tools")
+
+    def __call__(self, tool_name: str) -> "ToolHandle":
+        """
+        Look up a tool by name for direct invocation.
+
+        This makes Tool dual-purpose:
+        - Tool("done")({args}) -- lookup and call
+        - Tool.called("done")  -- tracking (existing method)
+
+        Args:
+            tool_name: Name of the tool to look up
+
+        Returns:
+            ToolHandle that can be called directly
+
+        Raises:
+            ValueError: If tool not found in registry
+
+        Example (Lua):
+            Tool("done")({reason = "finished"})
+        """
+        if tool_name not in self._tool_registry:
+            available = list(self._tool_registry.keys())
+            raise ValueError(f"Tool '{tool_name}' not defined. " f"Available tools: {available}")
+        return self._tool_registry[tool_name]
 
     def set_runtime(self, runtime) -> None:
         """

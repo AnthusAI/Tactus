@@ -2,52 +2,41 @@
 -- A simple introduction to Tactus procedures
 
 -- Agents (defined at top level - reusable across procedures)
-agent("worker", {
+agent "worker" {
     provider = "openai",
     system_prompt = "You are a friendly worker",
     initial_message = "Hello! Starting procedure",
     toolsets = {},
-})
+}
 
 -- Procedure with outputs defined inline
-main = procedure("main", {
-    outputs = {
-        success = {
-            type = "boolean",
-            required = true,
-            description = "Whether the workflow completed successfully",
-        },
-        message = {
-            type = "string",
-            required = true,
-            description = "A greeting message",
-        },
-        count = {
-            type = "number",
-            required = true,
-            description = "Number of items processed",
-        },
-    }
-}, function()
-    Log.info("Hello, Tactus!")
+procedure "main" {
+    output = {
+        success = required("boolean", "Whether the workflow completed successfully"),
+        message = required("string", "A greeting message"),
+        count = required("number", "Number of items processed")
+    },
+    function()
+        Log.info("Hello, Tactus!")
 
-    -- Initialize state
-    State.set("items_processed", 0)
+        -- Initialize state
+        State.set("items_processed", 0)
 
-    -- Process some items
-    for i = 1, 5 do
-      State.increment("items_processed")
-      Log.info("Processing item", {number = i})
+        -- Process some items
+        for i = 1, 5 do
+          State.increment("items_processed")
+          Log.info("Processing item", {number = i})
+        end
+
+        local final_count = State.get("items_processed")
+
+        return {
+          success = true,
+          message = "Hello World example completed successfully",
+          count = final_count
+        }
     end
-
-    local final_count = State.get("items_processed")
-
-    return {
-      success = true,
-      message = "Hello World example completed successfully",
-      count = final_count
-    }
-end)
+}
 
 -- BDD Specifications
 specifications([[

@@ -10,8 +10,8 @@ agent("worker", {
 })
 
 -- Procedure with outputs defined inline
-main = procedure("main", {
-    outputs = {
+procedure "main" {
+    output = {
         success = {
             type = "boolean",
             required = true,
@@ -28,7 +28,9 @@ main = procedure("main", {
             description = "Final count of processed items",
         },
     }
-}, function()
+,
+
+function()
     Log.info("Starting state management example")
 
     -- Initialize state
@@ -49,7 +51,8 @@ main = procedure("main", {
       message = "State management example completed successfully",
       count = final_count
     }
-end)
+end
+}
 
 -- BDD Specifications
 specifications([[

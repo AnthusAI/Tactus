@@ -4,13 +4,13 @@
 -- This example uses an HTTP endpoint for classification.
 
 -- Define a simple text classifier
-model("intent_classifier", {
+model "intent_classifier" {
     type = "http",
     endpoint = "https://httpbin.org/post",  -- Using httpbin for testing
     timeout = 10.0
-})
+}
 
-main = procedure("main", {
+procedure "main" {
     input = {
         text = {
             type = "string",
@@ -26,9 +26,11 @@ main = procedure("main", {
         }
     },
     state = {}
-}, function()
+,
+
+function()
     -- Call the model for inference (automatically checkpointed)
-    local result = Intent_classifier.predict({
+    local result = Model("intent_classifier").predict({
         text = input.text
     })
 
@@ -39,7 +41,8 @@ main = procedure("main", {
     return {
         classification = classification
     }
-end)
+end
+}
 
 -- BDD Specifications
 specifications([[

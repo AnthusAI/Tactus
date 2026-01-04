@@ -10,14 +10,15 @@ tactus run examples/18-feature-lua-tools-toolset.tac --param operation="add 15 a
 ]]--
 
 -- Define completion tool
-tool("done", {
+tool "done" {
     description = "Signal completion of the task",
-    parameters = {
-        reason = {type = "string", required = true, description = "Completion message"}
-    }
-}, function(args)
+        parameters = {
+            reason = {type = "string", required = true, description = "Completion message"}
+        },
+    function(args)
     return "Done: " .. args.reason
-end)
+end
+}
 
 -- Define a toolset containing multiple math tools
 toolset("math_tools", {
@@ -104,7 +105,7 @@ toolset("math_tools", {
 })
 
 -- Agent with access to the math toolset
-agent("mathematician", {
+agent "mathematician" {
     provider = "openai",
     model = "gpt-4o-mini",
     tool_choice = "required",
@@ -126,10 +127,10 @@ After calling the math tool, call done with the result.]],
         "math_tools",  -- Reference the entire toolset
         "done"
     }
-})
+}
 
 -- Main workflow
-main = procedure("main", {
+procedure "main" {
     input = {
         operation = {
             type = "string",
@@ -150,13 +151,15 @@ main = procedure("main", {
         }
     },
     state = {}
-}, function()
+,
+
+function()
     local max_turns = 10
     local turn_count = 0
     local result
 
     repeat
-        result = Mathematician.turn()
+        result = Agent("mathematician").turn()
         turn_count = turn_count + 1
 
         -- Log tool usage
@@ -184,7 +187,8 @@ main = procedure("main", {
         answer = answer,
         completed = Tool.called("done")
     }
-end)
+end
+}
 
 -- BDD Specifications
 specifications([[

@@ -5,7 +5,7 @@
 -- and on replay, the cached result is returned without re-executing.
 
 -- Main procedure that calls a sub-procedure
-main = procedure("main", {
+procedure "main" {
     input = {
         numbers = {
             type = "array",
@@ -29,7 +29,9 @@ main = procedure("main", {
         sum_result = {type = "number", default = 0},
         product_result = {type = "number", default = 1}
     }
-}, function()
+,
+
+function()
     -- Call sum_procedure (this call is auto-checkpointed)
     state.sum_result = Procedure.run("examples/helpers/sum.tac", {
         values = input.numbers
@@ -44,7 +46,8 @@ main = procedure("main", {
         sum = state.sum_result,
         product = state.product_result
     }
-end)
+end
+}
 
 -- BDD Specifications
 specifications([[

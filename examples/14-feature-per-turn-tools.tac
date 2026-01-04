@@ -1,81 +1,137 @@
 -- Per-Turn Tool Control Example
--- Demonstrates dynamic tool availability for specific turns
+-- Demonstrates dynamic tool availability using both tools and toolsets
 
--- Define completion tool
-tool("done", {
+-- Define individual tools
+tool "search" {
+    description = "Search for information",
+    parameters = {
+        query = {type = "string", required = true, description = "Search query"}
+    },
+    function(args)
+        return "Results for: " .. args.query
+    end
+}
+
+tool "analyze" {
+    description = "Analyze data",
+    parameters = {
+        data = {type = "string", required = true, description = "Data to analyze"}
+    },
+    function(args)
+        return "Analysis of: " .. args.data
+    end
+}
+
+tool "done" {
     description = "Signal completion of the task",
     parameters = {
         reason = {type = "string", required = true, description = "Completion message"}
-    }
-}, function(args)
-    return "Done: " .. args.reason
-end)
+    },
+    function(args)
+        return "Done: " .. args.reason
+    end
+}
 
-agent("researcher", {
-    provider = "openai",
-    model = "gpt-4o-mini",
-    system_prompt = "You are a research assistant. Use tools to gather information.",
-    initial_message = "Start researching the topic",
+-- Define a toolset for math operations
+tool "add" {
+    description = "Add two numbers",
+    parameters = {
+        a = {type = "number", required = true},
+        b = {type = "number", required = true}
+    },
+    function(args)
+        return args.a + args.b
+    end
+}
+
+tool "multiply" {
+    description = "Multiply two numbers",
+    parameters = {
+        a = {type = "number", required = true},
+        b = {type = "number", required = true}
+    },
+    function(args)
+        return args.a * args.b
+    end
+}
+
+-- Create math_tools toolset (collection of related tools)
+toolset("math_tools", {
+    tools = {"add", "multiply"}
 })
 
-main = procedure("main", {
-    input = {
-        topic = {
-            type = "string",
-            required = false,
-            default = "artificial intelligence",
-            description = "Topic to research"
-        }
-    },
-    output = {
-        summary = {
-            type = "string",
-            required = true
-        }
-    },
-    state = {}
-}, function()
-    Log.info("Starting research", {topic = input.topic})
-    
-    repeat
-        -- Main turn: agent has all tools (done in this simple example)
-        Researcher.turn()
-        
-        -- After the agent calls done, ask for a summary with NO tools
-        -- This demonstrates the key pattern: restricting tools for specific turns
-        if Tool.called("done") then
-            Log.info("Agent called done, requesting summary without tools")
-            Researcher.turn({
-                inject = "Provide a brief summary of what you just did in 1-2 sentences",
-                toolsets = {}  -- No tools for summarization turn
-            })
-        end
-        
-    until Tool.called("done") or Iterations.exceeded(20)
-    
-    -- Final creative summary with temperature override
-    Log.info("Requesting final creative summary")
-    Researcher.turn({
-        inject = "Provide a final creative summary of all findings",
-        toolsets = {},
-        temperature = 0.9
-    })
-    
-    return {
-        summary = "Research completed on: " .. input.topic
-    }
-end)
+-- Agent with no tools initially defined
+agent "worker" {
+    provider = "openai",
+    system_prompt = [[You are a helpful assistant. Use the available tools to complete tasks.
+When you have completed your task, call the 'done' tool.]],
+    initial_message = "I'm ready to help. What would you like me to do?",
+    toolsets = {},  -- Empty - will control per-turn
+}
 
+procedure "main" {
+    output = {
+        result = {type = "string", required = true}
+    },
+    function()
+        Log.info("Starting per-turn tool control example")
+
+        -- Turn 1: Only search tool available
+        Log.info("Turn 1: Only search tool")
+        Agent("worker").turn({
+            inject = "Search for information about Lua programming",
+            tools = {"search"}  -- Only search tool
+        })
+
+        -- Turn 2: Math toolset available
+        Log.info("Turn 2: Math toolset")
+        Agent("worker").turn({
+            inject = "Calculate: (5 + 3) * 2",
+            toolsets = {"math_tools"}  -- Math toolset
+        })
+
+        -- Turn 3: Multiple individual tools
+        Log.info("Turn 3: Search and analyze tools")
+        Agent("worker").turn({
+            inject = "Search for 'weather' and analyze the results",
+            tools = {"search", "analyze"}  -- Multiple tools
+        })
+
+        -- Turn 4: Combination of tools and toolsets
+        Log.info("Turn 4: Combined tools and toolsets")
+        Agent("worker").turn({
+            inject = "Calculate 10 + 20, then search for the result, and signal completion",
+            tools = {"search", "done"},  -- Individual tools
+            toolsets = {"math_tools"}     -- Plus math toolset
+        })
+
+        -- Turn 5: No tools at all
+        Log.info("Turn 5: No tools")
+        local result = Agent("worker").turn({
+            inject = "Tell me a joke (no tools available)",
+            tools = {}  -- Explicitly no tools
+        })
+
+        -- Turn 6: Default tools (None means use agent's default)
+        Log.info("Turn 6: Default tools")
+        Agent("worker").turn({
+            inject = "Use any available tools",
+            tools = nil  -- Use agent's defaults
+        })
+
+        return {
+            result = "Demonstrated per-turn tool control"
+        }
+    end
+}
+
+-- BDD Specifications
 specifications([[
 Feature: Per-Turn Tool Control
-  Demonstrate dynamic tool availability
+  Demonstrate dynamic tool availability control
 
-  Scenario: Agent uses tools then summarizes without tools
+  Scenario: Control tools per turn
     Given the procedure has started
     When the procedure runs
-    Then the done tool should be called
-    And the total iterations should be greater than 1
-    And the procedure should complete successfully
+    Then the procedure should complete successfully
 ]])
-
-
