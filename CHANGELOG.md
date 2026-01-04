@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v0.13.0 (2026-01-03)
+
+### Bug Fixes
+
+- **ide**: Correct inputs parameter handling in procedure execution
+  ([`84e3ca4`](https://github.com/AnthusAI/Tactus/commit/84e3ca44bd36a9a8b8866a08f5d84ad48bb855ad))
+
+### Chores
+
+- Remove temporary IDE overhaul summary document
+  ([`74e2257`](https://github.com/AnthusAI/Tactus/commit/74e2257a93c08f70b642cb2b98870f61445b2d02))
+
+
 ## v0.12.0 (2026-01-01)
 
 
