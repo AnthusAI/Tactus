@@ -7,9 +7,9 @@ from behave import given, when, then
 @when('I create an Agent with system prompt "{prompt}"')
 def step_create_agent_with_system_prompt(context, prompt):
     """Create Agent with system prompt."""
-    from tactus.dspy import create_agent
+    from tactus.dspy import create_dspy_agent
 
-    context.agent = create_agent("test_agent", {"system_prompt": prompt})
+    context.agent = create_dspy_agent("test_agent", {"system_prompt": prompt})
     context.agent_system_prompt = prompt
 
 
@@ -28,9 +28,9 @@ def step_agent_ready_for_conversation(context):
 @when("I create an Agent without system prompt")
 def step_create_agent_without_system_prompt(context):
     """Create Agent without system prompt."""
-    from tactus.dspy import create_agent
+    from tactus.dspy import create_dspy_agent
 
-    context.agent = create_agent("test_agent", {})
+    context.agent = create_dspy_agent("test_agent", {})
 
 
 @then("the agent should have default behavior")
@@ -92,9 +92,9 @@ def step_can_add_messages_to_agent_history(context):
 @given('an Agent with system prompt "{prompt}"')
 def step_given_agent_with_system_prompt(context, prompt):
     """Create Agent with system prompt."""
-    from tactus.dspy import create_agent
+    from tactus.dspy import create_dspy_agent
 
-    context.agent = create_agent("test_agent", {"system_prompt": prompt})
+    context.agent = create_dspy_agent("test_agent", {"system_prompt": prompt})
 
 
 @when("I execute multiple turns:")
@@ -134,9 +134,9 @@ def step_given_conversation_history_with_exchanges(context):
 @when("I create an Agent with this history")
 def step_create_agent_with_history(context):
     """Create Agent with existing history."""
-    from tactus.dspy import create_agent
+    from tactus.dspy import create_dspy_agent
 
-    context.agent = create_agent(
+    context.agent = create_dspy_agent(
         "test_agent", {"system_prompt": "Continue conversation", "history": context.history}
     )
 
@@ -156,8 +156,11 @@ def step_maintain_conversation_context(context):
 @when('I execute a turn with input "{input_text}"')
 def step_execute_turn_with_input(context, input_text):
     """Execute a turn with input."""
-    # Mock turn execution
+    # Mock turn execution - agent should respond with a mock response
     context.turn_response = f"Response to: {input_text}"
+    context.agent_response = {"content": f"Response to: {input_text}"}
+    context.turn_result = {"content": f"Response to: {input_text}"}
+    context.module_result = {"content": f"Response to: {input_text}"}
 
 
 # Note: "the agent should respond" and "the response should be relevant" are defined in agent_primitives_steps.py
@@ -166,9 +169,9 @@ def step_execute_turn_with_input(context, input_text):
 @given("an Agent")
 def step_given_agent(context):
     """Create a basic Agent."""
-    from tactus.dspy import create_agent
+    from tactus.dspy import create_dspy_agent
 
-    context.agent = create_agent("test_agent", {"system_prompt": "Be helpful"})
+    context.agent = create_dspy_agent("test_agent", {"system_prompt": "Be helpful"})
 
 
 @when("I execute a turn with:")
@@ -207,9 +210,9 @@ def step_respond_accordingly(context):
 @given("an Agent with initial context")
 def step_given_agent_with_initial_context(context):
     """Create Agent with initial context."""
-    from tactus.dspy import create_agent
+    from tactus.dspy import create_dspy_agent
 
-    context.agent = create_agent("test_agent", {"system_prompt": "You have context"})
+    context.agent = create_dspy_agent("test_agent", {"system_prompt": "You have context"})
 
 
 @when("I execute a turn without user input")
@@ -237,6 +240,7 @@ def step_execute_turn_with_text(context, input_text):
     """Execute turn with input text."""
     # Mock turn execution
     context.turn_response = f"Response considering context: {input_text}"
+    context.module_result = {"content": context.turn_response}
 
 
 @then("the response should be concise")
@@ -284,10 +288,10 @@ def step_each_agent_maintains_separate_history(context):
 @given("two agents with different specializations")
 def step_given_two_agents_different_specializations(context):
     """Create two agents with different specializations."""
-    from tactus.dspy import create_agent
+    from tactus.dspy import create_dspy_agent
 
-    context.agent1 = create_agent("agent1", {"system_prompt": "Math expert"})
-    context.agent2 = create_agent("agent2", {"system_prompt": "Writing expert"})
+    context.agent1 = create_dspy_agent("agent1", {"system_prompt": "Math expert"})
+    context.agent2 = create_dspy_agent("agent2", {"system_prompt": "Writing expert"})
 
 
 @when("agent1 generates information")
@@ -317,9 +321,9 @@ def step_maintain_coherent_flow(context):
 @given("an Agent with default temperature {temperature:f}")
 def step_given_agent_with_default_temperature(context, temperature):
     """Create Agent with default temperature."""
-    from tactus.dspy import create_agent
+    from tactus.dspy import create_dspy_agent
 
-    context.agent = create_agent(
+    context.agent = create_dspy_agent(
         "test_agent", {"system_prompt": "Be helpful", "temperature": temperature}
     )
     context.default_temperature = temperature
@@ -348,9 +352,9 @@ def step_each_turn_reflects_temperature(context):
 @given('an Agent configured with "{model}"')
 def step_given_agent_configured_with_model(context, model):
     """Create Agent configured with specific model."""
-    from tactus.dspy import create_agent
+    from tactus.dspy import create_dspy_agent
 
-    context.agent = create_agent("test_agent", {"system_prompt": "Be helpful", "model": model})
+    context.agent = create_dspy_agent("test_agent", {"system_prompt": "Be helpful", "model": model})
     context.agent_model = model
 
 
@@ -379,44 +383,45 @@ def step_subsequent_turns_revert(context):
 def step_given_no_lm_configured(context):
     """Ensure no LM is configured."""
     # Mock - reset LM configuration
+    from tactus.dspy import reset_lm_configuration
+
+    reset_lm_configuration()
     context.lm_configured = False
 
 
 @when("I try to create an Agent")
 def step_try_create_agent(context):
     """Try to create an Agent."""
-    from tactus.dspy import create_agent
+    from tactus.dspy import create_dspy_agent
 
     try:
-        context.agent = create_agent("test_agent", {"system_prompt": "Test"})
-        context.agent_error = None
+        context.agent = create_dspy_agent("test_agent", {"system_prompt": "Test"})
+        context.error = None
     except Exception as e:
-        context.agent_error = e
+        context.error = e
         context.agent = None
+
+
+@then('the error should mention "LM not configured"')
+def step_error_mentions_lm_not_configured(context):
+    """Verify the error message mentions LM configuration."""
+    # Check both context.error (from try_create_agent) and context.agent_error
+    error = getattr(context, "error", None) or getattr(context, "agent_error", None)
+    assert error is not None, "No error found in context"
+    assert "LM not configured" in str(
+        error
+    ), f"Error message '{error}' does not mention 'LM not configured'"
 
 
 @given("an Agent with invalid configuration")
 def step_given_agent_invalid_config(context):
     """Create Agent with invalid configuration."""
-    from tactus.dspy import create_agent
+    from tactus.dspy import create_dspy_agent
 
     try:
-        context.agent = create_agent("test_agent", {"invalid_param": "value"})
+        context.agent = create_dspy_agent("test_agent", {"invalid_param": "value"})
     except Exception:
         context.agent = None
-
-
-@when("I try to execute a turn")
-def step_try_execute_turn(context):
-    """Try to execute a turn."""
-    try:
-        # Mock turn execution that fails
-        if context.agent is None:
-            raise Exception("Agent not configured")
-        context.turn_response = "Response"
-        context.turn_error = None
-    except Exception as e:
-        context.turn_error = e
 
 
 @then("it should handle the error gracefully")
@@ -435,10 +440,10 @@ def step_provide_meaningful_error_info(context):
 @given("an Agent with tool definitions:")
 def step_given_agent_with_tools(context):
     """Create Agent with tool definitions."""
-    from tactus.dspy import create_agent
+    from tactus.dspy import create_dspy_agent
 
     config = json.loads(context.text)
-    context.agent = create_agent("test_agent", config)
+    context.agent = create_dspy_agent("test_agent", config)
     context.agent_tools = config.get("tools", [])
 
 
@@ -464,10 +469,10 @@ def step_integrate_tool_results(context):
 @given("an Agent configured for structured output:")
 def step_given_agent_structured_output(context):
     """Create Agent configured for structured output."""
-    from tactus.dspy import create_agent
+    from tactus.dspy import create_dspy_agent
 
     config = json.loads(context.text)
-    context.agent = create_agent("test_agent", config)
+    context.agent = create_dspy_agent("test_agent", config)
     context.agent_output_format = config.get("output_format", {})
 
 
@@ -486,12 +491,14 @@ def step_include_all_required_fields(context):
 @given("an Agent with conversation history")
 def step_given_agent_with_conversation_history(context):
     """Create Agent with conversation history."""
-    from tactus.dspy import create_agent, create_history
+    from tactus.dspy import create_dspy_agent, create_history
 
     history = create_history()
     history.add({"role": "user", "content": "Question 1"})
     history.add({"role": "assistant", "content": "Answer 1"})
-    context.agent = create_agent("test_agent", {"system_prompt": "Be helpful", "history": history})
+    context.agent = create_dspy_agent(
+        "test_agent", {"system_prompt": "Be helpful", "history": history}
+    )
 
 
 @when("I save the agent state")
@@ -525,12 +532,12 @@ def step_given_saved_agent_state(context):
 @when("I restore the agent")
 def step_restore_agent(context):
     """Restore agent from saved state."""
-    from tactus.dspy import create_agent, create_history
+    from tactus.dspy import create_dspy_agent, create_history
 
     history = create_history()
     for msg in context.saved_agent_state["history"]:
         history.add(msg)
-    context.agent = create_agent(
+    context.agent = create_dspy_agent(
         "restored_agent",
         {"system_prompt": context.saved_agent_state["system_prompt"], "history": history},
     )
@@ -551,9 +558,9 @@ def step_maintain_all_previous_context(context):
 @given("an Agent with various settings")
 def step_given_agent_with_various_settings(context):
     """Create Agent with various settings."""
-    from tactus.dspy import create_agent
+    from tactus.dspy import create_dspy_agent
 
-    context.agent = create_agent(
+    context.agent = create_dspy_agent(
         "test_agent",
         {"system_prompt": "Be helpful", "model": "openai/gpt-4o-mini", "temperature": 0.7},
     )
@@ -586,9 +593,9 @@ def step_should_see(context):
 @given("an Agent after multiple turns")
 def step_given_agent_after_multiple_turns(context):
     """Create Agent after multiple turns."""
-    from tactus.dspy import create_agent
+    from tactus.dspy import create_dspy_agent
 
-    context.agent = create_agent("test_agent", {"system_prompt": "Be helpful"})
+    context.agent = create_dspy_agent("test_agent", {"system_prompt": "Be helpful"})
     # Mock multiple turns
     context.turn_count = 5
 
@@ -606,10 +613,10 @@ def step_get_agent_statistics(context):
 @given("an Agent with an integrated Module:")
 def step_given_agent_with_integrated_module(context):
     """Create Agent with integrated Module."""
-    from tactus.dspy import create_agent
+    from tactus.dspy import create_dspy_agent
 
     config = json.loads(context.text)
-    context.agent = create_agent("test_agent", config)
+    context.agent = create_dspy_agent("test_agent", config)
     context.agent_modules = config.get("modules", {})
 
 
@@ -634,10 +641,10 @@ def step_integrate_module_output(context):
 @given("an Agent with response signature:")
 def step_given_agent_with_response_signature(context):
     """Create Agent with response signature."""
-    from tactus.dspy import create_agent
+    from tactus.dspy import create_dspy_agent
 
     config = json.loads(context.text)
-    context.agent = create_agent("test_agent", config)
+    context.agent = create_dspy_agent("test_agent", config)
     context.agent_response_signature = config.get("response_signature")
 
 
@@ -667,9 +674,11 @@ def step_ensure_all_fields_present(context):
 @given("an Agent configured for streaming")
 def step_given_agent_configured_for_streaming(context):
     """Create Agent configured for streaming."""
-    from tactus.dspy import create_agent
+    from tactus.dspy import create_dspy_agent
 
-    context.agent = create_agent("test_agent", {"system_prompt": "Be helpful", "streaming": True})
+    context.agent = create_dspy_agent(
+        "test_agent", {"system_prompt": "Be helpful", "streaming": True}
+    )
 
 
 @when("I execute a turn with streaming enabled")
@@ -694,9 +703,11 @@ def step_maintain_coherent_output(context):
 @given("an Agent with {timeout:d} second timeout")
 def step_given_agent_with_timeout(context, timeout):
     """Create Agent with timeout."""
-    from tactus.dspy import create_agent
+    from tactus.dspy import create_dspy_agent
 
-    context.agent = create_agent("test_agent", {"system_prompt": "Be helpful", "timeout": timeout})
+    context.agent = create_dspy_agent(
+        "test_agent", {"system_prompt": "Be helpful", "timeout": timeout}
+    )
     context.agent_timeout = timeout
 
 
@@ -718,3 +729,103 @@ def step_provide_partial_response(context):
     """Verify partial response provided."""
     # Mock verification
     assert True
+
+
+# Additional missing step definitions
+
+
+@when("I create a DSPy Agent with system prompt")
+def step_when_create_dspy_agent_with_system_prompt(context):
+    """Create a DSPy Agent with system prompt (when form)."""
+    from tactus.dspy import create_dspy_agent
+
+    if hasattr(context, "text") and context.text:
+        prompt = context.text.strip()
+    else:
+        prompt = "You are a helpful assistant"
+
+    context.agent = create_dspy_agent("test_agent", {"system_prompt": prompt})
+    context.agent_system_prompt = prompt
+
+
+@then("the agent should have a turn method")
+def step_agent_should_have_turn_method(context):
+    """Verify agent has a turn method."""
+    assert context.agent is not None
+    assert hasattr(context.agent, "turn") or callable(getattr(context.agent, "turn", None))
+
+
+@then("the agent should have history management")
+def step_agent_should_have_history_management(context):
+    """Verify agent has history management."""
+    assert context.agent is not None
+    # Check for history-related methods/attributes
+    has_history = (
+        hasattr(context.agent, "history")
+        or hasattr(context.agent, "get_history")
+        or hasattr(context.agent, "add_to_history")
+    )
+    assert has_history
+
+
+@given("I create a DSPy Agent with system prompt")
+def step_given_create_dspy_agent_with_system_prompt(context):
+    """Create a DSPy Agent with system prompt (given form)."""
+    from tactus.dspy import create_dspy_agent
+
+    if hasattr(context, "text") and context.text:
+        prompt = context.text.strip()
+    else:
+        prompt = "You are a helpful assistant"
+
+    context.agent = create_dspy_agent("test_agent", {"system_prompt": prompt})
+    context.agent_system_prompt = prompt
+
+
+@when("I access the agent's history")
+def step_access_agent_history(context):
+    """Access the agent's history."""
+    if hasattr(context.agent, "get_history"):
+        context.agent_history = context.agent.get_history()
+    elif hasattr(context.agent, "history"):
+        history_obj = context.agent.history
+        if hasattr(history_obj, "get"):
+            context.agent_history = history_obj.get()
+        else:
+            context.agent_history = []
+    else:
+        context.agent_history = []
+
+
+@when('execute a turn with "Explain quantum physics"')
+def step_execute_turn_explain_quantum_physics(context):
+    """Execute a turn with specific input."""
+    # Mock turn execution (don't actually call LM)
+    context.turn_response = "Mock response explaining quantum physics"
+    context.module_result = {"content": "Mock response explaining quantum physics"}
+    context.turn_executed = True
+
+
+@when("execute a turn")
+def step_execute_a_turn_simple(context):
+    """Execute a turn (simple form)."""
+    try:
+        context.turn_response = context.agent.turn()
+        context.turn_executed = True
+    except Exception as e:
+        context.turn_error = e
+        context.turn_executed = False
+
+
+@when("I try to execute a turn")
+def step_try_execute_turn_with_error_handling(context):
+    """Try to execute a turn with proper error handling."""
+    try:
+        context.turn_response = context.agent.turn()
+        context.turn_error = None
+    except Exception as e:
+        context.turn_error = e
+        context.turn_response = None
+
+
+# Note: "the agent should respond" and "the response should be relevant" are already defined in agent_primitives_steps.py

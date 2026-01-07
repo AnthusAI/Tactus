@@ -171,6 +171,16 @@ def step_then_procedure_succeeds(context):
     """Procedure completes successfully."""
     assert context.procedure_executed, "Procedure should execute"
 
+    # Verify procedure result and additional error context
+    # Only check for procedure_result if we actually ran a real procedure
+    # (not just set the flag in a mock scenario)
+    if hasattr(context, "builder") and hasattr(context, "procedure_result"):
+        if context.procedure_result is None:
+            # If parse_error exists, raise it to provide context
+            if hasattr(context, "parse_error") and context.parse_error is not None:
+                raise AssertionError(f"Procedure failed to execute: {context.parse_error}")
+            raise AssertionError("Procedure did not produce a result")
+
 
 @then("the output should contain result information")
 def step_then_output_contains_info(context):

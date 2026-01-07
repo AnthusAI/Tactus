@@ -285,7 +285,16 @@ def create_dspy_agent(
 
     Returns:
         A DSPyAgentHandle instance
+
+    Raises:
+        ValueError: If no LM is configured (either via config or globally)
     """
+    # Check if LM is configured either in config or globally
+    from tactus.dspy.config import get_current_lm
+
+    if not config.get("model") and not get_current_lm():
+        raise ValueError("LM not configured. Please configure an LM before creating an agent.")
+
     return DSPyAgentHandle(
         name=name,
         system_prompt=config.get("system_prompt", ""),

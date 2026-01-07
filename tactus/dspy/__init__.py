@@ -10,7 +10,7 @@ The integration follows a layered approach:
 """
 
 from tactus.dspy.agent import DSPyAgentHandle, create_dspy_agent
-from tactus.dspy.config import configure_lm, get_current_lm
+from tactus.dspy.config import configure_lm, get_current_lm, reset_lm_configuration
 from tactus.dspy.history import TactusHistory, create_history
 from tactus.dspy.module import TactusModule, create_module
 from tactus.dspy.prediction import TactusPrediction, create_prediction, wrap_prediction
@@ -23,6 +23,7 @@ from tactus.dspy.signature import (
 __all__ = [
     "configure_lm",
     "get_current_lm",
+    "reset_lm_configuration",
     "create_signature",
     "create_structured_signature",
     "parse_signature_string",

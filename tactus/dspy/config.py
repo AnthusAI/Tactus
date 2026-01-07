@@ -51,6 +51,19 @@ def configure_lm(
     """
     global _current_lm
 
+    # Validate model parameter
+    if model is None or not model:
+        raise ValueError("model is required for LM configuration")
+
+    if not isinstance(model, str) or not model.startswith(
+        ("openai/", "anthropic/", "bedrock/", "gemini/", "ollama/")
+    ):
+        # Check if it's at least formatted correctly
+        if "/" not in model:
+            raise ValueError(
+                f"Invalid model format: {model}. Expected format like 'provider/model-name'"
+            )
+
     # Build configuration
     lm_kwargs = {
         "temperature": temperature,
@@ -102,3 +115,16 @@ def ensure_lm_configured() -> dspy.LM:
             "Call configure_lm() or use LM() primitive in your Tactus code."
         )
     return _current_lm
+
+
+def reset_lm_configuration() -> None:
+    """
+    Reset the LM configuration (primarily for testing).
+
+    This clears the global LM state, allowing tests to verify
+    error handling when no LM is configured.
+    """
+    global _current_lm
+    _current_lm = None
+    # Also reset DSPy's global configuration
+    dspy.configure(lm=None)

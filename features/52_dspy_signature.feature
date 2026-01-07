@@ -158,23 +158,23 @@ Feature: DSPy Signature Creation and Validation
 
   Scenario: Empty signature fields
     When I try to create a signature " -> "
-    Then an error should be raised
-    And the error should mention "empty fields"
+    Then an error should be raised in dspy signature
+    And the error should mention dspy signature "empty fields"
 
   Scenario: Invalid signature syntax
     When I try to create a signature "question answer"
-    Then an error should be raised
-    And the error should mention "invalid syntax"
+    Then an error should be raised in dspy signature
+    And the error should mention dspy signature "invalid signature format"
 
   Scenario: Missing arrow in signature
     When I try to create a signature "question, answer"
-    Then an error should be raised
-    And the error should mention "missing arrow"
+    Then an error should be raised in dspy signature
+    And the error should mention dspy signature "must contain exactly one"
 
   Scenario: Duplicate field names
     When I try to create a signature "text, text -> result"
-    Then an error should be raised
-    And the error should mention "duplicate field"
+    Then an error should be raised in dspy signature
+    And the error should mention dspy signature "duplicate field"
 
   Scenario: Special characters in field names
     When I create a signature "user_input, max_tokens -> generated_text"

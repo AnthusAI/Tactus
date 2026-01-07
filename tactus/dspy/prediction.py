@@ -112,6 +112,90 @@ class TactusPrediction:
         """
         return cls(prediction)
 
+    @property
+    def text(self) -> str:
+        """
+        Get the text content from the prediction.
+
+        This is a convenience property that tries common field names
+        for text content. Useful for accessing agent responses.
+
+        Returns:
+            The text content, or empty string if not found
+
+        Priority order:
+            1. response (most common for agent responses)
+            2. text
+            3. answer
+            4. content
+            5. output
+            6. First string field found
+            7. Empty string if nothing found
+        """
+        # Try common field names in priority order
+        for field in ["response", "text", "answer", "content", "output"]:
+            value = getattr(self._prediction, field, None)
+            if value is not None and isinstance(value, str):
+                return value
+
+        # Fall back to first string value found
+        for key in dir(self._prediction):
+            if not key.startswith("_"):
+                value = getattr(self._prediction, key, None)
+                if value is not None and isinstance(value, str):
+                    return value
+
+        return ""
+
+
+def validate_field_name(field_name: str) -> bool:
+    """
+    Validate prediction field name.
+
+    Args:
+        field_name: Field name to validate
+
+    Returns:
+        True if field name is valid, False otherwise
+    """
+    import re
+
+    # Field names must start with a letter or underscore, followed by
+    # optional letters, digits, or underscores
+    return re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", field_name) is not None
+
+
+def validate_field_type(field_name: str, value: Any, schema: Dict[str, Any] = None) -> bool:
+    """
+    Validate prediction field type.
+
+    Args:
+        field_name: Name of the field
+        value: Value to validate
+        schema: Optional type schema
+
+    Returns:
+        True if field type is valid, False otherwise
+    """
+    # Default type validation if no schema provided
+    if schema is None:
+        return True
+
+    type_mapping = {
+        "str": str,
+        "int": int,
+        "float": float,
+        "bool": bool,
+        "list": list,
+    }
+
+    field_type = schema.get("fields", {}).get(field_name, {}).get("type")
+    if field_type:
+        expected_type = type_mapping.get(field_type)
+        return isinstance(value, expected_type) if expected_type else False
+
+    return True
+
 
 def create_prediction(**kwargs: Any) -> TactusPrediction:
     """
@@ -125,7 +209,33 @@ def create_prediction(**kwargs: Any) -> TactusPrediction:
 
     Returns:
         A TactusPrediction instance
+
+    Raises:
+        ValueError: For invalid field names or missing required fields
     """
+    # Validate field names
+    for field in kwargs.keys():
+        if not validate_field_name(field):
+            raise ValueError(f"Invalid field name: {field}")
+
+    # Optional schema validation (can be injected via special key)
+    schema = kwargs.pop("__schema__", {}) if "__schema__" in kwargs else {}
+
+    # Validate required fields
+    required_fields = schema.get("required", [])
+    for field in required_fields:
+        if field not in kwargs:
+            raise ValueError(f"Required field missing: {field}")
+
+    # Validate field types
+    for field, value in kwargs.items():
+        if not validate_field_type(field, value, schema):
+            expected_type = schema.get("fields", {}).get(field, {}).get("type")
+            raise TypeError(
+                f"Field {field} type mismatch. Expected {expected_type}, got {type(value).__name__}"
+            )
+
+    # Create and return the Prediction
     return TactusPrediction(dspy.Prediction(**kwargs))
 
 
