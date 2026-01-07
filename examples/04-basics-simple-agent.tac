@@ -7,6 +7,7 @@ Tool "done" { use = "tactus.done" }
 -- Agents (defined at top level - reusable across procedures)
 Agent "greeter" {
     provider = "openai",
+    model = "gpt-4o-mini",  -- Specify the model to use
     system_prompt = [[You are a friendly assistant. When asked to greet someone, provide a warm, friendly greeting. When you're done, call the done tool with reason set to your greeting message.  Do not use emojis.
 ]],
     initial_message = "Please greet the user with a friendly message",
@@ -24,6 +25,7 @@ Procedure "main" {
 
         -- Loop until the agent calls the done tool (with max iterations for safety)
         -- This requires OPENAI_API_KEY to be set (from .tactus/config.yml or environment)
+        -- The agent will auto-configure DSPy LM on first use
         local max_turns = 10
         local turn_count = 0
 
