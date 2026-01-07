@@ -2,6 +2,18 @@
 
 <!-- version list -->
 
+## v0.14.0 (2026-01-07)
+
+### Features
+
+- Overhaul DSL syntax with CamelCase declarations and field builder pattern
+  ([`92bac2c`](https://github.com/AnthusAI/Tactus/commit/92bac2cbb2c6afcc50258a48794424df92797f1e))
+
+### Breaking Changes
+
+- All declaration keywords are now CamelCase and type definitions use the new field builder pattern.
+
+
 ## v0.13.0 (2026-01-03)
 
 ### Bug Fixes
