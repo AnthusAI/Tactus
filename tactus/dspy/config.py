@@ -20,6 +20,7 @@ def configure_lm(
     api_base: Optional[str] = None,
     temperature: float = 0.7,
     max_tokens: Optional[int] = None,
+    model_type: Optional[str] = None,
     **kwargs: Any,
 ) -> dspy.LM:
     """
@@ -37,6 +38,7 @@ def configure_lm(
         api_base: Custom API base URL (optional)
         temperature: Sampling temperature (default: 0.7)
         max_tokens: Maximum tokens in response (optional)
+        model_type: Model type (e.g., "chat", "responses" for reasoning models)
         **kwargs: Additional LiteLLM parameters
 
     Returns:
@@ -45,6 +47,7 @@ def configure_lm(
     Example:
         >>> configure_lm("openai/gpt-4o", temperature=0.3)
         >>> configure_lm("anthropic/claude-3-5-sonnet-20241022")
+        >>> configure_lm("openai/gpt-5-mini", model_type="responses")
     """
     global _current_lm
 
@@ -60,6 +63,8 @@ def configure_lm(
         lm_kwargs["api_base"] = api_base
     if max_tokens:
         lm_kwargs["max_tokens"] = max_tokens
+    if model_type:
+        lm_kwargs["model_type"] = model_type
 
     # Create and configure the LM
     lm = dspy.LM(model, **lm_kwargs)
