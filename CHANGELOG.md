@@ -2,6 +2,23 @@
 
 <!-- version list -->
 
+## v0.15.0 (2026-01-07)
+
+### Code Style
+
+- Apply black formatting to dspy_integration_steps.py
+  ([`2cda08d`](https://github.com/AnthusAI/Tactus/commit/2cda08dcbcb7a645093234608818e255b97ed857))
+
+### Features
+
+- Migrate Agent implementation from pydantic_ai to DSPy
+  ([`691abfa`](https://github.com/AnthusAI/Tactus/commit/691abfa71799ef373c742fe92402fb280022ad1c))
+
+### Breaking Changes
+
+- None - all existing .tac files continue to work unchanged
+
+
 ## v0.14.0 (2026-01-07)
 
 ### Features
