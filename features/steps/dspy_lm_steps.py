@@ -1,7 +1,6 @@
 """Step definitions for DSPy Language Model configuration."""
 
 import os
-import json
 from behave import given, when, then
 
 

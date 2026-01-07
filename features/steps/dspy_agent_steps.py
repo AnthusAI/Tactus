@@ -396,7 +396,7 @@ def step_given_agent_invalid_config(context):
     from tactus.dspy import create_agent
     try:
         context.agent = create_agent("test_agent", {"invalid_param": "value"})
-    except:
+    except Exception:
         context.agent = None
 
 
