@@ -932,6 +932,112 @@ def create_dsl_stubs(builder: RegistryBuilder, tool_primitive: Any = None) -> di
             # Otherwise pass through to definer
             return self.definer(name, config)
 
+    def _signature(sig_input, config=None):
+        """
+        Create a DSPy Signature.
+
+        Supports both string format and structured format.
+
+        String format:
+        - Simple: "question -> answer"
+        - Multi-field: "context, question -> reasoning, answer"
+        - Typed: "question: str -> answer: str"
+
+        Structured format (curried):
+        - Signature "name" { input = {...}, output = {...} }
+
+        Args:
+            sig_input: Signature string like "question -> answer" or name for curried form
+            config: Optional config dict (for structured form)
+
+        Returns:
+            A dspy.Signature class
+
+        Example (Lua):
+            -- String form
+            Signature("question -> answer")
+            Signature("context, question -> reasoning, answer")
+
+            -- Structured form
+            Signature "qa" {
+                input = {
+                    question = field.string{description = "The question to answer"}
+                },
+                output = {
+                    answer = field.string{description = "The answer"}
+                }
+            }
+        """
+        from tactus.dspy import create_signature
+
+        # String form - check if it looks like a signature string (contains "->")
+        if isinstance(sig_input, str):
+            if "->" in sig_input:
+                # This is a signature string like "question -> answer"
+                return create_signature(sig_input)
+            else:
+                # This is a name for curried form: Signature "name" {...}
+                def accept_config(cfg):
+                    """Accept config and create structured signature."""
+                    config_dict = lua_table_to_dict(cfg)
+
+                    # Normalize empty config
+                    if isinstance(config_dict, list) and len(config_dict) == 0:
+                        config_dict = {}
+
+                    return create_signature(config_dict, name=sig_input)
+
+                return accept_config
+
+        # Direct dict form: Signature({ input = {...}, output = {...} })
+        if hasattr(sig_input, "items"):
+            config_dict = lua_table_to_dict(sig_input)
+            return create_signature(config_dict)
+
+        raise TypeError(
+            f"Signature expects a string like 'input -> output' or a name for structured form, "
+            f"got {type(sig_input).__name__}"
+        )
+
+    def _lm(model: str, config=None):
+        """
+        Configure Language Model for DSPy operations.
+
+        Uses LiteLLM's model naming convention:
+        - OpenAI: "openai/gpt-4o", "openai/gpt-4o-mini"
+        - Anthropic: "anthropic/claude-3-5-sonnet-20241022"
+        - AWS Bedrock: "bedrock/anthropic.claude-3-5-sonnet-20240620-v1:0"
+        - Google: "gemini/gemini-pro"
+
+        Args:
+            model: Model identifier in LiteLLM format
+            config: Optional configuration dict (temperature, api_key, etc.)
+
+        Returns:
+            Configured LM instance
+
+        Example (Lua):
+            LM("openai/gpt-4o")
+            LM("openai/gpt-4o", { temperature = 0.7 })
+            LM "anthropic/claude-3-5-sonnet-20241022" { temperature = 0.3 }
+        """
+        from tactus.dspy import configure_lm
+
+        # Check if this is curried syntax (config is None, return acceptor)
+        if config is None:
+            # Return a function that accepts config
+            def accept_config(cfg=None):
+                cfg_dict = lua_table_to_dict(cfg) if cfg else {}
+                return configure_lm(model, **cfg_dict)
+
+            # Also allow immediate call without config
+            # This handles: LM("openai/gpt-4o") with no second arg
+            return accept_config
+
+        # Direct call with config: LM("model", {config})
+        config_dict = lua_table_to_dict(config)
+        return configure_lm(model, **config_dict)
+
     def _mocks(config):
         """
         Define mock configurations for tools.
@@ -996,6 +1102,81 @@ def create_dsl_stubs(builder: RegistryBuilder, tool_primitive: Any = None) -> di
             # Register the mock configuration
             builder.register_mock(tool_name, processed_config)
 
+    def _history(messages=None):
+        """
+        Create a History for managing conversation messages.
+
+        History is used to track multi-turn conversations and can be
+        passed to Modules as an input field.
+
+        Returns an object with methods:
+        - add(message): Add a message to history
+        - get(): Get all messages
+        - clear(): Clear all messages
+
+        Example (Lua):
+            -- Create history
+            local history = History()
+
+            -- Add messages
+            history.add({ question = "What is 2+2?", answer = "4" })
+
+            -- Get messages
+            local messages = history.get()
+
+            -- Clear
+            history.clear()
+        """
+        from tactus.dspy import create_history
+
+        if messages is not None:
+            messages_list = lua_table_to_dict(messages)
+            return create_history(messages_list)
+        return create_history()
+
+    def _module(module_name: str, config=None):
+        """
+        Create a DSPy Module with a given strategy.
+
+        Supports curried syntax: Module "name" { signature = "...", strategy = "predict" }
+
+        Strategies:
+        - "predict": Direct prediction using dspy.Predict
+        - "chain_of_thought": Reasoning with dspy.ChainOfThought
+
+        Args:
+            module_name: Name for this module (used for tracking)
+            config: Optional config dict (for old syntax)
+
+        Returns:
+            A callable TactusModule instance
+
+        Example (Lua):
+            -- Create a module
+            local qa = Module "qa" {
+                signature = "question -> answer",
+                strategy = "predict"
+            }
+
+            -- Call the module
+            local result = qa({ question = "What is 2+2?" })
+            -- result.answer == "4"
+        """
+        from tactus.dspy import create_module
+
+        # Check if this is old-style 2-argument call
+        if config is not None:
+            config_dict = lua_table_to_dict(config)
+            return create_module(module_name, config_dict)
+
+        # New curried syntax - return a function that accepts config
+        def accept_config(cfg):
+            """Accept config and create module."""
+            config_dict = lua_table_to_dict(cfg)
+            return create_module(module_name, config_dict)
+
+        return accept_config
+
     return {
         # Core declarations (CamelCase - for definitions AND lookups)
         "Agent": HybridAgent(_agent, _Agent),
@@ -1015,6 +1196,11 @@ def create_dsl_stubs(builder: RegistryBuilder, tool_primitive: Any = None) -> di
         "Evaluations": _evaluations,
         # Mocking
         "Mocks": _mocks,
+        # DSPy Integration
+        "LM": _lm,
+        "Signature": _signature,
+        "Module": _module,
+        "History": _history,
         # Script mode (top-level declarations)
         "input": _input,
         "output": _output,

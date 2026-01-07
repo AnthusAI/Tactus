@@ -43,6 +43,8 @@ dependencies = [
     "pyarrow>=14.0",
     "h5py>=3.10",
     "openpyxl>=3.1",
+    # DSPy for prompt optimization and LLM abstraction
+    "dspy>=2.5",
 ]
 
 [project.optional-dependencies]

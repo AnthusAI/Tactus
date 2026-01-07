@@ -16,13 +16,12 @@ from tactus.primitives.retry import RetryPrimitive
 from tactus.primitives.file import FilePrimitive
 
 from tactus.primitives.human import HumanPrimitive
-from tactus.primitives.agent import AgentPrimitive
 
 # MessageHistory primitive is now available
 from tactus.primitives.message_history import MessageHistoryPrimitive
 
-# Result primitive is now available
-from tactus.primitives.result import ResultPrimitive
+# NOTE: AgentPrimitive and ResultPrimitive have been replaced by DSPy implementation
+# Agent functionality is now provided by tactus.dspy.agent
 
 # These will be imported when their dependencies are ready
 # from tactus.primitives.system import SystemPrimitive
@@ -39,10 +38,10 @@ __all__ = [
     "StepPrimitive",
     "CheckpointPrimitive",
     "MessageHistoryPrimitive",
-    "ResultPrimitive",
     "StagePrimitive",
     "JsonPrimitive",
     "RetryPrimitive",
     "FilePrimitive",
-    "AgentPrimitive",
+    # "AgentPrimitive",  # Replaced by DSPy implementation
+    # "ResultPrimitive",  # Replaced by DSPy implementation
 ]
