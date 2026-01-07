@@ -2,7 +2,7 @@
 -- Demonstrates accessing parameters and using them in procedure logic
 
 -- Agents (defined at top level - reusable across procedures)
-agent("worker", {
+Agent("worker", {
     provider = "openai",
     system_prompt = "A worker agent",
     initial_message = "Processing task",
@@ -10,36 +10,18 @@ agent("worker", {
 })
 
 -- Procedure with input and output defined inline
-procedure "main" {
+Procedure "main" {
     input = {
-        task = {
-            type = "string",
-            default = "default task",
-            description = "The task name to process",
-        },
-        count = {
-            type = "number",
-            default = 3,
-            description = "Number of iterations to perform",
-        },
+        task = field.string{description = "The task name to process", default = "default task"},
+        count = field.number{description = "Number of iterations to perform", default = 3},
     },
     output = {
-        result = {
-            type = "string",
-            required = true,
-            description = "Summary of the completed work",
-        },
+        result = field.string{required = true, description = "Summary of the completed work"},
     },
     state = {
-        iterations = {
-            type = "number",
-            default = 0,
-            description = "Counter for iterations"
-        }
-    }
-,
-
-function()
+        iterations = field.number{description = "Counter for iterations", default = 0}
+    },
+    function(input)
     -- Access input
     local task = input.task
     local count = input.count
@@ -62,7 +44,7 @@ end
 }
 
 -- BDD Specifications
-specifications([[
+Specifications([[
 Feature: Parameter Usage
   Demonstrate parameter access and usage in workflows
 

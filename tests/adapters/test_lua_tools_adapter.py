@@ -52,12 +52,12 @@ class TestLuaToolsAdapter:
         """Test creating parameter model with required parameters."""
         adapter = LuaToolsAdapter()
 
-        parameters = {
+        input = {
             "name": {"type": "string", "description": "User name", "required": True},
             "age": {"type": "integer", "description": "User age", "required": True},
         }
 
-        model = adapter._create_parameter_model("test_tool", parameters)
+        model = adapter._create_parameter_model("test_tool", input)
         assert "name" in model.model_fields
         assert "age" in model.model_fields
 
@@ -65,12 +65,12 @@ class TestLuaToolsAdapter:
         """Test creating parameter model with optional parameters."""
         adapter = LuaToolsAdapter()
 
-        parameters = {
+        input = {
             "name": {"type": "string", "required": True},
             "nickname": {"type": "string", "required": False, "default": "N/A"},
         }
 
-        model = adapter._create_parameter_model("test_tool", parameters)
+        model = adapter._create_parameter_model("test_tool", input)
         assert "name" in model.model_fields
         assert "nickname" in model.model_fields
 
@@ -78,12 +78,12 @@ class TestLuaToolsAdapter:
         """Test building function annotations from parameter model."""
         adapter = LuaToolsAdapter()
 
-        parameters = {
+        input = {
             "x": {"type": "number", "required": True},
             "y": {"type": "number", "required": True},
         }
 
-        model = adapter._create_parameter_model("test_tool", parameters)
+        model = adapter._create_parameter_model("test_tool", input)
         annotations = adapter._build_annotations(model)
 
         assert "x" in annotations
@@ -108,7 +108,7 @@ class TestLuaToolsAdapter:
         adapter = LuaToolsAdapter()
         tool_spec = {
             "description": "Add two numbers",
-            "parameters": {
+            "input": {
                 "a": {"type": "number", "description": "First number", "required": True},
                 "b": {"type": "number", "description": "Second number", "required": True},
             },
@@ -147,7 +147,7 @@ class TestLuaToolsAdapter:
                 {
                     "name": "add",
                     "description": "Add numbers",
-                    "parameters": {
+                    "input": {
                         "a": {"type": "number", "required": True},
                         "b": {"type": "number", "required": True},
                     },
@@ -156,7 +156,7 @@ class TestLuaToolsAdapter:
                 {
                     "name": "multiply",
                     "description": "Multiply numbers",
-                    "parameters": {
+                    "input": {
                         "a": {"type": "number", "required": True},
                         "b": {"type": "number", "required": True},
                     },
@@ -194,7 +194,7 @@ class TestLuaToolsAdapter:
             {
                 "name": "uppercase",
                 "description": "Convert to uppercase",
-                "parameters": {"text": {"type": "string", "required": True}},
+                "input": {"text": {"type": "string", "required": True}},
                 "handler": lua_uppercase,
             }
         ]
@@ -208,7 +208,7 @@ class TestLuaToolsAdapter:
 
         tool_spec = {
             "description": "Test tool",
-            "parameters": {},
+            "input": {},
             # Missing 'handler' key
         }
 
@@ -232,7 +232,7 @@ class TestLuaToolsAdapter:
         adapter = LuaToolsAdapter()
         tool_spec = {
             "description": "Add two numbers",
-            "parameters": {
+            "input": {
                 "a": {"type": "number", "required": True},
                 "b": {"type": "number", "required": True},
             },
@@ -272,7 +272,7 @@ class TestLuaToolsAdapter:
 
         tool_spec = {
             "description": "Add two numbers",
-            "parameters": {
+            "input": {
                 "a": {"type": "number", "required": True},
                 "b": {"type": "number", "required": True},
             },
@@ -306,7 +306,7 @@ class TestLuaToolsAdapter:
         adapter = LuaToolsAdapter()
         tool_spec = {
             "description": "Error tool",
-            "parameters": {},
+            "input": {},
             "handler": lua_error,
         }
 
@@ -342,7 +342,7 @@ class TestLuaToolsAdapter:
 
         tool_spec = {
             "description": "Error tool",
-            "parameters": {},
+            "input": {},
             "handler": lua_error,
         }
 
@@ -368,7 +368,7 @@ class TestLuaToolsAdapter:
                 {
                     # Missing 'name' key
                     "description": "Test tool",
-                    "parameters": {},
+                    "input": {},
                     "handler": lua_func,
                 }
             ],

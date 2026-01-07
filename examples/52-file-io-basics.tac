@@ -17,13 +17,13 @@ To run:
   tactus run examples/52-file-io-basics.tac
 ]]--
 
-procedure "main" {
+Procedure "main" {
     input = {},
     output = {
-        records_processed = {type = "number", required = true},
-        summary = {type = "string", required = true}
+        records_processed = field.number{required = true},
+        summary = field.string{required = true}
     },
-    function()
+    function(input)
     -- Read CSV file (returns LuaList wrapper with {header=value} dicts)
     local data = Csv.read("examples/data/sample.csv")
 
@@ -75,7 +75,7 @@ procedure "main" {
 end
 }
 
-specifications([[
+Specifications([[
 Feature: File IO Operations
   Demonstrate reading and writing various file formats
 

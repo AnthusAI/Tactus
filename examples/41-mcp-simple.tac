@@ -13,7 +13,7 @@ mcp_servers:
 ]]
 
 -- Define agent with one MCP tool
-agent "greeter" {
+Agent "greeter" {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[
@@ -28,8 +28,11 @@ Call the greet tool with the name "Alice" and then call done.
 }
 
 -- Execute procedure
-procedure "main" {
-    function()
+Procedure "main" {
+    output = {
+        result = field.string{description = "Result"}
+    },
+    function(input)
     Log.info("Testing MCP tool")
     
     -- Single turn should be enough

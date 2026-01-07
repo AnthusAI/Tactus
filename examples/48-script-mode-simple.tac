@@ -3,20 +3,12 @@
 -- Demonstrates a simple procedure with input and output parameters.
 -- The procedure accepts a name and returns a greeting message.
 
-procedure "main" {
+Procedure "main" {
     input = {
-        name = {
-            type = "string",
-            required = true,
-            description = "Name to greet"
-        }
+        name = field.string{required = true, description = "Name to greet"}
     },
     output = {
-        greeting = {
-            type = "string",
-            required = true,
-            description = "Greeting message"
-        }
+        greeting = field.string{required = true, description = "Greeting message"}
     },
     function(input)
         -- Create greeting message from input

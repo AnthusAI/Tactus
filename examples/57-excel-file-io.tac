@@ -8,13 +8,13 @@ To run:
   tactus run examples/57-excel-file-io.tac
 ]]--
 
-procedure "main" {
+Procedure "main" {
     input = {},
     output = {
-        total_revenue = {type = "number", required = true},
-        profit_margin = {type = "number", required = true}
+        total_revenue = field.number{required = true},
+        profit_margin = field.number{required = true}
     },
-    function()
+    function(input)
     -- Create sales data for Q1
     local q1_sales = {
         {month = "January", product = "Widget A", units = 150, unit_price = 29.99, cost_per_unit = 15.00},
@@ -137,7 +137,7 @@ procedure "main" {
 end
 }
 
-specifications([[
+Specifications([[
 Feature: Excel File IO
   Business data processing with spreadsheets
 

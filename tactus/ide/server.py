@@ -339,8 +339,8 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                 "success": true,
                 "metadata": {
                     "description": str | null,
-                    "parameters": { name: ParameterDeclaration },
-                    "outputs": { name: OutputFieldDeclaration },
+                    "input": { name: ParameterDeclaration },
+                    "output": { name: OutputFieldDeclaration },
                     "agents": { name: AgentDeclaration },
                     "toolsets": { name: dict },
                     "tools": [str]  # Flattened list of all tools
@@ -450,8 +450,8 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             # Build metadata response
             metadata = {
                 "description": registry.description,
-                "parameters": registry.input_schema if registry.input_schema else {},
-                "outputs": registry.output_schema if registry.output_schema else {},
+                "input": registry.input_schema if registry.input_schema else {},
+                "output": registry.output_schema if registry.output_schema else {},
                 "agents": {
                     name: {
                         "name": agent.name,

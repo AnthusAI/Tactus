@@ -24,16 +24,17 @@ class TestStringInputs:
     @pytest.mark.asyncio
     async def test_string_input_required(self, runtime):
         """Test required string input is passed correctly."""
-        source = """main = procedure("main", {
+        source = """Procedure "main" {
             input = {
-                name = {type = "string", required = true}
+                name = field.string{required = true}
             },
             output = {
-                greeting = {type = "string", required = true}
-            }
-        }, function()
-            return {greeting = "Hello, " .. input.name .. "!"}
-        end)"""
+                greeting = field.string{required = true}
+            },
+            function(input)
+                return {greeting = "Hello, " .. input.name .. "!"}
+            end
+        }"""
 
         result = await runtime.execute(source, context={"name": "World"}, format="lua")
 
@@ -43,16 +44,17 @@ class TestStringInputs:
     @pytest.mark.asyncio
     async def test_string_input_with_default(self, runtime):
         """Test string input with default value when not provided."""
-        source = """main = procedure("main", {
+        source = """Procedure "main" {
             input = {
-                name = {type = "string", default = "Default"}
+                name = field.string{default = "Default"}
             },
             output = {
-                greeting = {type = "string", required = true}
-            }
-        }, function()
-            return {greeting = "Hello, " .. input.name}
-        end)"""
+                greeting = field.string{required = true}
+            },
+            function(input)
+                return {greeting = "Hello, " .. input.name}
+            end
+        }"""
 
         result = await runtime.execute(source, context={}, format="lua")
 
@@ -62,16 +64,17 @@ class TestStringInputs:
     @pytest.mark.asyncio
     async def test_string_input_override_default(self, runtime):
         """Test context value overrides default."""
-        source = """main = procedure("main", {
+        source = """Procedure "main" {
             input = {
-                name = {type = "string", default = "Default"}
+                name = field.string{default = "Default"}
             },
             output = {
-                greeting = {type = "string", required = true}
-            }
-        }, function()
-            return {greeting = "Hello, " .. input.name}
-        end)"""
+                greeting = field.string{required = true}
+            },
+            function(input)
+                return {greeting = "Hello, " .. input.name}
+            end
+        }"""
 
         result = await runtime.execute(source, context={"name": "Custom"}, format="lua")
 
@@ -85,16 +88,17 @@ class TestNumberInputs:
     @pytest.mark.asyncio
     async def test_integer_input(self, runtime):
         """Test integer input parameter."""
-        source = """main = procedure("main", {
+        source = """Procedure "main" {
             input = {
-                count = {type = "number", required = true}
+                count = field.number{required = true}
             },
             output = {
-                doubled = {type = "number", required = true}
-            }
-        }, function()
+                doubled = field.number{required = true}
+            },
+            function(input)
             return {doubled = input.count * 2}
-        end)"""
+        end
+        }"""
 
         result = await runtime.execute(source, context={"count": 21}, format="lua")
 
@@ -104,16 +108,17 @@ class TestNumberInputs:
     @pytest.mark.asyncio
     async def test_float_input(self, runtime):
         """Test float input parameter."""
-        source = """main = procedure("main", {
+        source = """Procedure "main" {
             input = {
-                value = {type = "number", required = true}
+                value = field.number{required = true}
             },
             output = {
-                result = {type = "number", required = true}
-            }
-        }, function()
+                result = field.number{required = true}
+            },
+            function(input)
             return {result = input.value * 2}
-        end)"""
+        end
+        }"""
 
         result = await runtime.execute(source, context={"value": 3.14}, format="lua")
 
@@ -123,16 +128,17 @@ class TestNumberInputs:
     @pytest.mark.asyncio
     async def test_number_default(self, runtime):
         """Test number input with default value."""
-        source = """main = procedure("main", {
+        source = """Procedure "main" {
             input = {
-                count = {type = "number", default = 10}
+                count = field.number{default = 10}
             },
             output = {
-                value = {type = "number", required = true}
-            }
-        }, function()
+                value = field.number{required = true}
+            },
+            function(input)
             return {value = input.count}
-        end)"""
+        end
+        }"""
 
         result = await runtime.execute(source, context={}, format="lua")
 
@@ -146,16 +152,17 @@ class TestBooleanInputs:
     @pytest.mark.asyncio
     async def test_boolean_true(self, runtime):
         """Test boolean true input."""
-        source = """main = procedure("main", {
+        source = """Procedure "main" {
             input = {
-                enabled = {type = "boolean", required = true}
+                enabled = field.boolean{required = true}
             },
             output = {
-                result = {type = "boolean", required = true}
-            }
-        }, function()
+                result = field.boolean{required = true}
+            },
+            function(input)
             return {result = input.enabled}
-        end)"""
+        end
+        }"""
 
         result = await runtime.execute(source, context={"enabled": True}, format="lua")
 
@@ -165,16 +172,17 @@ class TestBooleanInputs:
     @pytest.mark.asyncio
     async def test_boolean_false(self, runtime):
         """Test boolean false input."""
-        source = """main = procedure("main", {
+        source = """Procedure "main" {
             input = {
-                enabled = {type = "boolean", required = true}
+                enabled = field.boolean{required = true}
             },
             output = {
-                result = {type = "boolean", required = true}
-            }
-        }, function()
+                result = field.boolean{required = true}
+            },
+            function(input)
             return {result = input.enabled}
-        end)"""
+        end
+        }"""
 
         result = await runtime.execute(source, context={"enabled": False}, format="lua")
 
@@ -184,16 +192,17 @@ class TestBooleanInputs:
     @pytest.mark.asyncio
     async def test_boolean_default(self, runtime):
         """Test boolean input with default value."""
-        source = """main = procedure("main", {
+        source = """Procedure "main" {
             input = {
-                enabled = {type = "boolean", default = true}
+                enabled = field.boolean{default = true}
             },
             output = {
-                result = {type = "boolean", required = true}
-            }
-        }, function()
+                result = field.boolean{required = true}
+            },
+            function(input)
             return {result = input.enabled}
-        end)"""
+        end
+        }"""
 
         result = await runtime.execute(source, context={}, format="lua")
 
@@ -214,17 +223,18 @@ class TestArrayInputs:
 
         Arrays are now converted to Lua tables with 1-based indexing.
         """
-        source = """main = procedure("main", {
+        source = """Procedure "main" {
             input = {
-                items = {type = "array", required = true}
+                items = field.array{required = true}
             },
             output = {
-                first = {type = "number", required = true},
-                second = {type = "number", required = true}
-            }
-        }, function()
+                first = field.number{required = true},
+                second = field.number{required = true}
+            },
+            function(input)
             return {first = input.items[1], second = input.items[2]}
-        end)"""
+        end
+        }"""
 
         result = await runtime.execute(source, context={"items": [10, 20, 30]}, format="lua")
 
@@ -235,16 +245,17 @@ class TestArrayInputs:
     @pytest.mark.asyncio
     async def test_array_default_empty_returns_ok(self, runtime):
         """Test array input with empty default - procedure completes."""
-        source = """main = procedure("main", {
+        source = """Procedure "main" {
             input = {
-                items = {type = "array", default = {}}
+                items = field.array{default = {}}
             },
             output = {
-                ok = {type = "boolean", required = true}
-            }
-        }, function()
+                ok = field.boolean{required = true}
+            },
+            function(input)
             return {ok = true}
-        end)"""
+        end
+        }"""
 
         result = await runtime.execute(source, context={}, format="lua")
 
@@ -257,16 +268,17 @@ class TestArrayInputs:
 
         Arrays are now converted to Lua tables with 1-based indexing.
         """
-        source = """main = procedure("main", {
+        source = """Procedure "main" {
             input = {
-                names = {type = "array", required = true}
+                names = field.array{required = true}
             },
             output = {
-                first = {type = "string", required = true}
-            }
-        }, function()
+                first = field.string{required = true}
+            },
+            function(input)
             return {first = input.names[1]}
-        end)"""
+        end
+        }"""
 
         result = await runtime.execute(
             source, context={"names": ["Alice", "Bob", "Carol"]}, format="lua"
@@ -282,16 +294,17 @@ class TestObjectInputs:
     @pytest.mark.asyncio
     async def test_object_input(self, runtime):
         """Test object input parameter."""
-        source = """main = procedure("main", {
+        source = """Procedure "main" {
             input = {
-                config = {type = "object", required = true}
+                config = field.object{required = true}
             },
             output = {
-                value = {type = "string", required = true}
-            }
-        }, function()
+                value = field.string{required = true}
+            },
+            function(input)
             return {value = input.config.key}
-        end)"""
+        end
+        }"""
 
         result = await runtime.execute(
             source, context={"config": {"key": "test_value"}}, format="lua"
@@ -303,16 +316,17 @@ class TestObjectInputs:
     @pytest.mark.asyncio
     async def test_object_default_empty(self, runtime):
         """Test object input with empty default."""
-        source = """main = procedure("main", {
+        source = """Procedure "main" {
             input = {
-                config = {type = "object", default = {}}
+                config = field.object{default = {}}
             },
             output = {
-                ok = {type = "boolean", required = true}
-            }
-        }, function()
+                ok = field.boolean{required = true}
+            },
+            function(input)
             return {ok = true}
-        end)"""
+        end
+        }"""
 
         result = await runtime.execute(source, context={}, format="lua")
 
@@ -322,16 +336,17 @@ class TestObjectInputs:
     @pytest.mark.asyncio
     async def test_nested_object(self, runtime):
         """Test nested object input."""
-        source = """main = procedure("main", {
+        source = """Procedure "main" {
             input = {
-                data = {type = "object", required = true}
+                data = field.object{required = true}
             },
             output = {
-                value = {type = "string", required = true}
-            }
-        }, function()
+                value = field.string{required = true}
+            },
+            function(input)
             return {value = input.data.nested.key}
-        end)"""
+        end
+        }"""
 
         result = await runtime.execute(
             source, context={"data": {"nested": {"key": "deep_value"}}}, format="lua"
@@ -347,22 +362,23 @@ class TestMultipleInputs:
     @pytest.mark.asyncio
     async def test_multiple_inputs_all_types(self, runtime):
         """Test procedure with multiple inputs of different types."""
-        source = """main = procedure("main", {
+        source = """Procedure "main" {
             input = {
-                name = {type = "string", required = true},
-                count = {type = "number", default = 1},
-                enabled = {type = "boolean", default = false}
+                name = field.string{required = true},
+                count = field.number{default = 1},
+                enabled = field.boolean{default = false}
             },
             output = {
-                message = {type = "string", required = true}
-            }
-        }, function()
+                message = field.string{required = true}
+            },
+            function(input)
             local msg = "Name: " .. input.name .. ", Count: " .. tostring(input.count)
             if input.enabled then
                 msg = msg .. ", Enabled"
             end
             return {message = msg}
-        end)"""
+        end
+        }"""
 
         result = await runtime.execute(
             source, context={"name": "Test", "count": 5, "enabled": True}, format="lua"
@@ -376,18 +392,19 @@ class TestMultipleInputs:
     @pytest.mark.asyncio
     async def test_mixed_provided_and_defaults(self, runtime):
         """Test some inputs provided, others using defaults."""
-        source = """main = procedure("main", {
+        source = """Procedure "main" {
             input = {
-                required_val = {type = "string", required = true},
-                optional_val = {type = "string", default = "default_option"},
-                number_val = {type = "number", default = 100}
+                required_val = field.string{required = true},
+                optional_val = field.string{default = "default_option"},
+                number_val = field.number{default = 100}
             },
             output = {
-                result = {type = "string", required = true}
-            }
-        }, function()
+                result = field.string{required = true}
+            },
+            function(input)
             return {result = input.required_val .. "-" .. input.optional_val .. "-" .. tostring(input.number_val)}
-        end)"""
+        end
+        }"""
 
         result = await runtime.execute(source, context={"required_val": "provided"}, format="lua")
 
@@ -401,16 +418,17 @@ class TestInputValidation:
     @pytest.mark.asyncio
     async def test_empty_context_with_defaults(self, runtime):
         """Test procedure runs with empty context when all inputs have defaults."""
-        source = """main = procedure("main", {
+        source = """Procedure "main" {
             input = {
-                value = {type = "string", default = "fallback"}
+                value = field.string{default = "fallback"}
             },
             output = {
-                result = {type = "string", required = true}
-            }
-        }, function()
+                result = field.string{required = true}
+            },
+            function(input)
             return {result = input.value}
-        end)"""
+        end
+        }"""
 
         result = await runtime.execute(source, context={}, format="lua")
 
@@ -420,13 +438,14 @@ class TestInputValidation:
     @pytest.mark.asyncio
     async def test_no_input_schema(self, runtime):
         """Test procedure with no input schema works fine."""
-        source = """main = procedure("main", {
+        source = """Procedure "main" {
             output = {
-                result = {type = "string", required = true}
-            }
-        }, function()
+                result = field.string{required = true}
+            },
+            function(input)
             return {result = "no inputs needed"}
-        end)"""
+        end
+        }"""
 
         result = await runtime.execute(source, format="lua")
 
@@ -436,16 +455,17 @@ class TestInputValidation:
     @pytest.mark.asyncio
     async def test_extra_context_ignored(self, runtime):
         """Test extra context values not in schema are ignored."""
-        source = """main = procedure("main", {
+        source = """Procedure "main" {
             input = {
-                name = {type = "string", required = true}
+                name = field.string{required = true}
             },
             output = {
-                result = {type = "string", required = true}
-            }
-        }, function()
+                result = field.string{required = true}
+            },
+            function(input)
             return {result = input.name}
-        end)"""
+        end
+        }"""
 
         result = await runtime.execute(
             source, context={"name": "test", "extra_field": "ignored", "another": 123}, format="lua"

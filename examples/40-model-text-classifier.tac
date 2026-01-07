@@ -12,28 +12,24 @@
 -- Define completion tool
 tool("done", {
     description = "Signal completion of the task",
-    parameters = {
-        reason = {type = "string", required = true, description = "Completion message"}
+    input = {
+        reason = field.string{required = true, description = "Completion message"}
     }
 }, function(args)
     return "Done: " .. args.reason
 end)
 
 -- Define a sentiment classifier model (HTTP endpoint)
-model "sentiment_classifier" {
-    type = "http",
-    endpoint = "https://api.example.com/classify/sentiment",
-    timeout = 10.0
-}
+model "sentiment_classifier" field.http{}
 
 -- Define an agent that routes based on sentiment
-agent "support_agent" {
+Agent "support_agent" {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[
 You are a customer support agent.
 
-The customer's message sentiment is: {state.sentiment}
+The customer's message sentiment is: {State.sentiment}
 
 - If sentiment is negative, be extra empathetic
 - If sentiment is positive, be friendly and efficient
@@ -45,34 +41,20 @@ Call done when you've provided a helpful response.
     toolsets = {"done"}
 }
 
-procedure "main" {
+Procedure "main" {
     input = {
-        customer_message = {
-            type = "string",
-            required = true,
-            description = "Customer message to analyze"
-        }
+        customer_message = field.string{required = true, description = "Customer message to analyze"}
     },
     output = {
-        sentiment = {
-            type = "string",
-            required = true,
-            description = "Detected sentiment (positive/negative/neutral)"
-        },
-        response = {
-            type = "string",
-            required = true,
-            description = "Agent's response"
-        }
+        sentiment = field.string{required = true, description = "Detected sentiment (positive/negative/neutral)"},
+        response = field.string{required = true, description = "Agent's response"}
     },
     state = {
-        sentiment = {type = "string", default = "unknown"}
-    }
-,
-
-function()
+        sentiment = field.string{default = "unknown"}
+    },
+    function(input)
     -- 1. Classify sentiment with ML model (checkpointed)
-    state.sentiment = Model("sentiment_classifier").predict({
+    State.sentiment = Model("sentiment_classifier").predict({
         text = input.customer_message
     })
 
@@ -80,14 +62,14 @@ function()
     Support_agent.turn({inject = input.customer_message})
 
     return {
-        sentiment = state.sentiment,
+        sentiment = State.sentiment,
         response = Support_agent.output
     }
 end
 }
 
 -- BDD Specifications
-specifications([[
+Specifications([[
 Feature: Text Classification with Model Primitive
   Scenario: Sentiment classifier detects sentiment
     Given the procedure has started

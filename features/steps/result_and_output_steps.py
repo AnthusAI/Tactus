@@ -1,5 +1,5 @@
 """
-BDD steps for Result object and output_type features.
+BDD steps for Result object and output features.
 """
 
 from behave import given, when, then
@@ -32,9 +32,9 @@ def step_given_procedure_logs_result(context):
     context.logs_result = True
 
 
-@given("a workflow with an agent that has output_type defined")
-def step_given_workflow_with_output_type(context):
-    """Load workflow with output_type."""
+@given("a workflow with an agent that has output defined")
+def step_given_workflow_with_output(context):
+    """Load workflow with output."""
     context.workflow_file = "examples/12-feature-structured-output.tac"
     assert os.path.exists(context.workflow_file), f"{context.workflow_file} should exist"
 
@@ -190,18 +190,18 @@ def step_then_parse_succeeds(context):
     assert context.validation_exit_code == 0, f"Parsing failed: {context.validation_output}"
 
 
-@then("it should have an agent with output_type")
-def step_then_has_output_type_agent(context):
-    """Agent has output_type."""
-    # This is implicit if the file validates and has output_type defined
-    assert "output_type" in context.validation_output or context.validation_exit_code == 0
+@then("it should have an agent with output")
+def step_then_has_output_agent(context):
+    """Agent has output."""
+    # This is implicit if the file validates and has output defined
+    assert "output" in context.validation_output or context.validation_exit_code == 0
 
 
 @then("the schema should be converted to a Pydantic model")
 def step_then_schema_to_pydantic(context):
     """Schema converts to Pydantic model."""
     assert context.parsing_succeeded, "Parsing should succeed for conversion"
-    # The runtime will have converted output_type to Pydantic internally
+    # The runtime will have converted output to Pydantic internally
     assert hasattr(context, "runtime_instance"), "Runtime should exist"
 
 
@@ -209,31 +209,31 @@ def step_then_schema_to_pydantic(context):
 def step_then_model_has_fields(context):
     """Model has fields."""
     assert context.parsed_config is not None, "Config should be parsed"
-    # Verify that agents have output_type if defined
+    # Verify that agents have output if defined
     agents = context.parsed_config.get("agents", {})
     assert len(agents) > 0, "Should have agents defined"
 
 
-@given("a workflow with output_type fields")
-def step_given_output_type_fields(context):
-    """Define workflow with output_type fields."""
+@given("a workflow with output fields")
+def step_given_output_fields(context):
+    """Define workflow with output fields."""
     context.workflow_file = "examples/12-feature-structured-output.tac"
     assert os.path.exists(context.workflow_file), f"{context.workflow_file} should exist"
 
 
-@given("a workflow with output_type including:")
-def step_given_output_type_with_types(context):
-    """Define output_type with various types."""
-    context.output_types = []
+@given("a workflow with output including:")
+def step_given_output_with_types(context):
+    """Define output with various types."""
+    context.outputs = []
     for row in context.table:
-        context.output_types.append(row["type"])
+        context.outputs.append(row["type"])
 
 
 @then("all field types should be recognized")
 def step_then_types_recognized(context):
     """All types should be recognized."""
     valid_types = ["string", "number", "integer", "boolean", "object", "array"]
-    for type_name in context.output_types:
+    for type_name in context.outputs:
         assert type_name in valid_types, f"Type {type_name} should be recognized"
 
 

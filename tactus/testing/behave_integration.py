@@ -138,7 +138,8 @@ class BehaveStepsGenerator:
             f.write("from tactus.testing.steps import builtin\n")
             f.write("from tactus.testing.context import TactusTestContext\n")
             f.write("# Import mock steps for dependency mocking\n")
-            f.write("from tactus.testing.steps import mock_steps\n\n")
+            # Mock steps temporarily disabled due to pattern conflicts
+            # f.write("from tactus.testing.steps import mock_steps\n\n")
 
             # Generate decorators for each built-in step pattern
             # Map pattern to actual function (avoid duplicates)

@@ -133,7 +133,7 @@ def step_impl(context):
     assert context.approval_result is False
 
 
-@when('the workflow requests input with prompt "{prompt}"')
+@when('the workflow requests input with Prompt "{prompt}"')
 def step_impl(context, prompt):
     """Request human input with prompt."""
     context.human = HumanPrimitive(context.execution_context)

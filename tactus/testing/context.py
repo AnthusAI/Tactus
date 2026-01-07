@@ -288,8 +288,8 @@ class TactusTestContext:
         """Get output value from procedure execution result."""
         if self.execution_result:
             # Check if outputs are in a dedicated field
-            if "outputs" in self.execution_result:
-                return self.execution_result["outputs"].get(key)
+            if "output" in self.execution_result:
+                return self.execution_result["output"].get(key)
             # Otherwise check in the result dict (procedure return value)
             if "result" in self.execution_result and isinstance(
                 self.execution_result["result"], dict
@@ -301,8 +301,8 @@ class TactusTestContext:
         """Check if output key exists in procedure execution result."""
         if self.execution_result:
             # Check if outputs are in a dedicated field
-            if "outputs" in self.execution_result:
-                return key in self.execution_result["outputs"]
+            if "output" in self.execution_result:
+                return key in self.execution_result["output"]
             # Otherwise check in the result dict (procedure return value)
             if "result" in self.execution_result and isinstance(
                 self.execution_result["result"], dict

@@ -10,30 +10,14 @@ tactus run examples/18-feature-lua-tools-individual.tac --param task="Calculate 
 ]]--
 
 -- Define completion tool
-tool "done" {
-    description = "Signal completion of the task",
-        parameters = {
-            reason = {type = "string", required = true, description = "Completion message"}
-        },
-    function(args)
-    return "Done: " .. args.reason
-end
-}
+Tool "done" { use = "tactus.done" }
 
 -- Define individual tools using the tool() function
-tool "calculate_tip" {
+Tool "calculate_tip" {
     description = "Calculate tip amount for a bill",
-        parameters = {
-            bill_amount = {
-                type = "number",
-                description = "Total bill amount in dollars",
-                required = true
-            },
-            tip_percentage = {
-                type = "number",
-                description = "Tip percentage (e.g., 15 for 15%)",
-                required = true
-            }
+        input = {
+            bill_amount = field.number{required = true, description = "Total bill amount in dollars"},
+            tip_percentage = field.number{required = true, description = "Tip percentage (e.g., 15 for 15%)"},
         },
     function(args)
     local tip = args.bill_amount * (args.tip_percentage / 100)
@@ -43,19 +27,11 @@ tool "calculate_tip" {
 end
 }
 
-tool "split_bill" {
+Tool "split_bill" {
     description = "Split a bill total among multiple people",
-        parameters = {
-            total_amount = {
-                type = "number",
-                description = "Total amount to split",
-                required = true
-            },
-            num_people = {
-                type = "integer",
-                description = "Number of people to split among",
-                required = true
-            }
+        input = {
+            total_amount = field.number{required = true, description = "Total amount to split"},
+            num_people = field.integer{required = true, description = "Number of people to split among"},
         },
     function(args)
     local per_person = args.total_amount / args.num_people
@@ -64,19 +40,11 @@ tool "split_bill" {
 end
 }
 
-tool "calculate_discount" {
+Tool "calculate_discount" {
     description = "Calculate price after discount",
-        parameters = {
-            original_price = {
-                type = "number",
-                description = "Original price",
-                required = true
-            },
-            discount_percent = {
-                type = "number",
-                description = "Discount percentage",
-                required = true
-            }
+        input = {
+            original_price = field.number{required = true, description = "Original price"},
+            discount_percent = field.number{required = true, description = "Discount percentage"},
         },
     function(args)
     local discount_amount = args.original_price * (args.discount_percent / 100)
@@ -87,7 +55,7 @@ end
 }
 
 -- Agent with access to individual Lua tools
-agent "calculator" {
+Agent "calculator" {
     provider = "openai",
     model = "gpt-4o-mini",
     tool_choice = "required",
@@ -107,30 +75,15 @@ After calling the calculation tool, call done with the result.]],
 }
 
 -- Main workflow
-procedure "main" {
+Procedure "main" {
     input = {
-        task = {
-            type = "string",
-            default = "Calculate 20% tip on $50",
-            description = "Calculation task to perform"
-        }
+        task = field.string{description = "Calculation task to perform", default = "Calculate 20% tip on $50"}
     },
     output = {
-        result = {
-            type = "string",
-            required = true,
-            description = "The calculation result"
-        },
-        completed = {
-            type = "boolean",
-            required = true,
-            description = "Whether the task was completed successfully"
-        }
+        result = field.string{required = true, description = "The calculation result"},
+        completed = field.boolean{required = true, description = "Whether the task was completed successfully"}
     },
-    state = {}
-,
-
-function()
+    function(input)
     local max_turns = 5
     local turn_count = 0
     local result
@@ -155,7 +108,7 @@ function()
     -- Get final result
     local answer
     if Tool.called("done") then
-        answer = Tool.last_call("done").args.reason
+        answer = Tool.last_result("done") or "Task completed"
     else
         answer = result.text
     end
@@ -168,7 +121,7 @@ end
 }
 
 -- BDD Specifications
-specifications([[
+Specifications([[
 Feature: Individual Lua Function Tools
   Demonstrate tool() function for defining individual tools
 

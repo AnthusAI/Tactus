@@ -2,7 +2,7 @@
 -- This demonstrates loading evaluation cases from an external JSONL file
 -- instead of defining them inline in the .tac file.
 
-agent("completer", {
+Agent("completer", {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[You are a helpful assistant that completes tasks.
@@ -12,27 +12,15 @@ Always start your response with "TASK_COMPLETE: " followed by your actual work.]
     initial_message = "{task}\n\nPlease complete this task now.",
 })
 
-procedure "main" {
+Procedure "main" {
     input = {
-        task = {
-            type = "string",
-            required = true
-        }
+        task = field.string{required = true}
     },
     output = {
-        output = {
-            type = "string",
-            required = true
-        },
-        completed = {
-            type = "boolean",
-            required = true
-        }
+        output = field.string{required = true},
+        completed = field.boolean{required = true}
     },
-    state = {}
-,
-
-function()
+    function(input)
     -- Have agent complete the task
     Agent("completer").turn()
     
@@ -41,7 +29,7 @@ function()
     local completed = false
     
     if Tool.called("done") then
-        output = Tool.last_call("done").args.reason or "No output"
+        output = Tool.last_result("done") or "Task completed" or "No output"
         completed = true
     end
     
@@ -53,7 +41,7 @@ end
 }
 
 -- BDD Specifications
-specifications([[
+Specifications([[
 Feature: Task Completion with External Dataset
 
   Scenario: Agent completes task from external dataset
@@ -64,7 +52,7 @@ Feature: Task Completion with External Dataset
 ]])
 
 -- Pydantic AI Evaluations with External Dataset
-evaluations({
+Evaluations({
     runs = 2,
     parallel = true,
     
@@ -86,21 +74,10 @@ evaluations({
     
     evaluators = {
         -- Check for completion marker
-        {
-            type = "contains",
-            field = "output",
-            value = "TASK_COMPLETE"
-        },
+        field.contains{},
         
         -- Use LLM judge for quality
-        {
-            type = "llm_judge",
-            rubric = [[
-Score 1.0 if the agent successfully completed the task with appropriate output.
-Score 0.0 if the task was not completed or output is inadequate.
-            ]],
-            model = "openai:gpt-4o-mini"
-        }
+        field.llm_judge{}
     }
 }
 )

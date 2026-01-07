@@ -14,22 +14,14 @@ tactus run examples/16-feature-toolsets-advanced.tac --param task="Calculate a m
 ]]--
 
 -- Define completion tool
-tool "done" {
-    description = "Signal completion of the task",
-        parameters = {
-            reason = {type = "string", required = true, description = "Completion message"}
-        },
-    function(args)
-    return "Done: " .. args.reason
-end
-}
+Tool "done" { use = "tactus.done" }
 
 -- Agent 1: Uses config-defined combined toolset
-agent "analyst" {
+Agent "analyst" {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[You are a financial analyst with access to calculation tools.
-List the available tools and then call the done tool.]],
+List the available tools and then call the done Tool.]],
     initial_message = "What tools do you have available?",
     toolsets = {
         "all_tools"  -- References combined toolset from config
@@ -37,7 +29,7 @@ List the available tools and then call the done tool.]],
 }
 
 -- Agent 2: Uses filtering to include only specific tools
-agent "calculator" {
+Agent "calculator" {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[You are a calculator with access to mathematical functions.
@@ -51,7 +43,7 @@ List your tools and call done when finished.]],
 }
 
 -- Agent 3: Uses prefixing for namespacing
-agent "prefixed_agent" {
+Agent "prefixed_agent" {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[You have prefixed tools. List them and call done.]],
@@ -64,7 +56,7 @@ agent "prefixed_agent" {
 }
 
 -- Agent 4: Uses exclusion to remove specific tools
-agent "restricted" {
+Agent "restricted" {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[You have most tools except excluded ones. List them and call done.]],
@@ -77,7 +69,7 @@ agent "restricted" {
 }
 
 -- Agent 5: Explicitly no tools (for observation/analysis only)
-agent "observer" {
+Agent "observer" {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[You are an observer with no tools. Just respond with your observation.]],
@@ -86,32 +78,15 @@ agent "observer" {
 }
 
 -- Main procedure demonstrating each agent
-procedure "main" {
-    outputs = {
-        analyst_tools = {
-            type = "string",
-            description = "Tools available to analyst"
-        },
-        calculator_tools = {
-            type = "string",
-            description = "Tools available to calculator"
-        },
-        prefixed_tools = {
-            type = "string",
-            description = "Tools available to prefixed agent"
-        },
-        restricted_tools = {
-            type = "string",
-            description = "Tools available to restricted agent"
-        },
-        observer_response = {
-            type = "string",
-            description = "Observer's response about having no tools"
-        }
-    }
-,
-
-function()
+Procedure "main" {
+    output = {
+        analyst_tools = field.string{description = "Tools available to analyst"},
+        calculator_tools = field.string{description = "Tools available to calculator"},
+        prefixed_tools = field.string{description = "Tools available to prefixed agent"},
+        restricted_tools = field.string{description = "Tools available to restricted agent"},
+        observer_response = field.string{description = "Observer's response about having no tools"}
+    },
+    function(input)
     Log.info("=== Advanced Toolset Features Demo ===")
 
     -- Helper function to run agent with max turns
@@ -159,7 +134,7 @@ end
 }
 
 -- BDD Specifications
-specifications([[
+Specifications([[
 Feature: Advanced Toolset Management
   Demonstrate toolset filtering, prefixing, renaming, and composition
 

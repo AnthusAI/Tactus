@@ -128,7 +128,7 @@ def step_impl(context):
     assert context.llm is not None
 
 
-@when('I call agent with prompt "{prompt}"')
+@when('I call agent with Prompt "{prompt}"')
 def step_impl(context, prompt):
     """Call agent with prompt."""
     # Use format if set in context
@@ -302,7 +302,7 @@ def step_impl(context):
     assert context.validation_result
 
 
-@when('I call agent with temperature {temp:f} and prompt "{prompt}"')
+@when('I call agent with temperature {temp:f} and Prompt "{prompt}"')
 def step_impl(context, temp, prompt):
     """Call agent with specific temperature."""
     context.llm.temperature = temp

@@ -4,106 +4,117 @@ Feature: Sub-Procedure Auto-Checkpointing
   So that nested workflows are durable and can be replayed
 
   Background:
-    Given a Tactus validation environment
+  Given a Tactus validation environment
 
   Scenario: Sub-procedure calls are recognized in validation
-    Given a Lua DSL file with content:
-      """
-      main = procedure("main", {
-        input = {value = {type = "number"}},
-        output = {result = {type = "number"}},
-        state = {}
-      }, function()
-        local sub_result = Procedure.run("helper", {x = input.value})
-        return {result = sub_result}
-      end)
-      """
-    When I validate the file
-    Then validation should succeed
+  Given a Lua DSL file with content:
+  """
+  main = Procedure "main" {
+    input = {
+      value = field.number{}
+    },
+    state = {},
+    function(input)
+      local sub_result = Procedure.run("helper", {x = input.value})
+  return {result = sub_result}
+  end
+  }
+  """
+  When I validate the file
+  Then validation should succeed
 
   Scenario: Nested procedures can be composed
-    Given a Lua DSL file with content:
-      """
-      main = procedure("main", {
-        input = {
-          numbers = {type = "array", default = {1, 2, 3}}
-        },
-        output = {
-          sum = {type = "number", required = true}
-        },
-        state = {}
-      }, function()
-        local result = Procedure.run("examples/helpers/sum.tac", {
-          values = input.numbers
-        })
-        return {sum = result.result or result}
-      end)
-      """
-    When I validate the file
-    Then validation should succeed
+  Given a Lua DSL file with content:
+  """
+  helper = Procedure "helper" {
+    input = {x = field.number{},},
+    function(input)
+      return input.x * 2
+    end
+  }
+
+  main = Procedure "main" {
+    function(input)
+      local result = helper({x = 10})
+      return {result = result}
+    end
+  }
+  """
+  When I validate the file
+  Then validation should succeed
 
   Scenario: Multiple sub-procedures can be called
-    Given a Lua DSL file with content:
-      """
-      main = procedure("main", {
-        input = {
-          numbers = {type = "array", default = {2, 3}}
-        },
-        output = {
-          sum = {type = "number", required = true},
-          product = {type = "number", required = true}
-        },
-        state = {}
-      }, function()
-        local sum_result = Procedure.run("examples/helpers/sum.tac", {
-          values = input.numbers
-        })
-        local product_result = Procedure.run("examples/helpers/product.tac", {
-          values = input.numbers
-        })
-        return {
-          sum = sum_result.result or sum_result,
-          product = product_result.result or product_result
-        }
-      end)
-      """
-    When I validate the file
-    Then validation should succeed
+  Given a Lua DSL file with content:
+  """
+  add = Procedure "add" {
+    input = {a = field.number{}, b = field.number{},},
+    function(input)
+      return input.a + input.b
+    end
+  }
+
+  multiply = Procedure "multiply" {
+    input = {a = field.number{}, b = field.number{},},
+    function(input)
+      return input.a * input.b
+    end
+  }
+
+  main = Procedure "main" {
+    function(input)
+      local sum = add({a = 5, b = 3})
+      local product = multiply({a = sum, b = 2})
+      return {result = product}
+    end
+  }
+  """
+  When I validate the file
+  Then validation should succeed
 
   Scenario: Recursive procedure calls are supported
-    Given a Lua DSL file with content:
-      """
-      main = procedure("main", {
-        input = {n = {type = "number", default = 5}},
-        output = {result = {type = "number", required = true}},
-        state = {}
-      }, function()
-        if input.n <= 1 then
-          return {result = 1}
-        end
-        local sub = Procedure.run("factorial.tac", {n = input.n - 1})
-        return {result = input.n * (sub.result or sub)}
-      end)
-      """
-    When I validate the file
-    Then validation should succeed
+  Given a Lua DSL file with content:
+  """
+  factorial = Procedure "factorial" {
+    input = {n = field.number{},},
+    function(input)
+      if input.n <= 1 then
+        return 1
+      else
+        local prev = factorial({n = input.n - 1})
+        return input.n * prev
+      end
+    end
+  }
+
+  main = Procedure "main" {
+    function(input)
+      local result = factorial({n = 5})
+      return {result = result}
+    end
+  }
+  """
+  When I validate the file
+  Then validation should succeed
 
   Scenario: Sub-procedure execution is checkpointed
-    Given a Lua DSL file with content:
-      """
-      main = procedure("main", {
-        input = {values = {type = "array", default = {10, 20, 30}}},
-        output = {total = {type = "number", required = true}},
-        state = {checkpointed = {type = "boolean", default = false}}
-      }, function()
-        -- This sub-procedure call should be auto-checkpointed
-        local result = Procedure.run("examples/helpers/sum.tac", {
-          values = input.values
-        })
-        state.checkpointed = true
-        return {total = result.result or result}
-      end)
-      """
-    When I validate the file
-    Then validation should succeed
-    And the state_schema should contain field "checkpointed"
+  Given a Lua DSL file with content:
+  """
+  expensive = Procedure "expensive" {
+    function(input)
+      -- Simulate expensive operation
+      return "computed_value"
+    end
+  }
+
+  main = Procedure "main" {
+    state = {cached = field.string{},},
+    function(input)
+      -- Sub-procedure call should be automatically checkpointed
+      state.cached = expensive({})
+      return {result = state.cached}
+    end
+  }
+  """
+  When I validate the file
+  Then validation should succeed
+  And the state_schema should contain field "cached"

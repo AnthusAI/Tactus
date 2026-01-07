@@ -428,7 +428,7 @@ class TestLuaSandboxIntegration:
         test_file.write_text("Hello from file!")
 
         source = """
-        main = procedure("main", {
+        main = Procedure("main", {
             input = {},
             output = {content = {type = "string"}}
         }, function()
@@ -462,7 +462,7 @@ class TestLuaSandboxIntegration:
         csv_file.write_text("name,score\nAlice,95\nBob,87")
 
         source = """
-        main = procedure("main", {
+        main = Procedure("main", {
             input = {},
             output = {first_name = {type = "string"}, first_score = {type = "string"}}
         }, function()
@@ -494,7 +494,7 @@ class TestLuaSandboxIntegration:
         from tactus.core.runtime import TactusRuntime
 
         source = """
-        main = procedure("main", {
+        main = Procedure("main", {
             input = {},
             output = {encoded = {type = "string"}, decoded_name = {type = "string"}}
         }, function()
@@ -527,7 +527,7 @@ class TestLuaSandboxIntegration:
         from tactus.core.runtime import TactusRuntime
 
         source = """
-        main = procedure("main", {
+        main = Procedure("main", {
             input = {},
             output = {error = {type = "string"}}
         }, function()

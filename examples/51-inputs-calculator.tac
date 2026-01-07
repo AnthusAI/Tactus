@@ -1,46 +1,18 @@
 -- Calculator with Array Input
 -- Demonstrates array and enum input handling
 
-procedure "main" {
+Procedure "main" {
     input = {
-        numbers = {
-            type = "array",
-            required = true,
-            description = "Array of numbers to calculate (e.g., [1, 2, 3, 4, 5])"
-        },
-        operation = {
-            type = "string",
-            default = "sum",
-            enum = {"sum", "product", "average", "min", "max"},
-            description = "Operation to perform on the numbers"
-        },
-        round_result = {
-            type = "boolean",
-            default = false,
-            description = "Round the result to nearest integer"
-        }
+        numbers = field.array{required = true, description = "Array of numbers to calculate (e.g., [1, 2, 3, 4, 5])"},
+        operation = field.string{default = "sum", description = "Operation to perform on the numbers"},
+        round_result = field.boolean{description = "Round the result to nearest integer", default = false}
     },
     output = {
-        result = {
-            type = "number",
-            required = true,
-            description = "Calculation result"
-        },
-        operation_used = {
-            type = "string",
-            required = true,
-            description = "Operation that was performed"
-        },
-        input_count = {
-            type = "number",
-            required = true,
-            description = "Number of inputs processed"
-        }
+        result = field.number{required = true, description = "Calculation result"},
+        operation_used = field.string{required = true, description = "Operation that was performed"},
+        input_count = field.number{required = true, description = "Number of inputs processed"}
     },
-    state = {}
-,
-
-function()
+    function(input)
     local numbers = input.numbers
     local op = input.operation
     local result = 0

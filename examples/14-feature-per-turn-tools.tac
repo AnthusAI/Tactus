@@ -2,53 +2,45 @@
 -- Demonstrates dynamic tool availability using both tools and toolsets
 
 -- Define individual tools
-tool "search" {
+Tool "search" {
     description = "Search for information",
-    parameters = {
-        query = {type = "string", required = true, description = "Search query"}
+    input = {
+        query = field.string{required = true, description = "Search query"}
     },
     function(args)
         return "Results for: " .. args.query
     end
 }
 
-tool "analyze" {
+Tool "analyze" {
     description = "Analyze data",
-    parameters = {
-        data = {type = "string", required = true, description = "Data to analyze"}
+    input = {
+        data = field.string{required = true, description = "Data to analyze"}
     },
     function(args)
         return "Analysis of: " .. args.data
     end
 }
 
-tool "done" {
-    description = "Signal completion of the task",
-    parameters = {
-        reason = {type = "string", required = true, description = "Completion message"}
-    },
-    function(args)
-        return "Done: " .. args.reason
-    end
-}
+Tool "done" { use = "tactus.done" }
 
 -- Define a toolset for math operations
-tool "add" {
+Tool "add" {
     description = "Add two numbers",
-    parameters = {
-        a = {type = "number", required = true},
-        b = {type = "number", required = true}
+    input = {
+        a = field.number{required = true},
+        b = field.number{required = true}
     },
     function(args)
         return args.a + args.b
     end
 }
 
-tool "multiply" {
+Tool "multiply" {
     description = "Multiply two numbers",
-    parameters = {
-        a = {type = "number", required = true},
-        b = {type = "number", required = true}
+    input = {
+        a = field.number{required = true},
+        b = field.number{required = true}
     },
     function(args)
         return args.a * args.b
@@ -56,24 +48,24 @@ tool "multiply" {
 }
 
 -- Create math_tools toolset (collection of related tools)
-toolset("math_tools", {
+Toolset "math_tools" {
     tools = {"add", "multiply"}
-})
+}
 
 -- Agent with no tools initially defined
-agent "worker" {
+Agent "worker" {
     provider = "openai",
     system_prompt = [[You are a helpful assistant. Use the available tools to complete tasks.
-When you have completed your task, call the 'done' tool.]],
+When you have completed your task, call the 'done' Tool.]],
     initial_message = "I'm ready to help. What would you like me to do?",
     toolsets = {},  -- Empty - will control per-turn
 }
 
-procedure "main" {
+Procedure "main" {
     output = {
-        result = {type = "string", required = true}
+        result = field.string{required = true}
     },
-    function()
+    function(input)
         Log.info("Starting per-turn tool control example")
 
         -- Turn 1: Only search tool available
@@ -126,7 +118,7 @@ procedure "main" {
 }
 
 -- BDD Specifications
-specifications([[
+Specifications([[
 Feature: Per-Turn Tool Control
   Demonstrate dynamic tool availability control
 

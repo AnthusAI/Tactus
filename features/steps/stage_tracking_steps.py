@@ -92,7 +92,7 @@ def step_impl(context, name):
     tracker.begin_stage(stage_id)
 
 
-@when('I begin step "{step_name}"')
+@when('I begin Step "{step_name}"')
 def step_impl(context, step_name):
     tracker = _tracker(context)
     if tracker.current_stage is None:
@@ -103,7 +103,7 @@ def step_impl(context, step_name):
     tracker.begin_step_timing(current, step_name)
 
 
-@when('I complete step "{step_name}"')
+@when('I complete Step "{step_name}"')
 def step_impl(context, step_name):
     tracker = _tracker(context)
     current = tracker.current_stage
@@ -126,6 +126,18 @@ def step_impl(context, name, count):
 def step_impl(context, step_name, status):
     tracker = _tracker(context)
     assert tracker.stages[tracker.current_stage].steps[step_name] == status
+
+
+@then('Step "{step_name}" should be completed')
+def step_impl(context, step_name):
+    tracker = _tracker(context)
+    assert tracker.stages[tracker.current_stage].steps[step_name] == "completed"
+
+
+@then('Step "{step_name}" should be in_progress')
+def step_impl(context, step_name):
+    tracker = _tracker(context)
+    assert tracker.stages[tracker.current_stage].steps[step_name] == "in_progress"
 
 
 @given("a stage with {total:d} steps")

@@ -2,47 +2,28 @@
 -- This example uses simple state manipulation and can be tested with mocked tools
 
 -- Agent definition (will be mocked in tests)
-agent "worker" {
+Agent "worker" {
   provider = "openai",
   model = "gpt-4o-mini",
   system_prompt = "You are a worker. Call the done tool when finished.",
 }
 
 -- Stages
-stages({"initializing", "working", "complete"})
+Stages({"initializing", "working", "complete"})
 
 -- Procedure with input, output, and state defined inline
-procedure "main" {
+Procedure "main" {
     input = {
-        count = {
-            type = "number",
-            required = false,
-            default = 3,
-            description = "Number of iterations to perform"
-        },
+        count = field.number{required = false, description = "Number of iterations to perform", default = 3},
     },
     output = {
-        result = {
-            type = "string",
-            required = true,
-            description = "Final result message"
-        },
+        result = field.string{required = true, description = "Final result message"},
     },
     state = {
-        counter = {
-            type = "number",
-            default = 0,
-            description = "Working counter"
-        },
-        items = {
-            type = "array",
-            default = {},
-            description = "List of items"
-        }
-    }
-,
-
-function()
+        counter = field.number{description = "Working counter", default = 0},
+        items = field.array{description = "List of items", default = {}}
+    },
+    function(input)
   -- Initialize
   Stage.set("initializing")
 
@@ -70,7 +51,7 @@ end
 }
 
 -- BDD Specifications
-specifications([[
+Specifications([[
 Feature: Simple Workflow Execution
   As a developer
   I want to test workflow behavior
@@ -98,7 +79,7 @@ Feature: Simple Workflow Execution
 ]])
 
 -- Custom step for validating items
-step("the items list has correct format", function()
+step("the items list has correct format", function(input)
   local items = State.get("items")
   assert(items ~= nil, "Items should exist")
   assert(#items == 3, "Should have 3 items")

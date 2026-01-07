@@ -2,27 +2,15 @@
 -- Demonstrates evaluation without requiring OpenAI API
 
 -- Simple procedure that just returns a greeting
-procedure "main" {
+Procedure "main" {
     input = {
-        name = {
-            type = "string",
-            required = true
-        }
+        name = field.string{required = true}
     },
     output = {
-        greeting = {
-            type = "string",
-            required = true
-        },
-        length = {
-            type = "number",
-            required = true
-        }
+        greeting = field.string{required = true},
+        length = field.number{required = true}
     },
-    state = {}
-,
-
-function()
+    function(input)
     local greeting = "Hello, " .. input.name .. "!"
 
     return {
@@ -33,7 +21,7 @@ end
 }
 
 -- Pydantic Evals (output quality)
-evaluations({
+Evaluations({
     dataset = {
         {
             name = "greet_alice",
@@ -60,24 +48,13 @@ evaluations({
     
     evaluators = {
         -- Deterministic: Check exact match
-        {
-            type = "equals_expected",
-            field = "greeting"
-        },
+        field.equals_expected{},
         
         -- Deterministic: Check minimum length
-        {
-            type = "min_length",
-            field = "greeting",
-            value = 10
-        },
+        field.min_length{},
         
         -- Deterministic: Check that greeting contains "Hello"
-        {
-            type = "contains",
-            field = "greeting",
-            value = "Hello"
-        }
+        field.contains{}
     },
     
     runs = 1,

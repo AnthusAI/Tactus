@@ -22,6 +22,13 @@ from .registry import RegistryBuilder
 from tactus.primitives.handles import AgentHandle, ModelHandle, AgentLookup, ModelLookup
 
 
+# NEW Builder pattern for field types - moved outside function for import
+class FieldDefinition(dict):
+    """Special marker class for new field.type{} syntax."""
+
+    pass
+
+
 def lua_table_to_dict(lua_table):
     """
     Convert lupa table to Python dict or list recursively.
@@ -135,11 +142,11 @@ def create_dsl_stubs(builder: RegistryBuilder, tool_primitive: Any = None) -> di
             # and will be processed by runtime during agent setup. We don't register
             # them in registry.lua_tools to avoid double-processing.
 
-            # Extract output schema if present (support both 'output' and 'output_type')
-            # output_type is preferred (aligned with pydantic-ai)
+            # Extract output schema if present (support both 'output' and 'output')
+            # output is preferred (aligned with pydantic-ai)
             output_schema = None
-            if "output_type" in config_dict:
-                output_config = config_dict["output_type"]
+            if "output" in config_dict:
+                output_config = config_dict["output"]
                 if isinstance(output_config, dict):
                     output_schema = output_config
             elif "output" in config_dict:
@@ -167,11 +174,11 @@ def create_dsl_stubs(builder: RegistryBuilder, tool_primitive: Any = None) -> di
             # and will be processed by runtime during agent setup. We don't register
             # them in registry.lua_tools to avoid double-processing.
 
-            # Extract output schema if present (support both 'output' and 'output_type')
-            # output_type is preferred (aligned with pydantic-ai)
+            # Extract output schema if present (support both 'output' and 'output')
+            # output is preferred (aligned with pydantic-ai)
             output_schema = None
-            if "output_type" in config_dict:
-                output_config = config_dict["output_type"]
+            if "output" in config_dict:
+                output_config = config_dict["output"]
                 if isinstance(output_config, dict):
                     output_schema = output_config
             elif "output" in config_dict:
@@ -214,8 +221,9 @@ def create_dsl_stubs(builder: RegistryBuilder, tool_primitive: Any = None) -> di
             procedure "main" {
                 input = {...},
                 output = {...},
-                function()
-                    -- procedure body
+                function(input)
+                    -- procedure body uses explicit input parameter
+                    return {result = input.value * 2}
                 end
             }
 
@@ -223,8 +231,9 @@ def create_dsl_stubs(builder: RegistryBuilder, tool_primitive: Any = None) -> di
             procedure("main", {
                 input = {...},
                 output = {...}
-            }, function()
-                -- procedure body
+            }, function(input)
+                -- procedure body uses explicit input parameter
+                return {result = input.value * 2}
             end)
         """
         # Validate first argument is a string
@@ -365,37 +374,173 @@ def create_dsl_stubs(builder: RegistryBuilder, tool_primitive: Any = None) -> di
         """Register a prompt template."""
         builder.register_prompt(prompt_name, content)
 
-    def _toolset(toolset_name: str, config) -> None:
-        """Register a toolset definition."""
-        builder.register_toolset(toolset_name, lua_table_to_dict(config))
-
-    def _tool(tool_name: str):
+    def _toolset(toolset_name: str, config=None):
         """
-        Curried tool definition: tool "name" { config with function as last element }
+        Toolset definition supporting both old and new syntax.
 
-        First call captures name, returns config acceptor.
+        Old syntax (deprecated):
+            Toolset("name", {config})
+
+        New syntax (curried):
+            Toolset "name" { config }
+
+        Supports multiple sources:
+        - Import all tools from a .tac file via use = "./helpers/math.tac"
+        - MCP server collection via use = "mcp.filesystem"
+        - Group existing tools via tools = ["tool1", "tool2"]
+
+        Args:
+            toolset_name: Name of the toolset
+            config: Optional config dict (for old syntax)
+
+        Returns:
+            Function that accepts config (new syntax) or None (old syntax)
+
+        Example (Import from file):
+            Toolset "math" { use = "./helpers/math.tac" }
+
+        Example (MCP server):
+            Toolset "filesystem" {
+                use = "mcp.filesystem",
+                include = {"read_file", "write_file"},  -- optional filter
+                exclude = {"delete_file"}               -- optional filter
+            }
+
+        Example (Group existing tools):
+            Toolset "research" {
+                tools = {"search", "analyze", "summarize"}
+            }
+
+        Example (Inline Lua tools):
+            Toolset "custom" {
+                tools = {
+                    {
+                        name = "my_tool",
+                        description = "A custom tool",
+                        input = {text = field.string{required = true}},
+                        function(args) return args.text:upper() end
+                    }
+                }
+            }
+        """
+        # Check if this is old-style 2-argument call
+        if config is not None:
+            # Old syntax: Toolset("name", {config})
+            config_dict = lua_table_to_dict(config)
+
+            # Normalize empty config
+            if isinstance(config_dict, list) and len(config_dict) == 0:
+                config_dict = {}
+
+            # Register the toolset
+            builder.register_toolset(toolset_name, config_dict)
+            return None
+
+        # New curried syntax - return a function that accepts config
+        def accept_config(config):
+            """Accept config and register toolset."""
+            config_dict = lua_table_to_dict(config)
+
+            # Normalize empty config
+            if isinstance(config_dict, list) and len(config_dict) == 0:
+                config_dict = {}
+
+            # Register the toolset
+            builder.register_toolset(toolset_name, config_dict)
+
+        return accept_config
+
+    def _tool(tool_name: str, config=None, handler_fn=None):
+        """
+        Tool definition supporting both old and new syntax.
+
+        Old syntax (deprecated):
+            Tool("name", {config}, function)
+
+        New syntax (curried):
+            Tool "name" { config with function as last element }
+
+        Supports multiple sources:
+        - Inline Lua function (original behavior)
+        - Standard library via use = "tactus.done"
+        - Local .tac file via use = "./helpers/math.tac"
+        - MCP server via use = "mcp.brave-search"
+        - Python plugin via use = "plugin.financial.mortgage"
+        - CLI executable via use = "cli.git"
 
         Args:
             tool_name: Name of the tool (used for tracking and agent toolsets)
+            config: Optional config dict (for old syntax)
+            handler_fn: Optional handler function (for old syntax)
 
         Returns:
-            Function that accepts config and returns ToolHandle
+            Function that accepts config and returns ToolHandle (new syntax) or ToolHandle (old syntax)
 
-        Example (Lua):
-            done = tool "done" {
+        Example (Inline Lua):
+            Tool "done" {
                 description = "Signal completion",
-                parameters = {
-                    reason = {type = "string", required = true}
+                input = {
+                    reason = field.string{required = true}
                 },
-                function(args)
-                    return "Done: " .. args.reason
+                function(input)
+                    return {message = "Done: " .. input.reason}
                 end
             }
 
-            local result = done({reason = "finished"})
+        Example (Standard Library):
+            Tool "done" { use = "tactus.done" }
+
+        Example (Local file):
+            Tool "math" { use = "./helpers/math.tac" }
         """
         from tactus.primitives.tool_handle import ToolHandle
 
+        # Check if this is old-style 2 or 3-argument call
+        if config is not None or handler_fn is not None:
+            # Old syntax: Tool("name", {config}, function) or Tool("name", {config})
+            config_dict = lua_table_to_dict(config) if config is not None else {}
+
+            # Normalize empty config
+            if isinstance(config_dict, list) and len(config_dict) == 0:
+                config_dict = {}
+
+            # Check for 'use' attribute to import from external source
+            use_source = config_dict.get("use")
+            if use_source:
+                # This is an import, not an inline definition
+                config_dict["source"] = use_source
+
+                # For now, create a placeholder handler that will be replaced at runtime
+                def placeholder_handler(input):
+                    raise RuntimeError(
+                        f"Tool '{tool_name}' from source '{use_source}' not loaded. "
+                        "The runtime should have replaced this placeholder."
+                    )
+
+                handler_fn = placeholder_handler
+            else:
+                # Inline definition - check for handler in config or as third argument
+                if handler_fn is None:
+                    handler_fn = config_dict.pop("handler", None)
+
+                if handler_fn is None:
+                    raise TypeError(
+                        f"Tool '{tool_name}' requires either a function or 'use' attribute."
+                    )
+
+            # Register in builder (for agent toolsets)
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.debug(f"Registering tool '{tool_name}' with config: {config_dict}")
+            builder.register_tool(tool_name, config_dict, handler_fn)
+
+            # Create and register handle for lookup
+            handle = ToolHandle(tool_name, handler_fn, tool_primitive)
+            _tool_registry[tool_name] = handle
+            return handle
+
+        # New curried syntax - return a function that accepts config
         def accept_config(config):
             """Accept config (with function as last unnamed element) and register tool."""
             # First extract the function from the raw Lua table before conversion
@@ -424,17 +569,39 @@ def create_dsl_stubs(builder: RegistryBuilder, tool_primitive: Any = None) -> di
                 if len(config_dict) == 0:
                     config_dict = {}
 
-            # If no function found in array part, check for legacy 'handler' field
-            if handler_fn is None:
-                handler_fn = config_dict.pop("handler", None)
+            # Check for 'use' attribute to import from external source
+            use_source = config_dict.get("use")
+            if use_source:
+                # This is an import, not an inline definition
+                # The runtime will handle loading from the source
+                config_dict["source"] = use_source
 
-            if handler_fn is None:
-                raise TypeError(
-                    f"tool '{tool_name}' requires a function. "
-                    f'Use: tool "{tool_name}" {{ parameters = {{...}}, function(args) ... end }}'
-                )
+                # For now, create a placeholder handler that will be replaced at runtime
+                def placeholder_handler(input):
+                    raise RuntimeError(
+                        f"Tool '{tool_name}' from source '{use_source}' not loaded. "
+                        "The runtime should have replaced this placeholder."
+                    )
+
+                handler_fn = placeholder_handler
+            else:
+                # Inline definition - must have a function
+                # If no function found in array part, check for legacy 'handler' field
+                if handler_fn is None:
+                    handler_fn = config_dict.pop("handler", None)
+
+                if handler_fn is None:
+                    raise TypeError(
+                        f"Tool '{tool_name}' requires either a function or 'use' attribute. "
+                        f'Use: Tool "{tool_name}" {{ function(input) ... end }} or '
+                        f'Tool "{tool_name}" {{ use = "tactus.done" }}'
+                    )
 
             # Register in builder (for agent toolsets)
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.debug(f"Registering tool '{tool_name}' with config: {config_dict}")
             builder.register_tool(tool_name, config_dict, handler_fn)
 
             # Create and register handle for lookup
@@ -607,6 +774,7 @@ def create_dsl_stubs(builder: RegistryBuilder, tool_primitive: Any = None) -> di
         builder.register_top_level_output(schema_dict)
 
     # Type shorthand helper functions
+    # OLD type functions - keeping temporarily until examples are updated
     def _required(type_name: str, description: str = None) -> dict:
         """Create a required field of given type."""
         result = {"type": type_name, "required": True}
@@ -659,6 +827,48 @@ def create_dsl_stubs(builder: RegistryBuilder, tool_primitive: Any = None) -> di
             result["description"] = description
         return result
 
+    # NEW Builder pattern for field types
+    def _field_builder(field_type: str):
+        """Create a field builder for the given type."""
+
+        def build_field(options=None):
+            """Build a field with the given options."""
+            if options is None:
+                options = {}
+
+            # Convert Lua table to dict if needed
+            if hasattr(options, "items"):
+                options = lua_table_to_dict(options)
+
+            # Create a FieldDefinition (subclass of dict) to mark new syntax
+            result = FieldDefinition()
+            result["type"] = field_type
+
+            # Add required flag (default to false)
+            result["required"] = options.get("required", False)
+
+            # Add default value if provided and not required
+            if "default" in options and not result["required"]:
+                result["default"] = options["default"]
+
+            # Add description if provided
+            if "description" in options:
+                result["description"] = options["description"]
+
+            return result
+
+        return build_field
+
+    # Create the field table with builders for each type
+    field = {
+        "string": _field_builder("string"),
+        "number": _field_builder("number"),
+        "boolean": _field_builder("boolean"),
+        "array": _field_builder("array"),
+        "object": _field_builder("object"),
+        "integer": _field_builder("integer"),
+    }
+
     # Create lookup functions for uppercase names (Agent, Model)
     # These allow: Agent("greeter").turn(), Model("classifier").predict()
     _Agent = AgentLookup(_agent_registry)
@@ -669,23 +879,142 @@ def create_dsl_stubs(builder: RegistryBuilder, tool_primitive: Any = None) -> di
     if tool_primitive is not None:
         tool_primitive.set_tool_registry(_tool_registry)
 
+    # Create hybrid functions that handle both definition and lookup
+    class HybridAgent:
+        """Callable that handles both Agent definition and lookup."""
+
+        def __init__(self, definer, lookup):
+            self.definer = definer
+            self.lookup = lookup
+
+        def __call__(self, name, config=None):
+            # If config is provided, it's old-style definition: Agent("name", {config})
+            if config is not None:
+                return self.definer(name, config)
+
+            # If called with just a string
+            if isinstance(name, str):
+                # Check if the agent is already defined (lookup case)
+                if self.lookup and name in self.lookup._registry:
+                    # This is a lookup: Agent("name") where agent exists
+                    return self.lookup(name)
+                else:
+                    # This is the start of a definition: Agent "name" {...}
+                    # Return the curried function from definer
+                    return self.definer(name)
+
+            # Otherwise pass through to definer
+            return self.definer(name, config)
+
+    class HybridModel:
+        """Callable that handles both Model definition and lookup."""
+
+        def __init__(self, definer, lookup):
+            self.definer = definer
+            self.lookup = lookup
+
+        def __call__(self, name, config=None):
+            # If config is provided, it's old-style definition: Model("name", {config})
+            if config is not None:
+                return self.definer(name, config)
+
+            # If called with just a string
+            if isinstance(name, str):
+                # Check if the model is already defined (lookup case)
+                if self.lookup and name in self.lookup._registry:
+                    # This is a lookup: Model("name") where model exists
+                    return self.lookup(name)
+                else:
+                    # This is the start of a definition: Model "name" {...}
+                    # Return the curried function from definer
+                    return self.definer(name)
+
+            # Otherwise pass through to definer
+            return self.definer(name, config)
+
+    def _mocks(config):
+        """
+        Define mock configurations for tools.
+
+        Example usage:
+            Mocks {
+                search = {
+                    returns = {results = {"mocked result"}}
+                },
+                get_time = {
+                    temporal = {
+                        {time = "10:00"},
+                        {time = "11:00"},
+                        {time = "12:00"}
+                    }
+                },
+                translate = {
+                    conditional = {
+                        {when = {text = "hello"}, returns = {translation = "hola"}},
+                        {when = {text = "goodbye"}, returns = {translation = "adiós"}}
+                    }
+                }
+            }
+
+        Args:
+            config: Lua table containing mock definitions
+        """
+        if config is None:
+            return
+
+        config_dict = lua_table_to_dict(config)
+
+        # Register mock configurations with the builder
+        for tool_name, mock_config in config_dict.items():
+            if not isinstance(mock_config, dict):
+                continue
+
+            # Convert DSL syntax to MockConfig format
+            processed_config = {}
+
+            # Static mocking with 'returns' key
+            if "returns" in mock_config:
+                processed_config["output"] = mock_config["returns"]
+
+            # Temporal mocking
+            elif "temporal" in mock_config:
+                processed_config["temporal"] = mock_config["temporal"]
+
+            # Conditional mocking
+            elif "conditional" in mock_config:
+                # Convert DSL conditional format to MockManager format
+                conditionals = []
+                for cond in mock_config["conditional"]:
+                    if isinstance(cond, dict) and "when" in cond and "returns" in cond:
+                        conditionals.append({"when": cond["when"], "return": cond["returns"]})
+                processed_config["conditional_mocks"] = conditionals
+
+            # Error simulation
+            elif "error" in mock_config:
+                processed_config["error"] = mock_config["error"]
+
+            # Register the mock configuration
+            builder.register_mock(tool_name, processed_config)
+
     return {
-        # Core declarations (lowercase - for definitions)
-        "agent": _agent,
-        "model": _model,
-        "procedure": _procedure,
-        "prompt": _prompt,
-        "toolset": _toolset,
-        "tool": _tool,
-        "hitl": _hitl,
-        "stages": _stages,
-        "specification": _specification,
+        # Core declarations (CamelCase - for definitions AND lookups)
+        "Agent": HybridAgent(_agent, _Agent),
+        "Model": HybridModel(_model, _Model),
+        "Procedure": _procedure,
+        "Prompt": _prompt,
+        "Toolset": _toolset,
+        "Tool": _tool,
+        "Hitl": _hitl,
+        "Stages": _stages,
+        "Specification": _specification,
         # BDD Testing
-        "specifications": _specifications,
-        "step": _step,
-        "evaluation": _evaluation,
+        "Specifications": _specifications,
+        "Step": _step,
+        "Evaluation": _evaluation,
         # Pydantic Evals Integration
-        "evaluations": _evaluations,
+        "Evaluations": _evaluations,
+        # Mocking
+        "Mocks": _mocks,
         # Script mode (top-level declarations)
         "input": _input,
         "output": _output,
@@ -709,10 +1038,9 @@ def create_dsl_stubs(builder: RegistryBuilder, tool_primitive: Any = None) -> di
         "contains": _contains,
         "equals": _equals,
         "matches": _matches,
-        # Lookup functions (uppercase - for accessing registered components)
-        "Agent": _Agent,
-        "Model": _Model,
-        # Type shorthand helpers
+        # New field builder pattern
+        "field": field,
+        # Old type functions (temporary until migration)
         "required": _required,
         "string": _string,
         "number": _number,

@@ -1,7 +1,7 @@
 -- Example: CI/CD Thresholds
 -- This demonstrates quality gates for automated testing pipelines
 
-agent("greeter", {
+Agent("greeter", {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[You are a friendly greeter.
@@ -11,30 +11,21 @@ Call the 'done' tool with your greeting.]],
     initial_message = "Generate a greeting for {name}",
 })
 
-procedure "main" {
+Procedure "main" {
     input = {
-        name = {
-            type = "string",
-            required = true
-        }
+        name = field.string{required = true}
     },
     output = {
-        greeting = {
-            type = "string",
-            required = true
-        }
+        greeting = field.string{required = true}
     },
-    state = {}
-,
-
-function()
+    function(input)
     -- Have agent generate greeting
     Agent("greeter").turn()
     
     -- Get result
     if Tool.called("done") then
         return {
-            greeting = Tool.last_call("done").args.reason or "Hello!"
+            greeting = Tool.last_result("done") or "Task completed" or "Hello!"
         }
     end
     
@@ -43,7 +34,7 @@ end
 }
 
 -- BDD Specifications
-specifications([[
+Specifications([[
 Feature: Greeting Generation with Thresholds
 
   Scenario: Agent generates greeting
@@ -54,7 +45,7 @@ Feature: Greeting Generation with Thresholds
 ]])
 
 -- Pydantic AI Evaluations with CI/CD Thresholds
-evaluations({
+Evaluations({
     runs = 5,
     parallel = true,
     
@@ -75,21 +66,10 @@ evaluations({
     
     evaluators = {
         -- Check greeting includes the name
-        {
-            type = "contains",
-            field = "greeting",
-            value = "Alice"  -- This will fail for Bob/Charlie, demonstrating threshold
-        },
+        field.contains{},
         
         -- LLM judge for quality
-        {
-            type = "llm_judge",
-            rubric = [[
-Score 1.0 if the greeting is warm, personalized, and includes the person's name.
-Score 0.0 if the greeting is generic or missing the name.
-            ]],
-            model = "openai:gpt-4o-mini"
-        }
+        field.llm_judge{}
     },
     
     -- Quality gates for CI/CD

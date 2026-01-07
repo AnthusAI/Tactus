@@ -8,13 +8,13 @@ To run:
   tactus run examples/54-json-file-io.tac
 ]]--
 
-procedure "main" {
+Procedure "main" {
     input = {},
     output = {
-        users_processed = {type = "number", required = true},
-        active_users = {type = "number", required = true}
+        users_processed = field.number{required = true},
+        active_users = field.number{required = true}
     },
-    function()
+    function(input)
     -- Create complex nested data structure
     local app_config = {
         app_name = "Tactus Example App",
@@ -123,7 +123,7 @@ procedure "main" {
 end
 }
 
-specifications([[
+Specifications([[
 Feature: JSON File IO
   Read and write complex JSON structures
 

@@ -16,11 +16,11 @@ tactus run examples/19-feature-direct-tool-calls.tac --param bill=100 --param ti
 ]]--
 
 -- tool() returns a callable - assign to variables for direct calls
-local calculate_tip = tool "calculate_tip" {
+local calculate_tip = Tool "calculate_tip" {
     description = "Calculate tip amount for a bill",
-    parameters = {
-        bill_amount = {type = "number", required = true, description = "Total bill amount"},
-        tip_percentage = {type = "number", required = true, description = "Tip percentage"}
+    input = {
+        bill_amount = field.number{required = true, description = "Total bill amount"},
+        tip_percentage = field.number{required = true, description = "Tip percentage"}
     },
     function(args)
         local tip = args.bill_amount * (args.tip_percentage / 100)
@@ -30,11 +30,11 @@ local calculate_tip = tool "calculate_tip" {
     end
 }
 
-local split_bill = tool "split_bill" {
+local split_bill = Tool "split_bill" {
     description = "Split a bill total among multiple people",
-    parameters = {
-        total_amount = {type = "number", required = true, description = "Total to split"},
-        num_people = {type = "integer", required = true, description = "Number of people"}
+    input = {
+        total_amount = field.number{required = true, description = "Total to split"},
+        num_people = field.integer{required = true, description = "Number of people"}
     },
     function(args)
         local per_person = args.total_amount / args.num_people
@@ -44,18 +44,10 @@ local split_bill = tool "split_bill" {
 }
 
 -- Define completion tool
-tool "done" {
-    description = "Signal completion of the task",
-    parameters = {
-        reason = {type = "string", required = true, description = "Completion message"}
-    },
-    function(args)
-        return "Done: " .. args.reason
-    end
-}
+Tool "done" { use = "tactus.done" }
 
 -- Agent for summarizing (only has done tool - doesn't need calculation tools)
-agent "summarizer" {
+Agent "summarizer" {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[You are a helpful assistant that summarizes calculation results.
@@ -68,20 +60,18 @@ After summarizing, call the 'done' tool with your summary as the reason.]],
 }
 
 -- Main procedure with DETERMINISTIC tool calls
-procedure "main" {
+Procedure "main" {
     input = {
-        bill = {type = "number", default = 100, description = "Original bill amount"},
-        tip_pct = {type = "number", default = 20, description = "Tip percentage"},
-        people = {type = "integer", default = 4, description = "Number of people splitting"}
+        bill = field.number{description = "Original bill amount", default = 100},
+        tip_pct = field.number{description = "Tip percentage", default = 20},
+        people = field.integer{description = "Number of people splitting", default = 4}
     },
     output = {
-        tip_result = {type = "string", required = true, description = "Tip calculation result"},
-        split_result = {type = "string", required = true, description = "Bill split result"},
-        summary = {type = "string", required = true, description = "Agent summary"}
-    }
-,
-
-function()
+        tip_result = field.string{required = true, description = "Tip calculation result"},
+        split_result = field.string{required = true, description = "Bill split result"},
+        summary = field.string{required = true, description = "Agent summary"}
+    },
+    function(input)
     Log.info("Starting direct tool call example...")
 
     -- Call tools DIRECTLY - deterministic, no LLM involvement!
@@ -125,7 +115,7 @@ function()
     -- Get the summary
     local summary = "No summary provided"
     if Tool.called("done") then
-        summary = Tool.last_call("done").args.reason
+        summary = Tool.last_result("done") or "Task completed"
     end
 
     return {
@@ -137,7 +127,7 @@ end
 }
 
 -- BDD Specifications
-specifications([[
+Specifications([[
 Feature: Direct Tool Calls
   Demonstrate calling tools directly from Lua without agent involvement
 

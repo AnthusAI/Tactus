@@ -8,13 +8,13 @@ To run:
   tactus run examples/58-text-file-io.tac
 ]]--
 
-procedure "main" {
+Procedure "main" {
     input = {},
     output = {
-        files_created = {type = "number", required = true},
-        config_loaded = {type = "boolean", required = true}
+        files_created = field.number{required = true},
+        config_loaded = field.boolean{required = true}
     },
-    function()
+    function(input)
     -- Create a configuration file
     local config_content = [[
 # Application Configuration
@@ -202,7 +202,7 @@ debug_mode = disabled
 end
 }
 
-specifications([[
+Specifications([[
 Feature: Raw Text File IO
   Read and write various text file formats
 

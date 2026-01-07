@@ -2,7 +2,7 @@
 -- Demonstrates setting, getting, and incrementing state values
 
 -- Agents (defined at top level - reusable across procedures)
-agent("worker", {
+Agent("worker", {
     provider = "openai",
     system_prompt = "A simple worker agent",
     initial_message = "Starting state management example",
@@ -10,27 +10,13 @@ agent("worker", {
 })
 
 -- Procedure with outputs defined inline
-procedure "main" {
+Procedure "main" {
     output = {
-        success = {
-            type = "boolean",
-            required = true,
-            description = "Whether the workflow completed successfully",
-        },
-        message = {
-            type = "string",
-            required = true,
-            description = "Status message",
-        },
-        count = {
-            type = "number",
-            required = true,
-            description = "Final count of processed items",
-        },
-    }
-,
-
-function()
+        success = field.boolean{required = true, description = "Whether the workflow completed successfully"},
+        message = field.string{required = true, description = "Status message"},
+        count = field.number{required = true, description = "Final count of processed items"},
+    },
+    function(input)
     Log.info("Starting state management example")
 
     -- Initialize state
@@ -55,7 +41,7 @@ end
 }
 
 -- BDD Specifications
-specifications([[
+Specifications([[
 Feature: State Management
   Demonstrate state operations in Tactus workflows
 

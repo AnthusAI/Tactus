@@ -2,19 +2,11 @@
 -- Demonstrates using Claude 4.5 Haiku via AWS Bedrock
 -- Requires AWS credentials in .tactus/config.yml
 
--- Define completion tool
-tool "done" {
-    description = "Signal completion of the task",
-        parameters = {
-            reason = {type = "string", required = true, description = "Completion message"}
-        },
-    function(args)
-    return "Done: " .. args.reason
-end
-}
+-- Define completion tool using standard library
+Tool "done" { use = "tactus.done" }
 
 -- Agent using Claude 4.5 Haiku via Bedrock (using inference profile)
-agent "haiku_assistant" {
+Agent "haiku_assistant" {
     provider = "bedrock",
     model = "us.anthropic.claude-haiku-4-5-20251001-v1:0",
     system_prompt = [[You are a helpful assistant powered by Claude 4.5 Haiku running on AWS Bedrock.
@@ -28,8 +20,11 @@ IMPORTANT: Always call the done tool after providing your answer.]],
 }
 
 -- Procedure demonstrating Bedrock usage
-procedure "main" {
-    function()
+Procedure "main" {
+    output = {
+        result = field.string{description = "Result"}
+    },
+    function(input)
     Log.info("Testing AWS Bedrock with Claude 4.5 Haiku")
 
     -- ReAct loop: Keep turning until the agent calls done
@@ -56,7 +51,7 @@ procedure "main" {
     -- Extract the summary from the done tool call
     local summary = "N/A"
     if Tool.called("done") then
-        summary = Tool.last_call("done").args.reason
+        summary = Tool.last_result("done") or "Task completed"
         Log.info("Bedrock test complete!", {summary = summary})
     else
         Log.warn("Test incomplete - done tool not called")
@@ -74,7 +69,7 @@ end
 }
 
 -- BDD Specifications
-specifications([[
+Specifications([[
 Feature: AWS Bedrock Integration
   Test Claude 4.5 Haiku via AWS Bedrock
 

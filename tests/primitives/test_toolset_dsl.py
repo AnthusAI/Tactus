@@ -7,21 +7,21 @@ from tactus.core.dsl_stubs import create_dsl_stubs
 
 
 def test_toolset_dsl_function_registered():
-    """Test that toolset() function is registered in DSL stubs."""
+    """Test that Toolset() function is registered in DSL stubs."""
     builder = RegistryBuilder()
     stubs = create_dsl_stubs(builder)
 
-    assert "toolset" in stubs
-    assert callable(stubs["toolset"])
+    assert "Toolset" in stubs
+    assert callable(stubs["Toolset"])
 
 
 def test_toolset_dsl_function_registers_toolset():
-    """Test that calling toolset() registers it in the registry."""
+    """Test that calling Toolset() registers it in the registry."""
     builder = RegistryBuilder()
     stubs = create_dsl_stubs(builder)
 
-    # Call the toolset function
-    stubs["toolset"]("test_toolset", {"type": "plugin", "paths": ["./tools"]})
+    # Call the Toolset function (curried syntax)
+    stubs["Toolset"]("test_toolset")({"type": "plugin", "paths": ["./tools"]})
 
     # Verify it was registered
     assert "test_toolset" in builder.registry.toolsets
@@ -30,11 +30,11 @@ def test_toolset_dsl_function_registers_toolset():
 
 
 def test_toolset_dsl_function_with_combined_type():
-    """Test toolset() with combined type."""
+    """Test Toolset() with combined type."""
     builder = RegistryBuilder()
     stubs = create_dsl_stubs(builder)
 
-    stubs["toolset"]("combined_toolset", {"type": "combined", "sources": ["toolset1", "toolset2"]})
+    stubs["Toolset"]("combined_toolset")({"type": "combined", "sources": ["toolset1", "toolset2"]})
 
     assert "combined_toolset" in builder.registry.toolsets
     assert builder.registry.toolsets["combined_toolset"]["type"] == "combined"
@@ -42,12 +42,12 @@ def test_toolset_dsl_function_with_combined_type():
 
 
 def test_toolset_dsl_function_with_filtered_type():
-    """Test toolset() with filtered type."""
+    """Test Toolset() with filtered type."""
     builder = RegistryBuilder()
     stubs = create_dsl_stubs(builder)
 
-    stubs["toolset"](
-        "filtered_toolset", {"type": "filtered", "source": "base_toolset", "pattern": "^test_"}
+    stubs["Toolset"]("filtered_toolset")(
+        {"type": "filtered", "source": "base_toolset", "pattern": "^test_"}
     )
 
     assert "filtered_toolset" in builder.registry.toolsets
@@ -57,11 +57,11 @@ def test_toolset_dsl_function_with_filtered_type():
 
 
 def test_toolset_dsl_function_with_mcp_type():
-    """Test toolset() with mcp type."""
+    """Test Toolset() with mcp type."""
     builder = RegistryBuilder()
     stubs = create_dsl_stubs(builder)
 
-    stubs["toolset"]("mcp_toolset", {"type": "mcp", "server": "plexus"})
+    stubs["Toolset"]("mcp_toolset")({"type": "mcp", "server": "plexus"})
 
     assert "mcp_toolset" in builder.registry.toolsets
     assert builder.registry.toolsets["mcp_toolset"]["type"] == "mcp"
@@ -73,9 +73,9 @@ def test_multiple_toolset_registrations():
     builder = RegistryBuilder()
     stubs = create_dsl_stubs(builder)
 
-    stubs["toolset"]("toolset1", {"type": "plugin", "paths": ["./tools1"]})
-    stubs["toolset"]("toolset2", {"type": "plugin", "paths": ["./tools2"]})
-    stubs["toolset"]("toolset3", {"type": "combined", "sources": ["toolset1", "toolset2"]})
+    stubs["Toolset"]("toolset1")({"type": "plugin", "paths": ["./tools1"]})
+    stubs["Toolset"]("toolset2")({"type": "plugin", "paths": ["./tools2"]})
+    stubs["Toolset"]("toolset3")({"type": "combined", "sources": ["toolset1", "toolset2"]})
 
     assert len(builder.registry.toolsets) == 3
     assert "toolset1" in builder.registry.toolsets

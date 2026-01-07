@@ -331,6 +331,16 @@ def run(
     interactive: bool = typer.Option(
         False, "--interactive", "-i", help="Interactively prompt for all inputs"
     ),
+    mock_all: bool = typer.Option(
+        False, "--mock-all", help="Mock all tools (use mock responses for all tool calls)"
+    ),
+    real_all: bool = typer.Option(
+        False, "--real-all", help="Use real implementations for all tools (disable all mocks)"
+    ),
+    mock: Optional[list[str]] = typer.Option(None, "--mock", help="Mock specific tool(s) by name"),
+    real: Optional[list[str]] = typer.Option(
+        None, "--real", help="Use real implementation for specific tool(s)"
+    ),
 ):
     """
     Run a Tactus workflow.
@@ -348,6 +358,15 @@ def run(
 
         # Interactive mode - prompt for all inputs
         tactus run workflow.tac -i
+
+        # Mock all tools (useful for testing without real API calls)
+        tactus run workflow.tac --mock-all
+
+        # Mock specific tools
+        tactus run workflow.tac --mock search --mock api_call
+
+        # Use real implementation for specific tools while mocking others
+        tactus run workflow.tac --mock-all --real done
     """
     setup_logging(verbose)
 
@@ -495,6 +514,48 @@ def run(
         source_file_path=str(workflow_file),
     )
 
+    # Set up mocking based on CLI flags
+    if mock_all or real_all or mock or real:
+        from tactus.core.mocking import MockManager
+
+        # Create and configure mock manager
+        mock_manager = MockManager()
+        runtime.mock_manager = mock_manager
+
+        # Handle global flags
+        if mock_all:
+            mock_manager.enable_mock()
+            console.print("[yellow]Mocking enabled for all tools[/yellow]")
+        elif real_all:
+            mock_manager.disable_mock()
+            console.print("[blue]Using real implementations for all tools[/blue]")
+
+        # Handle specific tool mocking
+        if mock:
+            for tool_name in mock:
+                # Register a simple mock that returns a placeholder response
+                from tactus.core.mocking import MockConfig
+
+                mock_manager.register_mock(
+                    tool_name,
+                    MockConfig(
+                        tool_name=tool_name,
+                        static_result={
+                            "mocked": True,
+                            "tool": tool_name,
+                            "message": f"Mock response for {tool_name}",
+                        },
+                    ),
+                )
+                mock_manager.enable_mock(tool_name)
+                console.print(f"[yellow]Mocking enabled for tool: {tool_name}[/yellow]")
+
+        # Handle specific tool real implementations
+        if real:
+            for tool_name in real:
+                mock_manager.disable_mock(tool_name)
+                console.print(f"[blue]Using real implementation for tool: {tool_name}[/blue]")
+
     # Execute procedure
     console.print(
         f"[blue]Running procedure:[/blue] [bold]{workflow_file.name}[/bold] ({file_format} format)\n"
@@ -591,7 +652,7 @@ def validate(
                     config = {
                         "description": result.registry.description,
                         "agents": {},
-                        "outputs": {},
+                        "output": {},
                         "params": {},
                     }
                     # Convert Pydantic models to dicts
@@ -602,16 +663,36 @@ def validate(
                             "model": agent.model,
                         }
                     for name, output in result.registry.output_schema.items():
-                        config["outputs"][name] = {
-                            "type": output.get("type", "string"),
-                            "required": output.get("required", False),
-                        }
+                        if output is not None:
+                            config["output"][name] = {
+                                "type": (
+                                    output.get("type", "string")
+                                    if isinstance(output, dict)
+                                    else "string"
+                                ),
+                                "required": (
+                                    output.get("required", False)
+                                    if isinstance(output, dict)
+                                    else False
+                                ),
+                            }
                     for name, param in result.registry.input_schema.items():
-                        config["params"][name] = {
-                            "type": param.get("type", "string"),
-                            "required": param.get("required", False),
-                            "default": param.get("default"),
-                        }
+                        if param is not None:
+                            config["params"][name] = {
+                                "type": (
+                                    param.get("type", "string")
+                                    if isinstance(param, dict)
+                                    else "string"
+                                ),
+                                "required": (
+                                    param.get("required", False)
+                                    if isinstance(param, dict)
+                                    else False
+                                ),
+                                "default": (
+                                    param.get("default") if isinstance(param, dict) else None
+                                ),
+                            }
                 else:
                     config = {}
             else:
@@ -656,13 +737,13 @@ def validate(
             console.print(agents_table)
 
         # Show outputs
-        if config.get("outputs"):
+        if config.get("output"):
             outputs_table = Table(title="Outputs")
             outputs_table.add_column("Name", style="cyan")
             outputs_table.add_column("Type", style="magenta")
             outputs_table.add_column("Required", style="yellow")
 
-            for name, output_config in config["outputs"].items():
+            for name, output_config in config["output"].items():
                 outputs_table.add_row(
                     name,
                     output_config.get("type", "any"),
@@ -746,24 +827,40 @@ def info(
             if registry.input_schema:
                 console.print("[cyan]Parameters:[/cyan]")
                 for name, field_config in registry.input_schema.items():
-                    field_type = field_config.get("type", "any")
-                    required = field_config.get("required", False)
-                    default = field_config.get("default")
-                    req_str = "[yellow](required)[/yellow]" if required else ""
-                    default_str = f" [dim]default: {default}[/dim]" if default is not None else ""
-                    console.print(f"  [bold]{name}[/bold]: {field_type} {req_str}{default_str}")
+                    if field_config is None:
+                        # Handle None field_config
+                        console.print(f"  [bold]{name}[/bold]: any")
+                    elif isinstance(field_config, dict):
+                        field_type = field_config.get("type", "any")
+                        required = field_config.get("required", False)
+                        default = field_config.get("default")
+                        req_str = "[yellow](required)[/yellow]" if required else ""
+                        default_str = (
+                            f" [dim]default: {default}[/dim]" if default is not None else ""
+                        )
+                        console.print(f"  [bold]{name}[/bold]: {field_type} {req_str}{default_str}")
+                    else:
+                        # Handle other types
+                        console.print(f"  [bold]{name}[/bold]: {type(field_config).__name__}")
                 console.print()
 
             # Show outputs
             if registry.output_schema:
                 console.print("[cyan]Outputs:[/cyan]")
                 for name, field_config in registry.output_schema.items():
-                    field_type = field_config.get("type", "any")
-                    required = field_config.get("required", False)
-                    description = field_config.get("description", "")
-                    req_str = "[yellow](required)[/yellow]" if required else ""
-                    desc_str = f" [dim]- {description}[/dim]" if description else ""
-                    console.print(f"  [bold]{name}[/bold]: {field_type} {req_str}{desc_str}")
+                    if field_config is None:
+                        # Handle None field_config
+                        console.print(f"  [bold]{name}[/bold]: any")
+                    elif isinstance(field_config, dict):
+                        field_type = field_config.get("type", "any")
+                        required = field_config.get("required", False)
+                        description = field_config.get("description", "")
+                        req_str = "[yellow](required)[/yellow]" if required else ""
+                        desc_str = f" [dim]- {description}[/dim]" if description else ""
+                        console.print(f"  [bold]{name}[/bold]: {field_type} {req_str}{desc_str}")
+                    else:
+                        # Handle other types (shouldn't happen, but be safe)
+                        console.print(f"  [bold]{name}[/bold]: {type(field_config).__name__}")
                 console.print()
 
             # Show agents
@@ -773,11 +870,12 @@ def info(
                     console.print(f"  [bold]{name}[/bold]:")
                     console.print(f"    Provider: {agent_def.provider}")
                     if agent_def.model:
-                        model_str = (
-                            agent_def.model
-                            if isinstance(agent_def.model, str)
-                            else agent_def.model.get("name", "default")
-                        )
+                        if isinstance(agent_def.model, str):
+                            model_str = agent_def.model
+                        elif isinstance(agent_def.model, dict):
+                            model_str = agent_def.model.get("name", "default")
+                        else:
+                            model_str = str(agent_def.model)
                         console.print(f"    Model: {model_str}")
                     if agent_def.tools:
                         tools_str = ", ".join(agent_def.tools)

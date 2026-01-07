@@ -1,67 +1,31 @@
 -- Input Types Showcase
 -- Demonstrates all supported input types for GUI and CLI testing
 
-procedure "main" {
+Procedure "main" {
     input = {
         -- String input (required)
-        user_name = {
-            type = "string",
-            required = true,
-            description = "Your name for personalization"
-        },
+        user_name = field.string{required = true, description = "Your name for personalization"},
 
         -- Number input with default
-        repeat_count = {
-            type = "number",
-            default = 3,
-            description = "Number of times to repeat the greeting"
-        },
+        repeat_count = field.number{description = "Number of times to repeat the greeting", default = 3},
 
         -- Boolean input
-        formal = {
-            type = "boolean",
-            default = false,
-            description = "Use formal greeting style"
-        },
+        formal = field.boolean{description = "Use formal greeting style", default = false},
 
         -- Array input
-        topics = {
-            type = "array",
-            default = {},
-            description = "List of topics to mention"
-        },
+        topics = field.array{description = "List of topics to mention", default = {}},
 
         -- Object input
-        preferences = {
-            type = "object",
-            default = {},
-            description = "User preferences as JSON object"
-        },
+        preferences = field.object{description = "User preferences as JSON object", default = {}},
 
         -- Enum input
-        language = {
-            type = "string",
-            default = "english",
-            enum = {"english", "spanish", "french", "german"},
-            description = "Language for the greeting"
-        }
+        language = field.string{default = "english", description = "Language for the greeting"}
     },
     output = {
-        message = {
-            type = "string",
-            required = true,
-            description = "The generated greeting message"
-        },
-        settings = {
-            type = "object",
-            required = true,
-            description = "Summary of settings used"
-        }
+        message = field.string{required = true, description = "The generated greeting message"},
+        settings = field.object{required = true, description = "Summary of settings used"}
     },
-    state = {}
-,
-
-function()
+    function(input)
     -- Select greeting based on formality and language
     local greetings = {
         english = input.formal and "Dear" or "Hello",

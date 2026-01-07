@@ -4,163 +4,141 @@ Feature: Input Declarations (Procedure Parameters)
   So that I can ensure correct inputs and generate UIs automatically
 
   Background:
-    Given a Tactus validation environment
+  Given a Tactus validation environment
 
   Scenario: Simple string input with default value
-    Given a Lua DSL file with content:
-      """
-      agent("worker", {
-        provider = "openai",
-        system_prompt = "Hello {input.name}",
-        tools = {}
-      })
+  Given a Lua DSL file with content:
+  """
+  Agent "worker" {
+  provider = "openai",
+  system_prompt = "Hello {input.name}",
+  tools = {}
+  }
 
-      main = procedure("main", {
-        input = {
-          name = {
-            type = "string",
-            default = "World"
-          }
-        }
-      }, function()
-        return { greeting = "Hello, " .. input.name }
-      end)
-      """
-    When I validate the file
-    Then validation should succeed
-    And the input_schema should contain field "name"
+  main = Procedure "main" {
+  input = {
+      name = field.string{default = "World"}
+    },
+  function(input)
+  return { greeting = "Hello, " .. input.name }
+  end
+  }
+  """
+  When I validate the file
+  Then validation should succeed
+  And the input_schema should contain field "name"
 
   Scenario: Required input validation
-    Given a Lua DSL file with content:
-      """
-      agent("worker", {
-        provider = "openai",
-        system_prompt = "Research {input.topic}",
-        tools = {}
-      })
+  Given a Lua DSL file with content:
+  """
+  Agent "worker" {
+  provider = "openai",
+  system_prompt = "Research {input.topic}",
+  tools = {}
+  }
 
-      main = procedure("main", {
-        input = {
-          topic = {
-            type = "string",
-            required = true,
-            description = "Research topic"
-          }
-        }
-      }, function()
-        return { result = input.topic }
-      end)
-      """
-    When I validate the file
-    Then validation should succeed
-    And the input_schema should contain field "topic"
+  Procedure "main" {
+  input = {
+      topic = field.string{required = true, description = "Research topic"}},
+  function(input)
+  return { result = input.topic }
+  end
+  }
+  """
+  When I validate the file
+  Then validation should succeed
+  And the input_schema should contain field "topic"
 
   Scenario: Multiple input types
-    Given a Lua DSL file with content:
-      """
-      agent("worker", {
-        provider = "openai",
-        system_prompt = "Process {input.name}",
-        tools = {}
-      })
+  Given a Lua DSL file with content:
+  """
+  Agent "worker" {
+  provider = "openai",
+  system_prompt = "Process {input.name}",
+  tools = {}
+  }
 
-      main = procedure("main", {
-        input = {
-          name = {
-            type = "string",
-            required = true
-          },
-          count = {
-            type = "number",
-            default = 5
-          },
-          enabled = {
-            type = "boolean",
-            default = true
-          }
-        }
-      }, function()
-        return {
-          name = input.name,
-          count = input.count,
-          enabled = input.enabled
-        }
-      end)
-      """
-    When I validate the file
-    Then validation should succeed
-    And the input_schema should have 3 fields
+  Procedure "main" {
+  input = {
+      name = field.string{required = true},
+  count = field.number{default = 5},
+  enabled = field.boolean{default = true}},
+  function(input)
+  return {
+  name = input.name,
+  count = input.count,
+  enabled = input.enabled
+  }
+  end
+  }
+  """
+  When I validate the file
+  Then validation should succeed
+  And the input_schema should have 3 fields
 
   Scenario: Input with enum values
-    Given a Lua DSL file with content:
-      """
-      agent("worker", {
-        provider = "openai",
-        system_prompt = "Level: {input.level}",
-        tools = {}
-      })
+  Given a Lua DSL file with content:
+  """
+  Agent "worker" {
+  provider = "openai",
+  system_prompt = "Level: {input.level}",
+  tools = {}
+  }
 
-      main = procedure("main", {
-        input = {
-          level = {
-            type = "string",
-            enum = {"low", "medium", "high"},
-            default = "medium"
-          }
-        }
-      }, function()
-        return { level = input.level }
-      end)
-      """
-    When I validate the file
-    Then validation should succeed
-    And the input_schema should contain field "level"
+  main = Procedure "main" {
+    input = {
+      level = field.string{default = "medium"}
+    },
+    function(input)
+      return { level = input.level }
+    end
+  }
+  """
+  When I validate the file
+  Then validation should succeed
+  And the input_schema should contain field "level"
 
   Scenario: Input used in template substitution
-    Given a Lua DSL file with content:
-      """
-      agent("worker", {
-        provider = "openai",
-        system_prompt = "You are researching: {input.topic}",
-        tools = {}
-      })
+  Given a Lua DSL file with content:
+  """
+  Agent "worker" {
+  provider = "openai",
+  system_prompt = "You are researching: {input.topic}",
+  tools = {}
+  }
 
-      main = procedure("main", {
-        input = {
-          topic = {
-            type = "string",
-            default = "AI"
-          }
-        }
-      }, function()
-        return { result = "done" }
-      end)
-      """
-    When I validate the file
-    Then validation should succeed
-    And the agent system_prompt should contain "{input.topic}"
+  main = Procedure "main" {
+  input = {
+      name = field.string{default = "AI"}
+    },
+  function(input)
+  return { result = "done" }
+  end
+  }
+  """
+  When I validate the file
+  Then validation should succeed
+  And the agent system_prompt should contain "{input.topic}"
 
   Scenario: Input accessed in Lua code
-    Given a Lua DSL file with content:
-      """
-      agent("worker", {
-        provider = "openai",
-        system_prompt = "Calculate",
-        tools = {}
-      })
+  Given a Lua DSL file with content:
+  """
+  Agent "worker" {
+  provider = "openai",
+  system_prompt = "Calculate",
+  tools = {}
+  }
 
-      main = procedure("main", {
-        input = {
-          multiplier = {
-            type = "number",
-            default = 2
-          }
-        }
-      }, function()
-        local result = 10 * input.multiplier
-        return { result = result }
-      end)
-      """
-    When I validate the file
-    Then validation should succeed
+  main = Procedure "main" {
+  input = {
+      name = field.number{default = 2}
+    },
+  function(input)
+  local result = 10 * input.multiplier
+  return { result = result }
+  end
+  }
+  """
+  When I validate the file
+  Then validation should succeed
 

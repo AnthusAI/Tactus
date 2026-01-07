@@ -48,21 +48,28 @@ Do not skip this step or commit before getting approval and running these checks
 - **Model parameters**: Supports model-specific parameters like `temperature`, `max_tokens`, `openai_reasoning_effort`
 
 Example:
-```yaml
-agents:
-  openai_agent:
-    provider: openai
-    model:
-      name: gpt-4o
-      temperature: 0.7
-    system_prompt: "..."
-    tools: [done]
-  
-  bedrock_agent:
-    provider: bedrock
-    model: anthropic.claude-3-5-sonnet-20240620-v1:0
-    system_prompt: "..."
-    tools: [done]
+```lua
+-- Tool definition
+Tool "done" { use = "tactus.done" }
+
+-- OpenAI agent
+Agent "openai_agent" {
+    provider = "openai",
+    model = {
+        name = "gpt-4o",
+        temperature = 0.7
+    },
+    system_prompt = "...",
+    toolsets = {"done"}
+}
+
+-- Bedrock agent
+Agent "bedrock_agent" {
+    provider = "bedrock",
+    model = "anthropic.claude-3-5-sonnet-20240620-v1:0",
+    system_prompt = "...",
+    toolsets = {"done"}
+}
 ```
 
 ## Production Readiness

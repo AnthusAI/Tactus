@@ -8,13 +8,13 @@ To run:
   tactus run examples/55-parquet-file-io.tac
 ]]--
 
-procedure "main" {
+Procedure "main" {
     input = {},
     output = {
-        records_written = {type = "number", required = true},
-        average_temperature = {type = "number", required = true}
+        records_written = field.number{required = true},
+        average_temperature = field.number{required = true}
     },
-    function()
+    function(input)
     -- Create sensor data with various data types
     local sensor_data = {}
 
@@ -113,7 +113,7 @@ procedure "main" {
 end
 }
 
-specifications([[
+Specifications([[
 Feature: Parquet File IO
   Efficient columnar storage for analytics data
 

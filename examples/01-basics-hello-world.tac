@@ -2,7 +2,7 @@
 -- A simple introduction to Tactus procedures
 
 -- Agents (defined at top level - reusable across procedures)
-agent "worker" {
+Agent "worker" {
     provider = "openai",
     system_prompt = "You are a friendly worker",
     initial_message = "Hello! Starting procedure",
@@ -10,13 +10,13 @@ agent "worker" {
 }
 
 -- Procedure with outputs defined inline
-procedure "main" {
+Procedure "main" {
     output = {
         success = required("boolean", "Whether the workflow completed successfully"),
         message = required("string", "A greeting message"),
-        count = required("number", "Number of items processed")
+        count = required("number", "Number of items processed"),
     },
-    function()
+    function(input)
         Log.info("Hello, Tactus!")
 
         -- Initialize state
@@ -39,7 +39,7 @@ procedure "main" {
 }
 
 -- BDD Specifications
-specifications([[
+Specifications([[
 Feature: Hello World Workflow
   Demonstrate basic Tactus workflow execution
 

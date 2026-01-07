@@ -18,7 +18,7 @@ class TestDeterminismWarnings:
     async def test_random_outside_checkpoint_warns(self):
         """math.random() outside checkpoint should emit warning."""
         source = """
-        main = procedure("main", {
+        main = Procedure("main", {
             input = {},
             output = {value = {type = "number"}}
         }, function()
@@ -49,7 +49,7 @@ class TestDeterminismWarnings:
     async def test_random_inside_checkpoint_no_warn(self):
         """math.random() inside checkpoint should NOT warn."""
         source = """
-        main = procedure("main", {
+        main = Procedure("main", {
             input = {},
             output = {value = {type = "number"}}
         }, function()
@@ -79,7 +79,7 @@ class TestDeterminismWarnings:
     async def test_os_time_warns(self):
         """os.time() outside checkpoint should warn."""
         source = """
-        main = procedure("main", {
+        main = Procedure("main", {
             input = {},
             output = {timestamp = {type = "number"}}
         }, function()
@@ -102,7 +102,7 @@ class TestDeterminismWarnings:
     async def test_os_date_warns(self):
         """os.date() outside checkpoint should warn."""
         source = """
-        main = procedure("main", {
+        main = Procedure("main", {
             input = {},
             output = {date = {type = "string"}}
         }, function()
@@ -125,7 +125,7 @@ class TestDeterminismWarnings:
     async def test_deterministic_math_no_warn(self):
         """Deterministic math functions should NOT warn."""
         source = """
-        main = procedure("main", {
+        main = Procedure("main", {
             input = {},
             output = {value = {type = "number"}}
         }, function()
@@ -155,7 +155,7 @@ class TestDeterminismWarnings:
     async def test_strict_mode_raises_error(self):
         """Strict mode should raise error instead of warning."""
         source = """
-        main = procedure("main", {
+        main = Procedure("main", {
             input = {},
             output = {value = {type = "number"}}
         }, function()
@@ -182,7 +182,7 @@ class TestDeterminismWarnings:
     async def test_nested_checkpoints(self):
         """Nested checkpoints should maintain scope correctly."""
         source = """
-        main = procedure("main", {
+        main = Procedure("main", {
             input = {},
             output = {value = {type = "number"}}
         }, function()
@@ -217,7 +217,7 @@ class TestDeterminismWarnings:
     async def test_math_random_three_forms(self):
         """Test all three forms of math.random() work correctly."""
         source = """
-        main = procedure("main", {
+        main = Procedure("main", {
             input = {},
             output = {
                 a = {type = "number"},
@@ -247,7 +247,7 @@ class TestDeterminismWarnings:
     async def test_warning_message_format(self):
         """Verify warning messages are clear and actionable."""
         source = """
-        main = procedure("main", {
+        main = Procedure("main", {
             input = {},
             output = {value = {type = "number"}}
         }, function()
@@ -281,7 +281,7 @@ class TestDeterminismWarnings:
     async def test_randomseed_warns(self):
         """math.randomseed() outside checkpoint should warn."""
         source = """
-        main = procedure("main", {
+        main = Procedure("main", {
             input = {},
             output = {value = {type = "number"}}
         }, function()

@@ -29,7 +29,7 @@ Prerequisites:
 -- MCP Server Test Example
 
 -- Define agent with MCP tools
-agent "calculator" {
+Agent "calculator" {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[
@@ -52,8 +52,11 @@ Steps:
 }
 
 -- Execute procedure
-procedure "main" {
-    function()
+Procedure "main" {
+    output = {
+        result = field.string{description = "Result"}
+    },
+    function(input)
     Log.info("Starting MCP server test")
     
     -- Let agent work through the calculation

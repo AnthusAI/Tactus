@@ -9,18 +9,10 @@ tactus run examples/18-feature-lua-tools-inline.tac --param message="Hello, Worl
 ]]--
 
 -- Define completion tool
-tool "done" {
-    description = "Signal completion of the task",
-        parameters = {
-            reason = {type = "string", required = true, description = "Completion message"}
-        },
-    function(args)
-    return "Done: " .. args.reason
-end
-}
+Tool "done" { use = "tactus.done" }
 
 -- Agent with inline Lua function tools
-agent "text_processor" {
+Agent "text_processor" {
     provider = "openai",
     model = "gpt-4o-mini",
     tool_choice = "required",
@@ -42,8 +34,8 @@ After calling the tool, call done with the tool's result.]],
         {
             name = "uppercase",
             description = "Convert text to uppercase",
-            parameters = {
-                text = {type = "string", description = "Text to convert", required = true}
+            input = {
+                text = field.string{required = true, description = "Text to convert"}
             },
             handler = function(args)
                 return string.upper(args.text)
@@ -52,8 +44,8 @@ After calling the tool, call done with the tool's result.]],
         {
             name = "lowercase",
             description = "Convert text to lowercase",
-            parameters = {
-                text = {type = "string", description = "Text to convert", required = true}
+            input = {
+                text = field.string{required = true, description = "Text to convert"}
             },
             handler = function(args)
                 return string.lower(args.text)
@@ -62,8 +54,8 @@ After calling the tool, call done with the tool's result.]],
         {
             name = "reverse_text",
             description = "Reverse the order of characters in text",
-            parameters = {
-                text = {type = "string", description = "Text to reverse", required = true}
+            input = {
+                text = field.string{required = true, description = "Text to reverse"}
             },
             handler = function(args)
                 return string.reverse(args.text)
@@ -72,8 +64,8 @@ After calling the tool, call done with the tool's result.]],
         {
             name = "count_words",
             description = "Count the number of words in text",
-            parameters = {
-                text = {type = "string", description = "Text to analyze", required = true}
+            input = {
+                text = field.string{required = true, description = "Text to analyze"}
             },
             handler = function(args)
                 local count = 0
@@ -86,9 +78,9 @@ After calling the tool, call done with the tool's result.]],
         {
             name = "repeat_text",
             description = "Repeat text a specified number of times",
-            parameters = {
-                text = {type = "string", description = "Text to repeat", required = true},
-                times = {type = "integer", description = "Number of repetitions", required = true}
+            input = {
+                text = field.string{required = true, description = "Text to repeat"},
+                times = field.integer{required = true, description = "Number of repetitions"}
             },
             handler = function(args)
                 local result = {}
@@ -105,35 +97,16 @@ After calling the tool, call done with the tool's result.]],
 }
 
 -- Main workflow
-procedure "main" {
+Procedure "main" {
     input = {
-        message = {
-            type = "string",
-            default = "Convert 'hello world' to uppercase",
-            description = "Text processing request"
-        }
+        message = field.string{description = "Text processing request", default = "Convert 'hello world' to uppercase"}
     },
     output = {
-        result = {
-            type = "string",
-            required = true,
-            description = "The processed result"
-        },
-        tools_used = {
-            type = "array",
-            required = false,
-            description = "List of tools that were used"
-        },
-        completed = {
-            type = "boolean",
-            required = true,
-            description = "Whether the task was completed"
-        }
+        result = field.string{required = true, description = "The processed result"},
+        tools_used = field.array{required = false, description = "List of tools that were used"},
+        completed = field.boolean{required = true, description = "Whether the task was completed"}
     },
-    state = {}
-,
-
-function()
+    function(input)
     local max_turns = 5
     local turn_count = 0
     local result
@@ -163,7 +136,7 @@ function()
     -- Get final result
     local answer
     if Tool.called("done") then
-        answer = Tool.last_call("done").args.reason
+        answer = Tool.last_result("done") or "Task completed"
     else
         answer = result.text
     end
@@ -181,7 +154,7 @@ end
 }
 
 -- BDD Specifications
-specifications([[
+Specifications([[
 Feature: Inline Lua Function Tools
   Demonstrate inline tool definitions in agent configuration
 
