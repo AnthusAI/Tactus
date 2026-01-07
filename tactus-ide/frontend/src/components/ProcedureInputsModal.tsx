@@ -34,7 +34,7 @@ export const ProcedureInputsModal: React.FC<ProcedureInputsModalProps> = ({
   // Initialize values with defaults when parameters change
   useEffect(() => {
     const initialValues: Record<string, any> = {};
-    Object.entries(parameters).forEach(([name, param]) => {
+    Object.entries(parameters ?? {}).forEach(([name, param]) => {
       if (param.default !== undefined) {
         initialValues[name] = param.default;
       } else if (param.type === 'boolean') {
@@ -60,7 +60,7 @@ export const ProcedureInputsModal: React.FC<ProcedureInputsModalProps> = ({
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
-    Object.entries(parameters).forEach(([name, param]) => {
+    Object.entries(parameters ?? {}).forEach(([name, param]) => {
       if (param.required) {
         const value = values[name];
         if (value === undefined || value === '' || value === null) {
@@ -201,7 +201,7 @@ export const ProcedureInputsModal: React.FC<ProcedureInputsModalProps> = ({
     }
   };
 
-  const paramList = Object.entries(parameters);
+  const paramList = Object.entries(parameters ?? {});
 
   if (paramList.length === 0) {
     return null;

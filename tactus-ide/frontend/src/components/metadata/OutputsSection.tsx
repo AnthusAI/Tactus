@@ -7,7 +7,7 @@ interface OutputsSectionProps {
 }
 
 export const OutputsSection: React.FC<OutputsSectionProps> = ({ outputs }) => {
-  const outputList = Object.values(outputs);
+  const outputList = Object.values(outputs ?? {}).filter(output => output !== null);
 
   if (outputList.length === 0) {
     return null;
@@ -17,7 +17,7 @@ export const OutputsSection: React.FC<OutputsSectionProps> = ({ outputs }) => {
     <div>
       <div className="flex items-center gap-2 mb-2">
         <FileOutput className="h-4 w-4" />
-        <h3 className="font-semibold text-sm">Outputs</h3>
+        <h3 className="font-semibold text-sm">Output</h3>
       </div>
       <div className="space-y-2">
         {outputList.map((output) => (

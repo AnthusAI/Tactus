@@ -7,7 +7,7 @@ interface AgentsSectionProps {
 }
 
 export const AgentsSection: React.FC<AgentsSectionProps> = ({ agents }) => {
-  const agentList = Object.values(agents);
+  const agentList = Object.values(agents ?? {}).filter(agent => agent !== null);
 
   if (agentList.length === 0) {
     return null;
