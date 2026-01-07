@@ -1640,7 +1640,9 @@ class TactusRuntime:
 
             # initial_message is optional - if not provided, will default to empty string or manual injection
             initial_message_raw = agent_config.get("initial_message", "")
-            initial_message = self._process_template(initial_message_raw, context) if initial_message_raw else ""
+            initial_message = (
+                self._process_template(initial_message_raw, context) if initial_message_raw else ""
+            )
 
             # Provider is required - no defaults
             provider_name = agent_config.get("provider") or self.config.get("default_provider")
@@ -1826,8 +1828,21 @@ class TactusRuntime:
                 "tools": filtered_tools,
                 "toolsets": filtered_toolsets,
                 "output_schema": output_schema,
-                "temperature": model_settings.get("temperature", 0.7) if model_settings else 0.7,
-                "max_tokens": model_settings.get("max_tokens") if model_settings else None,
+                "temperature": (
+                    model_settings.get("temperature", 0.7)
+                    if model_settings
+                    else agent_config.get("temperature", 0.7)
+                ),
+                "max_tokens": (
+                    model_settings.get("max_tokens")
+                    if model_settings
+                    else agent_config.get("max_tokens")
+                ),
+                "model_type": (
+                    model_settings.get("model_type")
+                    if model_settings
+                    else agent_config.get("model_type")
+                ),
                 "disable_streaming": agent_config.get("disable_streaming", False),
                 "initial_message": initial_message,
             }
@@ -2494,6 +2509,13 @@ class TactusRuntime:
                     "max_turns": agent.max_turns,
                     "disable_streaming": agent.disable_streaming,
                 }
+                # Include model configuration parameters if present
+                if agent.temperature is not None:
+                    config["agents"][name]["temperature"] = agent.temperature
+                if agent.max_tokens is not None:
+                    config["agents"][name]["max_tokens"] = agent.max_tokens
+                if agent.model_type is not None:
+                    config["agents"][name]["model_type"] = agent.model_type
                 # Include inline tool definitions if present
                 if hasattr(agent, "inline_tool_defs") and agent.inline_tool_defs:
                     config["agents"][name]["inline_tool_defs"] = agent.inline_tool_defs
