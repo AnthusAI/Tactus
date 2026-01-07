@@ -39,12 +39,12 @@ export const ProcedureTab: React.FC<ProcedureTabProps> = ({ metadata, loading })
 
   const hasContent =
     metadata.description ||
-    Object.keys(metadata.parameters).length > 0 ||
-    Object.keys(metadata.outputs).length > 0 ||
-    Object.keys(metadata.agents).length > 0 ||
-    metadata.tools.length > 0 ||
+    Object.keys(metadata.input ?? {}).length > 0 ||
+    Object.keys(metadata.output ?? {}).length > 0 ||
+    Object.keys(metadata.agents ?? {}).length > 0 ||
+    (metadata.tools?.length ?? 0) > 0 ||
     metadata.specifications !== null ||
-    metadata.stages.length > 0 ||
+    (metadata.stages?.length ?? 0) > 0 ||
     metadata.evaluations !== null;
 
   if (!hasContent) {
@@ -60,9 +60,9 @@ export const ProcedureTab: React.FC<ProcedureTabProps> = ({ metadata, loading })
 
   return (
     <div className="h-full p-4 space-y-4 overflow-y-auto overflow-x-hidden">
-      <ParametersSection parameters={metadata.parameters} />
+      <ParametersSection parameters={metadata.input} />
 
-      <OutputsSection outputs={metadata.outputs} />
+      <OutputsSection outputs={metadata.output} />
 
       <StagesSection stages={metadata.stages} />
 

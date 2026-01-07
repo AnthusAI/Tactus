@@ -442,8 +442,7 @@ const AppContent: React.FC = () => {
     }
 
     // Check if procedure has input parameters
-    const hasInputs = procedureMetadata?.parameters &&
-      Object.keys(procedureMetadata.parameters).length > 0;
+    const hasInputs = Object.keys(procedureMetadata?.input ?? {}).length > 0;
 
     if (hasInputs) {
       // Show modal to collect inputs
@@ -901,11 +900,11 @@ const AppContent: React.FC = () => {
       </Dialog>
 
       {/* Procedure Inputs Modal */}
-      {procedureMetadata?.parameters && (
+      {procedureMetadata?.input && (
         <ProcedureInputsModal
           open={inputModalOpen}
           onOpenChange={setInputModalOpen}
-          parameters={procedureMetadata.parameters}
+          parameters={procedureMetadata.input}
           onSubmit={(values) => {
             setInputModalOpen(false);
             executeRunWithInputs(values);

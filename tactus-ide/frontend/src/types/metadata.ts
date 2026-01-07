@@ -37,8 +37,8 @@ export interface EvaluationsData {
 
 export interface ProcedureMetadata {
   description: string | null;
-  parameters: Record<string, ParameterDeclaration>;
-  outputs: Record<string, OutputFieldDeclaration>;
+  input: Record<string, ParameterDeclaration>;
+  output: Record<string, OutputFieldDeclaration>;
   agents: Record<string, AgentDeclaration>;
   toolsets: Record<string, any>;
   tools: string[];

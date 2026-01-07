@@ -7,7 +7,7 @@ interface ParametersSectionProps {
 }
 
 export const ParametersSection: React.FC<ParametersSectionProps> = ({ parameters }) => {
-  const paramList = Object.values(parameters);
+  const paramList = Object.values(parameters ?? {}).filter(param => param !== null);
 
   if (paramList.length === 0) {
     return null;
@@ -17,7 +17,7 @@ export const ParametersSection: React.FC<ParametersSectionProps> = ({ parameters
     <div>
       <div className="flex items-center gap-2 mb-2">
         <FileInput className="h-4 w-4" />
-        <h3 className="font-semibold text-sm">Parameters</h3>
+        <h3 className="font-semibold text-sm">Input</h3>
       </div>
       <div className="space-y-2">
         {paramList.map((param) => (
