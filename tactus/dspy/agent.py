@@ -60,6 +60,7 @@ class DSPyAgentHandle:
         output_schema: Optional[Dict[str, Any]] = None,
         temperature: float = 0.7,
         max_tokens: Optional[int] = None,
+        model_type: Optional[str] = None,
         initial_message: Optional[str] = None,
         **kwargs: Any,
     ):
@@ -76,6 +77,7 @@ class DSPyAgentHandle:
             output_schema: Optional structured output schema
             temperature: Model temperature (default: 0.7)
             max_tokens: Maximum tokens for response
+            model_type: Model type for DSPy (e.g., "chat", "responses" for reasoning models)
             initial_message: Initial message to send on first turn if no inject
             **kwargs: Additional configuration
         """
@@ -88,6 +90,7 @@ class DSPyAgentHandle:
         self.output_schema = output_schema
         self.temperature = temperature
         self.max_tokens = max_tokens
+        self.model_type = model_type
         self.initial_message = initial_message
         self.kwargs = kwargs
 
@@ -148,21 +151,17 @@ class DSPyAgentHandle:
             # Convert model format from "provider:model" to "provider/model" for LiteLLM
             model_for_litellm = self.model.replace(":", "/") if ":" in self.model else self.model
             logger.info(f"Auto-configuring DSPy LM with model: {model_for_litellm}")
-
-            # Check if this is a reasoning model (gpt-5 series)
-            if "gpt-5" in model_for_litellm.lower():
-                # Reasoning models require specific parameters
-                configure_lm(
-                    model_for_litellm,
-                    temperature=1.0,
-                    max_tokens=16000,
-                )
-            else:
-                configure_lm(
-                    model_for_litellm,
-                    temperature=self.temperature,
-                    max_tokens=self.max_tokens,
-                )
+            
+            # Build kwargs for configure_lm
+            config_kwargs = {}
+            if self.temperature is not None:
+                config_kwargs["temperature"] = self.temperature
+            if self.max_tokens is not None:
+                config_kwargs["max_tokens"] = self.max_tokens
+            if self.model_type is not None:
+                config_kwargs["model_type"] = self.model_type
+            
+            configure_lm(model_for_litellm, **config_kwargs)
 
         # Extract options
         user_message = opts.get("inject")
@@ -290,6 +289,7 @@ def create_dspy_agent(
         output_schema=config.get("output_schema") or config.get("output"),
         temperature=config.get("temperature", 0.7),
         max_tokens=config.get("max_tokens"),
+        model_type=config.get("model_type"),
         initial_message=config.get("initial_message"),
         **{
             k: v
@@ -305,6 +305,7 @@ def create_dspy_agent(
                 "output",
                 "temperature",
                 "max_tokens",
+                "model_type",
                 "initial_message",
             ]
         },

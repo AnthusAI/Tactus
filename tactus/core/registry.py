@@ -61,6 +61,9 @@ class AgentDeclaration(BaseModel):
     disable_streaming: bool = (
         False  # Disable streaming for models that don't support tools in streaming mode
     )
+    temperature: Optional[float] = None
+    max_tokens: Optional[int] = None
+    model_type: Optional[str] = None  # e.g., "chat", "responses" for reasoning models
 
     model_config = ConfigDict(extra="allow")
 
