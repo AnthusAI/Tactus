@@ -148,11 +148,21 @@ class DSPyAgentHandle:
             # Convert model format from "provider:model" to "provider/model" for LiteLLM
             model_for_litellm = self.model.replace(":", "/") if ":" in self.model else self.model
             logger.info(f"Auto-configuring DSPy LM with model: {model_for_litellm}")
-            configure_lm(
-                model_for_litellm,
-                temperature=self.temperature,
-                max_tokens=self.max_tokens,
-            )
+
+            # Check if this is a reasoning model (gpt-5 series)
+            if "gpt-5" in model_for_litellm.lower():
+                # Reasoning models require specific parameters
+                configure_lm(
+                    model_for_litellm,
+                    temperature=1.0,
+                    max_tokens=16000,
+                )
+            else:
+                configure_lm(
+                    model_for_litellm,
+                    temperature=self.temperature,
+                    max_tokens=self.max_tokens,
+                )
 
         # Extract options
         user_message = opts.get("inject")
