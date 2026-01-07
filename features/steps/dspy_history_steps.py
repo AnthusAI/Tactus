@@ -8,6 +8,7 @@ from behave import given, when, then
 def step_given_create_history(context):
     """Create a new History."""
     from tactus.dspy import create_history
+
     context.history = create_history()
 
 
@@ -131,6 +132,7 @@ def step_tactus_procedure_with_history(context):
 def step_history_with_multiple_messages(context):
     """Create a History with multiple messages."""
     from tactus.dspy import create_history
+
     context.history = create_history()
     context.history.add({"role": "user", "content": "Question 1"})
     context.history.add({"role": "assistant", "content": "Answer 1"})
@@ -163,10 +165,11 @@ def step_each_message_has_role_and_content(context):
 def step_history_with_messages_table(context):
     """Create History with messages from table."""
     from tactus.dspy import create_history
+
     context.history = create_history()
     for row in context.table:
-        role = row['role']
-        content = row['content']
+        role = row["role"]
+        content = row["content"]
         context.history.add({"role": role, "content": content})
 
 
@@ -208,6 +211,7 @@ def step_should_have_correct_role_and_content(context):
 def step_history_with_mixed_messages(context):
     """Create History with mixed message types."""
     from tactus.dspy import create_history
+
     context.history = create_history()
     context.history.add({"role": "system", "content": "System prompt"})
     context.history.add({"role": "user", "content": "User question"})
@@ -238,6 +242,7 @@ def step_no_assistant_or_system_messages(context):
 def step_history_with_count_messages(context, count):
     """Create History with specified number of messages."""
     from tactus.dspy import create_history
+
     context.history = create_history()
     for i in range(count):
         context.history.add({"role": "user", "content": f"Message {i+1}"})
@@ -255,7 +260,7 @@ def step_remove_last_message(context):
     messages = context.history.get()
     if messages:
         # Mock implementation - would remove last message
-        context.history._messages = messages[:-1] if hasattr(context.history, '_messages') else []
+        context.history._messages = messages[:-1] if hasattr(context.history, "_messages") else []
 
 
 @then("the last message should be gone")
@@ -269,7 +274,7 @@ def step_last_message_should_be_gone(context):
 def step_truncate_history(context, count):
     """Truncate history to specified length."""
     messages = context.history.get()
-    context.history._messages = messages[-count:] if hasattr(context.history, '_messages') else []
+    context.history._messages = messages[-count:] if hasattr(context.history, "_messages") else []
 
 
 @then("it should keep the most recent messages")
@@ -283,6 +288,7 @@ def step_should_keep_most_recent_messages(context):
 def step_tactus_history_with_messages(context):
     """Create Tactus History with messages."""
     from tactus.dspy import create_history
+
     context.history = create_history()
     context.history.add({"role": "user", "content": "Test message"})
 
@@ -316,6 +322,7 @@ def step_given_dspy_history_object(context):
 def step_create_tactus_history_from_dspy(context):
     """Create Tactus History from DSPy History."""
     from tactus.dspy import create_history
+
     context.history = create_history()
     # Mock conversion
     for msg in context.dspy_history.get("messages", []):
@@ -339,6 +346,7 @@ def step_format_should_be_correct(context):
 def step_history_with_qa_pairs(context):
     """Create History with Q&A pairs."""
     from tactus.dspy import create_history
+
     context.history = create_history()
     context.history.add({"role": "user", "content": "What is 2+2?"})
     context.history.add({"role": "assistant", "content": "4"})
@@ -367,6 +375,7 @@ def step_provide_contextually_aware_response(context):
 def step_given_empty_history(context):
     """Create an empty History."""
     from tactus.dspy import create_history
+
     context.history = create_history()
 
 
@@ -433,6 +442,7 @@ def step_should_get_valid_json(context):
 def step_can_deserialize_back(context):
     """Verify can deserialize back to History."""
     from tactus.dspy import create_history
+
     parsed = json.loads(context.serialized_history)
     new_history = create_history()
     for msg in parsed:
@@ -464,6 +474,7 @@ def step_per_message_token_counts(context):
 def step_given_saved_history(context):
     """Create a saved History."""
     from tactus.dspy import create_history
+
     context.history = create_history()
     context.history.add({"role": "user", "content": "Saved message"})
     context.saved_history_data = context.history.get()
@@ -491,6 +502,7 @@ def step_can_load_later(context):
 def step_load_history(context):
     """Load the history."""
     from tactus.dspy import create_history
+
     context.history = create_history()
     for msg in context.saved_history_data:
         context.history.add(msg)
@@ -534,6 +546,7 @@ def step_try_add_message_with_role(context, role):
 def step_history_approaching_token_limit(context):
     """Create History approaching token limit."""
     from tactus.dspy import create_history
+
     context.history = create_history()
     for i in range(50):
         context.history.add({"role": "user", "content": f"Message {i}"})
@@ -578,5 +591,3 @@ def step_older_messages_excluded(context):
     """Verify older messages are excluded."""
     # Mock verification
     assert True
-
-

@@ -4,14 +4,15 @@ import json
 from behave import given, when, then
 
 
-@when('I create a Module with {strategy} strategy')
+@when("I create a Module with {strategy} strategy")
 def step_create_module_with_strategy(context, strategy):
     """Create Module with specified strategy."""
     from tactus.dspy import create_module
+
     context.module = create_module("test", {"signature": "input -> output", "strategy": strategy})
 
 
-@then('the Module should use {strategy} strategy')
+@then("the Module should use {strategy} strategy")
 def step_module_uses_strategy(context, strategy):
     """Check Module uses specified strategy."""
     assert context.module is not None
@@ -20,25 +21,26 @@ def step_module_uses_strategy(context, strategy):
 @then("the Module should respond")
 def step_module_responds(context):
     """Check Module produced a response."""
-    assert hasattr(context, 'module_result')
+    assert hasattr(context, "module_result")
 
 
 @then("the response should be relevant")
 def step_response_relevant(context):
     """Check response is relevant."""
-    assert hasattr(context, 'module_result') and context.module_result is not None
+    assert hasattr(context, "module_result") and context.module_result is not None
 
 
-@then('the Module should return a prediction')
+@then("the Module should return a prediction")
 def step_module_returns_prediction(context):
     """Check Module returns prediction."""
-    assert hasattr(context, 'module_result')
+    assert hasattr(context, "module_result")
 
 
 @when('I create a Module with signature "{sig_str}" and strategy "{strategy}"')
 def step_create_module_with_sig_and_strategy(context, sig_str, strategy):
     """Create Module with signature and strategy."""
     from tactus.dspy import create_module
+
     context.module = create_module("test", {"signature": sig_str, "strategy": strategy})
 
 
@@ -89,11 +91,8 @@ def step_tactus_procedure_with_module(context):
         context.builder = builder
 
 
-@given('a Module with signature "{sig_str}"')
-def step_given_module_with_signature(context, sig_str):
-    """Create a Module with specified signature."""
-    from tactus.dspy import create_module
-    context.module = create_module("test", {"signature": sig_str, "strategy": "predict"})
+# Note: There's also a step for 'a Module with signature "{sig_str}" and strategy "{strategy}"' below
+# which handles more specific cases
 
 
 @when('I invoke the Module with input "{input_text}"')
@@ -103,11 +102,7 @@ def step_invoke_module_with_input(context, input_text):
     context.module_result = {"summary": "This is a summary of the text"}
 
 
-@then('the prediction should have field "{field_name}"')
-def step_prediction_has_field(context, field_name):
-    """Verify prediction has specified field."""
-    assert context.module_result is not None
-    assert field_name in context.module_result
+# Removed duplicate: 'the prediction should have field "{field}"' - now in dspy_prediction_steps.py
 
 
 @when("I invoke the Module with:")
@@ -116,8 +111,8 @@ def step_invoke_module_with_table(context):
     # Parse inputs from table
     inputs = {}
     for row in context.table:
-        field = row['field']
-        value = row['value']
+        field = row["field"]
+        value = row["value"]
         inputs[field] = value
 
     # Mock invocation
@@ -128,6 +123,7 @@ def step_invoke_module_with_table(context):
 def step_create_module_string_signature(context, sig_str):
     """Create Module with string signature."""
     from tactus.dspy import create_module
+
     # Remove quotes if present
     sig = sig_str.strip('"')
     context.module = create_module("test", {"signature": sig, "strategy": "predict"})
@@ -143,6 +139,7 @@ def step_module_uses_string_signature(context):
 def step_create_module_structured_signature(context):
     """Create Module with structured signature from JSON."""
     from tactus.dspy import create_module
+
     config = json.loads(context.text)
     context.module = create_module("test", config)
 
@@ -157,6 +154,7 @@ def step_module_uses_structured_signature(context):
 def step_given_signature(context, sig_str):
     """Create a signature for use with Module."""
     from tactus.dspy import create_signature
+
     context.signature = create_signature(sig_str)
 
 
@@ -164,6 +162,7 @@ def step_given_signature(context, sig_str):
 def step_create_module_with_precreated_signature(context):
     """Create Module with pre-created signature."""
     from tactus.dspy import create_module
+
     context.module = create_module("test", {"signature": context.signature, "strategy": "predict"})
 
 
@@ -188,8 +187,11 @@ def step_invoke_module_without_field(context, field_name):
 def step_try_create_module_invalid_strategy(context, strategy):
     """Try to create Module with invalid strategy."""
     from tactus.dspy import create_module
+
     try:
-        context.module = create_module("test", {"signature": "input -> output", "strategy": strategy})
+        context.module = create_module(
+            "test", {"signature": "input -> output", "strategy": strategy}
+        )
         context.module_error = None
     except Exception as e:
         context.module_error = e
@@ -200,6 +202,7 @@ def step_try_create_module_invalid_strategy(context, strategy):
 def step_try_create_module_without_signature(context):
     """Try to create Module without signature."""
     from tactus.dspy import create_module
+
     try:
         context.module = create_module("test", {"strategy": "predict"})
         context.module_error = None
@@ -212,6 +215,7 @@ def step_try_create_module_without_signature(context):
 def step_create_module_custom_parameters(context):
     """Create Module with custom parameters from JSON."""
     from tactus.dspy import create_module
+
     config = json.loads(context.text)
     context.module = create_module("test", config)
     context.module_config = config
@@ -221,13 +225,14 @@ def step_create_module_custom_parameters(context):
 def step_module_uses_temperature(context, temperature):
     """Verify Module uses specified temperature."""
     assert context.module is not None
-    assert context.module_config.get('temperature') == temperature
+    assert context.module_config.get("temperature") == temperature
 
 
 @when("I create a Module with token limit:")
 def step_create_module_with_token_limit(context):
     """Create Module with token limit."""
     from tactus.dspy import create_module
+
     config = json.loads(context.text)
     context.module = create_module("test", config)
     context.module_config = config
@@ -237,13 +242,14 @@ def step_create_module_with_token_limit(context):
 def step_module_limits_tokens(context, max_tokens):
     """Verify Module limits output tokens."""
     assert context.module is not None
-    assert context.module_config.get('max_tokens') == max_tokens
+    assert context.module_config.get("max_tokens") == max_tokens
 
 
 @given('a Module with signature "{sig_str}" and strategy "{strategy}"')
 def step_given_module_with_sig_and_strategy(context, sig_str, strategy):
     """Create Module with signature and strategy."""
     from tactus.dspy import create_module
+
     context.module = create_module("test", {"signature": sig_str, "strategy": strategy})
 
 
@@ -251,6 +257,7 @@ def step_given_module_with_sig_and_strategy(context, sig_str, strategy):
 def step_given_conversation_history(context):
     """Create conversation history."""
     from tactus.dspy import create_history
+
     context.history = create_history()
     context.history.add({"role": "user", "content": "What is 2+2?"})
     context.history.add({"role": "assistant", "content": "4"})
@@ -311,8 +318,8 @@ def step_strategy_planned_for_future(context, strategy):
 def step_inspect_module_configuration(context):
     """Inspect Module configuration."""
     context.module_inspection = {
-        "signature": context.module.signature if hasattr(context.module, 'signature') else None,
-        "strategy": context.module.strategy if hasattr(context.module, 'strategy') else None
+        "signature": context.module.signature if hasattr(context.module, "signature") else None,
+        "strategy": context.module.strategy if hasattr(context.module, "strategy") else None,
     }
 
 
@@ -338,14 +345,13 @@ def step_should_see_custom_parameters(context):
 def step_create_module_with_verbose(context):
     """Create Module with verbose flag."""
     from tactus.dspy import create_module
+
     config = json.loads(context.text)
     context.module = create_module("test", config)
-    context.module_verbose = config.get('verbose', False)
+    context.module_verbose = config.get("verbose", False)
 
 
 @then("the Module should provide detailed execution information")
 def step_module_provides_detailed_info(context):
     """Verify Module provides detailed execution information."""
     assert context.module_verbose is True
-
-

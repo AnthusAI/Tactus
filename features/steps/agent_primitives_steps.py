@@ -373,16 +373,18 @@ def step_impl(context):
 def step_impl(context):
     """Verify error was raised or response is invalid."""
     # Either explicit error or empty/invalid response
-    has_error = hasattr(context, 'error') and context.error is not None
+    has_error = hasattr(context, "error") and context.error is not None
 
     # Check agent_response if it exists (for agent scenarios)
     invalid_response = False
-    if hasattr(context, 'agent_response'):
+    if hasattr(context, "agent_response"):
         invalid_response = context.agent_response is None or not context.agent_response
 
     # For non-agent scenarios (like DSPy LM config), just check for explicit error
-    if not hasattr(context, 'agent_response'):
-        assert has_error, f"Expected error to be raised, got error={getattr(context, 'error', None)}"
+    if not hasattr(context, "agent_response"):
+        assert (
+            has_error
+        ), f"Expected error to be raised, got error={getattr(context, 'error', None)}"
     else:
         assert (
             has_error or invalid_response

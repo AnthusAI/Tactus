@@ -1185,6 +1185,7 @@ def create_dsl_stubs(builder: RegistryBuilder, tool_primitive: Any = None) -> di
             The current LM instance or None if not configured
         """
         from tactus.dspy import get_current_lm
+
         return get_current_lm()
 
     return {
