@@ -175,11 +175,14 @@ def step_impl(context):
 @then('the error should mention "{text}"')
 def step_impl(context, text):
     """Assert that the error message contains specific text."""
-    if context.validation_error:
+    if hasattr(context, 'validation_error') and context.validation_error:
         error_msg = str(context.validation_error).lower()
-    elif context.validation_result and context.validation_result.errors:
+    elif hasattr(context, 'validation_result') and context.validation_result and context.validation_result.errors:
         # errors is a list of ValidationMessage objects
         error_msg = " ".join(str(e.message) for e in context.validation_result.errors).lower()
+    elif hasattr(context, 'error') and context.error:
+        # Also check context.error for DSPy and other error scenarios
+        error_msg = str(context.error).lower()
     else:
         raise AssertionError("No error message found")
 
