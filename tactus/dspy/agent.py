@@ -60,6 +60,7 @@ class DSPyAgentHandle:
         output_schema: Optional[Dict[str, Any]] = None,
         temperature: float = 0.7,
         max_tokens: Optional[int] = None,
+        initial_message: Optional[str] = None,
         **kwargs: Any,
     ):
         """
@@ -75,6 +76,7 @@ class DSPyAgentHandle:
             output_schema: Optional structured output schema
             temperature: Model temperature (default: 0.7)
             max_tokens: Maximum tokens for response
+            initial_message: Initial message to send on first turn if no inject
             **kwargs: Additional configuration
         """
         self.name = name
@@ -86,6 +88,7 @@ class DSPyAgentHandle:
         self.output_schema = output_schema
         self.temperature = temperature
         self.max_tokens = max_tokens
+        self.initial_message = initial_message
         self.kwargs = kwargs
 
         # Initialize conversation history
@@ -101,8 +104,12 @@ class DSPyAgentHandle:
         """Build the internal DSPy module for this agent."""
         # Create a signature for agent turns
         # Input: system_prompt, history, user_message, available_tools
-        # Output: response (and optionally tool_calls)
-        signature = "system_prompt, history, user_message -> response"
+        # Output: response and tool_calls (if tools are needed)
+        # Include tools in the signature if they're available
+        if self.tools or self.toolsets:
+            signature = "system_prompt, history, user_message, available_tools -> response, tool_calls"
+        else:
+            signature = "system_prompt, history, user_message -> response"
 
         return create_module(
             f"{self.name}_module",
@@ -135,8 +142,25 @@ class DSPyAgentHandle:
         self._turn_count += 1
         logger.debug(f"Agent '{self.name}' turn {self._turn_count}")
 
+        # Auto-configure LM if not already configured
+        from tactus.dspy.config import get_current_lm, configure_lm
+        if get_current_lm() is None and self.model:
+            # Convert model format from "provider:model" to "provider/model" for LiteLLM
+            model_for_litellm = self.model.replace(":", "/") if ":" in self.model else self.model
+            logger.info(f"Auto-configuring DSPy LM with model: {model_for_litellm}")
+            configure_lm(
+                model_for_litellm,
+                temperature=self.temperature,
+                max_tokens=self.max_tokens,
+            )
+
         # Extract options
         user_message = opts.get("inject")
+
+        # Use initial_message on first turn if no inject provided
+        if self._turn_count == 1 and not user_message and self.initial_message:
+            user_message = self.initial_message
+
         opts.get("tools")
         opts.get("toolsets")
         context = opts.get("context")
@@ -152,6 +176,17 @@ class DSPyAgentHandle:
             "user_message": user_message or "",
         }
 
+        # Add available tools if agent has them
+        if self.tools or self.toolsets:
+            # Format tools for the prompt
+            tool_descriptions = []
+            if self.toolsets:
+                # Convert toolsets to strings if they're not already
+                toolset_names = [str(ts) if not isinstance(ts, str) else ts for ts in self.toolsets]
+                tool_descriptions.append(f"Available toolsets: {', '.join(toolset_names)}")
+                tool_descriptions.append("Use the 'done' tool with a 'reason' parameter to complete the task.")
+            prompt_context["available_tools"] = "\n".join(tool_descriptions) if tool_descriptions else "No tools available"
+
         # Add any injected context (user_message is already in prompt_context)
         if context:
             prompt_context["context"] = context
@@ -166,6 +201,26 @@ class DSPyAgentHandle:
 
             # Wrap the result
             result = wrap_prediction(dspy_result)
+
+            # Check if we have tool_calls to execute
+            if hasattr(result, "tool_calls") and result.tool_calls and self._tool_primitive:
+                # Parse and execute tool calls
+                # This is a simple implementation - proper tool handling would use ReAct
+                if "done" in str(result.tool_calls).lower():
+                    # Extract reason from the tool call or response
+                    reason = "Task completed"
+                    if hasattr(result, "response"):
+                        reason = result.response
+
+                    # Record that the done tool was called
+                    logger.info(f"Recording done tool call with reason: {reason}")
+                    # Record the call so Tool.called("done") returns true
+                    self._tool_primitive.record_call(
+                        "done",
+                        {"reason": reason},
+                        {"status": "completed", "reason": reason, "tool": "done"},
+                        agent_name=self.name
+                    )
 
             # Add to history
             if user_message:
@@ -225,6 +280,7 @@ def create_dspy_agent(
         output_schema=config.get("output_schema") or config.get("output"),
         temperature=config.get("temperature", 0.7),
         max_tokens=config.get("max_tokens"),
+        initial_message=config.get("initial_message"),
         **{
             k: v
             for k, v in config.items()
@@ -239,6 +295,7 @@ def create_dspy_agent(
                 "output",
                 "temperature",
                 "max_tokens",
+                "initial_message",
             ]
         },
     )

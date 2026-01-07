@@ -1640,7 +1640,7 @@ class TactusRuntime:
 
             # initial_message is optional - if not provided, will default to empty string or manual injection
             initial_message_raw = agent_config.get("initial_message", "")
-            (self._process_template(initial_message_raw, context) if initial_message_raw else "")
+            initial_message = self._process_template(initial_message_raw, context) if initial_message_raw else ""
 
             # Provider is required - no defaults
             provider_name = agent_config.get("provider") or self.config.get("default_provider")
@@ -1829,6 +1829,7 @@ class TactusRuntime:
                 "temperature": model_settings.get("temperature", 0.7) if model_settings else 0.7,
                 "max_tokens": model_settings.get("max_tokens") if model_settings else None,
                 "disable_streaming": agent_config.get("disable_streaming", False),
+                "initial_message": initial_message,
             }
 
             # Create DSPy agent
