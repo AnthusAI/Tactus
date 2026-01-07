@@ -8,6 +8,7 @@ def step_dspy_installed(context):
     """Verify DSPy is installed."""
     try:
         import dspy
+
         context.dspy = dspy
     except ImportError as e:
         raise AssertionError(f"DSPy is not installed: {e}")
@@ -17,6 +18,7 @@ def step_dspy_installed(context):
 def step_dspy_importable(context):
     """Verify DSPy can be imported."""
     import dspy
+
     assert dspy is not None
     assert hasattr(dspy, "LM")
     assert hasattr(dspy, "Signature")
@@ -27,6 +29,7 @@ def step_dspy_importable(context):
 def step_tactus_dspy_importable(context):
     """Verify tactus.dspy module can be imported."""
     import tactus.dspy
+
     assert tactus.dspy is not None
     assert hasattr(tactus.dspy, "configure_lm")
     assert hasattr(tactus.dspy, "get_current_lm")
@@ -36,6 +39,7 @@ def step_tactus_dspy_importable(context):
 def step_configure_lm(context, model):
     """Configure an LM with the given model."""
     from tactus.dspy import configure_lm
+
     # Use a mock API key for testing (won't actually make calls)
     context.lm = configure_lm(model, api_key="test-key")
 
@@ -50,6 +54,7 @@ def step_lm_available(context):
 def step_current_lm_set(context):
     """Verify the current LM is set globally."""
     from tactus.dspy import get_current_lm
+
     current = get_current_lm()
     assert current is not None
     assert current == context.lm
@@ -58,7 +63,7 @@ def step_current_lm_set(context):
 @given("a Tactus procedure that uses the LM primitive")
 def step_tactus_lm_procedure(context):
     """Create a Tactus procedure that uses the LM primitive."""
-    context.tac_code = '''
+    context.tac_code = """
 LM("openai/gpt-4o-mini", { api_key = "test-key" })
 
 Procedure "main" {
@@ -66,7 +71,7 @@ Procedure "main" {
         return {}
     end
 }
-'''
+"""
 
 
 @when("the procedure is parsed")
@@ -94,6 +99,7 @@ def step_parse_procedure(context):
 def step_lm_configured(context):
     """Verify the LM was configured during parsing."""
     from tactus.dspy import get_current_lm
+
     current = get_current_lm()
     assert current is not None
 
@@ -103,6 +109,7 @@ def step_lm_configured(context):
 def step_create_signature(context, sig_str):
     """Create a signature from string."""
     from tactus.dspy import create_signature
+
     context.signature = create_signature(sig_str)
 
 
@@ -112,7 +119,9 @@ def step_has_input_field(context, field_name):
     sig = context.signature
     # DSPy 3.x uses input_fields property
     input_fields = sig.input_fields
-    assert field_name in input_fields, f"Field '{field_name}' not in input fields: {list(input_fields.keys())}"
+    assert (
+        field_name in input_fields
+    ), f"Field '{field_name}' not in input fields: {list(input_fields.keys())}"
 
 
 @then('it should have output field "{field_name}"')
@@ -121,7 +130,9 @@ def step_has_output_field(context, field_name):
     sig = context.signature
     # DSPy 3.x uses output_fields property
     output_fields = sig.output_fields
-    assert field_name in output_fields, f"Field '{field_name}' not in output fields: {list(output_fields.keys())}"
+    assert (
+        field_name in output_fields
+    ), f"Field '{field_name}' not in output fields: {list(output_fields.keys())}"
 
 
 @then('it should have input fields "{field1}" and "{field2}"')
@@ -130,7 +141,9 @@ def step_has_input_fields(context, field1, field2):
     sig = context.signature
     input_fields = sig.input_fields
     for field_name in [field1, field2]:
-        assert field_name in input_fields, f"Field '{field_name}' not in input fields: {list(input_fields.keys())}"
+        assert (
+            field_name in input_fields
+        ), f"Field '{field_name}' not in input fields: {list(input_fields.keys())}"
 
 
 @then('it should have output fields "{field1}" and "{field2}"')
@@ -139,13 +152,15 @@ def step_has_output_fields(context, field1, field2):
     sig = context.signature
     output_fields = sig.output_fields
     for field_name in [field1, field2]:
-        assert field_name in output_fields, f"Field '{field_name}' not in output fields: {list(output_fields.keys())}"
+        assert (
+            field_name in output_fields
+        ), f"Field '{field_name}' not in output fields: {list(output_fields.keys())}"
 
 
 @given("a Tactus procedure that uses the Signature primitive")
 def step_tactus_signature_procedure(context):
     """Create a Tactus procedure that uses the Signature primitive."""
-    context.tac_code = '''
+    context.tac_code = """
 local sig = Signature("question -> answer")
 
 Procedure "main" {
@@ -153,7 +168,7 @@ Procedure "main" {
         return {}
     end
 }
-'''
+"""
     context.expected_signature = True
 
 
@@ -171,14 +186,12 @@ def step_create_structured_signature(context):
     """Create a structured signature with field descriptions."""
     from tactus.dspy import create_signature
 
-    context.signature = create_signature({
-        "input": {
-            "question": {"type": "string", "description": "The question to answer"}
-        },
-        "output": {
-            "answer": {"type": "string", "description": "The answer"}
+    context.signature = create_signature(
+        {
+            "input": {"question": {"type": "string", "description": "The question to answer"}},
+            "output": {"answer": {"type": "string", "description": "The answer"}},
         }
-    })
+    )
 
 
 @then('input field "{field_name}" should have description "{description}"')
@@ -186,7 +199,9 @@ def step_has_input_field_with_desc(context, field_name, description):
     """Verify signature has input field with description."""
     sig = context.signature
     input_fields = sig.input_fields
-    assert field_name in input_fields, f"Field '{field_name}' not in input fields: {list(input_fields.keys())}"
+    assert (
+        field_name in input_fields
+    ), f"Field '{field_name}' not in input fields: {list(input_fields.keys())}"
 
     # Check the description
     field = input_fields[field_name]
@@ -194,8 +209,9 @@ def step_has_input_field_with_desc(context, field_name, description):
     field_desc = getattr(field, "description", None) or ""
     if hasattr(field, "json_schema_extra") and field.json_schema_extra:
         field_desc = field.json_schema_extra.get("desc", field_desc)
-    assert description in str(field_desc) or field_desc == description, \
-        f"Field '{field_name}' description mismatch: expected '{description}', got '{field_desc}'"
+    assert (
+        description in str(field_desc) or field_desc == description
+    ), f"Field '{field_name}' description mismatch: expected '{description}', got '{field_desc}'"
 
 
 @then('output field "{field_name}" should have description "{description}"')
@@ -203,21 +219,24 @@ def step_has_output_field_with_desc(context, field_name, description):
     """Verify signature has output field with description."""
     sig = context.signature
     output_fields = sig.output_fields
-    assert field_name in output_fields, f"Field '{field_name}' not in output fields: {list(output_fields.keys())}"
+    assert (
+        field_name in output_fields
+    ), f"Field '{field_name}' not in output fields: {list(output_fields.keys())}"
 
     # Check the description
     field = output_fields[field_name]
     field_desc = getattr(field, "description", None) or ""
     if hasattr(field, "json_schema_extra") and field.json_schema_extra:
         field_desc = field.json_schema_extra.get("desc", field_desc)
-    assert description in str(field_desc) or field_desc == description, \
-        f"Field '{field_name}' description mismatch: expected '{description}', got '{field_desc}'"
+    assert (
+        description in str(field_desc) or field_desc == description
+    ), f"Field '{field_name}' description mismatch: expected '{description}', got '{field_desc}'"
 
 
 @given("a Tactus procedure with a structured Signature")
 def step_tactus_structured_signature_procedure(context):
     """Create a Tactus procedure that uses the structured Signature primitive."""
-    context.tac_code = '''
+    context.tac_code = """
 local sig = Signature "qa" {
     input = {
         question = field.string{description = "The question to answer"}
@@ -232,7 +251,7 @@ Procedure "main" {
         return {}
     end
 }
-'''
+"""
     context.expected_structured_signature = True
 
 
@@ -250,10 +269,7 @@ def step_create_module_predict(context):
     """Create a Module with predict strategy."""
     from tactus.dspy import create_module
 
-    context.module = create_module("qa", {
-        "signature": "question -> answer",
-        "strategy": "predict"
-    })
+    context.module = create_module("qa", {"signature": "question -> answer", "strategy": "predict"})
 
 
 @then("the Module should be callable")
@@ -265,14 +281,15 @@ def step_module_callable(context):
 @then('the Module should have strategy "{strategy}"')
 def step_module_strategy(context, strategy):
     """Verify the Module has the expected strategy."""
-    assert context.module.strategy == strategy, \
-        f"Module strategy mismatch: expected '{strategy}', got '{context.module.strategy}'"
+    assert (
+        context.module.strategy == strategy
+    ), f"Module strategy mismatch: expected '{strategy}', got '{context.module.strategy}'"
 
 
 @given("a Tactus procedure that uses the Module primitive")
 def step_tactus_module_procedure(context):
     """Create a Tactus procedure that uses the Module primitive."""
-    context.tac_code = '''
+    context.tac_code = """
 local qa = Module "qa" {
     signature = "question -> answer",
     strategy = "predict"
@@ -283,7 +300,7 @@ Procedure "main" {
         return {}
     end
 }
-'''
+"""
     context.expected_module = True
 
 
@@ -300,16 +317,15 @@ def step_create_module_cot(context):
     """Create a Module with chain_of_thought strategy."""
     from tactus.dspy import create_module
 
-    context.module = create_module("reasoner", {
-        "signature": "question -> reasoning, answer",
-        "strategy": "chain_of_thought"
-    })
+    context.module = create_module(
+        "reasoner", {"signature": "question -> reasoning, answer", "strategy": "chain_of_thought"}
+    )
 
 
 @given("a Tactus procedure that uses the chain_of_thought Module")
 def step_tactus_cot_module_procedure(context):
     """Create a Tactus procedure that uses the chain_of_thought Module."""
-    context.tac_code = '''
+    context.tac_code = """
 local reasoner = Module "reasoner" {
     signature = "question -> reasoning, answer",
     strategy = "chain_of_thought"
@@ -320,7 +336,7 @@ Procedure "main" {
         return {}
     end
 }
-'''
+"""
     context.expected_module = True
 
 
@@ -329,6 +345,7 @@ Procedure "main" {
 def step_create_history(context):
     """Create a new History."""
     from tactus.dspy import create_history
+
     context.history = create_history()
 
 
@@ -341,8 +358,7 @@ def step_add_message(context):
 @then("the history should have {count:d} message")
 def step_history_count(context, count):
     """Verify history has expected number of messages."""
-    assert len(context.history) == count, \
-        f"Expected {count} messages, got {len(context.history)}"
+    assert len(context.history) == count, f"Expected {count} messages, got {len(context.history)}"
 
 
 @then("I can retrieve the messages")
@@ -357,7 +373,7 @@ def step_retrieve_messages(context):
 @given("a Tactus procedure that uses the History primitive")
 def step_tactus_history_procedure(context):
     """Create a Tactus procedure that uses the History primitive."""
-    context.tac_code = '''
+    context.tac_code = """
 local history = History()
 
 Procedure "main" {
@@ -365,7 +381,7 @@ Procedure "main" {
         return {}
     end
 }
-'''
+"""
     context.expected_history = True
 
 
@@ -382,10 +398,8 @@ def step_history_usable(context):
 def step_create_prediction(context):
     """Create a Prediction with some fields."""
     from tactus.dspy import create_prediction
-    context.prediction = create_prediction(
-        answer="42",
-        reasoning="The answer to everything"
-    )
+
+    context.prediction = create_prediction(answer="42", reasoning="The answer to everything")
 
 
 @then("I can access prediction fields as attributes")
@@ -431,10 +445,13 @@ def step_create_dspy_agent(context):
     """Create a DSPy Agent with system prompt."""
     from tactus.dspy import create_dspy_agent
 
-    context.agent = create_dspy_agent("test_agent", {
-        "system_prompt": "You are a helpful assistant.",
-        "model": "openai/gpt-4o-mini",
-    })
+    context.agent = create_dspy_agent(
+        "test_agent",
+        {
+            "system_prompt": "You are a helpful assistant.",
+            "model": "openai/gpt-4o-mini",
+        },
+    )
 
 
 @then("the agent should have a turn method")
