@@ -475,14 +475,5 @@ def step_access_agent_history(context):
     context.agent_history = context.agent.get_history()
 
 
-@then("the history should be empty initially")
-def step_history_empty_initially(context):
-    """Verify history is empty."""
-    assert len(context.agent_history) == 0
-
-
-@then("I can add messages to the agent's history")
-def step_add_to_agent_history(context):
-    """Verify messages can be added to agent history."""
-    context.agent.history.add({"role": "user", "content": "Hello"})
-    assert len(context.agent.get_history()) == 1
+# Removed duplicates: "the history should be empty initially" and "I can add messages to the agent's history"
+# These are now defined in dspy_agent_steps.py

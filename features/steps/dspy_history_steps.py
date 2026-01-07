@@ -527,9 +527,9 @@ def step_try_add_invalid_message(context):
     """Try to add invalid message without role."""
     try:
         context.history.add({"content": "Message without role"})
-        context.history_error = None
+        context.error = None
     except Exception as e:
-        context.history_error = e
+        context.error = e
 
 
 @when('I try to add a message with role "{role}"')
@@ -537,9 +537,9 @@ def step_try_add_message_with_role(context, role):
     """Try to add message with specific role."""
     try:
         context.history.add({"role": role, "content": "Test message"})
-        context.history_error = None
+        context.error = None
     except Exception as e:
-        context.history_error = e
+        context.error = e
 
 
 @given("a History approaching token limit")
@@ -591,3 +591,62 @@ def step_older_messages_excluded(context):
     """Verify older messages are excluded."""
     # Mock verification
     assert True
+
+
+# Additional missing step definitions
+
+
+@when("I create a History")
+def step_when_create_history(context):
+    """Create a new History (when form)."""
+    from tactus.dspy import create_history
+
+    context.history = create_history()
+
+
+@when("I add a message to history")
+def step_when_add_message_to_history(context):
+    """Add a message to history (when form)."""
+    context.history.add({"role": "user", "content": "Test message"})
+
+
+@then("the history should have 1 message")
+def step_history_has_one_message(context):
+    """Verify history has exactly 1 message."""
+    assert len(context.history) == 1, f"Expected 1 message, got {len(context.history)}"
+
+
+@then("I can retrieve the messages")
+def step_can_retrieve_messages(context):
+    """Verify messages can be retrieved."""
+    messages = context.history.get()
+    assert isinstance(messages, list)
+    assert len(messages) > 0
+
+
+@given("a History with messages")
+def step_given_history_with_messages(context):
+    """Create a History with messages (without table)."""
+    from tactus.dspy import create_history
+
+    context.history = create_history()
+    context.history.add({"role": "user", "content": "Question 1"})
+    context.history.add({"role": "assistant", "content": "Answer 1"})
+
+
+@given("a History with conversation")
+def step_given_history_with_conversation(context):
+    """Create a History with conversation."""
+    from tactus.dspy import create_history
+
+    context.history = create_history()
+    context.history.add({"role": "user", "content": "Hello"})
+    context.history.add({"role": "assistant", "content": "Hi there!"})
+
+
+@given("a History")
+def step_given_history(context):
+    """Create a History (simple form)."""
+    from tactus.dspy import create_history
+
+    context.history = create_history()

@@ -50,19 +50,85 @@ class TactusHistory:
         Add a message to the history.
 
         Args:
-            message: A dict with keys matching the signature fields
-                    e.g., {"question": "What is 2+2?", "answer": "4"}
+            message: A dict with keys 'role' and 'content'
+                    e.g., {"role": "user", "content": "What is 2+2?"}
+
+        Raises:
+            ValueError: If message lacks required keys or invalid role
         """
+        # Convert Lua tables to dict if needed
+        if hasattr(message, "items"):
+            # It's a Lua table or similar mapping
+            try:
+                message = dict(message.items())
+            except (AttributeError, TypeError):
+                pass
+
+        # Check for required keys
+        if not isinstance(message, dict):
+            raise ValueError("Message must be a dictionary")
+
+        if "role" not in message:
+            raise ValueError("role is required")
+
+        if "content" not in message:
+            raise ValueError("Message must include 'content' key")
+
+        # Validate role
+        valid_roles = ["system", "user", "assistant"]
+        if message["role"] not in valid_roles:
+            raise ValueError(f"Invalid role. Must be one of {valid_roles}")
+
+        # Convert legacy formats if needed
+        if "question" in message and "answer" in message:
+            message = {
+                "role": "user",
+                "content": message.get("question", ""),
+            }
+        elif "answer" in message:
+            message = {
+                "role": "assistant",
+                "content": message.get("answer", ""),
+            }
+
         self._messages.append(message)
 
-    def get(self) -> List[Dict[str, Any]]:
+    def get(
+        self, context_window: Optional[int] = None, token_limit: Optional[int] = None
+    ) -> List[Dict[str, Any]]:
         """
-        Get all messages in the history.
+        Get messages from history, optionally filtered by context window and token limit.
+
+        Args:
+            context_window: Maximum number of recent messages to retrieve
+            token_limit: Maximum number of tokens to include
 
         Returns:
             List of message dictionaries
         """
-        return self._messages.copy()
+        messages = self._messages.copy()
+
+        # Apply context window
+        if context_window is not None:
+            messages = messages[-context_window:]
+
+        # Simple token estimation (approximation)
+        if token_limit is not None:
+            token_count = 0
+            filtered_messages = []
+            for msg in reversed(messages):
+                # Basic token estimation: 1 token per 4 characters
+                msg_tokens = len(msg.get("content", "")) // 4 + len(msg.get("role", "")) // 4 + 4
+
+                if token_count + msg_tokens <= token_limit:
+                    filtered_messages.insert(0, msg)
+                    token_count += msg_tokens
+                else:
+                    break
+
+            messages = filtered_messages
+
+        return messages
 
     def clear(self) -> None:
         """Clear all messages from the history."""
@@ -76,6 +142,18 @@ class TactusHistory:
             A dspy.History instance suitable for passing to DSPy Modules
         """
         return dspy.History(messages=self._messages)
+
+    def count_tokens(self) -> int:
+        """
+        Estimate total tokens in the history.
+
+        Returns:
+            Estimated token count
+        """
+        return sum(
+            len(msg.get("content", "")) // 4 + len(msg.get("role", "")) // 4 + 4
+            for msg in self._messages
+        )
 
     def __len__(self) -> int:
         """Return the number of messages in history."""

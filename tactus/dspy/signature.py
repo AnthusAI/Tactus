@@ -47,6 +47,39 @@ def parse_signature_string(sig_str: str) -> dspy.Signature:
     Raises:
         ValueError: If the signature string is invalid
     """
+    # Validate signature string
+    if not sig_str or not isinstance(sig_str, str):
+        raise ValueError("Signature string cannot be empty")
+
+    # Check for arrow
+    if "->" not in sig_str:
+        raise ValueError("Invalid signature format: must contain exactly one '->' separator")
+
+    parts = sig_str.split("->")
+    if len(parts) != 2:
+        raise ValueError("Invalid signature format: must contain exactly one '->' separator")
+
+    input_part = parts[0].strip()
+    output_part = parts[1].strip()
+
+    # Check for empty fields
+    if not input_part or not output_part:
+        raise ValueError("Signature cannot have empty fields on either side of '->'")
+
+    # Parse field names
+    input_fields = [f.strip() for f in input_part.split(",")]
+    output_fields = [f.strip() for f in output_part.split(",")]
+
+    # Check for empty field names
+    if any(not f for f in input_fields) or any(not f for f in output_fields):
+        raise ValueError("Signature cannot have empty fields")
+
+    # Check for duplicate field names
+    all_fields = input_fields + output_fields
+    if len(all_fields) != len(set(all_fields)):
+        duplicates = [f for f in all_fields if all_fields.count(f) > 1]
+        raise ValueError(f"Signature contains duplicate field names: {', '.join(set(duplicates))}")
+
     # DSPy 3.x can parse signature strings directly
     return dspy.Signature(sig_str)
 

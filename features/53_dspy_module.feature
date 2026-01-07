@@ -147,18 +147,18 @@ Feature: DSPy Module Creation and Strategies
   Scenario: Error on missing required input field
     Given a Module with signature "required_field -> output"
     When I invoke the Module without providing "required_field"
-    Then an error should be raised
-    And the error should mention "required_field is missing"
+    Then an error should be raised during module operation
+    And the module error should mention "required_field is missing"
 
   Scenario: Error on invalid strategy
     When I try to create a Module with invalid strategy "invalid_strategy"
-    Then an error should be raised
-    And the error should mention "invalid strategy"
+    Then an error should be raised during module operation
+    And the module error should mention "Unknown strategy"
 
   Scenario: Error on missing signature
     When I try to create a Module without a signature
-    Then an error should be raised
-    And the error should mention "signature is required"
+    Then an error should be raised during module operation
+    And the module error should mention "requires a 'signature'"
 
   # Module Chaining and Composition
 

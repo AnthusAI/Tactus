@@ -1188,6 +1188,44 @@ def create_dsl_stubs(builder: RegistryBuilder, tool_primitive: Any = None) -> di
 
         return get_current_lm()
 
+    def _dspy_agent(config=None):
+        """
+        Create a DSPy Agent.
+
+        Supports curried syntax: DSPyAgent { system_prompt = "...", ... }
+
+        Args:
+            config: Optional config dict
+
+        Returns:
+            A DSPyAgentHandle instance
+
+        Example (Lua):
+            local agent = DSPyAgent {
+                system_prompt = "You are a helpful assistant"
+            }
+
+            -- Use the agent
+            local result = agent:turn({ input = "Hello" })
+        """
+        from tactus.dspy import create_dspy_agent
+
+        # If config provided directly, create agent
+        if config is not None:
+            config_dict = lua_table_to_dict(config)
+            # Generate a unique name if not provided
+            agent_name = config_dict.pop("name", "dspy_agent")
+            return create_dspy_agent(agent_name, config_dict)
+
+        # Curried form - return function that accepts config
+        def accept_config(cfg):
+            """Accept config and create DSPy agent."""
+            config_dict = lua_table_to_dict(cfg)
+            agent_name = config_dict.pop("name", "dspy_agent")
+            return create_dspy_agent(agent_name, config_dict)
+
+        return accept_config
+
     return {
         # Core declarations (CamelCase - for definitions AND lookups)
         "Agent": HybridAgent(_agent, _Agent),
@@ -1213,6 +1251,7 @@ def create_dsl_stubs(builder: RegistryBuilder, tool_primitive: Any = None) -> di
         "Signature": _signature,
         "Module": _module,
         "History": _history,
+        "DSPyAgent": _dspy_agent,
         # Script mode (top-level declarations)
         "input": _input,
         "output": _output,
