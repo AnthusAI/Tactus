@@ -171,7 +171,7 @@ def mock_mcp_server():
                 "example_tool": {
                     "name": "example_tool",
                     "description": "An example MCP tool",
-                    "parameters": {"input": "string"},
+                    "input": {"input": "string"},
                 }
             }
             self.call_count = 0

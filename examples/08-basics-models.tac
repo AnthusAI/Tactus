@@ -4,21 +4,13 @@
 -- Requires OpenAI API key and AWS Bedrock credentials in .tactus/config.yml (region: us-east-1)
 
 -- Define completion tool
-tool "done" {
-    description = "Signal completion of the task",
-        parameters = {
-            reason = {type = "string", required = true, description = "Completion message"}
-        },
-    function(args)
-    return "Done: " .. args.reason
-end
-}
+Tool "done" { use = "tactus.done" }
 
 -- Common prompt for all models
 local common_prompt = "Explain quantum entanglement in exactly 2 sentences."
 
 -- OpenAI Models
-agent "gpt4o" {
+Agent "gpt4o" {
     provider = "openai",
     model = "gpt-4o",
     system_prompt = "You are a physics expert. Be concise and accurate.",
@@ -30,7 +22,7 @@ agent "gpt4o" {
     }
 }
 
-agent "gpt4o_mini" {
+Agent "gpt4o_mini" {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = "You are a physics expert. Be concise and accurate.",
@@ -42,7 +34,7 @@ agent "gpt4o_mini" {
     }
 }
 
-agent "gpt35_turbo" {
+Agent "gpt35_turbo" {
     provider = "openai",
     model = "gpt-3.5-turbo",
     system_prompt = "You are a physics expert. Be concise and accurate.",
@@ -55,7 +47,7 @@ agent "gpt35_turbo" {
 }
 
 -- Anthropic Models via Bedrock
-agent "claude_haiku" {
+Agent "claude_haiku" {
     provider = "bedrock",
     model = "us.anthropic.claude-haiku-4-5-20251001-v1:0",
     system_prompt = "You are a physics expert. Be concise and accurate.",
@@ -67,7 +59,7 @@ agent "claude_haiku" {
 }
 
 -- Meta Llama Models via Bedrock (doesn't support tool calling)
-agent "llama_8b" {
+Agent "llama_8b" {
     provider = "bedrock",
     model = "us.meta.llama3-1-8b-instruct-v1:0",
     system_prompt = "You are a physics expert. Be concise and accurate.",
@@ -82,7 +74,7 @@ agent "llama_8b" {
 -- Models without tool support - just get direct responses
 -- NOTE: Llama 3.2 3B doesn't support tool calling in AWS Bedrock's Converse API.
 -- Tactus automatically detects this and configures the model profile appropriately.
-agent "llama_3b" {
+Agent "llama_3b" {
     provider = "bedrock",
     model = "us.meta.llama3-2-3b-instruct-v1:0",
     system_prompt = "You are a physics expert. Be concise and accurate.",
@@ -94,7 +86,7 @@ agent "llama_3b" {
     }
 }
 
-agent "nova_micro" {
+Agent "nova_micro" {
     provider = "bedrock",
     model = "us.amazon.nova-micro-v1:0",
     system_prompt = "You are a physics expert. Be concise and accurate.",
@@ -106,7 +98,7 @@ agent "nova_micro" {
     }
 }
 
-agent "nova_lite" {
+Agent "nova_lite" {
     provider = "bedrock",
     model = "us.amazon.nova-lite-v1:0",
     system_prompt = "You are a physics expert. Be concise and accurate.",
@@ -120,8 +112,11 @@ agent "nova_lite" {
 
 
 -- Procedure to run all models and collect responses
-procedure "main" {
-    function()
+Procedure "main" {
+    output = {
+        result = field.string{description = "Result"}
+    },
+    function(input)
     Log.info("Starting multi-model comparison")
     
     local results = {}
@@ -130,7 +125,7 @@ procedure "main" {
     local function run_agent_with_tools(agent_ref, agent_name)
         Log.info("Running " .. agent_name .. "...")
 
-        local success, result = pcall(function()
+        local success, result = pcall(function(input)
             -- ReAct loop for reliable tool calling
             local response_text = ""
             local max_turns = 3
@@ -175,7 +170,7 @@ procedure "main" {
     local function run_agent_no_tools(agent_ref, agent_name)
         Log.info("Running " .. agent_name .. "...")
 
-        local success, result = pcall(function()
+        local success, result = pcall(function(input)
             local response = agent_ref.turn()
             return {
                 response = response.text or "",
@@ -231,7 +226,7 @@ end
 }
 
 -- BDD Specifications
-specifications([[
+Specifications([[
 Feature: Multi-Model Comparison
   Test multiple LLM models with the same prompt
 

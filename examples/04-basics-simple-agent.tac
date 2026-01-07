@@ -1,41 +1,25 @@
 -- Simple Agent Example
 -- Demonstrates calling an LLM agent using Agent("name").turn()
 
--- Define completion tool (programmers define their own tools)
-tool "done" {
-    description = "Signal completion of the task",
-    parameters = {
-        reason = {type = "string", required = true, description = "Completion message"}
-    },
-    function(args)
-        return "Done: " .. args.reason
-    end
-}
+-- Define completion tool using standard library
+Tool "done" { use = "tactus.done" }
 
 -- Agents (defined at top level - reusable across procedures)
-agent "greeter" {
+Agent "greeter" {
     provider = "openai",
-    system_prompt = [[You are a friendly assistant. When asked to greet someone, provide a warm, friendly greeting. When you're done, call the done tool with the greeting message.  Do not use emojis.
+    system_prompt = [[You are a friendly assistant. When asked to greet someone, provide a warm, friendly greeting. When you're done, call the done tool with reason set to your greeting message.  Do not use emojis.
 ]],
     initial_message = "Please greet the user with a friendly message",
     toolsets = {"done"},
 }
 
 -- Procedure with outputs defined inline
-procedure "main" {
+Procedure "main" {
     output = {
-        greeting = {
-            type = "string",
-            required = true,
-            description = "The greeting message from the agent",
-        },
-        completed = {
-            type = "boolean",
-            required = true,
-            description = "Whether the agent completed successfully",
-        },
+        greeting = field.string{required = true, description = "The greeting message from the agent"},
+        completed = field.boolean{required = true, description = "Whether the agent completed successfully"},
     },
-    function()
+    function(input)
         Log.info("Starting simple agent example")
 
         -- Loop until the agent calls the done tool (with max iterations for safety)
@@ -51,7 +35,16 @@ procedure "main" {
 
         -- Check if agent called the done tool
         if Tool.called("done") then
-          local greeting = Tool.last_call("done").args.reason
+          -- Get the last call to see what the agent passed as reason
+          local call = Tool.last_call("done")
+          local greeting = "Task completed"
+          if call and call.args then
+            -- Safely try to get reason
+            local ok, reason = pcall(function() return call.args["reason"] end)
+            if ok and reason then
+              greeting = reason
+            end
+          end
           Log.info("Agent completed", {greeting = greeting, turns = turn_count})
 
           return {
@@ -69,7 +62,7 @@ procedure "main" {
 }
 
 -- BDD Specifications
-specifications([[
+Specifications([[
 Feature: Simple Agent Interaction
   Demonstrate basic LLM agent interaction with done tool
 

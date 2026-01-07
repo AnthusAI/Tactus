@@ -123,16 +123,16 @@ def test_cli_test_command_mock_mode(tmp_path):
     test_proc = tmp_path / "test.tac"
     test_proc.write_text(
         """
-agent "worker" {
+Agent "worker" {
   provider = "openai",
   model = "gpt-4o-mini",
   system_prompt = "Test",
   tools = {"done"}
 })
 
-stages({"start", "end"})
+Stages({"start", "end"})
 
-main = procedure("main", function()
+main = Procedure("main", function(input)
   Stage.set("start")
   Agent("worker").turn()
   Stage.set("end")

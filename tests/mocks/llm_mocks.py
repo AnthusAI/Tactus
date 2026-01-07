@@ -52,7 +52,7 @@ class MockLLMProvider:
         user_input: str,
         deps: Any = None,
         message_history: List = None,
-        output_type: type = None,
+        output: type = None,
     ):
         """Mock implementation of Agent.run() method."""
         self.call_count += 1
@@ -162,7 +162,7 @@ def create_mock_agent_patch(use_real_api: bool = False):
         user_input: str,
         deps: Any = None,
         message_history: List = None,
-        output_type: type = None,
+        output: type = None,
     ):
         """Patched version of Agent.run() that uses mocks."""
         # Extract model string from Agent instance
@@ -218,14 +218,12 @@ def create_mock_agent_patch(use_real_api: bool = False):
                         break
 
         if mock_provider:
-            return await mock_provider.mock_agent_run(
-                user_input, deps, message_history, output_type
-            )
+            return await mock_provider.mock_agent_run(user_input, deps, message_history, output)
         else:
             # Fallback: create a default mock
             default_mock = MockLLMProvider("openai", model_string)
             default_mock.set_response(f"Default mock response for {model_string}")
-            return await default_mock.mock_agent_run(user_input, deps, message_history, output_type)
+            return await default_mock.mock_agent_run(user_input, deps, message_history, output)
 
     return patch.object(Agent, "run", patched_run)
 

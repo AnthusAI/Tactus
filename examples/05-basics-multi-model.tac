@@ -2,7 +2,7 @@
 -- Demonstrates using multiple OpenAI models in one procedure
 
 -- Agents (defined at top level - reusable across procedures)
-agent "researcher" {
+Agent "researcher" {
     provider = "openai",
     model = "gpt-4o",
     system_prompt = [[You are a researcher. Provide brief research findings (2-3 paragraphs maximum).
@@ -11,7 +11,7 @@ IMPORTANT: You MUST call the 'done' tool when finished, passing your research as
     initial_message = "Please research this topic and call done when finished: {input.topic}",
 }
 
-agent "summarizer" {
+Agent "summarizer" {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[You are a summarizer. Create a brief 1-2 paragraph summary of the provided text.
@@ -21,21 +21,14 @@ IMPORTANT: You MUST call the 'done' tool when finished, passing your summary as 
 }
 
 -- Procedure with input defined inline
-procedure "main" {
+Procedure "main" {
     input = {
-        topic = {
-            type = "string",
-            default = "artificial intelligence",
-        },
+        topic = field.string{default = "artificial intelligence"},
     },
     state = {
-        research = {
-            type = "string",
-            default = "",
-            description = "Research findings"
-        }
+        research = field.string{description = "Research findings", default = ""}
     },
-    function()
+    function(input)
         -- Research phase with GPT-4o
         Log.info("Starting research with GPT-4o...")
         local max_turns = 3
@@ -49,7 +42,7 @@ procedure "main" {
 
         local research
         if Tool.called("done") then
-            research = Tool.last_call("done").args.reason
+            research = Tool.last_result("done") or "Task completed"
         else
             research = result.text or "Research not completed"
             Log.warn("Researcher did not call done within max turns")
@@ -67,7 +60,7 @@ procedure "main" {
 
         local summary
         if Tool.called("done") then
-            summary = Tool.last_call("done").args.reason
+            summary = Tool.last_result("done") or "Task completed"
         else
             summary = result.text or "Summary not completed"
             Log.warn("Summarizer did not call done within max turns")
@@ -82,7 +75,7 @@ procedure "main" {
 }
 
 -- BDD Specifications
-specifications([[
+Specifications([[
 Feature: Multi-Model Workflow
   Demonstrate using multiple OpenAI models in one procedure
 

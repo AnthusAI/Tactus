@@ -4,37 +4,21 @@
 -- operations. On replay, expensive operations are skipped and
 -- cached results are returned instantly.
 
-procedure "main" {
+Procedure "main" {
     input = {
-        iterations = {
-            type = "number",
-            default = 1000,
-            description = "Number of iterations for expensive calculation"
-        }
+        iterations = field.number{description = "Number of iterations for expensive calculation", default = 1000}
     },
     output = {
-        result1 = {
-            type = "number",
-            required = true,
-            description = "Result of first expensive operation"
-        },
-        result2 = {
-            type = "number",
-            required = true,
-            description = "Result of second expensive operation"
-        },
-        total_time_saved = {
-            type = "string",
-            required = true,
-            description = "Time saved by checkpointing"
-        }
+        result1 = field.number{required = true, description = "Result of first expensive operation"},
+        result2 = field.number{required = true, description = "Result of second expensive operation"},
+        total_time_saved = field.string{required = true, description = "Time saved by checkpointing"}
     },
     state = {
-        checkpoints_replayed = {type = "number", default = 0}
+        checkpoints_replayed = field.number{default = 0}
     },
-    function()
+    function(input)
     -- Expensive operation 1: Checkpointed for replay
-    local result1 = checkpoint(function()
+    local result1 = checkpoint(function(input)
         local sum = 0
         for i = 1, input.iterations do
             sum = sum + i * i
@@ -43,7 +27,7 @@ procedure "main" {
     end)
 
     -- Expensive operation 2: Also checkpointed
-    local result2 = checkpoint(function()
+    local result2 = checkpoint(function(input)
         local product = 1
         for i = 1, input.iterations do
             product = (product * i) % 1000000007
@@ -53,8 +37,8 @@ procedure "main" {
 
     -- Check how many checkpoints were replayed vs executed
     local time_saved = "N/A"
-    if state.checkpoints_replayed > 0 then
-        time_saved = "Replayed " .. state.checkpoints_replayed .. " expensive operations"
+    if State.checkpoints_replayed > 0 then
+        time_saved = "Replayed " .. State.checkpoints_replayed .. " expensive operations"
     else
         time_saved = "First run - no replay yet"
     end
@@ -68,7 +52,7 @@ end
 }
 
 -- BDD Specifications
-specifications([[
+Specifications([[
 Feature: Checkpointing Expensive Operations
   As a workflow developer
   I want to checkpoint expensive operations

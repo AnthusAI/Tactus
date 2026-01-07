@@ -4,18 +4,10 @@
 -- Requires GOOGLE_API_KEY in .tactus/config.yml
 
 -- Define completion tool
-tool "done" {
-    description = "Signal completion of the task",
-        parameters = {
-            reason = {type = "string", required = true, description = "Completion message"}
-        },
-    function(args)
-    return "Done: " .. args.reason
-end
-}
+Tool "done" { use = "tactus.done" }
 
 -- Agent using Gemini 3 Pro (most capable model)
-agent "gemini_pro" {
+Agent "gemini_pro" {
     provider = "google-gla",
     model = "gemini-3-pro-preview",
     system_prompt = [[You are a helpful assistant powered by Google Gemini 3 Pro.
@@ -29,7 +21,7 @@ IMPORTANT: Always call the done tool after providing your answer.]],
 }
 
 -- Agent using Gemini 2.0 Flash (fast, efficient model)
-agent "gemini_flash" {
+Agent "gemini_flash" {
     provider = "google-gla",
     model = "gemini-2.0-flash-exp",
     system_prompt = [[You are a helpful assistant powered by Google Gemini 2.0 Flash.
@@ -43,8 +35,11 @@ IMPORTANT: Always call the done tool after providing your answer.]],
 }
 
 -- Procedure demonstrating multiple Gemini models
-procedure "main" {
-    function()
+Procedure "main" {
+    output = {
+        result = field.string{description = "Result"}
+    },
+    function(input)
     Log.info("Testing Google Gemini with multiple models")
 
     local max_turns = 3
@@ -72,7 +67,7 @@ procedure "main" {
 
     local pro_summary = "N/A"
     if Tool.called("done") then
-        pro_summary = Tool.last_call("done").args.reason
+        pro_summary = Tool.last_result("done") or "Task completed"
         Log.info("Gemini 3 Pro test complete!", {summary = pro_summary})
     end
 
@@ -102,7 +97,7 @@ procedure "main" {
 
     local flash_summary = "N/A"
     if Tool.called("done") then
-        flash_summary = Tool.last_call("done").args.reason
+        flash_summary = Tool.last_result("done") or "Task completed"
         Log.info("Gemini 2.0 Flash test complete!", {summary = flash_summary})
     end
 
@@ -128,7 +123,7 @@ end
 }
 
 -- BDD Specifications
-specifications([[
+Specifications([[
 Feature: Google Gemini Integration
   Test multiple Gemini models
 

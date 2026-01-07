@@ -38,7 +38,7 @@ class TemplateResolver:
         self.namespaces = {
             "params": params or {},
             "state": state or {},
-            "outputs": outputs or {},
+            "output": outputs or {},
             "context": context or {},
             "prepared": prepared or {},
             "env": env or {},

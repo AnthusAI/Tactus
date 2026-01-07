@@ -180,12 +180,10 @@ class ToolsetPrimitive:
         if not hasattr(self.runtime, "mcp_manager") or not self.runtime.mcp_manager:
             raise ValueError(f"MCP server '{server_name}' not configured")
 
-        # Find the toolset by server name (MCP toolsets are prefixed)
-        for toolset in self.runtime.mcp_manager.get_toolsets():
-            # TODO: Add a way to identify toolsets by server name
-            # For now, just return the first one
-            # This needs proper implementation in MCPServerManager
-            logger.warning("MCP toolset reference not fully implemented - using first available")
+        # Get the toolset by server name
+        toolset = self.runtime.mcp_manager.get_toolset_by_name(server_name)
+        if toolset:
+            logger.info(f"Found MCP toolset for server '{server_name}'")
             return toolset
 
         raise ValueError(f"MCP server toolset '{server_name}' not found")

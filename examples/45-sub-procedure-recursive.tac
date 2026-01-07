@@ -4,42 +4,28 @@
 -- This example implements a factorial calculator using recursive
 -- sub-procedure calls. Each recursive call is checkpointed.
 
-procedure "main" {
+Procedure "main" {
     input = {
-        n = {
-            type = "number",
-            required = true,
-            description = "Number to calculate factorial for"
-        }
+        n = field.number{required = true, description = "Number to calculate factorial for"}
     },
     output = {
-        result = {
-            type = "number",
-            required = true,
-            description = "Factorial of n"
-        },
-        depth = {
-            type = "number",
-            required = true,
-            description = "Recursion depth reached"
-        }
+        result = field.number{required = true, description = "Factorial of n"},
+        depth = field.number{required = true, description = "Recursion depth reached"}
     },
     state = {
-        recursion_depth = {type = "number", default = 0}
-    }
-,
-
-function()
+        recursion_depth = field.number{default = 0}
+    },
+    function(input)
     -- Base case: factorial(0) = 1, factorial(1) = 1
     if input.n <= 1 then
         return {
             result = 1,
-            depth = state.recursion_depth
+            depth = State.recursion_depth
         }
     end
 
     -- Recursive case: n! = n * (n-1)!
-    state.recursion_depth = state.recursion_depth + 1
+    State.recursion_depth = State.recursion_depth + 1
 
     -- Recursive call is auto-checkpointed
     local sub_result = Procedure.run("examples/45-sub-procedure-recursive.tac", {
@@ -50,13 +36,13 @@ function()
 
     return {
         result = factorial,
-        depth = state.recursion_depth
+        depth = State.recursion_depth
     }
 end
 }
 
 -- BDD Specifications
-specifications([[
+Specifications([[
 Feature: Recursive Sub-Procedure Calls
   As a workflow developer
   I want to make recursive procedure calls

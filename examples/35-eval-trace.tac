@@ -2,7 +2,7 @@
 -- This demonstrates evaluators that inspect execution traces:
 -- tool calls, agent turns, and state changes
 
-agent("researcher", {
+Agent("researcher", {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[You are a research assistant.
@@ -14,7 +14,7 @@ When given a topic, search for information and then provide a summary.
     toolsets = {"search"}
 })
 
-agent("reviewer", {
+Agent("reviewer", {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[You are a quality reviewer.
@@ -23,33 +23,18 @@ Review the research and call 'done' with your assessment.]],
     initial_message = "Review this research: {research}",
 })
 
-procedure "main" {
+Procedure "main" {
     input = {
-        topic = {
-            type = "string",
-            required = true
-        }
+        topic = field.string{required = true}
     },
     output = {
-        research = {
-            type = "string",
-            required = true
-        },
-        reviewed = {
-            type = "boolean",
-            required = true
-        }
+        research = field.string{required = true},
+        reviewed = field.boolean{required = true}
     },
     state = {
-        research_started = {
-            type = "boolean",
-            default = false,
-            description = "Research has started"
-        }
-    }
-,
-
-function()
+        research_started = field.boolean{description = "Research has started", default = false}
+    },
+    function(input)
     -- Track state
     State.set("research_started", true)
     
@@ -62,7 +47,7 @@ function()
         
         -- Get research result
         if Tool.called("done") then
-            research = Tool.last_call("done").args.reason or "Research done"
+            research = Tool.last_result("done") or "Task completed" or "Research done"
             State.set("research_complete", true)
         end
     end
@@ -80,7 +65,7 @@ end
 }
 
 -- BDD Specifications
-specifications([[
+Specifications([[
 Feature: Multi-Agent Research with Trace Inspection
 
   Scenario: Researcher searches and completes
@@ -92,7 +77,7 @@ Feature: Multi-Agent Research with Trace Inspection
 ]])
 
 -- Pydantic AI Evaluations with Trace Inspection
-evaluations({
+Evaluations({
     runs = 3,
     parallel = true,
     
@@ -113,57 +98,22 @@ evaluations({
     
     evaluators = {
         -- Verify search tool was called
-        {
-            type = "tool_called",
-            value = "search",
-            min_value = 1,
-            max_value = 2
-        },
+        field.tool_called{},
         
         -- Verify done tool was called (by both agents)
-        {
-            type = "tool_called",
-            value = "done",
-            min_value = 2,
-            max_value = 2
-        },
+        field.tool_called{},
         
         -- Verify researcher took turns
-        {
-            type = "agent_turns",
-            field = "researcher",
-            min_value = 1,
-            max_value = 3
-        },
+        field.agent_turns{},
         
         -- Verify reviewer took turns
-        {
-            type = "agent_turns",
-            field = "reviewer",
-            min_value = 1,
-            max_value = 2
-        },
+        field.agent_turns{},
         
         -- Verify state was set correctly
-        {
-            type = "state_check",
-            field = "research_complete",
-            value = true
-        },
+        field.state_check{},
         
         -- Check output quality with LLM
-        {
-            type = "llm_judge",
-            rubric = [[
-Score 1.0 if:
-- Research was conducted
-- Output is coherent and relevant
-- Both agents participated
-
-Score 0.0 otherwise.
-            ]],
-            model = "openai:gpt-4o-mini"
-        }
+        field.llm_judge{}
     }
 }
 )

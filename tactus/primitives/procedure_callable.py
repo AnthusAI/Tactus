@@ -93,10 +93,7 @@ class ProcedureCallable:
         # Wrap execution in checkpoint for automatic replay
         def execute_procedure():
             # Save parent context (for scope isolation)
-            try:
-                prev_input = self.lua_sandbox.lua.globals()["input"]
-            except (KeyError, AttributeError):
-                prev_input = None
+            # Note: input is no longer a global (passed as parameter instead)
             try:
                 prev_state = self.lua_sandbox.lua.globals()["state"]
             except (KeyError, AttributeError):
@@ -126,12 +123,11 @@ class ProcedureCallable:
                 for key, value in params.items():
                     lua_params[key] = convert_to_lua(value)
 
-                # Set sub-procedure's isolated input/state
-                self.lua_sandbox.set_global("input", lua_params)
+                # Set sub-procedure's isolated state (input is now passed as parameter)
                 self.lua_sandbox.set_global("state", self._initialize_state())
 
-                # Execute the procedure function
-                result = self.procedure_function()
+                # Execute the procedure function with input as explicit parameter
+                result = self.procedure_function(lua_params)
 
                 # Convert Lua table result to Python dict
                 # Check for lupa table (not Python dict/list)
@@ -147,8 +143,7 @@ class ProcedureCallable:
 
             finally:
                 # Always restore parent context (even on error)
-                if prev_input is not None:
-                    self.lua_sandbox.set_global("input", prev_input)
+                # Note: input is no longer a global (passed as parameter instead)
                 if prev_state is not None:
                     self.lua_sandbox.set_global("state", prev_state)
 

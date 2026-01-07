@@ -49,6 +49,11 @@ def step_impl(context):
             if action == "state.set":
                 key = params.get("key")
                 value = params.get("value")
+                # Ensure state exists
+                if not hasattr(context, "state"):
+                    from tactus.primitives.state import StatePrimitive
+
+                    context.state = StatePrimitive()
                 context.state.set(key, value)
                 context.step_results[step_id] = {"result": value}
 

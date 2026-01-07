@@ -1,32 +1,22 @@
 -- Product Helper Procedure
 -- Calculates the product of an array of numbers
 
-procedure "main" {
+Procedure "main" {
     input = {
-        values = {
-            type = "array",
-            required = true,
-            description = "Array of numbers to multiply"
-        }
+        values = field.array{required = true, description = "Array of numbers to multiply"}
     },
     output = {
-        result = {
-            type = "number",
-            required = true,
-            description = "Product of all values"
-        }
+        result = field.number{required = true, description = "Product of all values"}
     },
     state = {
-        total = {type = "number", default = 1}
-    }
-,
-
-function()
+        total = field.number{default = 1}
+    },
+    function(input)
     -- Calculate product
     for i = 1, #input.values do
-        state.total = state.total * input.values[i]
+        State.total = State.total * input.values[i]
     end
 
-    return {result = state.total}
+    return {result = State.total}
 end
 }

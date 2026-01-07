@@ -15,14 +15,14 @@
 -- Define completion tool
 tool("done", {
     description = "Signal completion of the task",
-    parameters = {
-        reason = {type = "string", required = true, description = "Completion message"}
+    input = {
+        reason = field.string{required = true, description = "Completion message"}
     }
 }, function(args)
     return "Done: " .. args.reason
 end)
 
-agent("time_agent", {
+Agent("time_agent", {
     provider = "openai",
     model = "gpt-4o",
     system_prompt = [[
@@ -36,31 +36,20 @@ Available tools:
     toolsets = {"done"}
 }
 
-procedure "main" {
+Procedure "main" {
     input = {
-        timezone = {
-            type = "string",
-            required = true,
-            description = "Timezone to look up (e.g., 'America/New_York')"
-        }
+        timezone = field.string{required = true, description = "Timezone to look up (e.g., 'America/New_York')"}
     },
 
     dependencies = {
-        time_api = {
-            type = "http_client",
-            base_url = "http://worldtimeapi.org/api",
-            timeout = 10.0
-        }
+        time_api = field.http_client{}
     },
 
     output = {
-        datetime = {type = "string", required = true},
-        timezone = {type = "string", required = true}
+        datetime = field.string{required = true},
+        timezone = field.string{required = true}
     },
-    state = {}
-,
-
-function()
+    function(input)
     -- Execute agent turn
     Time_agent.turn()
 
@@ -73,7 +62,7 @@ end
 
 -- BDD Specifications
 
-specifications([[
+Specifications([[
 Feature: Time Lookup with Dependencies
   Scenario: Dependency is initialized and procedure runs
     Given the procedure has started

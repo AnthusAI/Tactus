@@ -10,26 +10,18 @@ tactus run examples/18-feature-lua-tools-toolset.tac --param operation="add 15 a
 ]]--
 
 -- Define completion tool
-tool "done" {
-    description = "Signal completion of the task",
-        parameters = {
-            reason = {type = "string", required = true, description = "Completion message"}
-        },
-    function(args)
-    return "Done: " .. args.reason
-end
-}
+Tool "done" { use = "tactus.done" }
 
 -- Define a toolset containing multiple math tools
-toolset("math_tools", {
+Toolset "math_tools" {
     type = "lua",
     tools = {
         {
             name = "add",
             description = "Add two numbers together",
-            parameters = {
-                a = {type = "number", description = "First number", required = true},
-                b = {type = "number", description = "Second number", required = true}
+            input = {
+                a = field.number{required = true, description = "First number"},
+                b = field.number{required = true, description = "Second number"}
             },
             handler = function(args)
                 local result = args.a + args.b
@@ -39,9 +31,9 @@ toolset("math_tools", {
         {
             name = "subtract",
             description = "Subtract second number from first",
-            parameters = {
-                a = {type = "number", description = "First number", required = true},
-                b = {type = "number", description = "Second number", required = true}
+            input = {
+                a = field.number{required = true, description = "First number"},
+                b = field.number{required = true, description = "Second number"}
             },
             handler = function(args)
                 local result = args.a - args.b
@@ -51,9 +43,9 @@ toolset("math_tools", {
         {
             name = "multiply",
             description = "Multiply two numbers",
-            parameters = {
-                a = {type = "number", description = "First number", required = true},
-                b = {type = "number", description = "Second number", required = true}
+            input = {
+                a = field.number{required = true, description = "First number"},
+                b = field.number{required = true, description = "Second number"}
             },
             handler = function(args)
                 local result = args.a * args.b
@@ -63,9 +55,9 @@ toolset("math_tools", {
         {
             name = "divide",
             description = "Divide first number by second",
-            parameters = {
-                a = {type = "number", description = "Numerator", required = true},
-                b = {type = "number", description = "Denominator", required = true}
+            input = {
+                a = field.number{required = true, description = "Numerator"},
+                b = field.number{required = true, description = "Denominator"}
             },
             handler = function(args)
                 if args.b == 0 then
@@ -78,9 +70,9 @@ toolset("math_tools", {
         {
             name = "power",
             description = "Raise first number to the power of second",
-            parameters = {
-                base = {type = "number", description = "Base number", required = true},
-                exponent = {type = "number", description = "Exponent", required = true}
+            input = {
+                base = field.number{required = true, description = "Base number"},
+                exponent = field.number{required = true, description = "Exponent"}
             },
             handler = function(args)
                 local result = args.base ^ args.exponent
@@ -90,8 +82,8 @@ toolset("math_tools", {
         {
             name = "square_root",
             description = "Calculate square root of a number",
-            parameters = {
-                number = {type = "number", description = "Number to find square root of", required = true}
+            input = {
+                number = field.number{required = true, description = "Number to find square root of"}
             },
             handler = function(args)
                 if args.number < 0 then
@@ -102,10 +94,10 @@ toolset("math_tools", {
             end
         }
     }
-})
+}
 
 -- Agent with access to the math toolset
-agent "mathematician" {
+Agent "mathematician" {
     provider = "openai",
     model = "gpt-4o-mini",
     tool_choice = "required",
@@ -124,36 +116,20 @@ Available tools:
 After calling the math tool, call done with the result.]],
     initial_message = "{input.operation}",
     toolsets = {
-        "math_tools",  -- Reference the entire toolset
-        "done"
+        "math_tools",  -- Reference the entire Toolset "done"
     }
 }
 
 -- Main workflow
-procedure "main" {
+Procedure "main" {
     input = {
-        operation = {
-            type = "string",
-            default = "What is 5 plus 3?",
-            description = "Mathematical operation to perform"
-        }
+        operation = field.string{description = "Mathematical operation to perform", default = "What is 5 plus 3?"}
     },
     output = {
-        answer = {
-            type = "string",
-            required = true,
-            description = "The mathematical answer"
-        },
-        completed = {
-            type = "boolean",
-            required = true,
-            description = "Whether the task was completed"
-        }
+        answer = field.string{required = true, description = "The mathematical answer"},
+        completed = field.boolean{required = true, description = "Whether the task was completed"}
     },
-    state = {}
-,
-
-function()
+    function(input)
     local max_turns = 10
     local turn_count = 0
     local result
@@ -178,7 +154,7 @@ function()
     -- Get final result
     local answer
     if Tool.called("done") then
-        answer = Tool.last_call("done").args.reason
+        answer = Tool.last_result("done") or "Task completed"
     else
         answer = result.text
     end
@@ -191,7 +167,7 @@ end
 }
 
 -- BDD Specifications
-specifications([[
+Specifications([[
 Feature: Lua Toolset with Multiple Tools
   Demonstrate toolset() with type="lua" for grouped tools
 

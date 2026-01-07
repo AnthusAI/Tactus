@@ -55,6 +55,7 @@ class MCPServerManager:
         self.configs = server_configs
         self.tool_primitive = tool_primitive
         self.servers: List[MCPServerStdio] = []
+        self.server_toolsets: Dict[str, MCPServerStdio] = {}  # Map server names to toolsets
         self._exit_stack = AsyncExitStack()
         logger.info(f"MCPServerManager initialized with {len(server_configs)} server(s)")
 
@@ -81,6 +82,7 @@ class MCPServerManager:
                 # Connect the prefixed server
                 await self._exit_stack.enter_async_context(prefixed_server)
                 self.servers.append(prefixed_server)
+                self.server_toolsets[name] = prefixed_server  # Store by name for lookup
                 logger.info(f"Successfully connected to MCP server '{name}' with prefix '{name}_'")
             except Exception as e:
                 # Check if this is a fileno error (common in test environments)
@@ -153,3 +155,15 @@ class MCPServerManager:
             List of MCPServerStdio instances (which are AbstractToolset)
         """
         return self.servers
+
+    def get_toolset_by_name(self, server_name: str):
+        """
+        Get a specific toolset by server name.
+
+        Args:
+            server_name: Name of the MCP server
+
+        Returns:
+            MCPServerStdio instance for the named server, or None if not found
+        """
+        return self.server_toolsets.get(server_name)

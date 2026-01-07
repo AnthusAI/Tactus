@@ -4,31 +4,16 @@
 -- This example uses an HTTP endpoint for classification.
 
 -- Define a simple text classifier
-model "intent_classifier" {
-    type = "http",
-    endpoint = "https://httpbin.org/post",  -- Using httpbin for testing
-    timeout = 10.0
-}
+model "intent_classifier" field.http{}
 
-procedure "main" {
+Procedure "main" {
     input = {
-        text = {
-            type = "string",
-            required = true,
-            description = "Text to classify"
-        }
+        text = field.string{required = true, description = "Text to classify"}
     },
     output = {
-        classification = {
-            type = "string",
-            required = true,
-            description = "Classification result"
-        }
+        classification = field.string{required = true, description = "Classification result"}
     },
-    state = {}
-,
-
-function()
+    function(input)
     -- Call the model for inference (automatically checkpointed)
     local result = Model("intent_classifier").predict({
         text = input.text
@@ -45,7 +30,7 @@ end
 }
 
 -- BDD Specifications
-specifications([[
+Specifications([[
 Feature: Simple Model Inference
   Scenario: Model predicts classification
     Given the procedure has started

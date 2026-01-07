@@ -1,84 +1,68 @@
 -- Explicit Checkpoint Example
 --
--- Demonstrates using the checkpoint() primitive to manually save state.
+-- Demonstrates using the checkpoint() primitive to manually save State.
 -- Explicit checkpoints allow you to mark important points in your
 -- workflow where state should be persisted, enabling more granular
 -- control over durability.
 
-procedure "main" {
+Procedure "main" {
     input = {
-        numbers = {
-            type = "array",
-            required = true,
-            description = "Array of numbers to process"
-        }
+        numbers = field.array{required = true, description = "Array of numbers to process"}
     },
     output = {
-        sum = {
-            type = "number",
-            required = true,
-            description = "Sum of all numbers"
-        },
-        product = {
-            type = "number",
-            required = true,
-            description = "Product of all numbers"
-        },
-        average = {
-            type = "number",
-            required = true,
-            description = "Average of all numbers"
-        }
+        sum = field.number{required = true, description = "Sum of all numbers"},
+        product = field.number{required = true, description = "Product of all numbers"},
+        average = field.number{required = true, description = "Average of all numbers"}
     },
     state = {
-        sum = {type = "number", default = 0},
-        product = {type = "number", default = 1},
-        count = {type = "number", default = 0},
-        checkpoint_count = {type = "number", default = 0}
+        sum = field.number{default = 0},
+        product = field.number{default = 1},
+        count = field.number{default = 0},
+        checkpoint_count = field.number{default = 0}
     },
-    function()
+    function(input)
     -- Step 1: Calculate sum
     for i = 1, #input.numbers do
-        state.sum = state.sum + input.numbers[i]
+        State.sum = State.sum + input.numbers[i]
     end
 
     -- Explicit checkpoint after sum calculation
-    checkpoint(function()
-        state.checkpoint_count = state.checkpoint_count + 1
-        return {step = "sum_complete", sum = state.sum}
+    checkpoint(function(input)
+        State.checkpoint_count = State.checkpoint_count + 1
+        return {step = "sum_complete", sum = State.sum}
     end)
 
     -- Step 2: Calculate product
     for i = 1, #input.numbers do
-        state.product = state.product * input.numbers[i]
+        State.product = State.product * input.numbers[i]
     end
 
     -- Explicit checkpoint after product calculation
-    checkpoint(function()
-        state.checkpoint_count = state.checkpoint_count + 1
-        return {step = "product_complete", product = state.product}
+    checkpoint(function(input)
+        State.checkpoint_count = State.checkpoint_count + 1
+        return {step = "product_complete", product = State.product}
     end)
 
     -- Step 3: Calculate average
-    state.count = #input.numbers
-    local average = state.sum / state.count
+    State.count = #input.numbers
+    local average = State.sum / State.count
 
     -- Final checkpoint before returning
-    checkpoint(function()
-        state.checkpoint_count = state.checkpoint_count + 1
+    checkpoint(function(input)
+        State.checkpoint_count = State.checkpoint_count + 1
         return {step = "average_complete", average = average}
     end)
 
     return {
-        sum = state.sum,
-        product = state.product,
+        sum = State.sum,
+        product = State.product,
         average = average
     }
 end
 }
 
 -- BDD Specifications
-specifications([[
+Specifications([[
 Feature: Explicit Checkpoint Primitive
   As a workflow developer
   I want to manually checkpoint state at specific points

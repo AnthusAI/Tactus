@@ -19,14 +19,16 @@ logger = logging.getLogger(__name__)
 class LuaToolsAdapter:
     """Adapter to create Pydantic AI toolsets from Lua function definitions."""
 
-    def __init__(self, tool_primitive: Optional[Any] = None):
+    def __init__(self, tool_primitive: Optional[Any] = None, mock_manager: Optional[Any] = None):
         """
         Initialize adapter.
 
         Args:
             tool_primitive: Optional ToolPrimitive for call tracking
+            mock_manager: Optional MockManager for mock responses
         """
         self.tool_primitive = tool_primitive
+        self.mock_manager = mock_manager
 
     def create_single_tool_toolset(
         self, tool_name: str, tool_spec: Dict[str, Any]
@@ -112,6 +114,36 @@ class LuaToolsAdapter:
         )
         return FunctionToolset(tools=wrapped_functions)
 
+    def create_inline_toolset(
+        self, toolset_name: str, tools_list: List[Dict[str, Any]]
+    ) -> FunctionToolset:
+        """
+        Create a FunctionToolset from inline toolset tools.
+
+        Used for: Toolset "name" { tools = {{...}} }
+
+        Args:
+            toolset_name: Name of the toolset
+            tools_list: List of inline tool specs
+
+        Returns:
+            FunctionToolset with inline tools
+        """
+        wrapped_functions = []
+        for tool_spec in tools_list:
+            tool_name = tool_spec.get("name")
+            if not tool_name:
+                logger.error(f"Inline tool for toolset '{toolset_name}' missing name")
+                continue
+
+            # Prefix tool name with toolset name for uniqueness
+            prefixed_name = f"{toolset_name}_{tool_name}"
+            wrapped_fn = self._create_wrapped_function(prefixed_name, tool_spec)
+            wrapped_functions.append(wrapped_fn)
+
+        logger.info(f"Created inline toolset '{toolset_name}': {len(wrapped_functions)} tools")
+        return FunctionToolset(tools=wrapped_functions)
+
     def _create_wrapped_function(self, tool_name: str, tool_spec: Dict[str, Any]) -> Callable:
         """
         Create a Python async function that wraps a Lua handler.
@@ -125,25 +157,46 @@ class LuaToolsAdapter:
         """
         lua_handler = tool_spec.get("handler")
         description = tool_spec.get("description", f"Tool: {tool_name}")
-        parameters = tool_spec.get("parameters", {})
+        # Only support 'input' field name (new DSL syntax only)
+        input_schema = tool_spec.get("input", {})
+
+        # Debug what we received
+        logger.debug(f"Tool '{tool_name}' spec keys: {list(tool_spec.keys())}")
+        logger.debug(f"Tool '{tool_name}' full spec: {tool_spec}")
 
         if not lua_handler:
             raise ValueError(f"Tool '{tool_name}' missing handler function")
 
-        # Create Pydantic model for parameters
-        param_model = self._create_parameter_model(tool_name, parameters)
+        # Create Pydantic model for input
+        param_model = self._create_parameter_model(tool_name, input_schema)
 
         # Create async wrapper function
         async def wrapped_tool(**kwargs) -> str:
             """Tool function that calls Lua handler."""
             try:
-                # Convert kwargs to Lua table
-                # Lupa automatically converts Python dicts to Lua tables
-                lua_args = kwargs
+                # Check for mock response first
+                if self.mock_manager:
+                    mock_result = self.mock_manager.get_mock_response(tool_name, kwargs)
+                    if mock_result is not None:
+                        logger.debug(f"Using mock response for '{tool_name}': {mock_result}")
+                        # Convert mock result to string to match tool return type
+                        result_str = str(mock_result) if mock_result is not None else ""
+                        # Track the mock call
+                        if self.tool_primitive:
+                            self.tool_primitive.record_call(tool_name, kwargs, result_str)
+                        if self.mock_manager:
+                            self.mock_manager.record_call(tool_name, kwargs, result_str)
+                        return result_str
 
                 # Call Lua function directly (Lupa is NOT thread-safe, so we can't use executor)
                 # Lua handlers should be fast and don't do I/O, so this won't block significantly
-                result = lua_handler(lua_args)
+
+                # Debug: Log what we're passing
+                logger.debug(f"Calling Lua tool '{tool_name}' with kwargs: {kwargs}")
+
+                # Tool functions expect parameters as a single 'args' table
+                # Pass kwargs directly - Lupa automatically converts Python dicts to Lua tables
+                result = lua_handler(kwargs)
 
                 # Convert result to string
                 result_str = str(result) if result is not None else ""
@@ -151,6 +204,10 @@ class LuaToolsAdapter:
                 # Record tool call
                 if self.tool_primitive:
                     self.tool_primitive.record_call(tool_name, kwargs, result_str)
+
+                # Also track in mock manager for assertions
+                if self.mock_manager:
+                    self.mock_manager.record_call(tool_name, kwargs, result_str)
 
                 logger.debug(f"Lua tool '{tool_name}' executed successfully")
                 return result_str
@@ -168,7 +225,8 @@ class LuaToolsAdapter:
 
         # Build proper signature for Pydantic AI tool discovery
         sig_params = []
-        for param_name, param_spec in parameters.items():
+        logger.debug(f"Building signature for tool '{tool_name}' with schema: {input_schema}")
+        for param_name, param_spec in input_schema.items():
             param_type = self._map_lua_type(param_spec.get("type", "string"))
             required = param_spec.get("required", True)
 

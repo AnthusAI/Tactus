@@ -4,97 +4,97 @@ Feature: Prompt Templates
   So that I can maintain consistent prompts across agents
 
   Background:
-    Given a Tactus validation environment
+  Given a Tactus validation environment
 
   Scenario: Simple prompt template
-    Given a Lua DSL file with content:
-      """
-      prompt("greeting", "Hello, {input.name}! How can I help you today?")
+  Given a Lua DSL file with content:
+  """
+  Prompt "greeting" "Hello, {input.name}! How can I help you today?"
 
-      agent("worker", {
-        provider = "openai",
-        system_prompt = prompts.greeting,
-        tools = {}
-      })
+  Agent "worker" {
+  provider = "openai",
+  system_prompt = prompts.greeting,
+  tools = {}
+  }
 
-      main = procedure("main", {
-        input = {
-          name = {
-            type = "string",
-            default = "User"
-          }
-        }
-      }, function()
-        return { result = "done" }
-      end)
-      """
-    When I validate the file
-    Then validation should succeed
+  main = Procedure "main" {
+  input = {
+  name = field.string{default = "User"}
+  },
+  function(input)
+  return { result = "done" }
+  end
+  }
+  """
+  When I validate the file
+  Then validation should succeed
 
   Scenario: Multiple prompt templates
-    Given a Lua DSL file with content:
-      """
-      prompt("intro", "Welcome to the system")
-      prompt("task", "Please complete the following task")
-      prompt("outro", "Thank you for using our service")
+  Given a Lua DSL file with content:
+  """
+  Prompt "intro" "Welcome to the system"
+  Prompt "task" "Please complete the following task"
+  Prompt "outro" "Thank you for using our service"
 
-      agent("worker", {
-        provider = "openai",
-        system_prompt = prompts.intro,
-        tools = {}
-      })
+  Agent "worker" {
+  provider = "openai",
+  system_prompt = prompts.intro,
+  tools = {}
+  }
 
-      main = procedure("main", function()
-        return { result = "done" }
-      end)
-      """
-    When I validate the file
-    Then validation should succeed
+  main = Procedure "main" {
+    function(input)
+  return { result = "done" }
+  end
+  }
+  """
+  When I validate the file
+  Then validation should succeed
 
   Scenario: Multi-line prompt template
-    Given a Lua DSL file with content:
-      """
-      prompt("detailed", [[
-        You are a helpful assistant.
-        Your goal is to help the user.
-        Be concise and accurate.
-      ]])
+  Given a Lua DSL file with content:
+  """
+  Prompt "detailed" [[
+  You are a helpful assistant.
+  Your goal is to help the user.
+  Be concise and accurate.
+  ]]
 
-      agent("worker", {
-        provider = "openai",
-        system_prompt = prompts.detailed,
-        tools = {}
-      })
+  Agent "worker" {
+  provider = "openai",
+  system_prompt = prompts.detailed,
+  tools = {}
+  }
 
-      main = procedure("main", function()
-        return { result = "done" }
-      end)
-      """
-    When I validate the file
-    Then validation should succeed
+  main = Procedure "main" {
+    function(input)
+  return { result = "done" }
+  end
+  }
+  """
+  When I validate the file
+  Then validation should succeed
 
   Scenario: Prompt template with input substitution
-    Given a Lua DSL file with content:
-      """
-      prompt("task_prompt", "Research the topic: {input.topic}")
+  Given a Lua DSL file with content:
+  """
+  Prompt "task_prompt" "Research the topic: {input.topic}"
 
-      agent("researcher", {
-        provider = "openai",
-        system_prompt = prompts.task_prompt,
-        tools = {}
-      })
+  Agent "researcher" {
+  provider = "openai",
+  system_prompt = prompts.task_prompt,
+  tools = {}
+  }
 
-      main = procedure("main", {
-        input = {
-          topic = {
-            type = "string",
-            required = true
-          }
-        }
-      }, function()
-        return { result = "done" }
-      end)
-      """
-    When I validate the file
-    Then validation should succeed
+  main = Procedure "main" {
+  input = {
+  name = field.string{required = true}
+  },
+  function(input)
+  return { result = "done" }
+  end
+  }
+  """
+  When I validate the file
+  Then validation should succeed
 

@@ -2,7 +2,7 @@
 -- Demonstrates all major features of the BDD testing framework
 
 -- Agent
-agent "processor" {
+Agent "processor" {
   provider = "openai",
   model = "gpt-4o-mini",
   system_prompt = "Process the task: {input.task}. Call done when finished.",
@@ -10,61 +10,25 @@ agent "processor" {
 }
 
 -- Stages
-stages({"setup", "processing", "validation", "complete"})
+Stages({"setup", "processing", "validation", "complete"})
 
 -- Procedure with input and output defined inline
-procedure "main" {
+Procedure "main" {
     input = {
-        task = {
-            type = "string",
-            required = false,
-            default = "process data",
-            description = "Task to perform"
-        },
-        iterations = {
-            type = "number",
-            required = false,
-            default = 3,
-            description = "Number of iterations"
-        },
+        task = field.string{required = false, description = "Task to perform", default = "process data"},
+        iterations = field.number{required = false, description = "Number of iterations", default = 3},
     },
     output = {
-        status = {
-            type = "string",
-            required = true,
-            description = "Final status"
-        },
-        count = {
-            type = "number",
-            required = true,
-            description = "Items processed"
-        },
+        status = field.string{required = true, description = "Final status"},
+        count = field.number{required = true, description = "Items processed"},
     },
     state = {
-        items_processed = {
-            type = "number",
-            default = 0,
-            description = "Items processed counter"
-        },
-        errors = {
-            type = "number",
-            default = 0,
-            description = "Error count"
-        },
-        validation_passed = {
-            type = "boolean",
-            default = false,
-            description = "Validation result"
-        },
-        last_even = {
-            type = "number",
-            default = 0,
-            description = "Last even number"
-        }
-    }
-,
-
-function()
+        items_processed = field.number{description = "Items processed counter", default = 0},
+        errors = field.number{description = "Error count", default = 0},
+        validation_passed = field.boolean{description = "Validation result", default = false},
+        last_even = field.number{description = "Last even number", default = 0}
+    },
+    function(input)
   -- Setup phase
   Stage.set("setup")
   State.set("items_processed", 0)
@@ -107,7 +71,7 @@ end
 }
 
 -- BDD Specifications
-specifications([[
+Specifications([[
 Feature: Comprehensive Workflow Testing
   Demonstrate all BDD testing capabilities
 
@@ -147,7 +111,7 @@ Feature: Comprehensive Workflow Testing
 ]])
 
 -- Custom step for advanced validation
-step("the processing was efficient", function()
+step("the processing was efficient", function(input)
   local processed = State.get("items_processed")
   local errors = State.get("errors")
   assert(processed > 0, "Should have processed items")

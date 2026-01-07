@@ -8,13 +8,13 @@ To run:
   tactus run examples/56-hdf5-file-io.tac
 ]]--
 
-procedure "main" {
+Procedure "main" {
     input = {},
     output = {
-        datasets_created = {type = "number", required = true},
-        max_value = {type = "number", required = true}
+        datasets_created = field.number{required = true},
+        max_value = field.number{required = true}
     },
-    function()
+    function(input)
     -- Create various numerical datasets
 
     -- Time series data
@@ -134,7 +134,7 @@ procedure "main" {
 end
 }
 
-specifications([[
+Specifications([[
 Feature: HDF5 File IO
   Scientific data storage with multiple datasets
 

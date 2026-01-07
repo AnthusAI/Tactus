@@ -35,7 +35,7 @@ class MessageHistoryConfiguration(BaseModel):
 
 
 class AgentOutputSchema(BaseModel):
-    """Maps to Pydantic AI's output_type."""
+    """Maps to Pydantic AI's output."""
 
     fields: dict[str, OutputFieldDeclaration] = Field(default_factory=dict)
 
@@ -55,7 +55,7 @@ class AgentDeclaration(BaseModel):
         default_factory=list
     )  # Inline tool definitions with Lua handlers
     output: Optional[AgentOutputSchema] = None  # Legacy field
-    output_type: Optional[AgentOutputSchema] = None  # Aligned with pydantic-ai
+    output: Optional[AgentOutputSchema] = None  # Aligned with pydantic-ai
     message_history: Optional[MessageHistoryConfiguration] = None
     max_turns: int = 50
     disable_streaming: bool = (
@@ -126,6 +126,7 @@ class ProcedureRegistry(BaseModel):
     stages: list[str] = Field(default_factory=list)
     specifications: list[SpecificationDeclaration] = Field(default_factory=list)
     dependencies: dict[str, DependencyDeclaration] = Field(default_factory=dict)
+    mocks: dict[str, dict[str, Any]] = Field(default_factory=dict)  # Mock configurations
 
     # Message history configuration (aligned with pydantic-ai)
     message_history_config: dict[str, Any] = Field(default_factory=dict)
@@ -214,7 +215,7 @@ class RegistryBuilder:
                 field_config_with_name = dict(field_config)
                 field_config_with_name["name"] = field_name
                 fields[field_name] = OutputFieldDeclaration(**field_config_with_name)
-            config["output_type"] = AgentOutputSchema(fields=fields)
+            config["output"] = AgentOutputSchema(fields=fields)
 
         # Handle toolsets -> tools rename (backward compatibility)
         # The Lua DSL uses "toolsets" for toolset references and "tools" for inline tool definitions
@@ -278,14 +279,30 @@ class RegistryBuilder:
 
         Args:
             name: Tool name
-            config: Dict with description, parameters
-            lua_handler: Lupa function reference
+            config: Dict with description, input, output schemas, and source info
+            lua_handler: Lupa function reference (or placeholder for external sources)
         """
-        self.registry.lua_tools[name] = {
+        tool_def = {
             "description": config.get("description", ""),
-            "parameters": config.get("parameters", {}),
+            "input": config.get("input", {}),  # Changed from parameters
+            "output": config.get("output", {}),  # New: output schema
             "handler": lua_handler,
         }
+
+        # If this tool references an external source, store that info
+        if "source" in config:
+            tool_def["source"] = config["source"]
+
+        self.registry.lua_tools[name] = tool_def
+
+    def register_mock(self, tool_name: str, config: dict) -> None:
+        """Register a mock configuration for a tool.
+
+        Args:
+            tool_name: Name of the tool to mock
+            config: Mock configuration (output, temporal, conditional_mocks, error)
+        """
+        self.registry.mocks[tool_name] = config
 
     def set_stages(self, stage_names: list[str]) -> None:
         """Set stage names."""
@@ -412,7 +429,8 @@ class RegistryBuilder:
 
         # Agent validation
         for agent in self.registry.agents.values():
-            if not agent.provider:
+            # Check if agent has provider or if there's a default
+            if not agent.provider and not self.registry.default_provider:
                 errors.append(
                     ValidationMessage(
                         level="error",

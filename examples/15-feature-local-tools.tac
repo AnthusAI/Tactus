@@ -12,18 +12,10 @@ To run this example:
 ]]--
 
 -- Define completion tool
-tool "done" {
-    description = "Signal completion of the task",
-        parameters = {
-            reason = {type = "string", required = true, description = "Completion message"}
-        },
-    function(args)
-    return "Done: " .. args.reason
-end
-}
+Tool "done" { use = "tactus.done" }
 
 -- Agent with access to local tools
-agent "assistant" {
+Agent "assistant" {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[You are a helpful assistant with access to tools for calculations.
@@ -46,29 +38,15 @@ You MUST call the 'done' tool after getting the calculation result.]],
 }
 
 -- Main workflow
-procedure "main" {
+Procedure "main" {
     input = {
-        task = {
-            type = "string",
-            default = "Calculate the mortgage payment for a $300,000 loan at 6.5% interest for 30 years",
-        },
+        task = field.string{default = "Calculate the mortgage payment for a $300"},
     },
     output = {
-        answer = {
-            type = "string",
-            required = true,
-            description = "The assistant's answer to the task",
-        },
-        completed = {
-            type = "boolean",
-            required = true,
-            description = "Whether the task was completed successfully",
-        },
+        answer = field.string{required = true, description = "The assistant's answer to the task"},
+        completed = field.boolean{required = true, description = "Whether the task was completed successfully"},
     },
-    state = {}
-,
-
-function()
+    function(input)
     local result
     local max_turns = 5  -- Safety limit to prevent infinite loops
     local turn_count = 0
@@ -93,7 +71,15 @@ function()
     -- Store final result
     local answer
     if Tool.called("done") then
-        answer = Tool.last_call("done").args.reason
+        local call = Tool.last_call("done")
+        answer = "Task completed"
+        if call and call.args then
+            -- Safely try to get reason
+            local ok, reason = pcall(function() return call.args["reason"] end)
+            if ok and reason then
+                answer = reason
+            end
+        end
     else
         -- Max turns reached - use last response
         answer = result.text

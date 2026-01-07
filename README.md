@@ -22,7 +22,7 @@ With Tactus, durability is built into the language:
 ```lua
 -- This looks like it runs straight through
 repeat
-  Researcher.turn()
+  Agent("researcher").turn()
 until Tool.called("done")
 
 -- But here execution might suspend for days
@@ -67,7 +67,7 @@ This is powerful, but your workflow must be expressed as a graph. Nodes, edges, 
 **With Tactus**, you write imperative code. Loops, conditionals, function calls—the control flow you already know:
 
 ```lua
-repeat Researcher.turn() until Tool.called("done")
+repeat Agent("researcher").turn() until Tool.called("done")
 local approved = Human.approve({message = "Deploy?"})
 if approved then deploy() end
 ```
@@ -87,23 +87,28 @@ Most frameworks scatter agent logic across Python classes, decorators, YAML file
 Tactus takes a different approach: **the entire agent definition is a single, readable file.**
 
 ```lua
-agent "researcher" {
+Agent "researcher" {
   model = "gpt-4o",
   system_prompt = "Research the topic thoroughly.",
-  tools = {"search", "analyze", "done"}
-})
+  toolsets = {"search", "analyze", "done"}
+}
 
-main = procedure("main", {
-  input = { topic = { type = "string", required = true } },
-  output = { findings = { type = "string", required = true } }
-}, function()
-  repeat
-    Agent("researcher").turn()
-  until Tool.called("done")
-  return { findings = Tool.last_result("done") }
-end)
+Procedure "main" {
+  input = {
+    topic = field.string{required = true}
+  },
+  output = {
+    findings = field.string{required = true}
+  },
+  function(input)
+    repeat
+      Agent("researcher").turn()
+    until Tool.called("done")
+    return {findings = Tool.last_result("done")}
+  end
+}
 
-specifications([[
+Specifications([[
 Feature: Research
   Scenario: Completes research
     When the researcher agent takes turns
@@ -240,10 +245,10 @@ Traditional code requires you to handle every case—every header name, every fo
 Agent programming inverts this: give an agent tools, describe the goal, let intelligence handle the rest.
 
 ```lua
-agent "importer" {
+Agent "importer" {
   system_prompt = "Extract contacts from the data. File each one you find.",
-  tools = {"file_contact", "done"}
-})
+  toolsets = {"file_contact", "done"}
+}
 ```
 
 When a new format appears—unexpected headers, mixed delimiters, a language you didn't anticipate—the agent adapts. No code changes.
@@ -291,7 +296,7 @@ mcp_servers:
 Tools from MCP servers are automatically namespaced:
 
 ```lua
-agent "worker" {
+Agent "worker" {
   tools = {
     "plexus_score_info",       -- From plexus server
     "filesystem_read_file",    -- From filesystem server
@@ -307,48 +312,49 @@ Define tools directly in your `.tac` file—no external servers required:
 **Individual tools:**
 
 ```lua
-tool("calculate_tip", {
+Tool "calculate_tip" {
   description = "Calculate tip amount for a bill",
-  parameters = {
-    amount = {type = "number", required = true},
-    percent = {type = "number", required = true}
-  }
-}, function(args)
-  return string.format("$%.2f", args.amount * args.percent / 100)
-end)
+  input = {
+    amount = field.number{required = true},
+    percent = field.number{required = true}
+  },
+  function(args)
+    return string.format("$%.2f", args.amount * args.percent / 100)
+  end
+}
 
-agent "assistant" {
-  tools = {"calculate_tip", "done"}
-})
+Agent "assistant" {
+  toolsets = {"calculate_tip", "done"}
+}
 ```
 
 **Grouped toolsets:**
 
 ```lua
-toolset("math_tools", {
+Toolset "math_tools" {
   type = "lua",
   tools = {
-    {name = "add", parameters = {...}, handler = function(args) ... end},
-    {name = "multiply", parameters = {...}, handler = function(args) ... end}
+    {name = "add", input = {...}, handler = function(args) ... end},
+    {name = "multiply", input = {...}, handler = function(args) ... end}
   }
-})
+}
 
-agent "calculator" {
+Agent "calculator" {
   toolsets = {"math_tools", "done"}
-})
+}
 ```
 
 **Inline agent tools:**
 
 ```lua
-agent "text_processor" {
+Agent "text_processor" {
   tools = {
-    {name = "uppercase", parameters = {...}, handler = function(args)
+    {name = "uppercase", input = {...}, handler = function(args)
       return string.upper(args.text)
     end}
   },
   toolsets = {"done"}
-})
+}
 ```
 
 ### Direct Tool Invocation
@@ -356,22 +362,23 @@ agent "text_processor" {
 Call tools directly from Lua code for deterministic control:
 
 ```lua
--- tool() returns a callable - assign it for direct use
-local calculate_tip = tool("calculate_tip", {
+-- Tool() returns a callable - assign it for direct use
+local calculate_tip = Tool "calculate_tip" {
   description = "Calculate tip",
-  parameters = {
-    amount = {type = "number", required = true},
-    percent = {type = "number", required = true}
-  }
-}, function(args)
-  return args.amount * args.percent / 100
-end)
+  input = {
+    amount = field.number{required = true},
+    percent = field.number{required = true}
+  },
+  function(args)
+    return args.amount * args.percent / 100
+  end
+}
 
 -- Call directly - no LLM involvement
 local tip = calculate_tip({amount = 50, percent = 20})
 
 -- Pass results to agent via context
-Summarizer.turn({
+Agent("summarizer").turn({
   context = {
     tip_calculation = tip,
     original_amount = "$50.00"
@@ -425,7 +432,7 @@ pip install tactus
 Create `hello.tac`:
 
 ```lua
-agent "greeter" {
+Agent "greeter" {
   provider = "openai",
   model = "gpt-4o-mini",
   system_prompt = [[
@@ -499,7 +506,7 @@ Tactus gives you fine-grained control over what tools an agent has access to on 
 **The Pattern:**
 
 ```lua
-agent "researcher" {
+Agent "researcher" {
   provider = "openai",
   model = "gpt-4o",
   system_prompt = "You are a research assistant.",
@@ -914,14 +921,14 @@ Use different models and providers for different tasks within the same workflow.
 **Mix models for different capabilities:**
 
 ```lua
-agent "researcher" {
+Agent "researcher" {
   provider = "openai",
   model = "gpt-4o",  -- Use GPT-4o for complex research
   system_prompt = "Research the topic thoroughly...",
   tools = {"search", "done"}
 })
 
-agent "summarizer" {
+Agent "summarizer" {
   provider = "openai",
   model = "gpt-4o-mini",  -- Use GPT-4o-mini for simple summarization
   system_prompt = "Summarize the findings concisely...",
@@ -932,14 +939,14 @@ agent "summarizer" {
 **Mix providers (OpenAI + Bedrock):**
 
 ```lua
-agent "openai_analyst" {
+Agent "openai_analyst" {
   provider = "openai",
   model = "gpt-4o",
   system_prompt = "Analyze the data...",
   tools = {"done"}
 })
 
-agent "bedrock_reviewer" {
+Agent "bedrock_reviewer" {
   provider = "bedrock",
   model = "anthropic.claude-3-5-sonnet-20240620-v1:0",
   system_prompt = "Review the analysis...",
@@ -950,7 +957,7 @@ agent "bedrock_reviewer" {
 **Configure model-specific parameters:**
 
 ```lua
-agent "creative_writer" {
+Agent "creative_writer" {
   provider = "openai",
   model = {
     name = "gpt-4o",
@@ -961,7 +968,7 @@ agent "creative_writer" {
   tools = {"done"}
 })
 
-agent "reasoning_agent" {
+Agent "reasoning_agent" {
   provider = "openai",
   model = {
     name = "gpt-5",  -- Reasoning model
@@ -1055,7 +1062,7 @@ Every message has a classification that determines visibility:
 **Filter conversation history per agent:**
 
 ```lua
-agent "worker" {
+Agent "worker" {
   system_prompt = "Process the task...",
   tools = {"search", "analyze", "done"},
 

@@ -47,7 +47,7 @@ class ProcedureYAMLParser:
 
         # Validate specific sections
         ProcedureYAMLParser._validate_params(config.get("params", {}))
-        ProcedureYAMLParser._validate_outputs(config.get("outputs", {}))
+        ProcedureYAMLParser._validate_outputs(config.get("output", {}))
         ProcedureYAMLParser._validate_default_model(config.get("default_model"))
         ProcedureYAMLParser._validate_default_provider(config.get("default_provider"))
         ProcedureYAMLParser._validate_agents(config.get("agents", {}), config)
@@ -98,7 +98,7 @@ class ProcedureYAMLParser:
     def _validate_outputs(outputs: Dict[str, Any]) -> None:
         """Validate output definitions."""
         if not isinstance(outputs, dict):
-            raise ProcedureConfigError("'outputs' must be a dictionary")
+            raise ProcedureConfigError("'output' must be a dictionary")
 
         for output_name, output_def in outputs.items():
             if not isinstance(output_def, dict):

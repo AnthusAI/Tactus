@@ -99,6 +99,15 @@ class OutputValidator:
 
         # Check required fields and validate types
         for field_name, field_def in self.schema.items():
+            # Check if it's the new syntax
+            from tactus.core.dsl_stubs import FieldDefinition
+
+            if not isinstance(field_def, FieldDefinition):
+                errors.append(
+                    f"Field '{field_name}' uses old type syntax. "
+                    f"Use field.{field_def.get('type', 'string')}{{}} instead."
+                )
+                continue
             is_required = field_def.get("required", False)
 
             if is_required and field_name not in output:
@@ -200,13 +209,29 @@ class OutputValidator:
     def get_field_description(self, field_name: str) -> Optional[str]:
         """Get description for an output field."""
         if field_name in self.schema:
-            return self.schema[field_name].get("description")
+            from tactus.core.dsl_stubs import FieldDefinition
+
+            field_def = self.schema[field_name]
+            if isinstance(field_def, FieldDefinition):
+                return field_def.get("description")
         return None
 
     def get_required_fields(self) -> List[str]:
         """Get list of required output fields."""
-        return [name for name, def_ in self.schema.items() if def_.get("required", False)]
+        from tactus.core.dsl_stubs import FieldDefinition
+
+        return [
+            name
+            for name, def_ in self.schema.items()
+            if isinstance(def_, FieldDefinition) and def_.get("required", False)
+        ]
 
     def get_optional_fields(self) -> List[str]:
         """Get list of optional output fields."""
-        return [name for name, def_ in self.schema.items() if not def_.get("required", False)]
+        from tactus.core.dsl_stubs import FieldDefinition
+
+        return [
+            name
+            for name, def_ in self.schema.items()
+            if isinstance(def_, FieldDefinition) and not def_.get("required", False)
+        ]

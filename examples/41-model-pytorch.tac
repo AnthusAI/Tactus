@@ -11,8 +11,8 @@
 -- Define completion tool
 tool("done", {
     description = "Signal completion of the task",
-    parameters = {
-        reason = {type = "string", required = true, description = "Completion message"}
+    input = {
+        reason = field.string{required = true, description = "Completion message"}
     }
 }, function(args)
     return "Done: " .. args.reason
@@ -20,20 +20,15 @@ end)
 
 -- Define a PyTorch sentiment classifier
 -- (This requires the .pt file to exist and PyTorch to be installed)
-model "sentiment_classifier" {
-    type = "pytorch",
-    path = "examples/models/sentiment_classifier.pt",
-    device = "cpu",
-    labels = {"negative", "neutral", "positive"}
-}
+-- Model "sentiment_classifier" { type = "pytorch", path = "models/sentiment.pt" }
 
-agent "support_agent" {
+Agent "support_agent" {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[
 You are a customer support agent.
 
-The detected sentiment is: {state.sentiment}
+The detected sentiment is: {State.sentiment}
 
 Respond appropriately based on the sentiment.
 Call done when finished.
@@ -41,48 +36,34 @@ Call done when finished.
     toolsets = {"done"}
 }
 
-procedure "main" {
+Procedure "main" {
     input = {
-        customer_message = {
-            type = "string",
-            required = true,
-            description = "Customer message to analyze"
-        }
+        customer_message = field.string{required = true, description = "Customer message to analyze"}
     },
     output = {
-        sentiment = {
-            type = "string",
-            required = true,
-            description = "Detected sentiment label"
-        },
-        response = {
-            type = "string",
-            required = true,
-            description = "Agent response"
-        }
+        sentiment = field.string{required = true, description = "Detected sentiment label"},
+        response = field.string{required = true, description = "Agent response"}
     },
     state = {
-        sentiment = {type = "string", default = "unknown"}
-    }
-,
-
-function()
+        sentiment = field.string{default = "unknown"}
+    },
+    function(input)
     -- Classify sentiment with PyTorch model
     -- Input: tensor of word indices (for demo, just pass a simple tensor)
-    state.sentiment = Sentiment_classifier.predict({1, 2, 3, 4, 5})
+    State.sentiment = Sentiment_classifier.predict({1, 2, 3, 4, 5})
 
     -- Agent responds based on sentiment
     Support_agent.turn({inject = input.customer_message})
 
     return {
-        sentiment = state.sentiment,
+        sentiment = State.sentiment,
         response = Support_agent.output
     }
 end
 }
 
 -- BDD Specifications
-specifications([[
+Specifications([[
 Feature: PyTorch Model Integration
   Scenario: PyTorch model performs inference
     Given the procedure has started

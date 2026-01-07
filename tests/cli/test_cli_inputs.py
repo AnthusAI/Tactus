@@ -21,24 +21,18 @@ def cli_runner():
 @pytest.fixture
 def procedure_with_string_input(tmp_path):
     """Create procedure with a required string input."""
-    content = """main = procedure("main", {
+    content = """main = Procedure "main" {
     input = {
-        name = {
-            type = "string",
-            required = true,
-            description = "User name to greet"
-        }
+        name = field.string{required = true, description = "User name to greet"}
     },
     output = {
-        greeting = {
-            type = "string",
-            required = true
-        }
+        greeting = field.string{required = true}
     },
-    state = {}
-}, function()
-    return { greeting = "Hello, " .. input.name .. "!" }
-end)"""
+    state = {},
+    function(input)
+        return { greeting = "Hello, " .. input.name .. "!" }
+    end
+}"""
     f = tmp_path / "string_input.tac"
     f.write_text(content)
     return f
@@ -47,24 +41,18 @@ end)"""
 @pytest.fixture
 def procedure_with_default_input(tmp_path):
     """Create procedure with an input that has a default value."""
-    content = """main = procedure("main", {
+    content = """main = Procedure "main" {
     input = {
-        name = {
-            type = "string",
-            default = "World",
-            description = "User name to greet"
-        }
+        name = field.string{default = "World", description = "User name to greet"}
     },
     output = {
-        greeting = {
-            type = "string",
-            required = true
-        }
+        greeting = field.string{required = true}
     },
-    state = {}
-}, function()
+    state = {},
+    function(input)
     return { greeting = "Hello, " .. input.name .. "!" }
-end)"""
+end
+}"""
     f = tmp_path / "default_input.tac"
     f.write_text(content)
     return f
@@ -73,44 +61,22 @@ end)"""
 @pytest.fixture
 def procedure_with_all_types(tmp_path):
     """Create procedure with all input types."""
-    content = """main = procedure("main", {
+    content = """main = Procedure "main" {
     input = {
-        text = {
-            type = "string",
-            required = true,
-            description = "A text value"
-        },
-        count = {
-            type = "number",
-            default = 10,
-            description = "A number value"
-        },
-        enabled = {
-            type = "boolean",
-            default = false,
-            description = "A boolean flag"
-        },
-        items = {
-            type = "array",
-            default = {},
-            description = "An array of items"
-        },
-        config = {
-            type = "object",
-            default = {},
-            description = "A config object"
-        }
+        text = field.string{required = true, description = "A text value"},
+        count = field.number{default = 10, description = "A number value"},
+        enabled = field.boolean{default = false, description = "A boolean flag"},
+        items = field.array{default = {}, description = "An array of items"},
+        config = field.object{default = {}, description = "A config object"}
     },
     output = {
-        result = {
-            type = "string",
-            required = true
-        }
+        result = field.string{required = true}
     },
-    state = {}
-}, function()
+    state = {},
+    function(input)
     return { result = "processed: " .. input.text }
-end)"""
+end
+}"""
     f = tmp_path / "all_types.tac"
     f.write_text(content)
     return f
@@ -119,28 +85,22 @@ end)"""
 @pytest.fixture
 def procedure_with_array_input(tmp_path):
     """Create procedure with a required array input."""
-    content = """main = procedure("main", {
+    content = """main = Procedure "main" {
     input = {
-        numbers = {
-            type = "array",
-            required = true,
-            description = "Array of numbers to sum"
-        }
+        numbers = field.array{required = true, description = "Array of numbers to sum"}
     },
     output = {
-        sum = {
-            type = "number",
-            required = true
-        }
+        sum = field.number{required = true}
     },
-    state = {}
-}, function()
+    state = {},
+    function(input)
     local total = 0
     for _, n in ipairs(input.numbers) do
         total = total + n
     end
     return { sum = total }
-end)"""
+end
+}"""
     f = tmp_path / "array_input.tac"
     f.write_text(content)
     return f
@@ -149,25 +109,18 @@ end)"""
 @pytest.fixture
 def procedure_with_enum_input(tmp_path):
     """Create procedure with an enum input."""
-    content = """main = procedure("main", {
+    content = """main = Procedure "main" {
     input = {
-        status = {
-            type = "string",
-            required = true,
-            enum = {"active", "inactive", "pending"},
-            description = "Status selection"
-        }
+        status = field.string{required = true, enum = {"active", "inactive", "pending"}, description = "Status selection"}
     },
     output = {
-        message = {
-            type = "string",
-            required = true
-        }
+        message = field.string{required = true}
     },
-    state = {}
-}, function()
+    state = {},
+    function(input)
     return { message = "Status is: " .. input.status }
-end)"""
+end
+}"""
     f = tmp_path / "enum_input.tac"
     f.write_text(content)
     return f
@@ -368,12 +321,13 @@ class TestCLIParamParsing:
 
     def test_param_json_array(self, cli_runner, tmp_path):
         """Test --param correctly parses JSON arrays."""
-        content = """main = procedure("main", {
-    input = {nums = {type = "array", required = true}},
-    output = {count = {type = "number", required = true}}
-}, function()
-    return {count = #input.nums}
-end)"""
+        content = """main = Procedure "main" {
+    input = {nums = field.array{required = true}},
+    output = {count = field.number{required = true}},
+    function(input)
+        return {count = #input.nums}
+    end
+}"""
         f = tmp_path / "test.tac"
         f.write_text(content)
 
@@ -382,12 +336,13 @@ end)"""
 
     def test_param_json_object(self, cli_runner, tmp_path):
         """Test --param correctly parses JSON objects."""
-        content = """main = procedure("main", {
-    input = {cfg = {type = "object", default = {}}},
-    output = {ok = {type = "boolean", required = true}}
-}, function()
-    return {ok = true}
-end)"""
+        content = """main = Procedure "main" {
+    input = {cfg = field.object{default = {}}},
+    output = {ok = field.boolean{required = true}},
+    function(input)
+        return {ok = true}
+    end
+}"""
         f = tmp_path / "test.tac"
         f.write_text(content)
 
@@ -396,12 +351,13 @@ end)"""
 
     def test_param_boolean(self, cli_runner, tmp_path):
         """Test --param correctly parses boolean values."""
-        content = """main = procedure("main", {
-    input = {flag = {type = "boolean", default = false}},
-    output = {result = {type = "boolean", required = true}}
-}, function()
-    return {result = input.flag}
-end)"""
+        content = """main = Procedure "main" {
+    input = {flag = field.boolean{default = false}},
+    output = {result = field.boolean{required = true}},
+    function(input)
+        return {result = input.flag}
+    end
+}"""
         f = tmp_path / "test.tac"
         f.write_text(content)
 
@@ -410,12 +366,13 @@ end)"""
 
     def test_param_number(self, cli_runner, tmp_path):
         """Test --param correctly parses number values."""
-        content = """main = procedure("main", {
-    input = {n = {type = "number", default = 0}},
-    output = {doubled = {type = "number", required = true}}
-}, function()
-    return {doubled = input.n * 2}
-end)"""
+        content = """main = Procedure "main" {
+    input = {n = field.number{default = 0}},
+    output = {doubled = field.number{required = true}},
+    function(input)
+        return {doubled = input.n * 2}
+    end
+}"""
         f = tmp_path / "test.tac"
         f.write_text(content)
 

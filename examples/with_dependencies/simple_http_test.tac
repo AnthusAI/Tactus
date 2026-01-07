@@ -9,41 +9,35 @@
 -- Define completion tool
 tool("done", {
     description = "Signal completion of the task",
-    parameters = {
-        reason = {type = "string", required = true, description = "Completion message"}
+    input = {
+        reason = field.string{required = true, description = "Completion message"}
     }
 }, function(args)
     return "Done: " .. args.reason
 end)
 
-agent("test_agent", {
+Agent("test_agent", {
     provider = "openai",
     model = "gpt-4o",
     system_prompt = "You are a test agent",
     toolsets = {"done"}
 }
 
-procedure "main" {
+Procedure "main" {
     input = {
-        city = {type = "string", required = true}
+        city = field.string{required = true}
     },
 
     -- Declare HTTP client dependency
     dependencies = {
-        test_api = {
-            type = "http_client",
-            base_url = "https://httpbin.org"
-        }
+        test_api = field.http_client{}
     },
 
     output = {
-        success = {type = "boolean", required = true},
-        message = {type = "string", required = true}
+        success = field.boolean{required = true},
+        message = field.string{required = true}
     },
-    state = {}
-,
-
-function()
+    function(input)
     -- Simple procedure that just completes
     -- In a real use case, the agent's tools would use test_api via ctx.deps.test_api
 
@@ -56,7 +50,7 @@ function()
 end
 }
 
-specifications([[
+Specifications([[
 Feature: HTTP Dependency Injection
   Scenario: Procedure with HTTP dependency runs successfully
     Given the procedure has started

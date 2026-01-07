@@ -4,142 +4,155 @@ Feature: Explicit Checkpoint Primitive
   So that I can control when state is persisted and enable selective replay
 
   Background:
-    Given a Tactus validation environment
+  Given a Tactus validation environment
 
-  Scenario: checkpoint() function is available globally
-    Given a Lua DSL file with content:
-      """
-      main = procedure("main", {
-        output = {result = {type = "number", required = true}},
-        state = {}
-      }, function()
-        local result = checkpoint(function()
-          return 42
-        end)
-        return {result = result}
-      end)
-      """
-    When I validate the file
-    Then validation should succeed
+  Scenario: Checkpoint() function is available globally
+  Given a Lua DSL file with content:
+  """
+  main = Procedure "main" {
+    output = {
+      result = field.number{required = true}
+    },
+    state = {},
+    function(input)
+      Checkpoint()
+      local result = 42
+      return {result = result}
+    end
+  }
+  """
+  When I validate the file
+  Then validation should succeed
 
   Scenario: Explicit checkpoints save state
-    Given a Lua DSL file with content:
-      """
-      main = procedure("main", {
-        input = {value = {type = "number", default = 10}},
-        output = {result = {type = "number", required = true}},
-        state = {computed = {type = "number", default = 0}}
-      }, function()
-        state.computed = checkpoint(function()
-          return input.value * 2
-        end)
-        return {result = state.computed}
-      end)
-      """
-    When I validate the file
-    Then validation should succeed
+  Given a Lua DSL file with content:
+  """
+  main = Procedure "main" {
+    input = {
+      value = field.number{default = 10}
+    },
+    state = {
+      computed = field.number{default = 0}
+    },
+    function(input)
+      Checkpoint()
+      state.computed = input.value * 2
+      return {result = state.computed}
+    end
+  }
+  """
+  When I validate the file
+  Then validation should succeed
 
   Scenario: Multiple explicit checkpoints
-    Given a Lua DSL file with content:
-      """
-      main = procedure("main", {
-        input = {x = {type = "number", default = 5}},
-        output = {
-          step1 = {type = "number", required = true},
-          step2 = {type = "number", required = true},
-          step3 = {type = "number", required = true}
-        },
-        state = {}
-      }, function()
-        local step1 = checkpoint(function()
-          return input.x + 10
-        end)
+  Given a Lua DSL file with content:
+  """
+  main = Procedure "main" {
+    input = {
+      value = field.number{default = 5}
+    },
+    output = {
+      step1 = field.number{required = true},
+      step2 = field.number{required = true},
+      step3 = field.number{required = true}
+    },
+    state = {},
+    function(input)
+      Checkpoint()
+      local step1 = input.value * 2
 
-        local step2 = checkpoint(function()
-          return step1 * 2
-        end)
+      Checkpoint()
+      local step2 = step1 + 10
 
-        local step3 = checkpoint(function()
-          return step2 + 5
-        end)
+      Checkpoint()
+      local step3 = step2 + 5
 
-        return {step1 = step1, step2 = step2, step3 = step3}
-      end)
-      """
-    When I validate the file
-    Then validation should succeed
+      return {step1 = step1, step2 = step2, step3 = step3}
+    end
+  }
+  """
+  When I validate the file
+  Then validation should succeed
 
   Scenario: Checkpointing expensive operations
-    Given a Lua DSL file with content:
-      """
-      main = procedure("main", {
-        input = {iterations = {type = "number", default = 100}},
-        output = {result = {type = "number", required = true}},
-        state = {}
-      }, function()
-        local result = checkpoint(function()
-          local sum = 0
-          for i = 1, input.iterations do
-            sum = sum + i
-          end
-          return sum
-        end)
-        return {result = result}
-      end)
-      """
-    When I validate the file
-    Then validation should succeed
+  Given a Lua DSL file with content:
+  """
+  Agent "processor" {
+    provider = "openai",
+    system_prompt = "Work",
+    tools = {}
+  }
+
+  main = Procedure "main" {
+    function(input)
+      Checkpoint()
+      local result1 = Agent("processor")({query = "process data"})
+
+      -- Second expensive operation
+      Checkpoint()
+      local result2 = Agent("processor")({query = "analyze results"})
+
+      return {result = result1 .. " " .. result2}
+    end
+  }
+  """
+  When I validate the file
+  Then validation should succeed
 
   Scenario: Checkpoint with state updates
-    Given a Lua DSL file with content:
-      """
-      main = procedure("main", {
-        output = {total = {type = "number", required = true}},
-        state = {
-          count = {type = "number", default = 0},
-          sum = {type = "number", default = 0}
-        }
-      }, function()
-        checkpoint(function()
-          state.count = state.count + 1
-          state.sum = state.sum + 10
-          return {checkpoint = "step1"}
-        end)
+  Given a Lua DSL file with content:
+  """
+  main = Procedure "main" {
+    input = {
+      count = field.number{default = 0}
+    },
+    output = {
+      result = field.number{required = true}
+    },
+    state = {
+      count = field.number{default = 0},
+      total = field.number{default = 0}
+    },
+    function(input)
+      state.count = state.count + 1
+      Checkpoint()
+      state.total = input.count + 1
 
-        checkpoint(function()
-          state.count = state.count + 1
-          state.sum = state.sum + 20
-          return {checkpoint = "step2"}
-        end)
-
-        return {total = state.sum}
-      end)
-      """
-    When I validate the file
-    Then validation should succeed
-    And the state_schema should contain field "count"
-    And the state_schema should contain field "sum"
+      return {result = state.total}
+    end
+  }
+  """
+  When I validate the file
+  Then validation should succeed
+  And the state_schema should contain field "count"
+  And the state_schema should contain field "total"
 
   Scenario: Checkpoint vs Checkpoint primitive
-    Given a Lua DSL file with content:
-      """
-      main = procedure("main", {
-        output = {
-          result = {type = "number", required = true},
-          position = {type = "number", required = true}
-        },
-        state = {}
-      }, function()
-        -- Global checkpoint() function
-        local result = checkpoint(function()
-          return 100
-        end)
+  Given a Lua DSL file with content:
+  """
+  Agent "worker" {
+    provider = "openai",
+    system_prompt = "Work",
+    tools = {}
+  }
 
-        -- Checkpoint primitive for introspection
-        local position = Checkpoint.next_position()
+  main = Procedure "main" {
+    function(input)
+      -- Using Checkpoint function
+      Checkpoint()
+      local result1 = Agent("worker")({task = "task1"})
 
-        return {result = result, position = position}
-      end)
-      """
-    When I validate the file
-    Then validation should succeed
+      return {result = result1}
+    end
+  }
+
+  alt = Procedure "alt" {
+    function(input)
+      -- Using Checkpoint primitive (different syntax)
+      local result2 = Checkpoint({task = "task2"})
+      return {result = result2}
+    end
+  }
+  """
+  When I validate the file
+  Then validation should succeed

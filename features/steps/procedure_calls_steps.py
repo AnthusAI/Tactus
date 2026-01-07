@@ -30,12 +30,12 @@ def step_impl(context):
     _proc_state(context)["runtime"] = ProcedureRuntime()
 
 
-@given('a sub-procedure "{name}":')
+@given('a sub-Procedure "{name}":')
 def step_impl(context, name):
     _runtime(context).register_yaml(textwrap.dedent(context.text or ""))
 
 
-@when('I call procedure "{name}" with params:')
+@when('I call Procedure "{name}" with params:')
 def step_impl(context, name):
     params = {
         row["param"]: int(row["value"]) if row["value"].isdigit() else row["value"]
@@ -96,7 +96,7 @@ def step_impl(context):
     assert _proc_state(context)["main_state"] is not _proc_state(context)["last_child_state"]
 
 
-@given('a sub-procedure "process_list"')
+@given('a sub-Procedure "process_list"')
 def step_impl(context):
     def handler(params, state, runtime):
         state["received"] = params["items"]
@@ -125,7 +125,7 @@ def step_impl(context):
     assert len(_proc_state(context)["last_result"]) >= 1
 
 
-@given('procedure "level1" calls procedure "level2"')
+@given('Procedure "level1" calls Procedure "level2"')
 def step_impl(context):
     state = _proc_state(context)
 
@@ -147,12 +147,12 @@ def step_impl(context):
     _runtime(context).register_callable("level1", level1)
 
 
-@given('procedure "level2" calls procedure "level3"')
+@given('Procedure "level2" calls Procedure "level3"')
 def step_impl(context):
     pass  # Covered in previous step
 
 
-@when('I execute procedure "level1"')
+@when('I execute Procedure "level1"')
 def step_impl(context):
     _runtime(context).call("level1", {})
 

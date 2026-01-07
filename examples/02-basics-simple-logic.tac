@@ -2,45 +2,22 @@
 -- This example uses only state and stage primitives, no LLM calls required
 
 -- Stages
-stages({"start", "middle", "end"})
+Stages({"start", "middle", "end"})
 
 -- Procedure with input, output, and state defined inline
-procedure "main" {
+Procedure "main" {
     input = {
-        target_count = {
-            type = "number",
-            required = false,
-            default = 5,
-            description = "Target counter value"
-        },
+        target_count = field.number{required = false, description = "Target counter value", default = 5},
     },
     output = {
-        final_count = {
-            type = "number",
-            required = true,
-            description = "Final counter value"
-        },
-        message = {
-            type = "string",
-            required = true,
-            description = "Status message"
-        },
+        final_count = field.number{required = true, description = "Final counter value"},
+        message = field.string{required = true, description = "Status message"},
     },
     state = {
-        counter = {
-            type = "number",
-            default = 0,
-            description = "Working counter"
-        },
-        message = {
-            type = "string",
-            default = "",
-            description = "Working message"
-        }
-    }
-,
-
-function()
+        counter = field.number{description = "Working counter", default = 0},
+        message = field.string{description = "Working message", default = ""}
+    },
+    function(input)
   -- Initialize
   Stage.set("start")
 
@@ -66,7 +43,7 @@ end
 }
 
 -- BDD Specifications
-specifications([[
+Specifications([[
 Feature: Simple State Management
   Test basic state and stage functionality without agents
 
@@ -91,7 +68,7 @@ Feature: Simple State Management
 ]])
 
 -- Custom steps can be added here if needed
--- step("custom assertion", function()
+-- step("custom assertion", function(input)
 --   assert(State.get("counter") > 0)
 -- end)
 

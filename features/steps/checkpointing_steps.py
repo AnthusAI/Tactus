@@ -38,7 +38,7 @@ def step_impl(context, checkpoint_name):
     ), f"Checkpoint {checkpoint_name} should not exist yet"
 
 
-@when('I execute step "{checkpoint_name}" that computes factorial(100)')
+@when('I execute Step "{checkpoint_name}" that computes factorial(100)')
 def step_impl(context, checkpoint_name):
     """Execute expensive factorial calculation with checkpointing."""
     context.execution_count[checkpoint_name] = context.execution_count.get(checkpoint_name, 0)
@@ -123,7 +123,7 @@ def step_impl(context, expected):
     assert context.result == expected, f"Expected {expected}, got {context.result}"
 
 
-@when('I execute step "{checkpoint_name}" that loads training data')
+@when('I execute Step "{checkpoint_name}" that loads training data')
 def step_impl(context, checkpoint_name):
     """Execute data loading step."""
     context.execution_count[checkpoint_name] = context.execution_count.get(checkpoint_name, 0)
@@ -139,7 +139,7 @@ def step_impl(context, checkpoint_name):
     context.result = context.execution_context.checkpoint(load_data, "explicit_checkpoint")
 
 
-@when('I execute step "{checkpoint_name}" that trains a model')
+@when('I execute Step "{checkpoint_name}" that trains a model')
 def step_impl(context, checkpoint_name):
     """Execute model training step."""
     context.execution_count[checkpoint_name] = context.execution_count.get(checkpoint_name, 0)
@@ -155,7 +155,7 @@ def step_impl(context, checkpoint_name):
     context.result = context.execution_context.checkpoint(train_model, "explicit_checkpoint")
 
 
-@when('I execute step "{checkpoint_name}" that evaluates performance')
+@when('I execute Step "{checkpoint_name}" that evaluates performance')
 def step_impl(context, checkpoint_name):
     """Execute model evaluation step."""
     context.execution_count[checkpoint_name] = context.execution_count.get(checkpoint_name, 0)
@@ -193,7 +193,7 @@ def step_impl(context):
     context.execution_context.checkpoint_clear_all()
 
 
-@when('I execute step "{checkpoint_name}" that computes 2 + 2')
+@when('I execute Step "{checkpoint_name}" that computes 2 + 2')
 def step_impl(context, checkpoint_name):
     """Execute simple calculation."""
     context.execution_count[checkpoint_name] = context.execution_count.get(checkpoint_name, 0)

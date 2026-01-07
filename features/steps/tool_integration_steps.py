@@ -36,7 +36,7 @@ def _record_call(state, name, params, result=None):
         tool.record_call(name, params, result)
 
 
-@when('I call tool "{name}" with parameters:')
+@when('I call Tool "{name}" with parameters:')
 def step_impl(context, name):
     state = _tool_state(context)
     params = table_to_dict(context.table)
@@ -80,7 +80,7 @@ def step_impl(context):
     assert context.tool_error is not None, "Expected tool call to fail"
 
 
-@given('tool "search_papers" returns paper IDs')
+@given('Tool "search_papers" returns paper IDs')
 def step_impl(context):
     server = _tool_state(context)["server"]
 
@@ -115,7 +115,7 @@ def step_impl(context):
         assert "paper_id" in detail and "title" in detail
 
 
-@when('I call tool "long_running_task" with timeout {timeout:d} seconds')
+@when('I call Tool "long_running_task" with timeout {timeout:d} seconds')
 def step_impl(context, timeout):
     state = _tool_state(context)
     state["long_task_timeout"] = timeout

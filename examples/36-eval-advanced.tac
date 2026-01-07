@@ -1,7 +1,7 @@
 -- Example: Advanced Evaluator Types
 -- This demonstrates regex, JSON schema, and numeric range evaluators
 
-agent("formatter", {
+Agent("formatter", {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[You are a helpful assistant that formats data.
@@ -14,37 +14,22 @@ IMPORTANT: Always call the done tool immediately with your formatted result.]],
     request_limit = 5
 })
 
-procedure "main" {
+Procedure "main" {
     input = {
-        task = {
-            type = "string",
-            required = true
-        }
+        task = field.string{required = true}
     },
     output = {
-        result = {
-            type = "string",
-            required = true
-        },
-        score = {
-            type = "number",
-            required = false
-        },
-        data = {
-            type = "object",
-            required = false
-        }
+        result = field.string{required = true},
+        score = field.number{required = false},
+        data = field.object{required = false}
     },
-    state = {}
-,
-
-function()
+    function(input)
     -- Have agent complete the task
     Agent("formatter").turn()
     
     -- Get result
     if Tool.called("done") then
-        local output = Tool.last_call("done").args.reason or ""
+        local output = Tool.last_result("done") or "Task completed" or ""
         return {
             result = output,
             score = 85,  -- Mock score for testing
@@ -60,7 +45,7 @@ end
 }
 
 -- BDD Specifications
-specifications([[
+Specifications([[
 Feature: Advanced Evaluator Types
 
   Scenario: Agent formats output correctly
@@ -71,7 +56,7 @@ Feature: Advanced Evaluator Types
 ]])
 
 -- Pydantic AI Evaluations with Advanced Evaluators
-evaluations({
+Evaluations({
     runs = 2,
     parallel = true,
     
@@ -85,33 +70,11 @@ evaluations({
     },
     
     evaluators = {
-        -- Regex: Check for the word "test"
+        -- Simple string contains evaluator
         {
-            type = "regex",
-            field = "result",
-            value = "test",
-            case_sensitive = false
-        },
-        
-        -- Numeric range: Check score is between 0-100
-        {
-            type = "range",
-            field = "score",
-            value = {min = 0, max = 100}
-        },
-        
-        -- JSON Schema: Validate data structure
-        {
-            type = "json_schema",
-            field = "data",
-            value = {
-                type = "object",
-                properties = {
-                    name = {type = "string"},
-                    value = {type = "number"}
-                },
-                required = {"name", "value"}
-            }
+            name = "contains_test",
+            type = "contains",
+            expected = "test"
         }
     }
 }

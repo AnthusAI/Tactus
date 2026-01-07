@@ -150,13 +150,51 @@ class AgentPrimitive:
             # No tools for this agent (model doesn't support tool calling)
             all_tools = []
 
-        # Store all tools for later reference (for per-turn filtering)
-        self.all_tools = all_tools
+        # Extract tools from toolsets and add to all_tools
+        # Toolsets contain Tool objects which wrap the actual functions
+        logger.debug(f"AgentPrimitive '{name}' received toolsets: {toolsets}")
+        if toolsets:
+            logger.debug(f"Processing {len(toolsets)} toolsets")
+            for toolset in toolsets:
+                # Check if toolset has a 'tools' attribute (FunctionToolset)
+                if hasattr(toolset, "tools"):
+                    # Extract the function from each Tool object
+                    # pydantic-ai needs the raw functions, not Tool objects
+                    for tool_name, tool in toolset.tools.items():
+                        logger.debug(f"Processing tool '{tool_name}' from toolset")
+                        if hasattr(tool, "function"):
+                            # Tool object has a function attribute
+                            func = tool.function
+                            logger.debug(
+                                f"  Extracted function: {func.__name__} at {hex(id(func))}"
+                            )
+                            all_tools.append(func)
+                        else:
+                            # It's already a function or callable
+                            logger.debug("  Using tool directly (not a Tool object)")
+                            all_tools.append(tool)
+                    logger.info(f"Extracted {len(toolset.tools)} tools from toolset")
+
+        # Deduplicate tools by name to avoid conflicts
+        # When we have both individual tools and toolsets, we might get duplicates
+        seen_names = set()
+        deduplicated_tools = []
+        for tool in all_tools:
+            # Get the tool name
+            tool_name = getattr(tool, "name", None) or getattr(tool, "__name__", None)
+            if tool_name and tool_name not in seen_names:
+                seen_names.add(tool_name)
+                deduplicated_tools.append(tool)
+            elif tool_name:
+                logger.debug(f"Skipping duplicate tool '{tool_name}'")
+
+        # Store deduplicated tools for later reference (for per-turn filtering)
+        self.all_tools = deduplicated_tools
 
         # Store toolsets for per-turn toolset overrides
         self.toolsets = toolsets or []
 
-        # Create Pydantic AI Agent with all tools
+        # Create Pydantic AI Agent with deduplicated tools
         # For Bedrock, we need to create a provider with region_name
         if provider and provider.lower() == "bedrock":
             import os
@@ -180,14 +218,18 @@ class AgentPrimitive:
                 "deps_type": AgentDeps,
                 "model_settings": model_settings,
             }
-            if all_tools:
-                agent_kwargs["tools"] = all_tools
-                logger.info(f"Agent '{name}' passing {len(all_tools)} tools to Bedrock Agent")
-            if toolsets and len(toolsets) > 0:  # Only pass if not empty
-                agent_kwargs["toolsets"] = toolsets
-                logger.info(f"Agent '{name}' passing {len(toolsets)} toolsets to Bedrock Agent")
+            if deduplicated_tools:
+                agent_kwargs["tools"] = deduplicated_tools
+                logger.info(
+                    f"Agent '{name}' passing {len(deduplicated_tools)} tools to Bedrock Agent"
+                )
+            # Don't pass toolsets if we've already extracted tools from them
+            # to avoid duplicate tool registration
+            # if toolsets and len(toolsets) > 0:  # Only pass if not empty
+            #     agent_kwargs["toolsets"] = toolsets
+            #     logger.info(f"Agent '{name}' passing {len(toolsets)} toolsets to Bedrock Agent")
 
-            if not all_tools and (not toolsets or len(toolsets) == 0 or toolsets is None):
+            if not deduplicated_tools and (not toolsets or len(toolsets) == 0 or toolsets is None):
                 logger.info(f"Agent '{name}' created with NO tools/toolsets for Bedrock")
 
             self.agent = Agent(bedrock_model, **agent_kwargs)
@@ -198,10 +240,12 @@ class AgentPrimitive:
                 "deps_type": AgentDeps,
                 "model_settings": model_settings,
             }
-            if all_tools:
-                agent_kwargs["tools"] = all_tools
-            if toolsets is not None:  # Check for None, not emptiness
-                agent_kwargs["toolsets"] = toolsets
+            if deduplicated_tools:
+                agent_kwargs["tools"] = deduplicated_tools
+            # Don't pass toolsets if we've already extracted tools from them
+            # to avoid duplicate tool registration
+            # if toolsets is not None:  # Check for None, not emptiness
+            #     agent_kwargs["toolsets"] = toolsets
 
             self.agent = Agent(model, **agent_kwargs)
 
@@ -252,7 +296,7 @@ class AgentPrimitive:
         self.message_history: List[ModelMessage] = []
         self._initialized = False
 
-        logger.info(f"AgentPrimitive '{name}' initialized with {len(all_tools)} tools")
+        logger.info(f"AgentPrimitive '{name}' initialized with {len(deduplicated_tools)} tools")
 
     def turn(self, opts: Optional[Dict[str, Any]] = None) -> ResultPrimitive:
         """
@@ -486,8 +530,10 @@ class AgentPrimitive:
             seen = set()
             unique_tools = []
             for tool in tools_list:
-                if tool.name not in seen:
-                    seen.add(tool.name)
+                # Handle both Tool objects and raw functions
+                tool_name = getattr(tool, "name", None) or getattr(tool, "__name__", str(tool))
+                if tool_name not in seen:
+                    seen.add(tool_name)
                     unique_tools.append(tool)
             return unique_tools
 
@@ -507,11 +553,15 @@ class AgentPrimitive:
         filtered = []
 
         for tool in self.all_tools:
-            if tool.name in tool_names:
+            # Handle both Tool objects and raw functions
+            tool_name = getattr(tool, "name", None) or getattr(tool, "__name__", "unknown")
+            if tool_name in tool_names:
                 filtered.append(tool)
 
         # Validate all requested tools exist
-        found_names = {t.name for t in filtered}
+        found_names = {
+            getattr(t, "name", None) or getattr(t, "__name__", "unknown") for t in filtered
+        }
         missing = set(tool_names) - found_names
         if missing:
             logger.warning(f"Agent '{self.name}': Requested tools not found: {missing}")
@@ -960,7 +1010,7 @@ class AgentPrimitive:
                 result = await self.agent.run(
                     first_turn_message,
                     deps=self.deps,
-                    output_type=self.result_type,
+                    result_type=self.result_type,
                     event_stream_handler=stream_handler,
                     model_settings=turn_model_settings,
                 )

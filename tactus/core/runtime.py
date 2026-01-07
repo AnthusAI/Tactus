@@ -157,6 +157,9 @@ class TactusRuntime:
         self.user_dependencies: Dict[str, Any] = {}
         self.dependency_manager: Optional[Any] = None  # ResourceManager for cleanup
 
+        # Mock manager for testing
+        self.mock_manager: Optional[Any] = None  # MockManager instance
+
         logger.info(f"TactusRuntime initialized for procedure {procedure_id}")
 
     async def execute(
@@ -225,6 +228,17 @@ class TactusRuntime:
                 logger.info("Loaded procedure from Lua DSL")
                 # Convert registry to config dict for compatibility
                 self.config = self._registry_to_config(self.registry)
+                logger.debug(
+                    f"Registry contents: agents={list(self.registry.agents.keys())}, lua_tools={list(self.registry.lua_tools.keys())}"
+                )
+
+                # Process mocks from registry if mock_manager exists
+                if self.mock_manager and self.registry.mocks:
+                    logger.info(f"Registering {len(self.registry.mocks)} mocks from DSL")
+                    for tool_name, mock_config in self.registry.mocks.items():
+                        self.mock_manager.register_mock(tool_name, mock_config)
+                        self.mock_manager.enable_mock(tool_name)
+                        logger.debug(f"Registered and enabled mock for tool '{tool_name}'")
 
                 # Merge external config (from .tac.yml) into self.config
                 # External config provides toolsets, default_toolsets, etc.
@@ -251,7 +265,7 @@ class TactusRuntime:
 
             # 2. Setup output validator
             logger.info("Step 2: Setting up output validator")
-            output_schema = self.config.get("outputs", {})
+            output_schema = self.config.get("output", {})
             self.output_validator = OutputValidator(output_schema)
             if output_schema:
                 logger.info(
@@ -707,7 +721,9 @@ class TactusRuntime:
             logger.debug(f"Resolved toolset '{name}' from registry")
             return toolset
         else:
-            logger.warning(f"Toolset '{name}' not found in registry")
+            logger.warning(
+                f"Toolset '{name}' not found in registry. Available: {list(self.toolset_registry.keys())}"
+            )
             return None
 
     async def _initialize_toolsets(self):
@@ -723,6 +739,10 @@ class TactusRuntime:
         Note: There are no built-in toolsets. Programmers must define their own
         tools using tool() declarations in their .tac files.
         """
+        logger.info(
+            f"Starting _initialize_toolsets, registry has {len(self.registry.lua_tools) if self.registry else 0} lua_tools"
+        )
+
         # 1. Load config-defined toolsets
         config_toolsets = self.config.get("toolsets", {})
         for name, definition in config_toolsets.items():
@@ -744,21 +764,16 @@ class TactusRuntime:
                 )
                 await self.mcp_manager.__aenter__()
 
-                # Get toolsets from MCP manager
-                mcp_toolsets = self.mcp_manager.get_toolsets()
-
                 # Register each MCP toolset by server name
                 for server_name in self.mcp_servers.keys():
-                    # Find corresponding toolset (assumes same order)
-                    # TODO: MCPServerManager should provide get_named_toolsets() method
-                    if mcp_toolsets:
-                        # For now, register first toolset with server name
-                        # This needs improvement when we add get_named_toolsets()
-                        toolset = mcp_toolsets[0] if len(mcp_toolsets) == 1 else None
-                        if toolset:
-                            self.toolset_registry[server_name] = toolset
-                            logger.info(f"Registered MCP toolset '{server_name}'")
+                    # Get the toolset for this specific server
+                    toolset = self.mcp_manager.get_toolset_by_name(server_name)
+                    if toolset:
+                        self.toolset_registry[server_name] = toolset
+                        logger.info(f"Registered MCP toolset '{server_name}'")
 
+                # Get all toolsets for logging
+                mcp_toolsets = self.mcp_manager.get_toolsets()
                 logger.info(f"Connected to {len(mcp_toolsets)} MCP server(s)")
             except Exception as e:
                 # Check if this is a fileno error (common in test environments with redirected stderr)
@@ -798,17 +813,42 @@ class TactusRuntime:
                     logger.error(f"Failed to create DSL toolset '{name}': {e}", exc_info=True)
 
         # 6. Register individual Lua tool() declarations
+        logger.info(
+            f"Checking for Lua tools: has registry={hasattr(self, 'registry')}, registry not None={self.registry is not None if hasattr(self, 'registry') else False}"
+        )
         if hasattr(self, "registry") and self.registry and hasattr(self.registry, "lua_tools"):
+            logger.info(f"Found {len(self.registry.lua_tools)} Lua tools to register")
             try:
                 from tactus.adapters.lua_tools import LuaToolsAdapter
 
-                lua_adapter = LuaToolsAdapter(tool_primitive=self.tool_primitive)
+                lua_adapter = LuaToolsAdapter(
+                    tool_primitive=self.tool_primitive, mock_manager=self.mock_manager
+                )
 
                 for tool_name, tool_spec in self.registry.lua_tools.items():
                     try:
-                        toolset = lua_adapter.create_single_tool_toolset(tool_name, tool_spec)
-                        self.toolset_registry[tool_name] = toolset
-                        logger.info(f"Registered Lua tool '{tool_name}' as toolset")
+                        # Check if this tool references an external source
+                        source = tool_spec.get("source")
+                        logger.info(
+                            f"Processing Lua tool '{tool_name}': source={source}, spec keys={list(tool_spec.keys())}"
+                        )
+                        if source:
+                            # Resolve the external tool
+                            resolved_tool = await self._resolve_tool_source(tool_name, source)
+                            if resolved_tool:
+                                self.toolset_registry[tool_name] = resolved_tool
+                                logger.info(f"Registered tool '{tool_name}' from source '{source}'")
+                                # Debug: print the actual tool
+                                logger.debug(f"Tool object: {resolved_tool}")
+                            else:
+                                logger.error(
+                                    f"Failed to resolve tool '{tool_name}' from source '{source}'"
+                                )
+                        else:
+                            # Regular inline Lua tool
+                            toolset = lua_adapter.create_single_tool_toolset(tool_name, tool_spec)
+                            self.toolset_registry[tool_name] = toolset
+                            logger.info(f"Registered Lua tool '{tool_name}' as toolset")
                     except Exception as e:
                         logger.error(f"Failed to create Lua tool '{tool_name}': {e}", exc_info=True)
             except ImportError as e:
@@ -819,6 +859,356 @@ class TactusRuntime:
         logger.info(
             f"Toolset registry initialized with {len(self.toolset_registry)} toolset(s): {list(self.toolset_registry.keys())}"
         )
+
+        # Debug: Print what's in the toolset registry
+        for name, toolset in self.toolset_registry.items():
+            logger.debug(f"  - {name}: {type(toolset)} -> {toolset}")
+
+    async def _resolve_tool_source(self, tool_name: str, source: str) -> Optional[Any]:
+        """
+        Resolve a tool from an external source.
+
+        Args:
+            tool_name: Name of the tool
+            source: Source identifier (e.g., "tactus.done", "./file.tac", "mcp.server")
+
+        Returns:
+            Toolset containing the resolved tool, or None if not found
+        """
+        # Handle standard library tools (tactus.*)
+        if source.startswith("tactus."):
+            tool_id = source[7:]  # Remove "tactus." prefix
+            try:
+                from tactus.stdlib import load_tool
+
+                # Load the Python function from stdlib
+                tool_func = load_tool(tool_id)
+                if tool_func:
+                    # Create a toolset with the single tool
+                    from pydantic_ai.toolsets import FunctionToolset
+                    from pydantic_ai import Tool
+
+                    # Create a wrapper that tracks tool calls
+                    tool_primitive = self.tool_primitive
+
+                    # Create tracking wrapper (needs to be sync since stdlib tools are sync)
+                    def tracked_tool(**kwargs):
+                        """Wrapper that tracks tool calls."""
+                        logger.debug(f"Tracked tool '{tool_name}' called with: {kwargs}")
+
+                        # Check for mock response first
+                        if self.mock_manager:
+                            mock_result = self.mock_manager.get_mock_response(tool_name, kwargs)
+                            if mock_result is not None:
+                                logger.debug(
+                                    f"Using mock response for '{tool_name}': {mock_result}"
+                                )
+                                # Track the mock call
+                                if tool_primitive:
+                                    tool_primitive.record_call(tool_name, kwargs, mock_result)
+                                if self.mock_manager:
+                                    self.mock_manager.record_call(tool_name, kwargs, mock_result)
+                                return mock_result
+
+                        # Call original function
+                        result = tool_func(**kwargs)
+                        logger.debug(f"Tool '{tool_name}' returned: {result}")
+
+                        # Track the call
+                        if tool_primitive:
+                            logger.debug(f"Recording call for '{tool_name}' with tool_primitive")
+                            tool_primitive.record_call(tool_name, kwargs, result)
+                        else:
+                            logger.warning(
+                                f"No tool_primitive available for tracking '{tool_name}'"
+                            )
+
+                        # Also track in mock manager for assertions
+                        if self.mock_manager:
+                            self.mock_manager.record_call(tool_name, kwargs, result)
+
+                        return result
+
+                    # Copy metadata from original function
+                    tracked_tool.__name__ = tool_name
+                    tracked_tool.__doc__ = getattr(tool_func, "__doc__", f"Tool: {tool_name}")
+
+                    # Wrap the tracked function as a Tool with the desired name
+                    # The Tool object will be created, and we'll make sure to use the
+                    # tracked_tool function, not the original
+                    wrapped_tool = Tool(tracked_tool, name=tool_name)
+
+                    # Create toolset from the list of tools
+                    # Make sure the toolset contains our tracking wrapper
+                    toolset = FunctionToolset(tools=[wrapped_tool])
+                    return toolset
+                else:
+                    logger.error(f"Standard library tool '{tool_id}' not found")
+                    return None
+            except Exception as e:
+                logger.error(f"Failed to load stdlib tool '{source}': {e}", exc_info=True)
+                return None
+
+        # Handle local .tac file imports (./path/file.tac)
+        elif source.startswith("./") or source.startswith("/"):
+            from pathlib import Path
+
+            # Resolve path relative to the source file if available
+            if self.source_file_path and source.startswith("./"):
+                base_dir = Path(self.source_file_path).parent
+                file_path = base_dir / source[2:]  # Remove "./" prefix
+            else:
+                file_path = Path(source)
+
+            # Check if file exists
+            if not file_path.exists():
+                logger.error(f"Tool source file not found: {file_path}")
+                return None
+
+            if not file_path.suffix == ".tac":
+                logger.error(f"Tool source must be a .tac file: {file_path}")
+                return None
+
+            try:
+                # Read and parse the .tac file
+                with open(file_path, "r") as f:
+                    content = f.read()
+
+                # Create a sub-runtime to load the tools from the file
+                # We'll parse the file and extract tool definitions
+                # Parse the file content using the DSL
+                lua_runtime = self.sandbox.runtime
+                lua_runtime.execute(content)
+
+                # Get registered tools from the builder
+                # Note: This assumes tools are registered globally during parsing
+                # We may need to enhance this to properly isolate tool loading
+                logger.info(f"Loaded tools from {file_path}")
+
+                # For now, return None as we need to implement proper tool extraction
+                # This will be enhanced in the next iteration
+                logger.warning("Tool extraction from .tac files needs enhancement")
+                return None
+
+            except Exception as e:
+                logger.error(f"Failed to load tools from {file_path}: {e}", exc_info=True)
+                return None
+
+        # Handle MCP server tools (mcp.*)
+        elif source.startswith("mcp."):
+            server_name = source[4:]  # Remove "mcp." prefix
+            # Look for the MCP server toolset
+            if server_name in self.toolset_registry:
+                return self.toolset_registry[server_name]
+            else:
+                logger.error(f"MCP server '{server_name}' not found in registry")
+                return None
+
+        # Handle plugin tools (plugin.*)
+        elif source.startswith("plugin."):
+            plugin_path = source[7:]  # Remove "plugin." prefix
+            try:
+                # Split the plugin path into module and function
+                parts = plugin_path.rsplit(".", 1)
+                if len(parts) != 2:
+                    logger.error(
+                        f"Invalid plugin path format: {source} (expected plugin.module.function)"
+                    )
+                    return None
+
+                module_name, func_name = parts
+
+                # Try to import the module
+                import importlib
+
+                try:
+                    module = importlib.import_module(module_name)
+                except ModuleNotFoundError:
+                    # Try with "tactus.plugins." prefix
+                    try:
+                        module = importlib.import_module(f"tactus.plugins.{module_name}")
+                    except ModuleNotFoundError:
+                        logger.error(f"Plugin module not found: {module_name}")
+                        return None
+
+                # Get the function from the module
+                if not hasattr(module, func_name):
+                    logger.error(f"Function '{func_name}' not found in module '{module_name}'")
+                    return None
+
+                tool_func = getattr(module, func_name)
+
+                # Create a toolset with the plugin tool
+                from pydantic_ai.toolsets import FunctionToolset
+                from pydantic_ai import Tool
+
+                # Create tracking wrapper
+                tool_primitive = self.tool_primitive
+
+                def tracked_plugin_tool(**kwargs):
+                    """Wrapper that tracks plugin tool calls."""
+                    logger.debug(f"Plugin tool '{tool_name}' called with: {kwargs}")
+
+                    # Check for mock response first
+                    if self.mock_manager:
+                        mock_result = self.mock_manager.get_mock_response(tool_name, kwargs)
+                        if mock_result is not None:
+                            logger.debug(f"Using mock response for '{tool_name}': {mock_result}")
+                            if tool_primitive:
+                                tool_primitive.record_call(tool_name, kwargs, mock_result)
+                            if self.mock_manager:
+                                self.mock_manager.record_call(tool_name, kwargs, mock_result)
+                            return mock_result
+
+                    # Call the plugin function
+                    result = tool_func(**kwargs)
+                    logger.debug(f"Plugin tool '{tool_name}' returned: {result}")
+
+                    # Track the call
+                    if tool_primitive:
+                        tool_primitive.record_call(tool_name, kwargs, result)
+                    if self.mock_manager:
+                        self.mock_manager.record_call(tool_name, kwargs, result)
+
+                    return result
+
+                # Copy metadata
+                tracked_plugin_tool.__name__ = tool_name
+                tracked_plugin_tool.__doc__ = getattr(
+                    tool_func, "__doc__", f"Plugin tool: {tool_name}"
+                )
+
+                # Create and return toolset
+                wrapped_tool = Tool(tracked_plugin_tool, name=tool_name)
+                toolset = FunctionToolset(tools=[wrapped_tool])
+                logger.info(f"Loaded plugin tool '{tool_name}' from {module_name}.{func_name}")
+                return toolset
+
+            except Exception as e:
+                logger.error(f"Failed to load plugin tool '{source}': {e}", exc_info=True)
+                return None
+
+        # Handle CLI tools (cli.*)
+        elif source.startswith("cli."):
+            cli_command = source[4:]  # Remove "cli." prefix
+            try:
+                import subprocess
+                import json
+                from pydantic_ai.toolsets import FunctionToolset
+                from pydantic_ai import Tool
+
+                # Create tracking wrapper
+                tool_primitive = self.tool_primitive
+
+                def cli_tool_wrapper(**kwargs):
+                    """Wrapper that executes CLI commands."""
+                    logger.debug(f"CLI tool '{tool_name}' called with: {kwargs}")
+
+                    # Check for mock response first
+                    if self.mock_manager:
+                        mock_result = self.mock_manager.get_mock_response(tool_name, kwargs)
+                        if mock_result is not None:
+                            logger.debug(f"Using mock response for '{tool_name}': {mock_result}")
+                            if tool_primitive:
+                                tool_primitive.record_call(tool_name, kwargs, mock_result)
+                            if self.mock_manager:
+                                self.mock_manager.record_call(tool_name, kwargs, mock_result)
+                            return mock_result
+
+                    # Build command line
+                    cmd = [cli_command]
+
+                    # Add arguments from kwargs
+                    # Common patterns:
+                    # - Boolean flags: {"verbose": True} -> ["--verbose"]
+                    # - String args: {"file": "test.txt"} -> ["--file", "test.txt"]
+                    # - Positional: {"args": ["arg1", "arg2"]} -> ["arg1", "arg2"]
+
+                    for key, value in kwargs.items():
+                        if key == "args" and isinstance(value, list):
+                            # Positional arguments
+                            cmd.extend(value)
+                        elif isinstance(value, bool):
+                            if value:
+                                # Boolean flag
+                                flag = f"--{key.replace('_', '-')}"
+                                cmd.append(flag)
+                        elif value is not None:
+                            # Key-value argument
+                            flag = f"--{key.replace('_', '-')}"
+                            cmd.extend([flag, str(value)])
+
+                    logger.debug(f"Executing CLI command: {' '.join(cmd)}")
+
+                    try:
+                        # Execute the command
+                        result = subprocess.run(
+                            cmd,
+                            capture_output=True,
+                            text=True,
+                            check=False,
+                            timeout=30,  # 30 second timeout
+                        )
+
+                        # Prepare response
+                        response = {
+                            "stdout": result.stdout,
+                            "stderr": result.stderr,
+                            "returncode": result.returncode,
+                            "success": result.returncode == 0,
+                        }
+
+                        # Try to parse JSON output if possible
+                        if result.stdout.strip().startswith(
+                            "{"
+                        ) or result.stdout.strip().startswith("["):
+                            try:
+                                response["json"] = json.loads(result.stdout)
+                            except json.JSONDecodeError:
+                                pass
+
+                        logger.debug(f"CLI tool '{tool_name}' returned: {response}")
+
+                        # Track the call
+                        if tool_primitive:
+                            tool_primitive.record_call(tool_name, kwargs, response)
+                        if self.mock_manager:
+                            self.mock_manager.record_call(tool_name, kwargs, response)
+
+                        return response
+
+                    except subprocess.TimeoutExpired:
+                        error_response = {
+                            "error": "Command timed out after 30 seconds",
+                            "success": False,
+                        }
+                        if tool_primitive:
+                            tool_primitive.record_call(tool_name, kwargs, error_response)
+                        return error_response
+
+                    except Exception as e:
+                        error_response = {"error": str(e), "success": False}
+                        if tool_primitive:
+                            tool_primitive.record_call(tool_name, kwargs, error_response)
+                        return error_response
+
+                # Set metadata
+                cli_tool_wrapper.__name__ = tool_name
+                cli_tool_wrapper.__doc__ = f"CLI tool wrapper for: {cli_command}"
+
+                # Create and return toolset
+                wrapped_tool = Tool(cli_tool_wrapper, name=tool_name)
+                toolset = FunctionToolset(tools=[wrapped_tool])
+                logger.info(f"Created CLI tool wrapper for '{cli_command}'")
+                return toolset
+
+            except Exception as e:
+                logger.error(f"Failed to create CLI tool wrapper '{source}': {e}", exc_info=True)
+                return None
+
+        else:
+            logger.error(f"Unknown tool source format: {source}")
+            return None
 
     async def _initialize_named_procedures(self):
         """
@@ -904,7 +1294,9 @@ class TactusRuntime:
             try:
                 from tactus.adapters.lua_tools import LuaToolsAdapter
 
-                lua_adapter = LuaToolsAdapter(tool_primitive=self.tool_primitive)
+                lua_adapter = LuaToolsAdapter(
+                    tool_primitive=self.tool_primitive, mock_manager=self.mock_manager
+                )
                 return lua_adapter.create_lua_toolset(name, definition)
             except ImportError as e:
                 logger.error(f"Could not import LuaToolsAdapter: {e}")
@@ -980,8 +1372,110 @@ class TactusRuntime:
             return None
 
         else:
-            logger.error(f"Unknown toolset type '{toolset_type}' for toolset '{name}'")
-            return None
+            # Check if this is a DSL-defined toolset (no explicit type)
+            # DSL toolsets can have:
+            # - "tools" field with list of tool names or inline tool definitions
+            # - "use" field to import from a file or other source
+
+            if "tools" in definition:
+                # Handle tools list (can be tool names or inline definitions)
+                tools_list = definition["tools"]
+
+                # Check if we have inline tool definitions (dicts with 'name' and 'handler')
+                has_inline_tools = False
+                if isinstance(tools_list, list):
+                    for item in tools_list:
+                        if isinstance(item, dict) and "handler" in item:
+                            has_inline_tools = True
+                            break
+
+                if has_inline_tools:
+                    # Create toolset from inline Lua tools
+                    try:
+                        from tactus.adapters.lua_tools import LuaToolsAdapter
+
+                        lua_adapter = LuaToolsAdapter(
+                            tool_primitive=self.tool_primitive, mock_manager=self.mock_manager
+                        )
+
+                        # Create a toolset from inline tool definitions
+                        return lua_adapter.create_inline_toolset(name, tools_list)
+                    except Exception as e:
+                        logger.error(
+                            f"Failed to create inline toolset '{name}': {e}", exc_info=True
+                        )
+                        return None
+                else:
+                    # Tools list contains tool names - create a combined toolset
+                    from pydantic_ai.toolsets import CombinedToolset
+
+                    resolved_tools = []
+                    for tool_name in tools_list:
+                        # Try to resolve each tool
+                        tool = self.resolve_toolset(tool_name)
+                        if tool:
+                            resolved_tools.append(tool)
+                        else:
+                            logger.warning(f"Tool '{tool_name}' not found for toolset '{name}'")
+
+                    if resolved_tools:
+                        return CombinedToolset(resolved_tools)
+                    else:
+                        logger.error(f"No valid tools found for toolset '{name}'")
+                        return None
+
+            elif "use" in definition:
+                # Import toolset from external source
+                source = definition["use"]
+
+                # Handle different source types
+                if source.startswith("./") or source.endswith(".tac"):
+                    # Import from local .tac file
+                    from pathlib import Path
+
+                    # Resolve path relative to the source file if available
+                    if self.source_file_path and source.startswith("./"):
+                        base_dir = Path(self.source_file_path).parent
+                        file_path = base_dir / source[2:]  # Remove "./" prefix
+                    else:
+                        file_path = Path(source)
+
+                    # Check if file exists
+                    if not file_path.exists():
+                        logger.error(f"Toolset source file not found: {file_path}")
+                        return None
+
+                    if not file_path.suffix == ".tac":
+                        logger.error(f"Toolset source must be a .tac file: {file_path}")
+                        return None
+
+                    # For now, log a warning that this is partially implemented
+                    # In a full implementation, we would:
+                    # 1. Parse the .tac file
+                    # 2. Extract all Tool and Toolset definitions
+                    # 3. Create a combined toolset with all tools from the file
+                    logger.warning(
+                        f"Toolset import from .tac file '{file_path}' is partially implemented. "
+                        "Currently returns empty toolset. Full implementation would extract all "
+                        "tools and toolsets from the file."
+                    )
+
+                    # Return an empty toolset for now
+                    from pydantic_ai.toolsets import FunctionToolset
+
+                    return FunctionToolset(tools=[])
+
+                elif source.startswith("mcp."):
+                    # Reference MCP server
+                    server_name = source[4:]  # Remove "mcp." prefix
+                    return self.resolve_toolset(server_name)
+                else:
+                    logger.error(f"Unknown toolset source '{source}' for '{name}'")
+                    return None
+
+            else:
+                logger.error(f"Toolset '{name}' has neither 'type', 'tools', nor 'use' field")
+                return None
 
     def _parse_toolset_expressions(self, expressions: list) -> list:
         """
@@ -1005,6 +1499,9 @@ class TactusRuntime:
         for expr in expressions:
             if isinstance(expr, str):
                 # Simple reference - resolve by name
+                logger.debug(
+                    f"Resolving toolset '{expr}' from registry with {len(self.toolset_registry)} entries"
+                )
                 toolset = self.resolve_toolset(expr)
                 if toolset is None:
                     logger.error(f"Toolset '{expr}' not found in registry")
@@ -1095,6 +1592,10 @@ class TactusRuntime:
         Args:
             context: Procedure context with pre-loaded data
         """
+        logger.info(
+            f"_setup_agents called. Toolset registry has {len(self.toolset_registry)} toolsets: {list(self.toolset_registry.keys())}"
+        )
+
         # Initialize user dependencies first (needed by agents)
         await self._initialize_dependencies()
 
@@ -1198,7 +1699,9 @@ class TactusRuntime:
                         try:
                             from tactus.adapters.lua_tools import LuaToolsAdapter
 
-                            lua_adapter = LuaToolsAdapter(tool_primitive=self.tool_primitive)
+                            lua_adapter = LuaToolsAdapter(
+                                tool_primitive=self.tool_primitive, mock_manager=self.mock_manager
+                            )
                             inline_tools_toolset = lua_adapter.create_inline_tools_toolset(
                                 agent_name, inline_tool_specs
                             )
@@ -1262,8 +1765,9 @@ class TactusRuntime:
                 )
             else:
                 # Parse toolset expressions
+                logger.info(f"Agent '{agent_name}' raw toolsets config: {agent_toolsets_config}")
                 filtered_toolsets = self._parse_toolset_expressions(agent_toolsets_config)
-                logger.info(f"Agent '{agent_name}' toolsets: {agent_toolsets_config}")
+                logger.info(f"Agent '{agent_name}' parsed toolsets: {filtered_toolsets}")
 
             # Append inline tools toolset if present
             if inline_tools_toolset:
@@ -1282,15 +1786,15 @@ class TactusRuntime:
             result_type = None
             output_schema_guidance = None
 
-            # Prefer output_type (aligned with pydantic-ai)
-            if agent_config.get("output_type"):
+            # Prefer output (aligned with pydantic-ai)
+            if agent_config.get("output"):
                 try:
-                    result_type = self._create_pydantic_model_from_output_type(
-                        agent_config["output_type"], f"{agent_name}Output"
+                    result_type = self._create_pydantic_model_from_output(
+                        agent_config["output"], f"{agent_name}Output"
                     )
-                    logger.info(f"Using agent output_type schema for '{agent_name}'")
+                    logger.info(f"Using agent output schema for '{agent_name}'")
                 except Exception as e:
-                    logger.warning(f"Failed to create output model from output_type: {e}")
+                    logger.warning(f"Failed to create output model from output: {e}")
             elif agent_config.get("output_schema"):
                 # Fallback to output_schema for backward compatibility
                 output_schema = agent_config["output_schema"]
@@ -1301,11 +1805,11 @@ class TactusRuntime:
                     logger.info(f"Created structured output model for agent '{agent_name}'")
                 except Exception as e:
                     logger.warning(f"Failed to create output model for agent '{agent_name}': {e}")
-            elif self.config.get("outputs"):
+            elif self.config.get("output"):
                 # Use procedure-level output schema
                 try:
                     result_type = self._create_output_model_from_schema(
-                        self.config["outputs"], f"{agent_name}Output"
+                        self.config["output"], f"{agent_name}Output"
                     )
                     logger.info(f"Using procedure-level output schema for agent '{agent_name}'")
                 except Exception as e:
@@ -1384,14 +1888,14 @@ class TactusRuntime:
                 logger.error(f"Failed to setup model '{model_name}': {e}")
                 raise
 
-    def _create_pydantic_model_from_output_type(self, output_type_schema, model_name: str) -> type:
+    def _create_pydantic_model_from_output(self, output_schema, model_name: str) -> type:
         """
-        Convert output_type schema to Pydantic model.
+        Convert output schema to Pydantic model.
 
-        Aligned with pydantic-ai's output_type parameter.
+        Aligned with pydantic-ai's output parameter.
 
         Args:
-            output_type_schema: AgentOutputSchema or dict with field definitions
+            output_schema: AgentOutputSchema or dict with field definitions
             model_name: Name for the generated Pydantic model
 
         Returns:
@@ -1403,11 +1907,11 @@ class TactusRuntime:
         fields = {}
 
         # Handle AgentOutputSchema object
-        if hasattr(output_type_schema, "fields"):
-            schema_fields = output_type_schema.fields
+        if hasattr(output_schema, "fields"):
+            schema_fields = output_schema.fields
         else:
             # Assume it's a dict
-            schema_fields = output_type_schema
+            schema_fields = output_schema
 
         for field_name, field_def in schema_fields.items():
             # Extract field properties
@@ -1415,7 +1919,8 @@ class TactusRuntime:
                 field_type_str = field_def.type
                 required = getattr(field_def, "required", True)
             else:
-                # Dict format
+                # Fields from registry are plain dicts (FieldDefinition type is lost)
+                # Trust that they were created with field builders
                 field_type_str = field_def.get("type", "string")
                 required = field_def.get("required", True)
 
@@ -1465,6 +1970,8 @@ class TactusRuntime:
 
         fields = {}
         for field_name, field_def in output_schema.items():
+            # Fields from registry are plain dicts (FieldDefinition type is lost)
+            # Trust that they were created with field builders
             field_type_str = field_def.get("type", "string")
             is_required = field_def.get("required", False)
 
@@ -1756,6 +2263,8 @@ class TactusRuntime:
                             input_params[key] = self.context[key]
                         # Apply default if available and not required
                         elif isinstance(field_def, dict) and "default" in field_def:
+                            # Fields created by field builders will have proper structure
+                            # We can't check FieldDefinition type here as it's lost during storage
                             input_params[key] = field_def["default"]
                         # If required and not in context, it will fail validation in ProcedureCallable
 
@@ -1862,7 +2371,7 @@ class TactusRuntime:
         Returns:
             Formatted string describing expected outputs
         """
-        outputs = self.config.get("outputs", {})
+        outputs = self.config.get("output", {})
         if not outputs:
             return ""
 
@@ -1872,6 +2381,8 @@ class TactusRuntime:
 
         # Format each output field
         for field_name, field_def in outputs.items():
+            # Fields from registry are plain dicts (FieldDefinition type is lost)
+            # Trust that they were created with field builders
             field_type = field_def.get("type", "any")
             is_required = field_def.get("required", False)
             description = field_def.get("description", "")
@@ -1951,6 +2462,7 @@ class TactusRuntime:
         for warning in result.warnings:
             logger.warning(warning.message)
 
+        logger.debug(f"Registry after parsing: lua_tools={list(result.registry.lua_tools.keys())}")
         return result.registry
 
     def _registry_to_config(self, registry: ProcedureRegistry) -> Dict[str, Any]:
@@ -1974,7 +2486,7 @@ class TactusRuntime:
 
         # Convert output schema
         if registry.output_schema:
-            config["outputs"] = registry.output_schema
+            config["output"] = registry.output_schema
 
         # Convert state schema
         if registry.state_schema:

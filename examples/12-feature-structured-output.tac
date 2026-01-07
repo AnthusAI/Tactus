@@ -1,8 +1,8 @@
 -- Structured Output Demo
--- Demonstrates using output_type for structured data extraction
+-- Demonstrates using output for structured data extraction
 -- and accessing result.data, result.usage
 
-agent("extractor", {
+Agent("extractor", {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[You extract city information. Return ONLY structured data with these fields:
@@ -13,29 +13,23 @@ agent("extractor", {
 Be concise and accurate.]],
     initial_message = "{input.query}",
 
-    -- Structured output (aligned with pydantic-ai's output_type)
-    output_type = {
-        city = {type = "string", required = true},
-        country = {type = "string", required = true},
-        population = {type = "number", required = false}
+    -- Structured output (aligned with pydantic-ai's output)
+    output = {
+        city = field.string{required = true},
+        country = field.string{required = true},
+        population = field.number{required = false}
     }
 })
 
-procedure "main" {
+Procedure "main" {
     input = {
-        query = {
-            type = "string",
-            default = "Tell me about Paris, France"
-        }
+        query = field.string{default = "Tell me about Paris"}
     },
     output = {
-        city_data = {type = "object", required = true},
-        tokens_used = {type = "number", required = true}
+        city_data = field.object{required = true},
+        tokens_used = field.number{required = true}
     },
-    state = {}
-,
-
-function()
+    function(input)
     Log.info("Starting structured output demo", {query = input.query})
     
     -- Agent returns ResultPrimitive (not raw data)
@@ -75,7 +69,7 @@ end
 }
 
 -- BDD Specifications
-specifications([[
+Specifications([[
 Feature: Structured Output with Result Access
   Demonstrate structured output validation and result access
 

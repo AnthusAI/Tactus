@@ -8,13 +8,13 @@ To run:
   tactus run examples/53-tsv-file-io.tac
 ]]--
 
-procedure "main" {
+Procedure "main" {
     input = {},
     output = {
-        records_processed = {type = "number", required = true},
-        summary = {type = "string", required = true}
+        records_processed = field.number{required = true},
+        summary = field.string{required = true}
     },
-    function()
+    function(input)
     -- Create sample TSV data
     local inventory_data = {
         {product = "Laptop, Pro Model", quantity = "15", price = "1299.99", location = "Warehouse A"},
@@ -71,7 +71,7 @@ procedure "main" {
 end
 }
 
-specifications([[
+Specifications([[
 Feature: TSV File IO
   Handle tab-separated values with commas in data
 

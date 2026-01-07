@@ -3,7 +3,7 @@
 -- successfully completes a task by running it multiple times.
 
 -- Agent definition  
-agent("completer", {
+Agent("completer", {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[You are a helpful assistant that completes tasks.
@@ -26,30 +26,15 @@ Always follow this format exactly.]],
 })
 
 -- Procedure
-procedure "main" {
+Procedure "main" {
     input = {
-        task = {
-            type = "string",
-            required = true,
-            description = "The task to complete"
-        }
+        task = field.string{required = true, description = "The task to complete"}
     },
     output = {
-        output = {
-            type = "string",
-            required = true,
-            description = "The task completion output"
-        },
-        completed = {
-            type = "boolean",
-            required = true,
-            description = "Whether task was completed"
-        }
+        output = field.string{required = true, description = "The task completion output"},
+        completed = field.boolean{required = true, description = "Whether task was completed"}
     },
-    state = {}
-,
-
-function()
+    function(input)
     Log.info("Starting task", {task = input.task})
     
     -- Have agent complete the task
@@ -61,7 +46,7 @@ function()
     local completed = false
     
     if Tool.called("done") then
-        output = Tool.last_call("done").args.reason or "TASK_COMPLETE: (no output provided)"
+        output = Tool.last_result("done") or "Task completed" or "TASK_COMPLETE: (no output provided)"
         completed = true
         Log.info("Task completed", {output = output})
     else
@@ -75,8 +60,8 @@ function()
 end
 }
 
--- BDD Specifications (workflow correctness)
-specifications([[
+-- BDD Specifications(workflow correctness)
+Specifications([[
 Feature: Task Completion
   Scenario: Agent completes simple task
     Given the procedure has started
@@ -86,7 +71,7 @@ Feature: Task Completion
 ]])
 
 -- Pydantic AI Evaluations for success rate measurement
-evaluations({
+Evaluations({
     -- Run each test case 3 times to measure success rate (reduced for testing)
     runs = 3,
     parallel = true,
@@ -114,25 +99,10 @@ evaluations({
     
     evaluators = {
         -- Check if output contains the success marker
-        {
-            type = "contains",
-            field = "output",
-            value = "TASK_COMPLETE"
-        },
+        field.contains{},
         
         -- Use LLM to judge if task was actually completed successfully
-        {
-            type = "llm_judge",
-            rubric = [[
-Evaluate whether the agent successfully completed the given task:
-- Did it produce a relevant, complete response?
-- Did it call the 'done' tool appropriately?
-- Is the output quality acceptable?
-
-Score 1.0 if the task was completed successfully, 0.0 if it failed or was incomplete.
-            ]],
-            model = "openai:gpt-4o-mini"
-        }
+        field.llm_judge{}
     }
 }
 )

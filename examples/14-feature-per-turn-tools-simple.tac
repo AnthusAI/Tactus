@@ -2,17 +2,9 @@
 -- Demonstrates that tools can be restricted per turn
 
 -- Define the done tool
-tool "done" {
-    description = "Signal completion of the task",
-    parameters = {
-        reason = {type = "string", required = true, description = "Completion message"}
-    },
-    function(args)
-        return "Done: " .. args.reason
-    end
-}
+Tool "done" { use = "tactus.done" }
 
-agent "tester" {
+Agent "tester" {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = "You are a test agent. When you have tools, call done. When you don't have tools, just respond with 'No tools available'.",
@@ -20,8 +12,11 @@ agent "tester" {
     toolsets = {"done"}  -- Default toolset
 }
 
-procedure "main" {
-    function()
+Procedure "main" {
+    output = {
+        result = field.string{description = "Result"}
+    },
+    function(input)
     Log.info("Test 1: Agent with tools - should call done")
     Agent("tester").turn()
     

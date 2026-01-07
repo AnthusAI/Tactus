@@ -12,18 +12,18 @@ async def test_simple_named_procedure():
     """Test basic named procedure call."""
     source = """
 -- Define a simple helper procedure
-double = procedure("double", {
+double = Procedure("double", {
     input = {x = {type = "number", required = true}},
     output = {y = {type = "number", required = true}}
-}, function()
+}, function(input)
     return {y = input.x * 2}
 end)
 
 -- Define main procedure
-main = procedure("main", {
+main = Procedure("main", {
     input = {value = {type = "number", required = true}},
     output = {result = {type = "number", required = true}}
-}, function()
+}, function(input)
     -- Call the helper procedure
     local doubled = double({x = input.value})
     return {result = doubled.y}
@@ -47,26 +47,26 @@ async def test_multiple_named_procedures():
     """Test multiple sub-procedure calls in sequence."""
     source = """
 -- Define sum procedure
-sum = procedure("sum", {
+sum = Procedure("sum", {
     input = {a = {type = "number"}, b = {type = "number"}},
     output = {result = {type = "number"}}
-}, function()
+}, function(input)
     return {result = input.a + input.b}
 end)
 
 -- Define product procedure
-product = procedure("product", {
+product = Procedure("product", {
     input = {a = {type = "number"}, b = {type = "number"}},
     output = {result = {type = "number"}}
-}, function()
+}, function(input)
     return {result = input.a * input.b}
 end)
 
 -- Main procedure
-main = procedure("main", {
+main = Procedure("main", {
     input = {x = {type = "number"}, y = {type = "number"}},
     output = {sum_result = {type = "number"}, product_result = {type = "number"}}
-}, function()
+}, function(input)
     local s = sum({a = input.x, b = input.y})
     local p = product({a = input.x, b = input.y})
     return {sum_result = s.result, product_result = p.result}
@@ -90,16 +90,16 @@ end)
 async def test_named_procedure_with_state():
     """Test named procedure with state initialization."""
     source = """
-counter = procedure("counter", {
+counter = Procedure("counter", {
     input = {},
     output = {count = {type = "number"}},
     state = {counter = {type = "number", default = 0}}
-}, function()
+}, function(input)
     state.counter = state.counter + 1
     return {count = state.counter}
 end)
 
-main = procedure("main", {
+main = Procedure("main", {
     input = {},
     output = {final_count = {type = "number"}}
 }, function()
@@ -124,10 +124,10 @@ end)
 async def test_simple_named_main_procedure():
     """Test simple named main procedure without sub-procedures."""
     source = """
-main = procedure("main", {
+main = Procedure("main", {
     input = {x = {type = "number", required = true}},
     output = {y = {type = "number", required = true}}
-}, function()
+}, function(input)
     return {y = input.x * 2}
 end)
 """
@@ -148,17 +148,17 @@ end)
 async def test_input_validation():
     """Test that input validation works for named procedures."""
     source = """
-strict_proc = procedure("strict_proc", {
+strict_proc = Procedure("strict_proc", {
     input = {required_field = {type = "string", required = true}},
     output = {result = {type = "string"}}
-}, function()
+}, function(input)
     return {result = input.required_field}
 end)
 
-main = procedure("main", {
+main = Procedure("main", {
     input = {},
     output = {result = {type = "string"}}
-}, function()
+}, function(input)
     -- This should fail: missing required field
     local result = strict_proc({})
     return {result = result.result}
@@ -181,19 +181,19 @@ end)
 async def test_checkpoint_replay():
     """Test that sub-procedure calls are checkpointed and replayed."""
     source = """
-expensive_op = procedure("expensive_op", {
+expensive_op = Procedure("expensive_op", {
     input = {x = {type = "number"}},
     output = {result = {type = "number"}}
-}, function()
+}, function(input)
     -- Simulate expensive operation
     Log.info("Executing expensive operation")
     return {result = input.x * 2}
 end)
 
-main = procedure("main", {
+main = Procedure("main", {
     input = {value = {type = "number"}},
     output = {result = {type = "number"}}
-}, function()
+}, function(input)
     local result1 = expensive_op({x = input.value})
     local result2 = expensive_op({x = result1.result})
     return {result = result2.result}

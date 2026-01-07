@@ -10,23 +10,23 @@
 -- Define completion tool
 tool("done", {
     description = "Signal completion of the task",
-    parameters = {
-        reason = {type = "string", required = true, description = "Completion message"}
+    input = {
+        reason = field.string{required = true, description = "Completion message"}
     }
 }, function(args)
     return "Done: " .. args.reason
 end)
 
-agent "analyst" {
+Agent "analyst" {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[
 You are a data analyst.
 
 The processed data shows:
-- Sum: {state.sum}
-- Product: {state.product}
-- Average: {state.average}
+- Sum: {State.sum}
+- Product: {State.product}
+- Average: {State.average}
 
 Provide a brief analysis of these statistics.
 Call done when finished.
@@ -34,73 +34,51 @@ Call done when finished.
     toolsets = {"done"}
 }
 
-procedure "main" {
+Procedure "main" {
     input = {
-        numbers = {
-            type = "array",
-            required = true,
-            description = "Array of numbers to analyze"
-        }
+        numbers = field.array{required = true, description = "Array of numbers to analyze"}
     },
     output = {
-        sum = {
-            type = "number",
-            required = true,
-            description = "Sum of all numbers"
-        },
-        product = {
-            type = "number",
-            required = true,
-            description = "Product of all numbers"
-        },
-        average = {
-            type = "number",
-            required = true,
-            description = "Average of all numbers"
-        },
-        analysis = {
-            type = "string",
-            required = true,
-            description = "AI analysis of the data"
-        }
+        sum = field.number{required = true, description = "Sum of all numbers"},
+        product = field.number{required = true, description = "Product of all numbers"},
+        average = field.number{required = true, description = "Average of all numbers"},
+        analysis = field.string{required = true, description = "AI analysis of the data"}
     },
     state = {
-        sum = {type = "number", default = 0},
-        product = {type = "number", default = 1},
-        average = {type = "number", default = 0}
-    }
-,
-
-function()
+        sum = field.number{default = 0},
+        product = field.number{default = 1},
+        average = field.number{default = 0}
+    },
+    function(input)
     -- Step 1: Calculate sum (auto-checkpointed)
     local sum_result = Procedure.run("examples/helpers/sum.tac", {
         values = input.numbers
     })
-    state.sum = sum_result.result or sum_result
+    State.sum = sum_result.result or sum_result
 
     -- Step 2: Calculate product (auto-checkpointed)
     local product_result = Procedure.run("examples/helpers/product.tac", {
         values = input.numbers
     })
-    state.product = product_result.result or product_result
+    State.product = product_result.result or product_result
 
     -- Step 3: Calculate average
-    state.average = state.sum / #input.numbers
+    State.average = State.sum / #input.numbers
 
     -- Step 4: Get AI analysis (auto-checkpointed agent turn)
     Agent("analyst").turn({})
 
     return {
-        sum = state.sum,
-        product = state.product,
-        average = state.average,
+        sum = State.sum,
+        product = State.product,
+        average = State.average,
         analysis = Analyst.output
     }
 end
 }
 
 -- BDD Specifications
-specifications([[
+Specifications([[
 Feature: Sub-Procedure Composition with Auto-Checkpointing
   As a workflow developer
   I want to compose multiple procedures together

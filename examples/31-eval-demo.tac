@@ -2,7 +2,7 @@
 -- Demonstrates integration of Pydantic Evals with Tactus
 
 -- Agent definition
-agent "greeter" {
+Agent "greeter" {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = "You are a friendly greeter. Generate a warm greeting for the given name. Call the done tool with your greeting as the reason.",
@@ -10,25 +10,14 @@ agent "greeter" {
 }
 
 -- Procedure
-procedure "main" {
+Procedure "main" {
     input = {
-        name = {
-            type = "string",
-            required = true,
-            description = "Name to greet"
-        }
+        name = field.string{required = true, description = "Name to greet"}
     },
     output = {
-        greeting = {
-            type = "string",
-            required = true,
-            description = "The greeting message"
-        }
+        greeting = field.string{required = true, description = "The greeting message"}
     },
-    state = {}
-,
-
-function()
+    function(input)
     Log.info("Generating greeting", {name = input.name})
     
     -- Have agent generate greeting
@@ -37,7 +26,7 @@ function()
     -- Get greeting from done tool
     local greeting = "Hello!"
     if Tool.called("done") then
-        greeting = Tool.last_call("done").args.reason or "Hello!"
+        greeting = Tool.last_result("done") or "Task completed" or "Hello!"
     end
     
     return {
@@ -46,8 +35,8 @@ function()
 end
 }
 
--- BDD Specifications (workflow correctness)
-specifications([[
+-- BDD Specifications(workflow correctness)
+Specifications([[
 Feature: Greeting Generation
   Scenario: Agent generates greeting
     Given the procedure has started
@@ -57,7 +46,7 @@ Feature: Greeting Generation
 ]])
 
 -- Pydantic Evals (output quality)
-evaluations({
+Evaluations({
     dataset = {
         {
             name = "greet_alice",
@@ -77,32 +66,13 @@ evaluations({
     
     evaluators = {
         -- Deterministic: Check greeting contains the name
-        {
-            type = "contains_any",
-            field = "greeting",
-            check_expected = "contains_name"
-        },
+        field.contains_any{},
         
         -- Deterministic: Check minimum length
-        {
-            type = "min_length",
-            field = "greeting",
-            value = 5
-        },
+        field.min_length{},
         
         -- LLM-as-judge: Evaluate greeting quality
-        {
-            type = "llm_judge",
-            rubric = [[
-                Evaluate the greeting quality:
-                - Is it warm and friendly?
-                - Is it appropriate and professional?
-                - Does it feel personalized?
-                
-                Score 0.0 (poor) to 1.0 (excellent)
-            ]],
-            model = "openai:gpt-4o-mini"
-        }
+        field.llm_judge{}
     },
     
     -- Run each case once (increase for consistency measurement)
