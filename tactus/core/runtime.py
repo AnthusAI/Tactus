@@ -1619,13 +1619,10 @@ class TactusRuntime:
 
             return
 
-        # Import agent primitive
-        try:
-            from tactus.primitives.agent import AgentPrimitive
-            from pydantic import create_model, Field  # noqa: F401
-        except ImportError as e:
-            logger.warning(f"Could not import AgentPrimitive: {e} - agents will not be available")
-            return
+        # Import DSPy agent primitive (required)
+        from tactus.dspy.agent import create_dspy_agent
+
+        logger.info("Using DSPy-based Agent implementation")
 
         # Get default toolsets from config (for agents that don't specify toolsets)
         default_toolset_names = self.config.get("default_toolsets", [])
@@ -1643,9 +1640,7 @@ class TactusRuntime:
 
             # initial_message is optional - if not provided, will default to empty string or manual injection
             initial_message_raw = agent_config.get("initial_message", "")
-            initial_message = (
-                self._process_template(initial_message_raw, context) if initial_message_raw else ""
-            )
+            (self._process_template(initial_message_raw, context) if initial_message_raw else "")
 
             # Provider is required - no defaults
             provider_name = agent_config.get("provider") or self.config.get("default_provider")
@@ -1783,34 +1778,32 @@ class TactusRuntime:
             filtered_tools = []
 
             # Handle structured output if specified
-            result_type = None
-            output_schema_guidance = None
+            output_schema = None  # Initialize for DSPy agent
 
             # Prefer output (aligned with pydantic-ai)
             if agent_config.get("output"):
                 try:
-                    result_type = self._create_pydantic_model_from_output(
+                    self._create_pydantic_model_from_output(
                         agent_config["output"], f"{agent_name}Output"
                     )
                     logger.info(f"Using agent output schema for '{agent_name}'")
+                    # Also set output_schema for DSPy compatibility
+                    output_schema = agent_config["output"]
                 except Exception as e:
                     logger.warning(f"Failed to create output model from output: {e}")
             elif agent_config.get("output_schema"):
                 # Fallback to output_schema for backward compatibility
                 output_schema = agent_config["output_schema"]
                 try:
-                    result_type = self._create_output_model_from_schema(
-                        output_schema, f"{agent_name}Output"
-                    )
+                    self._create_output_model_from_schema(output_schema, f"{agent_name}Output")
                     logger.info(f"Created structured output model for agent '{agent_name}'")
                 except Exception as e:
                     logger.warning(f"Failed to create output model for agent '{agent_name}': {e}")
             elif self.config.get("output"):
                 # Use procedure-level output schema
+                output_schema = self.config["output"]
                 try:
-                    result_type = self._create_output_model_from_schema(
-                        self.config["output"], f"{agent_name}Output"
-                    )
+                    self._create_output_model_from_schema(output_schema, f"{agent_name}Output")
                     logger.info(f"Using procedure-level output schema for agent '{agent_name}'")
                 except Exception as e:
                     logger.warning(f"Failed to create output model from procedure schema: {e}")
@@ -1825,32 +1818,26 @@ class TactusRuntime:
                         f"Agent '{agent_name}' has message history filter: {message_history_filter}"
                     )
 
-            # Create AgentPrimitive with toolsets
-            # Pass None instead of empty list for toolsets to disable tool calling entirely
-            agent_primitive = AgentPrimitive(
-                name=agent_name,
-                system_prompt_template=system_prompt_template,
-                initial_message=initial_message,
-                model=model_name,
-                model_settings=model_settings,
-                tools=filtered_tools,  # Empty list - kept for backward compat in AgentPrimitive
-                toolsets=filtered_toolsets,  # List of toolsets (may be empty)
-                tool_primitive=self.tool_primitive,
-                stop_primitive=self.stop_primitive,
-                iterations_primitive=self.iterations_primitive,
-                state_primitive=self.state_primitive,
-                context=context,
-                output_schema_guidance=output_schema_guidance,
-                chat_recorder=self.chat_recorder,
-                result_type=result_type,
-                log_handler=self.log_handler,
-                procedure_id=self.procedure_id,
-                provider=agent_config.get("provider"),
-                disable_streaming=agent_config.get("disable_streaming", False),
-                message_history_filter=message_history_filter,
-                user_dependencies=self.user_dependencies if self.user_dependencies else None,
-                execution_context=self.execution_context,
-            )
+            # Create DSPy-based agent
+            dspy_config = {
+                "system_prompt": system_prompt_template,
+                "model": model_name,
+                "provider": agent_config.get("provider"),
+                "tools": filtered_tools,
+                "toolsets": filtered_toolsets,
+                "output_schema": output_schema,
+                "temperature": model_settings.get("temperature", 0.7) if model_settings else 0.7,
+                "max_tokens": model_settings.get("max_tokens") if model_settings else None,
+                "disable_streaming": agent_config.get("disable_streaming", False),
+            }
+
+            # Create DSPy agent
+            agent_primitive = create_dspy_agent(agent_name, dspy_config)
+
+            # Store additional context for compatibility
+            agent_primitive._tool_primitive = self.tool_primitive
+            agent_primitive._state_primitive = self.state_primitive
+            agent_primitive._context = context
 
             self.agents[agent_name] = agent_primitive
 

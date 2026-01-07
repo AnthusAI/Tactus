@@ -17,7 +17,7 @@ import logging
 from typing import Any, Optional, Dict, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from tactus.primitives.agent import AgentPrimitive
+    from tactus.dspy.agent import DSPyAgentHandle
     from tactus.primitives.model import ModelPrimitive
 
 logger = logging.getLogger(__name__)
@@ -39,12 +39,12 @@ class AgentHandle:
             name: Agent name (string identifier)
         """
         self.name = name
-        self._primitive: Optional["AgentPrimitive"] = None
+        self._primitive: Optional["DSPyAgentHandle"] = None
         logger.debug(f"AgentHandle created for '{name}'")
 
     def turn(self, opts: Optional[Dict[str, Any]] = None) -> Any:
         """
-        Execute one agent turn (delegates to AgentPrimitive.turn()).
+        Execute one agent turn (delegates to DSPyAgentHandle.turn()).
 
         Args:
             opts: Optional dict with per-turn overrides:
@@ -67,14 +67,14 @@ class AgentHandle:
             )
         return self._primitive.turn(opts)
 
-    def _set_primitive(self, primitive: "AgentPrimitive") -> None:
+    def _set_primitive(self, primitive: "DSPyAgentHandle") -> None:
         """
         Connect this handle to its actual primitive.
 
         Called by runtime._enhance_handles() after primitives are created.
 
         Args:
-            primitive: The AgentPrimitive to delegate to
+            primitive: The DSPyAgentHandle to delegate to
         """
         self._primitive = primitive
         logger.debug(f"AgentHandle '{self.name}' connected to primitive")
