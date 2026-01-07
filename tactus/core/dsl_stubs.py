@@ -1177,6 +1177,16 @@ def create_dsl_stubs(builder: RegistryBuilder, tool_primitive: Any = None) -> di
 
         return accept_config
 
+    def _get_current_lm():
+        """
+        Get the currently configured Language Model.
+
+        Returns:
+            The current LM instance or None if not configured
+        """
+        from tactus.dspy import get_current_lm
+        return get_current_lm()
+
     return {
         # Core declarations (CamelCase - for definitions AND lookups)
         "Agent": HybridAgent(_agent, _Agent),
@@ -1198,6 +1208,7 @@ def create_dsl_stubs(builder: RegistryBuilder, tool_primitive: Any = None) -> di
         "Mocks": _mocks,
         # DSPy Integration
         "LM": _lm,
+        "get_current_lm": _get_current_lm,
         "Signature": _signature,
         "Module": _module,
         "History": _history,
