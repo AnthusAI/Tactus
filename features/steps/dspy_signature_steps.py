@@ -10,7 +10,9 @@ def step_has_output_fields_three(context, field1, field2, field3):
     sig = context.signature
     output_fields = sig.output_fields
     for field_name in [field1, field2, field3]:
-        assert field_name in output_fields, f"Field '{field_name}' not in output fields: {list(output_fields.keys())}"
+        assert (
+            field_name in output_fields
+        ), f"Field '{field_name}' not in output fields: {list(output_fields.keys())}"
 
 
 @then('it should have input fields "{field1}", "{field2}", and "{field3}"')
@@ -19,13 +21,16 @@ def step_has_input_fields_three(context, field1, field2, field3):
     sig = context.signature
     input_fields = sig.input_fields
     for field_name in [field1, field2, field3]:
-        assert field_name in input_fields, f"Field '{field_name}' not in input fields: {list(input_fields.keys())}"
+        assert (
+            field_name in input_fields
+        ), f"Field '{field_name}' not in input fields: {list(input_fields.keys())}"
 
 
 @when("I create a structured signature with multiple typed fields:")
 def step_create_complex_structured_signature(context):
     """Create a complex structured signature from JSON."""
     from tactus.dspy import create_signature
+
     config = json.loads(context.text)
     context.signature = create_signature(config)
 
@@ -37,7 +42,7 @@ def step_input_field_has_type(context, field_name, type_name):
     input_fields = sig.input_fields
     assert field_name in input_fields, f"Field '{field_name}' not in input fields"
     # Type verification would depend on DSPy implementation
-    context.field_types = context.field_types if hasattr(context, 'field_types') else {}
+    context.field_types = context.field_types if hasattr(context, "field_types") else {}
     context.field_types[field_name] = type_name
 
 
@@ -48,7 +53,7 @@ def step_output_field_has_type(context, field_name, type_name):
     output_fields = sig.output_fields
     assert field_name in output_fields, f"Field '{field_name}' not in output fields"
     # Type verification would depend on DSPy implementation
-    context.field_types = context.field_types if hasattr(context, 'field_types') else {}
+    context.field_types = context.field_types if hasattr(context, "field_types") else {}
     context.field_types[field_name] = type_name
 
 
@@ -85,6 +90,7 @@ def step_tactus_procedure_with_signature(context):
 def step_create_signature_with_typed_fields(context):
     """Create signature with typed fields from JSON."""
     from tactus.dspy import create_signature
+
     config = json.loads(context.text)
     context.signature = create_signature(config)
 
@@ -93,9 +99,10 @@ def step_create_signature_with_typed_fields(context):
 def step_create_signature_with_instructions(context):
     """Create signature with instructions."""
     from tactus.dspy import create_signature
+
     config = json.loads(context.text)
     context.signature = create_signature(config)
-    context.signature_instructions = config.get('instructions', '')
+    context.signature_instructions = config.get("instructions", "")
 
 
 @then('the signature should have instructions "{instructions}"')
@@ -117,6 +124,7 @@ def step_has_output_fields_two(context, field1, field2):
 def step_try_create_signature(context, sig_str):
     """Try to create a signature (may fail)."""
     from tactus.dspy import create_signature
+
     try:
         context.signature = create_signature(sig_str)
         context.signature_error = None
@@ -157,6 +165,7 @@ def step_tactus_procedure_combines_signatures(context):
 def step_create_signature_nested(context):
     """Create signature with nested structures."""
     from tactus.dspy import create_signature
+
     config = json.loads(context.text)
     context.signature = create_signature(config)
 
@@ -165,6 +174,7 @@ def step_create_signature_nested(context):
 def step_create_signature_optional_fields(context):
     """Create signature with optional fields."""
     from tactus.dspy import create_signature
+
     config = json.loads(context.text)
     context.signature = create_signature(config)
 
@@ -228,6 +238,7 @@ def step_tactus_procedure_validates_signatures(context):
 def step_create_signature_with_defaults(context):
     """Create signature with default values."""
     from tactus.dspy import create_signature
+
     config = json.loads(context.text)
     context.signature = create_signature(config)
     context.signature_config = config
@@ -241,7 +252,7 @@ def step_input_field_has_default_string(context, field_name, value):
     assert field_name in input_fields, f"Field '{field_name}' not in input fields"
     # Mock verification - would check default value in real implementation
     expected_default = value
-    context.field_defaults = context.field_defaults if hasattr(context, 'field_defaults') else {}
+    context.field_defaults = context.field_defaults if hasattr(context, "field_defaults") else {}
     context.field_defaults[field_name] = expected_default
 
 
@@ -252,7 +263,5 @@ def step_input_field_has_default_float(context, field_name, value):
     input_fields = sig.input_fields
     assert field_name in input_fields, f"Field '{field_name}' not in input fields"
     # Mock verification - would check default value in real implementation
-    context.field_defaults = context.field_defaults if hasattr(context, 'field_defaults') else {}
+    context.field_defaults = context.field_defaults if hasattr(context, "field_defaults") else {}
     context.field_defaults[field_name] = value
-
-

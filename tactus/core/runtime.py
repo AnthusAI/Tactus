@@ -1828,9 +1828,21 @@ class TactusRuntime:
                 "tools": filtered_tools,
                 "toolsets": filtered_toolsets,
                 "output_schema": output_schema,
-                "temperature": model_settings.get("temperature", 0.7) if model_settings else agent_config.get("temperature", 0.7),
-                "max_tokens": model_settings.get("max_tokens") if model_settings else agent_config.get("max_tokens"),
-                "model_type": model_settings.get("model_type") if model_settings else agent_config.get("model_type"),
+                "temperature": (
+                    model_settings.get("temperature", 0.7)
+                    if model_settings
+                    else agent_config.get("temperature", 0.7)
+                ),
+                "max_tokens": (
+                    model_settings.get("max_tokens")
+                    if model_settings
+                    else agent_config.get("max_tokens")
+                ),
+                "model_type": (
+                    model_settings.get("model_type")
+                    if model_settings
+                    else agent_config.get("model_type")
+                ),
                 "disable_streaming": agent_config.get("disable_streaming", False),
                 "initial_message": initial_message,
             }

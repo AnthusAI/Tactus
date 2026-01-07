@@ -8,6 +8,7 @@ from behave import given, when, then
 def step_configure_lm_with_temperature(context, model, temperature):
     """Configure an LM with custom temperature."""
     from tactus.dspy import configure_lm
+
     context.lm = configure_lm(model, temperature=temperature, api_key="test-key")
     context.lm_temperature = temperature
 
@@ -16,6 +17,7 @@ def step_configure_lm_with_temperature(context, model, temperature):
 def step_configure_lm_with_max_tokens(context, model, max_tokens):
     """Configure an LM with max_tokens parameter."""
     from tactus.dspy import configure_lm
+
     context.lm = configure_lm(model, max_tokens=max_tokens, api_key="test-key")
     context.lm_max_tokens = max_tokens
 
@@ -36,6 +38,7 @@ def step_lm_max_tokens_check(context, max_tokens):
 def step_retrieve_current_lm(context):
     """Verify current LM can be retrieved."""
     from tactus.dspy import get_current_lm
+
     current = get_current_lm()
     assert current is not None
     context.retrieved_lm = current
@@ -45,6 +48,7 @@ def step_retrieve_current_lm(context):
 def step_current_lm_model_check(context, model):
     """Verify current LM model."""
     from tactus.dspy import get_current_lm
+
     current = get_current_lm()
     assert current is not None
     # Store model name for verification (simplified for mock)
@@ -55,6 +59,7 @@ def step_current_lm_model_check(context, model):
 def step_configure_another_lm(context, model):
     """Configure another LM, replacing the current one."""
     from tactus.dspy import configure_lm
+
     context.lm = configure_lm(model, api_key="test-key")
     context.current_model = model
 
@@ -122,7 +127,7 @@ def step_parse_and_execute_procedure(context):
 def step_output_field_value_boolean(context, field, value):
     """Verify output field has expected value."""
     assert context.procedure_executed, f"Procedure did not execute: {context.execution_error}"
-    assert hasattr(context, 'procedure_result'), "No procedure result found"
+    assert hasattr(context, "procedure_result"), "No procedure result found"
 
     # Convert value string to appropriate type
     if value.lower() == "true":
@@ -148,7 +153,7 @@ def step_output_field_value_boolean(context, field, value):
 def step_set_environment_variable(context, var_name, value):
     """Set environment variable for testing."""
     os.environ[var_name] = value
-    context.env_vars = context.env_vars if hasattr(context, 'env_vars') else {}
+    context.env_vars = context.env_vars if hasattr(context, "env_vars") else {}
     context.env_vars[var_name] = value
 
 
@@ -156,6 +161,7 @@ def step_set_environment_variable(context, var_name, value):
 def step_configure_lm_without_api_key(context, model):
     """Configure LM without explicit API key (should use env var)."""
     from tactus.dspy import configure_lm
+
     # Don't pass api_key, should use environment variable
     context.lm = configure_lm(model)
 
@@ -171,6 +177,7 @@ def step_lm_uses_env_key(context):
 def step_configure_lm_with_api_key(context, model, api_key):
     """Configure LM with explicit API key."""
     from tactus.dspy import configure_lm
+
     context.lm = configure_lm(model, api_key=api_key)
     context.explicit_api_key = api_key
 
@@ -185,6 +192,7 @@ def step_lm_uses_explicit_key(context, api_key):
 def step_try_configure_invalid_model(context, model):
     """Try to configure LM with invalid model."""
     from tactus.dspy import configure_lm
+
     try:
         context.lm = configure_lm(model, api_key="test-key")
         context.config_error = None
@@ -197,6 +205,7 @@ def step_try_configure_invalid_model(context, model):
 def step_try_configure_without_model(context):
     """Try to configure LM without model parameter."""
     from tactus.dspy import configure_lm
+
     try:
         context.lm = configure_lm(None, api_key="test-key")
         context.config_error = None
@@ -209,6 +218,7 @@ def step_try_configure_without_model(context):
 def step_configure_lm_with_api_base(context, model, api_base):
     """Configure LM with custom API base URL."""
     from tactus.dspy import configure_lm
+
     context.lm = configure_lm(model, api_base=api_base, api_key="test-key")
     context.lm_api_base = api_base
 
@@ -227,19 +237,19 @@ def step_configure_lm_full_config(context):
     # Parse parameters from table
     params = {}
     for row in context.table:
-        param = row['parameter']
-        value = row['value']
+        param = row["parameter"]
+        value = row["value"]
 
         # Convert value to appropriate type
-        if param in ['temperature', 'top_p']:
+        if param in ["temperature", "top_p"]:
             params[param] = float(value)
-        elif param in ['max_tokens']:
+        elif param in ["max_tokens"]:
             params[param] = int(value)
         else:
             params[param] = value
 
     # Extract model separately
-    model = params.pop('model')
+    model = params.pop("model")
     context.lm = configure_lm(model, **params)
     context.lm_config = params
 
@@ -255,6 +265,7 @@ def step_all_parameters_set(context):
 def step_configure_lm_with_region(context, model, region):
     """Configure LM with AWS region for Bedrock."""
     from tactus.dspy import configure_lm
+
     context.lm = configure_lm(model, region=region, api_key="test-key")
     context.lm_region = region
 
