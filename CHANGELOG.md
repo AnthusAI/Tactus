@@ -2,6 +2,30 @@
 
 <!-- version list -->
 
+## v0.17.0 (2026-01-08)
+
+### Bug Fixes
+
+- Pass registry and mock_manager to DSPy agent creation
+  ([`e86a069`](https://github.com/AnthusAI/Tactus/commit/e86a0690cba607507f4745106f8a609aab38c8f3))
+
+- Remove unused Path import in test_script_mode.py
+  ([`1c28430`](https://github.com/AnthusAI/Tactus/commit/1c28430502ac2f1c0b08f6456ec7374e9fc4252a))
+
+### Code Style
+
+- Format code with black
+  ([`2fc1a07`](https://github.com/AnthusAI/Tactus/commit/2fc1a0734f639c3d502f4e96b0eb44703a3522c8))
+
+### Testing
+
+- Skip agent mock test in CI until mocking fully implemented
+  ([`f46f183`](https://github.com/AnthusAI/Tactus/commit/f46f1834a616a8dfde31b9ee6cdb928264489b93))
+
+- Skip DSPy agent mock test - assignment name interception not working
+  ([`b7971d3`](https://github.com/AnthusAI/Tactus/commit/b7971d3d87dd07f43c98fcab524a5cad5848db5d))
+
+
 ## v0.16.0 (2026-01-07)
 
 ### Bug Fixes
