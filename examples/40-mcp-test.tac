@@ -52,12 +52,12 @@ Steps:
 }
 
 -- Execute procedure
-Procedure "main" {
-    output = {
+
+output {
         result = field.string{description = "Result"}
-    },
-    function(input)
-    Log.info("Starting MCP server test")
+    }
+
+Log.info("Starting MCP server test")
     
     -- Let agent work through the calculation
     local max_turns = 5
@@ -93,7 +93,4 @@ Procedure "main" {
             error = "Did not complete in time"
         }
     end
-end
-}
-
 

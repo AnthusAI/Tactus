@@ -44,20 +44,21 @@ When done, call the done tool.]],
 }
 
 -- Main procedure
-Procedure "main" {
-    input = {
+
+input {
         task = field.string{
             default = "list files",
             description = "Task to perform: 'list files' or 'search web'"
         }
-    },
-    output = {
+    }
+
+output {
         result = field.string{required = true, description = "Task result"},
         mcp_tools_used = field.array{description = "List of MCP tools used"},
         completed = field.boolean{required = true, description = "Whether task completed"}
-    },
-    function(input)
-        Log.info("Starting MCP toolset identification demo", {task = input.task})
+    }
+
+Log.info("Starting MCP toolset identification demo", {task = input.task})
 
         -- Choose agent based on task
         local agent_name = "researcher"
@@ -134,8 +135,6 @@ Procedure "main" {
             mcp_tools_used = mcp_tools,
             completed = completed
         }
-    end
-}
 
 -- BDD Specifications
 Specifications([[

@@ -123,23 +123,23 @@ def test_cli_test_command_mock_mode(tmp_path):
     test_proc = tmp_path / "test.tac"
     test_proc.write_text(
         """
-Agent "worker" {
+done = tactus.done
+
+worker = Agent {
   provider = "openai",
   model = "gpt-4o-mini",
   system_prompt = "Test",
-  tools = {"done"}
-})
+  tools = {done}
+}
 
 Stages({"start", "end"})
 
-main = Procedure("main", function(input)
-  Stage.set("start")
-  Agent("worker").turn()
-  Stage.set("end")
-  return {success = true}
-end)
+Stage.set("start")
+worker()
+Stage.set("end")
+return {success = true}
 
-specifications([[
+Specifications([[
 Feature: Test
   Scenario: Works
     Given the procedure has started

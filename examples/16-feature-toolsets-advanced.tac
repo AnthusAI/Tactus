@@ -78,16 +78,16 @@ Agent "observer" {
 }
 
 -- Main procedure demonstrating each agent
-Procedure "main" {
-    output = {
+
+output {
         analyst_tools = field.string{description = "Tools available to analyst"},
         calculator_tools = field.string{description = "Tools available to calculator"},
         prefixed_tools = field.string{description = "Tools available to prefixed agent"},
         restricted_tools = field.string{description = "Tools available to restricted agent"},
         observer_response = field.string{description = "Observer's response about having no tools"}
-    },
-    function(input)
-    Log.info("=== Advanced Toolset Features Demo ===")
+    }
+
+Log.info("=== Advanced Toolset Features Demo ===")
 
     -- Helper function to run agent with max turns
     local function run_agent_with_limit(agent_name, agent_ref, max_turns)
@@ -130,8 +130,6 @@ Procedure "main" {
         restricted_tools = restricted_response,
         observer_response = observer_response
     }
-end
-}
 
 -- BDD Specifications
 Specifications([[

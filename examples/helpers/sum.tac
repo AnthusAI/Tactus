@@ -1,22 +1,18 @@
 -- Sum Helper Procedure
 -- Calculates the sum of an array of numbers
 
-Procedure "main" {
-    input = {
+input {
         values = field.array{required = true, description = "Array of numbers to sum"}
-    },
-    output = {
+    }
+
+output {
         result = field.number{required = true, description = "Sum of all values"}
-    },
-    state = {
-        total = field.number{default = 0}
-    },
-    function(input)
-    -- Calculate sum
+    }
+
+-- Calculate sum
     for i = 1, #input.values do
         State.total = State.total + input.values[i]
     end
 
     return {result = State.total}
-end
-}
+

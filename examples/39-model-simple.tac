@@ -6,15 +6,15 @@
 -- Define a simple text classifier
 model "intent_classifier" field.http{}
 
-Procedure "main" {
-    input = {
+input {
         text = field.string{required = true, description = "Text to classify"}
-    },
-    output = {
+    }
+
+output {
         classification = field.string{required = true, description = "Classification result"}
-    },
-    function(input)
-    -- Call the model for inference (automatically checkpointed)
+    }
+
+-- Call the model for inference (automatically checkpointed)
     local result = Model("intent_classifier").predict({
         text = input.text
     })
@@ -26,8 +26,6 @@ Procedure "main" {
     return {
         classification = classification
     }
-end
-}
 
 -- BDD Specifications
 Specifications([[

@@ -810,7 +810,7 @@ def step_execute_turn_explain_quantum_physics(context):
 def step_execute_a_turn_simple(context):
     """Execute a turn (simple form)."""
     try:
-        context.turn_response = context.agent.turn()
+        context.turn_response = context.agent()
         context.turn_executed = True
     except Exception as e:
         context.turn_error = e
@@ -821,7 +821,7 @@ def step_execute_a_turn_simple(context):
 def step_try_execute_turn_with_error_handling(context):
     """Try to execute a turn with proper error handling."""
     try:
-        context.turn_response = context.agent.turn()
+        context.turn_response = context.agent()
         context.turn_error = None
     except Exception as e:
         context.turn_error = e

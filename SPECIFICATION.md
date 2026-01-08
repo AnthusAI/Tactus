@@ -1,13 +1,13 @@
-# Procedure DSL Specification v4
+# Procedure DSL Specification v5
 
 ## Overview
 
-The Procedure DSL enables defining agentic workflows as configuration. It combines declarative YAML for component definitions with embedded Lua for orchestration logic.
+The Procedure DSL enables defining agentic workflows in a token-efficient, sandboxed Lua language. Components are defined using assignment-based syntax.
 
 **Design Philosophy:**
-- **YAML declares components** — agents, prompts, tools, filters, stages
-- **Lua defines orchestration** — the actual workflow control flow
-- **High-level primitives** — operations like `Agent("worker").turn()` hide LLM mechanics
+- **Assignment-based definitions** — `worker = Agent {...}` assigns to variables
+- **Variable references** — `tools = {done, search}` uses variables, not strings
+- **High-level primitives** — operations like `worker()` (callable agents) hide LLM mechanics
 - **Uniform recursion** — a procedure invoked by another procedure works identically to a top-level procedure
 - **Human-in-the-loop** — first-class support for human interaction, approval, and oversight
 - **Built-in reliability** — retries, validation, and error handling under the hood
@@ -22,11 +22,14 @@ The Procedure DSL enables defining agentic workflows as configuration. It combin
 
 ## Lua DSL Format (.tac files)
 
-**Recommended format** for defining procedures. Lua DSL provides better cohesion by grouping parameters and outputs with the procedure logic.
+**.tac files** define procedures using Lua DSL. All primitives use assignment-based syntax.
 
 ```lua
--- Define completion tool explicitly
-Tool "done" {
+-- Import built-in tool
+done = tactus.done
+
+-- Or define custom tool
+custom_tool = Tool {
     description = "Signal completion of the task",
     input = {
         reason = field.string{required = true, description = "Completion message"}
@@ -36,19 +39,19 @@ Tool "done" {
     end
 }
 
--- Agents are defined at top level (reusable across procedures)
-Agent "worker" {
+-- Agents are defined using assignment
+worker = Agent {
     provider = "openai",
     model = "gpt-4o",
     system_prompt = "You are a helpful assistant",
-    toolsets = {"done"}  -- References the explicitly defined tool above
+    tools = {done}  -- Variable references, not strings
 }
 
 -- Stages (optional)
 Stages({"planning", "executing", "complete"})
 
--- Procedure with input and output defined inline
-Procedure "main" {
+-- Procedure (unnamed, defaults to "main")
+Procedure {
     -- Input (using field builder syntax)
     input = {
         task = field.string{required = true, description = "The task to perform"},
@@ -69,8 +72,8 @@ Procedure "main" {
         Log.info("Starting task", {task = task})
 
         repeat
-            Agent("worker").turn()
-        until Tool.called("done") or Iterations.exceeded(input.max_iterations)
+            worker()  -- Direct callable syntax
+        until done.called() or Iterations.exceeded(input.max_iterations)
 
         return {
             result = "Task completed",
@@ -91,11 +94,12 @@ Feature: Task Processing
 ```
 
 **Key structure:**
-- **Agents** at top level (reusable)
-- **Procedure "name" { }** defines a procedure with:
+- **Tools** defined as `name = Tool {...}` or imported as `name = tactus.done`
+- **Agents** defined as `name = Agent {...}` with `tools = {var1, var2}`
+- **Procedure { }** unnamed, defaults to "main"
   - Config fields: `input`, `output`, `state` (state is optional)
   - Function as the last element containing the procedure logic
-- **Input** and **output** are defined inside the procedure config, not at top level
+- **Agent calls** use callable syntax: `worker()` or `worker({message = "..."})`
 - **Specifications()** at top level for BDD tests
 
 ---
@@ -107,7 +111,7 @@ Input schema defines what the procedure accepts. Validated before execution.
 ### Field Builder Syntax (Recommended)
 
 ```lua
-Procedure "main" {
+Procedure {
     input = {
         -- Required fields
         topic = field.string{required = true, description = "The topic to research"},
@@ -143,7 +147,7 @@ Procedure "main" {
 An alternative verbose syntax can be used when more explicit configuration is needed:
 
 ```lua
-Procedure "main" {
+Procedure {
     input = {
         topic = field.string{
             required = true,
@@ -213,7 +217,7 @@ Output schema defines what the procedure returns. Validated after execution.
 ### Field Builder Syntax (Recommended)
 
 ```lua
-Procedure "main" {
+Procedure {
     output = {
         -- Required fields
         findings = field.string{required = true, description = "Research findings summary"},
@@ -252,7 +256,7 @@ Message history configuration controls how conversation history is managed acros
 **Lua DSL format (.tac):**
 
 ```lua
-Procedure "main" {
+Procedure {
     message_history = {
         mode = "isolated",  -- or "shared"
         max_tokens = 120000,
@@ -282,11 +286,14 @@ Procedure "main" {
 Agents can override procedure-level message history settings:
 
 ```lua
-Agent "researcher" {
+done = tactus.done
+search = mcp.brave_search.search
+
+researcher = Agent {
     provider = "openai",
     model = "gpt-4o",
     system_prompt = "Research the topic",
-    toolsets = {"search", "done"},  -- "done" must be explicitly defined via Tool()
+    tools = {search, done},
 
     message_history = {
         source = "shared",  -- Use shared history
@@ -295,7 +302,7 @@ Agent "researcher" {
             filters.last_n(20)
         )
     }
-})
+}
 ```
 
 ---
@@ -307,11 +314,13 @@ Agents can enforce structured output schemas using `output_type`, aligned with p
 **Lua DSL format (.tac):**
 
 ```lua
-Agent "extractor" {
+done = tactus.done
+
+extractor = Agent {
     provider = "openai",
     model = "gpt-4o",
     system_prompt = "Extract structured data from user input",
-    toolsets = {"done"},  -- "done" must be explicitly defined via Tool()
+    tools = {done},
 
     -- Define structured output schema (aligned with pydantic-ai's output_type)
     output = {
@@ -343,7 +352,7 @@ This ensures type-safe, structured outputs from agents.
 
 ## Result Object
 
-`Agent.turn()` returns a `Result` object (not raw data) with access to response data, token usage, and conversation history.
+`agent()` (callable agent) returns a `Result` object (not raw data) with access to response data, token usage, and conversation history.
 
 **Aligned with pydantic-ai:** The Result object wraps pydantic-ai's `RunResult` and provides Lua-accessible properties.
 
@@ -359,9 +368,15 @@ This ensures type-safe, structured outputs from agents.
 **Example:**
 
 ```lua
-Procedure "main" {
+worker = Agent {
+    provider = "openai",
+    model = "gpt-4o",
+    system_prompt = "You are helpful"
+}
+
+Procedure {
     function(input)
-        local result = Agent("worker").turn()
+        local result = worker()
 
         -- Access response data
         Log.info("Response", {data = result.data})
@@ -385,16 +400,18 @@ Procedure "main" {
 **With structured output:**
 
 ```lua
-Agent "extractor" {
+extractor = Agent {
+    provider = "openai",
+    model = "gpt-4o",
     output = {
         city = field.string{required = true},
         country = field.string{required = true}
     }
 }
 
-Procedure "main" {
+Procedure {
     function(input)
-        local result = Agent("extractor").turn()
+        local result = extractor()
 
         -- Access structured data fields
         Log.info("Extracted", {
@@ -416,7 +433,7 @@ These prompts control how the procedure communicates its results:
 Injected when the procedure completes successfully. The agent does one final turn to generate a summary, which becomes the return value.
 
 ```lua
-Procedure "main" {
+Procedure {
     return_prompt = [[
 Summarize your work:
 - What was accomplished
@@ -432,7 +449,7 @@ Summarize your work:
 Injected when the procedure fails (exception or max iterations exceeded). The agent explains what went wrong.
 
 ```lua
-Procedure "main" {
+Procedure {
     error_prompt = [[
 The task could not be completed. Explain:
 - What you were attempting
@@ -448,7 +465,7 @@ The task could not be completed. Explain:
 Injected when a caller requests a status update (async procedures only). The agent reports current progress without stopping.
 
 ```lua
-Procedure "main" {
+Procedure {
     status_prompt = [[
 Provide a brief progress update:
 - What has been completed
@@ -479,7 +496,7 @@ If not specified, the following defaults are used:
 ## Async and Recursion Settings
 
 ```lua
-Procedure "main" {
+Procedure {
     -- Enable async invocation (caller can spawn and continue)
     async = true,
 
@@ -528,7 +545,7 @@ The runtime provides an `ExecutionContext` that abstracts over both backends:
 ```
 ┌─────────────────────────────────────────────┐
 │           Procedure DSL (Lua)               │
-│  Agent("worker").turn() / Human.approve() / etc.     │
+│  worker() / Human.approve() / etc.          │
 └─────────────────────┬───────────────────────┘
                       │
           ┌───────────┴───────────┐
@@ -552,7 +569,7 @@ The runtime provides an `ExecutionContext` that abstracts over both backends:
 
 | DSL Primitive | Local Context | Lambda Durable Context |
 |---------------|---------------|------------------------|
-| `Agent("worker").turn()` | DB checkpoint before/after | `context.step()` |
+| `worker()` | DB checkpoint before/after | `context.step()` |
 | `Human.approve()` | Create PENDING_*, exit, await RESPONSE | `context.create_callback()` + `callback.result()` |
 | `Human.input()` | Create PENDING_*, exit, await RESPONSE | `context.create_callback()` + `callback.result()` |
 | `Human.review()` | Create PENDING_*, exit, await RESPONSE | `context.create_callback()` + `callback.result()` |
@@ -613,7 +630,7 @@ No conditional logic needed. The execution context handles:
 Validation that runs before the procedure executes:
 
 ```lua
-Procedure "main" {
+Procedure {
     guards = {
         function(input)
             if not File.exists(input.file_path) then
@@ -645,15 +662,14 @@ Tactus supports declaring external resource dependencies (HTTP clients, database
 Declare resources your procedure needs (HTTP APIs, databases, caches, etc.):
 
 ```lua
-Procedure "main" {
+Procedure {
     input = {
         city = field.string{required = true}
     },
 
     -- Declare resource dependencies
     dependencies = {
-        weather_api = {
-            type = "http_client",
+        weather_api = field.http_client{
             base_url = "https://api.weather.com",
             headers = {
                 ["Authorization"] = env.WEATHER_API_KEY
@@ -674,7 +690,7 @@ Procedure "main" {
     function(input)
         -- Dependencies are automatically created and available
         -- Tools (via MCP) can access them through the dependency injection system
-        Agent("worker").turn()
+        worker()
         return {result = "done"}
     end
 }
@@ -693,19 +709,30 @@ Procedure "main" {
 
 ### Tool and Procedure Dependencies
 
-Optionally validate that required tools and procedures exist:
+Tools and procedures are defined as variables and used directly:
 
 ```lua
-Procedure "main" {
-    dependencies = {
-        tools = {"web_search", "read_document"},
-        procedures = {"researcher", "analyzer"}
-    },
-    -- rest of procedure...
+-- Define or import required tools
+web_search = mcp.brave_search.search
+read_document = mcp.filesystem.read_file
+
+-- Define sub-procedure
+researcher = Procedure {
+    name = "researcher",
+    -- ...
+}
+
+-- Main procedure uses tools and procedures directly
+Procedure {
+    function(input)
+        -- Tools and procedures are accessed as variables
+        researcher.run({query = input.query})
+        return {result = "done"}
+    end
 }
 ```
 
-If any dependency is missing, the procedure fails fast with a clear error.
+If a required variable is undefined, Lua raises an error immediately.
 
 ### Testing with Dependencies
 
@@ -794,7 +821,7 @@ Child procedures inherit parent dependencies:
 
 ```lua
 -- Parent procedure
-Procedure "main" {
+Procedure {
     dependencies = {
         api_client = {type = "http_client", base_url = "https://api.example.com"}
     },
@@ -930,7 +957,7 @@ if review.decision == "Approve" then
   publish(generated_content)
 elseif review.decision == "Revise" then
   -- Human provided feedback, retry with their input
-  State.set("human_feedback", review.feedback)
+  state.human_feedback = review.feedback
 else  -- "Reject"
   Log.warn("Content rejected", {feedback = review.feedback})
 end
@@ -1034,7 +1061,7 @@ Hand off to human entirely:
 Human.escalate({
   message = "Unable to resolve this automatically",
   context = {
-    attempts = State.get("resolution_attempts"),
+    attempts = state.resolution_attempts,
     last_error = last_error,
     current_state = State.all()
   }
@@ -1047,7 +1074,7 @@ Human.escalate({
 For predictable workflows, declare interaction points in Lua:
 
 ```lua
-Procedure "main" {
+Procedure {
     hitl = {
         review_draft = {
             type = "review",
@@ -1184,13 +1211,201 @@ The procedure's internal messages stay `INTERNAL` while the chat remains natural
 
 ---
 
+## Script Mode (Zero-Wrapper Syntax)
+
+For simple procedures, you can write code directly without the `Procedure {}` wrapper. This "zero-wrapper" script mode is automatically detected when you have top-level `input {}` or `output {}` declarations without an explicit `Procedure {}` block.
+
+### Basic Example
+
+```lua
+-- Script mode: no Procedure wrapper needed
+input {
+    name = field.string{required = true, description = "Name to greet"}
+}
+
+output {
+    greeting = field.string{required = true, description = "Greeting message"}
+}
+
+-- Just write code directly
+local message = "Hello, " .. input.name .. "!"
+
+return {greeting = message}
+```
+
+**What happens:** The runtime automatically transforms this into:
+
+```lua
+input { name = field.string{required = true} }
+output { greeting = field.string{required = true} }
+
+Procedure {
+    function(input)
+        local message = "Hello, " .. input.name .. "!"
+        return {greeting = message}
+    end
+}
+```
+
+### With Agents
+
+Script mode works seamlessly with agent calls:
+
+```lua
+input {
+    task = field.string{required = true, description = "Task to complete"}
+}
+
+output {
+    result = field.string{required = true, description = "Completion result"}
+}
+
+-- Mock configuration (optional, for testing)
+Mocks {
+    worker = {
+        returns = {
+            response = "Task completed successfully!",
+            tool_calls = "done"
+        }
+    }
+}
+
+-- Define tools and agents as usual
+done = tactus.done
+
+worker = Agent {
+    provider = "openai",
+    model = "gpt-4o",
+    system_prompt = "Complete the given task efficiently",
+    tools = {done}
+}
+
+-- Executable code (agent calls, control flow, returns)
+worker({message = input.task})
+
+if done.called() then
+    return {result = "Success: " .. done.last_call().args.reason}
+else
+    return {result = "Agent did not complete"}
+end
+```
+
+### With State
+
+State management works in script mode:
+
+```lua
+input {
+    value = field.number{required = true}
+}
+
+output {
+    doubled = field.number{required = true},
+    original = field.number{required = true}
+}
+
+-- State assignment
+state.original = input.value
+state.result = state.original * 2
+
+return {
+    doubled = state.result,
+    original = state.original
+}
+```
+
+### Detection
+
+A file is automatically treated as script mode when:
+
+1. **Has top-level `input {}` or `output {}` declarations**, AND
+2. **Does NOT have explicit `Procedure {}` or named procedure**
+
+If you include an explicit `Procedure {}`, script mode transformation is skipped.
+
+### How It Works
+
+The runtime detects script mode during execution and performs source transformation:
+
+1. **Splits the source** into declarations (Agent, Tool, Mocks, input, output, etc.) and executable code (agent calls, return statements, control flow)
+2. **Wraps executable code** in an implicit `Procedure {}` function
+3. **Merges schemas** from top-level `input {}` and `output {}` into the implicit procedure
+4. **Executes normally** using the standard procedure execution flow
+
+### Transformation Rules
+
+**Declarations** (stay at top level):
+- `input {}`
+- `output {}`
+- `Mocks {}`
+- `Stages()`
+- `Specifications()`
+- Agent definitions: `name = Agent {}`
+- Tool definitions: `name = Tool {}` or `name = tactus.done`
+- Model definitions: `name = Model {}`
+- Comments and blank lines
+
+**Executable code** (wrapped in Procedure function):
+- Local variable assignments: `local x = ...`
+- Agent calls: `worker()` or `worker({...})`
+- State assignments: `state.x = ...`
+- Control flow: `if`, `while`, `for`, `repeat`
+- Return statements: `return {...}`
+- Any other function calls
+
+### When to Use Script Mode
+
+**Use script mode for:**
+- Simple, single-purpose procedures
+- Quick prototypes and experiments
+- Linear workflows without complex sub-procedures
+- Examples and tutorials
+
+**Use explicit `Procedure {}` for:**
+- Complex procedures with multiple sub-procedures
+- When you need explicit procedure configuration
+- Procedures that will grow in complexity
+- Better IDE support and syntax highlighting
+
+### Migration
+
+Script mode files can be converted to explicit procedures without breaking:
+
+```lua
+-- Before (script mode)
+input { name = field.string{required = true} }
+output { greeting = field.string{required = true} }
+
+local msg = "Hello, " .. input.name
+return {greeting = msg}
+```
+
+```lua
+-- After (explicit procedure)
+Procedure {
+    input = { name = field.string{required = true} },
+    output = { greeting = field.string{required = true} },
+
+    function(input)
+        local msg = "Hello, " .. input.name
+        return {greeting = msg}
+    end
+}
+```
+
+---
+
 ## Inline Procedure Definitions
 
 For convenience, sub-procedures can be defined and called within a main procedure:
 
 ```lua
+-- Define tools
+done = tactus.done
+
 -- Sub-procedure defined at top level
-Procedure "researcher" {
+researcher = Procedure {
+    name = "researcher",  -- Named sub-procedure
     description = "Researches a topic",
 
     input = {
@@ -1206,18 +1421,18 @@ Procedure "researcher" {
     function(input)
         -- Define agent inline or reference a top-level agent
         repeat
-            Agent("worker").turn()
-        until Tool.called("done")
+            worker()
+        until done.called()
 
         return {findings = "Research complete"}
     end
 }
 
 -- Main procedure that uses the sub-procedure
-Procedure "coordinator" {
+Procedure {
     function(input)
-        -- Call sub-procedure
-        local result = Procedure("researcher")({query = "quantum computing"})
+        -- Call sub-procedure (variable reference)
+        local result = researcher.run({query = "quantum computing"})
 
         -- Use the result
         Log.info("Research findings", {findings = result.findings})
@@ -1233,10 +1448,17 @@ Sub-procedures follow the **exact same structure** as top-level procedures.
 
 ## Agent Definitions
 
-Agents are the cognitive workers within a procedure:
+Agents are the cognitive workers within a procedure. Defined using assignment-based syntax:
 
 ```lua
-Agent "worker" {
+done = tactus.done
+search = mcp.brave_search.search
+analyze = mcp.analyze.analyze
+
+worker = Agent {
+    provider = "openai",
+    model = "gpt-4o",
+
     prepare = function()
         return {
             current_time = os.date(),
@@ -1251,7 +1473,7 @@ Context: {prepared.data}
 
     initial_message = "Begin working on the task.",
 
-    toolsets = {"search", "analyze", "researcher", "done"},  -- References to toolsets
+    tools = {search, analyze, done},  -- Variable references, not strings
 
     filter = {
         class = "ComposedFilter",
@@ -1270,7 +1492,7 @@ Context: {prepared.data}
 }
 ```
 
-When you declare an agent named `worker`, you can invoke it using `Agent("worker").turn()` in Lua.
+When you define `worker = Agent {...}`, invoke it directly: `worker()` or `worker({message = "..."})` for callable syntax.
 
 ### Model Configuration
 
@@ -1279,17 +1501,23 @@ Agents can specify which LLM model to use and configure model-specific parameter
 **Simple string format** (for default settings):
 
 ```lua
-Agent "greeter" {
+done = tactus.done
+
+greeter = Agent {
+    provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = "You are a friendly greeter.",
-    toolsets = {"done"}
+    tools = {done}
 }
 ```
 
 **Dictionary format** (with custom settings):
 
 ```lua
-Agent "creative_writer" {
+done = tactus.done
+
+creative_writer = Agent {
+    provider = "openai",
     model = {
         name = "gpt-4o",
         temperature = 0.9,
@@ -1297,7 +1525,7 @@ Agent "creative_writer" {
         max_tokens = 2000
     },
     system_prompt = "You are a creative writer.",
-    toolsets = {"done"}
+    tools = {done}
 }
 ```
 
@@ -1320,24 +1548,28 @@ Agent "creative_writer" {
 **Example with multiple agents using different models:**
 
 ```lua
-Agent "analyst" {
+done = tactus.done
+
+analyst = Agent {
+    provider = "openai",
     model = {
         name = "gpt-5",
         openai_reasoning_effort = "high",
         max_tokens = 4000
     },
     system_prompt = "Analyze the data carefully.",
-    toolsets = {"done"}
+    tools = {done}
 }
 
-Agent "summarizer" {
+summarizer = Agent {
+    provider = "openai",
     model = {
         name = "gpt-4o-mini",
         temperature = 0.3,
         max_tokens = 500
     },
     system_prompt = "Summarize concisely.",
-    toolsets = {"done"}
+    tools = {done}
 }
 ```
 
@@ -1346,18 +1578,20 @@ Agent "summarizer" {
 **IMPORTANT:** Every agent must specify a `provider` (either directly on the agent or via `default_provider` at the procedure level). Supported providers are `openai` and `bedrock`.
 
 ```lua
-Agent "openai_agent" {
+done = tactus.done
+
+openai_agent = Agent {
     provider = "openai",
     model = "gpt-4o",
     system_prompt = "You are a helpful assistant.",
-    toolsets = {"done"}
+    tools = {done}
 }
 
-Agent "bedrock_agent" {
+bedrock_agent = Agent {
     provider = "bedrock",
     model = "anthropic.claude-3-5-sonnet-20240620-v1:0",
     system_prompt = "You are a helpful assistant.",
-    toolsets = {"done"}
+    tools = {done}
 }
 ```
 
@@ -1366,46 +1600,194 @@ Agent "bedrock_agent" {
 You can set `default_provider` and `default_model` at the procedure level to avoid repeating them:
 
 ```lua
-Procedure "main" {
+done = tactus.done
+
+worker = Agent {
+    -- Uses default_model and default_provider from procedure
+    system_prompt = "Process the task.",
+    tools = {done}
+}
+
+specialist = Agent {
+    -- Can override provider/model in agent definition
+    model = "gpt-4o",
+    system_prompt = "Specialist task.",
+    tools = {done}
+}
+
+Procedure {
     default_model = "gpt-4o-mini",
     default_provider = "openai",
 
     function(input)
-        -- Agents defined at top level would use these defaults
-        Agent("worker").turn()  -- Uses default_model and default_provider
-        Agent("specialist").turn()  -- Can override in agent definition
+        worker()     -- Uses defaults
+        specialist() -- Uses its own model
     end
-}
-
--- Agent definitions
-Agent "worker" {
-    -- Uses default_model and default_provider from procedure
-    system_prompt = "Process the task.",
-    toolsets = {"done"}
-}
-
-Agent "specialist" {
-    model = "gpt-4o",  -- Override just the model, still uses default_provider
-    system_prompt = "Handle complex reasoning.",
-    toolsets = {"done"}
 }
 ```
 
 **Mixed providers in one procedure:**
 
 ```lua
-Agent "openai_agent" {
+done = tactus.done
+
+openai_agent = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = "Fast processing with OpenAI.",
-    toolsets = {"done"}
+    tools = {done}
 }
 
-Agent "bedrock_agent" {
+bedrock_agent = Agent {
     provider = "bedrock",
     model = "anthropic.claude-3-5-sonnet-20240620-v1:0",
     system_prompt = "Deep analysis with Claude.",
-    toolsets = {"done"}
+    tools = {done}
+}
+```
+
+---
+
+## DSPy Integration
+
+Tactus provides first-class support for DSPy modules, enabling declarative machine learning components alongside agentic workflows. DSPy modules define typed signatures and can use various prompting strategies.
+
+### Language Model Configuration
+
+Configure the language model for DSPy modules using `LM()`:
+
+```lua
+-- LM uses LiteLLM format: "provider/model-name"
+LM("openai/gpt-4o-mini")
+
+-- For reasoning models
+LM("openai/gpt-5", {
+    model_type = "responses"  -- Required for o3, gpt-5 series
+})
+```
+
+### Basic Module
+
+Create modules using the `Module` primitive with string signatures:
+
+```lua
+-- Simple predict module
+qa = Module {
+    signature = "question -> answer",
+    strategy = "predict"
+}
+
+-- Invoke the module
+local result = qa({question = "What is the capital of France?"})
+print(result.answer)  -- "Paris"
+```
+
+### Chain of Thought Strategy
+
+Use `chain_of_thought` for questions requiring reasoning:
+
+```lua
+-- CoT adds a 'reasoning' field to the output
+reasoning_qa = Module {
+    signature = "question -> reasoning, answer",
+    strategy = "chain_of_thought"
+}
+
+local result = reasoning_qa({
+    question = "Who provided the assist for the winning goal in the 2014 World Cup final?"
+})
+print(result.reasoning)  -- Step-by-step reasoning
+print(result.answer)     -- "Andre Schürrle"
+```
+
+### Typed Signatures
+
+For complex modules, use `Signature` to define typed input/output:
+
+```lua
+outline_generator = Module {
+    signature = Signature {
+        input = {
+            topic = field.string{description = "The topic to outline"},
+            depth = field.string{default = "medium", description = "Outline depth"}
+        },
+        output = {
+            outline = field.string{description = "Structured outline"},
+            section_titles = field.array{description = "List of sections"}
+        }
+    },
+    strategy = "chain_of_thought"
+}
+```
+
+### Multi-Module Pipelines
+
+Chain modules to build complex workflows:
+
+```lua
+LM("openai/gpt-4o-mini")
+
+-- Step 1: Generate outline
+outline_gen = Module {
+    signature = "topic -> outline, sections",
+    strategy = "chain_of_thought"
+}
+
+-- Step 2: Write introduction
+intro_writer = Module {
+    signature = "topic, outline -> introduction",
+    strategy = "predict"
+}
+
+-- Step 3: Write conclusion
+conclusion_writer = Module {
+    signature = "topic, outline, introduction -> conclusion",
+    strategy = "chain_of_thought"
+}
+
+Procedure {
+    function(input)
+        local outline = outline_gen({topic = input.topic})
+        local intro = intro_writer({
+            topic = input.topic,
+            outline = outline.outline
+        })
+        local conclusion = conclusion_writer({
+            topic = input.topic,
+            outline = outline.outline,
+            introduction = intro.introduction
+        })
+        return {
+            outline = outline.outline,
+            introduction = intro.introduction,
+            conclusion = conclusion.conclusion
+        }
+    end
+}
+```
+
+### Available Strategies
+
+- `predict` - Simple input-output prediction
+- `chain_of_thought` - Step-by-step reasoning before final answer
+- `react` - Reasoning + Action (for tool-using modules)
+
+### Mocking DSPy Modules
+
+Mock modules for testing using the `Mocks {}` primitive:
+
+```lua
+Mocks {
+    qa = {
+        returns = {answer = "Mocked answer"}
+    },
+    -- Temporal mocks for sequential calls
+    reasoning_qa = {
+        temporal = {
+            {reasoning = "First call...", answer = "First answer"},
+            {reasoning = "Second call...", answer = "Second answer"}
+        }
+    }
 }
 ```
 
@@ -1415,16 +1797,16 @@ Agent "bedrock_agent" {
 
 Tactus supports defining tools as Lua functions directly within `.tac` files. These tools can perform custom operations and are automatically converted to Pydantic AI function toolsets.
 
-### Individual tool() Declarations
+### Individual Tool Declarations
 
-Define single tools that can be referenced by name:
+Define single tools using assignment-based syntax:
 
 ```lua
 -- Import done tool from standard library (recommended)
-Tool "done" { use = "tactus.done" }
+done = tactus.done
 
 -- Or define custom tools inline
-Tool "calculate_tip" {
+calculate_tip = Tool {
     description = "Calculate tip amount for a bill",
     input = {
         bill_amount = field.number{
@@ -1443,22 +1825,22 @@ Tool "calculate_tip" {
     end
 }
 
--- Reference tools by name in agent toolsets
-Agent "assistant" {
+-- Reference tools as variables in agent
+assistant = Agent {
     provider = "openai",
-    toolsets = {"calculate_tip", "done"}  -- Both tools explicitly defined above
+    tools = {calculate_tip, done}  -- Variable references
 }
 ```
 
-Each `tool()` declaration creates a single-tool toolset accessible by the tool's name.
+Each `Tool {...}` assignment creates a callable tool handle.
 
 ### Direct Tool Invocation
 
-The `tool()` function returns a callable handle, enabling direct tool invocation from Lua code without agent involvement. This gives programmers deterministic control over when tools execute:
+`Tool {...}` returns a callable handle, enabling direct tool invocation from Lua code without agent involvement. This gives programmers deterministic control over when tools execute:
 
 ```lua
--- Tool() returns a callable - assign it to use directly
-local calculate_tip = Tool "calculate_tip" {
+-- Tool returns a callable - assign it to use directly
+calculate_tip = Tool {
     description = "Calculate tip amount for a bill",
     input = {
         bill_amount = field.number{required = true},
@@ -1470,11 +1852,11 @@ local calculate_tip = Tool "calculate_tip" {
     end
 }
 
-local split_bill = tool "split_bill" {
+split_bill = Tool {
     description = "Split a bill among people",
-    parameters = {
-        total = {type = "number", required = true},
-        people = {type = "integer", required = true}
+    input = {
+        total = field.number{required = true},
+        people = field.integer{required = true}
     },
     function(args)
         return string.format("$%.2f per person", args.total / args.people)
@@ -1486,7 +1868,7 @@ local tip_result = calculate_tip({bill_amount = 50, tip_percentage = 20})
 local split_result = split_bill({total = 60, people = 3})
 
 -- Pass multiple results to agent via context
-Agent("assistant").turn({
+assistant({
     context = {
         tip_calculation = tip_result,
         split_calculation = split_result
@@ -1538,25 +1920,30 @@ toolset("math_tools", {
             end
         }
     }
-})
+}
 
-Agent "calculator" {
+done = tactus.done
+
+calculator = Agent {
     provider = "openai",
-    toolsets = {"math_tools", "done"}  -- "done" must be explicitly defined via Tool()
+    tools = {math_tools, done}  -- Variable references to toolsets and tools
 }
 ```
 
-This approach groups related tools and makes them available as a single toolset reference.
+This approach groups related tools and makes them available via a single variable reference.
 
 ### Inline Agent Tools
 
 Define tools directly within agent configuration:
 
 ```lua
-Agent "text_processor" {
+done = tactus.done
+
+text_processor = Agent {
     provider = "openai",
     system_prompt = "You process text",
     tools = {
+        done,
         {
             name = "uppercase",
             description = "Convert text to uppercase",
@@ -1577,34 +1964,38 @@ Agent "text_processor" {
                 return string.reverse(args.text)
             end
         }
-    },
-    toolsets = {"done"}  -- "done" must be explicitly defined via Tool()
+    }
 }
 ```
 
 Inline tools are automatically prefixed with the agent name (e.g., `text_processor_uppercase`).
 
-**Note: `tools` vs `toolsets` in Agent Config**
+**Tools in Agent Config**
 
-In agent configuration:
-- `tools` - For **inline tool definitions** (objects with `name`, `handler`, `parameters`)
-- `toolsets` - For **referencing named toolsets** (strings like `"done"`, `"calculate_tip"`)
+In agent configuration, `tools` accepts:
+- **Variable references** to tools: `done`, `calculate_tip`
+- **Variable references** to toolsets: `math_tools`
+- **Inline tool definitions** (objects with `name`, `handler`, `input`)
 
 ```lua
-Agent "example" {
-    -- Inline tool definitions (objects with handlers)
+done = tactus.done
+calculate_tip = Tool {...}
+math_tools = Toolset {...}
+
+example = Agent {
     tools = {
-        {name = "my_tool", handler = function(args) ... end, ...}
-    },
-    -- References to named toolsets (strings)
-    toolsets = {"done", "calculate_tip", "math_tools"}
+        done,           -- Variable reference to tool
+        calculate_tip,  -- Variable reference to tool
+        math_tools,     -- Variable reference to toolset
+        {name = "my_tool", handler = function(args) ... end, ...}  -- Inline
+    }
 }
 ```
 
-In `Agent.turn()` per-turn overrides, `tools` specifies which tool names are available for that turn:
+In agent callable syntax, `tools` restricts which tools are available for this turn:
 ```lua
-Agent("worker").turn({tools = {"search", "done"}})  -- Only these tools for this turn
-Agent("worker").turn({tools = {}})                   -- No tools for this turn
+worker({tools = {search, done}})  -- Only these tools for this turn
+worker({tools = {}})              -- No tools for this turn
 ```
 
 ### Parameter Types
@@ -1637,23 +2028,29 @@ handler = function(args)
 end
 ```
 
-### Integration with Tool Primitive
+### Integration with Tool Handles
 
-Lua function tools fully integrate with the `Tool` primitive for tracking:
+Lua function tools provide handle methods for tracking calls and results:
 
 ```lua
-Procedure "main" {
-    function(input)
-        Agent("assistant").turn({initial_message = "Calculate something"})
+-- Define tools
+calculate_tip = Tool {
+    description = "Calculate tip for a bill",
+    input = { bill_amount = field.number{required = true} },
+    function(args) return tostring(args.bill_amount * 0.2) end
+}
 
-        -- Check if tool was called
-        if Tool.called("calculate_tip") then
+Procedure {
+    function(input)
+        assistant({message = "Calculate something"})
+
+        -- Check if tool was called (via tool variable)
+        if calculate_tip.called() then
             Log.info("Tip calculator was used")
 
-            -- Get the last call details
-            local call = Tool.last_call("calculate_tip")
-            Log.info("Args: " .. tostring(call.args.bill_amount))
-            Log.info("Result: " .. call.result)
+            -- Get the last result
+            local result = calculate_tip.last_result()
+            Log.info("Result: " .. result)
         end
 
         return {result = "done"}
@@ -1686,8 +2083,8 @@ Procedures can be invoked in multiple ways:
 ### As a Tool (Implicit)
 
 ```lua
-Agent "coordinator" {
-    toolsets = {"researcher"},  -- Procedure name as toolset
+coordinator = Agent {
+    tools = {researcher},  -- Procedure as tool
     -- rest of agent config...
 }
 ```
@@ -1695,15 +2092,15 @@ Agent "coordinator" {
 ### Explicit Synchronous
 
 ```lua
-local result = Procedure("researcher")({query = "quantum computing"})
+local result = researcher.run({query = "quantum computing"})
 ```
 
 ### Explicit Asynchronous
 
 ```lua
-local handle = Procedure.spawn("researcher", {query = "quantum computing"})
-local status = Procedure.status(handle)
-local result = Procedure.wait(handle)
+local handle = researcher.spawn({query = "quantum computing"})
+local status = handle.status()
+local result = handle.wait()
 ```
 
 ---
@@ -1717,7 +2114,7 @@ Stages integrate with TaskStages monitoring:
 Stages({"planning", "executing", "awaiting_human", "complete"})
 
 -- Use in procedure
-Procedure "main" {
+Procedure {
     function(input)
         Stage.set("planning")
         -- Do planning work...
@@ -1831,48 +2228,45 @@ System.alert({message, level, source, context})  -- level: info, warning, error,
 -- Returns: nil (non-blocking, can be called from anywhere)
 ```
 
-### Agent Primitives
+### Agent Primitives (Callable Syntax)
 
 ```lua
-Agent("worker").turn()
-Agent("worker").turn({inject = "...", tools = {...}})
-Agent("worker").turn({tools = {}})  -- No tools for this turn
-Agent("worker").turn({temperature = 0.3})  -- Override model settings
+worker()
+worker({message = "...", tools = {...}})
+worker({tools = {}})  -- No tools for this turn
+worker({temperature = 0.3})  -- Override model settings
 response.content
 response.tool_calls
 ```
 
-#### Per-Turn Overrides
+#### Per-Call Overrides
 
-The `turn()` method accepts an optional table to override behavior for a single turn:
+The callable agent accepts an optional table to override behavior for a single call:
 
 **Available overrides:**
-- `inject` (string) - Message to inject for this turn (overrides normal conversation flow)
+- `message` (string) - Message to send to the agent (mapped to inject internally)
 - `context` (table) - Key-value pairs to pass as context to the agent (formatted as structured input)
-- `tools` (list of strings) - Individual tool names available for this turn (empty list = no tools)
-- `toolsets` (list of strings) - Toolset names to enable for this turn (empty list = no tools)
-- `temperature` (number) - Override temperature for this turn
-- `max_tokens` (number) - Override max_tokens for this turn
-- `top_p` (number) - Override top_p for this turn
+- `tools` (list of variables) - Tool and toolset variables available for this call (empty list = no tools)
+- `temperature` (number) - Override temperature for this call
+- `max_tokens` (number) - Override max_tokens for this call
+- `top_p` (number) - Override top_p for this call
 
-**Tool/Toolset Override Behavior:**
-- `tools` - List of individual tool names to enable
-- `toolsets` - List of toolset names to enable (expands to all tools in those sets)
-- If both specified: Union of all tools (duplicates automatically removed)
-- Empty list `[]` for either: No tools available
-- `None`/omitted: Use agent's default configuration
+**Tool Override Behavior:**
+- `tools` - List of tool/toolset variables to enable: `{search, done, math_tools}`
+- Empty list `{}`: No tools available for this call
+- `nil`/omitted: Use agent's default configuration
 
 **Examples:**
 
 ```lua
--- Normal turn with all configured tools
-Agent("worker").turn()
+-- Normal call with all configured tools
+worker()
 
--- Turn with injected message (still has all tools)
-Agent("worker").turn({inject = "Focus on security aspects"})
+-- Call with message (still has all tools)
+worker({message = "Focus on security aspects"})
 
--- Turn with context from tool results (for deterministic tool calling)
-Agent("worker").turn({
+-- Call with context from tool results (for deterministic tool calling)
+worker({
     context = {
         tip_calculation = tip_result,
         split_calculation = split_result,
@@ -1880,32 +2274,26 @@ Agent("worker").turn({
     }
 })
 
--- Turn with no tools (for summarization)
-Agent("worker").turn({
-    inject = "Summarize the search results above",
+-- Call with no tools (for summarization)
+worker({
+    message = "Summarize the search results above",
     tools = {}
 })
--- or equivalently:
-Agent("worker").turn({
-    inject = "Summarize the search results above",
-    toolsets = {}
+
+-- Call with specific tools only (variable references)
+worker({tools = {search, done}})
+
+-- Call with a toolset
+worker({tools = {math_tools}})  -- math_tools is a Toolset variable
+
+-- Union of individual tools and toolsets
+worker({
+    tools = {search, math_tools}  -- Individual tools + toolset
 })
 
--- Turn with specific tools only
-Agent("worker").turn({tools = {"search", "done"}})
-
--- Turn with specific toolsets
-Agent("worker").turn({toolsets = {"math_tools", "text_tools"}})
-
--- Union of both individual tools and toolsets
-Agent("worker").turn({
-    tools = {"search"},           -- Individual tool
-    toolsets = {"math_tools"}     -- Plus all math tools
-})
-
--- Turn with model parameter overrides
-Agent("worker").turn({
-    inject = "Be creative",
+-- Call with model parameter overrides
+worker({
+    message = "Be creative",
     temperature = 0.9,
     max_tokens = 1000
 })
@@ -1915,18 +2303,18 @@ Agent("worker").turn({
 
 ```lua
 repeat
-    -- Main turn: agent has all tools
-    Agent("researcher").turn()
-    
+    -- Main call: agent has all tools
+    researcher()
+
     -- If tool was called (not done), summarize with no tools
-    if Tool.called("search") or Tool.called("analyze") then
-        Agent("researcher").turn({
-            inject = "Summarize the tool results above in 2-3 sentences",
+    if search.called() or analyze.called() then
+        researcher({
+            message = "Summarize the tool results above in 2-3 sentences",
             tools = {}
         })
     end
-    
-until Tool.called("done")
+
+until done.called()
 ```
 
 ### Session Primitives
@@ -1942,13 +2330,24 @@ Session.save_to_node(node)
 
 ### State Primitives
 
+State is accessed via a metatable-enabled `state` variable:
+
 ```lua
-State.get(key)
-State.get(key, default)
-State.set(key, value)
-State.increment(key)
-State.append(key, value)
-State.all()
+-- Get a value
+local value = state.key
+
+-- Set a value
+state.key = value
+
+-- Check if exists
+if state.key then ... end
+
+-- Numeric operations
+state.count = (state.count or 0) + 1
+
+-- Table operations (helper functions)
+State.append("list", item)  -- Append to a list
+State.all()                 -- Get all state as table
 ```
 
 ### Stage Primitives
@@ -1966,10 +2365,11 @@ Stage.history()
 ```lua
 Stop.requested()
 Stop.reason()
-Tool.called(name)
-Tool.last_result(name)
-Tool.last_call(name)
-Tool.get(name)  -- Get handle to external tool for direct invocation
+
+-- Tool handle methods (accessed via tool variable)
+done.called()        -- Check if tool was called
+done.last_result()   -- Get last result from tool
+
 Iterations.current()
 Iterations.exceeded(n)
 ```
@@ -2018,8 +2418,8 @@ local matcher = contains("error")
 -- Returns: ("contains", "error")
 
 -- Usage in assertions
-if Tool.called("search") then
-    local result = Tool.last_result("search")
+if search.called() then
+    local result = search.last_result()
     if matcher_matches(result, contains("success")) then
         Log.info("Search was successful")
     end
@@ -2035,8 +2435,7 @@ local matcher = equals("completed")
 -- Returns: ("equals", "completed")
 
 -- Usage
-local status = State.get("status")
-if status == "completed" then
+if state.status == "completed" then
     -- Exact match
 end
 ```
@@ -2082,7 +2481,7 @@ local success_matcher = contains("success")
 local error_matcher = contains("error")
 
 -- Use in conditional logic
-local result = Agent("worker").turn()
+local result = worker()
 if result.data:find("success") then
     -- Contains success
 elseif result.data:find("error") then
@@ -2116,18 +2515,35 @@ end
 -- Define stages at top level
 Stages({"researching", "writing", "review", "publishing", "complete"})
 
+-- Define tools
+done = tactus.done
+research = Tool {
+    description = "Research a topic",
+    input = { query = field.string{required = true} },
+    function(args) return "Research results for: " .. args.query end
+}
+write_draft = Tool {
+    description = "Write a draft",
+    input = { content = field.string{required = true} },
+    function(args)
+        state.draft = args.content
+        return "Draft saved"
+    end
+}
+
 -- Define agent
-Agent "writer" {
+writer = Agent {
+    provider = "openai",
     system_prompt = [[
 You write content about: {input.topic}
 Target: {input.target}
     ]],
-    toolsets = {"research", "write_draft", "done"},
+    tools = {research, write_draft, done},
     filter = {class = "StandardFilter"}
 }
 
 -- Main procedure
-Procedure "content_pipeline" {
+Procedure {
     description = "Generate and publish content with human oversight",
 
     input = {
@@ -2173,18 +2589,17 @@ Procedure "content_pipeline" {
 
         Stage.set("writing")
         repeat
-            Agent("writer").turn()
-        until Tool.called("done") or Iterations.exceeded(20)
+            writer()
+        until done.called() or Iterations.exceeded(20)
 
-        local draft = State.get("draft")
-        if not draft then
+        if not state.draft then
             return {published = false, error = "No draft generated"}
         end
 
         -- Human review
         Stage.set("review")
         local review = Human.review("review_content", {
-            artifact = draft,
+            artifact = state.draft,
             artifact_type = "document"
         })
 
@@ -2197,11 +2612,11 @@ Procedure "content_pipeline" {
             return {published = false, reason = "rejected"}
         elseif review.decision == "Revise" then
             -- Could loop back to writing with feedback
-            State.set("revision_feedback", review.feedback)
+            state.revision_feedback = review.feedback
             -- ... revision logic ...
         end
 
-        local final_content = review.edited_artifact or draft
+        local final_content = review.edited_artifact or state.draft
 
         -- Approval to publish
         Stage.set("publishing")
@@ -2236,7 +2651,7 @@ Procedure "content_pipeline" {
 Stages({"processing", "complete"})
 
 -- Main procedure
-Procedure "batch_processor" {
+Procedure {
     input = {
         items = field.array{required = true},
         threshold = field.number{default = 0.1}
@@ -2334,8 +2749,20 @@ A comprehensive example showing HITL with checkpointed tool calls, evaluation, a
 -- Define stages
 Stages({"analyzing", "drafting", "evaluating", "awaiting_approval", "promoting", "complete"})
 
+-- Define tools (these would be provided by MCP or defined externally)
+done = tactus.done
+plexus_get_score = mcp.plexus.get_score
+plexus_get_evaluation_metrics = mcp.plexus.get_evaluation_metrics
+plexus_analyze_errors = mcp.plexus.analyze_errors
+plexus_draft_score_config = mcp.plexus.draft_score_config
+plexus_validate_config = mcp.plexus.validate_config
+plexus_run_evaluation = mcp.plexus.run_evaluation
+plexus_compare_metrics = mcp.plexus.compare_metrics
+plexus_promote_score_version = mcp.plexus.promote_score_version
+
 -- Define agents
-Agent "analyzer" {
+analyzer = Agent {
+    provider = "openai",
     system_prompt = [[
 You are a Score optimization specialist. Analyze the current
 champion Score's performance and identify improvement opportunities.
@@ -2344,11 +2771,12 @@ Score ID: {input.score_id}
 Champion metrics: {state.champion_metrics}
 Error patterns: {state.error_analysis}
     ]],
-    toolsets = {"plexus_get_score", "plexus_get_evaluation_metrics", "plexus_analyze_errors", "done"},
+    tools = {plexus_get_score, plexus_get_evaluation_metrics, plexus_analyze_errors, done},
     max_turns = 20
 }
 
-Agent "drafter" {
+drafter = Agent {
+    provider = "openai",
     system_prompt = [[
 Based on your analysis, draft an improved Score configuration.
 
@@ -2357,12 +2785,12 @@ Human feedback (if any): {state.human_feedback}
 
 Be conservative - small targeted improvements are better than sweeping changes.
     ]],
-    toolsets = {"plexus_draft_score_config", "plexus_validate_config", "done"},
+    tools = {plexus_draft_score_config, plexus_validate_config, done},
     max_turns = 15
 }
 
 -- Main procedure
-Procedure "score_optimizer" {
+Procedure {
     description = "Self-optimizing system that drafts new Score configurations, evaluates them against the champion, and requests approval to promote improvements.",
 
     input = {
@@ -2397,66 +2825,66 @@ Procedure "score_optimizer" {
         -- Evaluate champion FIRST (checkpointed, runs once)
         Stage.set("analyzing")
 
-        State.set("champion_config", Step.run("load_champion", function()
-            return Tools.plexus_get_score({score_id = input.score_id})
-        end))
+        state.champion_config = Step.run("load_champion", function()
+            return plexus_get_score.run({score_id = input.score_id})
+        end)
 
         -- Run fresh evaluation on champion (checkpointed)
-        State.set("champion_metrics", Step.run("evaluate_champion", function()
-            return Tools.plexus_run_evaluation({
+        state.champion_metrics = Step.run("evaluate_champion", function()
+            return plexus_run_evaluation.run({
                 score_id = input.score_id,
                 version = "champion",
                 test_set = "validation"
             })
-        end))
+        end)
 
-        State.set("error_analysis", Step.run("analyze_errors", function()
-            return Tools.plexus_analyze_errors({
+        state.error_analysis = Step.run("analyze_errors", function()
+            return plexus_analyze_errors.run({
                 score_id = input.score_id,
                 limit = 100
             })
-        end))
+        end)
 
         while attempt <= input.max_attempts do
             Log.info("Optimization attempt " .. attempt)
 
             -- Agent analyzes the data
             repeat
-                Agent("analyzer").turn()
-            until Tool.called("done") or Iterations.exceeded(20)
+                analyzer()
+            until done.called() or Iterations.exceeded(20)
 
-            State.set("analysis_findings", Tool.last_result("done"))
+            state.analysis_findings = done.last_result()
 
             -- Draft improved configuration
             Stage.set("drafting")
 
             repeat
-                Agent("drafter").turn()
-            until Tool.called("done") or Iterations.exceeded(15)
+                drafter()
+            until done.called() or Iterations.exceeded(15)
 
-            local candidate_config = Tool.last_result("plexus_draft_score_config")
+            local candidate_config = plexus_draft_score_config.last_result()
             if not candidate_config then
                 return {promoted = false, rejection_reason = "drafting_failed"}
             end
 
-            State.set("candidate_config", candidate_config)
+            state.candidate_config = candidate_config
 
             -- Evaluate candidate (checkpointed per attempt)
             Stage.set("evaluating")
 
             local eval_result = Step.run("evaluate_candidate_" .. attempt, function()
-                return Tools.plexus_run_evaluation({
+                return plexus_run_evaluation.run({
                     score_id = input.score_id,
                     config = candidate_config,
                     test_set = "validation"
                 })
             end)
 
-            State.set("candidate_metrics", eval_result.metrics)
+            state.candidate_metrics = eval_result.metrics
 
             local comparison = Step.run("compare_" .. attempt, function()
-                return Tools.plexus_compare_metrics({
-                    champion = State.get("champion_metrics"),
+                return plexus_compare_metrics.run({
+                    champion = state.champion_metrics,
                     candidate = eval_result.metrics
                 })
             end)
@@ -2466,8 +2894,8 @@ Procedure "score_optimizer" {
 
             if improvement < input.improvement_threshold then
                 if attempt < input.max_attempts then
-                    State.set("human_feedback", "Auto-retry: " ..
-                        (improvement * 100) .. "% below threshold")
+                    state.human_feedback = "Auto-retry: " ..
+                        (improvement * 100) .. "% below threshold"
                     attempt = attempt + 1
                 else
                     return {
@@ -2484,8 +2912,8 @@ Procedure "score_optimizer" {
                     artifact = {
                         candidate_config = candidate_config,
                         comparison = comparison,
-                        champion_metrics = State.get("champion_metrics"),
-                        candidate_metrics = State.get("candidate_metrics")
+                        champion_metrics = state.champion_metrics,
+                        candidate_metrics = state.candidate_metrics
                     },
                     artifact_type = "score_promotion"
                 })
@@ -2494,7 +2922,7 @@ Procedure "score_optimizer" {
                     Stage.set("promoting")
 
                     local result = Step.run("promote", function()
-                        return Tools.plexus_promote_score_version({
+                        return plexus_promote_score_version.run({
                             score_id = input.score_id,
                             config = candidate_config
                         })
@@ -2514,9 +2942,9 @@ Procedure "score_optimizer" {
                     }
 
                 elseif review.decision == "Revise" then
-                    State.set("human_feedback", review.feedback)
+                    state.human_feedback = review.feedback
                     if review.edited_artifact then
-                        State.set("candidate_config", review.edited_artifact)
+                        state.candidate_config = review.edited_artifact
                     end
                     attempt = attempt + 1
 
@@ -2643,10 +3071,10 @@ On re-execution:
 
 ```lua
 -- First run: executes LLM call, stores result
-local response = Agent("worker").turn()  -- Checkpoint: turn_1
+local response = worker()  -- Checkpoint: call_1
 
 -- Second run (replay): returns stored result immediately
-local response = Agent("worker").turn()  -- Returns checkpoint turn_1's result
+local response = worker()  -- Returns checkpoint call_1's result
 
 -- Continues to next uncompleted operation
 local approved = Human.approve({message = "Continue?"})
@@ -2662,13 +3090,13 @@ Code between checkpoints must be deterministic:
 -- GOOD: Deterministic
 local items = input.items
 for i, item in ipairs(items) do
-  Agent("worker").turn({inject = "Process: " .. item})
+  worker({message = "Process: " .. item})
 end
 
 -- BAD: Non-deterministic (different on replay)
 local items = fetch_items_from_api()  -- Might return different results!
 for i, item in ipairs(items) do
-  Agent("worker").turn({inject = "Process: " .. item})
+  worker({message = "Process: " .. item})
 end
 
 -- FIXED: Wrap non-deterministic operations in checkpointed steps
@@ -2676,7 +3104,7 @@ local items = Step.run("fetch_items", function()
   return fetch_items_from_api()
 end)
 for i, item in ipairs(items) do
-  Agent("worker").turn({inject = "Process: " .. item})
+  worker({message = "Process: " .. item})
 end
 ```
 
@@ -2785,7 +3213,7 @@ Define custom steps in Lua for advanced assertions:
 
 ```lua
 step("the research quality is high", function()
-  local results = State.get("research_results")
+  local results = state.research_results
   assert(#results > 5, "Should have at least 5 results")
   assert(results[1].quality == "high", "First result should be high quality")
 end)

@@ -258,20 +258,20 @@ Dynamic control of tool availability for individual agent turns:
 ```lua
 repeat
     -- Main turn: agent has all tools
-    Researcher.turn()
-    
+    Researcher()
+
     -- If tool was called, summarize with NO tools
-    if Tool.called("search") then
-        Researcher.turn({
-            inject = "Summarize the search results",
+    if search.called() then
+        Researcher({
+            message = "Summarize the search results",
             tools = {}  -- No tools for this turn
         })
     end
-until Tool.called("done")
+until done.called()
 ```
 
 **Implementation**:
-- `Agent.turn(opts)` accepts optional table with `tools`, `inject`, and model parameter overrides
+- `Agent(opts)` accepts optional table with `tools`, `message`, and model parameter overrides
 - Uses Pydantic AI's `agent.override(tools=...)` context manager
 - Helper methods: `_get_tools_for_turn()`, `_filter_tools_by_name()`
 
@@ -288,9 +288,9 @@ until Tool.called("done")
 Track which tools were called and access their results:
 
 ```lua
-if Tool.called("search") then
-    local result = Tool.last_result("search")
-    local call_info = Tool.last_call("search")
+if search.called() then
+    local result = search.last_result()
+    local call_info = search.last_call()
     -- call_info.args, call_info.result
 end
 ```
@@ -344,7 +344,7 @@ def calculate_mortgage(principal: float, rate: float, years: int) -> float:
 agent("financial_advisor", {
     provider = "openai",
     model = "gpt-4o",
-    tools = {"calculate_mortgage", "done"}
+    tools = {calculate_mortgage, done}
 })
 ```
 
@@ -878,14 +878,14 @@ Control whether tools run concurrently or sequentially.
 agent("worker", {
     provider = "openai",
     model = "gpt-4o",
-    tools = {"search", "analyze", "done"},
-    
+    tools = {search, analyze, done},
+
     tool_execution = "parallel"  -- or "sequential"
 })
 
 -- Or per-turn override
-Worker.turn({
-    tools = {"search", "analyze"},
+Worker({
+    tools = {search, analyze},
     sequential = true  -- Force sequential for this turn
 })
 ```
@@ -1117,7 +1117,7 @@ sequenceDiagram
     participant LLM as LLM
     participant MCP as MCP Server
     
-    Lua->>AP: Worker.turn()
+    Lua->>AP: Worker()
     AP->>PA: agent.run(message_history, tools)
     PA->>LLM: Request with tool definitions
     LLM-->>PA: Response with tool call
@@ -1127,9 +1127,9 @@ sequenceDiagram
     LLM-->>PA: Final response
     PA-->>AP: RunResult
     AP-->>Lua: ResultPrimitive
-    
-    Lua->>Lua: Tool.called("search")
-    Lua->>Lua: Tool.last_result("search")
+
+    Lua->>Lua: search.called()
+    Lua->>Lua: search.last_result()
 ```
 
 ---

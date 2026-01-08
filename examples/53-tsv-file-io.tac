@@ -8,14 +8,14 @@ To run:
   tactus run examples/53-tsv-file-io.tac
 ]]--
 
-Procedure "main" {
-    input = {},
-    output = {
+input {}
+
+output {
         records_processed = field.number{required = true},
         summary = field.string{required = true}
-    },
-    function(input)
-    -- Create sample TSV data
+    }
+
+-- Create sample TSV data
     local inventory_data = {
         {product = "Laptop, Pro Model", quantity = "15", price = "1299.99", location = "Warehouse A"},
         {product = "Mouse, Wireless", quantity = "45", price = "29.99", location = "Warehouse B"},
@@ -68,8 +68,6 @@ Procedure "main" {
         records_processed = loaded_data:len(),
         summary = summary
     }
-end
-}
 
 Specifications([[
 Feature: TSV File IO

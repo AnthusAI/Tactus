@@ -8,14 +8,14 @@ To run:
   tactus run examples/54-json-file-io.tac
 ]]--
 
-Procedure "main" {
-    input = {},
-    output = {
+input {}
+
+output {
         users_processed = field.number{required = true},
         active_users = field.number{required = true}
-    },
-    function(input)
-    -- Create complex nested data structure
+    }
+
+-- Create complex nested data structure
     local app_config = {
         app_name = "Tactus Example App",
         version = "1.0.0",
@@ -120,8 +120,6 @@ Procedure "main" {
         users_processed = #loaded_config.users,
         active_users = active_count
     }
-end
-}
 
 Specifications([[
 Feature: JSON File IO

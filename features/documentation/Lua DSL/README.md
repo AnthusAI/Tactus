@@ -26,9 +26,9 @@ agent "worker" {
 
 procedure(function()
     repeat
-        Worker.turn()
-    until Tool.called("done")
-    return { result = Tool.last_result("done") }
+        Worker()
+    until done.called()
+    return { result = done.last_result() }
 end)
 ```
 
@@ -565,7 +565,7 @@ class TactusRuntime:
         return context
     
     def _inject_primitives(self, context: TactusContext, registry: ProcedureRegistry):
-        """Inject State, Tool, Human, Log, Agent.turn() etc."""
+        """Inject State, Tool, Human, Log, Agent() callable etc."""
         
         # Standard primitives
         self.sandbox.set_global("State", context.state)
@@ -575,7 +575,7 @@ class TactusRuntime:
         self.sandbox.set_global("params", context.params)
         # ... etc
         
-        # Agent turn functions (Worker.turn(), Reviewer.turn(), etc.)
+        # Agent callable functions (Worker(), Reviewer(), etc.)
         for agent_name in registry.agents:
             capitalized = agent_name.capitalize()
             agent_primitive = self._create_agent_primitive(agent_name, context)
@@ -901,27 +901,27 @@ agent "researcher" {
 -- Procedure
 procedure(function()
     Stage.set("greeting")
-    
+
     repeat
-        Greeter.turn()
-    until Tool.called("done")
-    
-    local greeting = Tool.last_result("done")
+        Greeter()
+    until done.called()
+
+    local greeting = done.last_result()
     State.set("greeting", greeting)
-    
+
     local findings = nil
     if params.include_research then
         Stage.set("researching")
-        
+
         repeat
-            Researcher.turn()
-        until Tool.called("done") or Iterations.exceeded(10)
-        
-        findings = Tool.last_result("done")
+            Researcher()
+        until done.called() or Iterations.exceeded(10)
+
+        findings = done.last_result()
     end
-    
+
     Stage.set("complete")
-    
+
     return {
         greeting = greeting,
         research_findings = findings

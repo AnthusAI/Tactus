@@ -36,19 +36,16 @@ Call done when finished.
     toolsets = {"done"}
 }
 
-Procedure "main" {
-    input = {
+input {
         customer_message = field.string{required = true, description = "Customer message to analyze"}
-    },
-    output = {
+    }
+
+output {
         sentiment = field.string{required = true, description = "Detected sentiment label"},
         response = field.string{required = true, description = "Agent response"}
-    },
-    state = {
-        sentiment = field.string{default = "unknown"}
-    },
-    function(input)
-    -- Classify sentiment with PyTorch model
+    }
+
+-- Classify sentiment with PyTorch model
     -- Input: tensor of word indices (for demo, just pass a simple tensor)
     State.sentiment = Sentiment_classifier.predict({1, 2, 3, 4, 5})
 
@@ -59,8 +56,6 @@ Procedure "main" {
         sentiment = State.sentiment,
         response = Support_agent.output
     }
-end
-}
 
 -- BDD Specifications
 Specifications([[

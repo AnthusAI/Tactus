@@ -17,14 +17,14 @@ To run:
   tactus run examples/52-file-io-basics.tac
 ]]--
 
-Procedure "main" {
-    input = {},
-    output = {
+input {}
+
+output {
         records_processed = field.number{required = true},
         summary = field.string{required = true}
-    },
-    function(input)
-    -- Read CSV file (returns LuaList wrapper with {header=value} dicts)
+    }
+
+-- Read CSV file (returns LuaList wrapper with {header=value} dicts)
     local data = Csv.read("examples/data/sample.csv")
 
     -- Get record count using :len() method
@@ -72,8 +72,6 @@ Procedure "main" {
         records_processed = record_count,
         summary = summary_text
     }
-end
-}
 
 Specifications([[
 Feature: File IO Operations

@@ -73,8 +73,8 @@ After processing, call done with the result.]],
 }
 
 -- Main procedure
-Procedure "main" {
-    input = {
+
+input {
         operation = field.string{
             default = "uppercase",
             description = "Operation to perform: uppercase, lowercase, reverse, or word_count"
@@ -83,13 +83,14 @@ Procedure "main" {
             default = "Hello, World!",
             description = "Text to process"
         }
-    },
-    output = {
+    }
+
+output {
         result = field.string{required = true, description = "Processed text"},
         completed = field.boolean{required = true, description = "Whether task completed"}
-    },
-    function(input)
-        Log.info("Starting inline toolset demo", {
+    }
+
+Log.info("Starting inline toolset demo", {
             operation = input.operation,
             text = input.text
         })
@@ -135,8 +136,6 @@ Procedure "main" {
             result = answer,
             completed = completed
         }
-    end
-}
 
 -- BDD Specifications
 Specifications([[

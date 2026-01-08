@@ -1,8 +1,7 @@
 -- Input Types Showcase
 -- Demonstrates all supported input types for GUI and CLI testing
 
-Procedure "main" {
-    input = {
+input {
         -- String input (required)
         user_name = field.string{required = true, description = "Your name for personalization"},
 
@@ -20,13 +19,14 @@ Procedure "main" {
 
         -- Enum input
         language = field.string{default = "english", description = "Language for the greeting"}
-    },
-    output = {
+    }
+
+output {
         message = field.string{required = true, description = "The generated greeting message"},
         settings = field.object{required = true, description = "Summary of settings used"}
-    },
-    function(input)
-    -- Select greeting based on formality and language
+    }
+
+-- Select greeting based on formality and language
     local greetings = {
         english = input.formal and "Dear" or "Hello",
         spanish = input.formal and "Estimado" or "Hola",
@@ -65,5 +65,4 @@ Procedure "main" {
         message = message,
         settings = settings
     }
-end
-}
+

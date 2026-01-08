@@ -42,15 +42,15 @@ Your task:
 }
 
 -- Main procedure
-Procedure "main" {
-    output = {
+
+output {
         counter_calls = field.integer{required = true, description = "Number of counter calls"},
         status_calls = field.integer{required = true, description = "Number of status calls"},
         final_status = field.string{required = true, description = "Final status observed"},
         completed = field.boolean{required = true, description = "Whether task completed"}
-    },
-    function(input)
-        Log.info("Starting temporal mock demo")
+    }
+
+Log.info("Starting temporal mock demo")
 
         -- Start the agent
         Agent("progress_monitor").turn({
@@ -100,8 +100,6 @@ Procedure "main" {
             final_status = final_status,
             completed = completed
         }
-    end
-}
 
 -- BDD Specifications
 Specifications([[

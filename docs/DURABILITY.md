@@ -27,7 +27,7 @@ handle_escalation = procedure "handle_escalation" {
             model = "claude-sonnet-4-20250514",
             system_prompt = "You are a senior support supervisor..."
         }
-        Supervisor.turn({inject = input.issue})
+        Supervisor({message = input.issue})
         return {resolution = Supervisor.output}
     end
 }
@@ -68,10 +68,10 @@ main = procedure "main" {
         state.category = IntentClassifier.predict(input.user_message)
 
         if state.category == "billing" then
-            BillingAgent.turn()
+            BillingAgent()
             response = BillingAgent.output
         elseif state.category == "technical" then
-            TechnicalAgent.turn()
+            TechnicalAgent()
             response = TechnicalAgent.output
         end
 
@@ -96,9 +96,9 @@ Every agent turn, model prediction, human interaction, and tool call automatical
 
 ```lua
 state.intent = Classifier.predict(text)  -- Checkpoint 1 (ML inference)
-Worker.turn()                            -- Checkpoint 2 (LLM call)
+Worker()                                 -- Checkpoint 2 (LLM call)
 Human.approve({...})                     -- Checkpoint 3 (suspends until response)
-Publisher.turn()                         -- Checkpoint 4 (LLM call)
+Publisher()                              -- Checkpoint 4 (LLM call)
 ```
 
 ### Checkpoint-and-Replay Execution Model
@@ -219,49 +219,76 @@ Position 2: summarize_chunk({chunk: "..."}) → {summary: "..."}
 
 On replay, completed sub-procedure calls return cached results without re-execution.
 
-### Script Mode (Simple Cases)
+### Script Mode (Zero-Wrapper Syntax)
 
-For simple scripts, you can omit the `main` wrapper. Top-level code becomes the entry point:
+For simple procedures, you can write code directly without the `Procedure {}` wrapper. The runtime automatically transforms script mode files by wrapping executable code in an implicit procedure.
 
-**Simplest (no schemas):**
+**Basic example:**
 ```lua
-Worker = agent "worker" { model = "claude-sonnet-4-20250514" }
-Worker.turn({inject = input.text})
-return {result = Worker.output}
-```
-
-**With schemas:**
-```lua
-input {text = {type = "string", required = true}}
-output {result = {type = "string"}}
-
-Worker = agent "worker" { model = "claude-sonnet-4-20250514" }
-Worker.turn({inject = input.text})
-return {result = Worker.output}
-```
-
-**Hybrid (sub-procedures with top-level main):**
-```lua
-input {document = {type = "string"}}
-output {result = {type = "string"}}
-
-summarize_chunk = procedure "summarize_chunk" {
-    input = {chunk = {type = "string"}},
-    output = {summary = {type = "string"}},
-    run = function()
-        Summarizer = agent "summarizer" { model = "claude-sonnet-4-20250514" }
-        Summarizer.turn({inject = input.chunk})
-        return {summary = Summarizer.output}
-    end
+input {
+    name = field.string{required = true}
 }
 
--- Top-level code acts as main
-chunks = split(input.document, 1000)
-for i, chunk in ipairs(chunks) do
-    state.results[i] = summarize_chunk({chunk = chunk}).summary
-end
-return {result = join(state.results)}
+output {
+    greeting = field.string{required = true}
+}
+
+local message = "Hello, " .. input.name .. "!"
+return {greeting = message}
 ```
+
+**With agents:**
+```lua
+input {
+    task = field.string{required = true}
+}
+
+output {
+    result = field.string{required = true}
+}
+
+done = tactus.done
+
+worker = Agent {
+    provider = "openai",
+    model = "gpt-4o",
+    system_prompt = "Complete tasks efficiently",
+    tools = {done}
+}
+
+worker({message = input.task})
+
+if done.called() then
+    return {result = "Success"}
+else
+    return {result = "Agent did not complete"}
+end
+```
+
+**With state:**
+```lua
+input {
+    value = field.number{required = true}
+}
+
+output {
+    doubled = field.number{required = true}
+}
+
+state.original = input.value
+state.result = state.original * 2
+
+return {doubled = state.result}
+```
+
+**All durability features work identically in script mode:**
+- Checkpointing at agent calls and returns
+- Replay from checkpoints
+- State persistence
+- Error recovery
+- HITL interactions
+
+The transformation happens before execution, so the durable execution model is preserved.
 
 ### Procedure Metadata
 
@@ -351,7 +378,7 @@ Checkpoints are keyed by execution position, not name. This handles loops natura
 
 ```lua
 for i, item in ipairs(items) do
-    Worker.turn({inject = "Process: " .. item})  -- Same code, different positions
+    Worker({message = "Process: " .. item})  -- Same code, different positions
 end
 ```
 
@@ -371,16 +398,16 @@ The `state` table persists across checkpoints. Local variables do not:
 ```lua
 -- ✅ Works: state persists
 state.request_id = math.random(1000)
-Worker.turn()
+Worker()
 if state.request_id > 500 then  -- request_id available on replay
-    Publisher.turn()
+    Publisher()
 end
 
 -- ❌ Breaks: local var lost on replay
 local request_id = math.random(1000)
-Worker.turn()  -- Checkpoint here
+Worker()  -- Checkpoint here
 if request_id > 500 then  -- request_id undefined on replay!
-    Publisher.turn()
+    Publisher()
 end
 ```
 
@@ -409,7 +436,7 @@ For complex logic or semantic organization, explicit steps are available:
 ```lua
 step("research", function()
     state.phase = "researching"
-    Researcher.turn()
+    Researcher()
     state.findings = Researcher.output
 end)
 
@@ -422,7 +449,7 @@ end)
 
 if state.approved then
     step("publish", function()
-        Publisher.turn({inject = state.findings})
+        Publisher({message = state.findings})
     end)
 end
 ```
@@ -440,12 +467,12 @@ Operations inside steps still auto-checkpoint independently:
 ```lua
 step("mixed_operations", function()
     call_api()          -- Part of step checkpoint
-    Worker.turn()       -- Its OWN checkpoint (auto)
+    Worker()            -- Its OWN checkpoint (auto)
     call_another_api()  -- Part of step checkpoint
 end)
 ```
 
-Each `Worker.turn()` creates its own checkpoint regardless of step boundaries.
+Each `Worker()` call creates its own checkpoint regardless of step boundaries.
 
 ## Explicit Checkpoint Primitive
 
@@ -466,7 +493,7 @@ state.embeddings = compute_embeddings(large_document)  -- CPU-intensive
 state.clusters = cluster_embeddings(state.embeddings)  -- Also expensive
 checkpoint()  -- Save before proceeding
 
-Worker.turn({inject = state.clusters})
+Worker({message = state.clusters})
 ```
 
 **Before risky operations:**
@@ -519,10 +546,10 @@ Reviewer = agent "reviewer" {
 **Agent methods:**
 
 ```lua
-Researcher.turn()                          -- Take a conversation turn
-Researcher.turn({inject = "Research X"})   -- Inject user message
-state.report = Researcher.output           -- Get last output
-state.history = Researcher.messages        -- Access conversation history
+Researcher()                             -- Take a conversation turn
+Researcher({message = "Research X"})     -- Call with a specific message
+state.report = Researcher.output         -- Get last output
+state.history = Researcher.messages      -- Access conversation history
 ```
 
 ### Models (Generic ML inference)
@@ -573,7 +600,7 @@ state.embedding = Embedder.predict(text)
 Regardless of type, all inference operations auto-checkpoint:
 
 ```lua
-Researcher.turn()                           -- Checkpoint (LLM call)
+Researcher()                                -- Checkpoint (LLM call)
 state.intent = IntentClassifier.predict(x)  -- Checkpoint (BERT inference)
 state.quotes = QuoteExtractor.predict(doc)  -- Checkpoint (HTTP call)
 ```
@@ -596,7 +623,7 @@ state.approved = Human.approve({
 })
 
 if state.approved then
-    Deployer.turn()
+    Deployer()
 end
 ```
 
@@ -609,7 +636,7 @@ state.user_feedback = Human.input({
     required = true
 })
 
-Analyst.turn({inject = state.user_feedback})
+Analyst({message = state.user_feedback})
 ```
 
 ### HITL Execution Flow
@@ -689,9 +716,9 @@ Non-deterministic code between checkpoints causes execution path divergence:
 ```lua
 -- ❌ UNSAFE: Different value on each replay!
 local x = math.random(100)
-Worker.turn()  -- Checkpoint
+Worker()  -- Checkpoint
 if x > 50 then  -- Condition evaluates differently on replay!
-    Publisher.turn()
+    Publisher()
 end
 ```
 
@@ -710,9 +737,9 @@ This leads to:
 state.x = Step.checkpoint(function()
     return math.random(100)
 end)
-Worker.turn()
+Worker()
 if state.x > 50 then
-    Publisher.turn()
+    Publisher()
 end
 ```
 
@@ -722,9 +749,9 @@ end
 -- Safe: checkpoint immediately after non-deterministic operation
 state.x = math.random(100)
 checkpoint()  -- Save state now
-Worker.turn()
+Worker()
 if state.x > 50 then
-    Publisher.turn()
+    Publisher()
 end
 ```
 
@@ -739,7 +766,7 @@ Worker = agent "worker" {
         return "You are agent " .. request_id
     end
 }
-Worker.turn()
+Worker()
 ```
 
 ### Non-Deterministic Functions
@@ -764,14 +791,14 @@ These functions trigger warnings if called outside a checkpoint:
 ```lua
 -- ❌ UNSAFE: File contents can change between executions
 local data = File.read("config.json")
-Worker.turn()
+Worker()
 -- data might be different if file changed
 
 -- ✅ SAFE: Checkpoint the file read
 state.data = Step.checkpoint(function()
     return File.read("config.json")
 end)
-Worker.turn()
+Worker()
 -- state.data is preserved from checkpoint
 ```
 
@@ -779,7 +806,7 @@ Worker.turn()
 ```lua
 -- ❌ UNSAFE: API responses vary
 local response = http_client.get("https://api.example.com/data")
-Worker.turn()
+Worker()
 
 -- ✅ SAFE: Checkpoint the API call
 state.response = Step.checkpoint(function()
@@ -925,7 +952,7 @@ async def test_procedure_determinism():
 **❌ Mistake 1: Random numbers in local variables**
 ```lua
 local request_id = math.random(100000)  -- ⚠️ Lost on replay
-Worker.turn()
+Worker()
 Log.info("Request ID: " .. request_id)  -- ❌ undefined on replay
 ```
 
@@ -934,14 +961,14 @@ Log.info("Request ID: " .. request_id)  -- ❌ undefined on replay
 state.request_id = Step.checkpoint(function()
     return math.random(100000)
 end)
-Worker.turn()
+Worker()
 Log.info("Request ID: " .. state.request_id)  -- ✅ Available on replay
 ```
 
 **❌ Mistake 2: Timestamps outside checkpoints**
 ```lua
 local start_time = os.time()  -- ⚠️ Different on each replay
-Worker.turn()
+Worker()
 local elapsed = os.time() - start_time  -- ❌ Wrong calculation
 ```
 
@@ -950,7 +977,7 @@ local elapsed = os.time() - start_time  -- ❌ Wrong calculation
 state.start_time = Step.checkpoint(function()
     return os.time()
 end)
-Worker.turn()
+Worker()
 state.end_time = Step.checkpoint(function()
     return os.time()
 end)
@@ -960,9 +987,9 @@ local elapsed = state.end_time - state.start_time  -- ✅ Correct
 **❌ Mistake 3: Conditional logic based on non-checkpointed random values**
 ```lua
 if math.random() > 0.5 then  -- ⚠️ Different condition on replay
-    Worker.turn()
+    Worker()
 else
-    Publisher.turn()
+    Publisher()
 end
 ```
 
@@ -973,9 +1000,9 @@ state.should_use_worker = Step.checkpoint(function()
 end)
 
 if state.should_use_worker then
-    Worker.turn()
+    Worker()
 else
-    Publisher.turn()
+    Publisher()
 end
 ```
 

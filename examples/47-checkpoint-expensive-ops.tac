@@ -4,20 +4,17 @@
 -- operations. On replay, expensive operations are skipped and
 -- cached results are returned instantly.
 
-Procedure "main" {
-    input = {
+input {
         iterations = field.number{description = "Number of iterations for expensive calculation", default = 1000}
-    },
-    output = {
+    }
+
+output {
         result1 = field.number{required = true, description = "Result of first expensive operation"},
         result2 = field.number{required = true, description = "Result of second expensive operation"},
         total_time_saved = field.string{required = true, description = "Time saved by checkpointing"}
-    },
-    state = {
-        checkpoints_replayed = field.number{default = 0}
-    },
-    function(input)
-    -- Expensive operation 1: Checkpointed for replay
+    }
+
+-- Expensive operation 1: Checkpointed for replay
     local result1 = checkpoint(function(input)
         local sum = 0
         for i = 1, input.iterations do
@@ -48,8 +45,6 @@ Procedure "main" {
         result2 = result2,
         total_time_saved = time_saved
     }
-end
-}
 
 -- BDD Specifications
 Specifications([[

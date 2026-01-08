@@ -13,21 +13,19 @@ Agent "assistant" {
 }
 
 -- Procedure WITHOUT state declaration (new optional syntax)
-Procedure "simple_demo" {
-    input = {
+
+input {
         message = field.string{default = "Hello World"}
-    },
-    output = {
+    }
+
+output {
         result = field.string{required = true}
-    },
-    -- Notice: No state = {} declaration needed!
-    function(input)
-        Log.info("Processing message", {message = input.message})
+    }
+
+Log.info("Processing message", {message = input.message})
         return {
             result = "Processed: " .. input.message
         }
-    end
-}
 
 -- Another procedure that actually uses state (must declare it)
 Procedure "stateful_demo" {

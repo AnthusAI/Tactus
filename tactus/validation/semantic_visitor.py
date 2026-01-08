@@ -47,6 +47,8 @@ class TactusDSLVisitor(LuaParserVisitor):
         "max_turns",
         "Tool",  # CamelCase - Lua-defined tools
         "Toolset",  # CamelCase - Added for toolsets
+        "input",  # lowercase - top-level input schema for script mode
+        "output",  # lowercase - top-level output schema for script mode
     }
 
     def __init__(self):
@@ -116,9 +118,62 @@ class TactusDSLVisitor(LuaParserVisitor):
                                 self.builder.set_max_depth(value)
                             elif var_name == "max_turns":
                                 self.builder.set_max_turns(value)
+                    else:
+                        # Check for assignment-based DSL declarations
+                        # e.g., greeter = Agent {...}, done = Tool {...}
+                        if explist.exp() and len(explist.exp()) > 0:
+                            exp = explist.exp()[0]
+                            self._check_assignment_based_declaration(var_name, exp)
 
         # Continue visiting children
         return self.visitChildren(ctx)
+
+    def _check_assignment_based_declaration(self, var_name: str, exp):
+        """Check if an assignment is a DSL declaration like 'greeter = Agent {...}'."""
+        # Look for prefixexp with functioncall pattern: Agent {...}
+        if exp.prefixexp():
+            prefixexp = exp.prefixexp()
+            if prefixexp.functioncall():
+                func_call = prefixexp.functioncall()
+                func_name = self._extract_function_name(func_call)
+
+                # Check if this is a chained method call (e.g., Agent('name').turn())
+                # Chained calls have structure: func_name args . method_name args
+                # Simple declarations have: func_name args or func_name table
+                # If there are more than 2 children, it's a chained call, not a declaration
+                is_chained_call = func_call.getChildCount() > 2
+
+                if func_name == "Agent" and not is_chained_call:
+                    # Extract config from Agent {...}
+                    config = self._extract_single_table_arg(func_call)
+                    # Filter out None values from tools list (variable refs can't be resolved)
+                    if config and "tools" in config:
+                        tools = config["tools"]
+                        if isinstance(tools, list):
+                            config["tools"] = [t for t in tools if t is not None]
+                    self.builder.register_agent(var_name, config if config else {}, None)
+                elif func_name == "Tool":
+                    # Extract config from Tool {...}
+                    config = self._extract_single_table_arg(func_call)
+                    self.builder.register_tool(var_name, config if config else {}, None)
+                elif func_name == "Toolset":
+                    # Extract config from Toolset {...}
+                    config = self._extract_single_table_arg(func_call)
+                    self.builder.register_toolset(var_name, config if config else {})
+
+    def _extract_single_table_arg(self, func_call) -> dict:
+        """Extract a single table argument from a function call like Agent {...}."""
+        args_list = func_call.args()
+        if not args_list:
+            return {}
+
+        # Process first args entry only
+        if len(args_list) > 0:
+            args_ctx = args_list[0]
+            if args_ctx.tableconstructor():
+                return self._parse_table_constructor(args_ctx.tableconstructor())
+
+        return {}
 
     def visitFunctioncall(self, ctx: LuaParser.FunctioncallContext):
         """Recognize and process DSL function calls."""
@@ -251,16 +306,31 @@ class TactusDSLVisitor(LuaParserVisitor):
                 config = args[1] if len(args) >= 2 and isinstance(args[1], dict) else {}
                 self.builder.register_model(args[0], config)
         elif func_name == "Procedure":  # CamelCase only
-            # For named procedures: procedure("name", {config}, function)
-            # or procedure("name", function)
-            # or new curried syntax: procedure "name" { config }
-            # First argument MUST be the name (string)
+            # Supports multiple syntax variants:
+            # 1. Unnamed (new): Procedure { config with function }
+            # 2. Named (curried): Procedure "name" { config }
+            # 3. Named (old): procedure("name", {config}, function)
             # Note: args may contain None for unparseable expressions (like functions)
-            if args and len(args) >= 1:  # Changed from >= 2 to >= 1 for curried syntax
-                # First arg must be a string (procedure name)
-                proc_name = args[0] if isinstance(args[0], str) else None
-                if not proc_name:
-                    # Invalid: first arg must be string name
+            if args and len(args) >= 1:
+                # Check if first arg is a table (unnamed procedure syntax)
+                # Tables are parsed as dict if they have named fields, or list if only positional
+                if isinstance(args[0], dict):
+                    # Unnamed syntax: Procedure {...} with named fields
+                    # e.g., Procedure { output = {...}, function(input) ... end }
+                    proc_name = "main"
+                    config = args[0]
+                elif isinstance(args[0], list):
+                    # Unnamed syntax: Procedure {...} with only function (no named fields)
+                    # e.g., Procedure { function(input) ... end }
+                    # The list contains [None] for the unparseable function
+                    proc_name = "main"
+                    config = {}  # No extractable config from function-only table
+                elif isinstance(args[0], str):
+                    # Named syntax: Procedure "name" {...}
+                    proc_name = args[0]
+                    config = args[1] if len(args) >= 2 and isinstance(args[1], dict) else None
+                else:
+                    # Invalid syntax
                     return
 
                 # Register that this named procedure exists (validation needs to know about 'main')
@@ -273,13 +343,8 @@ class TactusDSLVisitor(LuaParserVisitor):
                     {},  # State schema extracted below
                 )
 
-                # Check second argument - either config table or function
-                # If it's a dict, extract schemas; if None (function), skip schema extraction
-                # For curried syntax, there may be only one argument (the name)
-                if len(args) >= 2 and args[1] is not None and isinstance(args[1], dict):
-                    # procedure("name", {config}, function)
-                    config = args[1]
-
+                # Extract schemas from config if available
+                if config is not None and isinstance(config, dict):
                     # Extract inline input schema
                     if "input" in config and isinstance(config["input"], dict):
                         self.builder.register_input_schema(config["input"])
@@ -291,7 +356,6 @@ class TactusDSLVisitor(LuaParserVisitor):
                     # Extract inline state schema
                     if "state" in config and isinstance(config["state"], dict):
                         self.builder.register_state_schema(config["state"])
-                # else: procedure("name", function) - args[1] is None (unparseable function literal)
         elif func_name == "Prompt":  # CamelCase
             if args and len(args) >= 2:
                 self.builder.register_prompt(args[0], args[1])
@@ -347,6 +411,14 @@ class TactusDSLVisitor(LuaParserVisitor):
         elif func_name == "max_turns":
             if args and len(args) >= 1:
                 self.builder.set_max_turns(args[0])
+        elif func_name == "input":
+            # Top-level input schema for script mode: input { field1 = ..., field2 = ... }
+            if args and len(args) >= 1 and isinstance(args[0], dict):
+                self.builder.register_top_level_input(args[0])
+        elif func_name == "output":
+            # Top-level output schema for script mode: output { field1 = ..., field2 = ... }
+            if args and len(args) >= 1 and isinstance(args[0], dict):
+                self.builder.register_top_level_output(args[0])
         elif func_name == "Tool":  # CamelCase only
             # Tool("name", {config}, function) - matches agent/procedure pattern
             # or new curried syntax: Tool "name" { config }
@@ -445,6 +517,36 @@ class TactusDSLVisitor(LuaParserVisitor):
         """Parse an expression to a Python value."""
         if not ctx:
             return None
+
+        # Detect field.<type>{...} builder syntax so we can preserve schema info
+        prefix = ctx.prefixexp()
+        if prefix and prefix.functioncall():
+            func_ctx = prefix.functioncall()
+            name_tokens = [t.getText() for t in func_ctx.NAME()]
+
+            # field.string{required = true, ...}
+            if len(name_tokens) >= 2 and name_tokens[0] == "field":
+                field_type = name_tokens[-1]
+
+                # Default field definition
+                field_def = {"type": field_type, "required": False}
+
+                # Parse options table if present
+                if func_ctx.args():
+                    # We only expect a single args() entry for the builder
+                    first_arg = func_ctx.args(0)
+                    if first_arg.tableconstructor():
+                        options = self._parse_table_constructor(first_arg.tableconstructor())
+                        if isinstance(options, dict):
+                            field_def["required"] = bool(options.get("required", False))
+                            if "default" in options and not field_def["required"]:
+                                field_def["default"] = options["default"]
+                            if "description" in options:
+                                field_def["description"] = options["description"]
+                            if "enum" in options:
+                                field_def["enum"] = options["enum"]
+
+                return field_def
 
         # Check for literals
         if ctx.number():

@@ -10,15 +10,16 @@ Agent "greeter" {
 }
 
 -- Procedure
-Procedure "main" {
-    input = {
+
+input {
         name = field.string{required = true, description = "Name to greet"}
-    },
-    output = {
+    }
+
+output {
         greeting = field.string{required = true, description = "The greeting message"}
-    },
-    function(input)
-    Log.info("Generating greeting", {name = input.name})
+    }
+
+Log.info("Generating greeting", {name = input.name})
     
     -- Have agent generate greeting
     Agent("greeter").turn()
@@ -32,8 +33,6 @@ Procedure "main" {
     return {
         greeting = greeting
     }
-end
-}
 
 -- BDD Specifications(workflow correctness)
 Specifications([[
