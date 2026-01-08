@@ -2,6 +2,35 @@
 
 <!-- version list -->
 
+## v0.16.0 (2026-01-07)
+
+### Bug Fixes
+
+- **tests**: Resolve ruff linting errors
+  ([`892f73e`](https://github.com/AnthusAI/Tactus/commit/892f73eed13602cb6cb6328c363b1caa938db850))
+
+### Code Style
+
+- Format code with black
+  ([`bdec5b8`](https://github.com/AnthusAI/Tactus/commit/bdec5b8836d7d95bd6531ede2c4f000e24e79764))
+
+### Features
+
+- **dspy**: Add comprehensive behavior specifications for DSPy integration
+  ([`531167e`](https://github.com/AnthusAI/Tactus/commit/531167e2c423c605792f1e5ab3602f7eb05ab6d8))
+
+- **dspy**: Add model_type parameter support for reasoning models
+  ([`bf8cef3`](https://github.com/AnthusAI/Tactus/commit/bf8cef38e0e0674ccf1ebfac75a92c54e80b6d0c))
+
+- **dspy**: Add model_type parameter support for reasoning models
+  ([`0043293`](https://github.com/AnthusAI/Tactus/commit/00432937a11adc01a846909fe1ae9520cc927eab))
+
+### Refactoring
+
+- **examples**: Simplify agent example and add gpt-5-mini support
+  ([`7e7934e`](https://github.com/AnthusAI/Tactus/commit/7e7934eb89508d100dbce5ebd497ddcefda7778d))
+
+
 ## v0.15.1 (2026-01-07)
 
 
