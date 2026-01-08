@@ -16,13 +16,13 @@ from tactus.adapters.file_storage import FileStorage
 @pytest.mark.asyncio
 async def test_script_mode_basic(tmp_path):
     """Test basic script mode without wrapper."""
-    source = '''
+    source = """
 input { name = field.string{required = true} }
 output { greeting = field.string{required = true} }
 
 local message = "Hello, " .. input.name .. "!"
 return {greeting = message}
-'''
+"""
     storage = FileStorage(str(tmp_path / "storage"))
     runtime = TactusRuntime(procedure_id="test", storage_backend=storage)
     result = await runtime.execute(source, context={"name": "World"}, format="lua")
@@ -34,12 +34,12 @@ return {greeting = message}
 @pytest.mark.asyncio
 async def test_script_mode_no_input(tmp_path):
     """Test script mode with only output schema."""
-    source = '''
+    source = """
 output { result = field.string{required = true} }
 
 local value = "test result"
 return {result = value}
-'''
+"""
     storage = FileStorage(str(tmp_path / "storage"))
     runtime = TactusRuntime(procedure_id="test", storage_backend=storage)
     result = await runtime.execute(source, context={}, format="lua")
@@ -51,7 +51,7 @@ return {result = value}
 @pytest.mark.asyncio
 async def test_script_mode_with_mock_agent(tmp_path):
     """Test script mode with mocked agent calls."""
-    source = '''
+    source = """
 input { task = field.string{required = true} }
 output { result = field.string{required = true} }
 
@@ -70,7 +70,7 @@ worker = Agent {
 
 worker({message = input.task})
 return {result = "completed"}
-'''
+"""
     storage = FileStorage(str(tmp_path / "storage"))
     runtime = TactusRuntime(procedure_id="test", storage_backend=storage)
     result = await runtime.execute(source, context={"task": "test task"}, format="lua")
@@ -82,7 +82,7 @@ return {result = "completed"}
 @pytest.mark.asyncio
 async def test_script_mode_with_state(tmp_path):
     """Test script mode with state usage."""
-    source = '''
+    source = """
 input { value = field.number{required = true} }
 output { doubled = field.number{required = true} }
 
@@ -90,7 +90,7 @@ state.original = input.value
 state.result = state.original * 2
 
 return {doubled = state.result}
-'''
+"""
     storage = FileStorage(str(tmp_path / "storage"))
     runtime = TactusRuntime(procedure_id="test", storage_backend=storage)
     result = await runtime.execute(source, context={"value": 21}, format="lua")
@@ -102,7 +102,7 @@ return {doubled = state.result}
 @pytest.mark.asyncio
 async def test_script_mode_with_local_variables(tmp_path):
     """Test script mode with local variables."""
-    source = '''
+    source = """
 input { a = field.number{required = true}, b = field.number{required = true} }
 output { sum = field.number{required = true}, product = field.number{required = true} }
 
@@ -112,7 +112,7 @@ local total = x + y
 local prod = x * y
 
 return {sum = total, product = prod}
-'''
+"""
     storage = FileStorage(str(tmp_path / "storage"))
     runtime = TactusRuntime(procedure_id="test", storage_backend=storage)
     result = await runtime.execute(source, context={"a": 5, "b": 3}, format="lua")
@@ -125,7 +125,7 @@ return {sum = total, product = prod}
 @pytest.mark.asyncio
 async def test_script_mode_with_comments(tmp_path):
     """Test that comments are preserved in script mode."""
-    source = '''
+    source = """
 -- This is a simple script mode example
 input { name = field.string{required = true} }
 output { greeting = field.string{required = true} }
@@ -135,7 +135,7 @@ local message = "Hello, " .. input.name .. "!"
 
 -- Return the greeting
 return {greeting = message}
-'''
+"""
     storage = FileStorage(str(tmp_path / "storage"))
     runtime = TactusRuntime(procedure_id="test", storage_backend=storage)
     result = await runtime.execute(source, context={"name": "Alice"}, format="lua")
@@ -147,7 +147,7 @@ return {greeting = message}
 @pytest.mark.asyncio
 async def test_explicit_procedure_not_transformed(tmp_path):
     """Test that explicit named Procedure is not transformed."""
-    source = '''
+    source = """
 input { name = field.string{required = true} }
 
 main = Procedure "main" {
@@ -156,7 +156,7 @@ main = Procedure "main" {
         return {greeting = "Hi, " .. input.name}
     end
 }
-'''
+"""
     storage = FileStorage(str(tmp_path / "storage"))
     runtime = TactusRuntime(procedure_id="test", storage_backend=storage)
     result = await runtime.execute(source, context={"name": "Bob"}, format="lua")
@@ -168,7 +168,7 @@ main = Procedure "main" {
 @pytest.mark.asyncio
 async def test_script_mode_only_declarations(tmp_path):
     """Test file with only declarations (no executable code)."""
-    source = '''
+    source = """
 input { name = field.string{required = true} }
 output { greeting = field.string{required = true} }
 
@@ -180,7 +180,7 @@ worker = Agent {
     system_prompt = "Test",
     tools = {done}
 }
-'''
+"""
     storage = FileStorage(str(tmp_path / "storage"))
     runtime = TactusRuntime(procedure_id="test", storage_backend=storage)
 
