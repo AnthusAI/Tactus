@@ -1077,14 +1077,18 @@ def create_dsl_stubs(
             config_dict = lua_table_to_dict(config)
             # Generate a unique name if not provided
             agent_name = config_dict.pop("name", "dspy_agent")
-            return create_dspy_agent(agent_name, config_dict)
+            return create_dspy_agent(
+                agent_name, config_dict, registry=builder.registry, mock_manager=mock_manager
+            )
 
         # Curried form - return function that accepts config
         def accept_config(cfg):
             """Accept config and create DSPy agent."""
             config_dict = lua_table_to_dict(cfg)
             agent_name = config_dict.pop("name", "dspy_agent")
-            return create_dspy_agent(agent_name, config_dict)
+            return create_dspy_agent(
+                agent_name, config_dict, registry=builder.registry, mock_manager=mock_manager
+            )
 
         return accept_config
 
