@@ -148,5 +148,44 @@ class MockAgentPrimitive:
                 agent_name=self.name,
             )
 
+    def __call__(self, inputs: Optional[Dict[str, Any]] = None) -> Any:
+        """
+        Execute an agent turn using the callable interface.
+
+        This makes the mock agent callable like real agents:
+            result = worker({message = "Hello"})
+
+        Args:
+            inputs: Input dict with fields matching input_schema.
+                   Default field 'message' is used as the user message.
+
+        Returns:
+            Result object with response and other fields
+        """
+        inputs = inputs or {}
+
+        # Convert Lua table to dict if needed
+        if hasattr(inputs, "items"):
+            try:
+                inputs = dict(inputs.items())
+            except (AttributeError, TypeError):
+                pass
+
+        # Extract message field (the main input)
+        message = inputs.get("message")
+
+        # Build turn options
+        opts = {}
+        if message:
+            opts["inject"] = message
+
+        # Pass remaining fields as context
+        context = {k: v for k, v in inputs.items() if k != "message"}
+        if context:
+            opts["context"] = context
+
+        # Call turn() with the mapped options
+        return self.turn(opts)
+
     def __repr__(self) -> str:
         return f"MockAgentPrimitive({self.name}, turns={self.turn_count})"
