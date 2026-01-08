@@ -949,9 +949,7 @@ def create_dsl_stubs(
             return result
 
         def __repr__(self):
-            content_preview = (
-                self.content[:50] + "..." if len(self.content) > 50 else self.content
-            )
+            content_preview = self.content[:50] + "..." if len(self.content) > 50 else self.content
             return f"Message(role='{self.role}', content='{content_preview}')"
 
     def _message(config):
@@ -990,9 +988,7 @@ def create_dsl_stubs(
             raise ValueError("Message requires 'content' field")
 
         # Extract any additional metadata
-        metadata = {
-            k: v for k, v in config_dict.items() if k not in ("role", "content")
-        }
+        metadata = {k: v for k, v in config_dict.items() if k not in ("role", "content")}
 
         return TactusMessage(role, content, **metadata)
 
@@ -1329,8 +1325,10 @@ def create_dsl_stubs(
         # Handle curried syntax: Tool "name" returns a function that accepts config
         if isinstance(name_or_config, str):
             tool_name = name_or_config
+
             def accept_config(config):
                 return _process_tool_config(tool_name, config)
+
             return accept_config
 
         # Handle direct config syntax: multiply = Tool { ... }
@@ -1470,9 +1468,11 @@ def create_dsl_stubs(
             # Check if agent already exists - if so, it's a lookup
             if agent_name in _agent_registry:
                 return _agent_registry[agent_name]
+
             # Otherwise, return curried function for declaration
             def accept_config(config):
                 return _process_agent_config(agent_name, config)
+
             return accept_config
 
         # Handle direct config syntax: greeter = Agent { ... }
