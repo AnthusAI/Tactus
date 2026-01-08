@@ -31,8 +31,8 @@ agent("worker", {
 
 procedure(function()
   repeat
-    Worker.turn()
-  until Tool.called("done")
+    Worker()
+  until done.called()
 end)
 
 -- Add BDD specifications

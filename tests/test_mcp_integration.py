@@ -56,7 +56,7 @@ procedure: |
     -- Call the add_numbers tool from test MCP server
     -- For YAML format, agents are registered as globals with _Agent suffix
     if test_agent then
-        test_agent.turn()
+        test_agent()
     else
         -- Fallback for when agent is not registered as global
         Log.info("Agent not found as global, skipping turn")

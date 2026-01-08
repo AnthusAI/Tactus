@@ -5,20 +5,17 @@
 Stages({"start", "middle", "end"})
 
 -- Procedure with input, output, and state defined inline
-Procedure "main" {
-    input = {
+
+input {
         target_count = field.number{required = false, description = "Target counter value", default = 5},
-    },
-    output = {
+    }
+
+output {
         final_count = field.number{required = true, description = "Final counter value"},
         message = field.string{required = true, description = "Status message"},
-    },
-    state = {
-        counter = field.number{description = "Working counter", default = 0},
-        message = field.string{description = "Working message", default = ""}
-    },
-    function(input)
-  -- Initialize
+    }
+
+-- Initialize
   Stage.set("start")
 
   -- Do work
@@ -39,8 +36,6 @@ Procedure "main" {
     final_count = State.get("counter"),
     message = State.get("message")
   }
-end
-}
 
 -- BDD Specifications
 Specifications([[
@@ -71,4 +66,3 @@ Feature: Simple State Management
 -- step("custom assertion", function(input)
 --   assert(State.get("counter") > 0)
 -- end)
-

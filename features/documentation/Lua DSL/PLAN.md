@@ -169,11 +169,11 @@ agent("worker", {
 
 procedure(function()
     repeat
-        Worker.turn()
-    until Tool.called("done")
-    
+        Worker()
+    until done.called()
+
     return {
-        result = Tool.last_result("done")
+        result = done.last_result()
     }
 end)
 ```

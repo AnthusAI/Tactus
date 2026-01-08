@@ -38,65 +38,64 @@ All three approaches are powered by Pydantic AI's function toolset feature and i
 Here's the simplest example:
 
 ```lua
--- Define completion tool (required - no built-in done tool)
-tool("done", {
-    description = "Signal completion of the task",
-    parameters = {
-        reason = {type = "string", required = true, description = "Completion message"}
-    }
-}, function(args)
-    return "Done: " .. args.reason
-end)
+-- Import completion tool
+done = tactus.done
 
 -- Define a custom tool
-tool("greet", {
+greet = Tool {
     description = "Greet someone by name",
-    parameters = {
-        name = {type = "string", description = "Person's name", required = true}
-    }
-}, function(args)
-    return "Hello, " .. args.name .. "!"
-end)
+    input = {
+        name = field.string{required = true, description = "Person's name"}
+    },
+    function(args)
+        return "Hello, " .. args.name .. "!"
+    end
+}
 
 -- Use tools in an agent
-agent "assistant" {
+assistant = Agent {
     provider = "openai",
     system_prompt = "You are a friendly assistant",
-    toolsets = {"greet", "done"}  -- Both tools explicitly defined above
-})
+    tools = {greet, done}  -- Variable references, not strings
+}
 
-procedure(function()
-    Agent("assistant").turn("Greet Alice")
-    return {result = "done"}
-end)
+Procedure {
+    function(input)
+        assistant({message = "Greet Alice"})
+        return {result = "done"}
+    end
+}
 ```
 
 That's it! The agent can now call your Lua functions as tools.
 
 ## Three Approaches
 
-### 1. Individual tool() Declarations
+### 1. Individual Tool Declarations
 
 **Best for**: Single-purpose tools, reusable utilities
 
 Define tools at the top level of your `.tac` file:
 
 ```lua
-tool("calculate_tip", {
-    description = "Calculate tip amount for a bill",
-    parameters = {
-        bill_amount = {type = "number", required = true},
-        tip_percentage = {type = "number", required = true}
-    }
-}, function(args)
-    local tip = args.bill_amount * (args.tip_percentage / 100)
-    return string.format("Tip: $%.2f", tip)
-end)
+done = tactus.done
 
-agent "assistant" {
+calculate_tip = Tool {
+    description = "Calculate tip amount for a bill",
+    input = {
+        bill_amount = field.number{required = true},
+        tip_percentage = field.number{required = true}
+    },
+    function(args)
+        local tip = args.bill_amount * (args.tip_percentage / 100)
+        return string.format("Tip: $%.2f", tip)
+    end
+}
+
+assistant = Agent {
     provider = "openai",
-    toolsets = {"calculate_tip", "done"}  -- Both must be explicitly defined via tool()
-})
+    tools = {calculate_tip, done}  -- Variable references
+}
 ```
 
 **Pros:**
@@ -116,7 +115,9 @@ agent "assistant" {
 Group multiple tools into a named toolset:
 
 ```lua
-toolset("math_tools", {
+done = tactus.done
+
+math_tools = Toolset {
     type = "lua",
     tools = {
         {
@@ -142,12 +143,12 @@ toolset("math_tools", {
             end
         }
     }
-})
+}
 
-agent "calculator" {
+calculator = Agent {
     provider = "openai",
-    toolsets = {"math_tools", "done"}  -- "done" must be explicitly defined via tool()
-})
+    tools = {math_tools, done}  -- Variable references
+}
 ```
 
 **Pros:**
@@ -167,10 +168,13 @@ agent "calculator" {
 Define tools directly in the agent configuration:
 
 ```lua
-agent "text_processor" {
+done = tactus.done
+
+text_processor = Agent {
     provider = "openai",
     system_prompt = "You process text",
     tools = {
+        done,
         {
             name = "uppercase",
             description = "Convert to uppercase",
@@ -191,9 +195,8 @@ agent "text_processor" {
                 return string.lower(args.text)
             end
         }
-    },
-    toolsets = {"done"}  -- "done" must be explicitly defined via tool()
-})
+    }
+}
 ```
 
 **Pros:**
@@ -225,36 +228,32 @@ Map Lua type names to Python types for validation:
 ### Required vs Optional Parameters
 
 ```lua
-tool("example", {
+example = Tool {
     description = "Example tool",
-    parameters = {
+    input = {
         -- Required parameter
-        name = {
-            type = "string",
+        name = field.string{
             description = "User's name",
             required = true  -- Must be provided
         },
         -- Optional parameter with default
-        greeting = {
-            type = "string",
+        greeting = field.string{
             description = "Greeting message",
-            required = false,
             default = "Hello"
         },
         -- Optional without default (nil if not provided)
-        suffix = {
-            type = "string",
-            description = "Optional suffix",
-            required = false
+        suffix = field.string{
+            description = "Optional suffix"
         }
-    }
-}, function(args)
-    local msg = (args.greeting or "Hello") .. ", " .. args.name
-    if args.suffix then
-        msg = msg .. " " .. args.suffix
+    },
+    function(args)
+        local msg = (args.greeting or "Hello") .. ", " .. args.name
+        if args.suffix then
+            msg = msg .. " " .. args.suffix
+        end
+        return msg
     end
-    return msg
-end)
+}
 ```
 
 ### Parameter Descriptions
@@ -282,95 +281,99 @@ parameters = {
 ### Pattern 1: Simple Calculations
 
 ```lua
-tool("compound_interest", {
+compound_interest = Tool {
     description = "Calculate compound interest",
-    parameters = {
-        principal = {type = "number", description = "Initial amount", required = true},
-        rate = {type = "number", description = "Annual interest rate (%)", required = true},
-        years = {type = "integer", description = "Number of years", required = true}
-    }
-}, function(args)
-    local amount = args.principal * (1 + args.rate / 100) ^ args.years
-    local interest = amount - args.principal
-    return string.format("Final: $%.2f (Interest: $%.2f)", amount, interest)
-end)
+    input = {
+        principal = field.number{description = "Initial amount", required = true},
+        rate = field.number{description = "Annual interest rate (%)", required = true},
+        years = field.integer{description = "Number of years", required = true}
+    },
+    function(args)
+        local amount = args.principal * (1 + args.rate / 100) ^ args.years
+        local interest = amount - args.principal
+        return string.format("Final: $%.2f (Interest: $%.2f)", amount, interest)
+    end
+}
 ```
 
 ### Pattern 2: String Manipulation
 
 ```lua
-tool("format_phone", {
+format_phone = Tool {
     description = "Format phone number",
-    parameters = {
-        number = {type = "string", description = "Phone number digits", required = true}
-    }
-}, function(args)
-    -- Remove non-digits
-    local digits = string.gsub(args.number, "%D", "")
+    input = {
+        number = field.string{description = "Phone number digits", required = true}
+    },
+    function(args)
+        -- Remove non-digits
+        local digits = string.gsub(args.number, "%D", "")
 
-    -- Format as (XXX) XXX-XXXX
-    if string.len(digits) == 10 then
-        return string.format("(%s) %s-%s",
-            string.sub(digits, 1, 3),
-            string.sub(digits, 4, 6),
-            string.sub(digits, 7, 10))
+        -- Format as (XXX) XXX-XXXX
+        if string.len(digits) == 10 then
+            return string.format("(%s) %s-%s",
+                string.sub(digits, 1, 3),
+                string.sub(digits, 4, 6),
+                string.sub(digits, 7, 10))
+        end
+
+        return "Invalid phone number"
     end
-
-    return "Invalid phone number"
-end)
+}
 ```
 
 ### Pattern 3: Data Aggregation
 
 ```lua
-tool("analyze_list", {
+analyze_list = Tool {
     description = "Analyze a list of numbers",
-    parameters = {
-        numbers = {type = "array", description = "List of numbers", required = true}
-    }
-}, function(args)
-    local sum = 0
-    local min = math.huge
-    local max = -math.huge
-    local count = 0
+    input = {
+        numbers = field.array{description = "List of numbers", required = true}
+    },
+    function(args)
+        local sum = 0
+        local min = math.huge
+        local max = -math.huge
+        local count = 0
 
-    for _, num in ipairs(args.numbers) do
-        sum = sum + num
-        min = math.min(min, num)
-        max = math.max(max, num)
-        count = count + 1
+        for _, num in ipairs(args.numbers) do
+            sum = sum + num
+            min = math.min(min, num)
+            max = math.max(max, num)
+            count = count + 1
+        end
+
+        local avg = sum / count
+
+        return string.format(
+            "Count: %d, Sum: %g, Avg: %g, Min: %g, Max: %g",
+            count, sum, avg, min, max
+        )
     end
-
-    local avg = sum / count
-
-    return string.format(
-        "Count: %d, Sum: %g, Avg: %g, Min: %g, Max: %g",
-        count, sum, avg, min, max
-    )
-end)
+}
 ```
 
 ### Pattern 4: Conditional Logic
 
 ```lua
-tool("categorize_age", {
+categorize_age = Tool {
     description = "Categorize person by age",
-    parameters = {
-        age = {type = "integer", description = "Person's age", required = true}
-    }
-}, function(args)
-    if args.age < 0 then
-        return "Invalid age"
-    elseif args.age < 13 then
-        return "Child"
-    elseif args.age < 20 then
-        return "Teenager"
-    elseif args.age < 65 then
-        return "Adult"
-    else
-        return "Senior"
+    input = {
+        age = field.integer{description = "Person's age", required = true}
+    },
+    function(args)
+        if args.age < 0 then
+            return "Invalid age"
+        elseif args.age < 13 then
+            return "Child"
+        elseif args.age < 20 then
+            return "Teenager"
+        elseif args.age < 65 then
+            return "Adult"
+        else
+            return "Senior"
+        end
     end
-end)
+}
 ```
 
 ## Error Handling
@@ -378,25 +381,26 @@ end)
 ### Validation in Tool Functions
 
 ```lua
-tool("divide", {
+divide = Tool {
     description = "Divide two numbers",
-    parameters = {
-        numerator = {type = "number", required = true},
-        denominator = {type = "number", required = true}
-    }
-}, function(args)
-    -- Validate before processing
-    if args.denominator == 0 then
-        return "Error: Division by zero"
-    end
+    input = {
+        numerator = field.number{required = true},
+        denominator = field.number{required = true}
+    },
+    function(args)
+        -- Validate before processing
+        if args.denominator == 0 then
+            return "Error: Division by zero"
+        end
 
-    if type(args.numerator) ~= "number" or type(args.denominator) ~= "number" then
-        return "Error: Both arguments must be numbers"
-    end
+        if type(args.numerator) ~= "number" or type(args.denominator) ~= "number" then
+            return "Error: Both arguments must be numbers"
+        end
 
-    local result = args.numerator / args.denominator
-    return string.format("%.4f", result)
-end)
+        local result = args.numerator / args.denominator
+        return string.format("%.4f", result)
+    end
+}
 ```
 
 ### Error Propagation
@@ -404,19 +408,20 @@ end)
 Errors in Lua tools are caught and logged, then re-raised as `RuntimeError`:
 
 ```lua
-tool("risky_operation", {
+risky_operation = Tool {
     description = "Operation that might fail",
-    parameters = {
-        value = {type = "number", required = true}
-    }
-}, function(args)
-    -- This error will be caught, logged, and re-raised
-    if args.value < 0 then
-        error("Value must be positive")
-    end
+    input = {
+        value = field.number{required = true}
+    },
+    function(args)
+        -- This error will be caught, logged, and re-raised
+        if args.value < 0 then
+            error("Value must be positive")
+        end
 
-    return tostring(args.value * 2)
-end)
+        return tostring(args.value * 2)
+    end
+}
 ```
 
 The agent will receive an error message and can decide how to handle it (retry, report to user, etc.).
@@ -426,56 +431,61 @@ The agent will receive an error message and can decide how to handle it (retry, 
 ### Checking if a Tool Was Called
 
 ```lua
-procedure(function()
-    Assistant.turn("Calculate something")
+Procedure {
+    function(input)
+        assistant({message = "Calculate something"})
 
-    if Tool.called("calculate_tip") then
-        Log.info("Tip calculator was used")
+        if calculate_tip.called() then
+            Log.info("Tip calculator was used")
+        end
+
+        if done.called() then
+            Log.info("Agent finished")
+        end
+
+        return {result = "done"}
     end
-
-    if Tool.called("done") then
-        Log.info("Agent finished")
-    end
-
-    return {result = "done"}
-end)
+}
 ```
 
 ### Getting Tool Call Results
 
 ```lua
-procedure(function()
-    Assistant.turn("Add 5 and 3")
+Procedure {
+    function(input)
+        assistant({message = "Add 5 and 3"})
 
-    if Tool.called("add") then
-        local call = Tool.last_call("add")
-        Log.info("Arguments: " .. tostring(call.args.a) .. ", " .. tostring(call.args.b))
-        Log.info("Result: " .. call.result)
+        if add.called() then
+            local call = add.last_call()
+            Log.info("Arguments: " .. tostring(call.args.a) .. ", " .. tostring(call.args.b))
+            Log.info("Result: " .. call.result)
+        end
+
+        return {result = "done"}
     end
-
-    return {result = "done"}
-end)
+}
 ```
 
 ### Tracking Multiple Calls
 
 ```lua
-procedure(function()
-    Assistant.turn("Do several calculations")
+Procedure {
+    function(input)
+        assistant({message = "Do several calculations"})
 
-    local tools_used = {}
-    for _, tool_name in ipairs({"add", "subtract", "multiply", "divide"}) do
-        if Tool.called(tool_name) then
-            table.insert(tools_used, tool_name)
+        local tools_used = {}
+        if add.called() then table.insert(tools_used, "add") end
+        if subtract.called() then table.insert(tools_used, "subtract") end
+        if multiply.called() then table.insert(tools_used, "multiply") end
+        if divide.called() then table.insert(tools_used, "divide") end
+
+        if #tools_used > 0 then
+            Log.info("Tools used: " .. table.concat(tools_used, ", "))
         end
-    end
 
-    if #tools_used > 0 then
-        Log.info("Tools used: " .. table.concat(tools_used, ", "))
+        return {result = "done"}
     end
-
-    return {result = "done"}
-end)
+}
 ```
 
 ## Advanced Examples
@@ -484,24 +494,27 @@ end)
 
 ```lua
 -- Tool that accesses procedure state
-tool("update_counter", {
+update_counter = Tool {
     description = "Increment a counter",
-    parameters = {
-        amount = {type = "integer", description = "Amount to add", required = false, default = 1}
-    }
-}, function(args)
-    -- Access State primitive from tool
-    local current = State.get("counter") or 0
-    local new_value = current + args.amount
-    State.set("counter", new_value)
-    return string.format("Counter: %d -> %d", current, new_value)
-end)
+    input = {
+        amount = field.integer{description = "Amount to add", default = 1}
+    },
+    function(args)
+        -- Access state directly
+        local current = state.counter or 0
+        local new_value = current + args.amount
+        state.counter = new_value
+        return string.format("Counter: %d -> %d", current, new_value)
+    end
+}
 ```
 
 ### Example 2: Multi-Step Calculation
 
 ```lua
-toolset("financial_tools", {
+done = tactus.done
+
+financial_tools = Toolset {
     type = "lua",
     tools = {
         {
@@ -567,16 +580,19 @@ toolset("financial_tools", {
             end
         }
     }
-})
+}
 ```
 
 ### Example 3: Text Processing Pipeline
 
 ```lua
-agent "content_editor" {
+done = tactus.done
+
+content_editor = Agent {
     provider = "openai",
     system_prompt = "You are a content editing assistant",
     tools = {
+        done,
         {
             name = "word_count",
             description = "Count words in text",
@@ -617,9 +633,8 @@ agent "content_editor" {
                 return table.concat(sentences, "\n")
             end
         }
-    },
-    toolsets = {"done"}  -- "done" must be explicitly defined via tool()
-})
+    }
+}
 ```
 
 ## Comparison with Plugin Tools
@@ -696,36 +711,37 @@ Use **MCP Tools** when:
 
 ```lua
 -- Bad: Vague description
-tool("process", {
+process = Tool {
     description = "Process data",
     ...
-})
+}
 
 -- Good: Specific description
-tool("calculate_compound_interest", {
+calculate_compound_interest = Tool {
     description = "Calculate compound interest given principal, annual rate, and time period",
     ...
-})
+}
 ```
 
 ### 2. Validate Inputs
 
 ```lua
-tool("calculate_bmi", {
+calculate_bmi = Tool {
     description = "Calculate Body Mass Index",
-    parameters = {
-        weight_kg = {type = "number", description = "Weight in kilograms", required = true},
-        height_m = {type = "number", description = "Height in meters", required = true}
-    }
-}, function(args)
-    -- Validate inputs
-    if args.weight_kg <= 0 or args.height_m <= 0 then
-        return "Error: Weight and height must be positive"
-    end
+    input = {
+        weight_kg = field.number{description = "Weight in kilograms", required = true},
+        height_m = field.number{description = "Height in meters", required = true}
+    },
+    function(args)
+        -- Validate inputs
+        if args.weight_kg <= 0 or args.height_m <= 0 then
+            return "Error: Weight and height must be positive"
+        end
 
-    local bmi = args.weight_kg / (args.height_m ^ 2)
-    return string.format("BMI: %.1f", bmi)
-end)
+        local bmi = args.weight_kg / (args.height_m ^ 2)
+        return string.format("BMI: %.1f", bmi)
+    end
+}
 ```
 
 ### 3. Return Meaningful Results
@@ -746,77 +762,79 @@ end
 ### 4. Use Appropriate Approach
 
 ```lua
--- Single reusable tool -> tool()
-tool("celsius_to_fahrenheit", ...)
+-- Single reusable tool -> Tool {}
+celsius_to_fahrenheit = Tool {...}
 
--- Related tools -> toolset()
-toolset("temperature_tools", {
+-- Related tools -> Toolset {}
+temperature_tools = Toolset {
     type = "lua",
     tools = {...}
-})
+}
 
--- Agent-specific -> inline
-agent "temp_converter" {
-    tools = {...}
-})
+-- Agent-specific -> inline in Agent
+temp_converter = Agent {
+    tools = {done, {...}}
+}
 ```
 
 ### 5. Keep Tools Focused
 
 ```lua
 -- Bad: Tool does too much
-tool("do_everything", {
+do_everything = Tool {
     description = "Calculate, format, and analyze data",
     ...
-})
+}
 
 -- Good: Separate concerns
-tool("calculate_total", {...})
-tool("format_currency", {...})
-tool("analyze_trend", {...})
+calculate_total = Tool {...}
+format_currency = Tool {...}
+analyze_trend = Tool {...}
 ```
 
 ### 6. Document Complex Logic
 
 ```lua
-tool("amortization_schedule", {
+amortization_schedule = Tool {
     description = "Generate loan amortization schedule",
-    parameters = {...}
-}, function(args)
-    -- Calculate monthly payment using standard mortgage formula:
-    -- M = P * [r(1+r)^n] / [(1+r)^n - 1]
-    -- where P = principal, r = monthly rate, n = number of payments
+    input = {...},
+    function(args)
+        -- Calculate monthly payment using standard mortgage formula:
+        -- M = P * [r(1+r)^n] / [(1+r)^n - 1]
+        -- where P = principal, r = monthly rate, n = number of payments
 
-    local monthly_rate = args.annual_rate / 100 / 12
-    local num_payments = args.years * 12
+        local monthly_rate = args.annual_rate / 100 / 12
+        local num_payments = args.years * 12
 
-    -- ... implementation
-end)
+        -- ... implementation
+    end
+}
 ```
 
 ### 7. Handle Edge Cases
 
 ```lua
-tool("calculate_percentage", {
+calculate_percentage = Tool {
     description = "Calculate percentage",
-    parameters = {
-        part = {type = "number", required = true},
-        whole = {type = "number", required = true}
-    }
-}, function(args)
-    -- Handle division by zero
-    if args.whole == 0 then
-        return "Error: Cannot calculate percentage of zero"
-    end
+    input = {
+        part = field.number{required = true},
+        whole = field.number{required = true}
+    },
+    function(args)
+        -- Handle division by zero
+        if args.whole == 0 then
+            return "Error: Cannot calculate percentage of zero"
+        end
 
-    -- Handle negative numbers
-    if args.whole < 0 or args.part < 0 then
-        return "Error: Values must be positive"
-    end
+        -- Handle negative numbers
+        if args.whole < 0 or args.part < 0 then
+            return "Error: Values must be positive"
+        end
 
-    local percentage = (args.part / args.whole) * 100
-    return string.format("%.2f%%", percentage)
-end)
+        local percentage = (args.part / args.whole) * 100
+        return string.format("%.2f%%", percentage)
+    end
+}
 ```
 
 ## Summary

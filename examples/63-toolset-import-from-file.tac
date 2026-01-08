@@ -36,8 +36,8 @@ Toolset "combined_tools" {
 }
 
 -- Main procedure
-Procedure "main" {
-    input = {
+
+input {
         operation = field.string{
             default = "uppercase",
             description = "Operation: uppercase, lowercase, reverse, or word_count"
@@ -46,14 +46,15 @@ Procedure "main" {
             default = "Hello from imported tools!",
             description = "Text to process"
         }
-    },
-    output = {
+    }
+
+output {
         result = field.string{required = true, description = "Processed text"},
         source = field.string{description = "Source of the tools used"},
         completed = field.boolean{required = true, description = "Whether task completed"}
-    },
-    function(input)
-        Log.info("Starting toolset import demo", {
+    }
+
+Log.info("Starting toolset import demo", {
             operation = input.operation,
             text = input.text
         })
@@ -119,8 +120,6 @@ Procedure "main" {
             source = source,
             completed = completed
         }
-    end
-}
 
 -- BDD Specifications
 Specifications([[

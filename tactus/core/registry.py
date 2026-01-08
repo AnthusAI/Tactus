@@ -421,14 +421,27 @@ class RegistryBuilder:
         errors = []
         warnings = []
 
-        # Required field - named 'main' procedure
+        # Script mode: merge top-level schemas into main procedure
+        if self.registry.script_mode and "main" in self.registry.named_procedures:
+            main_proc = self.registry.named_procedures["main"]
+            # Merge top-level input schema if main doesn't have one
+            if not main_proc["input_schema"] and self.registry.top_level_input_schema:
+                main_proc["input_schema"] = self.registry.top_level_input_schema
+            # Merge top-level output schema if main doesn't have one
+            if not main_proc["output_schema"] and self.registry.top_level_output_schema:
+                main_proc["output_schema"] = self.registry.top_level_output_schema
+
+        # Required field - named 'main' procedure (unless in script mode)
         if "main" not in self.registry.named_procedures:
-            errors.append(
-                ValidationMessage(
-                    level="error",
-                    message="named 'main' procedure is required",
+            # In script mode, the main procedure will be created by source transformation
+            # during runtime execution, so we don't require it during validation
+            if not self.registry.script_mode:
+                errors.append(
+                    ValidationMessage(
+                        level="error",
+                        message="named 'main' procedure is required",
+                    )
                 )
-            )
 
         # Agent validation
         for agent in self.registry.agents.values():

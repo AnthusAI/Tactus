@@ -21,15 +21,12 @@ IMPORTANT: You MUST call the 'done' tool when finished, passing your summary as 
 }
 
 -- Procedure with input defined inline
-Procedure "main" {
-    input = {
+
+input {
         topic = field.string{default = "artificial intelligence"},
-    },
-    state = {
-        research = field.string{description = "Research findings", default = ""}
-    },
-    function(input)
-        -- Research phase with GPT-4o
+    }
+
+-- Research phase with GPT-4o
         Log.info("Starting research with GPT-4o...")
         local max_turns = 3
         local turn_count = 0
@@ -71,8 +68,6 @@ Procedure "main" {
           summary = summary,
           models_used = {"gpt-4o", "gpt-4o-mini"}
         }
-    end
-}
 
 -- BDD Specifications
 Specifications([[

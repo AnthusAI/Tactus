@@ -34,23 +34,18 @@ Call done when finished.
     toolsets = {"done"}
 }
 
-Procedure "main" {
-    input = {
+input {
         numbers = field.array{required = true, description = "Array of numbers to analyze"}
-    },
-    output = {
+    }
+
+output {
         sum = field.number{required = true, description = "Sum of all numbers"},
         product = field.number{required = true, description = "Product of all numbers"},
         average = field.number{required = true, description = "Average of all numbers"},
         analysis = field.string{required = true, description = "AI analysis of the data"}
-    },
-    state = {
-        sum = field.number{default = 0},
-        product = field.number{default = 1},
-        average = field.number{default = 0}
-    },
-    function(input)
-    -- Step 1: Calculate sum (auto-checkpointed)
+    }
+
+-- Step 1: Calculate sum (auto-checkpointed)
     local sum_result = Procedure.run("examples/helpers/sum.tac", {
         values = input.numbers
     })
@@ -74,8 +69,6 @@ Procedure "main" {
         average = State.average,
         analysis = Analyst.output
     }
-end
-}
 
 -- BDD Specifications
 Specifications([[

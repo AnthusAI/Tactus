@@ -38,18 +38,19 @@ When asked to demonstrate tools:
 }
 
 -- Main procedure
-Procedure "main" {
-    input = {
+
+input {
         demo_type = field.string{
             default = "file",
             description = "Type of demo: file, http, or all"
         }
-    },
-    output = {
+    }
+
+output {
         result = field.string{required = true}
-    },
-    function(input)
-        Log.info("Starting tool source demonstration", {demo_type = input.demo_type})
+    }
+
+Log.info("Starting tool source demonstration", {demo_type = input.demo_type})
 
         -- Set up the initial message based on demo type
         local message = ""
@@ -89,8 +90,6 @@ Procedure "main" {
         return {
             result = result
         }
-    end
-}
 
 -- BDD Specifications
 Specifications([[

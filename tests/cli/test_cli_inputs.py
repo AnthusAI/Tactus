@@ -21,7 +21,7 @@ def cli_runner():
 @pytest.fixture
 def procedure_with_string_input(tmp_path):
     """Create procedure with a required string input."""
-    content = """main = Procedure "main" {
+    content = """main = Procedure {
     input = {
         name = field.string{required = true, description = "User name to greet"}
     },
@@ -41,7 +41,7 @@ def procedure_with_string_input(tmp_path):
 @pytest.fixture
 def procedure_with_default_input(tmp_path):
     """Create procedure with an input that has a default value."""
-    content = """main = Procedure "main" {
+    content = """main = Procedure {
     input = {
         name = field.string{default = "World", description = "User name to greet"}
     },
@@ -61,7 +61,7 @@ end
 @pytest.fixture
 def procedure_with_all_types(tmp_path):
     """Create procedure with all input types."""
-    content = """main = Procedure "main" {
+    content = """main = Procedure {
     input = {
         text = field.string{required = true, description = "A text value"},
         count = field.number{default = 10, description = "A number value"},
@@ -85,7 +85,7 @@ end
 @pytest.fixture
 def procedure_with_array_input(tmp_path):
     """Create procedure with a required array input."""
-    content = """main = Procedure "main" {
+    content = """main = Procedure {
     input = {
         numbers = field.array{required = true, description = "Array of numbers to sum"}
     },
@@ -109,7 +109,7 @@ end
 @pytest.fixture
 def procedure_with_enum_input(tmp_path):
     """Create procedure with an enum input."""
-    content = """main = Procedure "main" {
+    content = """main = Procedure {
     input = {
         status = field.string{required = true, enum = {"active", "inactive", "pending"}, description = "Status selection"}
     },
@@ -321,7 +321,7 @@ class TestCLIParamParsing:
 
     def test_param_json_array(self, cli_runner, tmp_path):
         """Test --param correctly parses JSON arrays."""
-        content = """main = Procedure "main" {
+        content = """main = Procedure {
     input = {nums = field.array{required = true}},
     output = {count = field.number{required = true}},
     function(input)
@@ -336,7 +336,7 @@ class TestCLIParamParsing:
 
     def test_param_json_object(self, cli_runner, tmp_path):
         """Test --param correctly parses JSON objects."""
-        content = """main = Procedure "main" {
+        content = """main = Procedure {
     input = {cfg = field.object{default = {}}},
     output = {ok = field.boolean{required = true}},
     function(input)
@@ -351,7 +351,7 @@ class TestCLIParamParsing:
 
     def test_param_boolean(self, cli_runner, tmp_path):
         """Test --param correctly parses boolean values."""
-        content = """main = Procedure "main" {
+        content = """main = Procedure {
     input = {flag = field.boolean{default = false}},
     output = {result = field.boolean{required = true}},
     function(input)
@@ -366,7 +366,7 @@ class TestCLIParamParsing:
 
     def test_param_number(self, cli_runner, tmp_path):
         """Test --param correctly parses number values."""
-        content = """main = Procedure "main" {
+        content = """main = Procedure {
     input = {n = field.number{default = 0}},
     output = {doubled = field.number{required = true}},
     function(input)

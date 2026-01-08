@@ -60,19 +60,20 @@ After summarizing, call the 'done' tool with your summary as the reason.]],
 }
 
 -- Main procedure with DETERMINISTIC tool calls
-Procedure "main" {
-    input = {
+
+input {
         bill = field.number{description = "Original bill amount", default = 100},
         tip_pct = field.number{description = "Tip percentage", default = 20},
         people = field.integer{description = "Number of people splitting", default = 4}
-    },
-    output = {
+    }
+
+output {
         tip_result = field.string{required = true, description = "Tip calculation result"},
         split_result = field.string{required = true, description = "Bill split result"},
         summary = field.string{required = true, description = "Agent summary"}
-    },
-    function(input)
-    Log.info("Starting direct tool call example...")
+    }
+
+Log.info("Starting direct tool call example...")
 
     -- Call tools DIRECTLY - deterministic, no LLM involvement!
     Log.info("Calculating tip...")
@@ -123,8 +124,6 @@ Procedure "main" {
         split_result = split_result,
         summary = summary
     }
-end
-}
 
 -- BDD Specifications
 Specifications([[

@@ -35,12 +35,12 @@ IMPORTANT: Always call the done tool after providing your answer.]],
 }
 
 -- Procedure demonstrating multiple Gemini models
-Procedure "main" {
-    output = {
+
+output {
         result = field.string{description = "Result"}
-    },
-    function(input)
-    Log.info("Testing Google Gemini with multiple models")
+    }
+
+Log.info("Testing Google Gemini with multiple models")
 
     local max_turns = 3
 
@@ -119,8 +119,6 @@ Procedure "main" {
         },
         success = true
     }
-end
-}
 
 -- BDD Specifications
 Specifications([[

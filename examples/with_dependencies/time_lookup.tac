@@ -36,29 +36,22 @@ Available tools:
     toolsets = {"done"}
 }
 
-Procedure "main" {
-    input = {
+input {
         timezone = field.string{required = true, description = "Timezone to look up (e.g., 'America/New_York')"}
-    },
+    }
 
-    dependencies = {
-        time_api = field.http_client{}
-    },
-
-    output = {
+output {
         datetime = field.string{required = true},
         timezone = field.string{required = true}
-    },
-    function(input)
-    -- Execute agent turn
+    }
+
+-- Execute agent turn
     Time_agent.turn()
 
     return {
         datetime = "dependency_test",
         timezone = input.timezone
     }
-end
-}
 
 -- BDD Specifications
 
