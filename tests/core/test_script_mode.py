@@ -8,7 +8,6 @@ Script mode allows writing Tactus procedures without the Procedure {} wrapper:
 """
 
 import pytest
-from pathlib import Path
 
 from tactus.core.runtime import TactusRuntime
 from tactus.adapters.file_storage import FileStorage
