@@ -26,7 +26,7 @@ def web_search(query: str, max_results: int = 5) -> str:
     # Limit to max_results
     results = results[:max_results]
 
-    return "\n".join(f"{i+1}. {result}" for i, result in enumerate(results))
+    return "\n".join(f"{i + 1}. {result}" for i, result in enumerate(results))
 
 
 def wikipedia_lookup(topic: str) -> str:
@@ -49,5 +49,5 @@ Key points:
 - It has various applications and uses
 - Further research is recommended for detailed information
 
-For more information, visit: https://en.wikipedia.org/wiki/{topic.replace(' ', '_')}
+For more information, visit: https://en.wikipedia.org/wiki/{topic.replace(" ", "_")}
 """

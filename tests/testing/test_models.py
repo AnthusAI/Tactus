@@ -20,20 +20,20 @@ def test_parsed_step_creation():
     """Test creating a ParsedStep."""
     step = ParsedStep(
         keyword="Given",
-        text="a precondition",
+        message="a precondition",
         line=5,
     )
 
     assert step.keyword == "Given"
-    assert step.text == "a precondition"
+    assert step.message == "a precondition"
     assert step.line == 5
 
 
 def test_parsed_scenario_creation():
     """Test creating a ParsedScenario."""
     steps = [
-        ParsedStep(keyword="Given", text="setup"),
-        ParsedStep(keyword="Then", text="verify"),
+        ParsedStep(keyword="Given", message="setup"),
+        ParsedStep(keyword="Then", message="verify"),
     ]
 
     scenario = ParsedScenario(
@@ -52,7 +52,7 @@ def test_parsed_feature_creation():
     """Test creating a ParsedFeature."""
     scenario = ParsedScenario(
         name="Test Scenario",
-        steps=[ParsedStep(keyword="Given", text="setup")],
+        steps=[ParsedStep(keyword="Given", message="setup")],
     )
 
     feature = ParsedFeature(
@@ -72,13 +72,13 @@ def test_step_result_creation():
     """Test creating a StepResult."""
     result = StepResult(
         keyword="Given",
-        text="a precondition",
+        message="a precondition",
         status="passed",
         duration=0.5,
     )
 
     assert result.keyword == "Given"
-    assert result.text == "a precondition"
+    assert result.message == "a precondition"
     assert result.status == "passed"
     assert result.duration == 0.5
     assert result.error_message is None
@@ -87,8 +87,8 @@ def test_step_result_creation():
 def test_scenario_result_creation():
     """Test creating a ScenarioResult."""
     steps = [
-        StepResult(keyword="Given", text="setup", status="passed", duration=0.1),
-        StepResult(keyword="Then", text="verify", status="passed", duration=0.2),
+        StepResult(keyword="Given", message="setup", status="passed", duration=0.1),
+        StepResult(keyword="Then", message="verify", status="passed", duration=0.2),
     ]
 
     result = ScenarioResult(

@@ -289,7 +289,7 @@ class AgentLookup:
         """
         if name not in self._registry:
             available = list(self._registry.keys())
-            raise ValueError(f"Agent '{name}' not defined. " f"Available agents: {available}")
+            raise ValueError(f"Agent '{name}' not defined. Available agents: {available}")
         return self._registry[name]
 
     def __repr__(self) -> str:
@@ -330,7 +330,7 @@ class ModelLookup:
         """
         if name not in self._registry:
             available = list(self._registry.keys())
-            raise ValueError(f"Model '{name}' not defined. " f"Available models: {available}")
+            raise ValueError(f"Model '{name}' not defined. Available models: {available}")
         return self._registry[name]
 
     def __repr__(self) -> str:

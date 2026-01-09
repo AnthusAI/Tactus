@@ -229,8 +229,35 @@ class TactusRuntime:
                 )
                 placeholder_params = {}  # Empty params dict
                 self.lua_sandbox.inject_primitive("Log", placeholder_log)
-                self.lua_sandbox.inject_primitive("State", placeholder_state)  # Capital S
-                self.lua_sandbox.inject_primitive("state", placeholder_state)  # lowercase s
+                # Inject _state_primitive for metatable to use
+                self.lua_sandbox.inject_primitive("_state_primitive", placeholder_state)
+
+                # Create State object with special methods and lowercase state proxy with metatable
+                self.lua_sandbox.lua.execute(
+                    """
+                    State = {
+                        increment = function(key, amount)
+                            return _state_primitive.increment(key, amount or 1)
+                        end,
+                        append = function(key, value)
+                            return _state_primitive.append(key, value)
+                        end,
+                        all = function()
+                            return _state_primitive.all()
+                        end
+                    }
+
+                    -- Create lowercase 'state' proxy with metatable
+                    state = setmetatable({}, {
+                        __index = function(_, key)
+                            return _state_primitive.get(key)
+                        end,
+                        __newindex = function(_, key, value)
+                            _state_primitive.set(key, value)
+                        end
+                    })
+                """
+                )
                 self.lua_sandbox.inject_primitive("Tool", placeholder_tool)
                 self.lua_sandbox.inject_primitive("params", placeholder_params)
 
@@ -2084,9 +2111,14 @@ class TactusRuntime:
             self.lua_sandbox.set_global("input", lua_input)
             logger.info(f"Injected input into Lua sandbox: {input_values}")
 
-        # Inject shared primitives
+        # Re-inject state primitive (may have been updated with schema)
         if self.state_primitive:
-            self.lua_sandbox.inject_primitive("State", self.state_primitive)
+            # Replace the placeholder _state_primitive with the real one
+            # (The metatable was already set up during parsing, so it will use this new primitive)
+            self.lua_sandbox.inject_primitive("_state_primitive", self.state_primitive)
+            logger.debug(
+                "State primitive re-injected (metatable already configured during parsing)"
+            )
         if self.iterations_primitive:
             self.lua_sandbox.inject_primitive("Iterations", self.iterations_primitive)
         if self.stop_primitive:

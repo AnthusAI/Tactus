@@ -48,19 +48,19 @@ Procedure {
     function(input)
 
     -- Track state
-        state.research_started = true
+        State.set("research_started", true)
 
         -- Researcher does the work
         researcher()
 
         local research = "No research completed"
         if Tool.called("search") then
-            state.search_completed = true
+            State.set("search_completed", true)
 
             -- Get research result
             if done.called() then
                 research = done.last_result() or "Task completed" or "Research done"
-                state.research_complete = true
+                State.set("research_complete", true)
             end
         end
 

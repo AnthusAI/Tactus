@@ -27,19 +27,19 @@ Procedure {
 
     -- Setup phase
       Stage.set("setup")
-      state.items_processed = 0
-      state.errors = 0
+      State.set("items_processed", 0)
+      State.set("errors", 0)
 
       -- Processing phase
       Stage.set("processing")
 
       local target = input.iterations or 3
       for i = 1, target do
-        state.items_processed = i
+        State.set("items_processed", i)
 
         -- Simulate some work
         if i % 2 == 0 then
-          state.last_even = i
+          State.set("last_even", i)
         end
       end
 
@@ -48,12 +48,12 @@ Procedure {
 
       -- Validation phase
       Stage.set("validation")
-      local processed = state.items_processed
+      local processed = State.get("items_processed")
       if processed >= target then
-        state.validation_passed = true
+        State.set("validation_passed", true)
       else
-        state.validation_passed = false
-        state.errors = 1
+        State.set("validation_passed", false)
+        State.set("errors", 1)
       end
 
       -- Complete
@@ -61,7 +61,7 @@ Procedure {
 
       return {
         status = "success",
-        count = state.items_processed
+        count = State.get("items_processed")
       }
 
     -- BDD Specifications
@@ -109,8 +109,8 @@ Feature: Comprehensive Workflow Testing
 
 -- Custom step for advanced validation
 Step("the processing was efficient", function(input)
-  local processed = state.items_processed
-  local errors = state.errors
+  local processed = State.get("items_processed")
+  local errors = State.get("errors")
   assert(processed > 0, "Should have processed items")
   assert(errors == 0, "Should have no errors")
 end)

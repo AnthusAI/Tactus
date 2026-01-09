@@ -30,10 +30,10 @@ Procedure {
 
       local target = input.count or 3
       for i = 1, target do
-        state.counter = i
-        local items = state.items or {}
+        state.counter = i)
+        local items = State.get("items") or {}
         table.insert(items, "item_" .. i)
-        state.items = items
+        state.items = items)
       end
 
       -- Simulate agent turn (will call done tool)
@@ -43,7 +43,7 @@ Procedure {
       Stage.set("complete")
 
       return {
-        result = "Processed " .. state.counter .. " items"
+        result = "Processed " .. State.get("counter") .. " items"
       }
 
     -- BDD Specifications
@@ -79,7 +79,7 @@ Feature: Simple Workflow Execution
 
 -- Custom step for validating items
 Step("the items list has correct format", function(input)
-  local items = state.items
+  local items = State.get("items")
   assert(items ~= nil, "Items should exist")
   assert(#items == 3, "Should have 3 items")
   assert(items[1] == "item_1", "First item should be item_1")

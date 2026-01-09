@@ -113,15 +113,15 @@ class TactusPrediction:
         return cls(prediction)
 
     @property
-    def text(self) -> str:
+    def message(self) -> str:
         """
-        Get the text content from the prediction.
+        Get the message content from the prediction.
 
         This is a convenience property that tries common field names
-        for text content. Useful for accessing agent responses.
+        for message content. Useful for accessing agent responses.
 
         Returns:
-            The text content, or empty string if not found
+            The message content, or empty string if not found
 
         Priority order:
             1. response (most common for agent responses)

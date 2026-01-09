@@ -1,5 +1,5 @@
-category,name,original_score,bonus_score
-A,Alice,85,93
-A,Bob,92,101
-A,Diana,88,96
-A,Eve,95,104
+category,bonus_score,original_score,name
+A,93,85,Alice
+A,101,92,Bob
+A,96,88,Diana
+A,104,95,Eve

@@ -103,7 +103,7 @@ Procedure {
                 turn_count = turn_count + 1
             until done.called() or turn_count >= max_turns
 
-            local response = result.text
+            local response = result.message
             Log.info(agent_name .. " response", {text = response})
             return response
         end
@@ -123,7 +123,7 @@ Procedure {
         -- Test Agent 5: No tools (explicitly empty) - only needs 1 turn
         Log.info("Testing Agent 5: No tools")
         local observer_result = observer()
-        local observer_response = observer_result.text
+        local observer_response = observer_result.message
         Log.info("Observer response", {text = observer_response})
 
         return {

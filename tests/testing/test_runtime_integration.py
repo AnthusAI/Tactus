@@ -177,7 +177,7 @@ Procedure {
     },
     function(input)
         Stage.set("start")
-        State.set("test_key", "test_value")
+        state.test_key = "test_value"
         Stage.set("end")
         return {success = true}
     end

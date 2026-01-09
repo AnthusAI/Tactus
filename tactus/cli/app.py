@@ -1128,8 +1128,7 @@ def _display_evaluation_results(eval_results):
 
         # Timing
         console.print(
-            f"  Duration: {eval_result.mean_duration:.2f}s "
-            f"(±{eval_result.stddev_duration:.2f}s)"
+            f"  Duration: {eval_result.mean_duration:.2f}s (±{eval_result.stddev_duration:.2f}s)"
         )
 
         # Consistency

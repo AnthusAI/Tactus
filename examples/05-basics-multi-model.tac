@@ -45,10 +45,10 @@ Procedure {
         if done.called() then
             research = done.last_result() or "Task completed"
         else
-            research = result.text or "Research not completed"
+            research = result.message or "Research not completed"
             Log.warn("Researcher did not call done within max turns")
         end
-        State.set("research", research)
+        state.research = research
 
         -- Reset done tool for next agent
         done.reset()
@@ -66,7 +66,7 @@ Procedure {
         if done.called() then
             summary = done.last_result() or "Task completed"
         else
-            summary = result.text or "Summary not completed"
+            summary = result.message or "Summary not completed"
             Log.warn("Summarizer did not call done within max turns")
         end
 
