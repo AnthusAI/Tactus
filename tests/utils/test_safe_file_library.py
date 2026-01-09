@@ -453,7 +453,7 @@ class TestLuaSandboxIntegration:
 
     @pytest.mark.asyncio
     async def test_csv_read_from_lua(self, tmp_path):
-        """Csv.read() works from Lua code."""
+        """csv.read() works from Lua code via require()."""
         from tactus.adapters.memory import MemoryStorage
         from tactus.core.runtime import TactusRuntime
 
@@ -462,13 +462,15 @@ class TestLuaSandboxIntegration:
         csv_file.write_text("name,score\nAlice,95\nBob,87")
 
         source = """
+        local csv = require("tactus.io.csv")
+
         main = Procedure("main", {
             input = {},
             output = {first_name = {type = "string"}, first_score = {type = "string"}}
         }, function()
-            local data = Csv.read("data.csv")
-            -- Python list is 0-indexed when accessed from Lua via lupa
-            local first = data[0]
+            local data = csv.read("data.csv")
+            -- Lua tables are 1-indexed
+            local first = data[1]
             return {first_name = first.name, first_score = first.score}
         end)
         """
@@ -489,19 +491,21 @@ class TestLuaSandboxIntegration:
 
     @pytest.mark.asyncio
     async def test_json_encode_decode_from_lua(self, tmp_path):
-        """Json.encode/decode works from Lua code (using JsonPrimitive)."""
+        """json.encode/decode works from Lua code via require()."""
         from tactus.adapters.memory import MemoryStorage
         from tactus.core.runtime import TactusRuntime
 
         source = """
+        local json = require("tactus.io.json")
+
         main = Procedure("main", {
             input = {},
             output = {encoded = {type = "string"}, decoded_name = {type = "string"}}
         }, function()
-            -- Json primitive has encode/decode, not read/write
+            -- json module has encode/decode
             local data = {name = "Alice", count = 42}
-            local json_str = Json.encode(data)
-            local decoded = Json.decode(json_str)
+            local json_str = json.encode(data)
+            local decoded = json.decode(json_str)
             return {encoded = json_str, decoded_name = decoded.name}
         end)
         """

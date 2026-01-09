@@ -182,9 +182,49 @@ class LuaSandbox:
             if package["preload"]:
                 self.lua.execute("for k in pairs(package.preload) do package.preload[k] = nil end")
 
+            # Add Python stdlib loader
+            self._setup_python_stdlib_loader()
+
             logger.debug(f"Configured safe require with paths: {safe_path}")
         else:
             logger.warning("package module not available - require will not work")
+
+    def _setup_python_stdlib_loader(self):
+        """Add custom loader for Python stdlib modules."""
+        from tactus.stdlib.loader import StdlibModuleLoader
+
+        # Create loader instance
+        self._stdlib_loader = StdlibModuleLoader(self, self.base_path)
+        loader_func = self._stdlib_loader.create_loader_function()
+
+        # Inject loader function into Lua
+        self.lua.globals()["_tactus_python_loader"] = loader_func
+
+        # Add to package.loaders (Lua 5.1) or package.searchers (Lua 5.2+)
+        # Lupa uses LuaJIT which follows Lua 5.1 conventions
+        self.lua.execute(
+            """
+            -- Add Python stdlib loader to package.loaders
+            -- Insert after the preload loader but before path loader
+            local loaders = package.loaders or package.searchers
+            if loaders then
+                -- Create wrapper that returns a loader function (Lua convention)
+                local function python_searcher(modname)
+                    local result = _tactus_python_loader(modname)
+                    if result then
+                        -- Return a loader function that returns the module
+                        return function() return result end
+                    end
+                    return nil
+                end
+
+                -- Insert at position 2 (after preload, before path)
+                table.insert(loaders, 2, python_searcher)
+            end
+        """
+        )
+
+        logger.debug("Python stdlib loader installed")
 
     def _setup_safe_globals(self):
         """Setup safe global functions and utilities."""
@@ -235,9 +275,6 @@ class LuaSandbox:
             self.lua.globals()["os"] = safe_os_table
 
             logger.info("Installed safe math and os libraries with determinism checking")
-
-            # Setup safe file I/O libraries (always available)
-            self._setup_file_io_libraries()
             return  # Skip default os.date setup below
 
         # Add safe subset of os module (only date function for timestamps)
@@ -264,9 +301,6 @@ class LuaSandbox:
         safe_os = self.lua.table(date=safe_date)
         self.lua.globals()["os"] = safe_os
         logger.debug("Added safe os.date() function")
-
-        # Setup safe file I/O libraries (always available)
-        self._setup_file_io_libraries()
 
     def setup_assignment_interception(self, callback: Any):
         """
@@ -308,39 +342,6 @@ class LuaSandbox:
             logger.error(f"Failed to setup assignment interception: {e}", exc_info=True)
             raise LuaSandboxError(f"Could not setup assignment interception: {e}")
 
-    def _setup_file_io_libraries(self):
-        """Setup safe file I/O libraries restricted to working directory.
-
-        Note: File and Json primitives are injected separately by the runtime
-        (FilePrimitive and JsonPrimitive). This method only sets up the data
-        format libraries (Csv, Tsv, Parquet, Hdf5, Excel).
-
-        Security: Uses self.base_path which is fixed at initialization time,
-        preventing security boundary expansion if working directory changes.
-        """
-        from tactus.utils.safe_file_library import (
-            create_safe_csv_library,
-            create_safe_excel_library,
-            create_safe_hdf5_library,
-            create_safe_parquet_library,
-            create_safe_tsv_library,
-        )
-
-        # Use base_path fixed at initialization time (not os.getcwd())
-        # This prevents security boundary expansion if working directory changes
-        base_path = self.base_path
-
-        # Inject data format libraries into Lua globals
-        # Note: File and Json are handled by separate primitives in the runtime
-        self.lua.globals()["Csv"] = self._dict_to_lua_table(create_safe_csv_library(base_path))
-        self.lua.globals()["Tsv"] = self._dict_to_lua_table(create_safe_tsv_library(base_path))
-        self.lua.globals()["Parquet"] = self._dict_to_lua_table(
-            create_safe_parquet_library(base_path)
-        )
-        self.lua.globals()["Hdf5"] = self._dict_to_lua_table(create_safe_hdf5_library(base_path))
-        self.lua.globals()["Excel"] = self._dict_to_lua_table(create_safe_excel_library(base_path))
-
-        logger.debug(f"Injected data format libraries with base_path: {base_path}")
 
     def set_execution_context(self, context: Any):
         """

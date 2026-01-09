@@ -8,6 +8,8 @@ To run:
   tactus run examples/58-text-file-io.tac
 ]]--
 
+local file = require("tactus.io.file")
+
 Procedure {
     input = {
     },
@@ -47,16 +49,16 @@ Procedure {
     ]]
 
         -- Write configuration file
-        File.write("app_config.ini", config_content)
+        file.write("app_config.ini", config_content)
         Log.info("Created configuration file")
 
         -- Check if file exists
-        if File.exists("app_config.ini") then
+        if file.exists("app_config.ini") then
             Log.info("Configuration file verified to exist")
         end
 
         -- Read it back
-        local loaded_config = File.read("app_config.ini")
+        local loaded_config = file.read("app_config.ini")
 
         -- Parse the configuration (simple line-by-line parsing)
         local config = {}
@@ -97,7 +99,7 @@ Procedure {
             log_content = log_content .. string.format("[%s] %s: %s\n", timestamp, entry.level, entry.message)
         end
 
-        File.write("application.log", log_content)
+        file.write("application.log", log_content)
         Log.info("Created application log file")
 
         -- Create a markdown report
@@ -139,7 +141,7 @@ Procedure {
     *Report generated on ]] .. os.date("%Y-%m-%d at %H:%M:%S") .. [[*
     ]]
 
-        File.write("status_report.md", markdown_report)
+        file.write("status_report.md", markdown_report)
         Log.info("Created markdown status report")
 
         -- Create a simple CSV data file using raw text
@@ -149,7 +151,7 @@ Procedure {
                 i, i, math.random() * 100, i % 2 == 0 and "active" or "inactive")
         end
 
-        File.write("data_export.csv", csv_content)
+        file.write("data_export.csv", csv_content)
         Log.info("Created CSV file using raw text operations")
 
         -- Create a JSON file using raw text
@@ -173,7 +175,7 @@ Procedure {
         json_content = json_content .. '  "log_entries": ' .. json_data.log_entries .. '\n'
         json_content = json_content .. "}"
 
-        File.write("summary.json", json_content)
+        file.write("summary.json", json_content)
         Log.info("Created JSON file using raw text operations")
 
         -- Verify all files exist
@@ -187,7 +189,7 @@ Procedure {
 
         local all_exist = true
         for _, filename in ipairs(files_to_check) do
-            if not File.exists(filename) then
+            if not file.exists(filename) then
                 Log.error("File missing", {file = filename})
                 all_exist = false
             end
@@ -198,9 +200,9 @@ Procedure {
         end
 
         -- Check if config was loaded successfully
-        -- In mocked mode, File.read may return empty content
+        -- In mocked mode, file.read may return empty content
         -- So we check if we at least wrote the config file
-        local config_loaded = File.exists("app_config.ini")
+        local config_loaded = file.exists("app_config.ini")
 
         return {
             files_created = 5,

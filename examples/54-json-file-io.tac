@@ -1,12 +1,15 @@
 --[[
 Example: JSON File I/O
 
-Demonstrates reading and writing JSON files using File.read/write with Json.encode/decode.
-Json.encode/decode work with strings for JSON serialization.
+Demonstrates reading and writing JSON files using file.read/write with json.encode/decode.
+json.encode/decode work with strings for JSON serialization.
 
 To run:
   tactus run examples/54-json-file-io.tac
 ]]--
+
+local file = require("tactus.io.file")
+local json = require("tactus.io.json")
 
 Procedure {
     input = {
@@ -64,14 +67,14 @@ Procedure {
             }
         }
 
-        -- Write JSON file using File.write and Json.encode
-        local json_str = Json.encode(app_config)
-        File.write("app_config.json", json_str)
+        -- Write JSON file using file.write and json.encode
+        local json_str = json.encode(app_config)
+        file.write("app_config.json", json_str)
         Log.info("Created app configuration JSON file")
 
-        -- Read it back using File.read and Json.decode
-        local json_content = File.read("app_config.json")
-        local loaded_config = Json.decode(json_content)
+        -- Read it back using file.read and json.decode
+        local json_content = file.read("app_config.json")
+        local loaded_config = json.decode(json_content)
 
         -- Process the data
         local active_count = 0
@@ -107,15 +110,15 @@ Procedure {
             enabled_features = loaded_config.settings.features
         }
 
-        -- Write summary using File.write
-        local summary_json = Json.encode(summary)
-        File.write("app_summary.json", summary_json)
+        -- Write summary using file.write
+        local summary_json = json.encode(summary)
+        file.write("app_summary.json", summary_json)
 
-        -- Also demonstrate Json.encode/decode for string operations
-        local encoded = Json.encode({quick = "test", number = 123})
+        -- Also demonstrate json.encode/decode for string operations
+        local encoded = json.encode({quick = "test", number = 123})
         Log.info("Encoded JSON string", {json = encoded})
 
-        local decoded = Json.decode(encoded)
+        local decoded = json.decode(encoded)
         Log.info("Decoded value", {quick = decoded.quick})
 
         return {

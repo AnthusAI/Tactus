@@ -8,6 +8,8 @@ To run:
   tactus run examples/57-excel-file-io.tac
 ]]--
 
+local excel = require("tactus.io.excel")
+
 Procedure {
     input = {
     },
@@ -38,11 +40,11 @@ Procedure {
         end
 
         -- Write to Excel with Q1 sheet
-        Excel.write("sales_report.xlsx", q1_sales, {sheet = "Q1_Sales"})
+        excel.write("sales_report.xlsx", q1_sales, {sheet = "Q1_Sales"})
         Log.info("Created Excel file with Q1 sales data")
 
         -- Read it back
-        local loaded_sales = Excel.read("sales_report.xlsx", {sheet = "Q1_Sales"})
+        local loaded_sales = excel.read("sales_report.xlsx", {sheet = "Q1_Sales"})
 
         -- Process the data
         local monthly_summary = {}
@@ -50,7 +52,7 @@ Procedure {
         local total_revenue = 0
         local total_cost = 0
 
-        for i = 0, loaded_sales:len() - 1 do
+        for i = 1, #loaded_sales do
             local row = loaded_sales[i]
             local revenue = tonumber(row.revenue)
             local cost = tonumber(row.cost)
@@ -101,15 +103,15 @@ Procedure {
         end
 
         -- Create a new Excel file with multiple sheets
-        Excel.write("sales_analysis.xlsx", monthly_data, {sheet = "Monthly_Summary"})
+        excel.write("sales_analysis.xlsx", monthly_data, {sheet = "Monthly_Summary"})
 
         -- Read back the first file to add more sheets
         -- Note: Our current implementation doesn't support appending sheets,
         -- so we'll create separate files for now
-        Excel.write("product_analysis.xlsx", product_data, {sheet = "Product_Summary"})
+        excel.write("product_analysis.xlsx", product_data, {sheet = "Product_Summary"})
 
         -- List sheets in the original file
-        local sheets = Excel.sheets("sales_report.xlsx")
+        local sheets = excel.sheets("sales_report.xlsx")
         -- sheets is a Python list, just log it directly
         Log.info("Available sheets in sales_report.xlsx")
 
@@ -122,10 +124,10 @@ Procedure {
             {metric = "Total Cost", value = string.format("$%.2f", total_cost)},
             {metric = "Total Profit", value = string.format("$%.2f", total_profit)},
             {metric = "Profit Margin", value = string.format("%.1f%%", profit_margin)},
-            {metric = "Total Transactions", value = tostring(loaded_sales:len())}
+            {metric = "Total Transactions", value = tostring(#loaded_sales)}
         }
 
-        Excel.write("executive_summary.xlsx", executive_summary, {sheet = "Summary"})
+        excel.write("executive_summary.xlsx", executive_summary, {sheet = "Summary"})
 
         Log.info("Analysis complete", {
             total_revenue = string.format("$%.2f", total_revenue),
