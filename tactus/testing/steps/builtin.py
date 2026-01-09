@@ -56,6 +56,9 @@ def register_builtin_steps(registry: StepRegistry) -> None:
     # Regex pattern matching steps
     register_regex_steps(registry)
 
+    # Model-related steps
+    register_model_steps(registry)
+
     # Fuzzy string matching steps
     register_fuzzy_steps(registry)
 
@@ -405,6 +408,13 @@ def register_parameter_steps(registry: StepRegistry) -> None:
         r"the agent'?s? context should include (?P<text>.+)", step_agent_context_includes
     )
 
+    # Input-setting steps (Given clauses to set procedure inputs)
+    registry.register(r'the input (?P<key>\w+) is "(?P<value>.+)"', step_input_set_string)
+
+    registry.register(r"the input (?P<key>\w+) is \[(?P<values>.+)\]", step_input_set_array)
+
+    registry.register(r"the input (?P<key>\w+) is (?P<value>-?\d+\.?\d*)", step_input_set_number)
+
 
 def step_parameter_equals(context: Any, param: str, value: str) -> None:
     """Check if parameter equals expected value."""
@@ -418,6 +428,44 @@ def step_agent_context_includes(context: Any, text: str) -> None:
     """Check if agent context includes text."""
     agent_context = context.agent_context()
     assert text in agent_context, f"Agent context does not include '{text}'"
+
+
+def step_input_set_string(context: Any, key: str, value: str) -> None:
+    """Set a string input parameter."""
+    context.set_input(key, value)
+
+
+def step_input_set_number(context: Any, key: str, value: str) -> None:
+    """Set a numeric input parameter."""
+    # Parse as float or int
+    if "." in value:
+        context.set_input(key, float(value))
+    else:
+        context.set_input(key, int(value))
+
+
+def step_input_set_array(context: Any, key: str, values: str) -> None:
+    """Set an array input parameter from comma-separated values."""
+    import ast
+
+    # Try to parse as Python literal first
+    try:
+        parsed = ast.literal_eval(f"[{values}]")
+        context.set_input(key, parsed)
+    except (ValueError, SyntaxError):
+        # Fall back to comma-split for simple values
+        items = [v.strip() for v in values.split(",")]
+        # Try to convert to numbers if possible
+        parsed_items = []
+        for item in items:
+            try:
+                if "." in item:
+                    parsed_items.append(float(item))
+                else:
+                    parsed_items.append(int(item))
+            except ValueError:
+                parsed_items.append(item)
+        context.set_input(key, parsed_items)
 
 
 # Agent steps
@@ -443,8 +491,19 @@ def step_agent_takes_turn(context: Any, agent: str) -> None:
 
 
 def step_procedure_runs(context: Any) -> None:
-    """Execute the procedure."""
+    """Execute the procedure.
+
+    Fails the step if the procedure has an execution error (e.g., undefined variables).
+    """
     context.run_procedure()
+
+    # Check for execution errors (e.g., Lua errors like undefined variables)
+    # context is TactusTestContext when called from generated behave steps
+    if hasattr(context, "execution_result") and context.execution_result:
+        result = context.execution_result
+        if not result.get("success", True):
+            error = result.get("error", "Unknown error")
+            raise AssertionError(f"Procedure execution failed: {error}")
 
 
 # Regex pattern matching steps
@@ -612,3 +671,22 @@ def step_state_similar_threshold(context: Any, key: str, text: str, threshold: s
         f"  Actual: '{actual_str}'\n"
         f"  Expected: '{text}'"
     )
+
+
+# Model-related steps
+
+
+def register_model_steps(registry: StepRegistry) -> None:
+    """Register model-related step definitions."""
+
+    # Model prediction step (When clause)
+    registry.register(r"the (?P<model>\w+) model predicts", step_model_predicts)
+
+
+def step_model_predicts(context: Any, model: str) -> None:
+    """Trigger model prediction by running the procedure.
+
+    This step runs the procedure which should contain the model prediction.
+    """
+    # Model prediction happens during procedure execution
+    context.run_procedure()

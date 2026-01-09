@@ -18,7 +18,7 @@ def extract_block(text: str, keyword: str) -> tuple[str | None, int, int]:
 
     Returns: (content_inside_braces, start_pos, end_pos) or (None, -1, -1) if not found
     """
-    pattern = rf'{keyword}\s*=\s*{{'
+    pattern = rf"{keyword}\s*=\s*{{"
     match = re.search(pattern, text)
     if not match:
         return None, -1, -1
@@ -28,9 +28,9 @@ def extract_block(text: str, keyword: str) -> tuple[str | None, int, int]:
     i = start + 1
 
     while i < len(text) and brace_count > 0:
-        if text[i] == '{':
+        if text[i] == "{":
             brace_count += 1
-        elif text[i] == '}':
+        elif text[i] == "}":
             brace_count -= 1
         i += 1
 
@@ -38,7 +38,7 @@ def extract_block(text: str, keyword: str) -> tuple[str | None, int, int]:
         return None, -1, -1
 
     # Extract content between braces (excluding the braces themselves)
-    content = text[start + 1:i - 1]
+    content = text[start + 1 : i - 1]
     return content, match.start(), i
 
 
@@ -49,11 +49,13 @@ def convert_to_script_mode(content: str) -> tuple[str, bool]:
     Returns: (converted_content, was_converted)
     """
     # Check if it has Procedure {} or Procedure "name" {}
-    if not re.search(r'^(\w+\s*=\s*)?Procedure\s*("[\w-]+")?(\s*"[\w-]+")?\s*\{', content, re.MULTILINE):
+    if not re.search(
+        r'^(\w+\s*=\s*)?Procedure\s*("[\w-]+")?(\s*"[\w-]+")?\s*\{', content, re.MULTILINE
+    ):
         return content, False
 
     # Extract the Procedure block
-    lines = content.split('\n')
+    lines = content.split("\n")
     proc_start = None
     for i, line in enumerate(lines):
         # Match: Procedure {, Procedure "name" {, or main = Procedure "main" {
@@ -68,7 +70,7 @@ def convert_to_script_mode(content: str) -> tuple[str, bool]:
     brace_count = 0
     proc_end = None
     for i in range(proc_start, len(lines)):
-        brace_count += lines[i].count('{') - lines[i].count('}')
+        brace_count += lines[i].count("{") - lines[i].count("}")
         if brace_count == 0:
             proc_end = i
             break
@@ -77,16 +79,16 @@ def convert_to_script_mode(content: str) -> tuple[str, bool]:
         return content, False
 
     # Extract before, procedure block, and after
-    before = '\n'.join(lines[:proc_start])
-    proc_block = '\n'.join(lines[proc_start:proc_end + 1])
-    after = '\n'.join(lines[proc_end + 1:])
+    before = "\n".join(lines[:proc_start])
+    proc_block = "\n".join(lines[proc_start : proc_end + 1])
+    after = "\n".join(lines[proc_end + 1 :])
 
     # Parse the Procedure block using proper brace counting
-    input_content, _, _ = extract_block(proc_block, 'input')
-    output_content, _, _ = extract_block(proc_block, 'output')
+    input_content, _, _ = extract_block(proc_block, "input")
+    output_content, _, _ = extract_block(proc_block, "output")
 
     # Extract function body
-    func_match = re.search(r'function\s*\([^)]*\)(.*?)end\s*}\s*$', proc_block, re.DOTALL)
+    func_match = re.search(r"function\s*\([^)]*\)(.*?)end\s*}\s*$", proc_block, re.DOTALL)
     if not func_match:
         return content, False
 
@@ -94,31 +96,32 @@ def convert_to_script_mode(content: str) -> tuple[str, bool]:
 
     # Build script mode version
     parts = [before.rstrip()]
-    parts.append('')
+    parts.append("")
 
     if input_content is not None:
         parts.append(f"input {{{input_content}}}")
-        parts.append('')
+        parts.append("")
 
     if output_content is not None:
         parts.append(f"output {{{output_content}}}")
-        parts.append('')
+        parts.append("")
 
     # Add the function body (unindented)
-    body_lines = func_body.split('\n')
+    body_lines = func_body.split("\n")
     # Remove leading indentation
-    min_indent = min((len(line) - len(line.lstrip()) for line in body_lines if line.strip()), default=0)
-    unindented_body = '\n'.join(
-        line[min_indent:] if len(line) > min_indent else line
-        for line in body_lines
+    min_indent = min(
+        (len(line) - len(line.lstrip()) for line in body_lines if line.strip()), default=0
+    )
+    unindented_body = "\n".join(
+        line[min_indent:] if len(line) > min_indent else line for line in body_lines
     )
     parts.append(unindented_body.strip())
-    parts.append('')
+    parts.append("")
 
     if after.strip():
         parts.append(after.strip())
 
-    converted = '\n'.join(parts) + '\n'
+    converted = "\n".join(parts) + "\n"
     return converted, True
 
 
@@ -129,24 +132,20 @@ def convert_to_named_procedure(content: str) -> tuple[str, bool]:
     Returns: (converted_content, was_converted)
     """
     # Simple regex replacement
-    if not re.search(r'^Procedure\s*\{', content, re.MULTILINE):
+    if not re.search(r"^Procedure\s*\{", content, re.MULTILINE):
         return content, False
 
     # Replace first occurrence of ^Procedure { with main = Procedure "main" {
     converted = re.sub(
-        r'^Procedure\s*\{',
-        'main = Procedure "main" {',
-        content,
-        count=1,
-        flags=re.MULTILINE
+        r"^Procedure\s*\{", 'main = Procedure "main" {', content, count=1, flags=re.MULTILINE
     )
 
     return converted, converted != content
 
 
 def main():
-    tactus_root = Path('/Users/ryan.porter/Projects/Tactus')
-    examples_dir = tactus_root / 'examples'
+    tactus_root = Path("/Users/ryan.porter/Projects/Tactus")
+    examples_dir = tactus_root / "examples"
 
     if not examples_dir.exists():
         print(f"Examples directory not found: {examples_dir}")
@@ -154,12 +153,14 @@ def main():
 
     # Find all .tac files with Procedure blocks
     files_to_convert = []
-    for tac_file in examples_dir.rglob('*.tac'):
+    for tac_file in examples_dir.rglob("*.tac"):
         if not tac_file.is_file():
             continue
         content = tac_file.read_text()
         # Match Procedure {, Procedure "name" {, or main = Procedure "main" {
-        if re.search(r'^(\w+\s*=\s*)?Procedure\s*("[\w-]+")?(\s*"[\w-]+")?\s*\{', content, re.MULTILINE):
+        if re.search(
+            r'^(\w+\s*=\s*)?Procedure\s*("[\w-]+")?(\s*"[\w-]+")?\s*\{', content, re.MULTILINE
+        ):
             files_to_convert.append(tac_file)
 
     print(f"Found {len(files_to_convert)} files to convert")
@@ -194,13 +195,13 @@ def main():
             failed.append(tac_file)
             print(f"✗ Error in {tac_file.relative_to(tactus_root)}: {e}")
 
-    print(f"\nSummary:")
+    print("\nSummary:")
     print(f"  Script mode: {script_mode_count}")
     print(f"  Named procedure: {named_proc_count}")
     print(f"  Failed: {len(failed)}")
 
     if failed:
-        print(f"\nFailed files:")
+        print("\nFailed files:")
         for f in failed:
             print(f"  - {f.relative_to(tactus_root)}")
         return 1
@@ -208,5 +209,5 @@ def main():
     return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

@@ -2,7 +2,7 @@
 -- Demonstrates dynamic tool availability using both tools and toolsets
 
 -- Define individual tools
-Tool "search" {
+search = Tool {
     description = "Search for information",
     input = {
         query = field.string{required = true, description = "Search query"}
@@ -12,7 +12,7 @@ Tool "search" {
     end
 }
 
-Tool "analyze" {
+analyze = Tool {
     description = "Analyze data",
     input = {
         data = field.string{required = true, description = "Data to analyze"}
@@ -22,10 +22,10 @@ Tool "analyze" {
     end
 }
 
-Tool "done" { use = "tactus.done" }
+local done = require("tactus.tools.done")
 
 -- Define a toolset for math operations
-Tool "add" {
+add = Tool {
     description = "Add two numbers",
     input = {
         a = field.number{required = true},
@@ -36,7 +36,7 @@ Tool "add" {
     end
 }
 
-Tool "multiply" {
+multiply = Tool {
     description = "Multiply two numbers",
     input = {
         a = field.number{required = true},
@@ -53,7 +53,7 @@ Toolset "math_tools" {
 }
 
 -- Agent with no tools initially defined
-Agent "worker" {
+worker = Agent {
     provider = "openai",
     system_prompt = [[You are a helpful assistant. Use the available tools to complete tasks.
 When you have completed your task, call the 'done' Tool.]],
@@ -61,60 +61,65 @@ When you have completed your task, call the 'done' Tool.]],
     toolsets = {},  -- Empty - will control per-turn
 }
 
-output {
-        result = field.string{required = true}
-    }
+Procedure {
+    output = {
+            result = field.string{required = true}
+    },
+    function(input)
 
-Log.info("Starting per-turn tool control example")
+    Log.info("Starting per-turn tool control example")
 
-        -- Turn 1: Only search tool available
-        Log.info("Turn 1: Only search tool")
-        Agent("worker").turn({
-            inject = "Search for information about Lua programming",
-            tools = {"search"}  -- Only search tool
-        })
+            -- Turn 1: Only search tool available
+            Log.info("Turn 1: Only search tool")
+            worker({
+                inject = "Search for information about Lua programming",
+                tools = {"search"}  -- Only search tool
+            })
 
-        -- Turn 2: Math toolset available
-        Log.info("Turn 2: Math toolset")
-        Agent("worker").turn({
-            inject = "Calculate: (5 + 3) * 2",
-            toolsets = {"math_tools"}  -- Math toolset
-        })
+            -- Turn 2: Math toolset available
+            Log.info("Turn 2: Math toolset")
+            worker({
+                inject = "Calculate: (5 + 3) * 2",
+                tools = {math_tools}  -- Math toolset
+            })
 
-        -- Turn 3: Multiple individual tools
-        Log.info("Turn 3: Search and analyze tools")
-        Agent("worker").turn({
-            inject = "Search for 'weather' and analyze the results",
-            tools = {"search", "analyze"}  -- Multiple tools
-        })
+            -- Turn 3: Multiple individual tools
+            Log.info("Turn 3: Search and analyze tools")
+            worker({
+                inject = "Search for 'weather' and analyze the results",
+                tools = {"search", "analyze"}  -- Multiple tools
+            })
 
-        -- Turn 4: Combination of tools and toolsets
-        Log.info("Turn 4: Combined tools and toolsets")
-        Agent("worker").turn({
-            inject = "Calculate 10 + 20, then search for the result, and signal completion",
-            tools = {"search", "done"},  -- Individual tools
-            toolsets = {"math_tools"}     -- Plus math toolset
-        })
+            -- Turn 4: Combination of tools and toolsets
+            Log.info("Turn 4: Combined tools and toolsets")
+            worker({
+                inject = "Calculate 10 + 20, then search for the result, and signal completion",
+                tools = {"search", "done"},  -- Individual tools
+                tools = {math_tools}     -- Plus math toolset
+            })
 
-        -- Turn 5: No tools at all
-        Log.info("Turn 5: No tools")
-        local result = Agent("worker").turn({
-            inject = "Tell me a joke (no tools available)",
-            tools = {}  -- Explicitly no tools
-        })
+            -- Turn 5: No tools at all
+            Log.info("Turn 5: No tools")
+            local result = worker({
+                inject = "Tell me a joke (no tools available)",
+                tools = {}  -- Explicitly no tools
+            })
 
-        -- Turn 6: Default tools (None means use agent's default)
-        Log.info("Turn 6: Default tools")
-        Agent("worker").turn({
-            inject = "Use any available tools",
-            tools = nil  -- Use agent's defaults
-        })
+            -- Turn 6: Default tools (None means use agent's default)
+            Log.info("Turn 6: Default tools")
+            worker({
+                inject = "Use any available tools",
+                tools = nil  -- Use agent's defaults
+            })
 
-        return {
-            result = "Demonstrated per-turn tool control"
-        }
+            return {
+                result = "Demonstrated per-turn tool control"
+            }
 
--- BDD Specifications
+    -- BDD Specifications
+    end
+}
+
 Specifications([[
 Feature: Per-Turn Tool Control
   Demonstrate dynamic tool availability control

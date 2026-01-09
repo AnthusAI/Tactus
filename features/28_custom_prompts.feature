@@ -11,7 +11,7 @@ Feature: Custom Prompts (return, error, status)
   """
   return_prompt = "Summarize your work concisely"
 
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   system_prompt = "Work",
   tools = {}
@@ -31,7 +31,7 @@ Feature: Custom Prompts (return, error, status)
   """
   error_prompt = "Explain what went wrong and any partial progress"
 
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   system_prompt = "Work",
   tools = {}
@@ -51,7 +51,7 @@ Feature: Custom Prompts (return, error, status)
   """
   status_prompt = "Provide a brief progress update"
 
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   system_prompt = "Work",
   tools = {}
@@ -73,7 +73,7 @@ Feature: Custom Prompts (return, error, status)
   error_prompt = "Explain the error"
   status_prompt = "Report progress"
 
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   system_prompt = "Work",
   tools = {}
@@ -103,7 +103,7 @@ Feature: Custom Prompts (return, error, status)
   - What failed
   ]])
   
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   system_prompt = "Work",
   tools = {}

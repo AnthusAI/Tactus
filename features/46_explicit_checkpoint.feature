@@ -77,7 +77,7 @@ Feature: Explicit Checkpoint Primitive
   Scenario: Checkpointing expensive operations
   Given a Lua DSL file with content:
   """
-  Agent "processor" {
+  processor = Agent {
     provider = "openai",
     system_prompt = "Work",
     tools = {}
@@ -130,7 +130,7 @@ Feature: Explicit Checkpoint Primitive
   Scenario: Checkpoint vs Checkpoint primitive
   Given a Lua DSL file with content:
   """
-  Agent "worker" {
+  worker = Agent {
     provider = "openai",
     system_prompt = "Work",
     tools = {}

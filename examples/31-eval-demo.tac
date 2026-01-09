@@ -2,7 +2,7 @@
 -- Demonstrates integration of Pydantic Evals with Tactus
 
 -- Agent definition
-Agent "greeter" {
+greeter = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = "You are a friendly greeter. Generate a warm greeting for the given name. Call the done tool with your greeting as the reason.",
@@ -11,30 +11,34 @@ Agent "greeter" {
 
 -- Procedure
 
-input {
-        name = field.string{required = true, description = "Name to greet"}
-    }
+Procedure {
+    input = {
+            name = field.string{required = true, description = "Name to greet"}
+    },
+    output = {
+            greeting = field.string{required = true, description = "The greeting message"}
+    },
+    function(input)
 
-output {
-        greeting = field.string{required = true, description = "The greeting message"}
-    }
+    Log.info("Generating greeting", {name = input.name})
 
-Log.info("Generating greeting", {name = input.name})
-    
-    -- Have agent generate greeting
-    Agent("greeter").turn()
-    
-    -- Get greeting from done tool
-    local greeting = "Hello!"
-    if Tool.called("done") then
-        greeting = Tool.last_result("done") or "Task completed" or "Hello!"
+        -- Have agent generate greeting
+        greeter()
+
+        -- Get greeting from done tool
+        local greeting = "Hello!"
+        if done.called() then
+            greeting = done.last_result() or "Task completed" or "Hello!"
+        end
+
+        return {
+            greeting = greeting
+        }
+
+    -- BDD Specifications(workflow correctness)
     end
-    
-    return {
-        greeting = greeting
-    }
+}
 
--- BDD Specifications(workflow correctness)
 Specifications([[
 Feature: Greeting Generation
   Scenario: Agent generates greeting

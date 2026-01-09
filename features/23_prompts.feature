@@ -11,7 +11,7 @@ Feature: Prompt Templates
   """
   Prompt "greeting" "Hello, {input.name}! How can I help you today?"
 
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   system_prompt = prompts.greeting,
   tools = {}
@@ -36,7 +36,7 @@ Feature: Prompt Templates
   Prompt "task" "Please complete the following task"
   Prompt "outro" "Thank you for using our service"
 
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   system_prompt = prompts.intro,
   tools = {}
@@ -60,7 +60,7 @@ Feature: Prompt Templates
   Be concise and accurate.
   ]]
 
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   system_prompt = prompts.detailed,
   tools = {}
@@ -80,7 +80,7 @@ Feature: Prompt Templates
   """
   Prompt "task_prompt" "Research the topic: {input.topic}"
 
-  Agent "researcher" {
+  researcher = Agent {
   provider = "openai",
   system_prompt = prompts.task_prompt,
   tools = {}

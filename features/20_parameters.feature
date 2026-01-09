@@ -9,13 +9,13 @@ Feature: Input Declarations (Procedure Parameters)
   Scenario: Simple string input with default value
   Given a Lua DSL file with content:
   """
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   system_prompt = "Hello {input.name}",
   tools = {}
   }
 
-  main = Procedure "main" {
+  Procedure {
   input = {
       name = field.string{default = "World"}
     },
@@ -31,13 +31,13 @@ Feature: Input Declarations (Procedure Parameters)
   Scenario: Required input validation
   Given a Lua DSL file with content:
   """
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   system_prompt = "Research {input.topic}",
   tools = {}
   }
 
-  Procedure "main" {
+  Procedure {
   input = {
       topic = field.string{required = true, description = "Research topic"}},
   function(input)
@@ -52,13 +52,13 @@ Feature: Input Declarations (Procedure Parameters)
   Scenario: Multiple input types
   Given a Lua DSL file with content:
   """
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   system_prompt = "Process {input.name}",
   tools = {}
   }
 
-  Procedure "main" {
+  Procedure {
   input = {
       name = field.string{required = true},
   count = field.number{default = 5},
@@ -79,13 +79,13 @@ Feature: Input Declarations (Procedure Parameters)
   Scenario: Input with enum values
   Given a Lua DSL file with content:
   """
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   system_prompt = "Level: {input.level}",
   tools = {}
   }
 
-  main = Procedure "main" {
+  Procedure {
     input = {
       level = field.string{default = "medium"}
     },
@@ -101,13 +101,13 @@ Feature: Input Declarations (Procedure Parameters)
   Scenario: Input used in template substitution
   Given a Lua DSL file with content:
   """
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   system_prompt = "You are researching: {input.topic}",
   tools = {}
   }
 
-  main = Procedure "main" {
+  Procedure {
   input = {
       name = field.string{default = "AI"}
     },
@@ -123,13 +123,13 @@ Feature: Input Declarations (Procedure Parameters)
   Scenario: Input accessed in Lua code
   Given a Lua DSL file with content:
   """
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   system_prompt = "Calculate",
   tools = {}
   }
 
-  main = Procedure "main" {
+  Procedure {
   input = {
       name = field.number{default = 2}
     },

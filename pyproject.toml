@@ -48,7 +48,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-mcp = ["fastmcp>=2.3.5"]
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
@@ -58,6 +57,7 @@ dev = [
     "ruff",
     "python-semantic-release>=9.0.0",
     "antlr4-tools>=0.2.1",
+    "fastmcp>=2.3.5",
 ]
 
 [project.scripts]

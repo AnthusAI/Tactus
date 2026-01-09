@@ -470,14 +470,35 @@ class ProcedurePrimitive:
             FileNotFoundError: If procedure file not found
         """
         import os
+        from pathlib import Path
 
-        # Try different locations
+        # Build search paths
         search_paths = [
             name,  # Exact path
             f"{name}.tac",  # Add extension
-            f"examples/{name}",  # Examples directory
-            f"examples/{name}.tac",  # Examples with extension
         ]
+
+        # Add paths relative to the current procedure file's directory
+        if (
+            hasattr(self.execution_context, "current_tac_file")
+            and self.execution_context.current_tac_file
+        ):
+            current_file = Path(self.execution_context.current_tac_file)
+            current_dir = current_file.parent
+            search_paths.extend(
+                [
+                    str(current_dir / name),  # Relative to current file
+                    str(current_dir / f"{name}.tac"),  # Relative with extension
+                ]
+            )
+
+        # Add examples directory as fallback
+        search_paths.extend(
+            [
+                f"examples/{name}",  # Examples directory
+                f"examples/{name}.tac",  # Examples with extension
+            ]
+        )
 
         for path in search_paths:
             if os.path.exists(path):

@@ -1,31 +1,32 @@
 -- Example: Optional State Declaration
 -- Demonstrates that state = {} is no longer required in procedures
 
--- Standard library done tool
-Tool "done" { use = "tactus.done" }
+-- Import completion tool from standard library
+local done = require("tactus.tools.done")
 
 -- Agent for demonstration
-Agent "assistant" {
+assistant = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = "You are a helpful assistant. When asked to demonstrate something, explain it briefly and call done.",
-    toolsets = {"done"}
+    tools = {done}
 }
 
 -- Procedure WITHOUT state declaration (new optional syntax)
-
-input {
+Procedure "simple_demo" {
+    input = {
         message = field.string{default = "Hello World"}
-    }
-
-output {
+    },
+    output = {
         result = field.string{required = true}
-    }
-
-Log.info("Processing message", {message = input.message})
+    },
+    function(input)
+        Log.info("Processing message", {message = input.message})
         return {
             result = "Processed: " .. input.message
         }
+    end
+}
 
 -- Another procedure that actually uses state (must declare it)
 Procedure "stateful_demo" {
@@ -44,7 +45,7 @@ Procedure "stateful_demo" {
 }
 
 -- Main procedure (also without state)
-Procedure "main" {
+Procedure {
     input = {
         demo_type = field.string{
             default = "simple",
@@ -76,13 +77,13 @@ Procedure "main" {
             input.demo_type, result
         )
 
-        Agent("assistant").turn({initial_message = agent_message})
+        assistant({initial_message = agent_message})
 
         -- Wait for done
         local max_turns = 3
         local turn_count = 1
-        while not Tool.called("done") and turn_count < max_turns do
-            Agent("assistant").turn()
+        while not done.called() and turn_count < max_turns do
+            assistant()
             turn_count = turn_count + 1
         end
 
@@ -93,7 +94,6 @@ Procedure "main" {
     end
 }
 
--- BDD Specifications
 Specifications([[
 Feature: Optional State Declaration
   Procedures no longer require empty state = {} declarations

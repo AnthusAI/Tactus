@@ -9,7 +9,7 @@ Feature: BDD Evaluation Configuration
   Scenario: Basic evaluation configuration
   Given a Lua DSL file with content:
   """
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   system_prompt = "Work",
   tools = {"done"}
@@ -41,7 +41,7 @@ Feature: BDD Evaluation Configuration
   Scenario: Evaluation with custom runs
   Given a Lua DSL file with content:
   """
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   system_prompt = "Work",
   tools = {"done"}
@@ -72,7 +72,7 @@ Feature: BDD Evaluation Configuration
   Scenario: Evaluation with parallel disabled
   Given a Lua DSL file with content:
   """
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   system_prompt = "Work",
   tools = {"done"}
@@ -104,7 +104,7 @@ Feature: BDD Evaluation Configuration
   Scenario: Procedure without evaluation config
   Given a Lua DSL file with content:
   """
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   system_prompt = "Work",
   tools = {"done"}

@@ -9,7 +9,7 @@ Feature: BDD Specifications (Gherkin)
   Scenario: Simple Gherkin specification
   Given a Lua DSL file with content:
   """
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   system_prompt = "Work",
   tools = {"done"}
@@ -36,7 +36,7 @@ Feature: BDD Specifications (Gherkin)
   Scenario: Multiple scenarios in specification
   Given a Lua DSL file with content:
   """
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   system_prompt = "Work",
   tools = {"done"}
@@ -74,7 +74,7 @@ Feature: BDD Specifications (Gherkin)
   Scenario: Specification with state assertions
   Given a Lua DSL file with content:
   """
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   system_prompt = "Work",
   tools = {"done"}
@@ -105,7 +105,7 @@ Feature: BDD Specifications (Gherkin)
   Scenario: Specification with tool call assertions
   Given a Lua DSL file with content:
   """
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   system_prompt = "Work",
   tools = {"search", "done"}
@@ -133,7 +133,7 @@ Feature: BDD Specifications (Gherkin)
   Scenario: Procedure without specifications
   Given a Lua DSL file with content:
   """
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   system_prompt = "Work",
   tools = {}
