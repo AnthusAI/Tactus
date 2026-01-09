@@ -5,20 +5,17 @@
 -- and on replay, the cached result is returned without re-executing.
 
 -- Main procedure that calls a sub-procedure
-Procedure "main" {
-    input = {
+
+input {
         numbers = field.array{required = true, description = "Array of numbers to process"}
-    },
-    output = {
+    }
+
+output {
         sum = field.number{required = true, description = "Sum of all numbers"},
         product = field.number{required = true, description = "Product of all numbers"}
-    },
-    state = {
-        sum_result = field.number{default = 0},
-        product_result = field.number{default = 1}
-    },
-    function(input)
-    -- Call sum_procedure (this call is auto-checkpointed)
+    }
+
+-- Call sum_procedure (this call is auto-checkpointed)
     State.sum_result = Procedure.run("examples/helpers/sum.tac", {
         values = input.numbers
     })
@@ -32,8 +29,6 @@ Procedure "main" {
         sum = State.sum_result,
         product = State.product_result
     }
-end
-}
 
 -- BDD Specifications
 Specifications([[

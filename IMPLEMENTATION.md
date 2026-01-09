@@ -176,7 +176,7 @@ input {
 }
 
 -- Top-level code acts as main procedure
-Worker.turn({inject = input.task})
+Worker({message = input.task})
 return {result = "done"}
 ```
 
@@ -249,7 +249,7 @@ output {
 }
 
 -- Top-level code returns output
-Worker.turn()
+Worker()
 return {result = "done"}
 ```
 
@@ -277,87 +277,94 @@ return {result = "done"}
 
 ### Script Mode (Phase 6)
 
-**Status**: ✅ **Fully Implemented**
+**Status**: ✅ **Fully Implemented** (Zero-Wrapper with Source Transformation)
 
-Script mode allows simple procedures to be written without explicit `procedure()` wrappers. Top-level code becomes the entry point, making Tactus feel more like a script than a framework.
+Script mode allows simple procedures to be written without explicit `Procedure {}` wrappers. Top-level code becomes the entry point, making Tactus feel more like a script than a framework.
 
-#### Three Approaches
+#### Zero-Wrapper Syntax
 
-**1. Simplest (no schemas):**
+Write procedures without any wrapper - just top-level `input {}`, `output {}`, and executable code:
 
-```lua
--- No input/output declarations needed
-Worker = agent "worker" {
-    model = "claude-sonnet-4-20250514",
-    system_prompt = "You are a helpful assistant."
-}
-
-Worker.turn({inject = input.text})
-return {result = Worker.output}
-```
-
-**2. With Schema Declarations:**
+**Basic Example:**
 
 ```lua
+-- No Procedure wrapper needed
 input {
-    text = {type = "string", required = true},
-    language = {type = "string", default = "en"}
+    name = field.string{required = true}
 }
 
 output {
-    result = {type = "string", required = true}
+    greeting = field.string{required = true}
 }
 
-Worker = agent "worker" {
-    model = "claude-sonnet-4-20250514"
-}
-
-Worker.turn({inject = input.text})
-return {result = Worker.output}
+local message = "Hello, " .. input.name .. "!"
+return {greeting = message}
 ```
 
-**3. Hybrid (sub-procedures + top-level main):**
+**With Agents:**
 
 ```lua
-input {document = {type = "string"}}
-output {result = {type = "string"}}
-
--- Helper sub-procedure
-summarize_chunk = procedure "summarize_chunk" {
-    input = {chunk = {type = "string"}},
-    output = {summary = {type = "string"}},
-    run = function()
-        Summarizer = agent "summarizer" {
-            model = "claude-sonnet-4-20250514"
-        }
-        Summarizer.turn({inject = input.chunk})
-        return {summary = Summarizer.output}
-    end
+input {
+    task = field.string{required = true}
 }
 
--- Top-level code acts as main procedure
-chunks = split_text(input.document, 1000)
-state.summaries = {}
+output {
+    result = field.string{required = true}
+}
 
-for i, chunk in ipairs(chunks) do
-    result = summarize_chunk({chunk = chunk})
-    state.summaries[i] = result.summary
+done = tactus.done
+
+worker = Agent {
+    provider = "openai",
+    model = "gpt-4o",
+    system_prompt = "Complete tasks efficiently",
+    tools = {done}
+}
+
+worker({message = input.task})
+
+if done.called() then
+    return {result = "Success: " .. done.last_call().args.reason}
+else
+    return {result = "Agent did not complete"}
 end
+```
 
-return {result = join_summaries(state.summaries)}
+**With State:**
+
+```lua
+input {
+    value = field.number{required = true}
+}
+
+output {
+    doubled = field.number{required = true}
+}
+
+state.original = input.value
+state.result = state.original * 2
+
+return {doubled = state.result}
 ```
 
 #### How It Works
 
-1. Runtime detects top-level `input {}` and `output {}` declarations
-2. If no explicit `main` procedure exists, top-level code is wrapped in implicit main
-3. Top-level code can:
-   - Access `input` table (from runtime context)
-   - Define agents and models
-   - Call sub-procedures
-   - Mutate `state` table
-   - Return output table
-4. All durability features work identically (checkpointing, replay, HITL)
+**Source Transformation Approach:**
+
+1. **Detection**: Runtime detects script mode when file has top-level `input {}` or `output {}` without explicit `Procedure {}`
+2. **Splitting**: Source is split into:
+   - **Declarations**: `input {}`, `output {}`, `Mocks {}`, Agent/Tool/Model definitions, comments
+   - **Executable code**: Local variables, agent calls, state assignments, control flow, returns
+3. **Transformation**: Executable code is wrapped in implicit `Procedure { function(input) ... end }`
+4. **Schema merging**: Top-level schemas are merged into the implicit main procedure
+5. **Normal execution**: The transformed code executes through standard procedure flow
+
+**Why transformation?** During parsing, Lua code executes but agents aren't connected to LLMs yet. The `Procedure { function() ... end }` pattern stores the function during parsing and calls it later. Script mode uses source transformation to wrap executable code before parsing, preventing premature execution.
+
+**Pattern Detection:**
+- **Declarations**: Tracked via brace depth - entire multi-line blocks (Agent {}, Mocks {}) stay together
+- **Executable code**: Everything else that doesn't match declaration patterns
+- **Special handling**: Comments, empty lines, and `tactus.*` references treated as declarations
 
 #### When to Use
 
@@ -387,7 +394,7 @@ Script mode files can be gradually converted to explicit procedures without brea
 ```lua
 -- Before (script mode)
 input {text = {type = "string"}}
-Worker.turn({inject = input.text})
+Worker({message = input.text})
 return {result = Worker.output}
 
 -- After (explicit procedure)
@@ -396,7 +403,7 @@ main = procedure "main" {
     output = {result = {type = "string"}},
     run = function()
         Worker = agent "worker" {...}
-        Worker.turn({inject = input.text})
+        Worker({message = input.text})
         return {result = Worker.output}
     end
 }
@@ -500,7 +507,7 @@ main = procedure("main", {
     output = {...}
 }, function()
     -- Dependencies available to agents via AgentDeps
-    Worker.turn()
+    Worker()
     return {...}
 end)
 ```
@@ -647,7 +654,7 @@ main = procedure("main", {
         tools = {weather_lookup_tool}  -- Tool uses weather_api from deps
     })
 
-    Worker.turn({inject = "Get weather for " .. input.location})
+    Worker({message = "Get weather for " .. input.location})
     return {
         temperature = state.temp,
         condition = state.condition
@@ -781,7 +788,7 @@ Inline procedures are not parsed by `ProcedureYAMLParser` and cannot be invoked.
 - ❌ `filter` - Not implemented (no ComposedFilter, TokenBudget, etc.)
 - ❌ `response.retries` / `response.retry_delay` - Not implemented
 
-**Usage in Lua**: `Worker.turn()` (capitalized agent name)
+**Usage in Lua**: `Worker()` (capitalized agent name, callable syntax)
 
 ### Model Primitive (Phase 3: ML Inference)
 
@@ -864,9 +871,9 @@ state.intent = IntentClassifier.predict(input.message)
 
 -- Use result
 if state.intent == "billing" then
-    BillingAgent.turn()
+    BillingAgent()
 elseif state.intent == "technical" then
-    TechAgent.turn()
+    TechAgent()
 end
 ```
 
@@ -928,7 +935,7 @@ summarize_chunk = procedure "summarize_chunk" {
         Summarizer = agent "summarizer" {
             model = "claude-sonnet-4-20250514"
         }
-        Summarizer.turn({inject = input.chunk})
+        Summarizer({message = input.chunk})
         return {summary = Summarizer.output}
     end
 }
@@ -1051,7 +1058,7 @@ All procedure invocation primitives are missing.
    state.clusters = cluster_embeddings(state.embeddings)
    checkpoint()  -- Save before proceeding
 
-   Worker.turn({inject = state.clusters})
+   Worker({message = state.clusters})
    ```
 
 2. **Before risky operations:**
@@ -1107,10 +1114,10 @@ Explicit checkpoints do **not** create suspend points. They simply persist curre
 
 **Status**: ✅ **Fully Implemented**
 
-- ✅ `AgentName.turn()` - Execute agent turn
-- ✅ `AgentName.turn({inject = "..."})` - Turn with injected message
-- ✅ `AgentName.turn({tools = {...}})` - Turn with specific tools
-- ✅ `AgentName.turn({tools = {}})` - Turn with no tools
+- ✅ `AgentName()` - Execute agent turn
+- ✅ `AgentName({message = "..."})` - Call with a message
+- ✅ `AgentName({tools = {...}})` - Call with specific tools
+- ✅ `AgentName({tools = {}})` - Call with no tools
 - ✅ Per-turn model parameter overrides (temperature, max_tokens, top_p, etc.)
 
 **Per-Turn Overrides:**
@@ -1123,15 +1130,15 @@ The `turn()` method now accepts an optional table to override behavior for a sin
 **Common pattern - Tool result summarization:**
 ```lua
 repeat
-    Researcher.turn()  -- Agent has all tools
-    
-    if Tool.called("search") then
-        Researcher.turn({
-            inject = "Summarize the search results",
+    Researcher()  -- Agent has all tools
+
+    if search.called() then
+        Researcher({
+            message = "Summarize the search results",
             tools = {}  -- No tools for summarization
         })
     end
-until Tool.called("done")
+until done.called()
 ```
 
 **Response Access:**
@@ -1189,11 +1196,11 @@ Wraps pydantic-ai's `RunResult` for Lua access.
 - ✅ `result.all_messages()` - Full conversation history
 - ✅ `result.cost()` - Token usage (for cost calculation)
 
-**Breaking change:** `Agent.turn()` now returns `ResultPrimitive` instead of raw data. Access response via `result.data`.
+**Breaking change:** `Agent()` now returns `ResultPrimitive` instead of raw data. Access response via `result.data`.
 
 **Example:**
 ```lua
-local result = Agent.turn()
+local result = Agent()
 
 -- Access response
 Log.info(result.data)
@@ -1226,7 +1233,7 @@ agent("extractor", {
 })
 
 -- Agent automatically validates output against schema
-local result = Extractor.turn()
+local result = Extractor()
 Log.info(result.data.city)  -- Type-safe access
 ```
 
@@ -1309,7 +1316,7 @@ procedure "order_fulfillment" {
 - ✅ `Iterations.exceeded(max)` - Check if exceeded limit
 
 **Implementation:**
-- Incremented by `AgentPrimitive.turn()` automatically
+- Incremented by agent calls automatically
 - Can be checked in procedure code for safety limits
 
 #### StopPrimitive (`tactus/primitives/control.py`)
@@ -1486,7 +1493,7 @@ No graph/tree structure primitives. Procedures are linear sequences, not graphs.
 
 | Type | Description | Created By |
 |------|-------------|------------|
-| `agent_turn` | LLM conversation turn | `AgentPrimitive.turn()` |
+| `agent_turn` | LLM conversation turn | `Agent()` (callable syntax) |
 | `model_predict` | ML inference | `ModelPrimitive.predict()` |
 | `procedure_call` | Sub-procedure invocation | Procedure callable |
 | `hitl_approval` | Human approval request | `Human.approve()` |
@@ -1542,9 +1549,9 @@ checkpoint()
 
 -- ❌ Unsafe: Random value used across checkpoints
 local x = math.random(100)  -- WARNING!
-Worker.turn()  -- Checkpoint
+Worker()  -- Checkpoint
 if x > 50 then  -- Diverges on replay
-    Publisher.turn()
+    Publisher()
 end
 ```
 

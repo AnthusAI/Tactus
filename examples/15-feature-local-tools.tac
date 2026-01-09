@@ -38,16 +38,17 @@ You MUST call the 'done' tool after getting the calculation result.]],
 }
 
 -- Main workflow
-Procedure "main" {
-    input = {
+
+input {
         task = field.string{default = "Calculate the mortgage payment for a $300"},
-    },
-    output = {
+    }
+
+output {
         answer = field.string{required = true, description = "The assistant's answer to the task"},
         completed = field.boolean{required = true, description = "Whether the task was completed successfully"},
-    },
-    function(input)
-    local result
+    }
+
+local result
     local max_turns = 5  -- Safety limit to prevent infinite loops
     local turn_count = 0
 
@@ -89,7 +90,4 @@ Procedure "main" {
         answer = answer,
         completed = Tool.called("done")
     }
-end
-}
-
 

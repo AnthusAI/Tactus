@@ -2,7 +2,7 @@
 -- This demonstrates evaluators that inspect execution traces:
 -- tool calls, agent turns, and state changes
 
-Agent("researcher", {
+Agent "researcher" {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[You are a research assistant.
@@ -12,30 +12,27 @@ When given a topic, search for information and then provide a summary.
 2. Then, call the 'done' tool with your findings]],
     initial_message = "Research: {topic}",
     toolsets = {"search"}
-})
+}
 
-Agent("reviewer", {
+Agent "reviewer" {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[You are a quality reviewer.
 
 Review the research and call 'done' with your assessment.]],
     initial_message = "Review this research: {research}",
-})
+}
 
-Procedure "main" {
-    input = {
+input {
         topic = field.string{required = true}
-    },
-    output = {
+    }
+
+output {
         research = field.string{required = true},
         reviewed = field.boolean{required = true}
-    },
-    state = {
-        research_started = field.boolean{description = "Research has started", default = false}
-    },
-    function(input)
-    -- Track state
+    }
+
+-- Track state
     State.set("research_started", true)
     
     -- Researcher does the work
@@ -61,8 +58,6 @@ Procedure "main" {
         research = research,
         reviewed = reviewed
     }
-end
-}
 
 -- BDD Specifications
 Specifications([[

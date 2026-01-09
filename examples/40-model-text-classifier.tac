@@ -41,19 +41,16 @@ Call done when you've provided a helpful response.
     toolsets = {"done"}
 }
 
-Procedure "main" {
-    input = {
+input {
         customer_message = field.string{required = true, description = "Customer message to analyze"}
-    },
-    output = {
+    }
+
+output {
         sentiment = field.string{required = true, description = "Detected sentiment (positive/negative/neutral)"},
         response = field.string{required = true, description = "Agent's response"}
-    },
-    state = {
-        sentiment = field.string{default = "unknown"}
-    },
-    function(input)
-    -- 1. Classify sentiment with ML model (checkpointed)
+    }
+
+-- 1. Classify sentiment with ML model (checkpointed)
     State.sentiment = Model("sentiment_classifier").predict({
         text = input.customer_message
     })
@@ -65,8 +62,6 @@ Procedure "main" {
         sentiment = State.sentiment,
         response = Support_agent.output
     }
-end
-}
 
 -- BDD Specifications
 Specifications([[

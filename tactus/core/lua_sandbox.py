@@ -210,6 +210,46 @@ class LuaSandbox:
         # Setup safe file I/O libraries (always available)
         self._setup_file_io_libraries()
 
+    def setup_assignment_interception(self, callback: Any):
+        """
+        Setup assignment interception on global scope to capture variable definitions.
+
+        This allows capturing assignments like: greeter = Agent {...}
+        The callback will be invoked with (name, value) whenever a new global is assigned.
+
+        Args:
+            callback: Python function or Lua function to call on assignment
+                     Should accept (name: str, value: Any) -> None
+
+        Example usage:
+            sandbox.setup_assignment_interception(lambda name, val: print(f"{name} = {val}"))
+            sandbox.execute("greeter = Agent {...}")  # Triggers callback
+        """
+        # Store callback in Lua globals so metatable can access it
+        self.lua.globals()["_tactus_intercept_callback"] = callback
+
+        # Set metatable directly on _G (don't replace _G with proxy table)
+        lua_code = """
+        local mt = {
+            __newindex = function(t, key, value)
+                -- Call the Python callback if it exists
+                if _tactus_intercept_callback then
+                    _tactus_intercept_callback(key, value)
+                end
+                -- Actually set the value
+                rawset(t, key, value)
+            end
+        }
+        setmetatable(_G, mt)
+        """
+
+        try:
+            self.lua.execute(lua_code)
+            logger.debug("Assignment interception enabled with metatable on _G")
+        except Exception as e:
+            logger.error(f"Failed to setup assignment interception: {e}", exc_info=True)
+            raise LuaSandboxError(f"Could not setup assignment interception: {e}")
+
     def _setup_file_io_libraries(self):
         """Setup safe file I/O libraries restricted to working directory.
 

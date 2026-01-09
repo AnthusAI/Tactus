@@ -23,22 +23,16 @@ Agent("test_agent", {
     toolsets = {"done"}
 }
 
-Procedure "main" {
-    input = {
+input {
         city = field.string{required = true}
-    },
+    }
 
-    -- Declare HTTP client dependency
-    dependencies = {
-        test_api = field.http_client{}
-    },
-
-    output = {
+output {
         success = field.boolean{required = true},
         message = field.string{required = true}
-    },
-    function(input)
-    -- Simple procedure that just completes
+    }
+
+-- Simple procedure that just completes
     -- In a real use case, the agent's tools would use test_api via ctx.deps.test_api
 
     Test_agent.turn()
@@ -47,8 +41,6 @@ Procedure "main" {
         success = true,
         message = "Dependencies initialized successfully"
     }
-end
-}
 
 Specifications([[
 Feature: HTTP Dependency Injection

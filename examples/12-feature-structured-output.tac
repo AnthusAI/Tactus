@@ -2,7 +2,7 @@
 -- Demonstrates using output for structured data extraction
 -- and accessing result.data, result.usage
 
-Agent("extractor", {
+Agent "extractor" {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[You extract city information. Return ONLY structured data with these fields:
@@ -19,18 +19,18 @@ Be concise and accurate.]],
         country = field.string{required = true},
         population = field.number{required = false}
     }
-})
+}
 
-Procedure "main" {
-    input = {
+input {
         query = field.string{default = "Tell me about Paris"}
-    },
-    output = {
+    }
+
+output {
         city_data = field.object{required = true},
         tokens_used = field.number{required = true}
-    },
-    function(input)
-    Log.info("Starting structured output demo", {query = input.query})
+    }
+
+Log.info("Starting structured output demo", {query = input.query})
     
     -- Agent returns ResultPrimitive (not raw data)
     local result = Agent("extractor").turn()
@@ -65,8 +65,6 @@ Procedure "main" {
         city_data = result.data,
         tokens_used = result.usage.total_tokens
     }
-end
-}
 
 -- BDD Specifications
 Specifications([[
@@ -80,5 +78,3 @@ Feature: Structured Output with Result Access
     And the output city_data should exist
     And the output tokens_used should exist
 ]])
-
-

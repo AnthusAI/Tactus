@@ -41,8 +41,8 @@ Follow the user's instructions and use the appropriate tools.]],
 }
 
 -- Main procedure
-Procedure "main" {
-    input = {
+
+input {
         task_type = field.string{
             default = "translate",
             description = "Task type: translate or calculate"
@@ -51,14 +51,15 @@ Procedure "main" {
             default = "hello",
             description = "Input for the task"
         }
-    },
-    output = {
+    }
+
+output {
         result = field.string{required = true, description = "Task result"},
         tool_used = field.string{required = true, description = "Which tool was used"},
         completed = field.boolean{required = true, description = "Whether task completed"}
-    },
-    function(input)
-        Log.info("Starting conditional mock demo", {
+    }
+
+Log.info("Starting conditional mock demo", {
             task_type = input.task_type,
             input_value = input.input_value
         })
@@ -126,8 +127,6 @@ Procedure "main" {
             tool_used = tool_used,
             completed = Tool.called("done")
         }
-    end
-}
 
 -- BDD Specifications
 Specifications([[

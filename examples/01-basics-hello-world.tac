@@ -10,14 +10,14 @@ Agent "worker" {
 }
 
 -- Procedure with outputs defined inline
-Procedure "main" {
-    output = {
-        success = required("boolean", "Whether the workflow completed successfully"),
-        message = required("string", "A greeting message"),
-        count = required("number", "Number of items processed"),
-    },
-    function(input)
-        Log.info("Hello, Tactus!")
+
+output {
+        success = field.boolean{required = true, description = "Whether the workflow completed successfully"},
+        message = field.string{required = true, description = "A greeting message"},
+        count = field.number{required = true, description = "Number of items processed"},
+    }
+
+Log.info("Hello, Tactus!")
 
         -- Initialize state
         State.set("items_processed", 0)
@@ -35,8 +35,6 @@ Procedure "main" {
           message = "Hello World example completed successfully",
           count = final_count
         }
-    end
-}
 
 -- BDD Specifications
 Specifications([[

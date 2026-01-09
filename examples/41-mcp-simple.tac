@@ -28,12 +28,12 @@ Call the greet tool with the name "Alice" and then call done.
 }
 
 -- Execute procedure
-Procedure "main" {
-    output = {
+
+output {
         result = field.string{description = "Result"}
-    },
-    function(input)
-    Log.info("Testing MCP tool")
+    }
+
+Log.info("Testing MCP tool")
     
     -- Single turn should be enough
     Agent("greeter").turn()
@@ -54,7 +54,4 @@ Procedure "main" {
         success = false,
         error = "Done not called"
     }
-end
-}
-
 

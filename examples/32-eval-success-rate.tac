@@ -3,7 +3,7 @@
 -- successfully completes a task by running it multiple times.
 
 -- Agent definition  
-Agent("completer", {
+Agent "completer" {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[You are a helpful assistant that completes tasks.
@@ -23,19 +23,20 @@ WRONG examples:
 
 Always follow this format exactly.]],
     initial_message = "{task}\n\nPlease complete this task now and call the done tool with your result.",
-})
+}
 
 -- Procedure
-Procedure "main" {
-    input = {
+
+input {
         task = field.string{required = true, description = "The task to complete"}
-    },
-    output = {
+    }
+
+output {
         output = field.string{required = true, description = "The task completion output"},
         completed = field.boolean{required = true, description = "Whether task was completed"}
-    },
-    function(input)
-    Log.info("Starting task", {task = input.task})
+    }
+
+Log.info("Starting task", {task = input.task})
     
     -- Have agent complete the task
     -- The initial_message template will inject the task parameter
@@ -57,8 +58,6 @@ Procedure "main" {
         output = output,
         completed = completed
     }
-end
-}
 
 -- BDD Specifications(workflow correctness)
 Specifications([[

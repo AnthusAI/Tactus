@@ -9,22 +9,17 @@ Agent "chatbot" {
 }
 
 -- Procedure with message_history configuration
-Procedure "main" {
-    input = {
+
+input {
         user_message = field.string{default = "Hello"}
-    },
-    output = {
+    }
+
+output {
         response = field.string{required = true},
         history_length = field.number{required = true}
-    },
+    }
 
-    -- Procedure-level message_history config (aligned with pydantic-ai)
-    message_history = {
-        mode = "isolated",  -- Each agent gets its own history
-        max_tokens = 120000
-    },
-    function(input)
-    Log.info("Message history demo starting")
+Log.info("Message history demo starting")
 
     -- Manually add a user message to the message history
     MessageHistory.inject_system("You are having a friendly conversation")
@@ -55,8 +50,6 @@ Procedure "main" {
         response = "Conversation completed",
         history_length = count
     }
-end
-}
 
 -- BDD Specifications
 Specifications([[

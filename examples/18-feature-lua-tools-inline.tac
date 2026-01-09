@@ -97,17 +97,18 @@ After calling the tool, call done with the tool's result.]],
 }
 
 -- Main workflow
-Procedure "main" {
-    input = {
+
+input {
         message = field.string{description = "Text processing request", default = "Convert 'hello world' to uppercase"}
-    },
-    output = {
+    }
+
+output {
         result = field.string{required = true, description = "The processed result"},
         tools_used = field.array{required = false, description = "List of tools that were used"},
         completed = field.boolean{required = true, description = "Whether the task was completed"}
-    },
-    function(input)
-    local max_turns = 5
+    }
+
+local max_turns = 5
     local turn_count = 0
     local result
 
@@ -150,8 +151,6 @@ Procedure "main" {
         tools_used = tools_used,
         completed = Tool.called("done")
     }
-end
-}
 
 -- BDD Specifications
 Specifications([[

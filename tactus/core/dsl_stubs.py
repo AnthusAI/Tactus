@@ -4,16 +4,31 @@ DSL stub functions for Lua execution.
 These functions are injected into the Lua sandbox before executing
 .tac files. They populate the registry with declarations.
 
-New Syntax (curried functions):
-    agent "greeter" { config }      -- agent(name)(config)
-    tool "done" { handler = fn }    -- tool(name)(config)
-    procedure "main" { run = fn }   -- procedure(name)(config)
-    model "classifier" { config }   -- model(name)(config)
+Current Syntax (assignment-based):
+    -- Tools: import built-ins or define custom
+    done = tactus.done
+    multiply = Tool { input = {...}, function(args) ... end }
 
-Lookup functions:
-    Agent("greeter").turn()         -- Look up and use agent
-    Tool("done")({args})            -- Look up and call tool
-    Model("classifier").predict()   -- Look up and use model
+    -- Agents: assign to variable, tools as variable refs
+    greeter = Agent {
+        provider = "openai",
+        system_prompt = "...",
+        tools = {done, multiply}
+    }
+
+    -- Procedure: unnamed defaults to "main"
+    Procedure {
+        output = { result = field.string{required = true} },
+        function(input)
+            greeter()
+            return { result = "done" }
+        end
+    }
+
+Agent/Tool calls use direct variable access:
+    greeter()                       -- Execute agent turn (callable syntax)
+    multiply.called()               -- Check if tool was called
+    done.last_result()              -- Get last tool result
 """
 
 from typing import Any, Callable, Dict
@@ -92,7 +107,9 @@ def _normalize_schema(schema):
     return schema
 
 
-def create_dsl_stubs(builder: RegistryBuilder, tool_primitive: Any = None) -> dict[str, Callable]:
+def create_dsl_stubs(
+    builder: RegistryBuilder, tool_primitive: Any = None, mock_manager: Any = None
+) -> dict[str, Callable]:
     """
     Create DSL stub functions that populate the registry.
 
@@ -102,6 +119,7 @@ def create_dsl_stubs(builder: RegistryBuilder, tool_primitive: Any = None) -> di
     Args:
         builder: RegistryBuilder to register declarations
         tool_primitive: Optional ToolPrimitive for creating callable ToolHandles
+        mock_manager: Optional MockManager for checking module mocks
 
     Returns:
         Dict of DSL functions to inject into Lua, including:
@@ -116,130 +134,155 @@ def create_dsl_stubs(builder: RegistryBuilder, tool_primitive: Any = None) -> di
     # Global registry for named procedure stubs to find their implementations
     _procedure_registry = {}
 
-    def _agent(agent_name: str, config=None):
+    def _process_procedure_config(name: str | None, config, procedure_registry: dict):
         """
-        Agent definition supporting both old and new syntax.
+        Process procedure config and register the procedure.
 
-        Old syntax (deprecated):
-            agent("name", {config})
-
-        New syntax (curried):
-            agent "name" { config }
+        This helper extracts the function from config, registers the procedure,
+        and returns a stub for later invocation.
 
         Args:
-            agent_name: Agent name (string identifier)
-            config: Optional config dict (for old syntax)
+            name: Procedure name (defaults to "main" if None)
+            config: Lua table with procedure config
+            procedure_registry: Registry to store procedure stubs
 
         Returns:
-            Function that accepts config (new syntax) or AgentHandle (old syntax)
+            NamedProcedureStub for the registered procedure
         """
-        # Check if this is old-style 2-argument call
-        if config is not None:
-            # Old syntax: agent("name", {config})
-            config_dict = lua_table_to_dict(config)
+        # Default to "main" if no name provided (for assignment-based syntax)
+        if name is None:
+            name = "main"
+        # Extract the function from the raw Lua table before conversion
+        # In Lua tables, unnamed elements are stored with numeric indices (1-based)
+        run_fn = None
 
-            # NOTE: Inline tools (with 'handler' key) are kept in the 'tools' field
-            # and will be processed by runtime during agent setup. We don't register
-            # them in registry.lua_tools to avoid double-processing.
+        # Check for function in array part of table (numeric indices)
+        if hasattr(config, "__getitem__"):
+            # Try to get function from numeric indices (Lua uses 1-based indexing)
+            for i in range(1, 10):  # Check first few positions
+                try:
+                    item = config[i]
+                    if callable(item):
+                        run_fn = item
+                        # Remove from table so it doesn't appear in config_dict
+                        config[i] = None
+                        break
+                except (KeyError, TypeError):
+                    break
 
-            # Extract output schema if present (support both 'output' and 'output')
-            # output is preferred (aligned with pydantic-ai)
-            output_schema = None
-            if "output" in config_dict:
-                output_config = config_dict["output"]
-                if isinstance(output_config, dict):
-                    output_schema = output_config
-            elif "output" in config_dict:
-                output_config = config_dict["output"]
-                if isinstance(output_config, dict):
-                    output_schema = output_config
+        # Now convert to dict (excluding the function we removed)
+        config_dict = lua_table_to_dict(config)
+        # Normalize empty config (lua {} -> python [])
+        if isinstance(config_dict, list) and len(config_dict) == 0:
+            config_dict = {}
 
-            # Support 'session' as an alias for 'message_history'
-            if "session" in config_dict and "message_history" not in config_dict:
-                config_dict["message_history"] = config_dict["session"]
+        # If we got a list with None values from removing function, clean it up
+        if isinstance(config_dict, list):
+            config_dict = [x for x in config_dict if x is not None]
+            if len(config_dict) == 0:
+                config_dict = {}
 
-            builder.register_agent(agent_name, config_dict, output_schema)
+        # If no function found in array part, check for legacy 'run' field
+        if run_fn is None:
+            run_fn = config_dict.pop("run", None)
 
-            # Create and register handle for lookup
-            handle = AgentHandle(agent_name)
-            _agent_registry[agent_name] = handle
-            return handle
+        if run_fn is None:
+            raise TypeError(
+                f"Procedure '{name}' requires a function. "
+                f"Use: Procedure {{ input = {{...}}, function() ... end }}"
+            )
 
-        # New curried syntax - return a function that accepts config
-        def accept_config(config) -> AgentHandle:
-            """Accept config and register agent."""
-            config_dict = lua_table_to_dict(config)
+        # Extract schemas (normalize empty lists to dicts)
+        input_schema = _normalize_schema(config_dict.get("input", {}))
+        output_schema = _normalize_schema(config_dict.get("output", {}))
+        state_schema = _normalize_schema(config_dict.get("state", {}))
 
-            # NOTE: Inline tools (with 'handler' key) are kept in the 'tools' field
-            # and will be processed by runtime during agent setup. We don't register
-            # them in registry.lua_tools to avoid double-processing.
+        # Also extract dependencies schema if present
+        dependencies_schema = _normalize_schema(config_dict.get("dependencies", {}))
 
-            # Extract output schema if present (support both 'output' and 'output')
-            # output is preferred (aligned with pydantic-ai)
-            output_schema = None
-            if "output" in config_dict:
-                output_config = config_dict["output"]
-                if isinstance(output_config, dict):
-                    output_schema = output_config
-            elif "output" in config_dict:
-                output_config = config_dict["output"]
-                if isinstance(output_config, dict):
-                    output_schema = output_config
+        # Register named procedure (pass dependencies as part of state for now)
+        # Future: Add dedicated dependencies field to registry
+        if dependencies_schema:
+            state_schema["_dependencies"] = dependencies_schema
 
-            # Support 'session' as an alias for 'message_history'
-            if "session" in config_dict and "message_history" not in config_dict:
-                config_dict["message_history"] = config_dict["session"]
+        builder.register_named_procedure(name, run_fn, input_schema, output_schema, state_schema)
 
-            builder.register_agent(agent_name, config_dict, output_schema)
+        # Return a stub that will delegate to the registry at call time
+        class NamedProcedureStub:
+            """
+            Stub that delegates to the actual ProcedureCallable when called.
+            This gets replaced during runtime initialization.
+            """
 
-            # Create and register handle for lookup
-            handle = AgentHandle(agent_name)
-            _agent_registry[agent_name] = handle
-            return handle
+            def __init__(self, proc_name, registry):
+                self.name = proc_name
+                self.registry = registry
 
-        return accept_config
+            def __call__(self, *args):
+                # Look up the real implementation from the registry
+                if self.name in self.registry:
+                    return self.registry[self.name](*args)
+                else:
+                    raise RuntimeError(f"Named procedure '{self.name}' not initialized yet")
 
-    def _procedure(name: str, config=None, run_fn=None):
+        stub = NamedProcedureStub(name, procedure_registry)
+        procedure_registry[name] = stub  # Store stub temporarily
+        return stub
+
+    def _procedure(name_or_config=None, config=None, run_fn=None):
         """
-        Procedure definition supporting both old and new syntax.
+        Procedure definition supporting multiple syntax variants.
 
-        Old syntax (deprecated):
-            procedure("main", {config}, function() ... end)
+        Unnamed syntax (new - defaults to "main"):
+            Procedure {
+                input = {...},
+                output = {...},
+                function(input) ... end
+            }
 
-        New syntax (curried):
-            procedure "main" { config with function as last element }
-
-        Args:
-            name: Procedure name (string)
-            config: Optional config dict (for old syntax)
-            run_fn: Optional function (for old syntax)
-
-        Returns:
-            Function that accepts config (new syntax) or ProcedureStub (old syntax)
-
-        Example (New Lua):
-            procedure "main" {
+        Named procedure syntax:
+            main = Procedure {
                 input = {...},
                 output = {...},
                 function(input)
-                    -- procedure body uses explicit input parameter
                     return {result = input.value * 2}
                 end
             }
 
-        Example (Old Lua - deprecated):
-            procedure("main", {
+        Sub-procedure syntax:
+            helper = Procedure {
                 input = {...},
-                output = {...}
-            }, function(input)
-                -- procedure body uses explicit input parameter
-                return {result = input.value * 2}
-            end)
+                output = {...},
+                function(input)
+                    return {result = input.value * 2}
+                end
+            }
+
+        Note: Unnamed Procedure {} (without assignment) is no longer supported.
+        Use script mode (top-level input/output) for simple cases instead.
+
+        Args:
+            name_or_config: Must be None (assignment-based syntax)
+            config: Procedure configuration table
+            run_fn: Not used (kept for compatibility)
+
+        Returns:
+            ProcedureStub that will be registered when assigned to a variable
         """
-        # Validate first argument is a string
-        if not isinstance(name, str):
+        # Check if this is assignment-based syntax: main = Procedure { ... }
+        # In this case, name_or_config is the table/config
+        if name_or_config is not None and hasattr(name_or_config, "items"):
+            # This is: variable = Procedure { ... }
+            # We can't know the variable name here, so return a callable stub
+            # that will process the config when assigned
+            config_table = name_or_config
+            return _process_procedure_config(None, config_table, _procedure_registry)
+
+        # First argument must be a string name for curried syntax
+        name = name_or_config
+        if name is not None and not isinstance(name, str):
             raise TypeError(
-                f"procedure() first argument must be a string name, got {type(name).__name__}"
+                f"Procedure() first argument must be a string name, got {type(name).__name__}"
             )
 
         # Check if this is old-style 3-argument call
@@ -296,77 +339,7 @@ def create_dsl_stubs(builder: RegistryBuilder, tool_primitive: Any = None) -> di
         # New curried syntax - return a function that accepts config
         def accept_config(config):
             """Accept config (with function as last unnamed element) and register procedure."""
-            # First extract the function from the raw Lua table before conversion
-            # In Lua tables, unnamed elements are stored with numeric indices (1-based)
-            run_fn = None
-
-            # Check for function in array part of table (numeric indices)
-            if hasattr(config, "__getitem__"):
-                # Try to get function from numeric indices (Lua uses 1-based indexing)
-                for i in range(1, 10):  # Check first few positions
-                    try:
-                        item = config[i]
-                        if callable(item):
-                            run_fn = item
-                            # Remove from table so it doesn't appear in config_dict
-                            config[i] = None
-                            break
-                    except (KeyError, TypeError):
-                        break
-
-            # Now convert to dict (excluding the function we removed)
-            config_dict = lua_table_to_dict(config)
-            # Normalize empty config (lua {} -> python [])
-            if isinstance(config_dict, list) and len(config_dict) == 0:
-                config_dict = {}
-
-            # If we got a list with None values from removing function, clean it up
-            if isinstance(config_dict, list):
-                config_dict = [x for x in config_dict if x is not None]
-                if len(config_dict) == 0:
-                    config_dict = {}
-
-            # If no function found in array part, check for legacy 'run' field
-            if run_fn is None:
-                run_fn = config_dict.pop("run", None)
-
-            if run_fn is None:
-                raise TypeError(
-                    f"procedure '{name}' requires a function. "
-                    f'Use: procedure "{name}" {{ input = {{...}}, function() ... end }}'
-                )
-
-            # Extract schemas (normalize empty lists to dicts)
-            input_schema = _normalize_schema(config_dict.get("input", {}))
-            output_schema = _normalize_schema(config_dict.get("output", {}))
-            state_schema = _normalize_schema(config_dict.get("state", {}))
-
-            # Register named procedure
-            builder.register_named_procedure(
-                name, run_fn, input_schema, output_schema, state_schema
-            )
-
-            # Return a stub that will delegate to the registry at call time
-            class NamedProcedureStub:
-                """
-                Stub that delegates to the actual ProcedureCallable when called.
-                This gets replaced during runtime initialization.
-                """
-
-                def __init__(self, proc_name, registry):
-                    self.name = proc_name
-                    self.registry = registry
-
-                def __call__(self, *args):
-                    # Look up the real implementation from the registry
-                    if self.name in self.registry:
-                        return self.registry[self.name](*args)
-                    else:
-                        raise RuntimeError(f"Named procedure '{self.name}' not initialized yet")
-
-            stub = NamedProcedureStub(name, _procedure_registry)
-            _procedure_registry[name] = stub  # Store stub temporarily
-            return stub
+            return _process_procedure_config(name, config, _procedure_registry)
 
         return accept_config
 
@@ -447,167 +420,6 @@ def create_dsl_stubs(builder: RegistryBuilder, tool_primitive: Any = None) -> di
 
             # Register the toolset
             builder.register_toolset(toolset_name, config_dict)
-
-        return accept_config
-
-    def _tool(tool_name: str, config=None, handler_fn=None):
-        """
-        Tool definition supporting both old and new syntax.
-
-        Old syntax (deprecated):
-            Tool("name", {config}, function)
-
-        New syntax (curried):
-            Tool "name" { config with function as last element }
-
-        Supports multiple sources:
-        - Inline Lua function (original behavior)
-        - Standard library via use = "tactus.done"
-        - Local .tac file via use = "./helpers/math.tac"
-        - MCP server via use = "mcp.brave-search"
-        - Python plugin via use = "plugin.financial.mortgage"
-        - CLI executable via use = "cli.git"
-
-        Args:
-            tool_name: Name of the tool (used for tracking and agent toolsets)
-            config: Optional config dict (for old syntax)
-            handler_fn: Optional handler function (for old syntax)
-
-        Returns:
-            Function that accepts config and returns ToolHandle (new syntax) or ToolHandle (old syntax)
-
-        Example (Inline Lua):
-            Tool "done" {
-                description = "Signal completion",
-                input = {
-                    reason = field.string{required = true}
-                },
-                function(input)
-                    return {message = "Done: " .. input.reason}
-                end
-            }
-
-        Example (Standard Library):
-            Tool "done" { use = "tactus.done" }
-
-        Example (Local file):
-            Tool "math" { use = "./helpers/math.tac" }
-        """
-        from tactus.primitives.tool_handle import ToolHandle
-
-        # Check if this is old-style 2 or 3-argument call
-        if config is not None or handler_fn is not None:
-            # Old syntax: Tool("name", {config}, function) or Tool("name", {config})
-            config_dict = lua_table_to_dict(config) if config is not None else {}
-
-            # Normalize empty config
-            if isinstance(config_dict, list) and len(config_dict) == 0:
-                config_dict = {}
-
-            # Check for 'use' attribute to import from external source
-            use_source = config_dict.get("use")
-            if use_source:
-                # This is an import, not an inline definition
-                config_dict["source"] = use_source
-
-                # For now, create a placeholder handler that will be replaced at runtime
-                def placeholder_handler(input):
-                    raise RuntimeError(
-                        f"Tool '{tool_name}' from source '{use_source}' not loaded. "
-                        "The runtime should have replaced this placeholder."
-                    )
-
-                handler_fn = placeholder_handler
-            else:
-                # Inline definition - check for handler in config or as third argument
-                if handler_fn is None:
-                    handler_fn = config_dict.pop("handler", None)
-
-                if handler_fn is None:
-                    raise TypeError(
-                        f"Tool '{tool_name}' requires either a function or 'use' attribute."
-                    )
-
-            # Register in builder (for agent toolsets)
-            import logging
-
-            logger = logging.getLogger(__name__)
-            logger.debug(f"Registering tool '{tool_name}' with config: {config_dict}")
-            builder.register_tool(tool_name, config_dict, handler_fn)
-
-            # Create and register handle for lookup
-            handle = ToolHandle(tool_name, handler_fn, tool_primitive)
-            _tool_registry[tool_name] = handle
-            return handle
-
-        # New curried syntax - return a function that accepts config
-        def accept_config(config):
-            """Accept config (with function as last unnamed element) and register tool."""
-            # First extract the function from the raw Lua table before conversion
-            handler_fn = None
-
-            # Check for function in array part of table (numeric indices)
-            if hasattr(config, "__getitem__"):
-                # Try to get function from numeric indices (Lua uses 1-based indexing)
-                for i in range(1, 10):  # Check first few positions
-                    try:
-                        item = config[i]
-                        if callable(item):
-                            handler_fn = item
-                            # Remove from table so it doesn't appear in config_dict
-                            config[i] = None
-                            break
-                    except (KeyError, TypeError):
-                        break
-
-            # Now convert to dict (excluding the function we removed)
-            config_dict = lua_table_to_dict(config)
-
-            # If we got a list with None values from removing function, clean it up
-            if isinstance(config_dict, list):
-                config_dict = [x for x in config_dict if x is not None]
-                if len(config_dict) == 0:
-                    config_dict = {}
-
-            # Check for 'use' attribute to import from external source
-            use_source = config_dict.get("use")
-            if use_source:
-                # This is an import, not an inline definition
-                # The runtime will handle loading from the source
-                config_dict["source"] = use_source
-
-                # For now, create a placeholder handler that will be replaced at runtime
-                def placeholder_handler(input):
-                    raise RuntimeError(
-                        f"Tool '{tool_name}' from source '{use_source}' not loaded. "
-                        "The runtime should have replaced this placeholder."
-                    )
-
-                handler_fn = placeholder_handler
-            else:
-                # Inline definition - must have a function
-                # If no function found in array part, check for legacy 'handler' field
-                if handler_fn is None:
-                    handler_fn = config_dict.pop("handler", None)
-
-                if handler_fn is None:
-                    raise TypeError(
-                        f"Tool '{tool_name}' requires either a function or 'use' attribute. "
-                        f'Use: Tool "{tool_name}" {{ function(input) ... end }} or '
-                        f'Tool "{tool_name}" {{ use = "tactus.done" }}'
-                    )
-
-            # Register in builder (for agent toolsets)
-            import logging
-
-            logger = logging.getLogger(__name__)
-            logger.debug(f"Registering tool '{tool_name}' with config: {config_dict}")
-            builder.register_tool(tool_name, config_dict, handler_fn)
-
-            # Create and register handle for lookup
-            handle = ToolHandle(tool_name, handler_fn, tool_primitive)
-            _tool_registry[tool_name] = handle
-            return handle
 
         return accept_config
 
@@ -870,7 +682,7 @@ def create_dsl_stubs(builder: RegistryBuilder, tool_primitive: Any = None) -> di
     }
 
     # Create lookup functions for uppercase names (Agent, Model)
-    # These allow: Agent("greeter").turn(), Model("classifier").predict()
+    # These allow: Agent("greeter")(), Model("classifier")()  (callable syntax)
     _Agent = AgentLookup(_agent_registry)
     _Model = ModelLookup(_model_registry)
 
@@ -880,32 +692,6 @@ def create_dsl_stubs(builder: RegistryBuilder, tool_primitive: Any = None) -> di
         tool_primitive.set_tool_registry(_tool_registry)
 
     # Create hybrid functions that handle both definition and lookup
-    class HybridAgent:
-        """Callable that handles both Agent definition and lookup."""
-
-        def __init__(self, definer, lookup):
-            self.definer = definer
-            self.lookup = lookup
-
-        def __call__(self, name, config=None):
-            # If config is provided, it's old-style definition: Agent("name", {config})
-            if config is not None:
-                return self.definer(name, config)
-
-            # If called with just a string
-            if isinstance(name, str):
-                # Check if the agent is already defined (lookup case)
-                if self.lookup and name in self.lookup._registry:
-                    # This is a lookup: Agent("name") where agent exists
-                    return self.lookup(name)
-                else:
-                    # This is the start of a definition: Agent "name" {...}
-                    # Return the curried function from definer
-                    return self.definer(name)
-
-            # Otherwise pass through to definer
-            return self.definer(name, config)
-
     class HybridModel:
         """Callable that handles both Model definition and lookup."""
 
@@ -1023,6 +809,9 @@ def create_dsl_stubs(builder: RegistryBuilder, tool_primitive: Any = None) -> di
         """
         from tactus.dspy import configure_lm
 
+        # Note: With unified mocking, mocks are handled at Module/Agent level
+        # LM configuration still happens normally; mocks intercept at call time
+
         # Check if this is curried syntax (config is None, return acceptor)
         if config is None:
             # Return a function that accepts config
@@ -1134,6 +923,75 @@ def create_dsl_stubs(builder: RegistryBuilder, tool_primitive: Any = None) -> di
             return create_history(messages_list)
         return create_history()
 
+    class TactusMessage:
+        """
+        First-class Message primitive for conversation history.
+
+        Represents a single message in a conversation with validated role and content.
+        """
+
+        VALID_ROLES = {"user", "assistant", "system"}
+
+        def __init__(self, role: str, content: str, **metadata):
+            if role not in self.VALID_ROLES:
+                raise ValueError(
+                    f"Invalid role '{role}'. Must be one of: {', '.join(self.VALID_ROLES)}"
+                )
+            self.role = role
+            self.content = content
+            self.metadata = metadata
+
+        def to_dict(self):
+            """Convert to dict format for history/DSPy."""
+            result = {"role": self.role, "content": self.content}
+            if self.metadata:
+                result.update(self.metadata)
+            return result
+
+        def __repr__(self):
+            content_preview = self.content[:50] + "..." if len(self.content) > 50 else self.content
+            return f"Message(role='{self.role}', content='{content_preview}')"
+
+    def _message(config):
+        """
+        Create a Message for use in conversation history.
+
+        Message is a first-class primitive representing a single message
+        in a multi-turn conversation. It validates role and provides
+        a clean API for building conversation history.
+
+        Valid roles: user, assistant, system
+
+        Example (Lua):
+            -- Create messages
+            msg = Message {role = "user", content = "Hello"}
+            msg = Message {role = "assistant", content = "Hi there!"}
+            msg = Message {role = "system", content = "You are helpful"}
+
+            -- Add to history
+            history.add(msg)
+
+        Args:
+            config: Table with 'role' and 'content' fields
+
+        Returns:
+            TactusMessage instance
+        """
+        config_dict = lua_table_to_dict(config)
+
+        role = config_dict.get("role")
+        content = config_dict.get("content")
+
+        if not role:
+            raise ValueError("Message requires 'role' field")
+        if not content:
+            raise ValueError("Message requires 'content' field")
+
+        # Extract any additional metadata
+        metadata = {k: v for k, v in config_dict.items() if k not in ("role", "content")}
+
+        return TactusMessage(role, content, **metadata)
+
     def _module(module_name: str, config=None):
         """
         Create a DSPy Module with a given strategy.
@@ -1167,13 +1025,17 @@ def create_dsl_stubs(builder: RegistryBuilder, tool_primitive: Any = None) -> di
         # Check if this is old-style 2-argument call
         if config is not None:
             config_dict = lua_table_to_dict(config)
-            return create_module(module_name, config_dict)
+            return create_module(
+                module_name, config_dict, registry=builder.registry, mock_manager=mock_manager
+            )
 
         # New curried syntax - return a function that accepts config
         def accept_config(cfg):
             """Accept config and create module."""
             config_dict = lua_table_to_dict(cfg)
-            return create_module(module_name, config_dict)
+            return create_module(
+                module_name, config_dict, registry=builder.registry, mock_manager=mock_manager
+            )
 
         return accept_config
 
@@ -1215,25 +1077,476 @@ def create_dsl_stubs(builder: RegistryBuilder, tool_primitive: Any = None) -> di
             config_dict = lua_table_to_dict(config)
             # Generate a unique name if not provided
             agent_name = config_dict.pop("name", "dspy_agent")
-            return create_dspy_agent(agent_name, config_dict)
+            return create_dspy_agent(
+                agent_name, config_dict, registry=builder.registry, mock_manager=mock_manager
+            )
 
         # Curried form - return function that accepts config
         def accept_config(cfg):
             """Accept config and create DSPy agent."""
             config_dict = lua_table_to_dict(cfg)
             agent_name = config_dict.pop("name", "dspy_agent")
-            return create_dspy_agent(agent_name, config_dict)
+            return create_dspy_agent(
+                agent_name, config_dict, registry=builder.registry, mock_manager=mock_manager
+            )
 
         return accept_config
 
+    # ========================================================================
+    # NEW SYNTAX SUPPORT - Phase B
+    # ========================================================================
+
+    # Create tactus namespace with built-in tools
+    class TactusNamespace:
+        """Namespace for built-in Tactus tools accessible via: from tactus { done }"""
+
+        @property
+        def done(self):
+            """Built-in done tool for signaling completion."""
+            from tactus.primitives.tool_handle import ToolHandle
+
+            def done_handler(args):
+                reason = args.get("reason", "Task completed")
+                return {"status": "completed", "reason": reason}
+
+            # Register if not already registered
+            if "done" not in _tool_registry:
+                config = {
+                    "description": "Signal task completion",
+                    "input": {"reason": {"type": "string", "required": False}},
+                }
+                builder.register_tool("done", config, done_handler)
+                handle = ToolHandle("done", done_handler, tool_primitive)
+                _tool_registry["done"] = handle
+
+            return _tool_registry["done"]
+
+    _tactus_namespace = TactusNamespace()
+
+    # Create MCP namespace for accessing MCP server tools
+    class McpServerNamespace:
+        """Namespace for a specific MCP server's tools."""
+
+        def __init__(self, server_name: str):
+            self.server_name = server_name
+
+        def __getattr__(self, tool_name: str):
+            """Dynamically create tool handles for MCP tools."""
+            from tactus.primitives.tool_handle import ToolHandle
+
+            full_name = f"mcp.{self.server_name}.{tool_name}"
+
+            # Return existing handle if already created
+            if full_name in _tool_registry:
+                return _tool_registry[full_name]
+
+            # Create a placeholder handler - will be replaced by runtime
+            def mcp_placeholder_handler(args):
+                raise RuntimeError(
+                    f"MCP tool '{full_name}' not connected. "
+                    f"Configure MCP server '{self.server_name}' in runtime."
+                )
+
+            # Register the tool with MCP source info
+            config = {
+                "description": f"MCP tool from {self.server_name}",
+                "source": full_name,
+                "mcp_server": self.server_name,
+                "mcp_tool": tool_name,
+            }
+            builder.register_tool(full_name, config, mcp_placeholder_handler)
+
+            # Create and register handle
+            handle = ToolHandle(full_name, mcp_placeholder_handler, tool_primitive)
+            _tool_registry[full_name] = handle
+            return handle
+
+    class McpNamespace:
+        """
+        Namespace for MCP server tools.
+
+        Supports syntax like:
+            read_file = mcp.filesystem.read_file
+            search = mcp.brave_search.search
+
+        The tool handle is created as a placeholder that will be
+        connected to the actual MCP server at runtime.
+        """
+
+        def __getattr__(self, server_name: str):
+            """Return a server namespace for the given MCP server."""
+            return McpServerNamespace(server_name)
+
+    _mcp_namespace = McpNamespace()
+
+    def _from(namespace_name):
+        """
+        Import tools/primitives from a namespace.
+
+        New syntax:
+            from tactus { done }
+            from tactus { finish = done }  -- with rename
+
+        This function must be called from Lua with proper globals injection.
+        It returns a Lua function that will handle the import table and
+        inject names into the global scope.
+
+        Args:
+            namespace_name: Namespace to import from (string: "tactus", etc.)
+
+        Returns:
+            Lua function that accepts import table and injects into globals
+        """
+        import logging
+
+        logger = logging.getLogger(__name__)
+
+        # For now, only support 'tactus' namespace
+        if namespace_name != "tactus":
+            raise NotImplementedError(
+                f"Namespace '{namespace_name}' not yet supported. "
+                f"Currently only 'tactus' namespace is available."
+            )
+
+        # Return a Lua function (will be created by the caller's Lua runtime)
+        # The function receives the import spec table and injects variables
+        # This needs to be handled in Lua, not Python
+        # So we return a special marker that the Lua code will recognize
+
+        def accept_imports(import_spec):
+            """
+            Process import specification and return namespace object.
+
+            The Lua code calling this should handle variable injection.
+            We return the done tool handle so it can be assigned.
+            """
+            # Get the 'done' tool from the namespace
+            done_tool = _tactus_namespace.done
+
+            logger.debug(f"Importing from {namespace_name}: {import_spec}")
+
+            # Return the tool - Lua will assign it to the variable
+            # For simple case 'from tactus { done }', Lua sees { done }
+            # which is actually { [1] = "done" } - a table with string "done" at index 1
+            # We need to return the actual tool handle
+            return done_tool
+
+        return accept_imports
+
+    def _process_tool_config(tool_name, config):
+        """
+        Process tool configuration for both curried and direct syntax.
+
+        Args:
+            tool_name: Name of the tool
+            config: Configuration table
+
+        Returns:
+            ToolHandle
+        """
+        from tactus.primitives.tool_handle import ToolHandle
+
+        # Handle {use = "tactus.done"} syntax - reference to built-in tool
+        config_dict = lua_table_to_dict(config) if hasattr(config, "items") else config
+        if isinstance(config_dict, dict) and "use" in config_dict:
+            use_ref = config_dict["use"]
+            if use_ref == "tactus.done":
+                # Return the tactus.done tool
+                return _tactus_namespace.done
+            # Could add more built-in references here
+
+        # Extract function from config
+        handler_fn = None
+        if hasattr(config, "__getitem__"):
+            for i in range(1, 10):
+                try:
+                    item = config[i]
+                    if callable(item):
+                        handler_fn = item
+                        config[i] = None
+                        break
+                except (KeyError, TypeError, IndexError):
+                    break
+
+        # Convert to dict
+        config_dict = lua_table_to_dict(config)
+
+        # Clean up None values from function extraction
+        if isinstance(config_dict, list):
+            config_dict = [x for x in config_dict if x is not None]
+            if len(config_dict) == 0:
+                config_dict = {}
+
+        # Check for legacy handler field
+        if handler_fn is None and isinstance(config_dict, dict):
+            handler_fn = config_dict.pop("handler", None)
+
+        if handler_fn is None:
+            raise TypeError(
+                f"Tool '{tool_name}' requires a function. "
+                "Use: multiply = Tool {{ function(args) ... end }}"
+            )
+
+        # Register tool with provided name
+        builder.register_tool(tool_name, config_dict, handler_fn)
+        handle = ToolHandle(tool_name, handler_fn, tool_primitive)
+
+        # Store in registry
+        _tool_registry[tool_name] = handle
+
+        return handle
+
+    def _new_tool(name_or_config=None):
+        """
+        New Tool factory for assignment-based syntax.
+
+        Supports both:
+        1. Assignment syntax: multiply = Tool { ... }
+        2. Curried syntax: Tool "done" { use = "tactus.done" }
+
+        New syntax:
+            multiply = Tool {
+                description = "Multiply two numbers",
+                input = {
+                    a = field.number{required = true},
+                    b = field.number{required = true}
+                },
+                function(args)
+                    return args.a * args.b
+                end
+            }
+
+        The name is captured via assignment interception.
+
+        Args:
+            name_or_config: Either a string name (curried) or configuration table
+
+        Returns:
+            ToolHandle that will be assigned to variable, or curried function
+        """
+        from tactus.primitives.tool_handle import ToolHandle
+
+        # Handle curried syntax: Tool "name" returns a function that accepts config
+        if isinstance(name_or_config, str):
+            tool_name = name_or_config
+
+            def accept_config(config):
+                return _process_tool_config(tool_name, config)
+
+            return accept_config
+
+        # Handle direct config syntax: multiply = Tool { ... }
+        config = name_or_config
+        if config is None:
+            raise TypeError("Tool requires a configuration table")
+
+        # Extract function from config
+        handler_fn = None
+        if hasattr(config, "__getitem__"):
+            for i in range(1, 10):
+                try:
+                    item = config[i]
+                    if callable(item):
+                        handler_fn = item
+                        config[i] = None
+                        break
+                except (KeyError, TypeError, IndexError):
+                    break
+
+        # Convert to dict
+        config_dict = lua_table_to_dict(config)
+
+        # Clean up None values from function extraction
+        if isinstance(config_dict, list):
+            config_dict = [x for x in config_dict if x is not None]
+            if len(config_dict) == 0:
+                config_dict = {}
+
+        # Check for legacy handler field
+        if handler_fn is None and isinstance(config_dict, dict):
+            handler_fn = config_dict.pop("handler", None)
+
+        if handler_fn is None:
+            raise TypeError(
+                "Tool requires a function. " "Use: multiply = Tool { function(args) ... end }"
+            )
+
+        # Generate a temporary name - will be replaced when assigned
+        import uuid
+
+        temp_name = f"_temp_tool_{uuid.uuid4().hex[:8]}"
+
+        # Register tool
+        builder.register_tool(temp_name, config_dict, handler_fn)
+        handle = ToolHandle(temp_name, handler_fn, tool_primitive)
+
+        # Store in registry with temp name
+        _tool_registry[temp_name] = handle
+
+        return handle
+
+    def _process_agent_config(agent_name, config):
+        """
+        Process agent configuration for both curried and direct syntax.
+
+        Args:
+            agent_name: Name of the agent
+            config: Configuration table
+
+        Returns:
+            AgentHandle
+        """
+        config_dict = lua_table_to_dict(config)
+
+        # Handle tools field - convert ToolHandles to their names
+        if "tools" in config_dict:
+            tools = config_dict["tools"]
+            if isinstance(tools, (list, tuple)):
+                tool_names = []
+                for t in tools:
+                    if hasattr(t, "name"):  # ToolHandle
+                        tool_names.append(t.name)
+                    elif isinstance(t, str):
+                        tool_names.append(t)
+                # Store as toolsets for runtime compatibility
+                config_dict["toolsets"] = tool_names
+                del config_dict["tools"]
+
+        # Extract input schema if present
+        input_schema = None
+        if "input" in config_dict:
+            input_config = config_dict["input"]
+            if isinstance(input_config, dict):
+                input_schema = input_config
+                config_dict["input_schema"] = input_schema
+                del config_dict["input"]
+
+        # Extract output schema if present
+        output_schema = None
+        if "output" in config_dict:
+            output_config = config_dict["output"]
+            if isinstance(output_config, dict):
+                output_schema = output_config
+                config_dict["output_schema"] = output_schema
+                del config_dict["output"]
+
+        # Support 'session' as an alias for 'message_history'
+        if "session" in config_dict and "message_history" not in config_dict:
+            config_dict["message_history"] = config_dict["session"]
+
+        # Register agent with provided name
+        builder.register_agent(agent_name, config_dict, output_schema)
+
+        # Create and register handle for lookup
+        handle = AgentHandle(agent_name)
+        _agent_registry[agent_name] = handle
+
+        return handle
+
+    def _new_agent(name_or_config=None):
+        """
+        New Agent factory for assignment-based and curried syntax.
+
+        Supports both:
+        1. Assignment syntax: greeter = Agent { ... }
+        2. Curried syntax: Agent "calculator" { ... }
+
+        New syntax:
+            greeter = Agent {
+                provider = "openai",
+                system_prompt = "...",
+                tools = {done, multiply},
+            }
+
+        The name is captured via assignment interception.
+
+        Args:
+            name_or_config: Either a string name (curried) or configuration table
+
+        Returns:
+            AgentHandle that will be assigned to variable, or curried function
+        """
+        # Handle string argument: either curried declaration or lookup
+        if isinstance(name_or_config, str):
+            agent_name = name_or_config
+            # Check if agent already exists - if so, it's a lookup
+            if agent_name in _agent_registry:
+                return _agent_registry[agent_name]
+
+            # Otherwise, return curried function for declaration
+            def accept_config(config):
+                return _process_agent_config(agent_name, config)
+
+            return accept_config
+
+        # Handle direct config syntax: greeter = Agent { ... }
+        config = name_or_config
+        if config is None:
+            raise TypeError("Agent requires a configuration table")
+
+        config_dict = lua_table_to_dict(config)
+
+        # Handle tools field - convert ToolHandles to their names
+        if "tools" in config_dict:
+            tools = config_dict["tools"]
+            if isinstance(tools, (list, tuple)):
+                tool_names = []
+                for t in tools:
+                    if hasattr(t, "name"):  # ToolHandle
+                        tool_names.append(t.name)
+                    elif isinstance(t, str):
+                        tool_names.append(t)
+                # Store as toolsets for runtime compatibility
+                config_dict["toolsets"] = tool_names
+                del config_dict["tools"]
+
+        # Extract input schema if present
+        input_schema = None
+        if "input" in config_dict:
+            input_config = config_dict["input"]
+            if isinstance(input_config, dict):
+                input_schema = input_config
+                config_dict["input_schema"] = input_schema
+                del config_dict["input"]
+
+        # Extract output schema if present
+        output_schema = None
+        if "output" in config_dict:
+            output_config = config_dict["output"]
+            if isinstance(output_config, dict):
+                output_schema = output_config
+                config_dict["output_schema"] = output_schema
+                del config_dict["output"]
+
+        # Support 'session' as an alias for 'message_history'
+        if "session" in config_dict and "message_history" not in config_dict:
+            config_dict["message_history"] = config_dict["session"]
+
+        # Generate a temporary name - will be replaced when assigned
+        import uuid
+
+        temp_name = f"_temp_agent_{uuid.uuid4().hex[:8]}"
+
+        # Register agent
+        builder.register_agent(temp_name, config_dict, output_schema)
+
+        # Create and register handle for lookup
+        handle = AgentHandle(temp_name)
+        _agent_registry[temp_name] = handle
+
+        return handle
+
     return {
+        # NEW SYNTAX (Phase B+)
+        "tactus": _tactus_namespace,  # Namespace: tactus.done
+        "mcp": _mcp_namespace,  # Namespace: mcp.filesystem.read_file
         # Core declarations (CamelCase - for definitions AND lookups)
-        "Agent": HybridAgent(_agent, _Agent),
+        "Agent": _new_agent,  # NEW syntax - assignment based
         "Model": HybridModel(_model, _Model),
         "Procedure": _procedure,
         "Prompt": _prompt,
         "Toolset": _toolset,
-        "Tool": _tool,
+        "Tool": _new_tool,  # NEW syntax - assignment based
         "Hitl": _hitl,
         "Stages": _stages,
         "Specification": _specification,
@@ -1251,6 +1564,7 @@ def create_dsl_stubs(builder: RegistryBuilder, tool_primitive: Any = None) -> di
         "Signature": _signature,
         "Module": _module,
         "History": _history,
+        "Message": _message,
         "DSPyAgent": _dspy_agent,
         # Script mode (top-level declarations)
         "input": _input,
@@ -1277,17 +1591,92 @@ def create_dsl_stubs(builder: RegistryBuilder, tool_primitive: Any = None) -> di
         "matches": _matches,
         # New field builder pattern
         "field": field,
-        # Old type functions (temporary until migration)
-        "required": _required,
-        "string": _string,
-        "number": _number,
-        "boolean": _boolean,
-        "array": _array,
-        "object": _object,
+        # Note: Old type functions (string, number, etc.) removed to avoid
+        # shadowing Lua built-ins. Use field.string{}, field.number{}, etc.
         # Registries (for runtime to enhance handles)
         "_registries": {
             "agent": _agent_registry,
             "tool": _tool_registry,
             "model": _model_registry,
         },
+        # Assignment interception callback
+        "_tactus_register_binding": _make_binding_callback(
+            builder, _tool_registry, _agent_registry
+        ),
     }
+
+
+def _make_binding_callback(builder: RegistryBuilder, tool_registry: dict, agent_registry: dict):
+    """
+    Factory to create the binding callback with closure over builder/registries.
+
+    This callback is called by Lua's __newindex metatable when assignments happen.
+    """
+    import logging
+    from tactus.primitives.tool_handle import ToolHandle
+
+    callback_logger = logging.getLogger(__name__)
+
+    def _tactus_register_binding(name: str, value: Any) -> None:
+        """
+        Callback for assignment interception in new syntax.
+
+        Called by Lua's __newindex metatable when assignments like:
+            multiply = Tool {...}
+            greeter = Agent {...}
+
+        For handles with temp names, this renames them to the assigned name
+        and re-registers them in the appropriate registry.
+
+        Args:
+            name: Variable name being assigned
+            value: Value being assigned
+        """
+        # Check if this is a ToolHandle with a temp name
+        if isinstance(value, ToolHandle):
+            old_name = value.name
+            if old_name.startswith("_temp_tool_"):
+                # Rename the tool
+                callback_logger.debug(f"Renaming tool '{old_name}' to '{name}'")
+                value.name = name
+
+                # Remove old registry entry, add new one
+                if old_name in tool_registry:
+                    del tool_registry[old_name]
+                tool_registry[name] = value
+
+                # Re-register in builder with correct name
+                # Tools are stored in builder.registry.lua_tools
+                if hasattr(builder, "registry") and old_name in builder.registry.lua_tools:
+                    tool_data = builder.registry.lua_tools.pop(old_name)
+                    builder.registry.lua_tools[name] = tool_data
+                    callback_logger.debug(
+                        f"Re-registered tool '{name}' in builder.registry.lua_tools"
+                    )
+
+        # Check if this is an AgentHandle with a temp name
+        if isinstance(value, AgentHandle):
+            old_name = value.name
+            if old_name.startswith("_temp_agent_"):
+                # Rename the agent
+                callback_logger.debug(f"Renaming agent '{old_name}' to '{name}'")
+                value.name = name
+
+                # Remove old registry entry, add new one
+                if old_name in agent_registry:
+                    del agent_registry[old_name]
+                agent_registry[name] = value
+
+                # Re-register in builder with correct name
+                # Agents are stored in builder.registry.agents
+                if hasattr(builder, "registry") and old_name in builder.registry.agents:
+                    agent_data = builder.registry.agents.pop(old_name)
+                    builder.registry.agents[name] = agent_data
+                    callback_logger.debug(
+                        f"Re-registered agent '{name}' in builder.registry.agents"
+                    )
+
+        # Log all assignments for debugging (only at trace level to avoid noise)
+        callback_logger.debug(f"Assignment captured: {name} = {type(value).__name__}")
+
+    return _tactus_register_binding

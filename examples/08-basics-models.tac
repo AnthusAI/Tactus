@@ -112,12 +112,12 @@ Agent "nova_lite" {
 
 
 -- Procedure to run all models and collect responses
-Procedure "main" {
-    output = {
+
+output {
         result = field.string{description = "Result"}
-    },
-    function(input)
-    Log.info("Starting multi-model comparison")
+    }
+
+Log.info("Starting multi-model comparison")
     
     local results = {}
     
@@ -222,8 +222,6 @@ Procedure "main" {
         results = results,
         total_models = 12
     }
-end
-}
 
 -- BDD Specifications
 Specifications([[
@@ -237,5 +235,3 @@ Feature: Multi-Model Comparison
     And the procedure should complete successfully
     And the result should include responses from 8 models
 ]])
-
-

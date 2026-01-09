@@ -48,16 +48,13 @@ When done, call the done tool with your answer.]],
 }
 
 -- Procedure demonstrating DSL toolset usage
-Procedure "main" {
-    output = {
+
+output {
         calculation_result = field.string{required = true, description = "The calculation result from the agent"},
         completed = field.boolean{required = true, description = "Whether the agent completed successfully"}
-    },
-    output = {
-        result = field.string{description = "Result"}
-    },
-    function(input)
-    Log.info("Starting DSL toolset example")
+    }
+
+Log.info("Starting DSL toolset example")
 
     -- Note: Toolset.get() API is not yet implemented
     -- The agent can use toolsets directly via the toolsets parameter
@@ -97,8 +94,6 @@ Procedure "main" {
             completed = false
         }
     end
-end
-}
 
 -- BDD Specifications
 Specifications([[

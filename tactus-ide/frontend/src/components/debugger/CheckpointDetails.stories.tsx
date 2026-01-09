@@ -30,7 +30,7 @@ const mockCheckpoint: CheckpointEntry = {
     function: 'recommend_plan',
     code_context: `local function recommend_plan(state)
   local features = state.requested_features
-  return Agent.turn("Recommend based on " .. features)
+  return Agent({message = "Recommend based on " .. features})
 end`,
   },
   captured_vars: {

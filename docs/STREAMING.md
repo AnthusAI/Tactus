@@ -19,7 +19,7 @@ When running a procedure in the IDE, agent responses are streamed in real-time:
 ```lua
 -- ✅ STREAMING WORKS - No outputs defined
 main = procedure("main", {}, function()
-    MyAgent.turn()
+    MyAgent()
 end)
 
 -- ❌ STREAMING DISABLED - Has structured output
@@ -29,7 +29,7 @@ main = procedure("main", {
     },
     state = {}
 }, function()
-    MyAgent.turn()
+    MyAgent()
 end)
 ```
 
@@ -91,7 +91,7 @@ agent("storyteller", {
 })
 
 main = procedure("main", {}, function()
-    Storyteller.turn()  -- This will stream!
+    Storyteller()  -- This will stream!
 end)
 ```
 

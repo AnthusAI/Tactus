@@ -17,7 +17,7 @@ Feature: BDD Specifications (Gherkin)
 
   main = Procedure "main" {
     function(input)
-  Worker.turn()
+  Worker()
   return { result = "done" }
   end
   }
@@ -48,7 +48,7 @@ Feature: BDD Specifications (Gherkin)
     function(input)
   Stage.set("start")
   Stage.set("working")
-  Worker.turn()
+  Worker()
   Stage.set("done")
   return { result = "done" }
   end
@@ -84,7 +84,7 @@ Feature: BDD Specifications (Gherkin)
     function(input)
   State.set("counter", 0)
   State.set("counter", 5)
-  Worker.turn()
+  Worker()
   return { result = "done" }
   end
   }
@@ -113,7 +113,7 @@ Feature: BDD Specifications (Gherkin)
 
   main = Procedure "main" {
     function(input)
-  Worker.turn()
+  Worker()
   return { result = "done" }
   end
   }

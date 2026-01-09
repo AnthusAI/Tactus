@@ -5,7 +5,7 @@
 -- - Advanced evaluators (regex, JSON schema, range)
 -- - CI/CD thresholds
 
-Agent("contact_formatter", {
+Agent "contact_formatter" {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[You are a contact information formatter.
@@ -19,23 +19,20 @@ Given raw contact information, format it properly:
 Return JSON with: {phone, email, score}]],
     initial_message = "Format this contact: {raw_contact}",
     toolsets = {"validate"}
-})
+}
 
-Procedure "main" {
-    input = {
+input {
         raw_contact = field.string{required = true}
-    },
-    output = {
+    }
+
+output {
         phone = field.string{required = false},
         email = field.string{required = false},
         score = field.number{required = false},
         formatted = field.boolean{required = true}
-    },
-    state = {
-        formatting_started = field.boolean{description = "Formatting has started", default = false}
-    },
-    function(input)
-    State.set("formatting_started", true)
+    }
+
+State.set("formatting_started", true)
     
     -- Have agent format the contact
     Agent("contact_formatter").turn()
@@ -57,8 +54,6 @@ Procedure "main" {
     return {
         formatted = false
     }
-end
-}
 
 -- BDD Specifications
 Specifications([[

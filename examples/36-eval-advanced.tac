@@ -1,7 +1,7 @@
 -- Example: Advanced Evaluator Types
 -- This demonstrates regex, JSON schema, and numeric range evaluators
 
-Agent("formatter", {
+Agent "formatter" {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[You are a helpful assistant that formats data.
@@ -12,19 +12,19 @@ Format your output according to the requirements.
 IMPORTANT: Always call the done tool immediately with your formatted result.]],
     initial_message = "{task}",
     request_limit = 5
-})
+}
 
-Procedure "main" {
-    input = {
+input {
         task = field.string{required = true}
-    },
-    output = {
+    }
+
+output {
         result = field.string{required = true},
         score = field.number{required = false},
         data = field.object{required = false}
-    },
-    function(input)
-    -- Have agent complete the task
+    }
+
+-- Have agent complete the task
     Agent("formatter").turn()
     
     -- Get result
@@ -41,8 +41,6 @@ Procedure "main" {
         result = "Task not completed",
         score = 0
     }
-end
-}
 
 -- BDD Specifications
 Specifications([[

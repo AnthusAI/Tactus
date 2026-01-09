@@ -1,28 +1,35 @@
 # Tactus
 
-**A programming language for AI agents that never lose their place.**
+**A programming language for reliable, tool-using AI agents.**
 
-Tactus is a programming language with durable execution built in. Write normal imperative code—loops, conditionals, function calls—and the runtime transparently checkpoints every operation. When execution suspends for human approval, crashes, or times out, it resumes exactly where it left off.
+*Agents that never lose their place.*
 
-## The Problem: Agents Need to Wait
+Tactus is a Lua-based DSL for building agent programs: you define tools, agents, and procedures that orchestrate their work. It’s designed for **bounded autonomy**—use imperative code for the steps that must be deterministic, and agent turns for the steps that benefit from intelligence. The runtime handles durability, human-in-the-loop, tool/context control, and testing so that workflows can run for hours or days and still be shippable.
 
-Real-world agents can't run to completion in one shot. They need to:
+> **Status:** Alpha. APIs and syntax may change; not production-ready.
+
+## The Problem: Agent Scripts Don’t Scale
+
+“Give an agent tools and a prompt” works surprisingly well when you’re there to steer. But when you run the same workflow autonomously (or thousands of times), small failure rates turn into real incidents.
+
+Real-world agent programs need to:
 
 - **Wait for humans**: Approval gates, reviews, input requests
 - **Survive failures**: Network timeouts, API errors, process crashes
-- **Run for days**: Complex tasks that span hours or weeks
-- **Coordinate**: Wait for other agents, external systems, scheduled events
+- **Run for hours or days**: Long tasks, retries, handoffs
+- **Control capabilities and context**: Change tool access and the information an agent sees as the workflow progresses
+- **Be testable**: Verify orchestration logic and measure reliability
 
-Traditional agent frameworks don't solve this. They give you tools for building agents, but the durability problem—persisting state, resuming execution, replaying completed work—is left to you.
+Traditional frameworks help you call models, but the rest becomes infrastructure you build yourself: state machines, checkpoint tables, replay logic, HITL plumbing, and bespoke tests.
 
-## The Solution: Transparent Checkpointing
+## The Solution: Imperative Orchestration with Transparent Durability
 
-With Tactus, durability is built into the language:
+In Tactus, the deterministic parts are just code—loops, conditionals, function calls. When you want intelligence, you take an agent turn. The runtime transparently checkpoints every agent turn, tool call, and human interaction so execution can suspend and resume safely:
 
 ```lua
 -- This looks like it runs straight through
 repeat
-  Agent("researcher").turn()
+  researcher()
 until Tool.called("done")
 
 -- But here execution might suspend for days
@@ -67,7 +74,7 @@ This is powerful, but your workflow must be expressed as a graph. Nodes, edges, 
 **With Tactus**, you write imperative code. Loops, conditionals, function calls—the control flow you already know:
 
 ```lua
-repeat Agent("researcher").turn() until Tool.called("done")
+repeat researcher() until Tool.called("done")
 local approved = Human.approve({message = "Deploy?"})
 if approved then deploy() end
 ```
@@ -87,13 +94,17 @@ Most frameworks scatter agent logic across Python classes, decorators, YAML file
 Tactus takes a different approach: **the entire agent definition is a single, readable file.**
 
 ```lua
-Agent "researcher" {
+done = tactus.done
+search = mcp.brave_search.search
+analyze = mcp.analyze.analyze
+
+researcher = Agent {
   model = "gpt-4o",
   system_prompt = "Research the topic thoroughly.",
-  toolsets = {"search", "analyze", "done"}
+  tools = {search, analyze, done}
 }
 
-Procedure "main" {
+Procedure {
   input = {
     topic = field.string{required = true}
   },
@@ -102,7 +113,7 @@ Procedure "main" {
   },
   function(input)
     repeat
-      Agent("researcher").turn()
+      researcher()
     until Tool.called("done")
     return {findings = Tool.last_result("done")}
   end
@@ -244,10 +255,15 @@ Traditional code requires you to handle every case—every header name, every fo
 
 Agent programming inverts this: give an agent tools, describe the goal, let intelligence handle the rest.
 
+But to run this autonomously, you need more than a prompt: you need bounded autonomy (tool + context control), durability, HITL, and tests. Tactus is the language for making “give an agent a tool” workflows reliable.
+
 ```lua
-Agent "importer" {
+done = tactus.done
+file_contact = mcp.contacts.file_contact
+
+importer = Agent {
   system_prompt = "Extract contacts from the data. File each one you find.",
-  toolsets = {"file_contact", "done"}
+  tools = {file_contact, done}
 }
 ```
 
@@ -293,16 +309,16 @@ mcp_servers:
     args: ["-y", "@modelcontextprotocol/server-filesystem", "/workspace"]
 ```
 
-Tools from MCP servers are automatically namespaced:
+Tools from MCP servers are accessed via the `mcp` namespace:
 
 ```lua
-Agent "worker" {
-  tools = {
-    "plexus_score_info",       -- From plexus server
-    "filesystem_read_file",    -- From filesystem server
-    "done"
-  }
-})
+done = tactus.done
+score_info = mcp.plexus.score_info
+read_file = mcp.filesystem.read_file
+
+worker = Agent {
+  tools = {score_info, read_file, done}
+}
 ```
 
 ### Inline Lua Tools
@@ -312,7 +328,9 @@ Define tools directly in your `.tac` file—no external servers required:
 **Individual tools:**
 
 ```lua
-Tool "calculate_tip" {
+done = tactus.done
+
+calculate_tip = Tool {
   description = "Calculate tip amount for a bill",
   input = {
     amount = field.number{required = true},
@@ -323,15 +341,17 @@ Tool "calculate_tip" {
   end
 }
 
-Agent "assistant" {
-  toolsets = {"calculate_tip", "done"}
+assistant = Agent {
+  tools = {calculate_tip, done}
 }
 ```
 
 **Grouped toolsets:**
 
 ```lua
-Toolset "math_tools" {
+done = tactus.done
+
+math_tools = Toolset {
   type = "lua",
   tools = {
     {name = "add", input = {...}, handler = function(args) ... end},
@@ -339,21 +359,23 @@ Toolset "math_tools" {
   }
 }
 
-Agent "calculator" {
-  toolsets = {"math_tools", "done"}
+calculator = Agent {
+  tools = {math_tools, done}
 }
 ```
 
 **Inline agent tools:**
 
 ```lua
-Agent "text_processor" {
+done = tactus.done
+
+text_processor = Agent {
   tools = {
+    done,
     {name = "uppercase", input = {...}, handler = function(args)
       return string.upper(args.text)
     end}
-  },
-  toolsets = {"done"}
+  }
 }
 ```
 
@@ -362,8 +384,8 @@ Agent "text_processor" {
 Call tools directly from Lua code for deterministic control:
 
 ```lua
--- Tool() returns a callable - assign it for direct use
-local calculate_tip = Tool "calculate_tip" {
+-- Tool returns a callable handle - assign it for direct use
+calculate_tip = Tool {
   description = "Calculate tip",
   input = {
     amount = field.number{required = true},
@@ -378,7 +400,7 @@ local calculate_tip = Tool "calculate_tip" {
 local tip = calculate_tip({amount = 50, percent = 20})
 
 -- Pass results to agent via context
-Agent("summarizer").turn({
+summarizer({
   context = {
     tip_calculation = tip,
     original_amount = "$50.00"
@@ -403,12 +425,12 @@ Control which tools are available on each turn—essential for patterns like too
 
 ```lua
 repeat
-  Researcher.turn()  -- Has all tools
+  researcher()  -- Has all tools
 
   if Tool.called("search") then
     -- Summarize with NO tools (prevents recursive calls)
-    Researcher.turn({
-      inject = "Summarize the search results",
+    researcher({
+      message = "Summarize the search results",
       tools = {}
     })
   end
@@ -432,32 +454,35 @@ pip install tactus
 Create `hello.tac`:
 
 ```lua
-Agent "greeter" {
+done = tactus.done
+
+greeter = Agent {
   provider = "openai",
   model = "gpt-4o-mini",
   system_prompt = [[
     You are a friendly greeter. Greet the user by name: {input.name}
     When done, call the done tool.
   ]],
-  tools = {"done"}
-})
+  tools = {done}
+}
 
-main = procedure("main", {
+Procedure {
   input = {
-    name = { type = "string", default = "World" }
+    name = field.string{default = "World"}
   },
   output = {
-    greeting = { type = "string", required = true }
-  }
-}, function()
-  repeat
-    Agent("greeter").turn()
-  until Tool.called("done")
+    greeting = field.string{required = true}
+  },
+  function(input)
+    repeat
+      greeter()
+    until Tool.called("done")
 
-  return { greeting = Tool.last_result("done") }
-end)
+    return { greeting = Tool.last_result("done") }
+  end
+}
 
-specifications([[
+Specifications([[
 Feature: Greeting
   Scenario: Agent greets and completes
     When the greeter agent takes turns
@@ -506,49 +531,55 @@ Tactus gives you fine-grained control over what tools an agent has access to on 
 **The Pattern:**
 
 ```lua
-Agent "researcher" {
+done = tactus.done
+search = mcp.brave_search.search
+analyze = mcp.analyze.analyze
+
+researcher = Agent {
   provider = "openai",
   model = "gpt-4o",
   system_prompt = "You are a research assistant.",
-  tools = {"search", "analyze", "done"}
-})
+  tools = {search, analyze, done}
+}
 
-main = procedure("main", {}, function()
-  repeat
-    -- Main turn: agent has all tools
-    Agent("researcher").turn()
+Procedure {
+  function(input)
+    repeat
+      -- Main call: agent has all tools
+      researcher()
 
-    -- After each tool call, ask agent to summarize with NO tools
-    if Tool.called("search") or Tool.called("analyze") then
-      Agent("researcher").turn({
-        inject = "Summarize the tool results above in 2-3 sentences",
-        tools = {}  -- No tools for this turn!
-      })
-    end
+      -- After each tool call, ask agent to summarize with NO tools
+      if Tool.called("search") or Tool.called("analyze") then
+        researcher({
+          message = "Summarize the tool results above in 2-3 sentences",
+          tools = {}  -- No tools for this call!
+        })
+      end
 
-  until Tool.called("done")
-end)
+    until Tool.called("done")
+  end
+}
 ```
 
 This creates a rhythm: **tool call → summarization → tool call → summarization → done**
 
 **Why this matters:**
 
-Without per-turn control, an agent might call another tool when you just want it to explain the previous result. By temporarily restricting tools to an empty set (`tools = {}`), you ensure the agent focuses on summarization.
+Without per-call control, an agent might call another tool when you just want it to explain the previous result. By temporarily restricting tools to an empty set (`tools = {}`), you ensure the agent focuses on summarization.
 
-**Other per-turn overrides:**
+**Other per-call overrides:**
 
 ```lua
--- Override model parameters for one turn
-Researcher.turn({
-  inject = "Be creative with this summary",
+-- Override model parameters for one call
+researcher({
+  message = "Be creative with this summary",
   temperature = 0.9,
   max_tokens = 500
 })
 
 -- Restrict to specific tools only
-Researcher.turn({
-  tools = {"search", "done"}  -- No analyze for this turn
+researcher({
+  tools = {search, done}  -- No analyze for this call
 })
 ```
 
@@ -921,43 +952,50 @@ Use different models and providers for different tasks within the same workflow.
 **Mix models for different capabilities:**
 
 ```lua
-Agent "researcher" {
+done = tactus.done
+search = mcp.brave_search.search
+
+researcher = Agent {
   provider = "openai",
   model = "gpt-4o",  -- Use GPT-4o for complex research
   system_prompt = "Research the topic thoroughly...",
-  tools = {"search", "done"}
-})
+  tools = {search, done}
+}
 
-Agent "summarizer" {
+summarizer = Agent {
   provider = "openai",
   model = "gpt-4o-mini",  -- Use GPT-4o-mini for simple summarization
   system_prompt = "Summarize the findings concisely...",
-  tools = {"done"}
-})
+  tools = {done}
+}
 ```
 
 **Mix providers (OpenAI + Bedrock):**
 
 ```lua
-Agent "openai_analyst" {
+done = tactus.done
+
+openai_analyst = Agent {
   provider = "openai",
   model = "gpt-4o",
   system_prompt = "Analyze the data...",
-  tools = {"done"}
-})
+  tools = {done}
+}
 
-Agent "bedrock_reviewer" {
+bedrock_reviewer = Agent {
   provider = "bedrock",
   model = "anthropic.claude-3-5-sonnet-20240620-v1:0",
   system_prompt = "Review the analysis...",
-  tools = {"done"}
-})
+  tools = {done}
+}
 ```
 
 **Configure model-specific parameters:**
 
 ```lua
-Agent "creative_writer" {
+done = tactus.done
+
+creative_writer = Agent {
   provider = "openai",
   model = {
     name = "gpt-4o",
@@ -965,10 +1003,10 @@ Agent "creative_writer" {
     max_tokens = 2000
   },
   system_prompt = "Write creatively...",
-  tools = {"done"}
-})
+  tools = {done}
+}
 
-Agent "reasoning_agent" {
+reasoning_agent = Agent {
   provider = "openai",
   model = {
     name = "gpt-5",  -- Reasoning model
@@ -976,8 +1014,8 @@ Agent "reasoning_agent" {
     max_tokens = 4000
   },
   system_prompt = "Solve this complex problem...",
-  tools = {"done"}
-})
+  tools = {done}
+}
 ```
 
 **Configuration via `.tactus/config.yml`:**
@@ -1062,9 +1100,13 @@ Every message has a classification that determines visibility:
 **Filter conversation history per agent:**
 
 ```lua
-Agent "worker" {
+done = tactus.done
+search = mcp.brave_search.search
+analyze = mcp.analyze.analyze
+
+worker = Agent {
   system_prompt = "Process the task...",
-  tools = {"search", "analyze", "done"},
+  tools = {search, analyze, done},
 
   -- Control what this agent sees
   filter = {
@@ -1080,7 +1122,7 @@ Agent "worker" {
       }
     }
   }
-})
+}
 ```
 
 **Manage session state programmatically:**

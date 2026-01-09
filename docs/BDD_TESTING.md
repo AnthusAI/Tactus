@@ -119,28 +119,269 @@ This allows testing workflow logic without LLM calls, making tests:
 - **Deterministic** - Same results every time
 - **Offline** - No network required
 
+## Mocking in Procedures
+
+While the `--mock` flag provides basic mocking, you can define sophisticated mock behavior directly in your procedure files using the `Mocks {}` primitive. This gives you fine-grained control over tool responses during testing.
+
+### The Mocks {} Primitive
+
+Define mocks at the top level of your procedure file:
+
+```lua
+-- Define mock configurations for tools
+Mocks {
+    tool_name = {
+        returns = {...},        -- Static: same response every time
+        temporal = {...},       -- Temporal: different values per call
+        conditional = {...}     -- Conditional: values based on input
+    }
+}
+```
+
+### Static Mocking
+
+Static mocks always return the same value:
+
+```lua
+Mocks {
+    weather = {
+        returns = {
+            temperature = 72,
+            conditions = "Sunny",
+            location = "San Francisco"
+        }
+    },
+    stock_price = {
+        returns = {
+            symbol = "AAPL",
+            price = 150.25,
+            change = 2.5
+        }
+    }
+}
+```
+
+**Use when:** Tool behavior should be constant and predictable.
+
+### Temporal Mocking
+
+Temporal mocks return different values on successive calls:
+
+```lua
+Mocks {
+    get_counter = {
+        temporal = {
+            {value = 1, message = "First call"},
+            {value = 2, message = "Second call"},
+            {value = 3, message = "Third call"},
+            {value = 999, message = "Fallback for subsequent calls"}
+        }
+    },
+    check_status = {
+        temporal = {
+            {status = "pending", progress = 0},
+            {status = "in_progress", progress = 50},
+            {status = "completed", progress = 100}
+        }
+    }
+}
+```
+
+**Behavior:**
+- First call returns first item
+- Second call returns second item
+- After exhausting the list, the last item is used for all subsequent calls
+
+**Use when:** Testing retry logic, polling, or stateful tool interactions.
+
+### Conditional Mocking
+
+Conditional mocks return different values based on input parameters:
+
+```lua
+Mocks {
+    translate = {
+        conditional = {
+            {when = {text = "hello"}, returns = {translation = "hola", language = "Spanish"}},
+            {when = {text = "goodbye"}, returns = {translation = "adiós", language = "Spanish"}},
+            {when = {text = "thank you"}, returns = {translation = "gracias", language = "Spanish"}}
+        }
+    },
+    calculate = {
+        conditional = {
+            {when = {operation = "add", x = 5, y = 3}, returns = {result = 8}},
+            {when = {operation = "multiply", x = 4, y = 7}, returns = {result = 28}}
+        }
+    }
+}
+```
+
+**Matching behavior:**
+- Exact value matching by default
+- String matching supports special prefixes:
+  - `contains:` - substring check
+  - `startswith:` - prefix check
+  - `endswith:` - suffix check
+
+**Use when:** Tool behavior depends on specific inputs.
+
+### Complete Mocking Example
+
+Here's a complete example combining mocks with BDD specifications:
+
+```lua
+-- Tool definitions
+done = tactus.done
+
+weather = Tool {
+    description = "Get current weather",
+    input = { location = field.string{} },
+    function(input)
+        return {temperature = 0}  -- Won't be called when mocked
+    end
+}
+
+-- Define mocks
+Mocks {
+    weather = {
+        returns = {
+            temperature = 72,
+            conditions = "Sunny"
+        }
+    }
+}
+
+-- Agent using mocked tools
+assistant = Agent {
+    provider = "openai",
+    model = "gpt-4o-mini",
+    system_prompt = "You help with weather queries.",
+    tools = {weather, done}
+}
+
+-- Procedure
+Procedure {
+    output = {
+        result = field.string{required = true}
+    },
+    function(input)
+        assistant({
+            message = "Get the weather in San Francisco"
+        })
+
+        while not done.called() do
+            assistant()
+        end
+
+        return {result = "Weather retrieved"}
+    end
+}
+
+-- BDD Specifications
+Specifications([[
+Feature: Weather Query with Mocking
+
+  Scenario: Weather tool returns mocked data
+    Given the procedure has started
+    When the procedure runs
+    Then the weather tool should be called
+    And the done tool should be called
+    And the procedure should complete successfully
+]])
+```
+
+### Mocking DSPy Modules
+
+DSPy modules are mocked using the same `Mocks {}` primitive as tools. Simply specify the module name as the key:
+
+```lua
+-- Configure the real LM for production
+LM("openai/gpt-4o-mini")
+
+-- Create your module
+qa = Module {
+    signature = "question -> answer",
+    strategy = "predict"
+}
+
+-- Configure mock responses for testing
+Mocks {
+    qa = {
+        -- Static mock: same response every time
+        returns = {answer = "Mario Götze"}
+    }
+}
+```
+
+**Temporal mocking** for modules that are called multiple times:
+
+```lua
+Mocks {
+    qa = {
+        temporal = {
+            {answer = "First response"},
+            {answer = "Second response"},
+            {answer = "Third response"}
+        }
+    }
+}
+```
+
+**Conditional mocking** based on input:
+
+```lua
+Mocks {
+    qa = {
+        conditional = {
+            {when = {question = "What is 2+2?"}, returns = {answer = "4"}},
+            {when = {question = "contains:capital"}, returns = {answer = "Berlin"}}
+        }
+    }
+}
+```
+
+**Unified mocking** for both tools and modules:
+
+```lua
+Mocks {
+    -- Mock a tool
+    weather = {
+        returns = {temperature = "72°F", condition = "sunny"}
+    },
+    -- Mock a DSPy module
+    qa = {
+        returns = {answer = "Mario Götze"}
+    }
+}
+```
+
+**Note:** Mocks only activate when running in mock mode (`tactus test --mock`). In real mode, actual tools and LMs are used.
+
+See `examples/70-mocking-static.tac`, `examples/71-mocking-temporal.tac`, and `examples/72-mocking-conditional.tac` for tool mocking examples, and `examples/80-dspy-predict-basic.tac` through `examples/87-dspy-history.tac` for DSPy module mocking examples.
+
 ## Quick Example
 
 ```lua
--- procedure.lua
-name("research_task")
-version("1.0.0")
+done = tactus.done
+search = mcp.brave_search.search
 
-agent("researcher", {
+researcher = Agent {
   provider = "openai",
   model = "gpt-4o-mini",
   system_prompt = "Research: {input.topic}",
-  tools = {"search", "done"}
-})
+  tools = {search, done}
+}
 
-procedure(function()
-  repeat
-    Researcher.turn()
-  until Tool.called("done")
-end)
+Procedure {
+  function(input)
+    repeat
+      researcher()
+    until done.called()
+  end
+}
 
 -- BDD Specifications
-specifications([[
+Specifications([[
 Feature: Research Task
 
   Scenario: Agent completes research
