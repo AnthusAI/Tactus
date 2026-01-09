@@ -2,8 +2,9 @@
 Core Pydantic models used across Tactus protocols.
 """
 
+from enum import StrEnum
 from typing import Any, Dict, Optional
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field
 from datetime import datetime, timezone
 
 
@@ -86,11 +87,26 @@ class HITLResponse(BaseModel):
     model_config = {"arbitrary_types_allowed": True}
 
 
+class HITLRequestType(StrEnum):
+    """
+    Supported human-in-the-loop interaction types.
+
+    Keep this aligned with the set of implemented `Human.*` primitives.
+    """
+
+    APPROVAL = "approval"
+    INPUT = "input"
+    REVIEW = "review"
+    ESCALATION = "escalation"
+    NOTIFICATION = "notification"
+
+
 class HITLRequest(BaseModel):
     """Request for human interaction."""
 
-    request_type: str = Field(
-        ..., description="Type of interaction: 'approval', 'input', 'review', 'escalation'"
+    request_type: HITLRequestType = Field(
+        ...,
+        description="Type of interaction: approval, input, review, escalation, notification",
     )
     message: str = Field(..., description="Message to display to the human")
     timeout_seconds: Optional[int] = Field(
@@ -298,14 +314,25 @@ class ChatMessage(BaseModel):
     parent_message_id: Optional[str] = Field(
         default=None, description="Parent message ID for threading"
     )
-    human_interaction: Optional[str] = Field(
-        default=None, description="Human interaction type (PENDING_APPROVAL, RESPONSE, etc.)"
+    human_interaction_type: Optional[HITLRequestType] = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "human_interaction_type",
+            "human_interaction",  # backwards-compatible
+            "humanInteraction",  # spec-style
+        ),
+        description="Human interaction type (approval, input, review, escalation, notification)",
     )
     metadata: Optional[Dict[str, Any]] = Field(
         default=None, description="Additional message metadata"
     )
 
     model_config = {"arbitrary_types_allowed": True}
+
+    @property
+    def human_interaction(self) -> Optional[HITLRequestType]:
+        """Backwards-compatible alias for `human_interaction_type`."""
+        return self.human_interaction_type
 
 
 class Breakpoint(BaseModel):

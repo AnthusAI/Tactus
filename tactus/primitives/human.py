@@ -12,6 +12,7 @@ Provides:
 import logging
 from typing import Any, Dict, Optional
 
+from tactus.protocols.models import HITLRequestType
 
 logger = logging.getLogger(__name__)
 
@@ -104,7 +105,7 @@ class HumanPrimitive:
 
         # Delegate to execution context's wait_for_human
         response = self.execution_context.wait_for_human(
-            request_type="approval",
+            request_type=HITLRequestType.APPROVAL,
             message=message,
             timeout_seconds=timeout,
             default_value=default,
@@ -159,7 +160,7 @@ class HumanPrimitive:
 
         # Delegate to execution context
         response = self.execution_context.wait_for_human(
-            request_type="input",
+            request_type=HITLRequestType.INPUT,
             message=message,
             timeout_seconds=timeout,
             default_value=default,
@@ -233,7 +234,7 @@ class HumanPrimitive:
 
         # Delegate to execution context
         response = self.execution_context.wait_for_human(
-            request_type="review",
+            request_type=HITLRequestType.REVIEW,
             message=message,
             timeout_seconds=timeout,
             default_value={
@@ -328,7 +329,7 @@ class HumanPrimitive:
         # Delegate to execution context
         # No timeout, no default - blocks until human resolves
         self.execution_context.wait_for_human(
-            request_type="escalation",
+            request_type=HITLRequestType.ESCALATION,
             message=message,
             timeout_seconds=None,  # No timeout - wait indefinitely
             default_value=None,  # No default - human must resolve

@@ -15,6 +15,7 @@ import uuid
 from tactus.protocols.storage import StorageBackend
 from tactus.protocols.hitl import HITLHandler
 from tactus.protocols.models import (
+    HITLRequestType,
     HITLRequest,
     HITLResponse,
     CheckpointEntry,
@@ -56,7 +57,7 @@ class ExecutionContext(ABC):
     @abstractmethod
     def wait_for_human(
         self,
-        request_type: str,
+        request_type: HITLRequestType,
         message: str,
         timeout_seconds: Optional[int],
         default_value: Any,
@@ -67,7 +68,7 @@ class ExecutionContext(ABC):
         Suspend until human responds.
 
         Args:
-            request_type: 'approval', 'input', 'review', or 'escalation'
+            request_type: approval, input, review, escalation, or notification
             message: Message to display to human
             timeout_seconds: Timeout in seconds, None = wait forever
             default_value: Value to return on timeout
@@ -278,7 +279,7 @@ class BaseExecutionContext(ExecutionContext):
 
     def wait_for_human(
         self,
-        request_type: str,
+        request_type: HITLRequestType,
         message: str,
         timeout_seconds: Optional[int],
         default_value: Any,
