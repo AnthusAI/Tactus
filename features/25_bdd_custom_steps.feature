@@ -9,7 +9,7 @@ Feature: BDD Custom Step Definitions
   Scenario: Custom step definition
   Given a Lua DSL file with content:
   """
-  Agent "worker" {
+  worker = Agent {
     provider = "openai",
     system_prompt = "Work",
     tools = {}
@@ -42,7 +42,7 @@ Feature: BDD Custom Step Definitions
   Scenario: Multiple custom steps
   Given a Lua DSL file with content:
   """
-  Agent "analyzer" {
+  analyzer = Agent {
     provider = "openai",
     system_prompt = "Analyze",
     tools = {}
@@ -80,7 +80,7 @@ Feature: BDD Custom Step Definitions
   Scenario: Custom step with complex logic
   Given a Lua DSL file with content:
   """
-  Agent "analyzer" {
+  analyzer = Agent {
     provider = "openai",
     system_prompt = "Analyze",
     tools = {}

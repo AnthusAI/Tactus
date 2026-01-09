@@ -67,6 +67,9 @@ def configure_lm(
     # Build configuration
     lm_kwargs = {
         "temperature": temperature,
+        # IMPORTANT: Disable caching to enable streaming. With cache=True (default),
+        # DSPy returns cached responses which breaks streamify()'s ability to stream.
+        "cache": False,
         **kwargs,
     }
 

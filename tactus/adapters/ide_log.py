@@ -35,12 +35,21 @@ class IDELogHandler:
             event: Structured log event
         """
         # Track cost events for aggregation
-        from tactus.protocols.models import CostEvent
+        from tactus.protocols.models import CostEvent, AgentStreamChunkEvent
 
         if isinstance(event, CostEvent):
             self.cost_events.append(event)
 
+        # Debug logging for streaming events
+        if isinstance(event, AgentStreamChunkEvent):
+            logger.info(
+                f"[IDE_LOG] Received AgentStreamChunkEvent: agent={event.agent_name}, chunk_len={len(event.chunk_text)}, accumulated_len={len(event.accumulated_text)}"
+            )
+
         self.events.put(event)
+        logger.debug(
+            f"[IDE_LOG] Event queued: type={type(event).__name__}, queue_size={self.events.qsize()}"
+        )
 
     def get_events(self, timeout: float = 0.1) -> List[LogEvent]:
         """

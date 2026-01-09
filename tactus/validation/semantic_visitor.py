@@ -160,6 +160,16 @@ class TactusDSLVisitor(LuaParserVisitor):
                     # Extract config from Toolset {...}
                     config = self._extract_single_table_arg(func_call)
                     self.builder.register_toolset(var_name, config if config else {})
+                elif func_name == "Procedure":
+                    # New assignment syntax: main = Procedure { function(input) ... }
+                    # Register as a named procedure
+                    self.builder.register_named_procedure(
+                        var_name,
+                        None,  # Function not available during validation
+                        {},  # Input schema will be extracted from top-level input {}
+                        {},  # Output schema will be extracted from top-level output {}
+                        {},  # State schema
+                    )
 
     def _extract_single_table_arg(self, func_call) -> dict:
         """Extract a single table argument from a function call like Agent {...}."""
@@ -178,15 +188,35 @@ class TactusDSLVisitor(LuaParserVisitor):
     def visitFunctioncall(self, ctx: LuaParser.FunctioncallContext):
         """Recognize and process DSL function calls."""
         try:
+            # Extract line/column for error reporting
+            if ctx.start:
+                self.current_line = ctx.start.line
+                self.current_col = ctx.start.column
+
+            # Check for deprecated method calls like .turn() or .run()
+            self._check_deprecated_method_calls(ctx)
+
             func_name = self._extract_function_name(ctx)
 
-            if func_name in self.DSL_FUNCTIONS:
-                # Extract line/column for error reporting
-                if ctx.start:
-                    self.current_line = ctx.start.line
-                    self.current_col = ctx.start.column
+            # Check if this is a method call (e.g., Tool.called()) vs a direct call (e.g., Tool())
+            # For "Tool.called()", parser extracts "Tool" as func_name but full text is "Tool.called(...)"
+            # We want to skip if full_text shows it's actually calling a method ON Tool, not Tool itself
+            full_text = ctx.getText()
+            is_method_call = False
+            if func_name:
+                # If the text is "Tool.called(...)" and func_name is "Tool",
+                # then it's actually calling .called() method on Tool, not calling Tool()
+                # Check: does full_text have func_name followed by a dot/colon (not by opening paren)?
+                # Pattern: func_name followed by . or : means it's accessing a method/property
+                import re
 
-                # Process the DSL call
+                # Match: funcName followed by . or : (not by opening paren directly)
+                method_access_pattern = re.escape(func_name) + r"[.:]"
+                if re.search(method_access_pattern, full_text):
+                    is_method_call = True
+
+            if func_name in self.DSL_FUNCTIONS and not is_method_call:
+                # Process the DSL call (but skip method calls like Tool.called())
                 try:
                     self._process_dsl_call(func_name, ctx)
                 except Exception as e:
@@ -202,6 +232,40 @@ class TactusDSLVisitor(LuaParserVisitor):
             logger.debug(f"Error in visitFunctioncall: {e}")
 
         return self.visitChildren(ctx)
+
+    def _check_deprecated_method_calls(self, ctx: LuaParser.FunctioncallContext):
+        """Check for deprecated method calls like .turn() or .run()."""
+        # Method calls have the form: varOrExp nameAndArgs+
+        # The nameAndArgs contains ':' NAME args for method calls
+        # We need to check if any nameAndArgs contains 'turn' or 'run'
+
+        # Get the full text of the function call
+        full_text = ctx.getText()
+
+        # Check for .turn() pattern (method call with dot notation)
+        if ".turn(" in full_text or ":turn(" in full_text:
+            self.errors.append(
+                ValidationMessage(
+                    level="error",
+                    message='The .turn() method is deprecated. Use callable syntax instead: agent() or agent({message = "..."})',
+                    location=(self.current_line, self.current_col),
+                    declaration="Agent.turn",
+                )
+            )
+
+        # Check for .run() pattern on agents
+        if ".run(" in full_text or ":run(" in full_text:
+            # Try to determine if this is an agent call (not procedure or other types)
+            # If the text contains "Agent(" it's likely an agent method
+            if "Agent(" in full_text or ctx.getText().startswith("agent"):
+                self.errors.append(
+                    ValidationMessage(
+                        level="error",
+                        message='The .run() method on agents is deprecated. Use callable syntax instead: agent() or agent({message = "..."})',
+                        location=(self.current_line, self.current_col),
+                        declaration="Agent.run",
+                    )
+                )
 
     def _extract_literal_value(self, exp):
         """Extract a literal value from an expression node."""
@@ -291,20 +355,44 @@ class TactusDSLVisitor(LuaParserVisitor):
                 agent_name = args[0]
                 # Check if this is a declaration (has config) or a lookup (just name)
                 if len(args) >= 2 and isinstance(args[1], dict):
-                    # Declaration with config
-                    config = args[1]
-                    self.builder.register_agent(agent_name, config, None)
+                    # DEPRECATED: Curried syntax Agent "name" { config }
+                    # Raise validation error
+                    self.errors.append(
+                        ValidationMessage(
+                            level="error",
+                            message=f'Curried syntax Agent "{agent_name}" {{...}} is deprecated. Use assignment syntax: {agent_name} = Agent {{...}}',
+                            location=(self.current_line, self.current_col),
+                            declaration="Agent",
+                        )
+                    )
                 elif len(args) == 1 and isinstance(agent_name, str):
-                    # Could be either a curried declaration or a lookup
-                    # Check if agent already exists - if so, it's a lookup
-                    if agent_name not in self.builder.registry.agents:
-                        # New declaration with empty config (will be filled by curried call)
-                        self.builder.register_agent(agent_name, {}, None)
-                    # else: it's a lookup, don't re-register
+                    # DEPRECATED: Agent("name") lookup or curried declaration
+                    # This is now invalid - users should use variable references
+                    self.errors.append(
+                        ValidationMessage(
+                            level="error",
+                            message=f'Agent("{agent_name}") lookup syntax is deprecated. Declare the agent with assignment: {agent_name} = Agent {{...}}, then use {agent_name}() to call it.',
+                            location=(self.current_line, self.current_col),
+                            declaration="Agent",
+                        )
+                    )
         elif func_name == "Model":  # CamelCase only
-            if args and len(args) >= 1:  # Support curried syntax with just name
-                config = args[1] if len(args) >= 2 and isinstance(args[1], dict) else {}
-                self.builder.register_model(args[0], config)
+            if args and len(args) >= 1:
+                # Check if this is assignment syntax (single dict arg) or curried syntax (name + dict)
+                if len(args) == 1 and isinstance(args[0], dict):
+                    # Assignment syntax: my_model = Model {config}
+                    # Generate a temp name for validation
+                    import uuid
+
+                    temp_name = f"_temp_model_{uuid.uuid4().hex[:8]}"
+                    self.builder.register_model(temp_name, args[0])
+                elif len(args) >= 2 and isinstance(args[1], dict):
+                    # Curried syntax: Model "name" {config}
+                    config = args[1]
+                    self.builder.register_model(args[0], config)
+                elif isinstance(args[0], str):
+                    # Just a name, register with empty config
+                    self.builder.register_model(args[0], {})
         elif func_name == "Procedure":  # CamelCase only
             # Supports multiple syntax variants:
             # 1. Unnamed (new): Procedure { config with function }
@@ -420,15 +508,28 @@ class TactusDSLVisitor(LuaParserVisitor):
             if args and len(args) >= 1 and isinstance(args[0], dict):
                 self.builder.register_top_level_output(args[0])
         elif func_name == "Tool":  # CamelCase only
-            # Tool("name", {config}, function) - matches agent/procedure pattern
-            # or new curried syntax: Tool "name" { config }
+            # Tool("name", {config}, function) - DEPRECATED curried syntax
+            # New syntax: tool_name = Tool { config, function }
             if args and len(args) >= 1:  # Support curried syntax
                 # First arg must be name (string)
                 if isinstance(args[0], str):
                     tool_name = args[0]
+                    # Check for special stdlib import syntax: Tool "name" { use = "..." }
+                    # This is still allowed for backwards compatibility
                     config = args[1] if len(args) >= 2 and isinstance(args[1], dict) else {}
-                    # Register the tool (function isn't available during validation)
-                    self.builder.register_tool(tool_name, config, None)
+                    if config.get("use"):
+                        # This is a stdlib import, still allowed
+                        self.builder.register_tool(tool_name, config, None)
+                    else:
+                        # This is deprecated curried syntax
+                        self.errors.append(
+                            ValidationMessage(
+                                level="error",
+                                message=f'Curried syntax Tool "{tool_name}" {{...}} is deprecated. Use assignment syntax: {tool_name} = Tool {{...}}',
+                                location=(self.current_line, self.current_col),
+                                declaration="Tool",
+                            )
+                        )
         elif func_name == "Toolset":  # CamelCase only
             # Toolset("name", {config})
             # or new curried syntax: Toolset "name" { config }

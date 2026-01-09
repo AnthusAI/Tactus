@@ -8,108 +8,112 @@ To run:
   tactus run examples/55-parquet-file-io.tac
 ]]--
 
-input {}
+Procedure {
+    input = {
+    },
+    output = {
+            records_written = field.number{required = true},
+            average_temperature = field.number{required = true}
+    },
+    function(input)
 
-output {
-        records_written = field.number{required = true},
-        average_temperature = field.number{required = true}
-    }
+    -- Create sensor data with various data types
+        local sensor_data = {}
 
--- Create sensor data with various data types
-    local sensor_data = {}
+        -- Generate sample sensor readings
+        for day = 1, 30 do
+            for hour = 0, 23 do
+                local temp_base = 20 + math.sin(hour * math.pi / 12) * 5
+                local humidity_base = 60 + math.cos(hour * math.pi / 12) * 15
 
-    -- Generate sample sensor readings
-    for day = 1, 30 do
-        for hour = 0, 23 do
-            local temp_base = 20 + math.sin(hour * math.pi / 12) * 5
-            local humidity_base = 60 + math.cos(hour * math.pi / 12) * 15
+                table.insert(sensor_data, {
+                    timestamp = string.format("2024-01-%02d %02d:00:00", day, hour),
+                    sensor_id = "SENSOR_" .. (hour % 3 + 1),
+                    temperature = temp_base + (math.random() - 0.5) * 2,
+                    humidity = humidity_base + (math.random() - 0.5) * 5,
+                    pressure = 1013.25 + (math.random() - 0.5) * 10,
+                    is_valid = math.random() > 0.1,  -- 90% valid readings
+                    location = (hour % 3 == 0) and "Zone_A" or ((hour % 3 == 1) and "Zone_B" or "Zone_C")
+                })
+            end
+        end
 
-            table.insert(sensor_data, {
-                timestamp = string.format("2024-01-%02d %02d:00:00", day, hour),
-                sensor_id = "SENSOR_" .. (hour % 3 + 1),
-                temperature = temp_base + (math.random() - 0.5) * 2,
-                humidity = humidity_base + (math.random() - 0.5) * 5,
-                pressure = 1013.25 + (math.random() - 0.5) * 10,
-                is_valid = math.random() > 0.1,  -- 90% valid readings
-                location = (hour % 3 == 0) and "Zone_A" or ((hour % 3 == 1) and "Zone_B" or "Zone_C")
+        -- Write to Parquet format
+        Parquet.write("sensor_data.parquet", sensor_data)
+        Log.info("Created Parquet file", {records = #sensor_data})
+
+        -- Read it back
+        local loaded_data = Parquet.read("sensor_data.parquet")
+
+        -- Analyze the data
+        local total_temp = 0
+        local valid_count = 0
+        local zone_counts = {Zone_A = 0, Zone_B = 0, Zone_C = 0}
+
+        for i = 0, loaded_data:len() - 1 do
+            local reading = loaded_data[i]
+
+            if reading.is_valid then
+                valid_count = valid_count + 1
+                total_temp = total_temp + reading.temperature
+            end
+
+            zone_counts[reading.location] = zone_counts[reading.location] + 1
+        end
+
+        local average_temp = total_temp / valid_count
+
+        -- Create aggregated summary
+        local summary = {}
+        for zone, count in pairs(zone_counts) do
+            table.insert(summary, {
+                zone = zone,
+                reading_count = count,
+                percentage = string.format("%.1f%%", (count / loaded_data:len()) * 100)
             })
         end
-    end
 
-    -- Write to Parquet format
-    Parquet.write("sensor_data.parquet", sensor_data)
-    Log.info("Created Parquet file", {records = #sensor_data})
+        -- Write summary to Parquet
+        Parquet.write("sensor_summary.parquet", summary)
 
-    -- Read it back
-    local loaded_data = Parquet.read("sensor_data.parquet")
-
-    -- Analyze the data
-    local total_temp = 0
-    local valid_count = 0
-    local zone_counts = {Zone_A = 0, Zone_B = 0, Zone_C = 0}
-
-    for i = 0, loaded_data:len() - 1 do
-        local reading = loaded_data[i]
-
-        if reading.is_valid then
-            valid_count = valid_count + 1
-            total_temp = total_temp + reading.temperature
-        end
-
-        zone_counts[reading.location] = zone_counts[reading.location] + 1
-    end
-
-    local average_temp = total_temp / valid_count
-
-    -- Create aggregated summary
-    local summary = {}
-    for zone, count in pairs(zone_counts) do
-        table.insert(summary, {
-            zone = zone,
-            reading_count = count,
-            percentage = string.format("%.1f%%", (count / loaded_data:len()) * 100)
+        Log.info("Data analysis complete", {
+            total_records = loaded_data:len(),
+            valid_records = valid_count,
+            average_temperature = string.format("%.2f", average_temp)
         })
-    end
 
-    -- Write summary to Parquet
-    Parquet.write("sensor_summary.parquet", summary)
-
-    Log.info("Data analysis complete", {
-        total_records = loaded_data:len(),
-        valid_records = valid_count,
-        average_temperature = string.format("%.2f", average_temp)
-    })
-
-    -- Also create a detailed report
-    local report_data = {
-        {
-            metric = "Total Readings",
-            value = loaded_data:len(),
-            unit = "count"
-        },
-        {
-            metric = "Valid Readings",
-            value = valid_count,
-            unit = "count"
-        },
-        {
-            metric = "Average Temperature",
-            value = average_temp,
-            unit = "celsius"
-        },
-        {
-            metric = "Data Quality",
-            value = (valid_count / loaded_data:len()) * 100,
-            unit = "percent"
+        -- Also create a detailed report
+        local report_data = {
+            {
+                metric = "Total Readings",
+                value = loaded_data:len(),
+                unit = "count"
+            },
+            {
+                metric = "Valid Readings",
+                value = valid_count,
+                unit = "count"
+            },
+            {
+                metric = "Average Temperature",
+                value = average_temp,
+                unit = "celsius"
+            },
+            {
+                metric = "Data Quality",
+                value = (valid_count / loaded_data:len()) * 100,
+                unit = "percent"
+            }
         }
-    }
 
-    Parquet.write("sensor_report.parquet", report_data)
+        Parquet.write("sensor_report.parquet", report_data)
 
-    return {
-        records_written = #sensor_data,
-        average_temperature = math.floor(average_temp * 100) / 100
-    }
+        return {
+            records_written = #sensor_data,
+            average_temperature = math.floor(average_temp * 100) / 100
+        }
+    end
+}
 
 Specifications([[
 Feature: Parquet File IO

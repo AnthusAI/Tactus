@@ -2,7 +2,7 @@
 -- This example uses simple state manipulation and can be tested with mocked tools
 
 -- Agent definition (will be mocked in tests)
-Agent "worker" {
+worker = Agent {
   provider = "openai",
   model = "gpt-4o-mini",
   system_prompt = "You are a worker. Call the done tool when finished.",
@@ -13,39 +13,43 @@ Stages({"initializing", "working", "complete"})
 
 -- Procedure with input, output, and state defined inline
 
-input {
-        count = field.number{required = false, description = "Number of iterations to perform", default = 3},
-    }
+Procedure {
+    input = {
+            count = field.number{required = false, description = "Number of iterations to perform", default = 3},
+    },
+    output = {
+            result = field.string{required = true, description = "Final result message"},
+    },
+    function(input)
 
-output {
-        result = field.string{required = true, description = "Final result message"},
-    }
+    -- Initialize
+      Stage.set("initializing")
 
--- Initialize
-  Stage.set("initializing")
+      -- Do work
+      Stage.set("working")
 
-  -- Do work
-  Stage.set("working")
+      local target = input.count or 3
+      for i = 1, target do
+        State.set("counter", i)
+        local items = State.get("items") or {}
+        table.insert(items, "item_" .. i)
+        State.set("items", items)
+      end
 
-  local target = input.count or 3
-  for i = 1, target do
-    State.set("counter", i)
-    local items = State.get("items") or {}
-    table.insert(items, "item_" .. i)
-    State.set("items", items)
-  end
+      -- Simulate agent turn (will call done tool)
+      worker()
 
-  -- Simulate agent turn (will call done tool)
-  Agent("worker").turn()
+      -- Complete
+      Stage.set("complete")
 
-  -- Complete
-  Stage.set("complete")
+      return {
+        result = "Processed " .. State.get("counter") .. " items"
+      }
 
-  return {
-    result = "Processed " .. State.get("counter") .. " items"
-  }
+    -- BDD Specifications
+    end
+}
 
--- BDD Specifications
 Specifications([[
 Feature: Simple Workflow Execution
   As a developer
@@ -74,7 +78,7 @@ Feature: Simple Workflow Execution
 ]])
 
 -- Custom step for validating items
-step("the items list has correct format", function(input)
+Step("the items list has correct format", function(input)
   local items = State.get("items")
   assert(items ~= nil, "Items should exist")
   assert(#items == 3, "Should have 3 items")
@@ -82,7 +86,7 @@ step("the items list has correct format", function(input)
 end)
 
 -- Evaluation configuration
-evaluation({
+Evaluation({
   runs = 10,
   parallel = true
 })

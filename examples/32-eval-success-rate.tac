@@ -3,7 +3,7 @@
 -- successfully completes a task by running it multiple times.
 
 -- Agent definition  
-Agent "completer" {
+completer = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[You are a helpful assistant that completes tasks.
@@ -27,39 +27,43 @@ Always follow this format exactly.]],
 
 -- Procedure
 
-input {
-        task = field.string{required = true, description = "The task to complete"}
-    }
+Procedure {
+    input = {
+            task = field.string{required = true, description = "The task to complete"}
+    },
+    output = {
+            output = field.string{required = true, description = "The task completion output"},
+            completed = field.boolean{required = true, description = "Whether task was completed"}
+    },
+    function(input)
 
-output {
-        output = field.string{required = true, description = "The task completion output"},
-        completed = field.boolean{required = true, description = "Whether task was completed"}
-    }
+    Log.info("Starting task", {task = input.task})
 
-Log.info("Starting task", {task = input.task})
-    
-    -- Have agent complete the task
-    -- The initial_message template will inject the task parameter
-    Agent("completer").turn()
-    
-    -- Get result from done tool
-    local output = "Task not completed - agent did not call done tool"
-    local completed = false
-    
-    if Tool.called("done") then
-        output = Tool.last_result("done") or "Task completed" or "TASK_COMPLETE: (no output provided)"
-        completed = true
-        Log.info("Task completed", {output = output})
-    else
-        Log.warn("Agent did not complete task")
+        -- Have agent complete the task
+        -- The initial_message template will inject the task parameter
+        completer()
+
+        -- Get result from done tool
+        local output = "Task not completed - agent did not call done tool"
+        local completed = false
+
+        if done.called() then
+            output = done.last_result() or "Task completed" or "TASK_COMPLETE: (no output provided)"
+            completed = true
+            Log.info("Task completed", {output = output})
+        else
+            Log.warn("Agent did not complete task")
+        end
+
+        return {
+            output = output,
+            completed = completed
+        }
+
+    -- BDD Specifications(workflow correctness)
     end
-    
-    return {
-        output = output,
-        completed = completed
-    }
+}
 
--- BDD Specifications(workflow correctness)
 Specifications([[
 Feature: Task Completion
   Scenario: Agent completes simple task
