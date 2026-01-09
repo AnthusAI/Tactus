@@ -60,8 +60,7 @@ class ResourceFactory:
             import httpx
         except ImportError:
             raise ImportError(
-                "httpx is required for HTTP client dependencies. "
-                "Install it with: pip install httpx"
+                "httpx is required for HTTP client dependencies. Install it with: pip install httpx"
             )
 
         base_url = config.get("base_url")
@@ -100,7 +99,7 @@ class ResourceFactory:
             import redis.asyncio as redis
         except ImportError:
             raise ImportError(
-                "redis is required for Redis dependencies. " "Install it with: pip install redis"
+                "redis is required for Redis dependencies. Install it with: pip install redis"
             )
 
         url = config["url"]

@@ -14,7 +14,7 @@ class ParsedStep(BaseModel):
     """Parsed Gherkin step."""
 
     keyword: str  # Given, When, Then, And, But
-    text: str
+    message: str
     line: Optional[int] = None
 
 
@@ -44,7 +44,7 @@ class StepResult(BaseModel):
     """Result of executing a single step."""
 
     keyword: str
-    text: str
+    message: str
     status: str  # passed, failed, skipped, undefined
     duration: float = 0.0
     error_message: Optional[str] = None

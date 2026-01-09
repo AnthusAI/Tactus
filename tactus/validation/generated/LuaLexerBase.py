@@ -6,7 +6,6 @@ from typing import TextIO
 
 
 class LuaLexerBase(Lexer):
-
     def __init__(self, input: InputStream, output: TextIO = sys.stdout):
         super().__init__(input, output)
         self.start_line = 0

@@ -33,11 +33,11 @@ Feature: Simple Feature
     assert len(scenario.steps) == 3
 
     assert scenario.steps[0].keyword == "Given"
-    assert scenario.steps[0].text == "a precondition"
+    assert scenario.steps[0].message == "a precondition"
     assert scenario.steps[1].keyword == "When"
-    assert scenario.steps[1].text == "an action occurs"
+    assert scenario.steps[1].message == "an action occurs"
     assert scenario.steps[2].keyword == "Then"
-    assert scenario.steps[2].text == "an outcome is verified"
+    assert scenario.steps[2].message == "an outcome is verified"
 
 
 def test_parse_feature_with_tags():

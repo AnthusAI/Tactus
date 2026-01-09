@@ -8,7 +8,6 @@ else:
 
 
 class LuaParserBase(Parser):
-
     debug = False
 
     def __init__(self, input: TokenStream, output: TextIO = sys.stdout):

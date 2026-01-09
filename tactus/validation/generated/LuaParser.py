@@ -3832,7 +3832,6 @@ def serializedATN():
 
 
 class LuaParser(LuaParserBase):
-
     grammarFileName = "LuaParser.g4"
 
     atn = ATNDeserializer().deserialize(serializedATN())
@@ -4130,7 +4129,6 @@ class LuaParser(LuaParserBase):
                 return visitor.visitChildren(self)
 
     def start_(self):
-
         localctx = LuaParser.Start_Context(self, self._ctx, self.state)
         self.enterRule(localctx, 0, self.RULE_start_)
         try:
@@ -4167,7 +4165,6 @@ class LuaParser(LuaParserBase):
                 return visitor.visitChildren(self)
 
     def chunk(self):
-
         localctx = LuaParser.ChunkContext(self, self._ctx, self.state)
         self.enterRule(localctx, 2, self.RULE_chunk)
         try:
@@ -4208,7 +4205,6 @@ class LuaParser(LuaParserBase):
                 return visitor.visitChildren(self)
 
     def block(self):
-
         localctx = LuaParser.BlockContext(self, self._ctx, self.state)
         self.enterRule(localctx, 4, self.RULE_block)
         self._la = 0  # Token type
@@ -4359,7 +4355,6 @@ class LuaParser(LuaParserBase):
                 return visitor.visitChildren(self)
 
     def stat(self):
-
         localctx = LuaParser.StatContext(self, self._ctx, self.state)
         self.enterRule(localctx, 6, self.RULE_stat)
         self._la = 0  # Token type
@@ -4615,7 +4610,6 @@ class LuaParser(LuaParserBase):
                 return visitor.visitChildren(self)
 
     def attnamelist(self):
-
         localctx = LuaParser.AttnamelistContext(self, self._ctx, self.state)
         self.enterRule(localctx, 8, self.RULE_attnamelist)
         try:
@@ -4673,7 +4667,6 @@ class LuaParser(LuaParserBase):
                 return visitor.visitChildren(self)
 
     def attrib(self):
-
         localctx = LuaParser.AttribContext(self, self._ctx, self.state)
         self.enterRule(localctx, 10, self.RULE_attrib)
         try:
@@ -4723,7 +4716,6 @@ class LuaParser(LuaParserBase):
                 return visitor.visitChildren(self)
 
     def retstat(self):
-
         localctx = LuaParser.RetstatContext(self, self._ctx, self.state)
         self.enterRule(localctx, 12, self.RULE_retstat)
         self._la = 0  # Token type
@@ -4779,7 +4771,6 @@ class LuaParser(LuaParserBase):
                 return visitor.visitChildren(self)
 
     def label(self):
-
         localctx = LuaParser.LabelContext(self, self._ctx, self.state)
         self.enterRule(localctx, 14, self.RULE_label)
         try:
@@ -4830,7 +4821,6 @@ class LuaParser(LuaParserBase):
                 return visitor.visitChildren(self)
 
     def funcname(self):
-
         localctx = LuaParser.FuncnameContext(self, self._ctx, self.state)
         self.enterRule(localctx, 16, self.RULE_funcname)
         self._la = 0  # Token type
@@ -4896,7 +4886,6 @@ class LuaParser(LuaParserBase):
                 return visitor.visitChildren(self)
 
     def varlist(self):
-
         localctx = LuaParser.VarlistContext(self, self._ctx, self.state)
         self.enterRule(localctx, 18, self.RULE_varlist)
         self._la = 0  # Token type
@@ -4953,7 +4942,6 @@ class LuaParser(LuaParserBase):
                 return visitor.visitChildren(self)
 
     def namelist(self):
-
         localctx = LuaParser.NamelistContext(self, self._ctx, self.state)
         self.enterRule(localctx, 20, self.RULE_namelist)
         try:
@@ -5010,7 +4998,6 @@ class LuaParser(LuaParserBase):
                 return visitor.visitChildren(self)
 
     def explist(self):
-
         localctx = LuaParser.ExplistContext(self, self._ctx, self.state)
         self.enterRule(localctx, 22, self.RULE_explist)
         try:
@@ -5217,7 +5204,7 @@ class LuaParser(LuaParserBase):
             elif la_ == 10:
                 self.state = 221
                 _la = self._input.LA(1)
-                if not ((((_la) & ~0x3F) == 0 and ((1 << _la) & 10468982784) != 0)):
+                if not (((_la) & ~0x3F) == 0 and ((1 << _la) & 10468982784) != 0):
                     self._errHandler.recoverInline(self)
                 else:
                     self._errHandler.reportMatch(self)
@@ -5263,7 +5250,7 @@ class LuaParser(LuaParserBase):
                             raise FailedPredicateException(self, "self.precpred(self._ctx, 7)")
                         self.state = 229
                         _la = self._input.LA(1)
-                        if not ((((_la) & ~0x3F) == 0 and ((1 << _la) & 18049995198431232) != 0)):
+                        if not (((_la) & ~0x3F) == 0 and ((1 << _la) & 18049995198431232) != 0):
                             self._errHandler.recoverInline(self)
                         else:
                             self._errHandler.reportMatch(self)
@@ -5316,7 +5303,7 @@ class LuaParser(LuaParserBase):
                             raise FailedPredicateException(self, "self.precpred(self._ctx, 4)")
                         self.state = 238
                         _la = self._input.LA(1)
-                        if not ((((_la) & ~0x3F) == 0 and ((1 << _la) & 73186792481226752) != 0)):
+                        if not (((_la) & ~0x3F) == 0 and ((1 << _la) & 73186792481226752) != 0):
                             self._errHandler.recoverInline(self)
                         else:
                             self._errHandler.reportMatch(self)
@@ -5365,7 +5352,7 @@ class LuaParser(LuaParserBase):
                             raise FailedPredicateException(self, "self.precpred(self._ctx, 1)")
                         self.state = 247
                         _la = self._input.LA(1)
-                        if not ((((_la) & ~0x3F) == 0 and ((1 << _la) & 4503720154890240) != 0)):
+                        if not (((_la) & ~0x3F) == 0 and ((1 << _la) & 4503720154890240) != 0):
                             self._errHandler.recoverInline(self)
                         else:
                             self._errHandler.reportMatch(self)
@@ -5421,7 +5408,6 @@ class LuaParser(LuaParserBase):
                 return visitor.visitChildren(self)
 
     def var(self):
-
         localctx = LuaParser.VarContext(self, self._ctx, self.state)
         self.enterRule(localctx, 26, self.RULE_var)
         try:
@@ -5524,7 +5510,6 @@ class LuaParser(LuaParserBase):
                 return visitor.visitChildren(self)
 
     def prefixexp(self):
-
         localctx = LuaParser.PrefixexpContext(self, self._ctx, self.state)
         self.enterRule(localctx, 28, self.RULE_prefixexp)
         try:
@@ -5718,7 +5703,6 @@ class LuaParser(LuaParserBase):
                 return visitor.visitChildren(self)
 
     def functioncall(self):
-
         localctx = LuaParser.FunctioncallContext(self, self._ctx, self.state)
         self.enterRule(localctx, 30, self.RULE_functioncall)
         self._la = 0  # Token type
@@ -5883,7 +5867,6 @@ class LuaParser(LuaParserBase):
                 return visitor.visitChildren(self)
 
     def args(self):
-
         localctx = LuaParser.ArgsContext(self, self._ctx, self.state)
         self.enterRule(localctx, 32, self.RULE_args)
         try:
@@ -5948,7 +5931,6 @@ class LuaParser(LuaParserBase):
                 return visitor.visitChildren(self)
 
     def functiondef(self):
-
         localctx = LuaParser.FunctiondefContext(self, self._ctx, self.state)
         self.enterRule(localctx, 34, self.RULE_functiondef)
         try:
@@ -5997,7 +5979,6 @@ class LuaParser(LuaParserBase):
                 return visitor.visitChildren(self)
 
     def funcbody(self):
-
         localctx = LuaParser.FuncbodyContext(self, self._ctx, self.state)
         self.enterRule(localctx, 36, self.RULE_funcbody)
         try:
@@ -6046,7 +6027,6 @@ class LuaParser(LuaParserBase):
                 return visitor.visitChildren(self)
 
     def parlist(self):
-
         localctx = LuaParser.ParlistContext(self, self._ctx, self.state)
         self.enterRule(localctx, 38, self.RULE_parlist)
         self._la = 0  # Token type
@@ -6114,7 +6094,6 @@ class LuaParser(LuaParserBase):
                 return visitor.visitChildren(self)
 
     def tableconstructor(self):
-
         localctx = LuaParser.TableconstructorContext(self, self._ctx, self.state)
         self.enterRule(localctx, 40, self.RULE_tableconstructor)
         try:
@@ -6167,7 +6146,6 @@ class LuaParser(LuaParserBase):
                 return visitor.visitChildren(self)
 
     def fieldlist(self):
-
         localctx = LuaParser.FieldlistContext(self, self._ctx, self.state)
         self.enterRule(localctx, 42, self.RULE_fieldlist)
         self._la = 0  # Token type
@@ -6238,7 +6216,6 @@ class LuaParser(LuaParserBase):
                 return visitor.visitChildren(self)
 
     def field(self):
-
         localctx = LuaParser.FieldContext(self, self._ctx, self.state)
         self.enterRule(localctx, 44, self.RULE_field)
         try:
@@ -6306,7 +6283,6 @@ class LuaParser(LuaParserBase):
                 return visitor.visitChildren(self)
 
     def fieldsep(self):
-
         localctx = LuaParser.FieldsepContext(self, self._ctx, self.state)
         self.enterRule(localctx, 46, self.RULE_fieldsep)
         self._la = 0  # Token type
@@ -6356,7 +6332,6 @@ class LuaParser(LuaParserBase):
                 return visitor.visitChildren(self)
 
     def number(self):
-
         localctx = LuaParser.NumberContext(self, self._ctx, self.state)
         self.enterRule(localctx, 48, self.RULE_number)
         self._la = 0  # Token type
@@ -6364,7 +6339,7 @@ class LuaParser(LuaParserBase):
             self.enterOuterAlt(localctx, 1)
             self.state = 412
             _la = self._input.LA(1)
-            if not (((((_la - 61)) & ~0x3F) == 0 and ((1 << (_la - 61)) & 15) != 0)):
+            if not (((_la - 61) & ~0x3F) == 0 and ((1 << (_la - 61)) & 15) != 0):
                 self._errHandler.recoverInline(self)
             else:
                 self._errHandler.reportMatch(self)
@@ -6403,7 +6378,6 @@ class LuaParser(LuaParserBase):
                 return visitor.visitChildren(self)
 
     def string(self):
-
         localctx = LuaParser.StringContext(self, self._ctx, self.state)
         self.enterRule(localctx, 50, self.RULE_string)
         self._la = 0  # Token type
@@ -6411,7 +6385,7 @@ class LuaParser(LuaParserBase):
             self.enterOuterAlt(localctx, 1)
             self.state = 414
             _la = self._input.LA(1)
-            if not ((((_la) & ~0x3F) == 0 and ((1 << _la) & 2017612633061982208) != 0)):
+            if not (((_la) & ~0x3F) == 0 and ((1 << _la) & 2017612633061982208) != 0):
                 self._errHandler.recoverInline(self)
             else:
                 self._errHandler.reportMatch(self)

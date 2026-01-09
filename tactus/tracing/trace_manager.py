@@ -97,7 +97,7 @@ class TraceManager:
 
         if position < 0 or position >= len(run.execution_log):
             raise IndexError(
-                f"Checkpoint position {position} out of range (0-{len(run.execution_log)-1})"
+                f"Checkpoint position {position} out of range (0-{len(run.execution_log) - 1})"
             )
 
         return run.execution_log[position]

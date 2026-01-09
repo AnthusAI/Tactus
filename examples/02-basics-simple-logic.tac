@@ -20,20 +20,20 @@ Procedure {
         -- Do work
         local target = input.target_count or 5
         for i = 1, target do
-            State.set("counter", i)
+            state.counter = i
         end
 
         -- Transition to middle
         Stage.set("middle")
-        State.set("message", "halfway")
+        state.message = "halfway"
 
         -- Complete
         Stage.set("end")
-        State.set("message", "complete")
+        state.message = "complete"
 
         return {
-            final_count = State.get("counter"),
-            message = State.get("message")
+            final_count = state.counter,
+            message = state.message
         }
     end
 }
@@ -65,5 +65,5 @@ Feature: Simple State Management
 
 -- Custom steps can be added here if needed
 -- step("custom assertion", function(input)
---   assert(State.get("counter") > 0)
+--   assert(state.counter > 0)
 -- end)

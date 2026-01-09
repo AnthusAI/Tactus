@@ -105,7 +105,7 @@ class TactusModule:
             )
         else:
             raise ValueError(
-                f"Unknown strategy '{self.strategy}'. " f"Supported: predict, chain_of_thought"
+                f"Unknown strategy '{self.strategy}'. Supported: predict, chain_of_thought"
             )
 
     def __call__(self, **kwargs: Any) -> dspy.Prediction:
@@ -149,7 +149,7 @@ def create_module(
     signature = config.get("signature")
     if signature is None:
         raise ValueError(
-            f"Module '{name}' requires a 'signature'. " f'Example: signature = "question -> answer"'
+            f"Module '{name}' requires a 'signature'. Example: signature = \"question -> answer\""
         )
 
     strategy = config.get("strategy", "predict")

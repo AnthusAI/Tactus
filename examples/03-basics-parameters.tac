@@ -26,13 +26,13 @@ Procedure {
         Log.info("Running task", {task = task, count = count})
 
         -- Use parameters in workflow
-        State.set("iterations", 0)
+        state.iterations = 0
         for i = 1, count do
           State.increment("iterations")
           Log.info("Iteration", {number = i, task = task})
         end
 
-        local final_iterations = State.get("iterations")
+        local final_iterations = state.iterations
 
         return {
           result = "Completed " .. task .. " with " .. final_iterations .. " iterations"

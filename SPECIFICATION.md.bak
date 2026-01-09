@@ -94,8 +94,8 @@ Feature: Task Processing
 ```
 
 **Key structure:**
-- **Tools** defined as `name = Tool {...}` or imported via `require()` like `local done = require("tactus.tools.done")`
-- **Agents** defined as `name = Agent {...}` with `tools = {var1, var2}` or `toolsets = {"tool_name"}`
+- **Tools** defined as `name = Tool {...}` or imported as `name = tactus.done`
+- **Agents** defined as `name = Agent {...}` with `tools = {var1, var2}`
 - **Procedure { }** unnamed, defaults to "main"
   - Config fields: `input`, `output`, `state` (state is optional)
   - Function as the last element containing the procedure logic
@@ -356,7 +356,7 @@ This ensures type-safe, structured outputs from agents.
 **Aligned with pydantic-ai:** The Result object wraps pydantic-ai's `RunResult` and provides Lua-accessible properties.
 
 **Properties:**
-- `result.message` - The response message (text string or structured data dict)
+- `result.data` - The response (text string or structured data dict)
 - `result.usage` - Token usage stats (prompt_tokens, completion_tokens, total_tokens)
 
 **Methods:**
@@ -377,8 +377,8 @@ Procedure {
     function(input)
         local result = worker()
 
-        -- Access response message
-        Log.info("Response", {message = result.message})
+        -- Access response data
+        Log.info("Response", {data = result.data})
 
         -- Access token usage
         Log.info("Tokens used", {
@@ -414,8 +414,8 @@ Procedure {
 
         -- Access structured data fields
         Log.info("Extracted", {
-            city = result.message.city,
-            country = result.message.country
+            city = result.data.city,
+            country = result.data.country
         })
     end
 }
@@ -711,17 +711,20 @@ Procedure {
 Tools and procedures are defined as variables and used directly:
 
 ```lua
+-- Define or import required tools
+web_search = mcp.brave_search.search
+read_document = mcp.filesystem.read_file
+
 -- Define sub-procedure
 researcher = Procedure {
     name = "researcher",
-    -- MCP tools would be referenced in toolsets
     -- ...
 }
 
--- Main procedure uses procedures directly
+-- Main procedure uses tools and procedures directly
 Procedure {
     function(input)
-        -- Procedures are accessed as variables
+        -- Tools and procedures are accessed as variables
         researcher.run({query = input.query})
         return {result = "done"}
     end
@@ -1267,7 +1270,7 @@ Mocks {
 }
 
 -- Define tools and agents as usual
-local done = require("tactus.tools.done")
+done = tactus.done
 
 worker = Agent {
     provider = "openai",
@@ -1337,7 +1340,7 @@ The runtime detects script mode during execution and performs source transformat
 - `Stages()`
 - `Specifications()`
 - Agent definitions: `name = Agent {}`
-- Tool definitions: `name = Tool {}` or imported via `require()` like `local done = require("tactus.tools.done")`
+- Tool definitions: `name = Tool {}` or `name = tactus.done`
 - Model definitions: `name = Model {}`
 - Comments and blank lines
 
@@ -1397,7 +1400,7 @@ For convenience, sub-procedures can be defined and called within a main procedur
 
 ```lua
 -- Define tools
-local done = require("tactus.tools.done")
+done = tactus.done
 
 -- Sub-procedure defined at top level
 researcher = Procedure {
@@ -1447,7 +1450,9 @@ Sub-procedures follow the **exact same structure** as top-level procedures.
 Agents are the cognitive workers within a procedure. Defined using assignment-based syntax:
 
 ```lua
-local done = require("tactus.tools.done")
+done = tactus.done
+search = mcp.brave_search.search
+analyze = mcp.analyze.analyze
 
 worker = Agent {
     provider = "openai",
@@ -1467,7 +1472,7 @@ Context: {prepared.data}
 
     initial_message = "Begin working on the task.",
 
-    toolsets = {"brave_search_search", "done"},  -- MCP tools referenced by string name
+    tools = {search, analyze, done},  -- Variable references, not strings
 
     filter = {
         class = "ComposedFilter",
@@ -1495,7 +1500,7 @@ Agents can specify which LLM model to use and configure model-specific parameter
 **Simple string format** (for default settings):
 
 ```lua
-local done = require("tactus.tools.done")
+done = tactus.done
 
 greeter = Agent {
     provider = "openai",
@@ -1508,7 +1513,7 @@ greeter = Agent {
 **Dictionary format** (with custom settings):
 
 ```lua
-local done = require("tactus.tools.done")
+done = tactus.done
 
 creative_writer = Agent {
     provider = "openai",
@@ -1542,7 +1547,7 @@ creative_writer = Agent {
 **Example with multiple agents using different models:**
 
 ```lua
-local done = require("tactus.tools.done")
+done = tactus.done
 
 analyst = Agent {
     provider = "openai",
@@ -1572,7 +1577,7 @@ summarizer = Agent {
 **IMPORTANT:** Every agent must specify a `provider` (either directly on the agent or via `default_provider` at the procedure level). Supported providers are `openai` and `bedrock`.
 
 ```lua
-local done = require("tactus.tools.done")
+done = tactus.done
 
 openai_agent = Agent {
     provider = "openai",
@@ -1594,7 +1599,7 @@ bedrock_agent = Agent {
 You can set `default_provider` and `default_model` at the procedure level to avoid repeating them:
 
 ```lua
-local done = require("tactus.tools.done")
+done = tactus.done
 
 worker = Agent {
     -- Uses default_model and default_provider from procedure
@@ -1623,7 +1628,7 @@ Procedure {
 **Mixed providers in one procedure:**
 
 ```lua
-local done = require("tactus.tools.done")
+done = tactus.done
 
 openai_agent = Agent {
     provider = "openai",
@@ -1797,7 +1802,7 @@ Define single tools using assignment-based syntax:
 
 ```lua
 -- Import done tool from standard library (recommended)
-local done = require("tactus.tools.done")
+done = tactus.done
 
 -- Or define custom tools inline
 calculate_tip = Tool {
@@ -1916,7 +1921,7 @@ toolset("math_tools", {
     }
 }
 
-local done = require("tactus.tools.done")
+done = tactus.done
 
 calculator = Agent {
     provider = "openai",
@@ -1931,7 +1936,7 @@ This approach groups related tools and makes them available via a single variabl
 Define tools directly within agent configuration:
 
 ```lua
-local done = require("tactus.tools.done")
+done = tactus.done
 
 text_processor = Agent {
     provider = "openai",
@@ -1972,7 +1977,7 @@ In agent configuration, `tools` accepts:
 - **Inline tool definitions** (objects with `name`, `handler`, `input`)
 
 ```lua
-local done = require("tactus.tools.done")
+done = tactus.done
 calculate_tip = Tool {...}
 math_tools = Toolset {...}
 
@@ -2162,28 +2167,28 @@ For checkpointing arbitrary operations (not agent turns):
 
 ```lua
 -- Execute fn and checkpoint result. On replay, return cached result.
--- Checkpoints are position-based (identified by execution order)
-Step.checkpoint(fn)
+Step.run(name, fn)
 
 -- Examples:
-local champion = Step.checkpoint(function()
+local champion = Step.run("load_champion", function()
   return Tools.plexus_get_score({score_id = input.score_id})
 end)
 
-local metrics = Step.checkpoint(function()
+local metrics = Step.run("evaluate_champion", function()
   return Tools.plexus_run_evaluation({
     score_id = input.score_id,
     version = "champion"
   })
 end)
+
+-- Named steps allow targeted cache clearing for testing
 ```
 
-Checkpoints are identified by their position in the execution order. Each call to `Step.checkpoint()` gets the next sequential position:
+Step names must be unique within a procedure execution. Use descriptive names or append counters for loops:
 
 ```lua
 for i, item in ipairs(items) do
-  -- Each iteration creates a new checkpoint at the next position
-  local result = Step.checkpoint(function()
+  local result = Step.run("process_item_" .. i, function()
     return process(item)
   end)
 end
@@ -2195,8 +2200,9 @@ For testing and debugging:
 
 ```lua
 Checkpoint.clear_all()              -- Clear all checkpoints
-Checkpoint.clear_after(position)    -- Clear checkpoint at position and all after (position is a number)
-Checkpoint.next_position()          -- Get the next checkpoint position number
+Checkpoint.clear_after(name)        -- Clear this checkpoint and all after
+Checkpoint.exists(name)             -- Check if checkpoint exists
+Checkpoint.get(name)                -- Get cached value (or nil)
 ```
 
 ### Human Interaction Primitives
@@ -2338,11 +2344,9 @@ if state.key then ... end
 -- Numeric operations
 state.count = (state.count or 0) + 1
 
--- Helper functions for special operations
-State.increment("count")         -- Increment numeric value (default by 1)
-State.increment("count", 5)      -- Increment by specific amount
-State.append("list", item)       -- Append to a list
-State.all()                      -- Get all state as table
+-- Table operations (helper functions)
+State.append("list", item)  -- Append to a list
+State.all()                 -- Get all state as table
 ```
 
 ### Stage Primitives
@@ -2477,9 +2481,9 @@ local error_matcher = contains("error")
 
 -- Use in conditional logic
 local result = worker()
-if result.message:find("success") then
+if result.data:find("success") then
     -- Contains success
-elseif result.message:find("error") then
+elseif result.data:find("error") then
     -- Contains error
 end
 ```
@@ -2511,7 +2515,7 @@ end
 Stages({"researching", "writing", "review", "publishing", "complete"})
 
 -- Define tools
-local done = require("tactus.tools.done")
+done = tactus.done
 research = Tool {
     description = "Research a topic",
     input = { query = field.string{required = true} },
@@ -2621,7 +2625,7 @@ Procedure {
             return {published = false, reason = "not_approved"}
         end
 
-        local url = Step.checkpoint(function()
+        local url = Step.run("publish", function()
             return publish_content(final_content, input.target)
         end)
 
@@ -2744,10 +2748,18 @@ A comprehensive example showing HITL with checkpointed tool calls, evaluation, a
 -- Define stages
 Stages({"analyzing", "drafting", "evaluating", "awaiting_approval", "promoting", "complete"})
 
--- Import completion tool from standard library
-local done = require("tactus.tools.done")
+-- Define tools (these would be provided by MCP or defined externally)
+done = tactus.done
+plexus_get_score = mcp.plexus.get_score
+plexus_get_evaluation_metrics = mcp.plexus.get_evaluation_metrics
+plexus_analyze_errors = mcp.plexus.analyze_errors
+plexus_draft_score_config = mcp.plexus.draft_score_config
+plexus_validate_config = mcp.plexus.validate_config
+plexus_run_evaluation = mcp.plexus.run_evaluation
+plexus_compare_metrics = mcp.plexus.compare_metrics
+plexus_promote_score_version = mcp.plexus.promote_score_version
 
--- Define agents (MCP tools referenced by string name in toolsets)
+-- Define agents
 analyzer = Agent {
     provider = "openai",
     system_prompt = [[
@@ -2758,7 +2770,7 @@ Score ID: {input.score_id}
 Champion metrics: {state.champion_metrics}
 Error patterns: {state.error_analysis}
     ]],
-    toolsets = {"plexus_get_score", "plexus_get_evaluation_metrics", "plexus_analyze_errors", "done"},
+    tools = {plexus_get_score, plexus_get_evaluation_metrics, plexus_analyze_errors, done},
     max_turns = 20
 }
 
@@ -2772,7 +2784,7 @@ Human feedback (if any): {state.human_feedback}
 
 Be conservative - small targeted improvements are better than sweeping changes.
     ]],
-    toolsets = {"plexus_draft_score_config", "plexus_validate_config", "done"},
+    tools = {plexus_draft_score_config, plexus_validate_config, done},
     max_turns = 15
 }
 
@@ -2812,12 +2824,12 @@ Procedure {
         -- Evaluate champion FIRST (checkpointed, runs once)
         Stage.set("analyzing")
 
-        state.champion_config = Step.checkpoint(function()
+        state.champion_config = Step.run("load_champion", function()
             return plexus_get_score.run({score_id = input.score_id})
         end)
 
         -- Run fresh evaluation on champion (checkpointed)
-        state.champion_metrics = Step.checkpoint(function()
+        state.champion_metrics = Step.run("evaluate_champion", function()
             return plexus_run_evaluation.run({
                 score_id = input.score_id,
                 version = "champion",
@@ -2825,7 +2837,7 @@ Procedure {
             })
         end)
 
-        state.error_analysis = Step.checkpoint(function()
+        state.error_analysis = Step.run("analyze_errors", function()
             return plexus_analyze_errors.run({
                 score_id = input.score_id,
                 limit = 100
@@ -2859,7 +2871,7 @@ Procedure {
             -- Evaluate candidate (checkpointed per attempt)
             Stage.set("evaluating")
 
-            local eval_result = Step.checkpoint(function()
+            local eval_result = Step.run("evaluate_candidate_" .. attempt, function()
                 return plexus_run_evaluation.run({
                     score_id = input.score_id,
                     config = candidate_config,
@@ -2869,7 +2881,7 @@ Procedure {
 
             state.candidate_metrics = eval_result.metrics
 
-            local comparison = Step.checkpoint(function()
+            local comparison = Step.run("compare_" .. attempt, function()
                 return plexus_compare_metrics.run({
                     champion = state.champion_metrics,
                     candidate = eval_result.metrics
@@ -2908,7 +2920,7 @@ Procedure {
                 if review.decision == "Approve" then
                     Stage.set("promoting")
 
-                    local result = Step.checkpoint(function()
+                    local result = Step.run("promote", function()
                         return plexus_promote_score_version.run({
                             score_id = input.score_id,
                             config = candidate_config
@@ -2954,9 +2966,9 @@ Procedure {
 
 **Key patterns demonstrated:**
 
-1. **Checkpointed tool calls** — `Step.checkpoint()` ensures expensive operations (evaluations) run once
+1. **Checkpointed tool calls** — `Step.run()` ensures expensive operations (evaluations) run once
 2. **Champion evaluation at start** — Fresh baseline before any optimization attempts
-3. **Position-based checkpoints** — Each checkpoint is identified by its execution order
+3. **Named checkpoints per attempt** — `"evaluate_candidate_" .. attempt` allows reruns of specific attempts
 4. **Three-way review decision** — Approve, Reject, or Revise with feedback loop
 5. **State persistence across HITL** — All intermediate data survives the approval wait
 6. **Automatic retry below threshold** — Doesn't bother human if improvement is too small
@@ -3000,23 +3012,20 @@ All checkpoints are stored in the `Procedure.metadata` field as JSON:
 
 ```json
 {
-  "checkpoints": [
-    {
-      "position": 0,
+  "checkpoints": {
+    "load_champion": {
       "result": {"config": "...", "version": "v2.3"},
       "completed_at": "2024-12-04T10:00:00Z"
     },
-    {
-      "position": 1,
+    "run_evaluation_1": {
       "result": {"metrics": "...", "evaluation_id": "eval_123"},
       "completed_at": "2024-12-04T10:05:00Z"
     },
-    {
-      "position": 2,
+    "compare_metrics_1": {
       "result": {"improvement_percentage": 0.08},
       "completed_at": "2024-12-04T10:05:30Z"
     }
-  ],
+  },
   "state": {
     "champion_config": "...",
     "champion_metrics": {"accuracy": 0.847},
@@ -3024,7 +3033,7 @@ All checkpoints are stored in the `Procedure.metadata` field as JSON:
     "attempt": 2
   },
   "lua_state": {
-    "checkpoint_index": 3
+    "checkpoint_index": 5
   }
 }
 ```
@@ -3041,8 +3050,8 @@ All checkpoints are stored in the `Procedure.metadata` field as JSON:
 # Clear all checkpoints (restart from beginning)
 plexus procedure reset <procedure_id>
 
-# Clear checkpoints after a specific position
-plexus procedure reset <procedure_id> --after 3
+# Clear checkpoints after a specific point
+plexus procedure reset <procedure_id> --after "run_evaluation_1"
 
 # Clear and rerun
 plexus procedure reset <procedure_id> && plexus procedure run <procedure_id>
@@ -3051,7 +3060,8 @@ plexus procedure reset <procedure_id> && plexus procedure run <procedure_id>
 ```lua
 -- Programmatic checkpoint control (for testing)
 Checkpoint.clear_all()
-Checkpoint.clear_after(3)  -- Clear checkpoint at position 3 and beyond
+Checkpoint.clear_after("step_name")
+Checkpoint.exists("step_name")  -- returns boolean
 ```
 
 ### Replay Behavior
@@ -3089,7 +3099,7 @@ for i, item in ipairs(items) do
 end
 
 -- FIXED: Wrap non-deterministic operations in checkpointed steps
-local items = Step.checkpoint(function()
+local items = Step.run("fetch_items", function()
   return fetch_items_from_api()
 end)
 for i, item in ipairs(items) do
@@ -3125,7 +3135,7 @@ Automatic. Lambda handles suspend/resume via callbacks. No polling needed.
 | (none) | `hitl:` section | New: declarative HITL points |
 | (none) | `Human.*` primitives | New: HITL interaction |
 | (none) | `System.alert()` | New: programmatic alerts |
-| (none) | `Step.checkpoint()` | New: checkpointed arbitrary operations (position-based) |
+| (none) | `Step.run()` | New: checkpointed arbitrary operations |
 | (none) | `Checkpoint.*` | New: checkpoint control for testing |
 | (none) | Execution Contexts | New: Local vs Lambda Durable abstraction |
 
@@ -3136,7 +3146,7 @@ All v3 procedures work unchanged in v4. HITL features are additive.
 - **Checkpoint storage:** All in `Procedure.metadata`, not separate table
 - **Review options:** Array of `{label, type}` hashes; label becomes decision value
 - **Response fields:** `responded_at` timestamp included; no `responder_id` (no user records)
-- **Step.checkpoint():** For checkpointing tool calls outside agent loops; position-based, not named
+- **Step.run():** For checkpointing tool calls outside agent loops
 
 ---
 

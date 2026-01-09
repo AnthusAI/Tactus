@@ -29,8 +29,7 @@ class GherkinParser:
     def __init__(self):
         if not GHERKIN_AVAILABLE:
             raise ImportError(
-                "gherkin-official library not installed. "
-                "Install with: pip install gherkin-official"
+                "gherkin-official library not installed. Install with: pip install gherkin-official"
             )
         self.parser = Parser()
 
@@ -112,7 +111,7 @@ class GherkinParser:
 
         return ParsedStep(
             keyword=keyword,
-            text=text,
+            message=text,
             line=line,
         )
 

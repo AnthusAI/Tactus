@@ -93,7 +93,7 @@ class ToolPrimitive:
         """
         if tool_name not in self._tool_registry:
             available = list(self._tool_registry.keys())
-            raise ValueError(f"Tool '{tool_name}' not defined. " f"Available tools: {available}")
+            raise ValueError(f"Tool '{tool_name}' not defined. Available tools: {available}")
         return self._tool_registry[tool_name]
 
     def set_runtime(self, runtime) -> None:
@@ -323,7 +323,7 @@ class ToolPrimitive:
         self._tool_calls.append(call)
         self._last_calls[tool_name] = call
 
-        logger.debug(f"Tool call recorded: {tool_name} -> " f"{len(self._tool_calls)} total calls")
+        logger.debug(f"Tool call recorded: {tool_name} -> {len(self._tool_calls)} total calls")
 
         # Emit ToolCallEvent if we have a log handler
         if self.log_handler:

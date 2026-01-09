@@ -1315,7 +1315,7 @@ def create_dsl_stubs(
 
         if handler_fn is None:
             raise TypeError(
-                "Tool requires a function. " "Use: multiply = Tool { function(args) ... end }"
+                "Tool requires a function. Use: multiply = Tool { function(args) ... end }"
             )
 
         # Generate a temporary name - will be replaced when assigned

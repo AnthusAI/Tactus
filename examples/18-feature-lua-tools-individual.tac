@@ -110,7 +110,7 @@ Procedure {
         if done.called() then
             answer = done.last_result() or "Task completed"
         else
-            answer = result.text
+            answer = result.message
         end
 
         return {

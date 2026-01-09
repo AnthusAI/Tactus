@@ -51,7 +51,7 @@ class MockHITLHandler:
         self.requests_received.append(request)
 
         logger.debug(
-            f"Mock HITL request: type={request.request_type}, " f"message={request.message[:50]}..."
+            f"Mock HITL request: type={request.request_type}, message={request.message[:50]}..."
         )
 
         # Determine response based on request type
