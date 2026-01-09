@@ -2,7 +2,6 @@
 
 import json
 import pytest
-from pathlib import Path
 from tactus.core.lua_sandbox import LuaSandbox
 
 
