@@ -66,15 +66,15 @@ class MockAgentPrimitive:
         self.turn_count += 1
         logger.info(f"Mock agent turn: {self.name} (turn {self.turn_count})")
 
-        # Check for Mocks {} configuration first
+        # Check for Mocks {} configuration
         mock_response = self._get_custom_mock_response(opts)
         if mock_response is not None:
             logger.debug(f"Mock agent {self.name} using Mocks {{}} configuration")
             self._handle_mock_response(mock_response)
             return mock_response
 
-        # Fall back to default mock behavior
-        self._handle_default_mock()
+        # No mock configured - return None without auto-calling any tools
+        logger.debug(f"Mock agent {self.name} has no Mocks {{}} configuration")
         return None
 
     def _get_custom_mock_response(self, opts: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -114,18 +114,6 @@ class MockAgentPrimitive:
             if "done" in str(tool_calls).lower():
                 reason = mock_response.get("response", "Task completed (mocked)")
                 self._record_done_call(reason)
-
-    def _handle_default_mock(self) -> None:
-        """
-        Handle default mock behavior when no Mocks {} configuration exists.
-
-        Simulates calling done tool after first turn.
-        """
-        # Only call done on first turn
-        if self.turn_count == 1 and self.tool_primitive:
-            logger.debug(f"Mock agent {self.name} calling 'done' tool (default behavior)")
-            mock_reason = f"Mock greeting from {self.name}"
-            self._record_done_call(mock_reason)
 
     def _record_done_call(self, reason: str) -> None:
         """

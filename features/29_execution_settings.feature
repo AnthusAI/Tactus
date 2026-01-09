@@ -11,7 +11,7 @@ Feature: Execution Settings (async, max_depth, max_turns)
   """
   async = true
 
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   system_prompt = "Work",
   tools = {}
@@ -31,7 +31,7 @@ Feature: Execution Settings (async, max_depth, max_turns)
   """
   max_depth = 10
 
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   system_prompt = "Work",
   tools = {}
@@ -51,7 +51,7 @@ Feature: Execution Settings (async, max_depth, max_turns)
   """
   max_turns = 100
 
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   system_prompt = "Work",
   tools = {}
@@ -73,7 +73,7 @@ Feature: Execution Settings (async, max_depth, max_turns)
   max_depth = 5
   max_turns = 50
 
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   system_prompt = "Work",
   tools = {}
@@ -91,7 +91,7 @@ Feature: Execution Settings (async, max_depth, max_turns)
   Scenario: Default execution settings
   Given a Lua DSL file with content:
   """
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   system_prompt = "Work",
   tools = {}

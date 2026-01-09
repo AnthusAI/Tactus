@@ -2,7 +2,7 @@
 -- Demonstrates setting, getting, and incrementing state values
 
 -- Agents (defined at top level - reusable across procedures)
-Agent "worker" {
+worker = Agent {
     provider = "openai",
     system_prompt = "A simple worker agent",
     initial_message = "Starting state management example",
@@ -11,34 +11,39 @@ Agent "worker" {
 
 -- Procedure with outputs defined inline
 
-output {
-        success = field.boolean{required = true, description = "Whether the workflow completed successfully"},
-        message = field.string{required = true, description = "Status message"},
-        count = field.number{required = true, description = "Final count of processed items"},
-    }
+Procedure {
+    output = {
+            success = field.boolean{required = true, description = "Whether the workflow completed successfully"},
+            message = field.string{required = true, description = "Status message"},
+            count = field.number{required = true, description = "Final count of processed items"},
+    },
+    function(input)
 
-Log.info("Starting state management example")
+    Log.info("Starting state management example")
 
-    -- Initialize state
-    State.set("items_processed", 0)
+        -- Initialize state
+        State.set("items_processed", 0)
 
-    -- Process items and track count
-    for i = 1, 5 do
-      State.increment("items_processed")
-      Log.info("Processing item", {number = i})
+        -- Process items and track count
+        for i = 1, 5 do
+          State.increment("items_processed")
+          Log.info("Processing item", {number = i})
+        end
+
+        -- Retrieve final state
+        local final_count = State.get("items_processed")
+        Log.info("Completed processing", {total = final_count})
+
+        return {
+          success = true,
+          message = "State management example completed successfully",
+          count = final_count
+        }
+
+    -- BDD Specifications
     end
+}
 
-    -- Retrieve final state
-    local final_count = State.get("items_processed")
-    Log.info("Completed processing", {total = final_count})
-
-    return {
-      success = true,
-      message = "State management example completed successfully",
-      count = final_count
-    }
-
--- BDD Specifications
 Specifications([[
 Feature: State Management
   Demonstrate state operations in Tactus workflows

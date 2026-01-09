@@ -4,7 +4,8 @@ Lua Sandbox - Safe, restricted Lua execution environment.
 Provides a sandboxed Lua runtime with:
 - Data format libraries restricted to working directory (Csv, Tsv, Parquet, Hdf5, Excel)
 - File and Json primitives injected separately by runtime
-- No dangerous operations (debug, package, require removed)
+- require() available but restricted to loading .tac files from working directory only
+- No dangerous operations (debug, io, loadfile, dofile removed)
 - Only whitelisted primitives available
 - Resource limits on CPU time and memory
 """
@@ -34,13 +35,19 @@ class LuaSandboxError(Exception):
 class LuaSandbox:
     """Sandboxed Lua execution environment for procedure workflows."""
 
-    def __init__(self, execution_context: Optional[Any] = None, strict_determinism: bool = False):
+    def __init__(
+        self,
+        execution_context: Optional[Any] = None,
+        strict_determinism: bool = False,
+        base_path: Optional[str] = None,
+    ):
         """
         Initialize the Lua sandbox.
 
         Args:
             execution_context: Optional ExecutionContext for checkpoint scope tracking
             strict_determinism: If True, raise errors instead of warnings for non-deterministic ops
+            base_path: Optional base path for file operations and require(). Defaults to cwd.
         """
         if not LUPA_AVAILABLE:
             raise LuaSandboxError("lupa library not available. Install with: pip install lupa")
@@ -50,15 +57,18 @@ class LuaSandbox:
         self.strict_determinism = strict_determinism
 
         # Fix base_path at initialization time to prevent security boundary expansion
-        # This ensures file I/O libraries always use the same base path, even if
-        # the working directory changes later (e.g., when set_execution_context is called)
-        self.base_path = os.getcwd()
+        # This ensures file I/O libraries and require() always use the same base path,
+        # even if the working directory changes later
+        self.base_path = base_path if base_path else os.getcwd()
 
         # Create Lua runtime with safety restrictions
         self.lua = LuaRuntime(unpack_returned_tuples=True, attribute_filter=self._attribute_filter)
 
         # Remove dangerous modules
         self._remove_dangerous_modules()
+
+        # Configure safe require/package
+        self._setup_safe_require()
 
         # Setup safe globals
         self._setup_safe_globals()
@@ -96,14 +106,13 @@ class LuaSandbox:
     def _remove_dangerous_modules(self):
         """Remove dangerous Lua standard library modules."""
         # Remove modules that provide file system or system access
+        # Note: 'package' and 'require' are kept but restricted in _setup_safe_require()
         dangerous_modules = [
             "io",  # File I/O
             "os",  # Operating system operations
-            "package",  # Module loading
             "dofile",  # Load and execute files
             "loadfile",  # Load files
             "load",  # Load code
-            "require",  # Require modules
         ]
 
         lua_globals = self.lua.globals()
@@ -127,6 +136,95 @@ class LuaSandbox:
             """
             )
             logger.debug("Replaced debug module with safe_debug (only getinfo allowed)")
+
+    def _setup_safe_require(self):
+        """Configure require/package to search user's project and stdlib.
+
+        This allows using Lua's require() mechanism while restricting module
+        loading to:
+        1. User's project directory (base_path) - for local modules
+        2. Tactus stdlib directory - for standard library modules
+
+        Example:
+            require("helpers/math")       -- loads from base_path/helpers/math.tac
+            require("tactus.tools.done")  -- loads from stdlib/tac/tactus/tools/done.tac
+        """
+        import tactus
+
+        # Get stdlib path from installed package location
+        package_root = os.path.dirname(tactus.__file__)
+        stdlib_tac_path = os.path.join(package_root, "stdlib", "tac")
+
+        # Build search paths:
+        # 1. User's project directory (existing behavior)
+        # 2. Tactus stdlib .tac files
+        user_path = os.path.join(self.base_path, "?.tac")
+        stdlib_path = os.path.join(stdlib_tac_path, "?.tac")
+
+        # Normalize backslashes for cross-platform compatibility
+        paths = [user_path, stdlib_path]
+        paths = [p.replace("\\", "/") for p in paths]
+
+        # Join with Lua's path separator (semicolon)
+        safe_path = ";".join(paths)
+
+        lua_globals = self.lua.globals()
+        package = lua_globals["package"]
+
+        if package:
+            # Set restricted search paths
+            package["path"] = safe_path
+
+            # Disable C module loading entirely
+            package["cpath"] = ""
+
+            # Clear preloaded modules that might provide dangerous access
+            if package["preload"]:
+                self.lua.execute("for k in pairs(package.preload) do package.preload[k] = nil end")
+
+            # Add Python stdlib loader
+            self._setup_python_stdlib_loader()
+
+            logger.debug(f"Configured safe require with paths: {safe_path}")
+        else:
+            logger.warning("package module not available - require will not work")
+
+    def _setup_python_stdlib_loader(self):
+        """Add custom loader for Python stdlib modules."""
+        from tactus.stdlib.loader import StdlibModuleLoader
+
+        # Create loader instance
+        self._stdlib_loader = StdlibModuleLoader(self, self.base_path)
+        loader_func = self._stdlib_loader.create_loader_function()
+
+        # Inject loader function into Lua
+        self.lua.globals()["_tactus_python_loader"] = loader_func
+
+        # Add to package.loaders (Lua 5.1) or package.searchers (Lua 5.2+)
+        # Lupa uses LuaJIT which follows Lua 5.1 conventions
+        self.lua.execute(
+            """
+            -- Add Python stdlib loader to package.loaders
+            -- Insert after the preload loader but before path loader
+            local loaders = package.loaders or package.searchers
+            if loaders then
+                -- Create wrapper that returns a loader function (Lua convention)
+                local function python_searcher(modname)
+                    local result = _tactus_python_loader(modname)
+                    if result then
+                        -- Return a loader function that returns the module
+                        return function() return result end
+                    end
+                    return nil
+                end
+
+                -- Insert at position 2 (after preload, before path)
+                table.insert(loaders, 2, python_searcher)
+            end
+        """
+        )
+
+        logger.debug("Python stdlib loader installed")
 
     def _setup_safe_globals(self):
         """Setup safe global functions and utilities."""
@@ -177,9 +275,6 @@ class LuaSandbox:
             self.lua.globals()["os"] = safe_os_table
 
             logger.info("Installed safe math and os libraries with determinism checking")
-
-            # Setup safe file I/O libraries (always available)
-            self._setup_file_io_libraries()
             return  # Skip default os.date setup below
 
         # Add safe subset of os module (only date function for timestamps)
@@ -206,9 +301,6 @@ class LuaSandbox:
         safe_os = self.lua.table(date=safe_date)
         self.lua.globals()["os"] = safe_os
         logger.debug("Added safe os.date() function")
-
-        # Setup safe file I/O libraries (always available)
-        self._setup_file_io_libraries()
 
     def setup_assignment_interception(self, callback: Any):
         """
@@ -249,40 +341,6 @@ class LuaSandbox:
         except Exception as e:
             logger.error(f"Failed to setup assignment interception: {e}", exc_info=True)
             raise LuaSandboxError(f"Could not setup assignment interception: {e}")
-
-    def _setup_file_io_libraries(self):
-        """Setup safe file I/O libraries restricted to working directory.
-
-        Note: File and Json primitives are injected separately by the runtime
-        (FilePrimitive and JsonPrimitive). This method only sets up the data
-        format libraries (Csv, Tsv, Parquet, Hdf5, Excel).
-
-        Security: Uses self.base_path which is fixed at initialization time,
-        preventing security boundary expansion if working directory changes.
-        """
-        from tactus.utils.safe_file_library import (
-            create_safe_csv_library,
-            create_safe_excel_library,
-            create_safe_hdf5_library,
-            create_safe_parquet_library,
-            create_safe_tsv_library,
-        )
-
-        # Use base_path fixed at initialization time (not os.getcwd())
-        # This prevents security boundary expansion if working directory changes
-        base_path = self.base_path
-
-        # Inject data format libraries into Lua globals
-        # Note: File and Json are handled by separate primitives in the runtime
-        self.lua.globals()["Csv"] = self._dict_to_lua_table(create_safe_csv_library(base_path))
-        self.lua.globals()["Tsv"] = self._dict_to_lua_table(create_safe_tsv_library(base_path))
-        self.lua.globals()["Parquet"] = self._dict_to_lua_table(
-            create_safe_parquet_library(base_path)
-        )
-        self.lua.globals()["Hdf5"] = self._dict_to_lua_table(create_safe_hdf5_library(base_path))
-        self.lua.globals()["Excel"] = self._dict_to_lua_table(create_safe_excel_library(base_path))
-
-        logger.debug(f"Injected data format libraries with base_path: {base_path}")
 
     def set_execution_context(self, context: Any):
         """

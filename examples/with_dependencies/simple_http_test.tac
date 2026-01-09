@@ -7,20 +7,21 @@
 -- 4. BDD tests can mock the dependency
 
 -- Define completion tool
-tool("done", {
+done = Tool {
     description = "Signal completion of the task",
     input = {
         reason = field.string{required = true, description = "Completion message"}
-    }
-}, function(args)
-    return "Done: " .. args.reason
-end)
+    },
+    function(args)
+        return "Done: " .. args.reason
+    end
+}
 
-Agent("test_agent", {
+test_agent = Agent {
     provider = "openai",
     model = "gpt-4o",
     system_prompt = "You are a test agent",
-    toolsets = {"done"}
+    tools = {done}
 }
 
 input {
@@ -35,7 +36,7 @@ output {
 -- Simple procedure that just completes
     -- In a real use case, the agent's tools would use test_api via ctx.deps.test_api
 
-    Test_agent.turn()
+    test_agent()
 
     return {
         success = true,

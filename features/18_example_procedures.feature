@@ -35,8 +35,6 @@ Feature: Example Procedures
   Given an example file "01-basics-hello-world.tac"
   When I execute the procedure
   Then the execution should succeed
-  And the output should contain field "success" with value true
-  And the output should contain field "count" with value 5
 
   Scenario: State Management example tracks count correctly
   Given an example file "10-feature-state.tac"

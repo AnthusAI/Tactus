@@ -1,8 +1,8 @@
 -- Example: Temporal Mocking
 -- Demonstrates mocking that returns different values on each call
 
--- Tool definitions
-Tool "done" { use = "tactus.done" }
+-- Import completion tool from standard library
+local done = require("tactus.tools.done")
 
 -- Temporal mocks - return different values per call
 Mocks {
@@ -24,7 +24,7 @@ Mocks {
 }
 
 -- Agent that calls tools multiple times
-Agent "progress_monitor" {
+progress_monitor = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[You are a progress monitoring assistant.
@@ -43,65 +43,70 @@ Your task:
 
 -- Main procedure
 
-output {
-        counter_calls = field.integer{required = true, description = "Number of counter calls"},
-        status_calls = field.integer{required = true, description = "Number of status calls"},
-        final_status = field.string{required = true, description = "Final status observed"},
-        completed = field.boolean{required = true, description = "Whether task completed"}
-    }
+Procedure {
+    output = {
+            counter_calls = field.integer{required = true, description = "Number of counter calls"},
+            status_calls = field.integer{required = true, description = "Number of status calls"},
+            final_status = field.string{required = true, description = "Final status observed"},
+            completed = field.boolean{required = true, description = "Whether task completed"}
+    },
+    function(input)
 
-Log.info("Starting temporal mock demo")
+    Log.info("Starting temporal mock demo")
 
-        -- Start the agent
-        Agent("progress_monitor").turn({
-            initial_message = "Please monitor the progress by calling get_counter and check_status multiple times, then report your findings with done."
-        })
+            -- Start the agent
+            progress_monitor({
+                initial_message = "Please monitor the progress by calling get_counter and check_status multiple times, then report your findings with done."
+            })
 
-        -- Wait for agent to complete
-        local max_turns = 10
-        local turn_count = 1
+            -- Wait for agent to complete
+            local max_turns = 10
+            local turn_count = 1
 
-        while not Tool.called("done") and turn_count < max_turns do
-            Agent("progress_monitor").turn()
-            turn_count = turn_count + 1
-        end
+            while not done.called() and turn_count < max_turns do
+                progress_monitor()
+                turn_count = turn_count + 1
+            end
 
-        -- Count tool calls
-        local counter_calls = 0
-        local status_calls = 0
-        local final_status = "unknown"
+            -- Count tool calls
+            local counter_calls = 0
+            local status_calls = 0
+            local final_status = "unknown"
 
-        -- Count get_counter calls
-        if Tool.called("get_counter") then
-            -- In a real implementation, we'd have Tool.call_count("get_counter")
-            -- For now, we'll assume it was called at least once
-            counter_calls = 3  -- Expected based on temporal mock
-        end
+            -- Count get_counter calls
+            if Tool.called("get_counter") then
+                -- In a real implementation, we'd have Tool.call_count("get_counter")
+                -- For now, we'll assume it was called at least once
+                counter_calls = 3  -- Expected based on temporal mock
+            end
 
-        -- Count check_status calls and get final status
-        if Tool.called("check_status") then
-            status_calls = 3  -- Expected based on temporal mock
-            -- The third call should return "completed"
-            final_status = "completed"
-        end
+            -- Count check_status calls and get final status
+            if Tool.called("check_status") then
+                status_calls = 3  -- Expected based on temporal mock
+                -- The third call should return "completed"
+                final_status = "completed"
+            end
 
-        local completed = Tool.called("done")
+            local completed = done.called()
 
-        Log.info("Temporal mock demo complete", {
-            counter_calls = counter_calls,
-            status_calls = status_calls,
-            final_status = final_status,
-            turns = turn_count
-        })
+            Log.info("Temporal mock demo complete", {
+                counter_calls = counter_calls,
+                status_calls = status_calls,
+                final_status = final_status,
+                turns = turn_count
+            })
 
-        return {
-            counter_calls = counter_calls,
-            status_calls = status_calls,
-            final_status = final_status,
-            completed = completed
-        }
+            return {
+                counter_calls = counter_calls,
+                status_calls = status_calls,
+                final_status = final_status,
+                completed = completed
+            }
 
--- BDD Specifications
+    -- BDD Specifications
+    end
+}
+
 Specifications([[
 Feature: Temporal Mocking
   Tools return different values on successive calls

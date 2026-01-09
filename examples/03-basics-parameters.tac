@@ -2,7 +2,7 @@
 -- Demonstrates accessing parameters and using them in procedure logic
 
 -- Agents (defined at top level - reusable across procedures)
-Agent "worker" {
+worker = Agent {
     provider = "openai",
     system_prompt = "A worker agent",
     initial_message = "Processing task",
@@ -10,34 +10,35 @@ Agent "worker" {
 }
 
 -- Procedure with input and output defined inline
-
-input {
+Procedure {
+    input = {
         task = field.string{description = "The task name to process", default = "default task"},
         count = field.number{description = "Number of iterations to perform", default = 3},
-    }
-
-output {
+    },
+    output = {
         result = field.string{required = true, description = "Summary of the completed work"},
-    }
+    },
+    function(input)
+        -- Access input
+        local task = input.task
+        local count = input.count
 
--- Access input
-    local task = input.task
-    local count = input.count
+        Log.info("Running task", {task = task, count = count})
 
-    Log.info("Running task", {task = task, count = count})
+        -- Use parameters in workflow
+        State.set("iterations", 0)
+        for i = 1, count do
+          State.increment("iterations")
+          Log.info("Iteration", {number = i, task = task})
+        end
 
-    -- Use parameters in workflow
-    State.set("iterations", 0)
-    for i = 1, count do
-      State.increment("iterations")
-      Log.info("Iteration", {number = i, task = task})
+        local final_iterations = State.get("iterations")
+
+        return {
+          result = "Completed " .. task .. " with " .. final_iterations .. " iterations"
+        }
     end
-
-    local final_iterations = State.get("iterations")
-
-    return {
-      result = "Completed " .. task .. " with " .. final_iterations .. " iterations"
-    }
+}
 
 -- BDD Specifications
 Specifications([[

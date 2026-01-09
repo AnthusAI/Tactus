@@ -7,17 +7,10 @@
 -- This example shows a data processing pipeline composed of
 -- multiple sub-procedures that transform and analyze data.
 
--- Define completion tool
-tool("done", {
-    description = "Signal completion of the task",
-    input = {
-        reason = field.string{required = true, description = "Completion message"}
-    }
-}, function(args)
-    return "Done: " .. args.reason
-end)
+-- Import the done tool from standard library
+local done = require("tactus.tools.done")
 
-Agent "analyst" {
+analyst = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[
@@ -31,46 +24,50 @@ The processed data shows:
 Provide a brief analysis of these statistics.
 Call done when finished.
 ]],
-    toolsets = {"done"}
+    tools = {done}
 }
 
-input {
-        numbers = field.array{required = true, description = "Array of numbers to analyze"}
-    }
+Procedure {
+    input = {
+            numbers = field.array{required = true, description = "Array of numbers to analyze"}
+    },
+    output = {
+            sum = field.number{required = true, description = "Sum of all numbers"},
+            product = field.number{required = true, description = "Product of all numbers"},
+            average = field.number{required = true, description = "Average of all numbers"},
+            analysis = field.string{required = true, description = "AI analysis of the data"}
+    },
+    function(input)
 
-output {
-        sum = field.number{required = true, description = "Sum of all numbers"},
-        product = field.number{required = true, description = "Product of all numbers"},
-        average = field.number{required = true, description = "Average of all numbers"},
-        analysis = field.string{required = true, description = "AI analysis of the data"}
-    }
+    -- Step 1: Calculate sum (auto-checkpointed)
+        local sum_result = Procedure.run("examples/helpers/sum.tac", {
+            values = input.numbers
+        })
+        State.sum = sum_result.result or sum_result
 
--- Step 1: Calculate sum (auto-checkpointed)
-    local sum_result = Procedure.run("examples/helpers/sum.tac", {
-        values = input.numbers
-    })
-    State.sum = sum_result.result or sum_result
+        -- Step 2: Calculate product (auto-checkpointed)
+        local product_result = Procedure.run("examples/helpers/product.tac", {
+            values = input.numbers
+        })
+        State.product = product_result.result or product_result
 
-    -- Step 2: Calculate product (auto-checkpointed)
-    local product_result = Procedure.run("examples/helpers/product.tac", {
-        values = input.numbers
-    })
-    State.product = product_result.result or product_result
+        -- Step 3: Calculate average
+        State.average = State.sum / #input.numbers
 
-    -- Step 3: Calculate average
-    State.average = State.sum / #input.numbers
+        -- Step 4: Get AI analysis (auto-checkpointed agent turn)
+        analyst({})
 
-    -- Step 4: Get AI analysis (auto-checkpointed agent turn)
-    Agent("analyst").turn({})
+        return {
+            sum = State.sum,
+            product = State.product,
+            average = State.average,
+            analysis = Analyst.output
+        }
 
-    return {
-        sum = State.sum,
-        product = State.product,
-        average = State.average,
-        analysis = Analyst.output
-    }
+    -- BDD Specifications
+    end
+}
 
--- BDD Specifications
 Specifications([[
 Feature: Sub-Procedure Composition with Auto-Checkpointing
   As a workflow developer

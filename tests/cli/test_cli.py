@@ -100,15 +100,17 @@ def test_cli_run_with_parameters(cli_runner, tmp_path):
     tools = {}
 }
 
-input {
-    name = field.string{default = "World"}
+Procedure {
+    input = {
+        name = field.string{default = "World"}
+    },
+    output = {
+        greeting = field.string{required = true}
+    },
+    function(input)
+        return { greeting = "Hello, " .. input.name }
+    end
 }
-
-output {
-    greeting = field.string{required = true}
-}
-
-return { greeting = "Hello, " .. input.name }
 """
     workflow_file = tmp_path / "params.tac"
     workflow_file.write_text(workflow_content)

@@ -23,8 +23,10 @@ class ConfigManager:
     2. Sidecar config (procedure.tac.yml)
     3. Local directory config (.tactus/config.yml in procedure's directory)
     4. Parent directory configs (walk up tree)
-    5. Root config (.tactus/config.yml in cwd)
-    6. Environment variables (fallback)
+    5. Project config (.tactus/config.yml in cwd)
+    6. User config (~/.tactus/config.yml, or XDG config dir)
+    7. System config (/etc/tactus/config.yml, etc.)
+    8. Environment variables (fallback)
     """
 
     def __init__(self):
@@ -49,7 +51,23 @@ class ConfigManager:
             configs.append(("environment", env_config))
             logger.debug("Loaded config from environment variables")
 
-        # 2. Root config (.tactus/config.yml in cwd)
+        # 2. System config (lowest precedence among config files)
+        for system_path in self._get_system_config_paths():
+            if system_path.exists():
+                system_config = self._load_yaml_file(system_path)
+                if system_config:
+                    configs.append((f"system:{system_path}", system_config))
+                    logger.debug(f"Loaded system config: {system_path}")
+
+        # 3. User config (~/.tactus/config.yml, XDG, etc.)
+        for user_path in self._get_user_config_paths():
+            if user_path.exists():
+                user_config = self._load_yaml_file(user_path)
+                if user_config:
+                    configs.append((f"user:{user_path}", user_config))
+                    logger.debug(f"Loaded user config: {user_path}")
+
+        # 4. Project config (.tactus/config.yml in cwd)
         root_config_path = Path.cwd() / ".tactus" / "config.yml"
         if root_config_path.exists():
             root_config = self._load_yaml_file(root_config_path)
@@ -57,7 +75,7 @@ class ConfigManager:
                 configs.append(("root", root_config))
                 logger.debug(f"Loaded root config: {root_config_path}")
 
-        # 3. Parent directory configs (walk up from procedure directory)
+        # 5. Parent directory configs (walk up from procedure directory)
         procedure_dir = procedure_path.parent.resolve()
         parent_configs = self._find_directory_configs(procedure_dir)
         for config_path in parent_configs:
@@ -66,7 +84,7 @@ class ConfigManager:
                 configs.append((f"parent:{config_path}", config))
                 logger.debug(f"Loaded parent config: {config_path}")
 
-        # 4. Local directory config (.tactus/config.yml in procedure's directory)
+        # 6. Local directory config (.tactus/config.yml in procedure's directory)
         local_config_path = procedure_dir / ".tactus" / "config.yml"
         if local_config_path.exists() and local_config_path not in parent_configs:
             local_config = self._load_yaml_file(local_config_path)
@@ -74,7 +92,7 @@ class ConfigManager:
                 configs.append(("local", local_config))
                 logger.debug(f"Loaded local config: {local_config_path}")
 
-        # 5. Sidecar config (highest priority, except CLI args)
+        # 7. Sidecar config (highest priority, except CLI args)
         sidecar_path = self._find_sidecar_config(procedure_path)
         if sidecar_path:
             sidecar_config = self._load_yaml_file(sidecar_path)
@@ -177,6 +195,7 @@ class ConfigManager:
         # Load known config keys from environment
         env_mappings = {
             "OPENAI_API_KEY": "openai_api_key",
+            "GOOGLE_API_KEY": "google_api_key",
             "AWS_ACCESS_KEY_ID": ("aws", "access_key_id"),
             "AWS_SECRET_ACCESS_KEY": ("aws", "secret_access_key"),
             "AWS_DEFAULT_REGION": ("aws", "default_region"),
@@ -203,6 +222,47 @@ class ConfigManager:
                     config[config_key] = value
 
         return config
+
+    def _get_system_config_paths(self) -> List[Path]:
+        """
+        Return system-wide config locations (lowest precedence).
+
+        These are optional; most users will rely on user-wide or project configs.
+        """
+        if os.name == "nt":
+            program_data = Path(os.environ.get("PROGRAMDATA", r"C:\ProgramData"))
+            return [program_data / "tactus" / "config.yml"]
+
+        return [
+            Path("/etc/tactus/config.yml"),
+            Path("/usr/local/etc/tactus/config.yml"),
+        ]
+
+    def _get_user_config_paths(self) -> List[Path]:
+        """
+        Return per-user config locations (lower precedence than project configs).
+
+        Order is from lower to higher precedence so later configs override earlier ones.
+        """
+        paths: List[Path] = []
+
+        xdg_home = os.environ.get("XDG_CONFIG_HOME")
+        if xdg_home:
+            paths.append(Path(xdg_home) / "tactus" / "config.yml")
+        else:
+            paths.append(Path.home() / ".config" / "tactus" / "config.yml")
+
+        # Legacy / explicit location (documented by this project)
+        paths.append(Path.home() / ".tactus" / "config.yml")
+
+        # Deduplicate while preserving order
+        seen = set()
+        unique: List[Path] = []
+        for p in paths:
+            if p not in seen:
+                unique.append(p)
+                seen.add(p)
+        return unique
 
     def _merge_configs(self, configs: List[Dict[str, Any]]) -> Dict[str, Any]:
         """

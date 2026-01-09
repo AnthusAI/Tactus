@@ -9,13 +9,13 @@ Feature: Output Schema Declarations
   Scenario: Simple string output
   Given a Lua DSL file with content:
   """
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   system_prompt = "Work",
   tools = {}
   }
 
-  main = Procedure "main" {
+  Procedure {
   output = {
     result = field.string{required = true, description = "The result"}
   },
@@ -31,13 +31,13 @@ Feature: Output Schema Declarations
   Scenario: Multiple output fields with different types
   Given a Lua DSL file with content:
   """
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   system_prompt = "Work",
   tools = {}
   }
 
-  main = Procedure "main" {
+  Procedure {
   output = {
     result = field.string{required = true},
     count = field.number{required = true},
@@ -59,13 +59,13 @@ Feature: Output Schema Declarations
   Scenario: Optional output field
   Given a Lua DSL file with content:
   """
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   system_prompt = "Work",
   tools = {}
   }
 
-  main = Procedure "main" {
+  Procedure {
   output = {
     result = field.string{required = true},
     details = field.string{required = false, description = "Optional details"}
@@ -82,13 +82,13 @@ Feature: Output Schema Declarations
   Scenario: Output schema validation at runtime
   Given a Lua DSL file with content:
   """
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   system_prompt = "Work",
   tools = {}
   }
 
-  main = Procedure "main" {
+  Procedure {
   output = {
     result = field.string{required = true}
   },
@@ -103,13 +103,13 @@ Feature: Output Schema Declarations
   Scenario: Array output type
   Given a Lua DSL file with content:
   """
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   system_prompt = "Work",
   tools = {}
   }
 
-  main = Procedure "main" {
+  Procedure {
   output = {
     items = field.array{required = true, description = "List of items"}
   },
@@ -125,13 +125,13 @@ Feature: Output Schema Declarations
   Scenario: Object output type
   Given a Lua DSL file with content:
   """
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   system_prompt = "Work",
   tools = {}
   }
 
-  main = Procedure "main" {
+  Procedure {
   output = {
     metadata = field.object{required = false, description = "Metadata object"}
   },

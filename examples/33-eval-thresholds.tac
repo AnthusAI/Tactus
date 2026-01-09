@@ -1,7 +1,7 @@
 -- Example: CI/CD Thresholds
 -- This demonstrates quality gates for automated testing pipelines
 
-Agent "greeter" {
+greeter = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[You are a friendly greeter.
@@ -11,27 +11,31 @@ Call the 'done' tool with your greeting.]],
     initial_message = "Generate a greeting for {name}",
 }
 
-input {
-        name = field.string{required = true}
-    }
+Procedure {
+    input = {
+            name = field.string{required = true}
+    },
+    output = {
+            greeting = field.string{required = true}
+    },
+    function(input)
 
-output {
-        greeting = field.string{required = true}
-    }
+    -- Have agent generate greeting
+        greeter()
 
--- Have agent generate greeting
-    Agent("greeter").turn()
-    
-    -- Get result
-    if Tool.called("done") then
-        return {
-            greeting = Tool.last_result("done") or "Task completed" or "Hello!"
-        }
+        -- Get result
+        if done.called() then
+            return {
+                greeting = done.last_result() or "Task completed" or "Hello!"
+            }
+        end
+
+        return {greeting = "No greeting generated"}
+
+    -- BDD Specifications
     end
-    
-    return {greeting = "No greeting generated"}
+}
 
--- BDD Specifications
 Specifications([[
 Feature: Greeting Generation with Thresholds
 

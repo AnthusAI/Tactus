@@ -5,7 +5,20 @@
 -- - Advanced evaluators (regex, JSON schema, range)
 -- - CI/CD thresholds
 
-Agent "contact_formatter" {
+local done = require("tactus.tools.done")
+
+-- Define a validate tool for this example
+validate = Tool {
+    description = "Validate contact information",
+    input = {
+        data = field.string{required = true, description = "Data to validate"}
+    },
+    function(args)
+        return {valid = true, message = "Validated: " .. args.data}
+    end
+}
+
+contact_formatter = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[You are a contact information formatter.
@@ -18,44 +31,48 @@ Given raw contact information, format it properly:
 
 Return JSON with: {phone, email, score}]],
     initial_message = "Format this contact: {raw_contact}",
-    toolsets = {"validate"}
+    tools = {validate, done}
 }
 
-input {
-        raw_contact = field.string{required = true}
-    }
+Procedure {
+    input = {
+            raw_contact = field.string{required = true}
+    },
+    output = {
+            phone = field.string{required = false},
+            email = field.string{required = false},
+            score = field.number{required = false},
+            formatted = field.boolean{required = true}
+    },
+    function(input)
 
-output {
-        phone = field.string{required = false},
-        email = field.string{required = false},
-        score = field.number{required = false},
-        formatted = field.boolean{required = true}
-    }
+    State.set("formatting_started", true)
 
-State.set("formatting_started", true)
-    
-    -- Have agent format the contact
-    Agent("contact_formatter").turn()
-    
-    -- Extract result
-    if Tool.called("done") then
-        local result = Tool.last_result("done") or "Task completed" or "{}"
-        State.set("formatting_complete", true)
-        
-        -- Parse JSON result (simplified for example)
+        -- Have agent format the contact
+        contact_formatter()
+
+        -- Extract result
+        if done.called() then
+            local result = done.last_result() or "Task completed" or "{}"
+            State.set("formatting_complete", true)
+
+            -- Parse JSON result (simplified for example)
+            return {
+                phone = "(555) 123-4567",
+                email = "contact@example.com",
+                score = 85,
+                formatted = true
+            }
+        end
+
         return {
-            phone = "(555) 123-4567",
-            email = "contact@example.com",
-            score = 85,
-            formatted = true
+            formatted = false
         }
-    end
-    
-    return {
-        formatted = false
-    }
 
--- BDD Specifications
+    -- BDD Specifications
+    end
+}
+
 Specifications([[
 Feature: Contact Formatting with Comprehensive Evaluation
 
