@@ -9,8 +9,8 @@ To run this example:
 tactus run examples/18-feature-lua-tools-toolset.tac --param operation="add 15 and 27"
 ]]--
 
--- Define completion tool
-Tool "done" { use = "tactus.done" }
+-- Import completion tool from standard library
+local done = require("tactus.tools.done")
 
 -- Define a toolset containing multiple math tools
 Toolset "math_tools" {
@@ -97,7 +97,7 @@ Toolset "math_tools" {
 }
 
 -- Agent with access to the math toolset
-Agent "mathematician" {
+mathematician = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
     tool_choice = "required",
@@ -122,50 +122,54 @@ After calling the math tool, call done with the result.]],
 
 -- Main workflow
 
-input {
-        operation = field.string{description = "Mathematical operation to perform", default = "What is 5 plus 3?"}
-    }
+Procedure {
+    input = {
+            operation = field.string{description = "Mathematical operation to perform", default = "What is 5 plus 3?"}
+    },
+    output = {
+            answer = field.string{required = true, description = "The mathematical answer"},
+            completed = field.boolean{required = true, description = "Whether the task was completed"}
+    },
+    function(input)
 
-output {
-        answer = field.string{required = true, description = "The mathematical answer"},
-        completed = field.boolean{required = true, description = "Whether the task was completed"}
-    }
+    local max_turns = 10
+        local turn_count = 0
+        local result
 
-local max_turns = 10
-    local turn_count = 0
-    local result
+        repeat
+            result = mathematician()
+            turn_count = turn_count + 1
 
-    repeat
-        result = Agent("mathematician").turn()
-        turn_count = turn_count + 1
-
-        -- Log tool usage
-        local tools_used = {}
-        for _, tool_name in ipairs({"add", "subtract", "multiply", "divide", "power", "square_root"}) do
-            if Tool.called(tool_name) then
-                table.insert(tools_used, tool_name)
+            -- Log tool usage
+            local tools_used = {}
+            for _, tool_name in ipairs({"add", "subtract", "multiply", "divide", "power", "square_root"}) do
+                if Tool.called(tool_name) then
+                    table.insert(tools_used, tool_name)
+                end
             end
-        end
-        if #tools_used > 0 then
-            Log.info("Used tools: " .. table.concat(tools_used, ", "))
+            if #tools_used > 0 then
+                Log.info("Used tools: " .. table.concat(tools_used, ", "))
+            end
+
+        until done.called() or turn_count >= max_turns
+
+        -- Get final result
+        local answer
+        if done.called() then
+            answer = done.last_result() or "Task completed"
+        else
+            answer = result.text
         end
 
-    until Tool.called("done") or turn_count >= max_turns
+        return {
+            answer = answer,
+            completed = done.called()
+        }
 
-    -- Get final result
-    local answer
-    if Tool.called("done") then
-        answer = Tool.last_result("done") or "Task completed"
-    else
-        answer = result.text
+    -- BDD Specifications
     end
+}
 
-    return {
-        answer = answer,
-        completed = Tool.called("done")
-    }
-
--- BDD Specifications
 Specifications([[
 Feature: Lua Toolset with Multiple Tools
   Demonstrate toolset() with type="lua" for grouped tools

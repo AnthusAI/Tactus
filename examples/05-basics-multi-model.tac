@@ -1,63 +1,70 @@
 -- Multi-Model Workflow Example
 -- Demonstrates using multiple OpenAI models in one procedure
 
+local done = require("tactus.tools.done")
+
 -- Agents (defined at top level - reusable across procedures)
-Agent "researcher" {
+researcher = Agent {
     provider = "openai",
     model = "gpt-4o",
     system_prompt = [[You are a researcher. Provide brief research findings (2-3 paragraphs maximum).
 IMPORTANT: You MUST call the 'done' tool when finished, passing your research as the 'reason' argument.
 ]],
     initial_message = "Please research this topic and call done when finished: {input.topic}",
+    tools = {done},
 }
 
-Agent "summarizer" {
+summarizer = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[You are a summarizer. Create a brief 1-2 paragraph summary of the provided text.
 IMPORTANT: You MUST call the 'done' tool when finished, passing your summary as the 'reason' argument.
 ]],
     initial_message = "Please summarize the following research and call done when finished:\n\n{research}",
+    tools = {done},
 }
 
 -- Procedure with input defined inline
-
-input {
+Procedure {
+    input = {
         topic = field.string{default = "artificial intelligence"},
-    }
-
--- Research phase with GPT-4o
+    },
+    function(input)
+        -- Research phase with GPT-4o
         Log.info("Starting research with GPT-4o...")
         local max_turns = 3
         local turn_count = 0
         local result
 
         repeat
-          result = Agent("researcher").turn()
+          result = researcher()
           turn_count = turn_count + 1
-        until Tool.called("done") or turn_count >= max_turns
+        until done.called() or turn_count >= max_turns
 
         local research
-        if Tool.called("done") then
-            research = Tool.last_result("done") or "Task completed"
+        if done.called() then
+            research = done.last_result() or "Task completed"
         else
             research = result.text or "Research not completed"
             Log.warn("Researcher did not call done within max turns")
         end
         State.set("research", research)
 
+        -- Reset done tool for next agent
+        done.reset()
+
         -- Summarization phase with GPT-4o-mini
         Log.info("Creating summary with GPT-4o-mini...")
         turn_count = 0
 
         repeat
-          result = Agent("summarizer").turn()
+          result = summarizer()
           turn_count = turn_count + 1
-        until Tool.called("done") or turn_count >= max_turns
+        until done.called() or turn_count >= max_turns
 
         local summary
-        if Tool.called("done") then
-            summary = Tool.last_result("done") or "Task completed"
+        if done.called() then
+            summary = done.last_result() or "Task completed"
         else
             summary = result.text or "Summary not completed"
             Log.warn("Summarizer did not call done within max turns")
@@ -68,6 +75,8 @@ input {
           summary = summary,
           models_used = {"gpt-4o", "gpt-4o-mini"}
         }
+    end
+}
 
 -- BDD Specifications
 Specifications([[

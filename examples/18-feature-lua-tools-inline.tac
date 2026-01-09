@@ -8,11 +8,11 @@ To run this example:
 tactus run examples/18-feature-lua-tools-inline.tac --param message="Hello, World!"
 ]]--
 
--- Define completion tool
-Tool "done" { use = "tactus.done" }
+-- Import completion tool from standard library
+local done = require("tactus.tools.done")
 
 -- Agent with inline Lua function tools
-Agent "text_processor" {
+text_processor = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
     tool_choice = "required",
@@ -98,61 +98,65 @@ After calling the tool, call done with the tool's result.]],
 
 -- Main workflow
 
-input {
-        message = field.string{description = "Text processing request", default = "Convert 'hello world' to uppercase"}
-    }
+Procedure {
+    input = {
+            message = field.string{description = "Text processing request", default = "Convert 'hello world' to uppercase"}
+    },
+    output = {
+            result = field.string{required = true, description = "The processed result"},
+            tools_used = field.array{required = false, description = "List of tools that were used"},
+            completed = field.boolean{required = true, description = "Whether the task was completed"}
+    },
+    function(input)
 
-output {
-        result = field.string{required = true, description = "The processed result"},
-        tools_used = field.array{required = false, description = "List of tools that were used"},
-        completed = field.boolean{required = true, description = "Whether the task was completed"}
-    }
+    local max_turns = 5
+        local turn_count = 0
+        local result
 
-local max_turns = 5
-    local turn_count = 0
-    local result
+        repeat
+            result = text_processor()
+            turn_count = turn_count + 1
 
-    repeat
-        result = Agent("text_processor").turn()
-        turn_count = turn_count + 1
+        until done.called() or turn_count >= max_turns
 
-    until Tool.called("done") or turn_count >= max_turns
-
-    -- Track which tools were used
-    local tools_used = {}
-    for _, tool_name in ipairs({
-        "text_processor_uppercase",
-        "text_processor_lowercase",
-        "text_processor_reverse_text",
-        "text_processor_count_words",
-        "text_processor_repeat_text"
-    }) do
-        if Tool.called(tool_name) then
-            -- Remove agent name prefix for display
-            local display_name = string.gsub(tool_name, "text_processor_", "")
-            table.insert(tools_used, display_name)
+        -- Track which tools were used
+        local tools_used = {}
+        for _, tool_name in ipairs({
+            "text_processor_uppercase",
+            "text_processor_lowercase",
+            "text_processor_reverse_text",
+            "text_processor_count_words",
+            "text_processor_repeat_text"
+        }) do
+            if Tool.called(tool_name) then
+                -- Remove agent name prefix for display
+                local display_name = string.gsub(tool_name, "text_processor_", "")
+                table.insert(tools_used, display_name)
+            end
         end
+
+        -- Get final result
+        local answer
+        if done.called() then
+            answer = done.last_result() or "Task completed"
+        else
+            answer = result.text
+        end
+
+        if #tools_used > 0 then
+            Log.info("Tools used: " .. table.concat(tools_used, ", "))
+        end
+
+        return {
+            result = answer,
+            tools_used = tools_used,
+            completed = done.called()
+        }
+
+    -- BDD Specifications
     end
+}
 
-    -- Get final result
-    local answer
-    if Tool.called("done") then
-        answer = Tool.last_result("done") or "Task completed"
-    else
-        answer = result.text
-    end
-
-    if #tools_used > 0 then
-        Log.info("Tools used: " .. table.concat(tools_used, ", "))
-    end
-
-    return {
-        result = answer,
-        tools_used = tools_used,
-        completed = Tool.called("done")
-    }
-
--- BDD Specifications
 Specifications([[
 Feature: Inline Lua Function Tools
   Demonstrate inline tool definitions in agent configuration

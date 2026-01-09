@@ -16,7 +16,7 @@ tactus run examples/19-feature-direct-tool-calls.tac --param bill=100 --param ti
 ]]--
 
 -- tool() returns a callable - assign to variables for direct calls
-local calculate_tip = Tool "calculate_tip" {
+local calculate_tip = Tool {
     description = "Calculate tip amount for a bill",
     input = {
         bill_amount = field.number{required = true, description = "Total bill amount"},
@@ -30,7 +30,7 @@ local calculate_tip = Tool "calculate_tip" {
     end
 }
 
-local split_bill = Tool "split_bill" {
+local split_bill = Tool {
     description = "Split a bill total among multiple people",
     input = {
         total_amount = field.number{required = true, description = "Total to split"},
@@ -43,11 +43,11 @@ local split_bill = Tool "split_bill" {
     end
 }
 
--- Define completion tool
-Tool "done" { use = "tactus.done" }
+-- Import completion tool from standard library
+local done = require("tactus.tools.done")
 
 -- Agent for summarizing (only has done tool - doesn't need calculation tools)
-Agent "summarizer" {
+summarizer = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[You are a helpful assistant that summarizes calculation results.
@@ -56,76 +56,80 @@ Given the calculation results in the context, provide a brief, friendly summary
 that explains what was calculated and the final amounts.
 
 After summarizing, call the 'done' tool with your summary as the reason.]],
-    toolsets = {"done"}
+    tools = {done}
 }
 
 -- Main procedure with DETERMINISTIC tool calls
 
-input {
-        bill = field.number{description = "Original bill amount", default = 100},
-        tip_pct = field.number{description = "Tip percentage", default = 20},
-        people = field.integer{description = "Number of people splitting", default = 4}
-    }
+Procedure {
+    input = {
+            bill = field.number{description = "Original bill amount", default = 100},
+            tip_pct = field.number{description = "Tip percentage", default = 20},
+            people = field.integer{description = "Number of people splitting", default = 4}
+    },
+    output = {
+            tip_result = field.string{required = true, description = "Tip calculation result"},
+            split_result = field.string{required = true, description = "Bill split result"},
+            summary = field.string{required = true, description = "Agent summary"}
+    },
+    function(input)
 
-output {
-        tip_result = field.string{required = true, description = "Tip calculation result"},
-        split_result = field.string{required = true, description = "Bill split result"},
-        summary = field.string{required = true, description = "Agent summary"}
-    }
+    Log.info("Starting direct tool call example...")
 
-Log.info("Starting direct tool call example...")
+        -- Call tools DIRECTLY - deterministic, no LLM involvement!
+        Log.info("Calculating tip...")
+        local tip_result = calculate_tip({
+            bill_amount = input.bill,
+            tip_percentage = input.tip_pct
+        })
+        Log.info("Tip calculated: " .. tip_result)
 
-    -- Call tools DIRECTLY - deterministic, no LLM involvement!
-    Log.info("Calculating tip...")
-    local tip_result = calculate_tip({
-        bill_amount = input.bill,
-        tip_percentage = input.tip_pct
-    })
-    Log.info("Tip calculated: " .. tip_result)
+        -- Calculate total with tip for splitting
+        local total_with_tip = input.bill * (1 + input.tip_pct / 100)
 
-    -- Calculate total with tip for splitting
-    local total_with_tip = input.bill * (1 + input.tip_pct / 100)
+        Log.info("Splitting bill...")
+        local split_result = split_bill({
+            total_amount = total_with_tip,
+            num_people = input.people
+        })
+        Log.info("Split calculated: " .. split_result)
 
-    Log.info("Splitting bill...")
-    local split_result = split_bill({
-        total_amount = total_with_tip,
-        num_people = input.people
-    })
-    Log.info("Split calculated: " .. split_result)
+        -- Pass multiple tool results to agent via context
+        -- This is more efficient than having the agent call tools itself
+        Log.info("Asking agent to summarize results...")
+        summarizer({
+            context = {
+                tip_calculation = tip_result,
+                split_calculation = split_result,
+                original_bill = "$" .. input.bill,
+                number_of_people = input.people
+            }
+        })
 
-    -- Pass multiple tool results to agent via context
-    -- This is more efficient than having the agent call tools itself
-    Log.info("Asking agent to summarize results...")
-    Agent("summarizer").turn({
-        context = {
-            tip_calculation = tip_result,
-            split_calculation = split_result,
-            original_bill = "$" .. input.bill,
-            number_of_people = input.people
+        -- Wait for agent to call done
+        local max_turns = 3
+        local turn_count = 1
+        while not done.called() and turn_count < max_turns do
+            summarizer()
+            turn_count = turn_count + 1
+        end
+
+        -- Get the summary
+        local summary = "No summary provided"
+        if done.called() then
+            summary = done.last_result() or "Task completed"
+        end
+
+        return {
+            tip_result = tip_result,
+            split_result = split_result,
+            summary = summary
         }
-    })
 
-    -- Wait for agent to call done
-    local max_turns = 3
-    local turn_count = 1
-    while not Tool.called("done") and turn_count < max_turns do
-        Agent("summarizer").turn()
-        turn_count = turn_count + 1
+    -- BDD Specifications
     end
+}
 
-    -- Get the summary
-    local summary = "No summary provided"
-    if Tool.called("done") then
-        summary = Tool.last_result("done") or "Task completed"
-    end
-
-    return {
-        tip_result = tip_result,
-        split_result = split_result,
-        summary = summary
-    }
-
--- BDD Specifications
 Specifications([[
 Feature: Direct Tool Calls
   Demonstrate calling tools directly from Lua without agent involvement

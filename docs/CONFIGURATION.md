@@ -12,8 +12,10 @@ Tactus uses a **cascading configuration system** where settings from multiple so
 2. **Sidecar Config** - `procedure.tac.yml` next to your `.tac` file
 3. **Local Directory Config** - `.tactus/config.yml` in the procedure's directory
 4. **Parent Directory Configs** - `.tactus/config.yml` files walking up the tree
-5. **Root Config** - `.tactus/config.yml` in project root (current working directory)
-6. **Environment Variables** - System environment variables (fallback)
+5. **Project Config** - `.tactus/config.yml` in the current working directory
+6. **User Config** - `~/.tactus/config.yml` (also supports XDG: `~/.config/tactus/config.yml`)
+7. **System Config** - `/etc/tactus/config.yml` (and `/usr/local/etc/tactus/config.yml`)
+8. **Environment Variables** - System environment variables (fallback)
 
 ### How Merging Works
 
@@ -23,9 +25,21 @@ Tactus uses a **cascading configuration system** where settings from multiple so
 
 ## Configuration Files
 
-### Root Configuration (`.tactus/config.yml`)
+### User Configuration (`~/.tactus/config.yml`)
 
-The root configuration file contains **shared settings** like API keys and common tool paths.
+Use a user-wide config if you want to install Tactus once and run it from any directory.
+
+**Location**: `~/.tactus/config.yml` (also supports XDG: `~/.config/tactus/config.yml`)
+
+**Example**:
+```yaml
+# API Keys (sensitive - keep private)
+openai_api_key: "sk-..."
+```
+
+### Project Configuration (`.tactus/config.yml`)
+
+The project configuration file contains settings scoped to a repository/directory tree.
 
 **Location**: `.tactus/config.yml` in your project root
 
@@ -194,6 +208,7 @@ Configuration files (`.yml`) can contain:
 Tactus reads these environment variables as fallback configuration:
 
 - `OPENAI_API_KEY` - OpenAI API key
+- `GOOGLE_API_KEY` - Google Gemini API key
 - `AWS_ACCESS_KEY_ID` - AWS access key
 - `AWS_SECRET_ACCESS_KEY` - AWS secret key
 - `AWS_DEFAULT_REGION` - AWS region
@@ -206,7 +221,7 @@ Environment variables have the **lowest priority** and are overridden by any con
 ### 1. Separate Secrets from Code
 
 **Do**:
-- Keep API keys in root `.tactus/config.yml`
+- Keep API keys in a Tactus config file (user-wide or project-specific)
 - Add `.tactus/config.yml` to `.gitignore`
 - Use environment variables in CI/CD
 
@@ -310,5 +325,3 @@ api_key = config.get("openai_api_key")
 - [Tool Roadmap](TOOL_ROADMAP.md) - Information about tool loading
 - [README](../README.md) - General Tactus documentation
 - [Examples](../examples/) - Example procedures with sidecar configs
-
-

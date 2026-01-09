@@ -1,11 +1,11 @@
 -- Example: Static Mocking
 -- Demonstrates basic static mocking where tools always return the same value
 
--- Tool definitions
-Tool "done" { use = "tactus.done" }
+-- Import completion tool from standard library
+local done = require("tactus.tools.done")
 
 -- Define the tools we'll mock (with dummy handlers since they'll be mocked)
-Tool "weather" {
+weather = Tool {
     description = "Get current weather information",
     input = {
         location = field.string{default = "San Francisco"}
@@ -16,7 +16,7 @@ Tool "weather" {
     end
 }
 
-Tool "stock_price" {
+stock_price = Tool {
     description = "Get current stock price",
     input = {
         symbol = field.string{default = "AAPL"}
@@ -46,7 +46,7 @@ Mocks {
 }
 
 -- Agent that uses mocked tools
-Agent "info_gatherer" {
+info_gatherer = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[You are an information gathering assistant.
@@ -62,67 +62,71 @@ When asked for information, use the appropriate tools and then call done with a 
 
 -- Main procedure
 
-input {
-        query = field.string{
-            default = "weather",
-            description = "What to query: weather or stock"
-        }
-    }
+Procedure {
+    input = {
+            query = field.string{
+                default = "weather",
+                description = "What to query: weather or stock"
+            }
+    },
+    output = {
+            result = field.string{required = true, description = "Query result"},
+            mocked = field.boolean{required = true, description = "Whether mocks were used"}
+    },
+    function(input)
 
-output {
-        result = field.string{required = true, description = "Query result"},
-        mocked = field.boolean{required = true, description = "Whether mocks were used"}
-    }
+    Log.info("Starting static mock demo", {query = input.query})
 
-Log.info("Starting static mock demo", {query = input.query})
+            -- Ask agent to get information
+            local message
+            if input.query == "stock" then
+                message = "Please get the current stock price for AAPL and call done with the information."
+            else
+                message = "Please get the current weather in San Francisco and call done with the information."
+            end
 
-        -- Ask agent to get information
-        local message
-        if input.query == "stock" then
-            message = "Please get the current stock price for AAPL and call done with the information."
-        else
-            message = "Please get the current weather in San Francisco and call done with the information."
-        end
+            -- Run agent
+            info_gatherer({initial_message = message})
 
-        -- Run agent
-        Agent("info_gatherer").turn({initial_message = message})
+            -- Wait for done
+            local max_turns = 3
+            local turn_count = 1
 
-        -- Wait for done
-        local max_turns = 3
-        local turn_count = 1
+            while not done.called() and turn_count < max_turns do
+                info_gatherer()
+                turn_count = turn_count + 1
+            end
 
-        while not Tool.called("done") and turn_count < max_turns do
-            Agent("info_gatherer").turn()
-            turn_count = turn_count + 1
-        end
-
-        -- Get result
-        local result = "No result"
-        if Tool.called("done") then
-            local call = Tool.last_call("done")
-            if call and call.args then
-                local ok, reason = pcall(function() return call.args["reason"] end)
-                if ok and reason then
-                    result = reason
+            -- Get result
+            local result = "No result"
+            if done.called() then
+                local call = done.last_call()
+                if call and call.args then
+                    local ok, reason = pcall(function() return call.args["reason"] end)
+                    if ok and reason then
+                        result = reason
+                    end
                 end
             end
-        end
 
-        -- Check if mocks were used (they always are in this example)
-        local mocked = Tool.called("weather") or Tool.called("stock_price")
+            -- Check if mocks were used (they always are in this example)
+            local mocked = Tool.called("weather") or Tool.called("stock_price")
 
-        Log.info("Static mock demo complete", {
-            result = result,
-            mocked = mocked,
-            turns = turn_count
-        })
+            Log.info("Static mock demo complete", {
+                result = result,
+                mocked = mocked,
+                turns = turn_count
+            })
 
-        return {
-            result = result,
-            mocked = mocked
-        }
+            return {
+                result = result,
+                mocked = mocked
+            }
 
--- BDD Specifications
+    -- BDD Specifications
+    end
+}
+
 Specifications([[
 Feature: Static Mocking
   Tools return the same value every time when mocked

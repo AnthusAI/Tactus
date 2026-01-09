@@ -9,11 +9,11 @@ To run this example:
 tactus run examples/18-feature-lua-tools-individual.tac --param task="Calculate 15% tip on a $50 bill"
 ]]--
 
--- Define completion tool
-Tool "done" { use = "tactus.done" }
+-- Import completion tool from standard library
+local done = require("tactus.tools.done")
 
 -- Define individual tools using the tool() function
-Tool "calculate_tip" {
+calculate_tip = Tool {
     description = "Calculate tip amount for a bill",
         input = {
             bill_amount = field.number{required = true, description = "Total bill amount in dollars"},
@@ -27,7 +27,7 @@ Tool "calculate_tip" {
 end
 }
 
-Tool "split_bill" {
+split_bill = Tool {
     description = "Split a bill total among multiple people",
         input = {
             total_amount = field.number{required = true, description = "Total amount to split"},
@@ -40,7 +40,7 @@ Tool "split_bill" {
 end
 }
 
-Tool "calculate_discount" {
+calculate_discount = Tool {
     description = "Calculate price after discount",
         input = {
             original_price = field.number{required = true, description = "Original price"},
@@ -55,7 +55,7 @@ end
 }
 
 -- Agent with access to individual Lua tools
-Agent "calculator" {
+calculator = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
     tool_choice = "required",
@@ -75,49 +75,50 @@ After calling the calculation tool, call done with the result.]],
 }
 
 -- Main workflow
-
-input {
+Procedure {
+    input = {
         task = field.string{description = "Calculation task to perform", default = "Calculate 20% tip on $50"}
-    }
-
-output {
+    },
+    output = {
         result = field.string{required = true, description = "The calculation result"},
         completed = field.boolean{required = true, description = "Whether the task was completed successfully"}
-    }
+    },
+    function(input)
+        local max_turns = 5
+        local turn_count = 0
+        local result
 
-local max_turns = 5
-    local turn_count = 0
-    local result
+        repeat
+            result = calculator()
+            turn_count = turn_count + 1
 
-    repeat
-        result = Agent("calculator").turn()
-        turn_count = turn_count + 1
+            -- Log tool usage
+            if Tool.called("calculate_tip") then
+                Log.info("Used tip calculator")
+            end
+            if Tool.called("split_bill") then
+                Log.info("Used bill splitter")
+            end
+            if Tool.called("calculate_discount") then
+                Log.info("Used discount calculator")
+            end
 
-        -- Log tool usage
-        if Tool.called("calculate_tip") then
-            Log.info("Used tip calculator")
+        until done.called() or turn_count >= max_turns
+
+        -- Get final result
+        local answer
+        if done.called() then
+            answer = done.last_result() or "Task completed"
+        else
+            answer = result.text
         end
-        if Tool.called("split_bill") then
-            Log.info("Used bill splitter")
-        end
-        if Tool.called("calculate_discount") then
-            Log.info("Used discount calculator")
-        end
 
-    until Tool.called("done") or turn_count >= max_turns
-
-    -- Get final result
-    local answer
-    if Tool.called("done") then
-        answer = Tool.last_result("done") or "Task completed"
-    else
-        answer = result.text
+        return {
+            result = answer,
+            completed = done.called()
+        }
     end
-
-    return {
-        result = answer,
-        completed = Tool.called("done")
-    }
+}
 
 -- BDD Specifications
 Specifications([[

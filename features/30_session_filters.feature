@@ -9,7 +9,7 @@ Feature: Session Filters
   Scenario: last_n filter
   Given a Lua DSL file with content:
   """
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   system_prompt = "Work",
   tools = {},
@@ -31,7 +31,7 @@ Feature: Session Filters
   Scenario: token_budget filter
   Given a Lua DSL file with content:
   """
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   system_prompt = "Work",
   tools = {},
@@ -53,7 +53,7 @@ Feature: Session Filters
   Scenario: by_role filter
   Given a Lua DSL file with content:
   """
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   system_prompt = "Work",
   tools = {},
@@ -75,7 +75,7 @@ Feature: Session Filters
   Scenario: compose multiple filters
   Given a Lua DSL file with content:
   """
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   system_prompt = "Work",
   tools = {},
@@ -100,7 +100,7 @@ Feature: Session Filters
   Scenario: Agent without filters
   Given a Lua DSL file with content:
   """
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   system_prompt = "Work",
   tools = {}

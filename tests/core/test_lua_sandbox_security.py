@@ -121,24 +121,41 @@ class TestLuaSandboxSecurity:
                 sandbox = LuaSandbox()
 
                 # Verify we can read data1.csv from dir1
-                result = sandbox.eval('Csv.read("data1.csv")')
+                result = sandbox.execute(
+                    """
+                    local csv = require("tactus.io.csv")
+                    local data = csv.read("data1.csv")
+                    return data
+                """
+                )
                 assert len(result) == 1
-                assert result[0]["name"] == "test1"
+                assert result[1]["name"] == "test1"  # Lua tables are 1-indexed
 
                 # Change to dir2
                 os.chdir(dir2)
 
-                # Call set_execution_context (which re-runs _setup_file_io_libraries)
+                # Call set_execution_context (which re-runs _setup_safe_globals)
                 sandbox.set_execution_context(None)
 
                 # Should still read from dir1, not dir2
-                result = sandbox.eval('Csv.read("data1.csv")')
+                result = sandbox.execute(
+                    """
+                    local csv = require("tactus.io.csv")
+                    local data = csv.read("data1.csv")
+                    return data
+                """
+                )
                 assert len(result) == 1
-                assert result[0]["name"] == "test1"
+                assert result[1]["name"] == "test1"  # Lua tables are 1-indexed
 
                 # Should NOT be able to read data2.csv (it's in dir2, not dir1)
                 with pytest.raises(Exception):  # Should raise error about file not found
-                    sandbox.eval('Csv.read("data2.csv")')
+                    sandbox.execute(
+                        """
+                        local csv = require("tactus.io.csv")
+                        return csv.read("data2.csv")
+                    """
+                    )
 
             finally:
                 os.chdir(original_cwd)

@@ -1,8 +1,8 @@
 -- Example: MCP Server Toolset Identification by Server Name
 -- Demonstrates proper identification of MCP toolsets by server name
 
--- Define completion tool
-Tool "done" { use = "tactus.done" }
+-- Import completion tool from standard library
+local done = require("tactus.tools.done")
 
 -- Define toolsets that reference specific MCP servers
 -- Note: These require actual MCP servers to be configured in .tac.yml
@@ -15,7 +15,7 @@ Toolset "search_tools" {
 }
 
 -- Agent that uses MCP toolsets by server name
-Agent "researcher" {
+researcher = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[You are a research assistant with access to filesystem and search tools.
@@ -31,7 +31,7 @@ When done, call the done tool.]],
 }
 
 -- Alternative: Direct reference to MCP server in agent
-Agent "file_manager" {
+file_manager = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[You are a file management assistant.
@@ -45,98 +45,103 @@ When done, call the done tool.]],
 
 -- Main procedure
 
-input {
-        task = field.string{
-            default = "list files",
-            description = "Task to perform: 'list files' or 'search web'"
-        }
-    }
+Procedure {
+    input = {
+            task = field.string{
+                default = "list files",
+                description = "Task to perform: 'list files' or 'search web'"
+            }
+    },
+    output = {
+            result = field.string{required = true, description = "Task result"},
+            mcp_tools_used = field.array{description = "List of MCP tools used"},
+            completed = field.boolean{required = true, description = "Whether task completed"}
+    },
+    function(input)
 
-output {
-        result = field.string{required = true, description = "Task result"},
-        mcp_tools_used = field.array{description = "List of MCP tools used"},
-        completed = field.boolean{required = true, description = "Whether task completed"}
-    }
+    Log.info("Starting MCP toolset identification demo", {task = input.task})
 
-Log.info("Starting MCP toolset identification demo", {task = input.task})
+            -- Choose agent based on task
+            local selected_agent
+            local message = ""
 
-        -- Choose agent based on task
-        local agent_name = "researcher"
-        local message = ""
-
-        if input.task == "list files" then
-            agent_name = "file_manager"
-            message = "Please list the files in the current directory."
-        elseif input.task == "search web" then
-            agent_name = "researcher"
-            message = "Please search for 'Lua programming language' and summarize what you find."
-        else
-            message = input.task
-        end
-
-        -- Run agent with limit
-        local max_turns = 3
-        local turn_count = 0
-        local result
-
-        repeat
-            if turn_count == 0 then
-                result = Agent(agent_name).turn({initial_message = message})
+            if input.task == "list files" then
+                selected_agent = file_manager
+                message = "Please list the files in the current directory."
+            elseif input.task == "search web" then
+                selected_agent = researcher
+                message = "Please search for 'Lua programming language' and summarize what you find."
             else
-                result = Agent(agent_name).turn()
+                selected_agent = researcher
+                message = input.task
             end
-            turn_count = turn_count + 1
-        until Tool.called("done") or turn_count >= max_turns
 
-        -- Track which MCP tools were used
-        local mcp_tools = {}
+            -- Run agent with limit
+            local max_turns = 3
+            local turn_count = 0
+            local result
 
-        -- Check for filesystem tools
-        local fs_tools = {"filesystem_list_directory", "filesystem_read_file", "filesystem_write_file"}
-        for _, tool_name in ipairs(fs_tools) do
-            if Tool.called(tool_name) then
-                table.insert(mcp_tools, tool_name)
-            end
-        end
+            repeat
+                if turn_count == 0 then
+                    result = selected_agent({message = message})
+                else
+                    result = selected_agent()
+                end
+                turn_count = turn_count + 1
+            until done.called() or turn_count >= max_turns
 
-        -- Check for search tools
-        local search_tools = {"brave-search_search"}
-        for _, tool_name in ipairs(search_tools) do
-            if Tool.called(tool_name) then
-                table.insert(mcp_tools, tool_name)
-            end
-        end
+            -- Track which MCP tools were used
+            local mcp_tools = {}
 
-        -- Get result
-        local answer = "Task not completed"
-        local completed = false
-
-        if Tool.called("done") then
-            completed = true
-            local call = Tool.last_call("done")
-            if call and call.args then
-                local ok, reason = pcall(function() return call.args["reason"] end)
-                if ok and reason then
-                    answer = reason
+            -- Check for filesystem tools
+            local fs_tools = {"filesystem_list_directory", "filesystem_read_file", "filesystem_write_file"}
+            for _, tool_name in ipairs(fs_tools) do
+                if Tool.called(tool_name) then
+                    table.insert(mcp_tools, tool_name)
                 end
             end
-        elseif result and result.text then
-            answer = result.text
-        end
 
-        Log.info("Task result", {
-            completed = completed,
-            mcp_tools_used = #mcp_tools,
-            result = answer
-        })
+            -- Check for search tools
+            local search_tools = {"brave-search_search"}
+            for _, tool_name in ipairs(search_tools) do
+                if Tool.called(tool_name) then
+                    table.insert(mcp_tools, tool_name)
+                end
+            end
 
-        return {
-            result = answer,
-            mcp_tools_used = mcp_tools,
-            completed = completed
-        }
+            -- Get result
+            local answer = "Task not completed"
+            local completed = false
 
--- BDD Specifications
+            if done.called() then
+                completed = true
+                local call = done.last_call()
+                if call and call.args then
+                    local ok, reason = pcall(function() return call.args["reason"] end)
+                    if ok and reason then
+                        answer = reason
+                    end
+                end
+            elseif result and result.text then
+                answer = result.text
+            end
+
+            Log.info("Task result", {
+                completed = completed,
+                mcp_tools_used = #mcp_tools,
+                result = answer
+            })
+
+            return {
+                result = answer,
+                mcp_tools_used = mcp_tools,
+                completed = completed
+            }
+
+    -- BDD Specifications
+    end
+}
+
 Specifications([[
 Feature: MCP Server Toolset Identification
   Demonstrate proper identification of MCP toolsets by server name

@@ -5,8 +5,8 @@ These functions are injected into the Lua sandbox before executing
 .tac files. They populate the registry with declarations.
 
 Current Syntax (assignment-based):
-    -- Tools: import built-ins or define custom
-    done = tactus.done
+    -- Tools: import from stdlib or define custom
+    local done = require("tactus.tools.done")
     multiply = Tool { input = {...}, function(args) ... end }
 
     -- Agents: assign to variable, tools as variable refs
@@ -108,7 +108,10 @@ def _normalize_schema(schema):
 
 
 def create_dsl_stubs(
-    builder: RegistryBuilder, tool_primitive: Any = None, mock_manager: Any = None
+    builder: RegistryBuilder,
+    tool_primitive: Any = None,
+    mock_manager: Any = None,
+    runtime_context: Dict[str, Any] | None = None,
 ) -> dict[str, Callable]:
     """
     Create DSL stub functions that populate the registry.
@@ -120,6 +123,8 @@ def create_dsl_stubs(
         builder: RegistryBuilder to register declarations
         tool_primitive: Optional ToolPrimitive for creating callable ToolHandles
         mock_manager: Optional MockManager for checking module mocks
+        runtime_context: Optional runtime context for immediate agent creation
+                        (includes registry, mock_manager, execution_context, etc.)
 
     Returns:
         Dict of DSL functions to inject into Lua, including:
@@ -130,6 +135,9 @@ def create_dsl_stubs(
     _agent_registry: Dict[str, AgentHandle] = {}
     _tool_registry: Dict[str, Any] = {}  # ToolHandle instances
     _model_registry: Dict[str, ModelHandle] = {}
+
+    # Store runtime context for immediate agent creation
+    _runtime_context = runtime_context or {}
 
     # Global registry for named procedure stubs to find their implementations
     _procedure_registry = {}
@@ -233,12 +241,13 @@ def create_dsl_stubs(
         """
         Procedure definition supporting multiple syntax variants.
 
-        Unnamed syntax (new - defaults to "main"):
+        Unnamed syntax (becomes the main entry point):
             Procedure {
                 input = {...},
                 output = {...},
                 function(input) ... end
             }
+            -- This automatically becomes "main" procedure
 
         Named procedure syntax:
             main = Procedure {
@@ -258,8 +267,8 @@ def create_dsl_stubs(
                 end
             }
 
-        Note: Unnamed Procedure {} (without assignment) is no longer supported.
-        Use script mode (top-level input/output) for simple cases instead.
+        Note: Only ONE unnamed Procedure is allowed per file.
+        Multiple unnamed Procedures will result in a validation error.
 
         Args:
             name_or_config: Must be None (assignment-based syntax)
@@ -700,23 +709,55 @@ def create_dsl_stubs(
             self.lookup = lookup
 
         def __call__(self, name, config=None):
-            # If config is provided, it's old-style definition: Model("name", {config})
-            if config is not None:
-                return self.definer(name, config)
+            try:
+                # NEW: Assignment syntax - Model {config} with no name
+                # When called as: my_model = Model {type = "http", ...}
+                # Lua passes the config table (not a string, not None)
+                if not isinstance(name, str) and config is None:
+                    # Assignment syntax: generate temp name and register
+                    import uuid
 
-            # If called with just a string
-            if isinstance(name, str):
-                # Check if the model is already defined (lookup case)
-                if self.lookup and name in self.lookup._registry:
-                    # This is a lookup: Model("name") where model exists
-                    return self.lookup(name)
-                else:
+                    temp_name = f"_temp_model_{uuid.uuid4().hex[:8]}"
+                    config_dict = lua_table_to_dict(name)
+                    builder.register_model(temp_name, config_dict)
+
+                    handle = ModelHandle(temp_name)
+                    _model_registry[temp_name] = handle
+                    return handle
+
+                # If config is provided, it's old-style definition: Model("name", {config})
+                if config is not None:
+                    return self.definer(name, config)
+
+                # If called with just a string
+                if isinstance(name, str):
+                    # Check if the model is already defined (lookup case)
+                    try:
+                        if self.lookup and name in self.lookup._registry:
+                            # This is a lookup: Model("name") where model exists
+                            return self.lookup(name)
+                    except (TypeError, KeyError):
+                        pass
                     # This is the start of a definition: Model "name" {...}
                     # Return the curried function from definer
                     return self.definer(name)
 
-            # Otherwise pass through to definer
-            return self.definer(name, config)
+                # Otherwise pass through to definer
+                return self.definer(name, config)
+            except TypeError as e:
+                # Handle unhashable type errors from Lua tables
+                if "unhashable type" in str(e):
+                    # This is assignment syntax with a Lua table
+                    import uuid
+
+                    temp_name = f"_temp_model_{uuid.uuid4().hex[:8]}"
+                    config_dict = lua_table_to_dict(name)
+                    builder.register_model(temp_name, config_dict)
+
+                    handle = ModelHandle(temp_name)
+                    _model_registry[temp_name] = handle
+                    return handle
+                raise
 
     def _signature(sig_input, config=None):
         """
@@ -1096,33 +1137,6 @@ def create_dsl_stubs(
     # NEW SYNTAX SUPPORT - Phase B
     # ========================================================================
 
-    # Create tactus namespace with built-in tools
-    class TactusNamespace:
-        """Namespace for built-in Tactus tools accessible via: from tactus { done }"""
-
-        @property
-        def done(self):
-            """Built-in done tool for signaling completion."""
-            from tactus.primitives.tool_handle import ToolHandle
-
-            def done_handler(args):
-                reason = args.get("reason", "Task completed")
-                return {"status": "completed", "reason": reason}
-
-            # Register if not already registered
-            if "done" not in _tool_registry:
-                config = {
-                    "description": "Signal task completion",
-                    "input": {"reason": {"type": "string", "required": False}},
-                }
-                builder.register_tool("done", config, done_handler)
-                handle = ToolHandle("done", done_handler, tool_primitive)
-                _tool_registry["done"] = handle
-
-            return _tool_registry["done"]
-
-    _tactus_namespace = TactusNamespace()
-
     # Create MCP namespace for accessing MCP server tools
     class McpServerNamespace:
         """Namespace for a specific MCP server's tools."""
@@ -1179,60 +1193,6 @@ def create_dsl_stubs(
 
     _mcp_namespace = McpNamespace()
 
-    def _from(namespace_name):
-        """
-        Import tools/primitives from a namespace.
-
-        New syntax:
-            from tactus { done }
-            from tactus { finish = done }  -- with rename
-
-        This function must be called from Lua with proper globals injection.
-        It returns a Lua function that will handle the import table and
-        inject names into the global scope.
-
-        Args:
-            namespace_name: Namespace to import from (string: "tactus", etc.)
-
-        Returns:
-            Lua function that accepts import table and injects into globals
-        """
-        import logging
-
-        logger = logging.getLogger(__name__)
-
-        # For now, only support 'tactus' namespace
-        if namespace_name != "tactus":
-            raise NotImplementedError(
-                f"Namespace '{namespace_name}' not yet supported. "
-                f"Currently only 'tactus' namespace is available."
-            )
-
-        # Return a Lua function (will be created by the caller's Lua runtime)
-        # The function receives the import spec table and injects variables
-        # This needs to be handled in Lua, not Python
-        # So we return a special marker that the Lua code will recognize
-
-        def accept_imports(import_spec):
-            """
-            Process import specification and return namespace object.
-
-            The Lua code calling this should handle variable injection.
-            We return the done tool handle so it can be assigned.
-            """
-            # Get the 'done' tool from the namespace
-            done_tool = _tactus_namespace.done
-
-            logger.debug(f"Importing from {namespace_name}: {import_spec}")
-
-            # Return the tool - Lua will assign it to the variable
-            # For simple case 'from tactus { done }', Lua sees { done }
-            # which is actually { [1] = "done" } - a table with string "done" at index 1
-            # We need to return the actual tool handle
-            return done_tool
-
-        return accept_imports
-
     def _process_tool_config(tool_name, config):
         """
         Process tool configuration for both curried and direct syntax.
@@ -1245,15 +1205,6 @@ def create_dsl_stubs(
             ToolHandle
         """
         from tactus.primitives.tool_handle import ToolHandle
-
-        # Handle {use = "tactus.done"} syntax - reference to built-in tool
-        config_dict = lua_table_to_dict(config) if hasattr(config, "items") else config
-        if isinstance(config_dict, dict) and "use" in config_dict:
-            use_ref = config_dict["use"]
-            if use_ref == "tactus.done":
-                # Return the tactus.done tool
-                return _tactus_namespace.done
-            # Could add more built-in references here
 
         # Extract function from config
         handler_fn = None
@@ -1300,11 +1251,7 @@ def create_dsl_stubs(
         """
         New Tool factory for assignment-based syntax.
 
-        Supports both:
-        1. Assignment syntax: multiply = Tool { ... }
-        2. Curried syntax: Tool "done" { use = "tactus.done" }
-
-        New syntax:
+        Syntax:
             multiply = Tool {
                 description = "Multiply two numbers",
                 input = {
@@ -1437,8 +1384,47 @@ def create_dsl_stubs(
         # Register agent with provided name
         builder.register_agent(agent_name, config_dict, output_schema)
 
-        # Create and register handle for lookup
+        # Create handle
         handle = AgentHandle(agent_name)
+
+        # If we have runtime context, create the agent primitive immediately
+        if _runtime_context and not _runtime_context.get("skip_agents", False):
+            from tactus.dspy.agent import create_dspy_agent
+            import logging
+
+            logger = logging.getLogger(__name__)
+
+            try:
+                # Create the actual agent primitive NOW
+                # Note: builder.register_agent adds 'name' to config_dict, but create_dspy_agent
+                # expects name as a separate parameter. We need to pass config without 'name'.
+                agent_config = {k: v for k, v in config_dict.items() if k != "name"}
+
+                # Pre-process model format: combine provider and model into "provider:model"
+                # This matches what _setup_agents does
+                if "provider" in agent_config and "model" in agent_config:
+                    provider = agent_config["provider"]
+                    model_id = agent_config["model"]
+                    agent_config["model"] = f"{provider}:{model_id}"
+
+                agent_primitive = create_dspy_agent(
+                    agent_name,
+                    agent_config,
+                    registry=builder.registry,
+                    mock_manager=_runtime_context.get("mock_manager"),
+                )
+
+                # Connect handle to primitive immediately
+                handle._set_primitive(
+                    agent_primitive, execution_context=_runtime_context.get("execution_context")
+                )
+                logger.debug(f"Agent '{agent_name}' created immediately during declaration")
+
+            except Exception as e:
+                logger.warning(f"Failed to create agent '{agent_name}' immediately: {e}")
+                # Fall back to two-phase initialization if immediate creation fails
+
+        # Register handle for lookup
         _agent_registry[agent_name] = handle
 
         return handle
@@ -1530,15 +1516,58 @@ def create_dsl_stubs(
         # Register agent
         builder.register_agent(temp_name, config_dict, output_schema)
 
-        # Create and register handle for lookup
+        # Create handle
         handle = AgentHandle(temp_name)
+
+        # If we have runtime context, create the agent primitive immediately
+        if _runtime_context and not _runtime_context.get("skip_agents", False):
+            from tactus.dspy.agent import create_dspy_agent
+            import logging
+
+            logger = logging.getLogger(__name__)
+
+            try:
+                # Create the actual agent primitive NOW
+                # Note: builder.register_agent adds 'name' to config_dict, but create_dspy_agent
+                # expects name as a separate parameter. We need to pass config without 'name'.
+                agent_config = {k: v for k, v in config_dict.items() if k != "name"}
+
+                # Pre-process model format: combine provider and model into "provider:model"
+                # This matches what _setup_agents does
+                if "provider" in agent_config and "model" in agent_config:
+                    provider = agent_config["provider"]
+                    model_id = agent_config["model"]
+                    agent_config["model"] = f"{provider}:{model_id}"
+
+                logger.debug(f"Creating agent immediately: name={temp_name}")
+                agent_primitive = create_dspy_agent(
+                    temp_name,
+                    agent_config,
+                    registry=builder.registry,
+                    mock_manager=_runtime_context.get("mock_manager"),
+                )
+
+                # Connect handle to primitive immediately
+                handle._set_primitive(
+                    agent_primitive, execution_context=_runtime_context.get("execution_context")
+                )
+                logger.debug(f"Agent '{temp_name}' created immediately during declaration")
+
+            except Exception as e:
+                import traceback
+
+                logger.warning(f"Failed to create agent '{temp_name}' immediately: {e}")
+                logger.debug(f"Full traceback: {traceback.format_exc()}")
+                # Fall back to two-phase initialization if immediate creation fails
+
+        # Register handle for lookup
         _agent_registry[temp_name] = handle
 
         return handle
 
     return {
         # NEW SYNTAX (Phase B+)
-        "tactus": _tactus_namespace,  # Namespace: tactus.done
+        # Note: stdlib tools are accessed via require("tactus.tools.done") etc.
         "mcp": _mcp_namespace,  # Namespace: mcp.filesystem.read_file
         # Core declarations (CamelCase - for definitions AND lookups)
         "Agent": _new_agent,  # NEW syntax - assignment based

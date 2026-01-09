@@ -84,37 +84,8 @@ class AgentHandle:
         """
         self.name = name
         self._primitive: Optional["DSPyAgentHandle"] = None
+        self._execution_context: Optional[Any] = None
         logger.debug(f"AgentHandle created for '{name}'")
-
-    def turn(self, opts: Optional[Dict[str, Any]] = None) -> Any:
-        """
-        Execute one agent turn.
-
-        Note: Prefer callable syntax: agent() or agent({message = "..."})
-
-        Args:
-            opts: Optional dict with per-turn overrides:
-                - message: str - Message for this turn
-                - tools: List[str] - Tool names to use
-                - toolsets: List[str] - Toolset names to use
-                - temperature: float - Override temperature
-                - max_tokens: int - Override max_tokens
-
-        Returns:
-            ResultPrimitive from agent turn
-
-        Raises:
-            RuntimeError: If handle not connected to primitive
-        """
-        if self._primitive is None:
-            raise RuntimeError(
-                f"Agent '{self.name}' not initialized. "
-                f"This handle was created during DSL parsing but the runtime "
-                f"hasn't connected it to the actual AgentPrimitive yet."
-            )
-        # Convert Lua table to Python dict if needed
-        converted_opts = _convert_lua_table(opts) if opts is not None else None
-        return self._primitive.turn(converted_opts)
 
     def __call__(self, inputs=None):
         """
@@ -139,25 +110,60 @@ class AgentHandle:
         """
         if self._primitive is None:
             raise RuntimeError(
-                f"Agent '{self.name}' not initialized. "
-                f"This handle was created during DSL parsing but the runtime "
-                f"hasn't connected it to the actual AgentPrimitive yet."
+                f"Agent '{self.name}' initialization failed.\n"
+                f"This should not happen with immediate agent creation.\n"
+                f"Please report this as a bug with a minimal reproduction example."
             )
         # Convert Lua table to Python dict if needed
         converted_inputs = _convert_lua_table(inputs) if inputs is not None else None
-        return self._primitive(converted_inputs)
 
-    def _set_primitive(self, primitive: "DSPyAgentHandle") -> None:
+        # If we have an execution context, checkpoint the agent call
+        if self._execution_context is not None:
+
+            def agent_call():
+                return self._primitive(converted_inputs)
+
+            # Capture source location from Lua if available
+            source_info = None
+            if (
+                hasattr(self._execution_context, "lua_sandbox")
+                and self._execution_context.lua_sandbox
+            ):
+                try:
+                    lua = self._execution_context.lua_sandbox.lua
+                    info = lua.eval("debug.getinfo(2, 'Sl')")
+                    if info:
+                        source_info = {
+                            "file": info.get("source", "unknown"),
+                            "line": info.get("currentline", 0),
+                        }
+                except Exception as e:
+                    logger.debug(f"Could not capture source location: {e}")
+
+            return self._execution_context.checkpoint(
+                agent_call, checkpoint_type="agent_turn", source_info=source_info
+            )
+        else:
+            # No execution context - call directly without checkpointing
+            return self._primitive(converted_inputs)
+
+    def _set_primitive(
+        self, primitive: "DSPyAgentHandle", execution_context: Optional[Any] = None
+    ) -> None:
         """
-        Connect this handle to its actual primitive.
+        Connect this handle to its actual primitive and execution context.
 
         Called by runtime._enhance_handles() after primitives are created.
 
         Args:
             primitive: The DSPyAgentHandle to delegate to
+            execution_context: Optional execution context for checkpointing
         """
         self._primitive = primitive
-        logger.debug(f"AgentHandle '{self.name}' connected to primitive")
+        self._execution_context = execution_context
+        logger.debug(
+            f"AgentHandle '{self.name}' connected to primitive (checkpointing={'enabled' if execution_context else 'disabled'})"
+        )
 
     def __repr__(self) -> str:
         connected = "connected" if self._primitive else "disconnected"
@@ -198,9 +204,8 @@ class ModelHandle:
         """
         if self._primitive is None:
             raise RuntimeError(
-                f"Model '{self.name}' not initialized. "
-                f"This handle was created during DSL parsing but the runtime "
-                f"hasn't connected it to the actual ModelPrimitive yet."
+                f"Model '{self.name}' initialization failed.\n"
+                f"This should not happen - please report this as a bug."
             )
         return self._primitive.predict(data)
 
@@ -226,9 +231,8 @@ class ModelHandle:
         """
         if self._primitive is None:
             raise RuntimeError(
-                f"Model '{self.name}' not initialized. "
-                f"This handle was created during DSL parsing but the runtime "
-                f"hasn't connected it to the actual ModelPrimitive yet."
+                f"Model '{self.name}' initialization failed.\n"
+                f"This should not happen - please report this as a bug."
             )
         # Convert Lua table to Python dict if needed
         converted_data = _convert_lua_table(data) if data is not None else None

@@ -16,13 +16,16 @@ from tactus.adapters.file_storage import FileStorage
 
 @pytest.mark.asyncio
 async def test_script_mode_basic(tmp_path):
-    """Test basic script mode without wrapper."""
+    """Test basic unnamed Procedure (main entry point)."""
     source = """
-input { name = field.string{required = true} }
-output { greeting = field.string{required = true} }
-
-local message = "Hello, " .. input.name .. "!"
-return {greeting = message}
+Procedure {
+    input = { name = field.string{required = true} },
+    output = { greeting = field.string{required = true} },
+    function(input)
+        local message = "Hello, " .. input.name .. "!"
+        return {greeting = message}
+    end
+}
 """
     storage = FileStorage(str(tmp_path / "storage"))
     runtime = TactusRuntime(procedure_id="test", storage_backend=storage)
@@ -34,12 +37,15 @@ return {greeting = message}
 
 @pytest.mark.asyncio
 async def test_script_mode_no_input(tmp_path):
-    """Test script mode with only output schema."""
+    """Test unnamed Procedure with only output schema."""
     source = """
-output { result = field.string{required = true} }
-
-local value = "test result"
-return {result = value}
+Procedure {
+    output = { result = field.string{required = true} },
+    function(input)
+        local value = "test result"
+        return {result = value}
+    end
+}
 """
     storage = FileStorage(str(tmp_path / "storage"))
     runtime = TactusRuntime(procedure_id="test", storage_backend=storage)
@@ -61,7 +67,7 @@ Mocks {
     worker = { returns = { response = "Task completed!" } }
 }
 
-done = tactus.done
+local done = require("tactus.tools.done")
 
 worker = Agent {
     provider = "openai",
@@ -85,15 +91,17 @@ return {result = "completed"}
 
 @pytest.mark.asyncio
 async def test_script_mode_with_state(tmp_path):
-    """Test script mode with state usage."""
+    """Test unnamed Procedure with state usage."""
     source = """
-input { value = field.number{required = true} }
-output { doubled = field.number{required = true} }
-
-state.original = input.value
-state.result = state.original * 2
-
-return {doubled = state.result}
+Procedure {
+    input = { value = field.number{required = true} },
+    output = { doubled = field.number{required = true} },
+    function(input)
+        state.original = input.value
+        state.result = state.original * 2
+        return {doubled = state.result}
+    end
+}
 """
     storage = FileStorage(str(tmp_path / "storage"))
     runtime = TactusRuntime(procedure_id="test", storage_backend=storage)
@@ -105,17 +113,19 @@ return {doubled = state.result}
 
 @pytest.mark.asyncio
 async def test_script_mode_with_local_variables(tmp_path):
-    """Test script mode with local variables."""
+    """Test unnamed Procedure with local variables."""
     source = """
-input { a = field.number{required = true}, b = field.number{required = true} }
-output { sum = field.number{required = true}, product = field.number{required = true} }
-
-local x = input.a
-local y = input.b
-local total = x + y
-local prod = x * y
-
-return {sum = total, product = prod}
+Procedure {
+    input = { a = field.number{required = true}, b = field.number{required = true} },
+    output = { sum = field.number{required = true}, product = field.number{required = true} },
+    function(input)
+        local x = input.a
+        local y = input.b
+        local total = x + y
+        local prod = x * y
+        return {sum = total, product = prod}
+    end
+}
 """
     storage = FileStorage(str(tmp_path / "storage"))
     runtime = TactusRuntime(procedure_id="test", storage_backend=storage)
@@ -128,17 +138,19 @@ return {sum = total, product = prod}
 
 @pytest.mark.asyncio
 async def test_script_mode_with_comments(tmp_path):
-    """Test that comments are preserved in script mode."""
+    """Test that comments are preserved in unnamed Procedure."""
     source = """
--- This is a simple script mode example
-input { name = field.string{required = true} }
-output { greeting = field.string{required = true} }
-
--- Process the input
-local message = "Hello, " .. input.name .. "!"
-
--- Return the greeting
-return {greeting = message}
+-- This is a simple unnamed Procedure example
+Procedure {
+    input = { name = field.string{required = true} },
+    output = { greeting = field.string{required = true} },
+    function(input)
+        -- Process the input
+        local message = "Hello, " .. input.name .. "!"
+        -- Return the greeting
+        return {greeting = message}
+    end
+}
 """
     storage = FileStorage(str(tmp_path / "storage"))
     runtime = TactusRuntime(procedure_id="test", storage_backend=storage)
@@ -176,7 +188,7 @@ async def test_script_mode_only_declarations(tmp_path):
 input { name = field.string{required = true} }
 output { greeting = field.string{required = true} }
 
-done = tactus.done
+local done = require("tactus.tools.done")
 
 worker = Agent {
     provider = "openai",

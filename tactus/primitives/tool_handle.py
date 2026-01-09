@@ -112,7 +112,7 @@ class ToolHandle:
             logger.warning(f"ToolHandle.called('{self.name}'): No tool_primitive attached")
             return False
 
-        result = self.tool_primitive.was_called(self.name)
+        result = self.tool_primitive.called(self.name)
         logger.debug(f"ToolHandle.called('{self.name}') = {result}")
         return result
 
@@ -175,6 +175,40 @@ class ToolHandle:
         count = sum(1 for call in self.tool_primitive._tool_calls if call.tool_name == self.name)
         logger.debug(f"ToolHandle.call_count('{self.name}') = {count}")
         return count
+
+    def reset(self) -> None:
+        """
+        Clear all recorded calls for this tool.
+
+        This is useful when reusing the same tool handle in multiple sequential
+        operations within a single procedure, allowing called() checks to work
+        independently for each operation.
+
+        Example (Lua):
+            -- First agent uses done
+            agent1()
+            if done.called() then
+                Log.info("Agent 1 completed")
+            end
+
+            -- Reset for second agent
+            done.reset()
+
+            -- Second agent uses done independently
+            agent2()
+            if done.called() then
+                Log.info("Agent 2 completed")
+            end
+        """
+        if not self.tool_primitive:
+            logger.warning(f"ToolHandle.reset('{self.name}'): No tool_primitive attached")
+            return
+
+        # Remove all calls for this tool
+        self.tool_primitive._tool_calls = [
+            call for call in self.tool_primitive._tool_calls if call.tool_name != self.name
+        ]
+        logger.debug(f"ToolHandle.reset('{self.name}'): Cleared all call records")
 
     def _run_async(self, args: Dict[str, Any]) -> Any:
         """

@@ -1,10 +1,11 @@
 -- Streaming Example
--- Demonstrates real-time LLM response streaming in the CLI
+-- Demonstrates real-time LLM response streaming in the IDE
 -- Note: Streaming only works when NO structured outputs are defined
 
 -- Simple agent that just writes text (no tools needed for streaming demo)
-Agent "storyteller" {
+storyteller = Agent {
     provider = "openai",
+    model = "gpt-4o-mini",
     system_prompt = [[You are a creative storyteller. Write engaging short stories.
 
 When asked to write a story:
@@ -13,37 +14,20 @@ When asked to write a story:
 - End naturally when the story is complete
 - Do NOT ask follow-up questions
 - Do NOT offer to continue or write more]],
-    initial_message = "Write a short story about a robot learning to paint.",
 }
 
--- Simple procedure: one turn to generate and stream the story
+-- Procedure with input (but no output block to avoid breaking streaming)
+Procedure {
+    input = {
+        prompt = field.string{description = "Story prompt", default = "Write a short story about a robot learning to paint."}
+    },
+    function(input)
+        -- Call the agent to write the story using callable syntax
+        local result = storyteller({message = input.prompt})
 
-output {
-        result = field.string{description = "Result"}
-    }
-
-Log.info("Starting streaming test - watch the text appear in real-time!")
-
-    -- Single turn - the agent writes the complete story
-    local response = Agent("storyteller").turn()
-    
-    -- Check if done tool was called
-    if Tool.called("done") then
-      local done_summary = Tool.last_result("done") or "Task completed"
-      Log.info("Story complete!", {summary = done_summary})
-      
-      return {
-          story = response.text,
-          done_summary = done_summary,
-          success = true
-      }
-    else
-      -- Story was written but done not called - that's okay for streaming demo
-      Log.info("Story written (streaming demonstrated)")
-      
-      return {
-          story = response.text,
-          success = true
-      }
+        return {
+            story = result.response,
+            success = true
+        }
     end
-
+}

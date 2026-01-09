@@ -411,7 +411,7 @@ const AppContent: React.FC = () => {
     setStreamUrl(null);
 
     // Create new run entry with inputs (passed directly to avoid race condition)
-    createNewRun('run', inputs);
+    const runId = createNewRun('run', inputs);
 
     // Clear old results
     setRunResult(null);
@@ -425,8 +425,9 @@ const AppContent: React.FC = () => {
         path: currentFile,
         content: fileContent,
         inputs: inputs,
+        _runId: runId, // Add unique runId to force URL change for each run
       };
-      
+
       // Pass POST config as JSON string to useEventStream
       setStreamUrl(JSON.stringify({ url, method: 'POST', body: requestBody }));
     } catch (error) {

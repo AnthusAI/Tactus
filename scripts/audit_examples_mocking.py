@@ -11,13 +11,14 @@ This script analyzes all .tac files in the examples/ directory and reports:
 
 import re
 from pathlib import Path
-from typing import Dict, List, Set
+from typing import List, Set
 from dataclasses import dataclass
 
 
 @dataclass
 class ExampleAnalysis:
     """Analysis result for a single example file."""
+
     filename: str
     has_specs: bool
     has_mocks: bool
@@ -57,16 +58,16 @@ def analyze_example(file_path: Path) -> ExampleAnalysis:
     content = file_path.read_text()
 
     # Check for specifications
-    has_specs = bool(re.search(r'Specifications\s*\(\[', content))
+    has_specs = bool(re.search(r"Specifications\s*\(\[", content))
 
     # Check for mocks block
-    has_mocks = bool(re.search(r'Mocks\s*\{', content))
+    has_mocks = bool(re.search(r"Mocks\s*\{", content))
 
     # Find agents (Agent "name" or Agent {)
     agents = set()
     for match in re.finditer(r'Agent\s+"([^"]+)"', content):
         agents.add(match.group(1))
-    for match in re.finditer(r'Agent\s*\{', content):
+    for match in re.finditer(r"Agent\s*\{", content):
         # Try to find name in the block
         # This is a heuristic - may need refinement
         pass
@@ -87,11 +88,11 @@ def analyze_example(file_path: Path) -> ExampleAnalysis:
     mocked_entities = set()
     if has_mocks:
         # Extract the Mocks {} block
-        mocks_match = re.search(r'Mocks\s*\{([^}]*(?:\{[^}]*\}[^}]*)*)\}', content, re.DOTALL)
+        mocks_match = re.search(r"Mocks\s*\{([^}]*(?:\{[^}]*\}[^}]*)*)\}", content, re.DOTALL)
         if mocks_match:
             mocks_content = mocks_match.group(1)
             # Find all top-level keys in the mocks block
-            for match in re.finditer(r'^\s*(\w+)\s*=\s*\{', mocks_content, re.MULTILINE):
+            for match in re.finditer(r"^\s*(\w+)\s*=\s*\{", mocks_content, re.MULTILINE):
                 mocked_entities.add(match.group(1))
 
     return ExampleAnalysis(
@@ -101,15 +102,23 @@ def analyze_example(file_path: Path) -> ExampleAnalysis:
         agents=agents,
         modules=modules,
         tools=tools,
-        mocked_entities=mocked_entities
+        mocked_entities=mocked_entities,
     )
 
 
 def generate_report(analyses: List[ExampleAnalysis]) -> str:
     """Generate a markdown report from analyses."""
     # Sort by status (problems first) then by name
-    status_priority = {"❌ NEEDS MOCKS": 0, "⚠️ PARTIAL": 1, "⚠️ NO SPECS": 2, "✅ OK": 3, "✅ NO DEPS": 4}
-    analyses_sorted = sorted(analyses, key=lambda a: (status_priority.get(a.status, 99), a.filename))
+    status_priority = {
+        "❌ NEEDS MOCKS": 0,
+        "⚠️ PARTIAL": 1,
+        "⚠️ NO SPECS": 2,
+        "✅ OK": 3,
+        "✅ NO DEPS": 4,
+    }
+    analyses_sorted = sorted(
+        analyses, key=lambda a: (status_priority.get(a.status, 99), a.filename)
+    )
 
     report = []
     report.append("# Example Mocking Audit Report\n")
@@ -121,16 +130,20 @@ def generate_report(analyses: List[ExampleAnalysis]) -> str:
     needs_mocks = sum(1 for a in analyses if a.status == "❌ NEEDS MOCKS")
     partial_mocks = sum(1 for a in analyses if a.status == "⚠️ PARTIAL")
 
-    report.append(f"\n## Summary\n")
+    report.append("\n## Summary\n")
     report.append(f"- ✅ With specs: {with_specs}/{len(analyses)}\n")
     report.append(f"- ✅ With mocks: {with_mocks}/{len(analyses)}\n")
     report.append(f"- ❌ Need mocks: {needs_mocks}\n")
     report.append(f"- ⚠️ Partial mocks: {partial_mocks}\n")
 
     # Detailed table
-    report.append(f"\n## Detailed Analysis\n")
-    report.append("| Example | Specs | Mocks | Agents | Modules | Tools | Mocked | Coverage | Status |\n")
-    report.append("|---------|-------|-------|--------|---------|-------|--------|----------|--------|\n")
+    report.append("\n## Detailed Analysis\n")
+    report.append(
+        "| Example | Specs | Mocks | Agents | Modules | Tools | Mocked | Coverage | Status |\n"
+    )
+    report.append(
+        "|---------|-------|-------|--------|---------|-------|--------|----------|--------|\n"
+    )
 
     for analysis in analyses_sorted:
         specs_icon = "✅" if analysis.has_specs else "❌"
@@ -144,7 +157,9 @@ def generate_report(analyses: List[ExampleAnalysis]) -> str:
         )
 
     # Examples needing attention
-    needs_attention = [a for a in analyses if a.status in ["❌ NEEDS MOCKS", "⚠️ PARTIAL", "⚠️ NO SPECS"]]
+    needs_attention = [
+        a for a in analyses if a.status in ["❌ NEEDS MOCKS", "⚠️ PARTIAL", "⚠️ NO SPECS"]
+    ]
     if needs_attention:
         report.append(f"\n## Examples Needing Attention ({len(needs_attention)})\n")
         for analysis in needs_attention:
