@@ -27,7 +27,6 @@ toolsets:
     sources:
       - financial
       - test_filtered
-      - done
 
 # Clear tool_paths to avoid auto-creating duplicate plugin toolset
 tool_paths: []

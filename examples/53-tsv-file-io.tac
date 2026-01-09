@@ -8,6 +8,8 @@ To run:
   tactus run examples/53-tsv-file-io.tac
 ]]--
 
+local tsv = require("tactus.io.tsv")
+
 Procedure {
     input = {
     },
@@ -27,16 +29,16 @@ Procedure {
         }
 
         -- Write TSV file
-        Tsv.write("inventory.tsv", inventory_data)
+        tsv.write("inventory.tsv", inventory_data)
         Log.info("Created inventory TSV file")
 
         -- Read it back
-        local loaded_data = Tsv.read("inventory.tsv")
+        local loaded_data = tsv.read("inventory.tsv")
         local total_items = 0
         local total_value = 0
 
-        -- Process inventory (0-indexed access)
-        for i = 0, loaded_data:len() - 1 do
+        -- Process inventory (1-indexed Lua tables)
+        for i = 1, #loaded_data do
             local item = loaded_data[i]
             local qty = tonumber(item.quantity)
             local price = tonumber(item.price)
@@ -52,22 +54,22 @@ Procedure {
 
         -- Write summary with custom header order
         local summary_data = {
-            {metric = "Total Products", value = tostring(loaded_data:len())},
+            {metric = "Total Products", value = tostring(#loaded_data)},
             {metric = "Total Items", value = tostring(total_items)},
             {metric = "Total Value", value = string.format("$%.2f", total_value)}
         }
 
-        Tsv.write("inventory_summary.tsv", summary_data, {
+        tsv.write("inventory_summary.tsv", summary_data, {
             headers = {"metric", "value"}
         })
 
         local summary = string.format(
             "Processed %d products, %d total items worth $%.2f",
-            loaded_data:len(), total_items, total_value
+            #loaded_data, total_items, total_value
         )
 
         return {
-            records_processed = loaded_data:len(),
+            records_processed = #loaded_data,
             summary = summary
         }
     end

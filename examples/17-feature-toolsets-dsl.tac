@@ -44,7 +44,7 @@ IMPORTANT: To calculate 15% of 200, use the percentage tool with these exact par
 
 When done, call the done tool with your answer.]],
     initial_message = "Calculate 15% of 200 and tell me the result",
-    toolsets = {"multiply", "percentage", "done"}
+    tools = {multiply, percentage, done}
 }
 
 -- Procedure demonstrating DSL toolset usage

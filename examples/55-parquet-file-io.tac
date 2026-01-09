@@ -8,6 +8,8 @@ To run:
   tactus run examples/55-parquet-file-io.tac
 ]]--
 
+local parquet = require("tactus.io.parquet")
+
 Procedure {
     input = {
     },
@@ -39,18 +41,18 @@ Procedure {
         end
 
         -- Write to Parquet format
-        Parquet.write("sensor_data.parquet", sensor_data)
+        parquet.write("sensor_data.parquet", sensor_data)
         Log.info("Created Parquet file", {records = #sensor_data})
 
         -- Read it back
-        local loaded_data = Parquet.read("sensor_data.parquet")
+        local loaded_data = parquet.read("sensor_data.parquet")
 
         -- Analyze the data
         local total_temp = 0
         local valid_count = 0
         local zone_counts = {Zone_A = 0, Zone_B = 0, Zone_C = 0}
 
-        for i = 0, loaded_data:len() - 1 do
+        for i = 1, #loaded_data do
             local reading = loaded_data[i]
 
             if reading.is_valid then
@@ -69,15 +71,15 @@ Procedure {
             table.insert(summary, {
                 zone = zone,
                 reading_count = count,
-                percentage = string.format("%.1f%%", (count / loaded_data:len()) * 100)
+                percentage = string.format("%.1f%%", (count / #loaded_data) * 100)
             })
         end
 
         -- Write summary to Parquet
-        Parquet.write("sensor_summary.parquet", summary)
+        parquet.write("sensor_summary.parquet", summary)
 
         Log.info("Data analysis complete", {
-            total_records = loaded_data:len(),
+            total_records = #loaded_data,
             valid_records = valid_count,
             average_temperature = string.format("%.2f", average_temp)
         })
@@ -86,7 +88,7 @@ Procedure {
         local report_data = {
             {
                 metric = "Total Readings",
-                value = loaded_data:len(),
+                value = #loaded_data,
                 unit = "count"
             },
             {
@@ -101,12 +103,12 @@ Procedure {
             },
             {
                 metric = "Data Quality",
-                value = (valid_count / loaded_data:len()) * 100,
+                value = (valid_count / #loaded_data) * 100,
                 unit = "percent"
             }
         }
 
-        Parquet.write("sensor_report.parquet", report_data)
+        parquet.write("sensor_report.parquet", report_data)
 
         return {
             records_written = #sensor_data,

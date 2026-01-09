@@ -25,7 +25,8 @@ List the available tools and then call the done Tool.]],
     initial_message = "What tools do you have available?",
     toolsets = {
         "all_tools"  -- References combined toolset from config
-    }
+    },
+    tools = {done}
 }
 
 -- Agent 2: Uses filtering to include only specific tools
@@ -37,9 +38,9 @@ List your tools and call done when finished.]],
     initial_message = "What mathematical tools can you use?",
     toolsets = {
         -- Include only specific tools from plugin toolset
-        {name = "plugin", include = {"calculate_mortgage", "compound_interest"}},
-        "done"
-    }
+        {name = "plugin", include = {"calculate_mortgage", "compound_interest"}}
+    },
+    tools = {done}
 }
 
 -- Agent 3: Uses prefixing for namespacing
@@ -50,9 +51,9 @@ prefixed_agent = Agent {
     initial_message = "Show me your prefixed tools",
     toolsets = {
         -- Add calc_ prefix to all tools from plugin
-        {name = "plugin", prefix = "calc_"},
-        "done"
-    }
+        {name = "plugin", prefix = "calc_"}
+    },
+    tools = {done}
 }
 
 -- Agent 4: Uses exclusion to remove specific tools
@@ -63,9 +64,9 @@ restricted = Agent {
     initial_message = "What tools do you have?",
     toolsets = {
         -- Exclude specific tools from plugin toolset
-        {name = "plugin", exclude = {"web_search", "wikipedia_lookup"}},
-        "done"
-    }
+        {name = "plugin", exclude = {"web_search", "wikipedia_lookup"}}
+    },
+    tools = {done}
 }
 
 -- Agent 5: Explicitly no tools (for observation/analysis only)
