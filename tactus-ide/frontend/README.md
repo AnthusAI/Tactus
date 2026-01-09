@@ -41,7 +41,7 @@ npm run demo  # Run parser demo
 
 The frontend includes an ANTLR-generated TypeScript parser in `src/validation/`.
 
-**Generated from:** `../../tactus/validation/grammar/Lua.g4`
+**Generated from:** `../../tactus/validation/grammar/LuaLexer.g4` and `LuaParser.g4`
 
 **Purpose:**
 - Instant syntax validation (no backend needed)
@@ -112,7 +112,7 @@ The TypeScript parser is designed to have **identical behavior** to the Python p
 | Agent parsing | ✅ | ✅ |
 | Quick/full modes | ✅ | ✅ |
 
-Both parsers are generated from the same `Lua.g4` grammar file.
+Both parsers are generated from the same `LuaLexer.g4` and `LuaParser.g4` grammar files.
 
 ## Regenerating Parser
 
