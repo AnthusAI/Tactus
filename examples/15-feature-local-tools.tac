@@ -30,10 +30,11 @@ You MUST call the 'done' tool after getting the calculation result.]],
     initial_message = "{input.task}",
     toolsets = {
         -- All local plugin tools (loaded from tool_paths in config)
-        "plugin",
-
+        "plugin"
+    },
+    tools = {
         -- Completion tool (defined above)
-        "done"
+        done
     }
 }
 

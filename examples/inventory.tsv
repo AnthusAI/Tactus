@@ -1,6 +1,6 @@
-quantity	product	location	price
-15	Laptop, Pro Model	Warehouse A	1299.99
-45	Mouse, Wireless	Warehouse B	29.99
-32	Keyboard, Mechanical	Warehouse A	89.99
-8	"Monitor, 27"""	Warehouse C	399.99
-120	Cable, USB-C	Warehouse B	12.99
+price	product	location	quantity
+1299.99	Laptop, Pro Model	Warehouse A	15
+29.99	Mouse, Wireless	Warehouse B	45
+89.99	Keyboard, Mechanical	Warehouse A	32
+399.99	"Monitor, 27"""	Warehouse C	8
+12.99	Cable, USB-C	Warehouse B	120

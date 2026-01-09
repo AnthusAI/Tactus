@@ -98,6 +98,17 @@ Agent "bedrock_agent" {
 - **Do NOT delete or truncate `CHANGELOG.md`**.
 - Ensure your commit messages follow the [Angular Commit Message Convention](https://github.com/angular/angular/blob/master/CONTRIBUTING.md#commit) (e.g., `feat: ...`, `fix: ...`, `docs: ...`) so that Semantic Release can correctly generate the changelog.
 
+## Commit Message Guidelines
+
+When writing commit messages:
+
+- **Do NOT use code blocks** (backticks or triple backticks) in commit messages
+- Use plain text with proper formatting (bullet points, indentation)
+- Keep commit subject lines concise (50-72 characters)
+- Use the imperative mood ("fix bug" not "fixed bug")
+- Include detailed explanations in the commit body when necessary
+- Follow the Angular Commit Message Convention for the subject line
+
 ## Parser Generation Requirements
 
 **IMPORTANT**: Tactus uses ANTLR4 to generate parsers from the Lua grammar for both Python and TypeScript.

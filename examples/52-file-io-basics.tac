@@ -4,18 +4,22 @@ Example: File I/O Operations
 Demonstrates reading and writing various file formats in Tactus.
 All file operations are restricted to the current working directory.
 
-Available libraries:
-- File: Raw text read/write (via FilePrimitive)
-- Json: JSON encode/decode (via JsonPrimitive)
-- Csv: CSV read/write with automatic header handling
-- Tsv: Tab-separated values read/write
-- Parquet: Apache Parquet format (requires pyarrow)
-- Hdf5: HDF5 datasets (requires h5py)
-- Excel: Excel spreadsheets (requires openpyxl)
+Available libraries (via require):
+- tactus.io.file: Raw text read/write
+- tactus.io.json: JSON encode/decode
+- tactus.io.csv: CSV read/write with automatic header handling
+- tactus.io.tsv: Tab-separated values read/write
+- tactus.io.parquet: Apache Parquet format (requires pyarrow)
+- tactus.io.hdf5: HDF5 datasets (requires h5py)
+- tactus.io.excel: Excel spreadsheets (requires openpyxl)
 
 To run:
   tactus run examples/52-file-io-basics.tac
 ]]--
+
+local csv = require("tactus.io.csv")
+local json = require("tactus.io.json")
+local file = require("tactus.io.file")
 
 Procedure {
     input = {
@@ -26,16 +30,16 @@ Procedure {
     },
     function(input)
 
-    -- Read CSV file (returns LuaList wrapper with {header=value} dicts)
+        -- Read CSV file (returns list of {header=value} dicts)
         -- Path is relative to the procedure file's directory
-        local data = Csv.read("data/sample.csv")
+        local data = csv.read("data/sample.csv")
 
-        -- Get record count using :len() method
-        local record_count = data:len()
+        -- Get record count
+        local record_count = #data
         local high_performers = {}
 
-        -- Iterate using 0-indexed access
-        for i = 0, record_count - 1 do
+        -- Iterate through records
+        for i = 1, record_count do
             local row = data[i]
             local score = tonumber(row.score)
             if score >= 85 then
@@ -53,23 +57,22 @@ Procedure {
         Log.info("Found high performers", {count = #high_performers})
 
         -- Write results to CSV
-        Csv.write("output_high_performers.csv", high_performers)
+        csv.write("output_high_performers.csv", high_performers)
 
-        -- Write summary to JSON using File + Json.encode
+        -- Write summary to JSON
         local summary_data = {
             total_records = record_count,
             high_performers = #high_performers,
             processed_at = os.date()
         }
-        local json_str = Json.encode(summary_data)
-        File.write("output_summary.json", json_str)
+        json.write("output_summary.json", summary_data)
 
         -- Write raw text summary
         local summary_text = string.format(
             "Processed %d records, found %d high performers",
             record_count, #high_performers
         )
-        File.write("output_summary.txt", summary_text)
+        file.write("output_summary.txt", summary_text)
 
         return {
             records_processed = record_count,
