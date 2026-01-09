@@ -7,7 +7,14 @@ interface OutputsSectionProps {
 }
 
 export const OutputsSection: React.FC<OutputsSectionProps> = ({ outputs }) => {
-  const outputList = Object.values(outputs ?? {}).filter(output => output !== null);
+  const outputList = Object.entries(outputs ?? {})
+    .map(([name, output]) => {
+      if (!output || typeof output !== 'object') {
+        return null;
+      }
+      return { ...output, name: output.name ?? name };
+    })
+    .filter((output): output is OutputFieldDeclaration => output !== null);
 
   if (outputList.length === 0) {
     return null;

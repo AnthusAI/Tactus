@@ -8,14 +8,14 @@ To run:
   tactus run examples/56-hdf5-file-io.tac
 ]]--
 
-Procedure "main" {
-    input = {},
-    output = {
+input {}
+
+output {
         datasets_created = field.number{required = true},
         max_value = field.number{required = true}
-    },
-    function(input)
-    -- Create various numerical datasets
+    }
+
+-- Create various numerical datasets
 
     -- Time series data
     local temperatures = {}
@@ -131,8 +131,6 @@ Procedure "main" {
         datasets_created = #datasets + 2,  -- Original datasets plus 2 new ones
         max_value = math.floor(max_grid * 100) / 100
     }
-end
-}
 
 Specifications([[
 Feature: HDF5 File IO

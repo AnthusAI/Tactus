@@ -22,22 +22,18 @@ def cli_runner():
 @pytest.fixture
 def example_workflow_file(tmp_path):
     """Create a minimal valid workflow file for testing."""
-    workflow_content = """Agent "worker" {
+    workflow_content = """worker = Agent {
     provider = "openai",
     system_prompt = "You are a test worker.",
     initial_message = "Starting test.",
     tools = {}
 }
 
-main = Procedure "main" {
-    output = {
-        result = field.string{required = true}
-    },
-    state = {},
-    function(input)
-        return { result = "test" }
-    end
+output {
+    result = field.string{required = true}
 }
+
+return { result = "test" }
 """
     workflow_file = tmp_path / "test.tac"
     workflow_file.write_text(workflow_content)
@@ -47,6 +43,9 @@ main = Procedure "main" {
 def test_cli_validate_valid_file(cli_runner, example_workflow_file):
     """Test that validate command works with a valid workflow file."""
     result = cli_runner.invoke(app, ["validate", str(example_workflow_file)])
+    if result.exit_code != 0:
+        print(f"STDOUT: {result.stdout}")
+        print(f"STDERR: {result.stderr if hasattr(result, 'stderr') else 'N/A'}")
     assert result.exit_code == 0
     assert "valid" in result.stdout.lower()
 
@@ -94,25 +93,22 @@ def test_cli_version(cli_runner):
 
 def test_cli_run_with_parameters(cli_runner, tmp_path):
     """Test that run command accepts parameters."""
-    workflow_content = """Agent "worker" {
+    workflow_content = """worker = Agent {
     provider = "openai",
     system_prompt = "You are a test worker.",
     initial_message = "Starting test.",
     tools = {}
 }
 
-main = Procedure "main" {
-    input = {
-        name = field.string{default = "World"}
-    },
-    output = {
-        greeting = field.string{required = true}
-    },
-    state = {},
-    function(input)
-        return { greeting = "Hello, " .. input.name }
-    end
+input {
+    name = field.string{default = "World"}
 }
+
+output {
+    greeting = field.string{required = true}
+}
+
+return { greeting = "Hello, " .. input.name }
 """
     workflow_file = tmp_path / "params.tac"
     workflow_file.write_text(workflow_content)

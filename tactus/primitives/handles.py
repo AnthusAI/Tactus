@@ -8,9 +8,12 @@ Usage:
     # During parsing:
     Greeter = agent "greeter" { config }  # Returns AgentHandle("greeter")
 
-    # During execution:
-    Agent("greeter").turn()               # Lookup + use
-    Greeter.turn()                        # Direct use (same handle)
+    # During execution (callable syntax - preferred):
+    Greeter()                             # Direct call
+    Greeter({message = "Hello"})          # Call with options
+
+    # Lookup syntax also works:
+    Agent("greeter")()                    # Lookup + call
 """
 
 import logging
@@ -23,12 +26,53 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _convert_lua_table(lua_table):
+    """
+    Convert a lupa Lua table to a Python dict or list.
+
+    Used to convert opts passed from Lua to Python methods.
+    """
+    if lua_table is None:
+        return None
+
+    # Check if it's a lupa table by checking for the items method
+    if not hasattr(lua_table, "items"):
+        # It's a primitive value (string, number, bool), return as-is
+        return lua_table
+
+    try:
+        # Get all keys
+        keys = list(lua_table.keys())
+
+        # Empty table - return empty dict for opts (different from dsl_stubs which returns [])
+        if not keys:
+            return {}
+
+        # Check if it's an array (all keys are consecutive integers starting from 1)
+        if all(isinstance(k, int) for k in keys):
+            sorted_keys = sorted(keys)
+            if sorted_keys == list(range(1, len(keys) + 1)):
+                # It's an array
+                return [_convert_lua_table(lua_table[k]) for k in sorted_keys]
+
+        # It's a dictionary
+        result = {}
+        for key, value in lua_table.items():
+            # Recursively convert nested tables
+            result[key] = _convert_lua_table(value)
+        return result
+
+    except (AttributeError, TypeError):
+        # Fallback: return as-is
+        return lua_table
+
+
 class AgentHandle:
     """
     Lightweight handle returned by agent() DSL function.
 
     Created during DSL parsing, enhanced at runtime with actual AgentPrimitive.
-    Delegates .turn() calls to the real primitive.
+    Supports callable syntax: agent() or agent({message = "..."})
     """
 
     def __init__(self, name: str):
@@ -44,12 +88,15 @@ class AgentHandle:
 
     def turn(self, opts: Optional[Dict[str, Any]] = None) -> Any:
         """
-        Execute one agent turn (delegates to DSPyAgentHandle.turn()).
+        Execute one agent turn.
+
+        Note: Prefer callable syntax: agent() or agent({message = "..."})
 
         Args:
             opts: Optional dict with per-turn overrides:
-                - inject: str - Message to inject for this turn
+                - message: str - Message for this turn
                 - tools: List[str] - Tool names to use
+                - toolsets: List[str] - Toolset names to use
                 - temperature: float - Override temperature
                 - max_tokens: int - Override max_tokens
 
@@ -65,7 +112,40 @@ class AgentHandle:
                 f"This handle was created during DSL parsing but the runtime "
                 f"hasn't connected it to the actual AgentPrimitive yet."
             )
-        return self._primitive.turn(opts)
+        # Convert Lua table to Python dict if needed
+        converted_opts = _convert_lua_table(opts) if opts is not None else None
+        return self._primitive.turn(converted_opts)
+
+    def __call__(self, inputs=None):
+        """
+        Execute an agent turn using the callable interface.
+
+        This is the unified callable interface that allows:
+            result = worker({message = "Hello"})
+
+        Args:
+            inputs: Input dict with fields matching input_schema.
+                   Default field 'message' is used as the user message.
+
+        Returns:
+            Result object with response and other fields
+
+        Raises:
+            RuntimeError: If handle not connected to primitive
+
+        Example (Lua):
+            result = worker({message = "Process this task"})
+            print(result.response)
+        """
+        if self._primitive is None:
+            raise RuntimeError(
+                f"Agent '{self.name}' not initialized. "
+                f"This handle was created during DSL parsing but the runtime "
+                f"hasn't connected it to the actual AgentPrimitive yet."
+            )
+        # Convert Lua table to Python dict if needed
+        converted_inputs = _convert_lua_table(inputs) if inputs is not None else None
+        return self._primitive(converted_inputs)
 
     def _set_primitive(self, primitive: "DSPyAgentHandle") -> None:
         """
@@ -124,6 +204,36 @@ class ModelHandle:
             )
         return self._primitive.predict(data)
 
+    def __call__(self, data: Any = None) -> Any:
+        """
+        Execute model prediction using the callable interface.
+
+        This is the unified callable interface that allows:
+            result = classifier({text = "Hello"})
+
+        Args:
+            data: Input data for prediction (format depends on model type)
+
+        Returns:
+            Model prediction result
+
+        Raises:
+            RuntimeError: If handle not connected to primitive
+
+        Example (Lua):
+            result = classifier({text = "This is great!"})
+            print(result.label)       -- "positive"
+        """
+        if self._primitive is None:
+            raise RuntimeError(
+                f"Model '{self.name}' not initialized. "
+                f"This handle was created during DSL parsing but the runtime "
+                f"hasn't connected it to the actual ModelPrimitive yet."
+            )
+        # Convert Lua table to Python dict if needed
+        converted_data = _convert_lua_table(data) if data is not None else None
+        return self._primitive(converted_data)
+
     def _set_primitive(self, primitive: "ModelPrimitive") -> None:
         """
         Connect this handle to its actual primitive.
@@ -171,7 +281,7 @@ class AgentLookup:
             ValueError: If agent not found
 
         Example (Lua):
-            Agent("greeter").turn()
+            Agent("greeter")()  -- or Agent("greeter")({message = "Hello"})
         """
         if name not in self._registry:
             available = list(self._registry.keys())

@@ -75,16 +75,17 @@ After calling the calculation tool, call done with the result.]],
 }
 
 -- Main workflow
-Procedure "main" {
-    input = {
+
+input {
         task = field.string{description = "Calculation task to perform", default = "Calculate 20% tip on $50"}
-    },
-    output = {
+    }
+
+output {
         result = field.string{required = true, description = "The calculation result"},
         completed = field.boolean{required = true, description = "Whether the task was completed successfully"}
-    },
-    function(input)
-    local max_turns = 5
+    }
+
+local max_turns = 5
     local turn_count = 0
     local result
 
@@ -117,8 +118,6 @@ Procedure "main" {
         result = answer,
         completed = Tool.called("done")
     }
-end
-}
 
 -- BDD Specifications
 Specifications([[

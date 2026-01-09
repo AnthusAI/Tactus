@@ -31,12 +31,19 @@ class ModelPrimitive:
             model_name: Name of the model (for checkpointing)
             config: Model configuration dict with:
                 - type: Backend type (http, pytorch, bert, sklearn, etc.)
+                - input: Optional input schema
+                - output: Optional output schema
                 - Backend-specific config (endpoint, path, etc.)
             context: Execution context for checkpointing
         """
         self.model_name = model_name
         self.config = config
         self.context = context
+
+        # Extract optional input/output schemas
+        self.input_schema = config.get("input", {})
+        self.output_schema = config.get("output", {})
+
         self.backend = self._create_backend(config)
 
     def _create_backend(self, config: dict):
@@ -120,6 +127,21 @@ class ModelPrimitive:
             Model prediction result
         """
         return self.backend.predict_sync(input_data)
+
+    def __call__(self, input_data: Any) -> Any:
+        """
+        Execute model inference using the callable interface.
+
+        This is an alias for predict() that enables the unified callable syntax:
+            result = classifier({text = "Hello"})
+
+        Args:
+            input_data: Input to the model (format depends on backend)
+
+        Returns:
+            Model prediction result
+        """
+        return self.predict(input_data)
 
     def __repr__(self) -> str:
         return f"ModelPrimitive({self.model_name}, type={self.config.get('type')})"

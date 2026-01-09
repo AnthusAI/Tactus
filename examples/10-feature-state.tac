@@ -2,22 +2,22 @@
 -- Demonstrates setting, getting, and incrementing state values
 
 -- Agents (defined at top level - reusable across procedures)
-Agent("worker", {
+Agent "worker" {
     provider = "openai",
     system_prompt = "A simple worker agent",
     initial_message = "Starting state management example",
     toolsets = {},
-})
+}
 
 -- Procedure with outputs defined inline
-Procedure "main" {
-    output = {
+
+output {
         success = field.boolean{required = true, description = "Whether the workflow completed successfully"},
         message = field.string{required = true, description = "Status message"},
         count = field.number{required = true, description = "Final count of processed items"},
-    },
-    function(input)
-    Log.info("Starting state management example")
+    }
+
+Log.info("Starting state management example")
 
     -- Initialize state
     State.set("items_processed", 0)
@@ -37,8 +37,6 @@ Procedure "main" {
       message = "State management example completed successfully",
       count = final_count
     }
-end
-}
 
 -- BDD Specifications
 Specifications([[

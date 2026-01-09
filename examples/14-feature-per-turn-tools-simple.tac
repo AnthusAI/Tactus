@@ -12,12 +12,11 @@ Agent "tester" {
     toolsets = {"done"}  -- Default toolset
 }
 
-Procedure "main" {
-    output = {
+output {
         result = field.string{description = "Result"}
-    },
-    function(input)
-    Log.info("Test 1: Agent with tools - should call done")
+    }
+
+Log.info("Test 1: Agent with tools - should call done")
     Agent("tester").turn()
     
     if Tool.called("done") then
@@ -47,7 +46,4 @@ Procedure "main" {
     end
     
     return {success = true}
-end
-}
-
 

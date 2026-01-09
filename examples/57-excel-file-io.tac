@@ -8,14 +8,14 @@ To run:
   tactus run examples/57-excel-file-io.tac
 ]]--
 
-Procedure "main" {
-    input = {},
-    output = {
+input {}
+
+output {
         total_revenue = field.number{required = true},
         profit_margin = field.number{required = true}
-    },
-    function(input)
-    -- Create sales data for Q1
+    }
+
+-- Create sales data for Q1
     local q1_sales = {
         {month = "January", product = "Widget A", units = 150, unit_price = 29.99, cost_per_unit = 15.00},
         {month = "January", product = "Widget B", units = 85, unit_price = 49.99, cost_per_unit = 25.00},
@@ -134,8 +134,6 @@ Procedure "main" {
         total_revenue = math.floor(total_revenue),
         profit_margin = math.floor(profit_margin * 10) / 10
     }
-end
-}
 
 Specifications([[
 Feature: Excel File IO

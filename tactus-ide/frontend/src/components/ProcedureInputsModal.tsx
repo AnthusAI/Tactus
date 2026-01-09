@@ -35,15 +35,19 @@ export const ProcedureInputsModal: React.FC<ProcedureInputsModalProps> = ({
   useEffect(() => {
     const initialValues: Record<string, any> = {};
     Object.entries(parameters ?? {}).forEach(([name, param]) => {
+      if (!param || typeof param !== 'object') {
+        return;
+      }
+      const paramType = param.type ?? 'string';
       if (param.default !== undefined) {
         initialValues[name] = param.default;
-      } else if (param.type === 'boolean') {
+      } else if (paramType === 'boolean') {
         initialValues[name] = false;
-      } else if (param.type === 'array') {
+      } else if (paramType === 'array') {
         initialValues[name] = [];
-      } else if (param.type === 'object') {
+      } else if (paramType === 'object') {
         initialValues[name] = {};
-      } else if (param.type === 'number') {
+      } else if (paramType === 'number') {
         initialValues[name] = 0;
       } else {
         initialValues[name] = '';
@@ -61,6 +65,9 @@ export const ProcedureInputsModal: React.FC<ProcedureInputsModalProps> = ({
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
     Object.entries(parameters ?? {}).forEach(([name, param]) => {
+      if (!param || typeof param !== 'object') {
+        return;
+      }
       if (param.required) {
         const value = values[name];
         if (value === undefined || value === '' || value === null) {
@@ -88,8 +95,10 @@ export const ProcedureInputsModal: React.FC<ProcedureInputsModalProps> = ({
   const renderInput = (name: string, param: ParameterDeclaration) => {
     const value = values[name];
     const hasError = !!errors[name];
+    const paramType = param.type ?? 'string';
+    const paramEnum = Array.isArray(param.enum) ? param.enum : undefined;
 
-    switch (param.type) {
+    switch (paramType) {
       case 'boolean':
         return (
           <div className="flex items-center gap-2">
@@ -170,7 +179,7 @@ export const ProcedureInputsModal: React.FC<ProcedureInputsModalProps> = ({
       case 'string':
       default:
         // Check for enum
-        if (param.enum && Array.isArray(param.enum) && param.enum.length > 0) {
+        if (paramEnum && paramEnum.length > 0) {
           return (
             <select
               value={value ?? ''}
@@ -181,7 +190,7 @@ export const ProcedureInputsModal: React.FC<ProcedureInputsModalProps> = ({
               )}
             >
               <option value="">Select...</option>
-              {param.enum.map((opt) => (
+              {paramEnum.map((opt) => (
                 <option key={opt} value={opt}>
                   {opt}
                 </option>
@@ -201,7 +210,12 @@ export const ProcedureInputsModal: React.FC<ProcedureInputsModalProps> = ({
     }
   };
 
-  const paramList = Object.entries(parameters ?? {});
+  const paramList = Object.entries(parameters ?? {}).filter(
+    (entry): entry is [string, ParameterDeclaration] => {
+      const param = entry[1];
+      return !!param && typeof param === 'object';
+    }
+  );
 
   if (paramList.length === 0) {
     return null;
@@ -221,22 +235,31 @@ export const ProcedureInputsModal: React.FC<ProcedureInputsModalProps> = ({
         </DialogHeader>
 
         <div className="space-y-4 py-4 max-h-[400px] overflow-y-auto">
-          {paramList.map(([name, param]) => (
-            <div key={name} className="space-y-2">
-              <label htmlFor={name} className="text-sm font-medium">
-                {name}
-                {param.required && <span className="text-red-500 ml-1">*</span>}
-                <span className="text-xs text-muted-foreground ml-2">({param.type})</span>
-              </label>
-              {param.description && (
-                <p className="text-xs text-muted-foreground">{param.description}</p>
-              )}
-              {renderInput(name, param)}
-              {errors[name] && (
-                <p className="text-xs text-red-500">{errors[name]}</p>
-              )}
-            </div>
-          ))}
+          {paramList.map(([name, param]) => {
+            const safeParam: ParameterDeclaration = {
+              ...param,
+              type: param.type ?? 'string',
+              required: Boolean(param.required),
+              enum: Array.isArray(param.enum) ? param.enum : undefined,
+            };
+
+            return (
+              <div key={name} className="space-y-2">
+                <label htmlFor={name} className="text-sm font-medium">
+                  {name}
+                  {safeParam.required && <span className="text-red-500 ml-1">*</span>}
+                  <span className="text-xs text-muted-foreground ml-2">({safeParam.type})</span>
+                </label>
+                {safeParam.description && (
+                  <p className="text-xs text-muted-foreground">{safeParam.description}</p>
+                )}
+                {renderInput(name, safeParam)}
+                {errors[name] && (
+                  <p className="text-xs text-red-500">{errors[name]}</p>
+                )}
+              </div>
+            );
+          })}
         </div>
 
         <DialogFooter>

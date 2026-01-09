@@ -50,14 +50,18 @@ class TactusHistory:
         Add a message to the history.
 
         Args:
-            message: A dict with keys 'role' and 'content'
+            message: A dict with keys 'role' and 'content', or a TactusMessage object
                     e.g., {"role": "user", "content": "What is 2+2?"}
+                    e.g., Message {role = "user", content = "What is 2+2?"}
 
         Raises:
             ValueError: If message lacks required keys or invalid role
         """
+        # Check if it's a TactusMessage (has to_dict method)
+        if hasattr(message, "to_dict") and callable(message.to_dict):
+            message = message.to_dict()
         # Convert Lua tables to dict if needed
-        if hasattr(message, "items"):
+        elif hasattr(message, "items"):
             # It's a Lua table or similar mapping
             try:
                 message = dict(message.items())
@@ -66,7 +70,7 @@ class TactusHistory:
 
         # Check for required keys
         if not isinstance(message, dict):
-            raise ValueError("Message must be a dictionary")
+            raise ValueError("Message must be a dictionary or TactusMessage")
 
         if "role" not in message:
             raise ValueError("role is required")

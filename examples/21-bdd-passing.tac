@@ -12,19 +12,16 @@ Agent "worker" {
 Stages({"initializing", "working", "complete"})
 
 -- Procedure with input, output, and state defined inline
-Procedure "main" {
-    input = {
+
+input {
         count = field.number{required = false, description = "Number of iterations to perform", default = 3},
-    },
-    output = {
+    }
+
+output {
         result = field.string{required = true, description = "Final result message"},
-    },
-    state = {
-        counter = field.number{description = "Working counter", default = 0},
-        items = field.array{description = "List of items", default = {}}
-    },
-    function(input)
-  -- Initialize
+    }
+
+-- Initialize
   Stage.set("initializing")
 
   -- Do work
@@ -47,8 +44,6 @@ Procedure "main" {
   return {
     result = "Processed " .. State.get("counter") .. " items"
   }
-end
-}
 
 -- BDD Specifications
 Specifications([[
@@ -91,5 +86,3 @@ evaluation({
   runs = 10,
   parallel = true
 })
-
-

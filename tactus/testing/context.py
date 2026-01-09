@@ -82,6 +82,13 @@ class TactusTestContext:
             log_handler=log_handler,  # Enable cost tracking
         )
 
+        # Create MockManager for handling Mocks {} blocks when in mocked mode
+        if self.mocked or self.mock_tools:
+            from tactus.core.mocking import MockManager
+
+            self.runtime.mock_manager = MockManager()
+            logger.info("Created MockManager for Mocks {} block support")
+
         logger.debug(f"Setup runtime for test: {self.procedure_file.stem}")
 
     async def run_procedure_async(self) -> None:

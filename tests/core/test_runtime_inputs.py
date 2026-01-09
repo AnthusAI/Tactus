@@ -24,7 +24,7 @@ class TestStringInputs:
     @pytest.mark.asyncio
     async def test_string_input_required(self, runtime):
         """Test required string input is passed correctly."""
-        source = """Procedure "main" {
+        source = """Procedure {
             input = {
                 name = field.string{required = true}
             },
@@ -44,7 +44,7 @@ class TestStringInputs:
     @pytest.mark.asyncio
     async def test_string_input_with_default(self, runtime):
         """Test string input with default value when not provided."""
-        source = """Procedure "main" {
+        source = """Procedure {
             input = {
                 name = field.string{default = "Default"}
             },
@@ -64,7 +64,7 @@ class TestStringInputs:
     @pytest.mark.asyncio
     async def test_string_input_override_default(self, runtime):
         """Test context value overrides default."""
-        source = """Procedure "main" {
+        source = """Procedure {
             input = {
                 name = field.string{default = "Default"}
             },
@@ -88,7 +88,7 @@ class TestNumberInputs:
     @pytest.mark.asyncio
     async def test_integer_input(self, runtime):
         """Test integer input parameter."""
-        source = """Procedure "main" {
+        source = """Procedure {
             input = {
                 count = field.number{required = true}
             },
@@ -108,7 +108,7 @@ class TestNumberInputs:
     @pytest.mark.asyncio
     async def test_float_input(self, runtime):
         """Test float input parameter."""
-        source = """Procedure "main" {
+        source = """Procedure {
             input = {
                 value = field.number{required = true}
             },
@@ -128,7 +128,7 @@ class TestNumberInputs:
     @pytest.mark.asyncio
     async def test_number_default(self, runtime):
         """Test number input with default value."""
-        source = """Procedure "main" {
+        source = """Procedure {
             input = {
                 count = field.number{default = 10}
             },
@@ -152,7 +152,7 @@ class TestBooleanInputs:
     @pytest.mark.asyncio
     async def test_boolean_true(self, runtime):
         """Test boolean true input."""
-        source = """Procedure "main" {
+        source = """Procedure {
             input = {
                 enabled = field.boolean{required = true}
             },
@@ -172,7 +172,7 @@ class TestBooleanInputs:
     @pytest.mark.asyncio
     async def test_boolean_false(self, runtime):
         """Test boolean false input."""
-        source = """Procedure "main" {
+        source = """Procedure {
             input = {
                 enabled = field.boolean{required = true}
             },
@@ -192,7 +192,7 @@ class TestBooleanInputs:
     @pytest.mark.asyncio
     async def test_boolean_default(self, runtime):
         """Test boolean input with default value."""
-        source = """Procedure "main" {
+        source = """Procedure {
             input = {
                 enabled = field.boolean{default = true}
             },
@@ -223,7 +223,7 @@ class TestArrayInputs:
 
         Arrays are now converted to Lua tables with 1-based indexing.
         """
-        source = """Procedure "main" {
+        source = """Procedure {
             input = {
                 items = field.array{required = true}
             },
@@ -245,7 +245,7 @@ class TestArrayInputs:
     @pytest.mark.asyncio
     async def test_array_default_empty_returns_ok(self, runtime):
         """Test array input with empty default - procedure completes."""
-        source = """Procedure "main" {
+        source = """Procedure {
             input = {
                 items = field.array{default = {}}
             },
@@ -268,7 +268,7 @@ class TestArrayInputs:
 
         Arrays are now converted to Lua tables with 1-based indexing.
         """
-        source = """Procedure "main" {
+        source = """Procedure {
             input = {
                 names = field.array{required = true}
             },
@@ -294,7 +294,7 @@ class TestObjectInputs:
     @pytest.mark.asyncio
     async def test_object_input(self, runtime):
         """Test object input parameter."""
-        source = """Procedure "main" {
+        source = """Procedure {
             input = {
                 config = field.object{required = true}
             },
@@ -316,7 +316,7 @@ class TestObjectInputs:
     @pytest.mark.asyncio
     async def test_object_default_empty(self, runtime):
         """Test object input with empty default."""
-        source = """Procedure "main" {
+        source = """Procedure {
             input = {
                 config = field.object{default = {}}
             },
@@ -336,7 +336,7 @@ class TestObjectInputs:
     @pytest.mark.asyncio
     async def test_nested_object(self, runtime):
         """Test nested object input."""
-        source = """Procedure "main" {
+        source = """Procedure {
             input = {
                 data = field.object{required = true}
             },
@@ -362,7 +362,7 @@ class TestMultipleInputs:
     @pytest.mark.asyncio
     async def test_multiple_inputs_all_types(self, runtime):
         """Test procedure with multiple inputs of different types."""
-        source = """Procedure "main" {
+        source = """Procedure {
             input = {
                 name = field.string{required = true},
                 count = field.number{default = 1},
@@ -392,7 +392,7 @@ class TestMultipleInputs:
     @pytest.mark.asyncio
     async def test_mixed_provided_and_defaults(self, runtime):
         """Test some inputs provided, others using defaults."""
-        source = """Procedure "main" {
+        source = """Procedure {
             input = {
                 required_val = field.string{required = true},
                 optional_val = field.string{default = "default_option"},
@@ -418,7 +418,7 @@ class TestInputValidation:
     @pytest.mark.asyncio
     async def test_empty_context_with_defaults(self, runtime):
         """Test procedure runs with empty context when all inputs have defaults."""
-        source = """Procedure "main" {
+        source = """Procedure {
             input = {
                 value = field.string{default = "fallback"}
             },
@@ -438,7 +438,7 @@ class TestInputValidation:
     @pytest.mark.asyncio
     async def test_no_input_schema(self, runtime):
         """Test procedure with no input schema works fine."""
-        source = """Procedure "main" {
+        source = """Procedure {
             output = {
                 result = field.string{required = true}
             },
@@ -455,7 +455,7 @@ class TestInputValidation:
     @pytest.mark.asyncio
     async def test_extra_context_ignored(self, runtime):
         """Test extra context values not in schema are ignored."""
-        source = """Procedure "main" {
+        source = """Procedure {
             input = {
                 name = field.string{required = true}
             },

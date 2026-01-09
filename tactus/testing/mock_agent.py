@@ -2,10 +2,11 @@
 Mock agent primitive for BDD testing.
 
 Provides mock agent that simulates turns without LLM calls.
+Supports unified Mocks {} configuration from .tac files.
 """
 
 import logging
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 
 logger = logging.getLogger(__name__)
@@ -15,55 +16,176 @@ class MockAgentPrimitive:
     """
     Mock agent that simulates turns without making LLM calls.
 
+    Supports the unified Mocks {} configuration from .tac files.
+    If a mock is configured for this agent name, uses that mock response.
+    Otherwise falls back to default mock behavior.
+
     Useful for:
     - Fast, deterministic tests
     - Testing without API keys
     - Workflow logic validation
     """
 
-    def __init__(self, name: str, tool_primitive: Any):
+    def __init__(
+        self,
+        name: str,
+        tool_primitive: Any,
+        registry: Any = None,
+        mock_manager: Any = None,
+    ):
         """
         Initialize mock agent.
 
         Args:
             name: Agent name
             tool_primitive: ToolPrimitive for recording tool calls
+            registry: Optional Registry for accessing Mocks {} configuration
+            mock_manager: Optional MockManager for getting mock responses
         """
         self.name = name
         self.tool_primitive = tool_primitive
+        self.registry = registry
+        self.mock_manager = mock_manager
         self.turn_count = 0
+        self._call_index = 0  # For temporal mocking
 
-    def turn(self, message: Optional[str] = None) -> Any:
+    def turn(self, opts: Optional[Dict[str, Any]] = None) -> Any:
         """
         Simulate an agent turn without LLM calls.
 
+        First checks for Mocks {} configuration from the .tac file.
+        Falls back to default behavior if no mock is configured.
+
         Args:
-            message: Optional message to agent (ignored in mock)
+            opts: Optional turn options (for compatibility with DSPyAgentHandle)
 
         Returns:
-            None (mocked agents don't return values)
+            Mock response dict if configured, None otherwise
         """
+        opts = opts or {}
         self.turn_count += 1
         logger.info(f"Mock agent turn: {self.name} (turn {self.turn_count})")
 
-        # Simulate calling done tool after first turn
-        # This allows procedures with "until Tool.called('done')" to complete
-        if self.turn_count == 1 and self.tool_primitive:
-            logger.debug(f"Mock agent {self.name} calling 'done' tool")
-            # Check if it's a MockedToolPrimitive (takes 2 args) or regular (takes 3 args)
-            from tactus.testing.mock_tools import MockedToolPrimitive
+        # Check for Mocks {} configuration first
+        mock_response = self._get_custom_mock_response(opts)
+        if mock_response is not None:
+            logger.debug(f"Mock agent {self.name} using Mocks {{}} configuration")
+            self._handle_mock_response(mock_response)
+            return mock_response
 
-            # Provide a mock greeting message that procedures might expect
-            mock_args = {"reason": f"Mock greeting from {self.name}"}
-
-            if isinstance(self.tool_primitive, MockedToolPrimitive):
-                # MockedToolPrimitive.record_call(tool_name, args) -> returns result
-                self.tool_primitive.record_call("done", mock_args)
-            else:
-                # Regular ToolPrimitive.record_call(tool_name, args, result)
-                self.tool_primitive.record_call("done", mock_args, {"status": "mocked"})
-
+        # Fall back to default mock behavior
+        self._handle_default_mock()
         return None
+
+    def _get_custom_mock_response(self, opts: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """
+        Check if this agent has a custom mock configured in Mocks {}.
+
+        Args:
+            opts: Turn options
+
+        Returns:
+            Mock response dict if configured, None otherwise
+        """
+        if not self.registry or not self.mock_manager:
+            return None
+
+        # Check if agent has a mock in the registry
+        if not hasattr(self.registry, "mocks") or self.name not in self.registry.mocks:
+            return None
+
+        # Use mock_manager to get the response
+        try:
+            return self.mock_manager.get_mock_response(self.name, opts)
+        except Exception as e:
+            logger.warning(f"Error getting mock response for agent {self.name}: {e}")
+            return None
+
+    def _handle_mock_response(self, mock_response: Dict[str, Any]) -> None:
+        """
+        Handle a custom mock response, including tool call simulation.
+
+        Args:
+            mock_response: The mock response dict
+        """
+        # Check if mock simulates a tool call (e.g., "done")
+        if "tool_calls" in mock_response and self.tool_primitive:
+            tool_calls = mock_response.get("tool_calls", "")
+            if "done" in str(tool_calls).lower():
+                reason = mock_response.get("response", "Task completed (mocked)")
+                self._record_done_call(reason)
+
+    def _handle_default_mock(self) -> None:
+        """
+        Handle default mock behavior when no Mocks {} configuration exists.
+
+        Simulates calling done tool after first turn.
+        """
+        # Only call done on first turn
+        if self.turn_count == 1 and self.tool_primitive:
+            logger.debug(f"Mock agent {self.name} calling 'done' tool (default behavior)")
+            mock_reason = f"Mock greeting from {self.name}"
+            self._record_done_call(mock_reason)
+
+    def _record_done_call(self, reason: str) -> None:
+        """
+        Record a done tool call.
+
+        Args:
+            reason: The reason/message for the done call
+        """
+        from tactus.testing.mock_tools import MockedToolPrimitive
+
+        mock_args = {"reason": reason}
+
+        if isinstance(self.tool_primitive, MockedToolPrimitive):
+            self.tool_primitive.record_call("done", mock_args)
+        else:
+            self.tool_primitive.record_call(
+                "done",
+                mock_args,
+                {"status": "completed", "reason": reason, "tool": "done"},
+                agent_name=self.name,
+            )
+
+    def __call__(self, inputs: Optional[Dict[str, Any]] = None) -> Any:
+        """
+        Execute an agent turn using the callable interface.
+
+        This makes the mock agent callable like real agents:
+            result = worker({message = "Hello"})
+
+        Args:
+            inputs: Input dict with fields matching input_schema.
+                   Default field 'message' is used as the user message.
+
+        Returns:
+            Result object with response and other fields
+        """
+        inputs = inputs or {}
+
+        # Convert Lua table to dict if needed
+        if hasattr(inputs, "items"):
+            try:
+                inputs = dict(inputs.items())
+            except (AttributeError, TypeError):
+                pass
+
+        # Extract message field (the main input)
+        message = inputs.get("message")
+
+        # Build turn options
+        opts = {}
+        if message:
+            opts["inject"] = message
+
+        # Pass remaining fields as context
+        context = {k: v for k, v in inputs.items() if k != "message"}
+        if context:
+            opts["context"] = context
+
+        # Call turn() with the mapped options
+        return self.turn(opts)
 
     def __repr__(self) -> str:
         return f"MockAgentPrimitive({self.name}, turns={self.turn_count})"

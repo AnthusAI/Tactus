@@ -7,7 +7,14 @@ interface ParametersSectionProps {
 }
 
 export const ParametersSection: React.FC<ParametersSectionProps> = ({ parameters }) => {
-  const paramList = Object.values(parameters ?? {}).filter(param => param !== null);
+  const paramList = Object.entries(parameters ?? {})
+    .map(([name, param]) => {
+      if (!param || typeof param !== 'object') {
+        return null;
+      }
+      return { ...param, name: param.name ?? name };
+    })
+    .filter((param): param is ParameterDeclaration => param !== null);
 
   if (paramList.length === 0) {
     return null;

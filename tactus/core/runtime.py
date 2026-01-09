@@ -223,6 +223,24 @@ class TactusRuntime:
             # 1. Parse configuration (Lua DSL or YAML)
             if format == "lua":
                 logger.info("Step 1: Parsing Lua DSL configuration")
+
+                # Script mode transformation: Check if we need to wrap executable code
+                # Do a quick check for script mode indicators (ignoring comments)
+                import re
+
+                # Remove comments before checking
+                source_no_comments = re.sub(r"--.*$", "", source, flags=re.MULTILINE)
+                has_top_level_io = (
+                    "input {" in source_no_comments
+                    or "input(" in source_no_comments
+                    or "output {" in source_no_comments
+                    or "output(" in source_no_comments
+                )
+
+                if has_top_level_io:
+                    logger.info("Script mode detected - transforming source")
+                    source = self._transform_to_procedure(source)
+
                 # Pass placeholder_tool so tool() can return callable ToolHandles
                 self.registry = self._parse_declarations(source, placeholder_tool)
                 logger.info("Loaded procedure from Lua DSL")
@@ -801,18 +819,7 @@ class TactusRuntime:
             except Exception as e:
                 logger.error(f"Failed to create plugin toolset: {e}", exc_info=True)
 
-        # 5. Register DSL-defined toolsets from registry
-        if hasattr(self, "registry") and self.registry and hasattr(self.registry, "toolsets"):
-            for name, definition in self.registry.toolsets.items():
-                try:
-                    toolset = await self._create_toolset_from_config(name, definition)
-                    if toolset:
-                        self.toolset_registry[name] = toolset
-                        logger.info(f"Registered DSL-defined toolset '{name}'")
-                except Exception as e:
-                    logger.error(f"Failed to create DSL toolset '{name}': {e}", exc_info=True)
-
-        # 6. Register individual Lua tool() declarations
+        # 5. Register individual Lua tool() declarations BEFORE toolsets that reference them
         logger.info(
             f"Checking for Lua tools: has registry={hasattr(self, 'registry')}, registry not None={self.registry is not None if hasattr(self, 'registry') else False}"
         )
@@ -855,6 +862,17 @@ class TactusRuntime:
                 logger.warning(
                     f"Could not import LuaToolsAdapter: {e} - Lua tools will not be available"
                 )
+
+        # 6. Register DSL-defined toolsets from registry (after individual tools are registered)
+        if hasattr(self, "registry") and self.registry and hasattr(self.registry, "toolsets"):
+            for name, definition in self.registry.toolsets.items():
+                try:
+                    toolset = await self._create_toolset_from_config(name, definition)
+                    if toolset:
+                        self.toolset_registry[name] = toolset
+                        logger.info(f"Registered DSL-defined toolset '{name}'")
+                except Exception as e:
+                    logger.error(f"Failed to create DSL toolset '{name}': {e}", exc_info=True)
 
         logger.info(
             f"Toolset registry initialized with {len(self.toolset_registry)} toolset(s): {list(self.toolset_registry.keys())}"
@@ -1611,9 +1629,14 @@ class TactusRuntime:
             logger.info("Skipping agent setup (mock mode)")
             from tactus.testing.mock_agent import MockAgentPrimitive
 
-            # Create mock agent primitives
+            # Create mock agent primitives with registry and mock_manager for Mocks {} support
             for agent_name in agents_config.keys():
-                mock_agent = MockAgentPrimitive(agent_name, self.tool_primitive)
+                mock_agent = MockAgentPrimitive(
+                    agent_name,
+                    self.tool_primitive,
+                    registry=self.registry,
+                    mock_manager=self.mock_manager,
+                )
                 self.agents[agent_name] = mock_agent
                 logger.debug(f"Created mock agent: {agent_name}")
 
@@ -1847,8 +1870,13 @@ class TactusRuntime:
                 "initial_message": initial_message,
             }
 
-            # Create DSPy agent
-            agent_primitive = create_dspy_agent(agent_name, dspy_config)
+            # Create DSPy agent with registry and mock_manager for mock support
+            agent_primitive = create_dspy_agent(
+                agent_name,
+                dspy_config,
+                registry=self.registry,
+                mock_manager=self.mock_manager,
+            )
 
             # Store additional context for compatibility
             agent_primitive._tool_primitive = self.tool_primitive
@@ -2013,7 +2041,7 @@ class TactusRuntime:
 
         After primitives are created (AgentPrimitive, ModelPrimitive), this method
         finds the corresponding handles (AgentHandle, ModelHandle) in the DSL registries
-        and connects them so that .turn() and .predict() calls work.
+        and connects them so that callable syntax (agent(), model()) works.
 
         This is called from _inject_primitives() after all primitives are ready.
         """
@@ -2213,10 +2241,10 @@ class TactusRuntime:
         # NOTE: Agent and model primitives are NO LONGER auto-injected with capitalized names.
         # Instead, use the new syntax:
         #   agent "greeter" { config }     -- define
-        #   Agent("greeter").turn()        -- lookup and use
+        #   Agent("greeter")()             -- lookup and call
         # Or assign during definition:
         #   Greeter = agent "greeter" { config }
-        #   Greeter.turn()
+        #   Greeter()                      -- callable syntax
 
         # Enhance DSL handles to connect them to actual primitives
         self._enhance_handles()
@@ -2420,6 +2448,139 @@ class TactusRuntime:
             return self.stop_primitive.requested()
         return False
 
+    def _transform_to_procedure(self, source: str) -> str:
+        """
+        Transform script mode source to wrap body in implicit Procedure.
+
+        Detects where declarations end and executable code begins,
+        then wraps the executable code in a Procedure {} block.
+
+        Args:
+            source: Original Lua source code
+
+        Returns:
+            Transformed source with implicit Procedure wrapper
+        """
+        import re
+
+        lines = source.split("\n")
+        split_index = None
+
+        # Patterns that start declarations (not executable)
+        declaration_start_patterns = [
+            r"^\s*(input|output|Mocks|Stages)\s*[{\(]",  # Schema declarations
+            r"^\s*Specifications\s*\(",  # Specifications with (
+            r"^\s*Evaluations\s*\(",  # Evaluations with (
+            r"^\s*[a-zA-Z_]\w*\s*=\s*Agent\s*{",  # Agent definitions (assignment)
+            r'^\s*Agent\s+"[^"]*"\s*{',  # Agent definitions (curried)
+            r"^\s*[a-zA-Z_]\w*\s*=\s*Tool\s*{",  # Tool definitions (assignment)
+            r'^\s*Tool\s+"[^"]*"\s*{',  # Tool definitions (curried)
+            r"^\s*[a-zA-Z_]\w*\s*=\s*Toolset\s*{",  # Toolset definitions (assignment)
+            r'^\s*Toolset\s+"[^"]*"\s*{',  # Toolset definitions (curried)
+            r"^\s*[a-zA-Z_]\w*\s*=\s*Model\s*{",  # Model definitions (assignment)
+            r'^\s*Model\s+"[^"]*"\s*{',  # Model definitions (curried)
+            r"^\s*[a-zA-Z_]\w*\s*=\s*tactus\.",  # Tactus built-ins
+        ]
+
+        # Patterns that are always considered declarations
+        always_declaration_patterns = [
+            r"^\s*--",  # Comments
+            r"^\s*$",  # Empty lines
+        ]
+
+        # Track brace/paren depth to handle multi-line blocks
+        brace_depth = 0
+        paren_depth = 0
+        in_declaration_block = False
+        in_multiline_comment = False
+
+        for i, line in enumerate(lines):
+            # Track multi-line comment state
+            if "--[[" in line:
+                in_multiline_comment = True
+            if in_multiline_comment:
+                if "]]" in line:
+                    in_multiline_comment = False
+                continue
+
+            # Always treat comments and empty lines as declarations
+            if any(re.match(p, line) for p in always_declaration_patterns):
+                continue
+
+            # Check if this line starts a declaration block
+            starts_declaration = any(re.match(p, line) for p in declaration_start_patterns)
+
+            if starts_declaration:
+                in_declaration_block = True
+
+            # Track both braces and parentheses to know when declaration blocks end
+            brace_depth += line.count("{") - line.count("}")
+            paren_depth += line.count("(") - line.count(")")
+
+            # If we're in a declaration block, stay in it until both braces and parens balance
+            if in_declaration_block:
+                if brace_depth == 0 and paren_depth == 0:
+                    # Declaration block just closed
+                    in_declaration_block = False
+                continue
+
+            # Not in a declaration block and not a comment/empty line
+            # This must be executable code
+            split_index = i
+            break
+
+        if split_index is None:
+            # No executable code found - return as-is
+            return source
+
+        # Now find where the body ends and trailing declarations begin
+        # Simple approach: scan for lines that start with known trailing declarations
+        end_index = len(lines)
+        for i in range(split_index, len(lines)):
+            line = lines[i]
+            # Check for trailing declaration markers BEFORE checking always_declaration_patterns
+            # because the BDD comment would otherwise match the general comment pattern
+            if re.match(r"^\s*--\s*BDD\s+Specifications", line, re.IGNORECASE):
+                end_index = i
+                break
+            if re.match(r"^\s*--\s*Pydantic\s+Evals", line, re.IGNORECASE):
+                end_index = i
+                break
+            if re.match(r"^\s*Specifications\s*\(", line):
+                end_index = i
+                break
+            if re.match(r"^\s*Evaluations\s*\(", line):
+                end_index = i
+                break
+            # Check for subsequent Procedure declarations (named procedures after script mode)
+            if re.match(r"^\s*(\w+\s*=\s*)?Procedure\s+", line):
+                end_index = i
+                break
+            # Skip empty lines and other comments
+            if any(re.match(p, line) for p in always_declaration_patterns):
+                continue
+
+        declarations_before = "\n".join(lines[:split_index])
+        body = "\n".join(lines[split_index:end_index])
+        declarations_after = "\n".join(lines[end_index:])
+
+        # Indent body for Procedure function
+        indented_body = "\n".join("        " + line for line in body.split("\n"))
+
+        transformed = f"""{declarations_before}
+
+main = Procedure "main" {{
+    function(input)
+{indented_body}
+    end
+}}
+
+{declarations_after}"""
+        logger.debug(
+            f"Script mode: transformed source (body from line {split_index} to {end_index})"
+        )
+        return transformed
+
     def _parse_declarations(
         self, source: str, tool_primitive: Optional[ToolPrimitive] = None
     ) -> ProcedureRegistry:
@@ -2441,14 +2602,22 @@ class TactusRuntime:
         # Use the existing sandbox so procedure functions have access to primitives
         sandbox = self.lua_sandbox
 
-        # Inject DSL stubs (pass tool_primitive so tool() can return callable handles)
-        stubs = create_dsl_stubs(builder, tool_primitive)
+        # Inject DSL stubs (pass tool_primitive and mock_manager for tool/module mocking)
+        stubs = create_dsl_stubs(builder, tool_primitive, mock_manager=self.mock_manager)
 
         # Store registries for later handle enhancement
         self._dsl_registries = stubs.pop("_registries", {})
 
+        # Extract the binding callback for assignment interception
+        binding_callback = stubs.pop("_tactus_register_binding", None)
+
         for name, stub in stubs.items():
             sandbox.set_global(name, stub)
+
+        # Enable assignment interception for new syntax (Phase B+)
+        # This captures assignments like: multiply = Tool {...}
+        if binding_callback:
+            sandbox.setup_assignment_interception(binding_callback)
 
         # Execute file - declarations self-register
         try:

@@ -8,14 +8,14 @@ To run:
   tactus run examples/55-parquet-file-io.tac
 ]]--
 
-Procedure "main" {
-    input = {},
-    output = {
+input {}
+
+output {
         records_written = field.number{required = true},
         average_temperature = field.number{required = true}
-    },
-    function(input)
-    -- Create sensor data with various data types
+    }
+
+-- Create sensor data with various data types
     local sensor_data = {}
 
     -- Generate sample sensor readings
@@ -110,8 +110,6 @@ Procedure "main" {
         records_written = #sensor_data,
         average_temperature = math.floor(average_temp * 100) / 100
     }
-end
-}
 
 Specifications([[
 Feature: Parquet File IO

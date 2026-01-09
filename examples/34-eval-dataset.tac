@@ -2,7 +2,7 @@
 -- This demonstrates loading evaluation cases from an external JSONL file
 -- instead of defining them inline in the .tac file.
 
-Agent("completer", {
+Agent "completer" {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[You are a helpful assistant that completes tasks.
@@ -10,18 +10,18 @@ Agent("completer", {
 When you complete a task, call the 'done' tool with your result.
 Always start your response with "TASK_COMPLETE: " followed by your actual work.]],
     initial_message = "{task}\n\nPlease complete this task now.",
-})
+}
 
-Procedure "main" {
-    input = {
+input {
         task = field.string{required = true}
-    },
-    output = {
+    }
+
+output {
         output = field.string{required = true},
         completed = field.boolean{required = true}
-    },
-    function(input)
-    -- Have agent complete the task
+    }
+
+-- Have agent complete the task
     Agent("completer").turn()
     
     -- Get result
@@ -37,8 +37,6 @@ Procedure "main" {
         output = output,
         completed = completed
     }
-end
-}
 
 -- BDD Specifications
 Specifications([[

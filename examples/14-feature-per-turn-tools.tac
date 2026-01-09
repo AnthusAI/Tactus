@@ -61,12 +61,11 @@ When you have completed your task, call the 'done' Tool.]],
     toolsets = {},  -- Empty - will control per-turn
 }
 
-Procedure "main" {
-    output = {
+output {
         result = field.string{required = true}
-    },
-    function(input)
-        Log.info("Starting per-turn tool control example")
+    }
+
+Log.info("Starting per-turn tool control example")
 
         -- Turn 1: Only search tool available
         Log.info("Turn 1: Only search tool")
@@ -114,8 +113,6 @@ Procedure "main" {
         return {
             result = "Demonstrated per-turn tool control"
         }
-    end
-}
 
 -- BDD Specifications
 Specifications([[

@@ -121,16 +121,17 @@ After calling the math tool, call done with the result.]],
 }
 
 -- Main workflow
-Procedure "main" {
-    input = {
+
+input {
         operation = field.string{description = "Mathematical operation to perform", default = "What is 5 plus 3?"}
-    },
-    output = {
+    }
+
+output {
         answer = field.string{required = true, description = "The mathematical answer"},
         completed = field.boolean{required = true, description = "Whether the task was completed"}
-    },
-    function(input)
-    local max_turns = 10
+    }
+
+local max_turns = 10
     local turn_count = 0
     local result
 
@@ -163,8 +164,6 @@ Procedure "main" {
         answer = answer,
         completed = Tool.called("done")
     }
-end
-}
 
 -- BDD Specifications
 Specifications([[

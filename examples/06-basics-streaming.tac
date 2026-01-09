@@ -17,12 +17,12 @@ When asked to write a story:
 }
 
 -- Simple procedure: one turn to generate and stream the story
-Procedure "main" {
-    output = {
+
+output {
         result = field.string{description = "Result"}
-    },
-    function(input)
-    Log.info("Starting streaming test - watch the text appear in real-time!")
+    }
+
+Log.info("Starting streaming test - watch the text appear in real-time!")
 
     -- Single turn - the agent writes the complete story
     local response = Agent("storyteller").turn()
@@ -46,5 +46,4 @@ Procedure "main" {
           success = true
       }
     end
-end
-}
+

@@ -61,19 +61,20 @@ When asked for information, use the appropriate tools and then call done with a 
 }
 
 -- Main procedure
-Procedure "main" {
-    input = {
+
+input {
         query = field.string{
             default = "weather",
             description = "What to query: weather or stock"
         }
-    },
-    output = {
+    }
+
+output {
         result = field.string{required = true, description = "Query result"},
         mocked = field.boolean{required = true, description = "Whether mocks were used"}
-    },
-    function(input)
-        Log.info("Starting static mock demo", {query = input.query})
+    }
+
+Log.info("Starting static mock demo", {query = input.query})
 
         -- Ask agent to get information
         local message
@@ -120,8 +121,6 @@ Procedure "main" {
             result = result,
             mocked = mocked
         }
-    end
-}
 
 -- BDD Specifications
 Specifications([[

@@ -13,23 +13,18 @@ Agent "processor" {
 Stages({"setup", "processing", "validation", "complete"})
 
 -- Procedure with input and output defined inline
-Procedure "main" {
-    input = {
+
+input {
         task = field.string{required = false, description = "Task to perform", default = "process data"},
         iterations = field.number{required = false, description = "Number of iterations", default = 3},
-    },
-    output = {
+    }
+
+output {
         status = field.string{required = true, description = "Final status"},
         count = field.number{required = true, description = "Items processed"},
-    },
-    state = {
-        items_processed = field.number{description = "Items processed counter", default = 0},
-        errors = field.number{description = "Error count", default = 0},
-        validation_passed = field.boolean{description = "Validation result", default = false},
-        last_even = field.number{description = "Last even number", default = 0}
-    },
-    function(input)
-  -- Setup phase
+    }
+
+-- Setup phase
   Stage.set("setup")
   State.set("items_processed", 0)
   State.set("errors", 0)
@@ -67,8 +62,6 @@ Procedure "main" {
     status = "success",
     count = State.get("items_processed")
   }
-end
-}
 
 -- BDD Specifications
 Specifications([[
@@ -123,4 +116,3 @@ evaluation({
   runs = 10,
   parallel = true
 })
-

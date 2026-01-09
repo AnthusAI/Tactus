@@ -13,13 +13,12 @@ Agent "greeter" {
     toolsets = {"done"},
 }
 
-Procedure "main" {
-    output = {
+output {
         greeting = field.string{required = true},
         completed = field.boolean{required = true},
-    },
-    function(input)
-        local max_turns = 10
+    }
+
+local max_turns = 10
         local turn_count = 0
 
         while not Tool.called("done") and turn_count < max_turns do
@@ -39,8 +38,6 @@ Procedure "main" {
                 completed = false
             }
         end
-    end
-}
 
 -- BDD Specifications
 Specifications([[

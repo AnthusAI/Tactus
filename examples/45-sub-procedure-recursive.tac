@@ -4,19 +4,16 @@
 -- This example implements a factorial calculator using recursive
 -- sub-procedure calls. Each recursive call is checkpointed.
 
-Procedure "main" {
-    input = {
+input {
         n = field.number{required = true, description = "Number to calculate factorial for"}
-    },
-    output = {
+    }
+
+output {
         result = field.number{required = true, description = "Factorial of n"},
         depth = field.number{required = true, description = "Recursion depth reached"}
-    },
-    state = {
-        recursion_depth = field.number{default = 0}
-    },
-    function(input)
-    -- Base case: factorial(0) = 1, factorial(1) = 1
+    }
+
+-- Base case: factorial(0) = 1, factorial(1) = 1
     if input.n <= 1 then
         return {
             result = 1,
@@ -38,8 +35,6 @@ Procedure "main" {
         result = factorial,
         depth = State.recursion_depth
     }
-end
-}
 
 -- BDD Specifications
 Specifications([[

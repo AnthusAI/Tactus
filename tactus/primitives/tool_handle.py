@@ -96,6 +96,86 @@ class ToolHandle:
         """
         return self.call(args)
 
+    def called(self) -> bool:
+        """
+        Check if this tool has been called at least once.
+
+        Returns:
+            True if tool was called, False otherwise
+
+        Example (Lua):
+            if done.called() then
+                Log.info("Task completed!")
+            end
+        """
+        if not self.tool_primitive:
+            logger.warning(f"ToolHandle.called('{self.name}'): No tool_primitive attached")
+            return False
+
+        result = self.tool_primitive.was_called(self.name)
+        logger.debug(f"ToolHandle.called('{self.name}') = {result}")
+        return result
+
+    def last_call(self) -> Optional[Dict[str, Any]]:
+        """
+        Get the last call record for this tool.
+
+        Returns:
+            Dictionary with 'name', 'args', 'result' or None if never called
+
+        Example (Lua):
+            local call = multiply.last_call()
+            if call then
+                Log.info("Last multiply: " .. call.args.a .. " * " .. call.args.b)
+            end
+        """
+        if not self.tool_primitive:
+            logger.warning(f"ToolHandle.last_call('{self.name}'): No tool_primitive attached")
+            return None
+
+        result = self.tool_primitive.last_call(self.name)
+        logger.debug(f"ToolHandle.last_call('{self.name}') = {result}")
+        return result
+
+    def last_result(self) -> Any:
+        """
+        Get the result from the last call to this tool.
+
+        Returns:
+            Result value from last call, or None if never called
+
+        Example (Lua):
+            local answer = done.last_result()
+            return { result = answer }
+        """
+        if not self.tool_primitive:
+            logger.warning(f"ToolHandle.last_result('{self.name}'): No tool_primitive attached")
+            return None
+
+        result = self.tool_primitive.last_result(self.name)
+        logger.debug(f"ToolHandle.last_result('{self.name}') = {result}")
+        return result
+
+    def call_count(self) -> int:
+        """
+        Get the number of times this tool has been called.
+
+        Returns:
+            Number of calls (0 if never called)
+
+        Example (Lua):
+            local count = multiply.call_count()
+            Log.info("Multiply was called " .. count .. " times")
+        """
+        if not self.tool_primitive:
+            logger.warning(f"ToolHandle.call_count('{self.name}'): No tool_primitive attached")
+            return 0
+
+        # Count all calls with this tool name
+        count = sum(1 for call in self.tool_primitive._tool_calls if call.tool_name == self.name)
+        logger.debug(f"ToolHandle.call_count('{self.name}') = {count}")
+        return count
+
     def _run_async(self, args: Dict[str, Any]) -> Any:
         """
         Run async function from sync context.

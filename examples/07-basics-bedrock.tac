@@ -20,12 +20,12 @@ IMPORTANT: Always call the done tool after providing your answer.]],
 }
 
 -- Procedure demonstrating Bedrock usage
-Procedure "main" {
-    output = {
+
+output {
         result = field.string{description = "Result"}
-    },
-    function(input)
-    Log.info("Testing AWS Bedrock with Claude 4.5 Haiku")
+    }
+
+Log.info("Testing AWS Bedrock with Claude 4.5 Haiku")
 
     -- ReAct loop: Keep turning until the agent calls done
     local response_text = ""
@@ -65,8 +65,6 @@ Procedure "main" {
         turns = turn_count,
         success = Tool.called("done")
     }
-end
-}
 
 -- BDD Specifications
 Specifications([[
@@ -79,5 +77,3 @@ Feature: AWS Bedrock Integration
     Then the done tool should be called
     And the procedure should complete successfully
 ]])
-
-

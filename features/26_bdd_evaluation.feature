@@ -17,7 +17,7 @@ Feature: BDD Evaluation Configuration
 
   main = Procedure "main" {
     function(input)
-  Worker.turn()
+  Worker()
   return { result = "done" }
   end
   }
@@ -49,7 +49,7 @@ Feature: BDD Evaluation Configuration
 
   main = Procedure "main" {
     function(input)
-  Worker.turn()
+  Worker()
   return { result = "done" }
   end
   }
@@ -80,7 +80,7 @@ Feature: BDD Evaluation Configuration
 
   main = Procedure "main" {
     function(input)
-  Worker.turn()
+  Worker()
   return { result = "done" }
   end
   }
@@ -112,7 +112,7 @@ Feature: BDD Evaluation Configuration
 
   main = Procedure "main" {
     function(input)
-  Worker.turn()
+  Worker()
   return { result = "done" }
   end
   }

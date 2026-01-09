@@ -1,19 +1,19 @@
 -- Calculator with Array Input
 -- Demonstrates array and enum input handling
 
-Procedure "main" {
-    input = {
+input {
         numbers = field.array{required = true, description = "Array of numbers to calculate (e.g., [1, 2, 3, 4, 5])"},
         operation = field.string{default = "sum", description = "Operation to perform on the numbers"},
         round_result = field.boolean{description = "Round the result to nearest integer", default = false}
-    },
-    output = {
+    }
+
+output {
         result = field.number{required = true, description = "Calculation result"},
         operation_used = field.string{required = true, description = "Operation that was performed"},
         input_count = field.number{required = true, description = "Number of inputs processed"}
-    },
-    function(input)
-    local numbers = input.numbers
+    }
+
+local numbers = input.numbers
     local op = input.operation
     local result = 0
     local count = 0
@@ -76,5 +76,4 @@ Procedure "main" {
         operation_used = op,
         input_count = count
     }
-end
-}
+

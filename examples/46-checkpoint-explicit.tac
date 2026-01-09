@@ -5,23 +5,17 @@
 -- workflow where state should be persisted, enabling more granular
 -- control over durability.
 
-Procedure "main" {
-    input = {
+input {
         numbers = field.array{required = true, description = "Array of numbers to process"}
-    },
-    output = {
+    }
+
+output {
         sum = field.number{required = true, description = "Sum of all numbers"},
         product = field.number{required = true, description = "Product of all numbers"},
         average = field.number{required = true, description = "Average of all numbers"}
-    },
-    state = {
-        sum = field.number{default = 0},
-        product = field.number{default = 1},
-        count = field.number{default = 0},
-        checkpoint_count = field.number{default = 0}
-    },
-    function(input)
-    -- Step 1: Calculate sum
+    }
+
+-- Step 1: Calculate sum
     for i = 1, #input.numbers do
         State.sum = State.sum + input.numbers[i]
     end
@@ -58,8 +52,6 @@ Procedure "main" {
         product = State.product,
         average = average
     }
-end
-}
 
 -- BDD Specifications
 Specifications([[
