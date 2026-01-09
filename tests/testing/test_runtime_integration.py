@@ -160,7 +160,7 @@ async def test_context_primitive_capture():
     """Test that primitives are captured after execution."""
     # Create a minimal procedure that uses primitives
     procedure_code = """
-done = tactus.done
+local done = require("tactus.tools.done")
 
 worker = Agent {
   provider = "openai",
@@ -171,14 +171,17 @@ worker = Agent {
 
 Stages({"start", "end"})
 
-output {
-  success = field.boolean{required = true}
+Procedure {
+    output = {
+        success = field.boolean{required = true}
+    },
+    function(input)
+        Stage.set("start")
+        State.set("test_key", "test_value")
+        Stage.set("end")
+        return {success = true}
+    end
 }
-
-Stage.set("start")
-State.set("test_key", "test_value")
-Stage.set("end")
-return {success = true}
 """
 
     with tempfile.NamedTemporaryFile(mode="w", suffix=".tac", delete=False) as f:
@@ -216,7 +219,7 @@ async def test_real_execution_with_llm():
 name("test_real")
 version("1.0.0")
 
-done = tactus.done
+local done = require("tactus.tools.done")
 
 worker = Agent {
   provider = "openai",

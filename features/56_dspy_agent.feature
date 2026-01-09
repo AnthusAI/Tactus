@@ -29,7 +29,7 @@ Feature: DSPy Agent Interactions
   Scenario: Agent creation in Tactus procedure
     Given a Tactus procedure that creates an Agent:
       """
-      Procedure "test_agent" {
+      test_agent = Procedure {
         output = {
           agent_created = field.boolean{required = true}
         },
@@ -49,7 +49,7 @@ Feature: DSPy Agent Interactions
   Scenario: Agent with turn method in Tactus
     Given a Tactus procedure with Agent turns:
       """
-      Procedure "test_agent_turn" {
+      test_agent_turn = Procedure {
         output = {
           turn_executed = field.boolean{required = true}
         },
@@ -140,7 +140,7 @@ Feature: DSPy Agent Interactions
   Scenario: Multiple agents with separate contexts
     Given a Tactus procedure with multiple agents:
       """
-      Procedure "test_multi_agent" {
+      test_multi_agent = Procedure {
         output = {
           agent1_has_context = field.boolean{required = true},
           agent2_has_context = field.boolean{required = true}

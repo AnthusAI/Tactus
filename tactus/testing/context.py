@@ -80,6 +80,7 @@ class TactusTestContext:
             skip_agents=bool(self.mock_tools),  # Skip agents in mock mode
             openai_api_key=os.environ.get("OPENAI_API_KEY"),  # Pass API key for real LLM calls
             log_handler=log_handler,  # Enable cost tracking
+            source_file_path=str(self.procedure_file.resolve()),  # For require() path resolution
         )
 
         # Create MockManager for handling Mocks {} blocks when in mocked mode
@@ -357,6 +358,16 @@ class TactusTestContext:
     def get_params(self) -> Dict:
         """Get procedure parameters."""
         return self.params
+
+    def set_input(self, key: str, value: Any) -> None:
+        """Set an input parameter for the procedure.
+
+        Args:
+            key: Parameter name
+            value: Parameter value (will be parsed from string if needed)
+        """
+        self.params[key] = value
+        logger.debug(f"Set input parameter: {key}={value}")
 
     def agent_context(self) -> str:
         """Get agent context as string."""

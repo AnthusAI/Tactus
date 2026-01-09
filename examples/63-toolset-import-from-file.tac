@@ -1,8 +1,8 @@
 -- Example: Import Toolsets from Local .tac Files
 -- Demonstrates importing tools and toolsets from other .tac files
 
--- Define completion tool
-Tool "done" { use = "tactus.done" }
+-- Import completion tool from standard library
+local done = require("tactus.tools.done")
 
 -- Import all tools from a helper file
 Toolset "imported_text_tools" {
@@ -10,7 +10,7 @@ Toolset "imported_text_tools" {
 }
 
 -- Agent that uses imported toolset
-Agent "text_processor" {
+text_processor = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[You are a text processing assistant.
@@ -37,91 +37,95 @@ Toolset "combined_tools" {
 
 -- Main procedure
 
-input {
-        operation = field.string{
-            default = "uppercase",
-            description = "Operation: uppercase, lowercase, reverse, or word_count"
-        },
-        text = field.string{
-            default = "Hello from imported tools!",
-            description = "Text to process"
-        }
-    }
+Procedure {
+    input = {
+            operation = field.string{
+                default = "uppercase",
+                description = "Operation: uppercase, lowercase, reverse, or word_count"
+            },
+            text = field.string{
+                default = "Hello from imported tools!",
+                description = "Text to process"
+            }
+    },
+    output = {
+            result = field.string{required = true, description = "Processed text"},
+            source = field.string{description = "Source of the tools used"},
+            completed = field.boolean{required = true, description = "Whether task completed"}
+    },
+    function(input)
 
-output {
-        result = field.string{required = true, description = "Processed text"},
-        source = field.string{description = "Source of the tools used"},
-        completed = field.boolean{required = true, description = "Whether task completed"}
-    }
+    Log.info("Starting toolset import demo", {
+                operation = input.operation,
+                text = input.text
+            })
 
-Log.info("Starting toolset import demo", {
-            operation = input.operation,
-            text = input.text
-        })
+            -- Note: In the current partial implementation, .tac file imports
+            -- return empty toolsets. In a full implementation, this would:
+            -- 1. Parse the imported .tac file
+            -- 2. Extract all Tool and Toolset definitions
+            -- 3. Make them available to the agent
 
-        -- Note: In the current partial implementation, .tac file imports
-        -- return empty toolsets. In a full implementation, this would:
-        -- 1. Parse the imported .tac file
-        -- 2. Extract all Tool and Toolset definitions
-        -- 3. Make them available to the agent
+            Log.warning(
+                "Note: .tac file toolset imports are partially implemented. " ..
+                "Full implementation would extract tools from ./helpers/text_tools.tac"
+            )
 
-        Log.warning(
-            "Note: .tac file toolset imports are partially implemented. " ..
-            "Full implementation would extract tools from ./helpers/text_tools.tac"
-        )
+            -- For demonstration, we'll show what the full implementation would do
+            local message = string.format(
+                "Please %s the following text: '%s'",
+                input.operation,
+                input.text
+            )
 
-        -- For demonstration, we'll show what the full implementation would do
-        local message = string.format(
-            "Please %s the following text: '%s'",
-            input.operation,
-            input.text
-        )
+            -- Run agent with limit
+            local max_turns = 3
+            local turn_count = 0
+            local result
 
-        -- Run agent with limit
-        local max_turns = 3
-        local turn_count = 0
-        local result
-
-        repeat
-            if turn_count == 0 then
-                result = Agent("text_processor").turn({initial_message = message})
-            else
-                result = Agent("text_processor").turn()
-            end
-            turn_count = turn_count + 1
-        until Tool.called("done") or turn_count >= max_turns
-
-        -- Get result
-        local answer = "Task not completed (partial implementation)"
-        local completed = false
-        local source = "imported from ./helpers/text_tools.tac"
-
-        if Tool.called("done") then
-            completed = true
-            local call = Tool.last_call("done")
-            if call and call.args then
-                local ok, reason = pcall(function() return call.args["reason"] end)
-                if ok and reason then
-                    answer = reason
+            repeat
+                if turn_count == 0 then
+                    result = text_processor({initial_message = message})
+                else
+                    result = text_processor()
                 end
+                turn_count = turn_count + 1
+            until done.called() or turn_count >= max_turns
+
+            -- Get result
+            local answer = "Task not completed (partial implementation)"
+            local completed = false
+            local source = "imported from ./helpers/text_tools.tac"
+
+            if done.called() then
+                completed = true
+                local call = done.last_call()
+                if call and call.args then
+                    local ok, reason = pcall(function() return call.args["reason"] end)
+                    if ok and reason then
+                        answer = reason
+                    end
+                end
+            elseif result and result.text then
+                answer = result.text
             end
-        elseif result and result.text then
-            answer = result.text
-        end
 
-        Log.info("Import result", {
-            completed = completed,
-            source = source,
-            result = answer
-        })
+            Log.info("Import result", {
+                completed = completed,
+                source = source,
+                result = answer
+            })
 
-        return {
-            result = answer,
-            source = source,
-            completed = completed
-        }
+            return {
+                result = answer,
+                source = source,
+                completed = completed
+            }
 
--- BDD Specifications
+    -- BDD Specifications
+    end
+}
+
 Specifications([[
 Feature: Import Toolsets from Local .tac Files
   Demonstrate importing tools and toolsets from other .tac files

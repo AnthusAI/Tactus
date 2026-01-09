@@ -1,7 +1,7 @@
 -- Helper file: Text processing tools
 -- This file defines tools that can be imported by other .tac files
 
-Tool "uppercase" {
+uppercase = Tool {
     description = "Convert text to uppercase",
     input = {
         text = field.string{required = true, description = "Text to convert"}
@@ -11,7 +11,7 @@ Tool "uppercase" {
     end
 }
 
-Tool "lowercase" {
+lowercase = Tool {
     description = "Convert text to lowercase",
     input = {
         text = field.string{required = true, description = "Text to convert"}
@@ -21,7 +21,7 @@ Tool "lowercase" {
     end
 }
 
-Tool "reverse" {
+reverse = Tool {
     description = "Reverse the text",
     input = {
         text = field.string{required = true, description = "Text to reverse"}
@@ -31,7 +31,7 @@ Tool "reverse" {
     end
 }
 
-Tool "word_count" {
+word_count = Tool {
     description = "Count words in text",
     input = {
         text = field.string{required = true, description = "Text to analyze"}

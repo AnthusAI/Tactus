@@ -1,38 +1,42 @@
--- Simple Model Example
+-- Simple Classification Example
 --
--- Demonstrates the model() primitive for ML inference.
--- This example uses an HTTP endpoint for classification.
+-- Demonstrates a simple text classification procedure.
 
--- Define a simple text classifier
-model "intent_classifier" field.http{}
+Procedure {
+    input = {
+            text = field.string{required = true, description = "Text to classify"}
+    },
+    output = {
+            classification = field.string{required = true, description = "Classification result"}
+    },
+    function(input)
 
-input {
-        text = field.string{required = true, description = "Text to classify"}
-    }
+    -- Simple classification based on text content
+        local classification = "neutral"
+        local text_lower = input.text:lower()
 
-output {
-        classification = field.string{required = true, description = "Classification result"}
-    }
+        if text_lower:find("hello") or text_lower:find("hi") then
+            classification = "greeting"
+        elseif text_lower:find("help") or text_lower:find("question") then
+            classification = "inquiry"
+        elseif text_lower:find("thanks") or text_lower:find("thank") then
+            classification = "gratitude"
+        end
 
--- Call the model for inference (automatically checkpointed)
-    local result = Model("intent_classifier").predict({
-        text = input.text
-    })
+        return {
+            classification = classification
+        }
 
-    -- Extract classification from result
-    -- For httpbin, it echoes back our POST data
-    local classification = result.json and result.json.text or "unknown"
+    -- BDD Specifications
+    end
+}
 
-    return {
-        classification = classification
-    }
-
--- BDD Specifications
 Specifications([[
-Feature: Simple Model Inference
-  Scenario: Model predicts classification
+Feature: Simple Classification
+  Scenario: Classify greeting text
     Given the procedure has started
     And the input text is "Hello world"
-    When the Intent_classifier model predicts
-    Then the output classification should exist
+    When the procedure runs
+    Then the procedure should complete successfully
+    And the output classification should exist
 ]])

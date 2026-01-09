@@ -1,8 +1,8 @@
 -- Example: Inline Lua Tools in Toolset Declarations
 -- Demonstrates defining Lua function tools directly within a Toolset block
 
--- Define completion tool
-Tool "done" { use = "tactus.done" }
+-- Import completion tool from standard library
+local done = require("tactus.tools.done")
 
 -- Define a Toolset with inline Lua tools
 Toolset "text_tools" {
@@ -55,7 +55,7 @@ Toolset "text_tools" {
 }
 
 -- Agent that uses the inline toolset
-Agent "text_processor" {
+text_processor = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[You are a text processing assistant.
@@ -74,70 +74,74 @@ After processing, call done with the result.]],
 
 -- Main procedure
 
-input {
-        operation = field.string{
-            default = "uppercase",
-            description = "Operation to perform: uppercase, lowercase, reverse, or word_count"
-        },
-        text = field.string{
-            default = "Hello, World!",
-            description = "Text to process"
-        }
-    }
+Procedure {
+    input = {
+            operation = field.string{
+                default = "uppercase",
+                description = "Operation to perform: uppercase, lowercase, reverse, or word_count"
+            },
+            text = field.string{
+                default = "Hello, World!",
+                description = "Text to process"
+            }
+    },
+    output = {
+            result = field.string{required = true, description = "Processed text"},
+            completed = field.boolean{required = true, description = "Whether task completed"}
+    },
+    function(input)
 
-output {
-        result = field.string{required = true, description = "Processed text"},
-        completed = field.boolean{required = true, description = "Whether task completed"}
-    }
+    Log.info("Starting inline toolset demo", {
+                operation = input.operation,
+                text = input.text
+            })
 
-Log.info("Starting inline toolset demo", {
-            operation = input.operation,
-            text = input.text
-        })
+            -- Construct message for agent
+            local message = string.format(
+                "Please %s the following text: '%s'",
+                input.operation,
+                input.text
+            )
 
-        -- Construct message for agent
-        local message = string.format(
-            "Please %s the following text: '%s'",
-            input.operation,
-            input.text
-        )
+            -- Run agent with limit
+            local max_turns = 3
+            local turn_count = 0
+            local result
 
-        -- Run agent with limit
-        local max_turns = 3
-        local turn_count = 0
-        local result
+            repeat
+                result = text_processor({initial_message = message})
+                turn_count = turn_count + 1
+                message = nil  -- Only use initial message on first turn
+            until done.called() or turn_count >= max_turns
 
-        repeat
-            result = Agent("text_processor").turn({initial_message = message})
-            turn_count = turn_count + 1
-            message = nil  -- Only use initial message on first turn
-        until Tool.called("done") or turn_count >= max_turns
+            -- Get result
+            local answer = "Task not completed"
+            local completed = false
 
-        -- Get result
-        local answer = "Task not completed"
-        local completed = false
-
-        if Tool.called("done") then
-            completed = true
-            local call = Tool.last_call("done")
-            if call and call.args then
-                local ok, reason = pcall(function() return call.args["reason"] end)
-                if ok and reason then
-                    answer = reason
+            if done.called() then
+                completed = true
+                local call = done.last_call()
+                if call and call.args then
+                    local ok, reason = pcall(function() return call.args["reason"] end)
+                    if ok and reason then
+                        answer = reason
+                    end
                 end
+            elseif result and result.text then
+                answer = result.text
             end
-        elseif result and result.text then
-            answer = result.text
-        end
 
-        Log.info("Task completed", {result = answer, completed = completed})
+            Log.info("Task completed", {result = answer, completed = completed})
 
-        return {
-            result = answer,
-            completed = completed
-        }
+            return {
+                result = answer,
+                completed = completed
+            }
 
--- BDD Specifications
+    -- BDD Specifications
+    end
+}
+
 Specifications([[
 Feature: Inline Lua Tools in Toolset Declarations
   Demonstrate defining Lua function tools directly within a Toolset block

@@ -2,7 +2,7 @@
 -- Demonstrates all major features of the BDD testing framework
 
 -- Agent
-Agent "processor" {
+processor = Agent {
   provider = "openai",
   model = "gpt-4o-mini",
   system_prompt = "Process the task: {input.task}. Call done when finished.",
@@ -14,56 +14,60 @@ Stages({"setup", "processing", "validation", "complete"})
 
 -- Procedure with input and output defined inline
 
-input {
-        task = field.string{required = false, description = "Task to perform", default = "process data"},
-        iterations = field.number{required = false, description = "Number of iterations", default = 3},
-    }
+Procedure {
+    input = {
+            task = field.string{required = false, description = "Task to perform", default = "process data"},
+            iterations = field.number{required = false, description = "Number of iterations", default = 3},
+    },
+    output = {
+            status = field.string{required = true, description = "Final status"},
+            count = field.number{required = true, description = "Items processed"},
+    },
+    function(input)
 
-output {
-        status = field.string{required = true, description = "Final status"},
-        count = field.number{required = true, description = "Items processed"},
-    }
+    -- Setup phase
+      Stage.set("setup")
+      State.set("items_processed", 0)
+      State.set("errors", 0)
 
--- Setup phase
-  Stage.set("setup")
-  State.set("items_processed", 0)
-  State.set("errors", 0)
+      -- Processing phase
+      Stage.set("processing")
 
-  -- Processing phase
-  Stage.set("processing")
+      local target = input.iterations or 3
+      for i = 1, target do
+        State.set("items_processed", i)
 
-  local target = input.iterations or 3
-  for i = 1, target do
-    State.set("items_processed", i)
-    
-    -- Simulate some work
-    if i % 2 == 0 then
-      State.set("last_even", i)
+        -- Simulate some work
+        if i % 2 == 0 then
+          State.set("last_even", i)
+        end
+      end
+
+      -- Agent processes result
+      processor()
+
+      -- Validation phase
+      Stage.set("validation")
+      local processed = State.get("items_processed")
+      if processed >= target then
+        State.set("validation_passed", true)
+      else
+        State.set("validation_passed", false)
+        State.set("errors", 1)
+      end
+
+      -- Complete
+      Stage.set("complete")
+
+      return {
+        status = "success",
+        count = State.get("items_processed")
+      }
+
+    -- BDD Specifications
     end
-  end
-  
-  -- Agent processes result
-  Agent("processor").turn()
-  
-  -- Validation phase
-  Stage.set("validation")
-  local processed = State.get("items_processed")
-  if processed >= target then
-    State.set("validation_passed", true)
-  else
-    State.set("validation_passed", false)
-    State.set("errors", 1)
-  end
-  
-  -- Complete
-  Stage.set("complete")
-  
-  return {
-    status = "success",
-    count = State.get("items_processed")
-  }
+}
 
--- BDD Specifications
 Specifications([[
 Feature: Comprehensive Workflow Testing
   Demonstrate all BDD testing capabilities
@@ -104,7 +108,7 @@ Feature: Comprehensive Workflow Testing
 ]])
 
 -- Custom step for advanced validation
-step("the processing was efficient", function(input)
+Step("the processing was efficient", function(input)
   local processed = State.get("items_processed")
   local errors = State.get("errors")
   assert(processed > 0, "Should have processed items")
@@ -112,7 +116,7 @@ step("the processing was efficient", function(input)
 end)
 
 -- Evaluation configuration
-evaluation({
+Evaluation({
   runs = 10,
   parallel = true
 })
