@@ -137,8 +137,8 @@ Procedure {
                     local response = agent_ref()
                     turn_count = turn_count + 1
 
-                    if response.text and response.text ~= "" then
-                        response_text = response_text .. response.text
+                    if response.message and response.message ~= "" then
+                        response_text = response_text .. response.message
                     end
 
                     if turn_count >= max_turns then
@@ -175,7 +175,7 @@ Procedure {
             local success, result = pcall(function(input)
                 local response = agent_ref()
                 return {
-                    response = response.text or "",
+                    response = response.message or "",
                     turns = 1,
                     success = true,
                     error = nil

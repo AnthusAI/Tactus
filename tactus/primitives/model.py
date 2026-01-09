@@ -77,9 +77,7 @@ class ModelPrimitive:
             )
 
         else:
-            raise ValueError(
-                f"Unknown model type: {model_type}. " f"Supported types: http, pytorch"
-            )
+            raise ValueError(f"Unknown model type: {model_type}. Supported types: http, pytorch")
 
     def predict(self, input_data: Any) -> Any:
         """

@@ -92,60 +92,52 @@ class ProcedureCallable:
 
         # Wrap execution in checkpoint for automatic replay
         def execute_procedure():
-            # Save parent context (for scope isolation)
-            # Note: input is no longer a global (passed as parameter instead)
-            try:
-                prev_state = self.lua_sandbox.lua.globals()["state"]
-            except (KeyError, AttributeError):
-                prev_state = None
+            # Convert Python lists/dicts to Lua tables before setting as input
+            def convert_to_lua(value):
+                """Recursively convert Python lists and dicts to Lua tables."""
+                if isinstance(value, list):
+                    # Convert Python list to Lua table (1-indexed)
+                    lua_table = self.lua_sandbox.lua.table()
+                    for i, item in enumerate(value, 1):
+                        lua_table[i] = convert_to_lua(item)
+                    return lua_table
+                elif isinstance(value, dict):
+                    # Convert Python dict to Lua table
+                    lua_table = self.lua_sandbox.lua.table()
+                    for k, v in value.items():
+                        lua_table[k] = convert_to_lua(v)
+                    return lua_table
+                else:
+                    return value
 
-            try:
-                # Convert Python lists/dicts to Lua tables before setting as input
-                def convert_to_lua(value):
-                    """Recursively convert Python lists and dicts to Lua tables."""
-                    if isinstance(value, list):
-                        # Convert Python list to Lua table (1-indexed)
-                        lua_table = self.lua_sandbox.lua.table()
-                        for i, item in enumerate(value, 1):
-                            lua_table[i] = convert_to_lua(item)
-                        return lua_table
-                    elif isinstance(value, dict):
-                        # Convert Python dict to Lua table
-                        lua_table = self.lua_sandbox.lua.table()
-                        for k, v in value.items():
-                            lua_table[k] = convert_to_lua(v)
-                        return lua_table
-                    else:
-                        return value
+            # Convert params to Lua-compatible format
+            lua_params = self.lua_sandbox.lua.table()
+            for key, value in params.items():
+                lua_params[key] = convert_to_lua(value)
 
-                # Convert params to Lua-compatible format
-                lua_params = self.lua_sandbox.lua.table()
-                for key, value in params.items():
-                    lua_params[key] = convert_to_lua(value)
+            # Initialize state defaults WITHOUT replacing the state table
+            # (preserving the metatable setup)
+            state_defaults = self._initialize_state()
+            if state_defaults:
+                # Access state via globals and assign - this will trigger the metatable
+                state_table = self.lua_sandbox.lua.globals()["state"]
+                for key, value in state_defaults.items():
+                    state_table[key] = convert_to_lua(value)
 
-                # Set sub-procedure's isolated state (input is now passed as parameter)
-                self.lua_sandbox.set_global("state", self._initialize_state())
+            # Execute the procedure function with input as explicit parameter
+            result = self.procedure_function(lua_params)
 
-                # Execute the procedure function with input as explicit parameter
-                result = self.procedure_function(lua_params)
+            # Convert Lua table result to Python dict
+            # Check for lupa table (not Python dict/list)
+            if result and hasattr(result, "items") and not isinstance(result, (dict, list)):
+                from tactus.core.dsl_stubs import lua_table_to_dict
 
-                # Convert Lua table result to Python dict
-                # Check for lupa table (not Python dict/list)
-                if result and hasattr(result, "items") and not isinstance(result, (dict, list)):
-                    from tactus.core.dsl_stubs import lua_table_to_dict
+                result = lua_table_to_dict(result)
 
-                    result = lua_table_to_dict(result)
+            # Validate output
+            self._validate_output(result)
 
-                # Validate output
-                self._validate_output(result)
-
-                return result
-
-            finally:
-                # Always restore parent context (even on error)
-                # Note: input is no longer a global (passed as parameter instead)
-                if prev_state is not None:
-                    self.lua_sandbox.set_global("state", prev_state)
+            return result
 
         # Use existing checkpoint infrastructure for sub-procedures
         # Main procedure is NOT checkpointed (it's the entry point)

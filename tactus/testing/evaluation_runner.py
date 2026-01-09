@@ -211,7 +211,7 @@ class TactusEvaluationRunner(TactusTestRunner):
         # Create signature for each run (step statuses)
         signatures = []
         for result in results:
-            sig = tuple((step.keyword, step.text, step.status) for step in result.steps)
+            sig = tuple((step.keyword, step.message, step.status) for step in result.steps)
             signatures.append(sig)
 
         # Count most common signature

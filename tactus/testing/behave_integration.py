@@ -88,7 +88,7 @@ class BehaveFeatureGenerator:
 
         # Write steps
         for step in scenario.steps:
-            f.write(f"    {step.keyword} {step.text}\n")
+            f.write(f"    {step.keyword} {step.message}\n")
 
         f.write("\n")
 

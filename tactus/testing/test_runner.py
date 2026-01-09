@@ -49,7 +49,7 @@ class TactusTestRunner:
         mocked: bool = False,
     ):
         if not BEHAVE_AVAILABLE:
-            raise ImportError("behave library not installed. " "Install with: pip install behave")
+            raise ImportError("behave library not installed. Install with: pip install behave")
 
         self.procedure_file = procedure_file
         self.mock_tools = mock_tools or {}
@@ -292,7 +292,7 @@ class TactusTestRunner:
             steps.append(
                 StepResult(
                     keyword=step_data.get("keyword", ""),
-                    text=step_data.get("name", ""),
+                    message=step_data.get("name", ""),
                     status=result.get("status", "skipped"),
                     duration=result.get("duration", 0.0),
                     error_message=error_msg,
@@ -338,7 +338,7 @@ class TactusTestRunner:
             steps.append(
                 StepResult(
                     keyword=behave_step.keyword,
-                    text=behave_step.name,
+                    message=behave_step.name,
                     status=behave_step.status.name,
                     duration=behave_step.duration,
                     error_message=(

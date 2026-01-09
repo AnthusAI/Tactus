@@ -46,7 +46,7 @@ Procedure {
     },
     function(input)
 
-    state.formatting_started = true
+    state.formatting_started = true)
 
         -- Have agent format the contact
         contact_formatter()
@@ -54,7 +54,7 @@ Procedure {
         -- Extract result
         if done.called() then
             local result = done.last_result() or "Task completed" or "{}"
-            state.formatting_complete = true
+            state.formatting_complete = true)
 
             -- Parse JSON result (simplified for example)
             return {

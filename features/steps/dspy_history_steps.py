@@ -245,7 +245,7 @@ def step_history_with_count_messages(context, count):
 
     context.history = create_history()
     for i in range(count):
-        context.history.add({"role": "user", "content": f"Message {i+1}"})
+        context.history.add({"role": "user", "content": f"Message {i + 1}"})
 
 
 @when("I clear the history")

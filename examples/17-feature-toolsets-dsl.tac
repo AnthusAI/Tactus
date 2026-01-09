@@ -92,7 +92,7 @@ Procedure {
         else
             Log.warn("Agent did not call done within max turns")
             return {
-                calculation_result = result.text or "Agent did not complete",
+                calculation_result = result.message or "Agent did not complete",
                 completed = false
             }
         end

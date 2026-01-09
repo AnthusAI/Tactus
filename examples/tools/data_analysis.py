@@ -81,7 +81,7 @@ def sentiment_analysis(text: str) -> str:
         confidence = 0.5
 
     return f"""Sentiment Analysis (Mock):
-- Text: "{text[:100]}{'...' if len(text) > 100 else ''}"
+- Text: "{text[:100]}{"..." if len(text) > 100 else ""}"
 - Sentiment: {sentiment}
 - Confidence: {confidence:.2%}
 - Positive indicators: {positive_count}

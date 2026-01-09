@@ -106,8 +106,8 @@ Procedure {
                         answer = reason
                     end
                 end
-            elseif result and result.text then
-                answer = result.text
+            elseif result and result.message then
+                answer = result.message
             end
 
             Log.info("Import result", {

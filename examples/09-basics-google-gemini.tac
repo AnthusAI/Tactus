@@ -56,8 +56,8 @@ Procedure {
             pro_turns = pro_turns + 1
 
             -- Accumulate the response text
-            if response.text and response.text ~= "" then
-                pro_response = pro_response .. response.text
+            if response.message and response.message ~= "" then
+                pro_response = pro_response .. response.message
             end
 
             -- Safety check
@@ -86,8 +86,8 @@ Procedure {
             flash_turns = flash_turns + 1
 
             -- Accumulate the response text
-            if response.text and response.text ~= "" then
-                flash_response = flash_response .. response.text
+            if response.message and response.message ~= "" then
+                flash_response = flash_response .. response.message
             end
 
             -- Safety check
