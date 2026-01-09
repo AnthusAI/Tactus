@@ -1598,6 +1598,60 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             logger.error(f"Error getting trace run {run_id}: {e}", exc_info=True)
             return jsonify({"error": str(e)}), 500
 
+    @app.route("/api/traces/runs/<run_id>/checkpoints", methods=["GET"])
+    def get_run_checkpoints(run_id: str):
+        """Get all checkpoints for a specific run."""
+        try:
+            from pathlib import Path as PathLib
+            from tactus.adapters.file_storage import FileStorage
+
+            # Get procedure name from query param
+            procedure = request.args.get("procedure")
+            if not procedure:
+                return jsonify({"error": "procedure parameter required"}), 400
+
+            # Create storage backend
+            storage_dir = (
+                str(PathLib(WORKSPACE_ROOT) / ".tac" / "storage")
+                if WORKSPACE_ROOT
+                else "~/.tactus/storage"
+            )
+            storage_backend = FileStorage(storage_dir=storage_dir)
+
+            # Load procedure metadata
+            metadata = storage_backend.load_procedure_metadata(procedure)
+
+            # Filter checkpoints by run_id
+            run_checkpoints = [cp for cp in metadata.execution_log if cp.run_id == run_id]
+
+            # Sort by position
+            run_checkpoints.sort(key=lambda c: c.position)
+
+            # Convert to dict format
+            checkpoints_dict = [
+                {
+                    "run_id": cp.run_id,
+                    "position": cp.position,
+                    "name": cp.type,  # Use 'type' field as the name (e.g., "agent_turn")
+                    "timestamp": cp.timestamp.isoformat() if cp.timestamp else None,
+                    "source_location": (
+                        {
+                            "file": cp.source_location.file,
+                            "line": cp.source_location.line,
+                        }
+                        if cp.source_location
+                        else None
+                    ),
+                    "data": getattr(cp, "data", None),  # Not all checkpoints have 'data'
+                }
+                for cp in run_checkpoints
+            ]
+
+            return jsonify({"checkpoints": checkpoints_dict})
+        except Exception as e:
+            logger.error(f"Error getting checkpoints for run {run_id}: {e}", exc_info=True)
+            return jsonify({"error": str(e)}), 500
+
     @app.route("/api/traces/runs/<run_id>/checkpoints/<int:position>", methods=["GET"])
     def get_checkpoint(run_id: str, position: int):
         """Get a specific checkpoint from a run by filtering by run_id."""

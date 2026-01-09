@@ -29,7 +29,7 @@ Prerequisites:
 -- MCP Server Test Example
 
 -- Define agent with MCP tools
-Agent "calculator" {
+calculator = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[
@@ -53,44 +53,48 @@ Steps:
 
 -- Execute procedure
 
-output {
-        result = field.string{description = "Result"}
-    }
+Procedure {
+    output = {
+            result = field.string{description = "Result"}
+    },
+    function(input)
 
-Log.info("Starting MCP server test")
-    
-    -- Let agent work through the calculation
-    local max_turns = 5
-    local turn_count = 0
-    
-    repeat
-        Agent("calculator").turn()
-        turn_count = turn_count + 1
-        
-        -- Log tool calls
-        if Tool.called("test_server_add_numbers") then
-            local result = Tool.last_result("test_server_add_numbers")
-            Log.info("Addition completed", {result = result})
+    Log.info("Starting MCP server test")
+
+        -- Let agent work through the calculation
+        local max_turns = 5
+        local turn_count = 0
+
+        repeat
+            calculator()
+            turn_count = turn_count + 1
+
+            -- Log tool calls
+            if Tool.called("test_server_add_numbers") then
+                local result = Tool.last_result("test_server_add_numbers")
+                Log.info("Addition completed", {result = result})
+            end
+
+            if Tool.called("test_server_multiply") then
+                local result = Tool.last_result("test_server_multiply")
+                Log.info("Multiplication completed", {result = result})
+            end
+
+        until done.called() or turn_count >= max_turns
+
+        if done.called() then
+            Log.info("Calculation complete!")
+            return {
+                success = true,
+                message = "MCP tools worked correctly"
+            }
+        else
+            Log.error("Max turns exceeded")
+            return {
+                success = false,
+                error = "Did not complete in time"
+            }
         end
-        
-        if Tool.called("test_server_multiply") then
-            local result = Tool.last_result("test_server_multiply")
-            Log.info("Multiplication completed", {result = result})
-        end
-        
-    until Tool.called("done") or turn_count >= max_turns
-    
-    if Tool.called("done") then
-        Log.info("Calculation complete!")
-        return {
-            success = true,
-            message = "MCP tools worked correctly"
-        }
-    else
-        Log.error("Max turns exceeded")
-        return {
-            success = false,
-            error = "Did not complete in time"
-        }
+
     end
-
+}

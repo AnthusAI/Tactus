@@ -9,20 +9,20 @@ Feature: Model Primitive for ML Inference
   Scenario: Model declaration is recognized in validation
   Given a Lua DSL file with content:
   """
-  Model "intent_classifier" {
+  intent_classifier = Model {
     type = "http",
     endpoint = "https://api.example.com/classify",
     timeout = 10.0
   }
 
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   model = "gpt-4o",
   system_prompt = "Process",
   tools = {}
   }
 
-  main = Procedure "main" {
+  Procedure {
     input = {
       name = field.string{}
       },
@@ -39,7 +39,7 @@ Feature: Model Primitive for ML Inference
   Scenario: HTTP model type is supported
   Given a Lua DSL file with content:
   """
-  Model "classifier" {
+  classifier = Model {
     type = "http",
     endpoint = "https://httpbin.org/post",
     timeout = 30.0
@@ -59,7 +59,7 @@ Feature: Model Primitive for ML Inference
   Scenario: PyTorch model type is supported
   Given a Lua DSL file with content:
   """
-  Model "sentiment" {
+  sentiment = Model {
     type = "pytorch",
     path = "models/sentiment.pt",
     device = "cpu",
@@ -80,7 +80,7 @@ Feature: Model Primitive for ML Inference
   Scenario: Model requires type field
   Given a Lua DSL file with content:
   """
-  Model "classifier" {
+  classifier = Model {
     endpoint = "https://api.example.com"
   }
 
@@ -98,12 +98,12 @@ Feature: Model Primitive for ML Inference
   Scenario: Multiple models can be declared
   Given a Lua DSL file with content:
   """
-  Model "intent_classifier" {
+  intent_classifier = Model {
     type = "http",
     endpoint = "https://api.example.com/intent"
   }
 
-  Model "sentiment_analyzer" {
+  sentiment_analyzer = Model {
     type = "http",
     endpoint = "https://api.example.com/sentiment"
   }
@@ -123,7 +123,7 @@ Feature: Model Primitive for ML Inference
   Scenario: Model used in procedure
   Given a Lua DSL file with content:
   """
-  Model "classifier" {
+  classifier = Model {
     type = "http",
     endpoint = "https://httpbin.org/post"
   }

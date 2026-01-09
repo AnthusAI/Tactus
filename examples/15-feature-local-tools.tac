@@ -11,11 +11,11 @@ To run this example:
 2. Run: tactus run examples/15-feature-local-tools.tac --param task="Calculate mortgage for $300,000 at 6.5% for 30 years"
 ]]--
 
--- Define completion tool
-Tool "done" { use = "tactus.done" }
+-- Import completion tool from standard library
+local done = require("tactus.tools.done")
 
 -- Agent with access to local tools
-Agent "assistant" {
+assistant = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[You are a helpful assistant with access to tools for calculations.
@@ -38,56 +38,56 @@ You MUST call the 'done' tool after getting the calculation result.]],
 }
 
 -- Main workflow
-
-input {
+Procedure {
+    input = {
         task = field.string{default = "Calculate the mortgage payment for a $300"},
-    }
-
-output {
+    },
+    output = {
         answer = field.string{required = true, description = "The assistant's answer to the task"},
         completed = field.boolean{required = true, description = "Whether the task was completed successfully"},
-    }
+    },
+    function(input)
+        local result
+        local max_turns = 5  -- Safety limit to prevent infinite loops
+        local turn_count = 0
 
-local result
-    local max_turns = 5  -- Safety limit to prevent infinite loops
-    local turn_count = 0
+        repeat
+            result = assistant()
+            turn_count = turn_count + 1
 
-    repeat
-        result = Agent("assistant").turn()
-        turn_count = turn_count + 1
-
-        -- Log tool usage for visibility
-        if Tool.called("calculate_mortgage") then
-            Log.info("Used mortgage calculator")
-        end
-        if Tool.called("web_search") then
-            Log.info("Performed web search")
-        end
-        if Tool.called("analyze_numbers") then
-            Log.info("Analyzed numbers")
-        end
-
-    until Tool.called("done") or turn_count >= max_turns
-
-    -- Store final result
-    local answer
-    if Tool.called("done") then
-        local call = Tool.last_call("done")
-        answer = "Task completed"
-        if call and call.args then
-            -- Safely try to get reason
-            local ok, reason = pcall(function() return call.args["reason"] end)
-            if ok and reason then
-                answer = reason
+            -- Log tool usage for visibility
+            if Tool.called("calculate_mortgage") then
+                Log.info("Used mortgage calculator")
             end
+            if Tool.called("web_search") then
+                Log.info("Performed web search")
+            end
+            if Tool.called("analyze_numbers") then
+                Log.info("Analyzed numbers")
+            end
+
+        until done.called() or turn_count >= max_turns
+
+        -- Store final result
+        local answer
+        if done.called() then
+            local call = done.last_call()
+            answer = "Task completed"
+            if call and call.args then
+                -- Safely try to get reason
+                local ok, reason = pcall(function() return call.args["reason"] end)
+                if ok and reason then
+                    answer = reason
+                end
+            end
+        else
+            -- Max turns reached - use last response
+            answer = result.text
         end
-    else
-        -- Max turns reached - use last response
-        answer = result.text
+
+        return {
+            answer = answer,
+            completed = done.called()
+        }
     end
-
-    return {
-        answer = answer,
-        completed = Tool.called("done")
-    }
-
+}

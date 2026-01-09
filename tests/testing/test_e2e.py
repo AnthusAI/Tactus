@@ -123,7 +123,7 @@ def test_cli_test_command_mock_mode(tmp_path):
     test_proc = tmp_path / "test.tac"
     test_proc.write_text(
         """
-done = tactus.done
+local done = require("tactus.tools.done")
 
 worker = Agent {
   provider = "openai",

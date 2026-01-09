@@ -1,7 +1,7 @@
 -- Text Classification with Model Primitive
 --
--- This example demonstrates using the model() primitive for ML inference.
--- Unlike agent() which is for conversational LLMs, model() is for:
+-- This example demonstrates using the Model primitive for ML inference.
+-- Unlike Agent which is for conversational LLMs, Model is for:
 -- - Classification (sentiment, intent, category)
 -- - Extraction (entities, facts, quotes)
 -- - Embeddings (semantic search)
@@ -9,21 +9,17 @@
 --
 -- Model predictions are automatically checkpointed for durability.
 
--- Define completion tool
-tool("done", {
-    description = "Signal completion of the task",
-    input = {
-        reason = field.string{required = true, description = "Completion message"}
-    }
-}, function(args)
-    return "Done: " .. args.reason
-end)
+-- Import completion tool from standard library
+local done = require("tactus.tools.done")
 
 -- Define a sentiment classifier model (HTTP endpoint)
-model "sentiment_classifier" field.http{}
+Model "sentiment_classifier" {
+    type = "http",
+    endpoint = "https://httpbin.org/post"
+}
 
 -- Define an agent that routes based on sentiment
-Agent "support_agent" {
+support_agent = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[
@@ -38,32 +34,36 @@ The customer's message sentiment is: {State.sentiment}
 Respond appropriately to the customer's message.
 Call done when you've provided a helpful response.
 ]],
-    toolsets = {"done"}
+    tools = {done}
 }
 
-input {
-        customer_message = field.string{required = true, description = "Customer message to analyze"}
-    }
+Procedure {
+    input = {
+            customer_message = field.string{required = true, description = "Customer message to analyze"}
+    },
+    output = {
+            sentiment = field.string{required = true, description = "Detected sentiment (positive/negative/neutral)"},
+            response = field.string{required = true, description = "Agent's response"}
+    },
+    function(input)
 
-output {
-        sentiment = field.string{required = true, description = "Detected sentiment (positive/negative/neutral)"},
-        response = field.string{required = true, description = "Agent's response"}
-    }
+    -- 1. Classify sentiment with ML model (checkpointed)
+        State.sentiment = Model("sentiment_classifier").predict({
+            text = input.customer_message
+        })
 
--- 1. Classify sentiment with ML model (checkpointed)
-    State.sentiment = Model("sentiment_classifier").predict({
-        text = input.customer_message
-    })
+        -- 2. Agent responds based on sentiment (checkpointed)
+        support_agent({message = input.customer_message})
 
-    -- 2. Agent responds based on sentiment (checkpointed)
-    Support_agent.turn({inject = input.customer_message})
+        return {
+            sentiment = State.sentiment,
+            response = support_agent.output
+        }
 
-    return {
-        sentiment = State.sentiment,
-        response = Support_agent.output
-    }
+    -- BDD Specifications
+    end
+}
 
--- BDD Specifications
 Specifications([[
 Feature: Text Classification with Model Primitive
   Scenario: Sentiment classifier detects sentiment
@@ -71,7 +71,7 @@ Feature: Text Classification with Model Primitive
     And the input customer_message is "I love this product!"
     When the Sentiment_classifier model predicts
     Then the state sentiment should not be "unknown"
-    And the Support_agent agent takes turn
+    And the support_agent agent takes turn
     And the done tool should be called
     And the output sentiment should exist
     And the output response should exist

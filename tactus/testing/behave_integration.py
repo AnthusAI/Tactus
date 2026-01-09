@@ -77,7 +77,11 @@ class BehaveFeatureGenerator:
             f.write("\n")
 
         # Add tag for filtering by scenario name
-        sanitized_name = scenario.name.lower().replace(" ", "_")
+        # Remove special characters that could interfere with behave tags
+        import re
+
+        sanitized_name = re.sub(r"[^a-z0-9_]", "_", scenario.name.lower())
+        sanitized_name = re.sub(r"_+", "_", sanitized_name)  # Collapse multiple underscores
         f.write(f"  @scenario_{sanitized_name}\n")
 
         f.write(f"  Scenario: {scenario.name}\n")
@@ -182,6 +186,15 @@ class BehaveStepsGenerator:
         pattern = re.sub(r"\(\?P<(\w+)>\\d\+\)", r"{\1:d}", pattern)
         # Replace (?P<name>.+) with {name}
         pattern = re.sub(r"\(\?P<(\w+)>\.\+\)", r"{\1}", pattern)
+        # Replace (?P<name>-?\d+\.?\d*) with {name} (numeric patterns)
+        # The backslashes in the original regex need to be matched literally
+        pattern = re.sub(r"\(\?P<(\w+)>-\?\\\\d\+\\\.\?\\\\d\*\)", r"{\1}", pattern)
+        # Also handle the simpler form without escapes in the source string
+        pattern = re.sub(r"\(\?P<(\w+)>-\?\\d\+\\\.\?\\d\*\)", r"{\1}", pattern)
+        # Catch-all for any remaining named groups with complex patterns
+        pattern = re.sub(r"\(\?P<(\w+)>[^)]+\)", r"{\1}", pattern)
+        # Convert regex escapes to literals: \[ -> [, \] -> ]
+        pattern = pattern.replace(r"\[", "[").replace(r"\]", "]")
         return pattern
 
     def _pattern_to_func_name(self, pattern: str) -> str:

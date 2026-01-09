@@ -9,7 +9,7 @@ Feature: Matchers (contains, equals, matches)
   Scenario: contains matcher
   Given a Lua DSL file with content:
   """
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   system_prompt = "Work",
   tools = {}
@@ -30,7 +30,7 @@ Feature: Matchers (contains, equals, matches)
   Scenario: equals matcher
   Given a Lua DSL file with content:
   """
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   system_prompt = "Work",
   tools = {}
@@ -50,7 +50,7 @@ Feature: Matchers (contains, equals, matches)
   Scenario: matches regex matcher
   Given a Lua DSL file with content:
   """
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   system_prompt = "Work",
   tools = {}
@@ -70,7 +70,7 @@ Feature: Matchers (contains, equals, matches)
   Scenario: Multiple matchers in procedure
   Given a Lua DSL file with content:
   """
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   system_prompt = "Work",
   tools = {}
@@ -91,7 +91,7 @@ Feature: Matchers (contains, equals, matches)
   Scenario: Procedure without matchers
   Given a Lua DSL file with content:
   """
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   system_prompt = "Work",
   tools = {}

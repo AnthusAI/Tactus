@@ -750,9 +750,10 @@ def step_when_create_dspy_agent_with_system_prompt(context):
 
 @then("the agent should have a turn method")
 def step_agent_should_have_turn_method(context):
-    """Verify agent has a turn method."""
+    """Verify agent is callable (has __call__ method)."""
     assert context.agent is not None
-    assert hasattr(context.agent, "turn") or callable(getattr(context.agent, "turn", None))
+    # DSPy agents use __call__ directly, not a separate turn() method
+    assert callable(context.agent)
 
 
 @then("the agent should have history management")

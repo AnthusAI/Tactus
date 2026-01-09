@@ -18,7 +18,7 @@ Feature: Lua DSL Validation
   Given a Lua DSL file with content:
   """
   -- Missing closing brace
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   model = "gpt-4o"
   """
@@ -27,25 +27,10 @@ Feature: Lua DSL Validation
   And the error should mention "syntax error"
   And the error should include a line number
 
-  Scenario: Missing required procedure declaration
-  Given a Lua DSL file with content:
-  """
-  -- No Procedure() call
-  Agent "worker" {
-  provider = "openai",
-  model = "gpt-4o",
-  system_prompt = "Test",
-  tools = {}
-  }
-  """
-  When I validate the file
-  Then validation should fail
-  And the error should mention "procedure declaration is required"
-
   Scenario: Missing required agent fields
   Given a Lua DSL file with content:
   """
-  Agent "worker" {
+  worker = Agent {
   model = "gpt-4o",
   system_prompt = "Test",
   tools = {}
@@ -58,14 +43,14 @@ Feature: Lua DSL Validation
   Scenario: Valid input declaration
   Given a Lua DSL file with content:
   """
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   model = "gpt-4o",
   system_prompt = "Test",
   tools = {}
   }
 
-  Procedure "main" {
+  Procedure {
   input = {
   topic = field.string{
   required = true,
@@ -84,14 +69,14 @@ Feature: Lua DSL Validation
   Scenario: Valid output declaration
   Given a Lua DSL file with content:
   """
-  Agent "worker" {
+  worker = Agent {
   provider = "openai",
   model = "gpt-4o",
   system_prompt = "Test",
   tools = {}
   }
 
-  Procedure "main" {
+  Procedure {
   output = {
   result = field.string{
   required = true,

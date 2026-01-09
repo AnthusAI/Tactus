@@ -25,8 +25,6 @@ from rich.logging import RichHandler
 from rich.panel import Panel
 from rich.prompt import Prompt, Confirm
 from rich.table import Table
-from dotyaml import load_config
-
 from tactus.core import TactusRuntime
 from tactus.core.yaml_parser import ProcedureYAMLParser, ProcedureConfigError
 from tactus.validation import TactusValidator, ValidationMode
@@ -45,68 +43,71 @@ app = typer.Typer(
 
 def load_tactus_config():
     """
-    Load Tactus configuration from .tactus/config.yml using dotyaml.
+    Load Tactus configuration from standard config locations.
 
-    This will:
-    - Load configuration from .tactus/config.yml if it exists
-    - Set environment variables from the config (e.g., openai_api_key -> OPENAI_API_KEY)
-    - Also automatically loads .env file if present (via dotyaml)
+    Loads (lowest to highest precedence):
+    - system config (e.g. /etc/tactus/config.yml)
+    - user config (e.g. ~/.tactus/config.yml)
+    - project config (./.tactus/config.yml)
+
+    Environment variables always win over config files (we only set vars that don't already exist).
 
     Returns:
         dict: Configuration dictionary, or empty dict if no config found
     """
-    config_path = Path.cwd() / ".tactus" / "config.yml"
+    try:
+        from tactus.core.config_manager import ConfigManager
+        import json
 
-    if config_path.exists():
-        try:
-            # Load config without prefix - this means top-level keys become env vars directly
-            # e.g., openai_api_key in YAML -> OPENAI_API_KEY env var
-            load_config(str(config_path), prefix="")
+        config_mgr = ConfigManager()
 
-            # Explicitly uppercase any keys that need to be env vars
-            # Since we're using prefix='', dotyaml will create env vars with exact key names
-            # But we need to ensure uppercase for standard env var conventions
-            # Read the config manually to uppercase the keys
-            import yaml
+        configs = []
+        for system_path in config_mgr._get_system_config_paths():
+            if system_path.exists():
+                cfg = config_mgr._load_yaml_file(system_path)
+                if cfg:
+                    configs.append(cfg)
 
-            with open(config_path) as f:
-                config_dict = yaml.safe_load(f) or {}
+        for user_path in config_mgr._get_user_config_paths():
+            if user_path.exists():
+                cfg = config_mgr._load_yaml_file(user_path)
+                if cfg:
+                    configs.append(cfg)
 
-            # Set uppercase env vars for any keys in the config
-            # This ensures openai_api_key -> OPENAI_API_KEY
-            import json
+        project_path = Path.cwd() / ".tactus" / "config.yml"
+        if project_path.exists():
+            cfg = config_mgr._load_yaml_file(project_path)
+            if cfg:
+                configs.append(cfg)
 
-            for key, value in config_dict.items():
-                # Skip mcp_servers - we'll pass it directly to runtime
-                if key == "mcp_servers":
-                    continue
+        merged = config_mgr._merge_configs(configs) if configs else {}
 
-                if isinstance(value, (str, int, float, bool)):
-                    env_key = key.upper()
-                    # Only set if not already set (env vars take precedence)
-                    if env_key not in os.environ:
-                        os.environ[env_key] = str(value)
-                elif isinstance(value, list):
-                    # Handle lists by serializing to JSON
-                    # e.g., tool_paths: ["./tools"] -> TOOL_PATHS='["./tools"]'
-                    env_key = key.upper()
-                    if env_key not in os.environ:
-                        os.environ[env_key] = json.dumps(value)
-                elif isinstance(value, dict):
-                    # Handle nested structures by flattening with underscores
-                    for nested_key, nested_value in value.items():
-                        if isinstance(nested_value, (str, int, float, bool)):
-                            env_key = f"{key.upper()}_{nested_key.upper()}"
-                            if env_key not in os.environ:
-                                os.environ[env_key] = str(nested_value)
+        # Only set env vars that were not already set by the user/process.
+        existing_env = set(os.environ.keys())
 
-            return config_dict
-        except Exception as e:
-            # Don't fail if config loading fails - just log and continue
-            logging.debug(f"Could not load config from {config_path}: {e}")
-            return {}
+        for key, value in merged.items():
+            if key == "mcp_servers":
+                continue
 
-    return {}
+            if isinstance(value, (str, int, float, bool)):
+                env_key = key.upper()
+                if env_key not in existing_env:
+                    os.environ[env_key] = str(value)
+            elif isinstance(value, list):
+                env_key = key.upper()
+                if env_key not in existing_env:
+                    os.environ[env_key] = json.dumps(value)
+            elif isinstance(value, dict):
+                for nested_key, nested_value in value.items():
+                    if isinstance(nested_value, (str, int, float, bool)):
+                        env_key = f"{key.upper()}_{nested_key.upper()}"
+                        if env_key not in existing_env:
+                            os.environ[env_key] = str(nested_value)
+
+        return merged
+    except Exception as e:
+        logging.debug(f"Could not load Tactus config: {e}")
+        return {}
 
 
 def setup_logging(verbose: bool = False):

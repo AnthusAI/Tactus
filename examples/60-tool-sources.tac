@@ -1,23 +1,24 @@
 -- Example: Various Tool Source Types
 -- Demonstrates importing tools from different sources
 
--- 1. Standard Library Tools
-Tool "done" { use = "tactus.done" }
-Tool "log" { use = "tactus.log" }
-Tool "file" { use = "tactus.file" }
-Tool "http" { use = "tactus.http" }
+-- 1. Standard Library Tools (via require)
+local done = require("tactus.tools.done")
+local log = require("tactus.tools.log")
+-- Note: file and http tools are not yet available in stdlib
+-- file = require("tactus.file")
+-- http = require("tactus.http")
 
 -- 2. CLI Tool Wrapper (wraps git command)
-Tool "git_status" { use = "cli.git", description = "Get git repository status" }
+git_status = Tool { use = "cli.git", description = "Get git repository status" }
 
 -- 3. Plugin Tool (would need to be implemented)
--- Tool "calculate" { use = "plugin.math.calculator" }
+-- calculate = Tool { use = "plugin.math.calculator" }
 
 -- 4. MCP Server Tool (requires MCP server to be configured)
--- Tool "search" { use = "mcp.brave-search" }
+-- search = Tool { use = "mcp.brave-search" }
 
 -- Agent that uses various tools
-Agent "tool_demo" {
+tool_demo = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[You are a helpful assistant that demonstrates using various tools.
@@ -39,59 +40,63 @@ When asked to demonstrate tools:
 
 -- Main procedure
 
-input {
-        demo_type = field.string{
-            default = "file",
-            description = "Type of demo: file, http, or all"
-        }
-    }
+Procedure {
+    input = {
+            demo_type = field.string{
+                default = "file",
+                description = "Type of demo: file, http, or all"
+            }
+    },
+    output = {
+            result = field.string{required = true}
+    },
+    function(input)
 
-output {
-        result = field.string{required = true}
-    }
+    Log.info("Starting tool source demonstration", {demo_type = input.demo_type})
 
-Log.info("Starting tool source demonstration", {demo_type = input.demo_type})
+            -- Set up the initial message based on demo type
+            local message = ""
+            if input.demo_type == "file" then
+                message = "Please demonstrate file operations: list files in the current directory, then call done."
+            elseif input.demo_type == "http" then
+                message = "Please demonstrate HTTP operations: make a GET request to https://httpbin.org/get, then call done."
+            else
+                message = "Please demonstrate logging at different levels (info and warning), then call done."
+            end
 
-        -- Set up the initial message based on demo type
-        local message = ""
-        if input.demo_type == "file" then
-            message = "Please demonstrate file operations: list files in the current directory, then call done."
-        elseif input.demo_type == "http" then
-            message = "Please demonstrate HTTP operations: make a GET request to https://httpbin.org/get, then call done."
-        else
-            message = "Please demonstrate logging at different levels (info and warning), then call done."
-        end
+            -- Run the agent
+            local response = tool_demo({initial_message = message})
 
-        -- Run the agent
-        local response = Agent("tool_demo").turn({initial_message = message})
+            -- Wait for done to be called
+            local max_turns = 5
+            local turn_count = 1
 
-        -- Wait for done to be called
-        local max_turns = 5
-        local turn_count = 1
+            while not done.called() and turn_count < max_turns do
+                response = tool_demo()
+                turn_count = turn_count + 1
+            end
 
-        while not Tool.called("done") and turn_count < max_turns do
-            response = Agent("tool_demo").turn()
-            turn_count = turn_count + 1
-        end
-
-        -- Get the result
-        local result = "Demo completed"
-        if Tool.called("done") then
-            local call = Tool.last_call("done")
-            if call and call.args then
-                -- Safely try to get reason
-                local ok, reason = pcall(function() return call.args["reason"] end)
-                if ok and reason then
-                    result = reason
+            -- Get the result
+            local result = "Demo completed"
+            if done.called() then
+                local call = done.last_call()
+                if call and call.args then
+                    -- Safely try to get reason
+                    local ok, reason = pcall(function() return call.args["reason"] end)
+                    if ok and reason then
+                        result = reason
+                    end
                 end
             end
-        end
 
-        return {
-            result = result
-        }
+            return {
+                result = result
+            }
 
--- BDD Specifications
+    -- BDD Specifications
+    end
+}
+
 Specifications([[
 Feature: Tool Source Types
   Demonstrate loading tools from various sources

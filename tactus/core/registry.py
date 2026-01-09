@@ -431,17 +431,19 @@ class RegistryBuilder:
             if not main_proc["output_schema"] and self.registry.top_level_output_schema:
                 main_proc["output_schema"] = self.registry.top_level_output_schema
 
-        # Required field - named 'main' procedure (unless in script mode)
-        if "main" not in self.registry.named_procedures:
-            # In script mode, the main procedure will be created by source transformation
-            # during runtime execution, so we don't require it during validation
-            if not self.registry.script_mode:
-                errors.append(
-                    ValidationMessage(
-                        level="error",
-                        message="named 'main' procedure is required",
-                    )
+        # Check for multiple unnamed Procedures (all would register as "main")
+        # Count how many times a procedure was registered as "main"
+        main_count = sum(1 for name in self.registry.named_procedures.keys() if name == "main")
+        if main_count > 1:
+            errors.append(
+                ValidationMessage(
+                    level="error",
+                    message="Multiple unnamed Procedures found. Only one unnamed Procedure is allowed as the main entry point. Use named Procedures (e.g., helper = Procedure {...}) for additional procedures.",
                 )
+            )
+
+        # Note: With immediate agent creation, Procedures are optional.
+        # Top-level code can execute directly without being wrapped in a Procedure.
 
         # Agent validation
         for agent in self.registry.agents.values():

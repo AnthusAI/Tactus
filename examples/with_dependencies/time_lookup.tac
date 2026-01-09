@@ -13,16 +13,17 @@
 -- example just demonstrates that dependencies are properly initialized.
 
 -- Define completion tool
-tool("done", {
+done = Tool {
     description = "Signal completion of the task",
     input = {
         reason = field.string{required = true, description = "Completion message"}
-    }
-}, function(args)
-    return "Done: " .. args.reason
-end)
+    },
+    function(args)
+        return "Done: " .. args.reason
+    end
+}
 
-Agent("time_agent", {
+time_agent = Agent {
     provider = "openai",
     model = "gpt-4o",
     system_prompt = [[
@@ -33,7 +34,7 @@ For this test, just call done immediately.
 Available tools:
 - done: Mark task as complete
 ]],
-    toolsets = {"done"}
+    tools = {done}
 }
 
 input {
@@ -46,7 +47,7 @@ output {
     }
 
 -- Execute agent turn
-    Time_agent.turn()
+    time_agent()
 
     return {
         datetime = "dependency_test",

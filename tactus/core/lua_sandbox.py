@@ -4,7 +4,8 @@ Lua Sandbox - Safe, restricted Lua execution environment.
 Provides a sandboxed Lua runtime with:
 - Data format libraries restricted to working directory (Csv, Tsv, Parquet, Hdf5, Excel)
 - File and Json primitives injected separately by runtime
-- No dangerous operations (debug, package, require removed)
+- require() available but restricted to loading .tac files from working directory only
+- No dangerous operations (debug, io, loadfile, dofile removed)
 - Only whitelisted primitives available
 - Resource limits on CPU time and memory
 """
@@ -34,13 +35,19 @@ class LuaSandboxError(Exception):
 class LuaSandbox:
     """Sandboxed Lua execution environment for procedure workflows."""
 
-    def __init__(self, execution_context: Optional[Any] = None, strict_determinism: bool = False):
+    def __init__(
+        self,
+        execution_context: Optional[Any] = None,
+        strict_determinism: bool = False,
+        base_path: Optional[str] = None,
+    ):
         """
         Initialize the Lua sandbox.
 
         Args:
             execution_context: Optional ExecutionContext for checkpoint scope tracking
             strict_determinism: If True, raise errors instead of warnings for non-deterministic ops
+            base_path: Optional base path for file operations and require(). Defaults to cwd.
         """
         if not LUPA_AVAILABLE:
             raise LuaSandboxError("lupa library not available. Install with: pip install lupa")
@@ -50,15 +57,18 @@ class LuaSandbox:
         self.strict_determinism = strict_determinism
 
         # Fix base_path at initialization time to prevent security boundary expansion
-        # This ensures file I/O libraries always use the same base path, even if
-        # the working directory changes later (e.g., when set_execution_context is called)
-        self.base_path = os.getcwd()
+        # This ensures file I/O libraries and require() always use the same base path,
+        # even if the working directory changes later
+        self.base_path = base_path if base_path else os.getcwd()
 
         # Create Lua runtime with safety restrictions
         self.lua = LuaRuntime(unpack_returned_tuples=True, attribute_filter=self._attribute_filter)
 
         # Remove dangerous modules
         self._remove_dangerous_modules()
+
+        # Configure safe require/package
+        self._setup_safe_require()
 
         # Setup safe globals
         self._setup_safe_globals()
@@ -96,14 +106,13 @@ class LuaSandbox:
     def _remove_dangerous_modules(self):
         """Remove dangerous Lua standard library modules."""
         # Remove modules that provide file system or system access
+        # Note: 'package' and 'require' are kept but restricted in _setup_safe_require()
         dangerous_modules = [
             "io",  # File I/O
             "os",  # Operating system operations
-            "package",  # Module loading
             "dofile",  # Load and execute files
             "loadfile",  # Load files
             "load",  # Load code
-            "require",  # Require modules
         ]
 
         lua_globals = self.lua.globals()
@@ -127,6 +136,55 @@ class LuaSandbox:
             """
             )
             logger.debug("Replaced debug module with safe_debug (only getinfo allowed)")
+
+    def _setup_safe_require(self):
+        """Configure require/package to search user's project and stdlib.
+
+        This allows using Lua's require() mechanism while restricting module
+        loading to:
+        1. User's project directory (base_path) - for local modules
+        2. Tactus stdlib directory - for standard library modules
+
+        Example:
+            require("helpers/math")       -- loads from base_path/helpers/math.tac
+            require("tactus.tools.done")  -- loads from stdlib/tac/tactus/tools/done.tac
+        """
+        import tactus
+
+        # Get stdlib path from installed package location
+        package_root = os.path.dirname(tactus.__file__)
+        stdlib_tac_path = os.path.join(package_root, "stdlib", "tac")
+
+        # Build search paths:
+        # 1. User's project directory (existing behavior)
+        # 2. Tactus stdlib .tac files
+        user_path = os.path.join(self.base_path, "?.tac")
+        stdlib_path = os.path.join(stdlib_tac_path, "?.tac")
+
+        # Normalize backslashes for cross-platform compatibility
+        paths = [user_path, stdlib_path]
+        paths = [p.replace("\\", "/") for p in paths]
+
+        # Join with Lua's path separator (semicolon)
+        safe_path = ";".join(paths)
+
+        lua_globals = self.lua.globals()
+        package = lua_globals["package"]
+
+        if package:
+            # Set restricted search paths
+            package["path"] = safe_path
+
+            # Disable C module loading entirely
+            package["cpath"] = ""
+
+            # Clear preloaded modules that might provide dangerous access
+            if package["preload"]:
+                self.lua.execute("for k in pairs(package.preload) do package.preload[k] = nil end")
+
+            logger.debug(f"Configured safe require with paths: {safe_path}")
+        else:
+            logger.warning("package module not available - require will not work")
 
     def _setup_safe_globals(self):
         """Setup safe global functions and utilities."""

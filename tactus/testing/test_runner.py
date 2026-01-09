@@ -150,7 +150,11 @@ class TactusTestRunner:
             ScenarioResult
         """
         # Create tag filter for this scenario
-        sanitized_name = scenario_name.lower().replace(" ", "_")
+        # Remove special characters that could interfere with behave tags
+        import re
+
+        sanitized_name = re.sub(r"[^a-z0-9_]", "_", scenario_name.lower())
+        sanitized_name = re.sub(r"_+", "_", sanitized_name)  # Collapse multiple underscores
         tag_filter = f"scenario_{sanitized_name}"
 
         # Use unique results file to avoid conflicts when running in parallel
@@ -277,13 +281,21 @@ class TactusTestRunner:
         steps = []
         for step_data in scenario_data.get("steps", []):
             result = step_data.get("result", {})
+            # error_message might be a list (behave can return traceback as list)
+            # Convert to string if needed
+            error_msg = result.get("error_message")
+            if isinstance(error_msg, list):
+                error_msg = "\n".join(str(e) for e in error_msg)
+            elif error_msg is not None and not isinstance(error_msg, str):
+                error_msg = str(error_msg)
+
             steps.append(
                 StepResult(
                     keyword=step_data.get("keyword", ""),
                     text=step_data.get("name", ""),
                     status=result.get("status", "skipped"),
                     duration=result.get("duration", 0.0),
-                    error_message=result.get("error_message"),
+                    error_message=error_msg,
                 )
             )
 

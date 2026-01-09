@@ -25,29 +25,20 @@ logger = logging.getLogger(__name__)
 
 class DSPyAgentHandle:
     """
-    A DSPy-based Agent handle that provides the turn() method.
+    A DSPy-based Agent handle that provides the callable interface.
 
     This is a drop-in replacement for the pydantic_ai AgentHandle,
     using DSPy primitives for LLM interactions.
 
     Example usage in Lua:
-        Agent("assistant", {
+        worker = Agent {
             system_prompt = "You are a helpful assistant",
-            tools = { search, calculator }
-        })
-
-        Procedure "main" {
-            function(input)
-                -- Basic call (callable syntax)
-                Assistant()
-
-                -- Call with overrides
-                Assistant({
-                    tools = { "search" },
-                    message = input.query
-                })
-            end
+            tools = {search, calculator}
         }
+
+        -- Call the agent directly
+        worker()
+        worker({message = input.query})
     """
 
     def __init__(
@@ -66,6 +57,8 @@ class DSPyAgentHandle:
         initial_message: Optional[str] = None,
         registry: Any = None,
         mock_manager: Any = None,
+        log_handler: Any = None,
+        disable_streaming: bool = False,
         **kwargs: Any,
     ):
         """
@@ -86,6 +79,8 @@ class DSPyAgentHandle:
             initial_message: Initial message to send on first turn if no inject
             registry: Optional Registry instance for accessing mocks
             mock_manager: Optional MockManager instance for checking mocks
+            log_handler: Optional log handler for emitting streaming events
+            disable_streaming: If True, disable streaming even when log_handler is present
             **kwargs: Additional configuration
         """
         self.name = name
@@ -104,6 +99,8 @@ class DSPyAgentHandle:
         self.initial_message = initial_message
         self.registry = registry
         self.mock_manager = mock_manager
+        self.log_handler = log_handler
+        self.disable_streaming = disable_streaming
         self.kwargs = kwargs
 
         # Initialize conversation history
@@ -136,26 +133,427 @@ class DSPyAgentHandle:
             },
         )
 
-    def turn(
-        self,
-        opts: Optional[Dict[str, Any]] = None,
-    ) -> Any:
+    def _should_stream(self) -> bool:
         """
-        Execute an agent turn.
+        Determine if streaming should be enabled for this agent.
 
-        Args:
-            opts: Optional dict with per-turn overrides:
-                - inject: str - Message to inject for this turn
-                - tools: List[str] - Tool names to use
-                - temperature: float - Override temperature
-                - max_tokens: int - Override max_tokens
-                - context: Dict - Additional context
+        Streaming is enabled when:
+        - log_handler is available (for emitting events)
+        - disable_streaming is False
+        - No structured output schema (streaming only works with plain text)
 
         Returns:
-            ResultPrimitive-compatible object from agent turn
+            True if streaming should be enabled
         """
-        opts = opts or {}
+        # Must have log_handler to emit streaming events
+        if self.log_handler is None:
+            logger.debug(f"[STREAMING] Agent '{self.name}': no log_handler, streaming disabled")
+            return False
 
+        # Respect explicit disable flag
+        if self.disable_streaming:
+            logger.debug(
+                f"[STREAMING] Agent '{self.name}': disable_streaming=True, streaming disabled"
+            )
+            return False
+
+        # Note: We intentionally allow streaming even with output_schema.
+        # Streaming (UI feedback) and validation (post-processing) are orthogonal.
+        # Stream raw text to UI during generation, then validate after completion.
+
+        logger.info(f"[STREAMING] Agent '{self.name}': streaming ENABLED")
+        return True
+
+    def _emit_cost_event(self) -> None:
+        """
+        Emit a CostEvent based on the most recent LLM call in the LM history.
+
+        Extracts usage and cost information from DSPy's LM history and emits
+        a CostEvent for tracking in the IDE.
+        """
+        if self.log_handler is None:
+            return
+
+        import dspy
+        from tactus.protocols.models import CostEvent
+
+        # Get the current LM
+        lm = dspy.settings.lm
+        if lm is None or not hasattr(lm, "history") or not lm.history:
+            logger.debug(f"[COST] Agent '{self.name}': no LM history available")
+            return
+
+        # Get the most recent call
+        last_call = lm.history[-1]
+
+        # Extract usage information
+        usage = last_call.get("usage", {})
+        prompt_tokens = usage.get("prompt_tokens", 0)
+        completion_tokens = usage.get("completion_tokens", 0)
+        total_tokens = usage.get("total_tokens", 0)
+
+        # Extract cost information
+        total_cost = last_call.get("cost")
+        logger.debug(f"[COST] Agent '{self.name}': raw cost from history = {total_cost}")
+
+        # If cost is None (happens with streamify()), calculate it using LiteLLM
+        if total_cost is None:
+            response = last_call.get("response")
+            if response and hasattr(response, "_hidden_params"):
+                total_cost = response._hidden_params.get("response_cost")
+                logger.debug(f"[COST] Agent '{self.name}': cost from _hidden_params = {total_cost}")
+
+            # If still None, calculate manually using litellm.completion_cost
+            if total_cost is None and response:
+                try:
+                    import litellm
+
+                    total_cost = litellm.completion_cost(completion_response=response)
+                    logger.debug(f"[COST] Agent '{self.name}': calculated cost = {total_cost}")
+                except Exception as e:
+                    logger.warning(f"[COST] Agent '{self.name}': failed to calculate cost: {e}")
+                    total_cost = 0.0
+            elif total_cost is None:
+                total_cost = 0.0
+                logger.warning(f"[COST] Agent '{self.name}': no cost information available")
+
+        # Calculate per-token costs (approximate)
+        # Note: LiteLLM provides total cost, we can approximate prompt/completion split
+        # based on token ratios
+        if total_tokens > 0 and total_cost > 0:
+            prompt_cost = total_cost * (prompt_tokens / total_tokens)
+            completion_cost = total_cost * (completion_tokens / total_tokens)
+        else:
+            prompt_cost = 0.0
+            completion_cost = 0.0
+
+        # Extract duration from response metadata
+        response = last_call.get("response")
+        duration_ms = None
+        if response and hasattr(response, "_hidden_params"):
+            duration_ms = response._hidden_params.get("_response_ms")
+
+        # Extract model info
+        model = last_call.get("model", self.model or "unknown")
+
+        # Parse provider from model string (e.g., "openai/gpt-4o" -> "openai")
+        provider = "unknown"
+        if "/" in str(model):
+            provider = str(model).split("/")[0]
+
+        # Create and emit cost event
+        cost_event = CostEvent(
+            agent_name=self.name,
+            model=model,
+            provider=provider,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
+            prompt_cost=prompt_cost,
+            completion_cost=completion_cost,
+            total_cost=total_cost,
+            duration_ms=duration_ms,
+        )
+
+        self.log_handler.log(cost_event)
+        logger.info(f"[COST] Agent '{self.name}': ${total_cost:.6f} ({total_tokens} tokens)")
+
+    def _turn_with_streaming(
+        self,
+        opts: Dict[str, Any],
+        prompt_context: Dict[str, Any],
+    ) -> Any:
+        """
+        Execute an agent turn with streaming enabled.
+
+        Uses DSPy's streamify() to wrap the module for streaming output.
+        Runs in a separate thread to avoid event loop conflicts.
+        Chunks are emitted as AgentStreamChunkEvent for real-time display in the UI.
+
+        Args:
+            opts: Turn options
+            prompt_context: Prepared prompt context for the module
+
+        Returns:
+            TactusPrediction with the response
+        """
+        import asyncio
+        import threading
+        import queue
+        from tactus.protocols.models import AgentTurnEvent, AgentStreamChunkEvent
+
+        logger.info(f"[STREAMING] Agent '{self.name}' starting streaming turn")
+
+        # Emit turn started event so the UI shows a loading indicator
+        self.log_handler.log(
+            AgentTurnEvent(
+                agent_name=self.name,
+                stage="started",
+            )
+        )
+        logger.info(f"[STREAMING] Agent '{self.name}' emitted AgentTurnEvent(started)")
+
+        # Queue for passing chunks from streaming thread to main thread
+        chunk_queue = queue.Queue()
+        result_holder = {"result": None, "error": None}
+
+        def run_streaming_in_thread():
+            """Run DSPy streaming in a separate thread with its own event loop."""
+            import dspy as dspy_thread  # Import in thread context
+
+            async def async_streaming():
+                """Async function that runs the streaming module."""
+                try:
+                    # Create a streaming version of the module using DSPy's streamify
+                    # NOTE: streamify() automatically enables streaming on the LM
+                    # We do NOT need to use settings.context(stream=True) - that actually breaks it!
+                    streaming_module = dspy_thread.streamify(self._module.module)
+                    logger.info(f"[STREAMING] Agent '{self.name}' created streaming module")
+
+                    # Call the streaming module - it returns an async generator
+                    stream = streaming_module(**prompt_context)
+
+                    chunk_count = 0
+                    async for value in stream:
+                        chunk_count += 1
+                        value_type = type(value).__name__
+
+                        # Check for final Prediction first
+                        if isinstance(value, dspy_thread.Prediction):
+                            # Final prediction - this is the result
+                            logger.info(
+                                f"[STREAMING] Agent '{self.name}' received final Prediction"
+                            )
+                            result_holder["result"] = value
+                        # Check for ModelResponseStream (the actual streaming chunks!)
+                        elif hasattr(value, "choices") and value.choices:
+                            delta = value.choices[0].delta
+                            if hasattr(delta, "content") and delta.content:
+                                logger.info(
+                                    f"[STREAMING] Agent '{self.name}' chunk #{chunk_count}: '{delta.content}'"
+                                )
+                                chunk_queue.put(("chunk", delta.content))
+                        # String chunks (shouldn't happen with DSPy but handle it anyway)
+                        elif isinstance(value, str):
+                            logger.info(
+                                f"[STREAMING] Agent '{self.name}' got STRING chunk, len={len(value)}"
+                            )
+                            if value:
+                                chunk_queue.put(("chunk", value))
+                        else:
+                            logger.warning(
+                                f"[STREAMING] Agent '{self.name}' got unexpected type: {value_type}"
+                            )
+
+                    logger.info(
+                        f"[STREAMING] Agent '{self.name}' stream finished, processed {chunk_count} values"
+                    )
+
+                except Exception as e:
+                    logger.error(f"[STREAMING] Agent '{self.name}' error: {e}", exc_info=True)
+                    result_holder["error"] = e
+                finally:
+                    # Signal end of stream
+                    chunk_queue.put(("done", None))
+
+            # Run the async function in this thread's new event loop
+            asyncio.run(async_streaming())
+
+        # Start streaming in a separate thread
+        streaming_thread = threading.Thread(target=run_streaming_in_thread, daemon=True)
+        streaming_thread.start()
+
+        # Consume chunks from the queue and emit events in the main thread
+        accumulated_text = ""
+        emitted_count = 0
+        logger.info(f"[STREAMING] Agent '{self.name}' consuming chunks from queue")
+
+        while True:
+            try:
+                msg_type, msg_data = chunk_queue.get(timeout=120.0)  # 2 minute timeout
+                if msg_type == "done":
+                    break
+                elif msg_type == "chunk" and msg_data:
+                    accumulated_text += msg_data
+                    emitted_count += 1
+                    event = AgentStreamChunkEvent(
+                        agent_name=self.name,
+                        chunk_text=msg_data,
+                        accumulated_text=accumulated_text,
+                    )
+                    logger.info(
+                        f"[STREAMING] Agent '{self.name}' emitting chunk {emitted_count}, len={len(msg_data)}"
+                    )
+                    self.log_handler.log(event)
+            except queue.Empty:
+                logger.warning(f"[STREAMING] Agent '{self.name}' timeout waiting for chunks")
+                break
+
+        # Wait for thread to complete
+        streaming_thread.join(timeout=5.0)
+
+        logger.info(f"[STREAMING] Agent '{self.name}' finished, emitted {emitted_count} events")
+
+        # Check for errors
+        if result_holder["error"] is not None:
+            raise result_holder["error"]
+
+        # If streaming failed to produce a result, fall back to non-streaming
+        if result_holder["result"] is None:
+            logger.warning(f"Streaming produced no result for agent '{self.name}', falling back")
+            return self._turn_without_streaming(opts, prompt_context)
+
+        # Wrap the result
+        wrapped_result = wrap_prediction(result_holder["result"])
+
+        # Handle tool calls if present
+        if hasattr(wrapped_result, "tool_calls") and wrapped_result.tool_calls:
+            tool_primitive = getattr(self, "_tool_primitive", None)
+            if tool_primitive and "done" in str(wrapped_result.tool_calls).lower():
+                reason = (
+                    wrapped_result.response
+                    if hasattr(wrapped_result, "response")
+                    else "Task completed"
+                )
+                logger.info(f"Recording done tool call with reason: {reason}")
+                tool_primitive.record_call(
+                    "done",
+                    {"reason": reason},
+                    {"status": "completed", "reason": reason, "tool": "done"},
+                    agent_name=self.name,
+                )
+
+        # Update history
+        user_message = opts.get("inject")
+        if self._turn_count == 1 and not user_message and self.initial_message:
+            user_message = self.initial_message
+
+        if user_message:
+            self._history.add({"role": "user", "content": user_message})
+        if hasattr(wrapped_result, "response"):
+            self._history.add({"role": "assistant", "content": wrapped_result.response})
+
+        # Emit turn completed event
+        self.log_handler.log(
+            AgentTurnEvent(
+                agent_name=self.name,
+                stage="completed",
+            )
+        )
+        logger.info(f"[STREAMING] Agent '{self.name}' emitted AgentTurnEvent(completed)")
+
+        # Emit cost event with usage and cost information
+        self._emit_cost_event()
+
+        return wrapped_result
+
+    def _turn_without_streaming(
+        self,
+        opts: Dict[str, Any],
+        prompt_context: Dict[str, Any],
+    ) -> Any:
+        """
+        Execute an agent turn without streaming.
+
+        This is the standard execution path that waits for the full response.
+
+        Args:
+            opts: Turn options
+            prompt_context: Prepared prompt context for the module
+
+        Returns:
+            TactusPrediction with the response
+        """
+        # Execute the module
+        dspy_result = self._module.module(**prompt_context)
+
+        # Wrap the result
+        wrapped_result = wrap_prediction(dspy_result)
+
+        # Handle tool calls if present
+        if hasattr(wrapped_result, "tool_calls") and wrapped_result.tool_calls:
+            tool_primitive = getattr(self, "_tool_primitive", None)
+            if tool_primitive and "done" in str(wrapped_result.tool_calls).lower():
+                reason = (
+                    wrapped_result.response
+                    if hasattr(wrapped_result, "response")
+                    else "Task completed"
+                )
+                logger.info(f"Recording done tool call with reason: {reason}")
+                tool_primitive.record_call(
+                    "done",
+                    {"reason": reason},
+                    {"status": "completed", "reason": reason, "tool": "done"},
+                    agent_name=self.name,
+                )
+
+        # Update history
+        user_message = opts.get("inject")
+        if self._turn_count == 1 and not user_message and self.initial_message:
+            user_message = self.initial_message
+
+        if user_message:
+            self._history.add({"role": "user", "content": user_message})
+        if hasattr(wrapped_result, "response"):
+            self._history.add({"role": "assistant", "content": wrapped_result.response})
+
+        # Emit cost event with usage and cost information
+        self._emit_cost_event()
+
+        return wrapped_result
+
+    def __call__(self, inputs: Optional[Dict[str, Any]] = None) -> Any:
+        """
+        Execute an agent turn using the callable interface.
+
+        This is the unified callable interface that allows:
+            result = worker({message = "Hello"})
+
+        Args:
+            inputs: Input dict with fields matching input_schema.
+                   Default field 'message' is used as the user message.
+                   Additional fields are passed as context.
+                   Can also include per-turn overrides like:
+                   - tools: List[str] - Tool names to use
+                   - temperature: float - Override temperature
+                   - max_tokens: int - Override max_tokens
+
+        Returns:
+            Result object with response and other fields
+
+        Example (Lua):
+            result = worker({message = "Process this task"})
+            print(result.response)
+        """
+        inputs = inputs or {}
+
+        # Convert Lua table to dict if needed
+        if hasattr(inputs, "items"):
+            try:
+                inputs = dict(inputs.items())
+            except (AttributeError, TypeError):
+                pass
+
+        # Extract message field (the main input)
+        message = inputs.get("message")
+
+        # Build turn options (keeping per-turn overrides like tools, temperature, etc.)
+        opts = {}
+        if message:
+            opts["inject"] = message
+
+        # Pass remaining fields - some are per-turn overrides, others are context
+        override_keys = {"tools", "toolsets", "temperature", "max_tokens"}
+        for key in override_keys:
+            if key in inputs:
+                opts[key] = inputs[key]
+
+        # Everything else goes into context
+        context = {k: v for k, v in inputs.items() if k not in ({"message"} | override_keys)}
+        if context:
+            opts["context"] = context
+
+        # Execute the turn (inlined from old turn() method)
         self._turn_count += 1
         logger.debug(f"Agent '{self.name}' turn {self._turn_count}")
 
@@ -192,13 +590,7 @@ class DSPyAgentHandle:
         if self._turn_count == 1 and not user_message and self.initial_message:
             user_message = self.initial_message
 
-        opts.get("tools")
-        opts.get("toolsets")
         context = opts.get("context")
-        opts.get("temperature")
-        opts.get("max_tokens")
-
-        # Determine effective tools for this turn
 
         # Build the prompt context
         prompt_context = {
@@ -226,94 +618,19 @@ class DSPyAgentHandle:
         if context:
             prompt_context["context"] = context
 
-        # Configure LM settings for this turn
+        # Check if we should use streaming
+        if self._should_stream():
+            logger.debug(f"Agent '{self.name}' using streaming mode")
+            return self._turn_with_streaming(opts, prompt_context)
 
-        # Execute the module
+        # Non-streaming execution
+        logger.debug(f"Agent '{self.name}' using non-streaming mode")
+
         try:
-            # For now, use the basic module call
-            # In a full implementation, this would handle tool calls via ReAct
-            dspy_result = self._module.module(**prompt_context)
-
-            # Wrap the result
-            result = wrap_prediction(dspy_result)
-
-            # Check if we have tool_calls to execute
-            if hasattr(result, "tool_calls") and result.tool_calls and self._tool_primitive:
-                # Parse and execute tool calls
-                # This is a simple implementation - proper tool handling would use ReAct
-                if "done" in str(result.tool_calls).lower():
-                    # Extract reason from the tool call or response
-                    reason = "Task completed"
-                    if hasattr(result, "response"):
-                        reason = result.response
-
-                    # Record that the done tool was called
-                    logger.info(f"Recording done tool call with reason: {reason}")
-                    # Record the call so Tool.called("done") returns true
-                    self._tool_primitive.record_call(
-                        "done",
-                        {"reason": reason},
-                        {"status": "completed", "reason": reason, "tool": "done"},
-                        agent_name=self.name,
-                    )
-
-            # Add to history
-            if user_message:
-                self._history.add({"role": "user", "content": user_message})
-            if hasattr(result, "response"):
-                self._history.add({"role": "assistant", "content": result.response})
-
-            return result
-
+            return self._turn_without_streaming(opts, prompt_context)
         except Exception as e:
             logger.error(f"Agent '{self.name}' turn failed: {e}")
             raise
-
-    def __call__(self, inputs: Optional[Dict[str, Any]] = None) -> Any:
-        """
-        Execute an agent turn using the callable interface.
-
-        This is the unified callable interface that allows:
-            result = worker({message = "Hello"})
-
-        The 'message' field is mapped to the 'inject' parameter for turn().
-
-        Args:
-            inputs: Input dict with fields matching input_schema.
-                   Default field 'message' is used as the user message.
-                   Additional fields are passed as context.
-
-        Returns:
-            Result object with response and other fields
-
-        Example (Lua):
-            result = worker({message = "Process this task"})
-            print(result.response)
-        """
-        inputs = inputs or {}
-
-        # Convert Lua table to dict if needed
-        if hasattr(inputs, "items"):
-            try:
-                inputs = dict(inputs.items())
-            except (AttributeError, TypeError):
-                pass
-
-        # Extract message field (the main input)
-        message = inputs.get("message")
-
-        # Build turn options
-        opts = {}
-        if message:
-            opts["inject"] = message
-
-        # Pass remaining fields as context
-        context = {k: v for k, v in inputs.items() if k != "message"}
-        if context:
-            opts["context"] = context
-
-        # Call turn() with the mapped options
-        return self.turn(opts)
 
     def _get_mock_response(self, opts: Dict[str, Any]) -> Optional[TactusPrediction]:
         """
@@ -458,6 +775,8 @@ def create_dspy_agent(
         initial_message=config.get("initial_message"),
         registry=registry,
         mock_manager=mock_manager,
+        log_handler=config.get("log_handler"),
+        disable_streaming=config.get("disable_streaming", False),
         **{
             k: v
             for k, v in config.items()
@@ -474,6 +793,8 @@ def create_dspy_agent(
                 "max_tokens",
                 "model_type",
                 "initial_message",
+                "log_handler",
+                "disable_streaming",
             ]
         },
     )
