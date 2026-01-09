@@ -342,7 +342,6 @@ class LuaSandbox:
             logger.error(f"Failed to setup assignment interception: {e}", exc_info=True)
             raise LuaSandboxError(f"Could not setup assignment interception: {e}")
 
-
     def set_execution_context(self, context: Any):
         """
         Set or update execution context and refresh safe libraries.
