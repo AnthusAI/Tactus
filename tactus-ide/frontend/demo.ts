@@ -153,7 +153,7 @@ function main() {
   console.log('ANTLR Parser Demo - Tactus Lua DSL (TypeScript)');
   console.log('='.repeat(70));
   console.log('\nThis demo shows the TypeScript ANTLR-generated parser validating Lua DSL syntax.');
-  console.log('The parser is generated from tactus/validation/grammar/Lua.g4');
+  console.log('The parser is generated from tactus/validation/grammar/LuaLexer.g4 and LuaParser.g4');
   console.log();
   
   const results: [string, boolean][] = [];

@@ -149,7 +149,7 @@ The IDE uses a two-layer validation approach for optimal performance and user ex
 
 **Layer 1: TypeScript Parser (Client-Side)**
 - Location: `tactus-ide/frontend/src/validation/`
-- ANTLR-generated from same `Lua.g4` grammar as Python parser
+- ANTLR-generated from same `LuaLexer.g4` and `LuaParser.g4` grammars as Python parser
 - Purpose: Instant syntax validation (< 10ms)
 - Runs in browser, no backend needed
 - Provides immediate feedback as user types
