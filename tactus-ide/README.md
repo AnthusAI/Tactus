@@ -41,7 +41,7 @@ This serves the pre-built frontend from `dist/` and is what end-users will use.
 The IDE uses a two-layer validation approach:
 
 **Layer 1: TypeScript Parser (Client-Side)**
-- ANTLR-generated from same `Lua.g4` grammar as Python parser
+- ANTLR-generated from same `LuaLexer.g4` and `LuaParser.g4` grammars as Python parser
 - Instant syntax validation (< 10ms)
 - Runs in browser, no backend needed
 - Works offline

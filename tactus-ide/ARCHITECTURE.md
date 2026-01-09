@@ -26,7 +26,7 @@ The Tactus IDE uses a **hybrid validation architecture** combining client-side a
 │  │  ┌─────────────────────────────────────────────────┐     │    │
 │  │  │ Layer 1: TypeScript Parser (Client-Side)       │     │    │
 │  │  │                                                 │     │    │
-│  │  │ - ANTLR-generated from Lua.g4                  │     │    │
+│  │  │ - ANTLR-generated from LuaLexer.g4/LuaParser.g4│     │    │
 │  │  │ - Instant syntax validation (< 10ms)           │     │    │
 │  │  │ - Works offline                                 │     │    │
 │  │  │ - No backend required                           │     │    │
@@ -136,7 +136,7 @@ User types code
          ▼
 ┌─────────────────┐
 │ TypeScript      │
-│ Parser          │◄─── ANTLR-generated from Lua.g4
+│ Parser          │◄─── ANTLR-generated from LuaLexer.g4/LuaParser.g4
 │ (TactusValidator│
 │  .validate())   │
 └────────┬────────┘
@@ -493,7 +493,7 @@ User triggers completion (Ctrl+Space)
 - **Tactus**: DSL validation
 
 ### Shared
-- **ANTLR Grammar**: Lua.g4
+- **ANTLR Grammar**: LuaLexer.g4 and LuaParser.g4
 - **LSP Protocol**: JSON-RPC 2.0
 - **WebSocket**: Socket.IO
 
