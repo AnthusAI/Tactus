@@ -236,21 +236,21 @@ class TestCLIInputs:
     def test_run_with_string_param(self, cli_runner, procedure_with_string_input):
         """Test running with a string parameter via --param."""
         result = cli_runner.invoke(
-            app, ["run", str(procedure_with_string_input), "--param", "name=Alice"]
+            app, ["run", str(procedure_with_string_input), "--param", "name=Alice", "--no-sandbox"]
         )
         assert result.exit_code == 0
         assert "Hello, Alice!" in result.stdout
 
     def test_run_with_default_value(self, cli_runner, procedure_with_default_input):
         """Test running uses default value when param not provided."""
-        result = cli_runner.invoke(app, ["run", str(procedure_with_default_input)])
+        result = cli_runner.invoke(app, ["run", str(procedure_with_default_input), "--no-sandbox"])
         assert result.exit_code == 0
         assert "Hello, World!" in result.stdout
 
     def test_run_override_default(self, cli_runner, procedure_with_default_input):
         """Test --param overrides default value."""
         result = cli_runner.invoke(
-            app, ["run", str(procedure_with_default_input), "--param", "name=Custom"]
+            app, ["run", str(procedure_with_default_input), "--param", "name=Custom", "--no-sandbox"]
         )
         assert result.exit_code == 0
         assert "Hello, Custom!" in result.stdout
@@ -258,7 +258,7 @@ class TestCLIInputs:
     def test_run_with_array_param_json(self, cli_runner, procedure_with_array_input):
         """Test running with JSON array parameter - verifies array is accepted."""
         result = cli_runner.invoke(
-            app, ["run", str(procedure_with_array_input), "--param", "numbers=[1,2,3,4]"]
+            app, ["run", str(procedure_with_array_input), "--param", "numbers=[1,2,3,4]", "--no-sandbox"]
         )
         # The test verifies that:
         # 1. The JSON array parameter is parsed correctly
@@ -271,7 +271,7 @@ class TestCLIInputs:
         """Test interactive mode prompts for inputs."""
         result = cli_runner.invoke(
             app,
-            ["run", str(procedure_with_string_input), "-i"],
+            ["run", str(procedure_with_string_input), "-i", "--no-sandbox"],
             input="TestUser\n",
         )
         # Should prompt and complete
@@ -281,7 +281,7 @@ class TestCLIInputs:
         """Test missing required input triggers interactive prompt."""
         result = cli_runner.invoke(
             app,
-            ["run", str(procedure_with_string_input)],
+            ["run", str(procedure_with_string_input), "--no-sandbox"],
             input="PromptedUser\n",
         )
         # Should indicate missing input and prompt
@@ -300,6 +300,7 @@ class TestCLIInputs:
                 "count=5",
                 "--param",
                 "enabled=true",
+                "--no-sandbox",
             ],
         )
         assert result.exit_code == 0
@@ -309,7 +310,7 @@ class TestCLIInputs:
         """Test interactive mode shows pre-existing --param values."""
         result = cli_runner.invoke(
             app,
-            ["run", str(procedure_with_all_types), "-i", "--param", "text=preset"],
+            ["run", str(procedure_with_all_types), "-i", "--param", "text=preset", "--no-sandbox"],
             input="\n5\nn\n[]\n{}\n",  # Accept defaults for remaining
         )
         # Should show "preset" in the current column
@@ -331,7 +332,7 @@ class TestCLIParamParsing:
         f = tmp_path / "test.tac"
         f.write_text(content)
 
-        result = cli_runner.invoke(app, ["run", str(f), "--param", "nums=[1,2,3]"])
+        result = cli_runner.invoke(app, ["run", str(f), "--param", "nums=[1,2,3]", "--no-sandbox"])
         assert result.exit_code == 0
 
     def test_param_json_object(self, cli_runner, tmp_path):
@@ -346,7 +347,7 @@ class TestCLIParamParsing:
         f = tmp_path / "test.tac"
         f.write_text(content)
 
-        result = cli_runner.invoke(app, ["run", str(f), "--param", 'cfg={"key":"value"}'])
+        result = cli_runner.invoke(app, ["run", str(f), "--param", 'cfg={"key":"value"}', "--no-sandbox"])
         assert result.exit_code == 0
 
     def test_param_boolean(self, cli_runner, tmp_path):
@@ -361,7 +362,7 @@ class TestCLIParamParsing:
         f = tmp_path / "test.tac"
         f.write_text(content)
 
-        result = cli_runner.invoke(app, ["run", str(f), "--param", "flag=true"])
+        result = cli_runner.invoke(app, ["run", str(f), "--param", "flag=true", "--no-sandbox"])
         assert result.exit_code == 0
 
     def test_param_number(self, cli_runner, tmp_path):
@@ -376,6 +377,6 @@ class TestCLIParamParsing:
         f = tmp_path / "test.tac"
         f.write_text(content)
 
-        result = cli_runner.invoke(app, ["run", str(f), "--param", "n=21"])
+        result = cli_runner.invoke(app, ["run", str(f), "--param", "n=21", "--no-sandbox"])
         assert result.exit_code == 0
         assert "42" in result.stdout
