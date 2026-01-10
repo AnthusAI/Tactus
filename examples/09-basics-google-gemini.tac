@@ -10,7 +10,7 @@ local done = require("tactus.tools.done")
 gemini_pro = Agent {
     provider = "google-gla",
     model = "gemini-3-pro-preview",
-    system_prompt = [[You are a helpful assistant powered by Google Gemini 3 Pro.
+    system_message = [[You are a helpful assistant powered by Google Gemini 3 Pro.
 
 When the user asks you a question, provide a clear and comprehensive answer.
 After answering, call the done tool with a brief summary of what you explained.
@@ -24,7 +24,7 @@ IMPORTANT: Always call the done tool after providing your answer.]],
 gemini_flash = Agent {
     provider = "google-gla",
     model = "gemini-2.0-flash-exp",
-    system_prompt = [[You are a helpful assistant powered by Google Gemini 2.0 Flash.
+    system_message = [[You are a helpful assistant powered by Google Gemini 2.0 Flash.
 
 When the user asks you a question, provide a detailed and comprehensive answer.
 After answering, call the done tool with a brief summary of what you explained.

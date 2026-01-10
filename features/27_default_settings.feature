@@ -12,7 +12,7 @@ Feature: Default Provider and Model Settings
   default_provider = "openai"
 
   worker = Agent {
-  system_prompt = "Work",
+  system_message = "Work",
   tools = {}
   }
 
@@ -32,7 +32,7 @@ Feature: Default Provider and Model Settings
 
   worker = Agent {
   provider = "openai",
-  system_prompt = "Work",
+  system_message = "Work",
   tools = {}
   }
 
@@ -52,7 +52,7 @@ Feature: Default Provider and Model Settings
   default_model = "gpt-4o"
 
   worker = Agent {
-  system_prompt = "Work",
+  system_message = "Work",
   tools = {}
   }
 
@@ -72,7 +72,7 @@ Feature: Default Provider and Model Settings
 
   worker = Agent {
   provider = "bedrock",
-  system_prompt = "Work",
+  system_message = "Work",
   tools = {}
   }
 
@@ -92,12 +92,12 @@ Feature: Default Provider and Model Settings
   default_model = "gpt-4o-mini"
 
   worker1 = Agent {
-  system_prompt = "Work 1",
+  system_message = "Work 1",
   tools = {}
   }
 
   worker2 = Agent {
-  system_prompt = "Work 2",
+  system_message = "Work 2",
   tools = {}
   }
 

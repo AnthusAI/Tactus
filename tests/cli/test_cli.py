@@ -24,8 +24,8 @@ def example_workflow_file(tmp_path):
     """Create a minimal valid workflow file for testing."""
     workflow_content = """worker = Agent {
     provider = "openai",
-    system_prompt = "You are a test worker.",
-    initial_message = "Starting test.",
+    system_message = "You are a test worker.",
+    message = "Starting test.",
     tools = {}
 }
 
@@ -95,8 +95,8 @@ def test_cli_run_with_parameters(cli_runner, tmp_path):
     """Test that run command accepts parameters."""
     workflow_content = """worker = Agent {
     provider = "openai",
-    system_prompt = "You are a test worker.",
-    initial_message = "Starting test.",
+    system_message = "You are a test worker.",
+    message = "Starting test.",
     tools = {}
 }
 

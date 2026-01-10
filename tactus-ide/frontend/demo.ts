@@ -110,7 +110,7 @@ version("1.0.0")
 
 agent("worker", {
     provider = "openai",
-    system_prompt = "You are helpful"
+    system_message = "You are helpful"
 })
 
 procedure(function()

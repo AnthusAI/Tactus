@@ -29,7 +29,7 @@ Mocks {
 assistant = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
-    system_prompt = [[You are a helpful assistant with translation and calculation tools.
+    system_message = [[You are a helpful assistant with translation and calculation tools.
 
 You have access to:
 - translate: Translate English text to Spanish

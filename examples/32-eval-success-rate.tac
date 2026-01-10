@@ -6,7 +6,7 @@
 completer = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
-    system_prompt = [[You are a helpful assistant that completes tasks.
+    system_message = [[You are a helpful assistant that completes tasks.
 
 CRITICAL INSTRUCTIONS:
 1. You MUST actually DO the task - write the greeting/haiku/list, don't just acknowledge it

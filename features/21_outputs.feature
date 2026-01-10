@@ -11,7 +11,7 @@ Feature: Output Schema Declarations
   """
   worker = Agent {
   provider = "openai",
-  system_prompt = "Work",
+  system_message = "Work",
   tools = {}
   }
 
@@ -33,7 +33,7 @@ Feature: Output Schema Declarations
   """
   worker = Agent {
   provider = "openai",
-  system_prompt = "Work",
+  system_message = "Work",
   tools = {}
   }
 
@@ -61,7 +61,7 @@ Feature: Output Schema Declarations
   """
   worker = Agent {
   provider = "openai",
-  system_prompt = "Work",
+  system_message = "Work",
   tools = {}
   }
 
@@ -84,7 +84,7 @@ Feature: Output Schema Declarations
   """
   worker = Agent {
   provider = "openai",
-  system_prompt = "Work",
+  system_message = "Work",
   tools = {}
   }
 
@@ -105,7 +105,7 @@ Feature: Output Schema Declarations
   """
   worker = Agent {
   provider = "openai",
-  system_prompt = "Work",
+  system_message = "Work",
   tools = {}
   }
 
@@ -127,7 +127,7 @@ Feature: Output Schema Declarations
   """
   worker = Agent {
   provider = "openai",
-  system_prompt = "Work",
+  system_message = "Work",
   tools = {}
   }
 

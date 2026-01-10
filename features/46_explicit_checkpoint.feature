@@ -79,7 +79,7 @@ Feature: Explicit Checkpoint Primitive
   """
   processor = Agent {
     provider = "openai",
-    system_prompt = "Work",
+    system_message = "Work",
     tools = {}
   }
 
@@ -132,7 +132,7 @@ Feature: Explicit Checkpoint Primitive
   """
   worker = Agent {
     provider = "openai",
-    system_prompt = "Work",
+    system_message = "Work",
     tools = {}
   }
 

@@ -2,7 +2,7 @@
 test_agent = Agent {
   provider = "openai",
   model = "gpt-4o-mini",
-  system_prompt = "You are a helpful assistant. Respond briefly.",
+  system_message = "You are a helpful assistant. Respond briefly.",
 }
 
 Procedure {

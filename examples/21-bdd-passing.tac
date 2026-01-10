@@ -5,7 +5,7 @@
 worker = Agent {
   provider = "openai",
   model = "gpt-4o-mini",
-  system_prompt = "You are a worker. Call the done tool when finished.",
+  system_message = "You are a worker. Call the done tool when finished.",
 }
 
 -- Stages

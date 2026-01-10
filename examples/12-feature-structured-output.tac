@@ -5,7 +5,7 @@
 extractor = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
-    system_prompt = [[You extract city information. Return ONLY structured data with these fields:
+    system_message = [[You extract city information. Return ONLY structured data with these fields:
 - city: city name
 - country: country name
 - population: estimated population (number, optional)

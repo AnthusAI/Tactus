@@ -1617,13 +1617,15 @@ class TactusRuntime:
 
             logger.info(f"Setting up agent: {agent_name}")
 
-            # Get agent prompts (initial_message needs template processing, system_prompt is dynamic)
-            system_prompt_template = agent_config[
-                "system_prompt"
+            # Get agent prompts (initial_message needs template processing, system_message is dynamic)
+            system_message_template = agent_config[
+                "system_message"
             ]  # Keep as template for dynamic rendering
 
             # initial_message is optional - if not provided, will default to empty string or manual injection
-            initial_message_raw = agent_config.get("initial_message", "")
+            initial_message_raw = agent_config.get("message")
+            if initial_message_raw is None:
+                initial_message_raw = agent_config.get("initial_message", "")
             initial_message = (
                 self._process_template(initial_message_raw, context) if initial_message_raw else ""
             )
@@ -1806,7 +1808,7 @@ class TactusRuntime:
 
             # Create DSPy-based agent
             dspy_config = {
-                "system_prompt": system_prompt_template,
+                "system_message": system_message_template,
                 "model": model_name,
                 "provider": agent_config.get("provider"),
                 "tools": filtered_tools,
@@ -1828,7 +1830,7 @@ class TactusRuntime:
                     else agent_config.get("model_type")
                 ),
                 "disable_streaming": agent_config.get("disable_streaming", False),
-                "initial_message": initial_message,
+                "message": initial_message,
                 "log_handler": self.log_handler,
             }
 
@@ -2536,7 +2538,7 @@ class TactusRuntime:
                 config["agents"][name] = {
                     "provider": agent.provider,
                     "model": agent.model,
-                    "system_prompt": agent.system_prompt,
+                    "system_message": agent.system_message,
                     # Use toolsets instead of tools (breaking change)
                     # Keep empty list as [] (not None) to preserve "explicitly no tools" intent
                     "toolsets": agent.tools,
@@ -2553,8 +2555,8 @@ class TactusRuntime:
                 # Include inline tool definitions if present
                 if hasattr(agent, "inline_tool_defs") and agent.inline_tool_defs:
                     config["agents"][name]["inline_tool_defs"] = agent.inline_tool_defs
-                if agent.initial_message:
-                    config["agents"][name]["initial_message"] = agent.initial_message
+                if agent.message:
+                    config["agents"][name]["message"] = agent.message
                 if agent.output:
                     config["agents"][name]["output_schema"] = {
                         field_name: {

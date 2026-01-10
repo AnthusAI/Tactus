@@ -74,8 +74,16 @@ class MockAgentPrimitive:
             return mock_response
 
         # No mock configured - return None without auto-calling any tools
-        logger.debug(f"Mock agent {self.name} has no Mocks {{}} configuration")
-        return None
+        logger.debug(f"Mock agent {self.name} has no Mocks {{}} configuration; returning default")
+
+        # Default: simulate a simple response and done call so workflows can progress
+        default_response = {
+            "response": "Task completed (mocked)",
+            "message": "Task completed (mocked)",
+            "tool_calls": "done",
+        }
+        self._handle_mock_response(default_response)
+        return default_response
 
     def _get_custom_mock_response(self, opts: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
@@ -114,6 +122,10 @@ class MockAgentPrimitive:
             if "done" in str(tool_calls).lower():
                 reason = mock_response.get("response", "Task completed (mocked)")
                 self._record_done_call(reason)
+        elif self.tool_primitive:
+            # Default behavior: simulate a done call to unblock workflows that expect it
+            reason = mock_response.get("response", "Task completed (mocked)")
+            self._record_done_call(reason)
 
     def _record_done_call(self, reason: str) -> None:
         """

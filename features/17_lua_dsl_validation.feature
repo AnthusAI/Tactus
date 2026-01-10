@@ -32,7 +32,7 @@ Feature: Lua DSL Validation
   """
   worker = Agent {
   model = "gpt-4o",
-  system_prompt = "Test",
+  system_message = "Test",
   tools = {}
   }
   """
@@ -46,7 +46,7 @@ Feature: Lua DSL Validation
   worker = Agent {
   provider = "openai",
   model = "gpt-4o",
-  system_prompt = "Test",
+  system_message = "Test",
   tools = {}
   }
 
@@ -72,7 +72,7 @@ Feature: Lua DSL Validation
   worker = Agent {
   provider = "openai",
   model = "gpt-4o",
-  system_prompt = "Test",
+  system_message = "Test",
   tools = {}
   }
 

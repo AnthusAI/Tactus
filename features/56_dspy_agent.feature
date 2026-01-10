@@ -35,7 +35,7 @@ Feature: DSPy Agent Interactions
         },
         function(input)
           local agent = DSPyAgent {
-            system_prompt = "You are a helpful assistant"
+            system_message = "You are a helpful assistant"
           }
 
           return {agent_created = agent ~= nil}
@@ -55,7 +55,7 @@ Feature: DSPy Agent Interactions
         },
         function(input)
           local agent = DSPyAgent {
-            system_prompt = "Answer questions concisely"
+            system_message = "Answer questions concisely"
           }
 
           -- Mock turn execution
@@ -147,11 +147,11 @@ Feature: DSPy Agent Interactions
         },
         function(input)
           local agent1 = DSPyAgent {
-            system_prompt = "You are a math tutor"
+            system_message = "You are a math tutor"
           }
 
           local agent2 = DSPyAgent {
-            system_prompt = "You are a writing coach"
+            system_message = "You are a writing coach"
           }
 
           -- Each agent maintains separate context
@@ -210,7 +210,7 @@ Feature: DSPy Agent Interactions
     Given an Agent with tool definitions:
       """
       {
-        "system_prompt": "You can use tools",
+        "system_message": "You can use tools",
         "tools": [
           {
             "name": "calculator",
@@ -227,7 +227,7 @@ Feature: DSPy Agent Interactions
     Given an Agent configured for structured output:
       """
       {
-        "system_prompt": "Provide structured responses",
+        "system_message": "Provide structured responses",
         "output_format": {
           "answer": "string",
           "confidence": "float",
@@ -246,7 +246,7 @@ Feature: DSPy Agent Interactions
     When I save the agent state
     Then it should preserve:
       | component      | description                |
-      | system_prompt  | The agent's instructions   |
+      | system_message  | The agent's instructions   |
       | history        | Full conversation history  |
       | configuration  | Temperature, model, etc.   |
 
@@ -263,7 +263,7 @@ Feature: DSPy Agent Interactions
     When I inspect the agent
     Then I should see:
       | property       | value                      |
-      | system_prompt  | The configured prompt      |
+      | system_message  | The configured prompt      |
       | model          | The LM model being used    |
       | history_length | Number of messages         |
       | temperature    | Current temperature setting |
@@ -283,7 +283,7 @@ Feature: DSPy Agent Interactions
     Given an Agent with an integrated Module:
       """
       {
-        "system_prompt": "Use reasoning module when needed",
+        "system_message": "Use reasoning module when needed",
         "modules": {
           "reasoner": {
             "signature": "problem -> analysis, solution",
@@ -300,7 +300,7 @@ Feature: DSPy Agent Interactions
     Given an Agent with response signature:
       """
       {
-        "system_prompt": "Provide validated responses",
+        "system_message": "Provide validated responses",
         "response_signature": "query -> answer, confidence, explanation"
       }
       """

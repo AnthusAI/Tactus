@@ -5,7 +5,7 @@
 completer = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
-    system_prompt = [[You are a helpful assistant that completes tasks.
+    system_message = [[You are a helpful assistant that completes tasks.
 
 When you complete a task, call the 'done' tool with your result.
 Always start your response with "TASK_COMPLETE: " followed by your actual work.]],

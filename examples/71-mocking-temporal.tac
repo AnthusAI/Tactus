@@ -27,7 +27,7 @@ Mocks {
 progress_monitor = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
-    system_prompt = [[You are a progress monitoring assistant.
+    system_message = [[You are a progress monitoring assistant.
 
 You have access to these tools:
 - get_counter: Get an incremental counter value

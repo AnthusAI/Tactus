@@ -5,7 +5,7 @@
 chatbot = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
-    system_prompt = "You are a helpful chatbot. Answer questions concisely.",
+    system_message = "You are a helpful chatbot. Answer questions concisely.",
 }
 
 -- Procedure with message_history configuration
