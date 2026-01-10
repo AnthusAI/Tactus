@@ -40,11 +40,11 @@ Procedure {
         end
 
         -- Write to Excel with Q1 sheet
-        excel.write("sales_report.xlsx", q1_sales, {sheet = "Q1_Sales"})
+        excel.write("output/sales_report.xlsx", q1_sales, {sheet = "Q1_Sales"})
         Log.info("Created Excel file with Q1 sales data")
 
         -- Read it back
-        local loaded_sales = excel.read("sales_report.xlsx", {sheet = "Q1_Sales"})
+        local loaded_sales = excel.read("output/sales_report.xlsx", {sheet = "Q1_Sales"})
 
         -- Process the data
         local monthly_summary = {}
@@ -103,17 +103,17 @@ Procedure {
         end
 
         -- Create a new Excel file with multiple sheets
-        excel.write("sales_analysis.xlsx", monthly_data, {sheet = "Monthly_Summary"})
+        excel.write("output/sales_analysis.xlsx", monthly_data, {sheet = "Monthly_Summary"})
 
         -- Read back the first file to add more sheets
         -- Note: Our current implementation doesn't support appending sheets,
         -- so we'll create separate files for now
-        excel.write("product_analysis.xlsx", product_data, {sheet = "Product_Summary"})
+        excel.write("output/product_analysis.xlsx", product_data, {sheet = "Product_Summary"})
 
         -- List sheets in the original file
-        local sheets = excel.sheets("sales_report.xlsx")
+        local sheets = excel.sheets("output/sales_report.xlsx")
         -- sheets is a Python list, just log it directly
-        Log.info("Available sheets in sales_report.xlsx")
+        Log.info("Available sheets in output/sales_report.xlsx")
 
         -- Create executive summary
         local total_profit = total_revenue - total_cost
@@ -127,7 +127,7 @@ Procedure {
             {metric = "Total Transactions", value = tostring(#loaded_sales)}
         }
 
-        excel.write("executive_summary.xlsx", executive_summary, {sheet = "Summary"})
+        excel.write("output/executive_summary.xlsx", executive_summary, {sheet = "Summary"})
 
         Log.info("Analysis complete", {
             total_revenue = string.format("$%.2f", total_revenue),

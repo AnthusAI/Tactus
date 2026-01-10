@@ -41,11 +41,11 @@ Procedure {
         end
 
         -- Write to Parquet format
-        parquet.write("sensor_data.parquet", sensor_data)
+        parquet.write("output/sensor_data.parquet", sensor_data)
         Log.info("Created Parquet file", {records = #sensor_data})
 
         -- Read it back
-        local loaded_data = parquet.read("sensor_data.parquet")
+        local loaded_data = parquet.read("output/sensor_data.parquet")
 
         -- Analyze the data
         local total_temp = 0
@@ -76,7 +76,7 @@ Procedure {
         end
 
         -- Write summary to Parquet
-        parquet.write("sensor_summary.parquet", summary)
+        parquet.write("output/sensor_summary.parquet", summary)
 
         Log.info("Data analysis complete", {
             total_records = #loaded_data,
@@ -108,7 +108,7 @@ Procedure {
             }
         }
 
-        parquet.write("sensor_report.parquet", report_data)
+        parquet.write("output/sensor_report.parquet", report_data)
 
         return {
             records_written = #sensor_data,

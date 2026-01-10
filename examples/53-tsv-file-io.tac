@@ -28,12 +28,12 @@ Procedure {
             {product = "Cable, USB-C", quantity = "120", price = "12.99", location = "Warehouse B"}
         }
 
-        -- Write TSV file
-        tsv.write("inventory.tsv", inventory_data)
+        -- Write TSV file (output/ folder is gitignored)
+        tsv.write("output/inventory.tsv", inventory_data)
         Log.info("Created inventory TSV file")
 
         -- Read it back
-        local loaded_data = tsv.read("inventory.tsv")
+        local loaded_data = tsv.read("output/inventory.tsv")
         local total_items = 0
         local total_value = 0
 
@@ -59,7 +59,7 @@ Procedure {
             {metric = "Total Value", value = string.format("$%.2f", total_value)}
         }
 
-        tsv.write("inventory_summary.tsv", summary_data, {
+        tsv.write("output/inventory_summary.tsv", summary_data, {
             headers = {"metric", "value"}
         })
 

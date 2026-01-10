@@ -37,6 +37,7 @@ yarn-error.log*
 .tactus/config.yml
 progress.output
 .tac/
+examples/output/
 
 *storybook.log
 storybook-static

@@ -49,16 +49,16 @@ Procedure {
     ]]
 
         -- Write configuration file
-        file.write("app_config.ini", config_content)
+        file.write("output/app_config.ini", config_content)
         Log.info("Created configuration file")
 
         -- Check if file exists
-        if file.exists("app_config.ini") then
+        if file.exists("output/app_config.ini") then
             Log.info("Configuration file verified to exist")
         end
 
         -- Read it back
-        local loaded_config = file.read("app_config.ini")
+        local loaded_config = file.read("output/app_config.ini")
 
         -- Parse the configuration (simple line-by-line parsing)
         local config = {}
@@ -99,7 +99,7 @@ Procedure {
             log_content = log_content .. string.format("[%s] %s: %s\n", timestamp, entry.level, entry.message)
         end
 
-        file.write("application.log", log_content)
+        file.write("output/application.log", log_content)
         Log.info("Created application log file")
 
         -- Create a markdown report
@@ -141,7 +141,7 @@ Procedure {
     *Report generated on ]] .. os.date("%Y-%m-%d at %H:%M:%S") .. [[*
     ]]
 
-        file.write("status_report.md", markdown_report)
+        file.write("output/status_report.md", markdown_report)
         Log.info("Created markdown status report")
 
         -- Create a simple CSV data file using raw text
@@ -151,7 +151,7 @@ Procedure {
                 i, i, math.random() * 100, i % 2 == 0 and "active" or "inactive")
         end
 
-        file.write("data_export.csv", csv_content)
+        file.write("output/data_export.csv", csv_content)
         Log.info("Created CSV file using raw text operations")
 
         -- Create a JSON file using raw text
@@ -175,16 +175,16 @@ Procedure {
         json_content = json_content .. '  "log_entries": ' .. json_data.log_entries .. '\n'
         json_content = json_content .. "}"
 
-        file.write("summary.json", json_content)
+        file.write("output/summary.json", json_content)
         Log.info("Created JSON file using raw text operations")
 
         -- Verify all files exist
         local files_to_check = {
-            "app_config.ini",
-            "application.log",
-            "status_report.md",
-            "data_export.csv",
-            "summary.json"
+            "output/app_config.ini",
+            "output/application.log",
+            "output/status_report.md",
+            "output/data_export.csv",
+            "output/summary.json"
         }
 
         local all_exist = true
@@ -202,7 +202,7 @@ Procedure {
         -- Check if config was loaded successfully
         -- In mocked mode, file.read may return empty content
         -- So we check if we at least wrote the config file
-        local config_loaded = file.exists("app_config.ini")
+        local config_loaded = file.exists("output/app_config.ini")
 
         return {
             files_created = 5,

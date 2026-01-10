@@ -56,8 +56,8 @@ Procedure {
         Log.info("Loaded CSV data", {count = record_count})
         Log.info("Found high performers", {count = #high_performers})
 
-        -- Write results to CSV
-        csv.write("output_high_performers.csv", high_performers)
+        -- Write results to CSV (output/ folder is gitignored)
+        csv.write("output/high_performers.csv", high_performers)
 
         -- Write summary to JSON
         local summary_data = {
@@ -65,14 +65,14 @@ Procedure {
             high_performers = #high_performers,
             processed_at = os.date()
         }
-        json.write("output_summary.json", summary_data)
+        json.write("output/summary.json", summary_data)
 
         -- Write raw text summary
         local summary_text = string.format(
             "Processed %d records, found %d high performers",
             record_count, #high_performers
         )
-        file.write("output_summary.txt", summary_text)
+        file.write("output/summary.txt", summary_text)
 
         return {
             records_processed = record_count,

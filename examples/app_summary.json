@@ -1,1 +1,0 @@
-{"statistics": {"active_users": 2, "inactive_users": 1, "total_logins": 60, "total_users": 3, "average_logins": 20.0}, "enabled_features": ["auth", "logging", "metrics"], "report_date": "Fri Jan 09 06:18:51 2026", "app": {"name": "Tactus Example App", "version": "1.0.0"}}

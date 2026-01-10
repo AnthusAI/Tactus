@@ -67,13 +67,13 @@ Procedure {
             }
         }
 
-        -- Write JSON file using file.write and json.encode
+        -- Write JSON file using file.write and json.encode (output/ folder is gitignored)
         local json_str = json.encode(app_config)
-        file.write("app_config.json", json_str)
+        file.write("output/app_config.json", json_str)
         Log.info("Created app configuration JSON file")
 
         -- Read it back using file.read and json.decode
-        local json_content = file.read("app_config.json")
+        local json_content = file.read("output/app_config.json")
         local loaded_config = json.decode(json_content)
 
         -- Process the data
@@ -112,7 +112,7 @@ Procedure {
 
         -- Write summary using file.write
         local summary_json = json.encode(summary)
-        file.write("app_summary.json", summary_json)
+        file.write("output/app_summary.json", summary_json)
 
         -- Also demonstrate json.encode/decode for string operations
         local encoded = json.encode({quick = "test", number = 123})

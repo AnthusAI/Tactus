@@ -62,15 +62,15 @@ Procedure {
         end
 
         -- Write datasets to HDF5 file
-        hdf5.write("scientific_data.h5", "time_series/temperatures", temperatures)
-        hdf5.write("scientific_data.h5", "time_series/pressures", pressures)
-        hdf5.write("scientific_data.h5", "time_series/timestamps", timestamps)
+        hdf5.write("output/scientific_data.h5", "time_series/temperatures", temperatures)
+        hdf5.write("output/scientific_data.h5", "time_series/pressures", pressures)
+        hdf5.write("output/scientific_data.h5", "time_series/timestamps", timestamps)
 
-        hdf5.write("scientific_data.h5", "grid/data", grid_data)
+        hdf5.write("output/scientific_data.h5", "grid/data", grid_data)
 
-        hdf5.write("scientific_data.h5", "coordinates/x", coordinates_x)
-        hdf5.write("scientific_data.h5", "coordinates/y", coordinates_y)
-        hdf5.write("scientific_data.h5", "coordinates/z", coordinates_z)
+        hdf5.write("output/scientific_data.h5", "coordinates/x", coordinates_x)
+        hdf5.write("output/scientific_data.h5", "coordinates/y", coordinates_y)
+        hdf5.write("output/scientific_data.h5", "coordinates/z", coordinates_z)
 
         Log.info("Created HDF5 file with multiple datasets")
 
@@ -79,11 +79,11 @@ Procedure {
 
         -- Write analysis results
         local analysis_results = {max_temp, max_grid}
-        hdf5.write("scientific_data.h5", "analysis/results", analysis_results)
+        hdf5.write("output/scientific_data.h5", "analysis/results", analysis_results)
 
         -- Write metadata
         local metadata = {20240115, 100, 2500, 1.0}
-        hdf5.write("scientific_data.h5", "metadata/info", metadata)
+        hdf5.write("output/scientific_data.h5", "metadata/info", metadata)
 
         Log.info("Analysis complete", {
             max_temperature = string.format("%.2f", max_temp),
