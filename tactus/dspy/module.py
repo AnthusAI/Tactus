@@ -90,11 +90,16 @@ class TactusModule:
         return schema
 
     def _create_module(self) -> dspy.Module:
-        """Create the appropriate DSPy module based on strategy."""
+        """Create the appropriate DSPy module based on strategy.
+
+        Passes through any extra kwargs to the DSPy module constructor,
+        allowing access to DSPy-specific options like temperature, max_tokens,
+        rationale_field (for ChainOfThought), etc.
+        """
         if self.strategy == "predict":
-            return dspy.Predict(self.signature)
+            return dspy.Predict(self.signature, **self.kwargs)
         elif self.strategy == "chain_of_thought":
-            return dspy.ChainOfThought(self.signature)
+            return dspy.ChainOfThought(self.signature, **self.kwargs)
         elif self.strategy == "react":
             # ReAct requires tools - will be implemented in Step 5.1
             raise NotImplementedError("ReAct strategy not yet implemented. Coming in Step 5.1.")
