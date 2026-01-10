@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.21.1 (2026-01-10)
+
+### Bug Fixes
+
+- **ci**: Add --skip-existing to twine upload
+  ([`7a1b369`](https://github.com/AnthusAI/Tactus/commit/7a1b369376ce68869b98f0faed877a52855b4459))
+
+
 ## v0.21.0 (2026-01-10)
 
 ### Bug Fixes
