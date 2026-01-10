@@ -40,3 +40,5 @@ progress.output
 
 *storybook.log
 storybook-static
+
+tmp/
