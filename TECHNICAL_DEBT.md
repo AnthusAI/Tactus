@@ -25,15 +25,11 @@ Toolsets group multiple tools together. The spec shows function-call syntax, but
 
 ### Agent Callable Parameter Name
 
-When calling an agent with an initial message, the parameter name differs between spec and implementation.
+**Status:** Resolved. Implementation now accepts `message` (alias: `initial_message`) and also supports shorthand string calls (`worker("hi")` -> `{message = "hi"}`).
 
-| Spec (Wrong) | Reality (Correct) |
-|--------------|-------------------|
-| `worker({message = "..."})` | `worker({initial_message = "..."})` |
-
-**Why it matters:** Users following the spec will pass a parameter that gets ignored.
-
-**Files to update:** SPECIFICATION.md line 2235
+| Spec | Reality |
+|------|---------|
+| `worker({message = "..."})` | `worker({message = "..."})` (also accepts `initial_message` or bare string) |
 
 ---
 

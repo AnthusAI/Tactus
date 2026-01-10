@@ -11,7 +11,7 @@ Feature: BDD Custom Step Definitions
   """
   worker = Agent {
     provider = "openai",
-    system_prompt = "Work",
+    system_message = "Work",
     tools = {}
   }
 
@@ -44,7 +44,7 @@ Feature: BDD Custom Step Definitions
   """
   analyzer = Agent {
     provider = "openai",
-    system_prompt = "Analyze",
+    system_message = "Analyze",
     tools = {}
   }
 
@@ -82,7 +82,7 @@ Feature: BDD Custom Step Definitions
   """
   analyzer = Agent {
     provider = "openai",
-    system_prompt = "Analyze",
+    system_message = "Analyze",
     tools = {}
   }
 

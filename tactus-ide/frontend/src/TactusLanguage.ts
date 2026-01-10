@@ -194,7 +194,7 @@ export function registerTactusLanguage() {
             'agent("${1:agent_name}", {',
             '\tprovider = "${2:openai}",',
             '\tmodel = "${3:gpt-4o}",',
-            '\tsystem_prompt = "${4:You are helpful}"',
+            '\tsystem_message = "${4:You are helpful}"',
             '})'
           ].join('\n'),
           insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,

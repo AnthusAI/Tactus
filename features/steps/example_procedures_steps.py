@@ -89,11 +89,7 @@ def step_impl(context):
     """Execute the procedure from the example file."""
     import asyncio
     from tactus.core.config_manager import ConfigManager
-
-    # Skip if no OpenAI API key is available
-    if not os.environ.get("OPENAI_API_KEY"):
-        context.scenario.skip("Skipping: OPENAI_API_KEY not set")
-        return
+    from tactus.core.mocking import MockManager
 
     # Determine format
     is_lua_dsl = context.example_file.suffix == ".lua" or ".tac" in context.example_file.suffixes
@@ -115,10 +111,12 @@ def step_impl(context):
         chat_recorder=None,
         mcp_server=None,
         mcp_servers=mcp_servers,
-        openai_api_key=os.environ.get("OPENAI_API_KEY"),
+        openai_api_key=None,
         tool_paths=tool_paths,
         external_config=merged_config,
+        skip_agents=True,  # Use mock agents to avoid real API calls in CI
     )
+    context.runtime.mock_manager = MockManager()
 
     # Read file content
     file_content = context.example_file.read_text()

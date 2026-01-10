@@ -13,7 +13,7 @@ Feature: Execution Settings (async, max_depth, max_turns)
 
   worker = Agent {
   provider = "openai",
-  system_prompt = "Work",
+  system_message = "Work",
   tools = {}
   }
 
@@ -33,7 +33,7 @@ Feature: Execution Settings (async, max_depth, max_turns)
 
   worker = Agent {
   provider = "openai",
-  system_prompt = "Work",
+  system_message = "Work",
   tools = {}
   }
 
@@ -53,7 +53,7 @@ Feature: Execution Settings (async, max_depth, max_turns)
 
   worker = Agent {
   provider = "openai",
-  system_prompt = "Work",
+  system_message = "Work",
   tools = {}
   }
 
@@ -75,7 +75,7 @@ Feature: Execution Settings (async, max_depth, max_turns)
 
   worker = Agent {
   provider = "openai",
-  system_prompt = "Work",
+  system_message = "Work",
   tools = {}
   }
 
@@ -93,7 +93,7 @@ Feature: Execution Settings (async, max_depth, max_turns)
   """
   worker = Agent {
   provider = "openai",
-  system_prompt = "Work",
+  system_message = "Work",
   tools = {}
   }
 

@@ -165,7 +165,7 @@ local done = require("tactus.tools.done")
 worker = Agent {
   provider = "openai",
   model = "gpt-4o-mini",
-  system_prompt = "Test",
+  system_message = "Test",
   tools = {done}
 }
 
@@ -224,7 +224,7 @@ local done = require("tactus.tools.done")
 worker = Agent {
   provider = "openai",
   model = "gpt-4o-mini",
-  system_prompt = "Say hello and call the done tool.",
+  system_message = "Say hello and call the done tool.",
   tools = {done}
 }
 

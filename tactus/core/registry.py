@@ -8,7 +8,7 @@ procedure declarations from .tac files.
 import logging
 from typing import Any, Optional, Union
 
-from pydantic import BaseModel, Field, ValidationError, ConfigDict
+from pydantic import AliasChoices, BaseModel, Field, ValidationError, ConfigDict
 
 logger = logging.getLogger(__name__)
 
@@ -46,8 +46,10 @@ class AgentDeclaration(BaseModel):
     name: str
     provider: Optional[str] = None
     model: Union[str, dict[str, Any]] = "gpt-4o"
-    system_prompt: Union[str, Any]  # String with {markers} or Lua function
-    initial_message: Optional[str] = None
+    system_message: Union[str, Any]  # String with {markers} or Lua function
+    message: Optional[str] = Field(
+        default=None, validation_alias=AliasChoices("message", "initial_message")
+    )
     tools: list[Union[str, dict[str, Any]]] = Field(
         default_factory=list
     )  # Supports toolset expressions
@@ -66,6 +68,11 @@ class AgentDeclaration(BaseModel):
     model_type: Optional[str] = None  # e.g., "chat", "responses" for reasoning models
 
     model_config = ConfigDict(extra="allow")
+
+    @property
+    def initial_message(self) -> Optional[str]:
+        """Backward-compatible alias for message."""
+        return self.message
 
 
 class HITLDeclaration(BaseModel):
@@ -208,6 +215,12 @@ class RegistryBuilder:
     def register_agent(self, name: str, config: dict, output_schema: Optional[dict] = None) -> None:
         """Register an agent declaration."""
         config["name"] = name
+
+        # Normalize message field (prefer 'message', support legacy 'initial_message')
+        if "message" not in config and "initial_message" in config:
+            config["message"] = config.pop("initial_message")
+        elif "message" in config and "initial_message" in config:
+            config.pop("initial_message", None)
 
         # Add output_schema to config if provided
         if output_schema:

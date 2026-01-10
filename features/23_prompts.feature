@@ -13,7 +13,7 @@ Feature: Prompt Templates
 
   worker = Agent {
   provider = "openai",
-  system_prompt = prompts.greeting,
+  system_message = prompts.greeting,
   tools = {}
   }
 
@@ -38,7 +38,7 @@ Feature: Prompt Templates
 
   worker = Agent {
   provider = "openai",
-  system_prompt = prompts.intro,
+  system_message = prompts.intro,
   tools = {}
   }
 
@@ -62,7 +62,7 @@ Feature: Prompt Templates
 
   worker = Agent {
   provider = "openai",
-  system_prompt = prompts.detailed,
+  system_message = prompts.detailed,
   tools = {}
   }
 
@@ -82,7 +82,7 @@ Feature: Prompt Templates
 
   researcher = Agent {
   provider = "openai",
-  system_prompt = prompts.task_prompt,
+  system_message = prompts.task_prompt,
   tools = {}
   }
 

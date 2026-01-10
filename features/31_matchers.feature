@@ -11,7 +11,7 @@ Feature: Matchers (contains, equals, matches)
   """
   worker = Agent {
   provider = "openai",
-  system_prompt = "Work",
+  system_message = "Work",
   tools = {}
   }
 
@@ -32,7 +32,7 @@ Feature: Matchers (contains, equals, matches)
   """
   worker = Agent {
   provider = "openai",
-  system_prompt = "Work",
+  system_message = "Work",
   tools = {}
   }
 
@@ -52,7 +52,7 @@ Feature: Matchers (contains, equals, matches)
   """
   worker = Agent {
   provider = "openai",
-  system_prompt = "Work",
+  system_message = "Work",
   tools = {}
   }
 
@@ -72,7 +72,7 @@ Feature: Matchers (contains, equals, matches)
   """
   worker = Agent {
   provider = "openai",
-  system_prompt = "Work",
+  system_message = "Work",
   tools = {}
   }
 
@@ -93,7 +93,7 @@ Feature: Matchers (contains, equals, matches)
   """
   worker = Agent {
   provider = "openai",
-  system_prompt = "Work",
+  system_message = "Work",
   tools = {}
   }
 

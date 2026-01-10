@@ -156,7 +156,7 @@ version("1.0.0")
 agent("worker", {
     provider = "openai",
     model = "gpt-4o",
-    system_prompt = "Test"
+    system_message = "Test"
 })
 procedure(function() end)""",
                 }

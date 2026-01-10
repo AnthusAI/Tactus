@@ -9,7 +9,7 @@ local done = require("tactus.tools.done")
 haiku_assistant = Agent {
     provider = "bedrock",
     model = "us.anthropic.claude-haiku-4-5-20251001-v1:0",
-    system_prompt = [[You are a helpful assistant powered by Claude 4.5 Haiku running on AWS Bedrock.
+    system_message = [[You are a helpful assistant powered by Claude 4.5 Haiku running on AWS Bedrock.
 
 When the user asks you a question, provide a clear and concise answer.
 After answering, call the done tool with a brief summary of what you explained.

@@ -35,7 +35,7 @@ Toolset "math_tools" {
 -- Agent using DSL-defined toolsets
 calculator = Agent {
     provider = "openai",
-    system_prompt = [[You are a helpful calculator assistant.
+    system_message = [[You are a helpful calculator assistant.
 When asked to perform calculations, use the available tools.
 
 IMPORTANT: To calculate 15% of 200, use the percentage tool with these exact parameters:

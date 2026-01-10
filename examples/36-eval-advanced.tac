@@ -6,7 +6,7 @@ local done = require("tactus.tools.done")
 formatter = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
-    system_prompt = [[You are a helpful assistant that formats data.
+    system_message = [[You are a helpful assistant that formats data.
 
 When given a task, complete it and call the 'done' tool with your result.
 Format your output according to the requirements.

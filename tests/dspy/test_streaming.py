@@ -42,7 +42,7 @@ class TestStreamingConfiguration:
         log_handler = MockLogHandler()
         agent = DSPyAgentHandle(
             name="test_agent",
-            system_prompt="Test prompt",
+            system_message="Test prompt",
             model="openai/gpt-4o-mini",
             log_handler=log_handler,
         )
@@ -52,7 +52,7 @@ class TestStreamingConfiguration:
         """Test that DSPyAgentHandle accepts disable_streaming parameter."""
         agent = DSPyAgentHandle(
             name="test_agent",
-            system_prompt="Test prompt",
+            system_message="Test prompt",
             model="openai/gpt-4o-mini",
             disable_streaming=True,
         )
@@ -64,7 +64,7 @@ class TestStreamingConfiguration:
         agent = create_dspy_agent(
             "test_agent",
             {
-                "system_prompt": "Test",
+                "system_message": "Test",
                 "model": "openai/gpt-4o-mini",
                 "log_handler": log_handler,
             },
@@ -76,7 +76,7 @@ class TestStreamingConfiguration:
         agent = create_dspy_agent(
             "test_agent",
             {
-                "system_prompt": "Test",
+                "system_message": "Test",
                 "model": "openai/gpt-4o-mini",
                 "disable_streaming": True,
             },
@@ -95,7 +95,7 @@ class TestShouldStream:
         """Test that streaming is disabled when no log_handler."""
         agent = DSPyAgentHandle(
             name="test_agent",
-            system_prompt="Test prompt",
+            system_message="Test prompt",
             model="openai/gpt-4o-mini",
         )
         assert agent._should_stream() is False
@@ -105,7 +105,7 @@ class TestShouldStream:
         log_handler = MockLogHandler()
         agent = DSPyAgentHandle(
             name="test_agent",
-            system_prompt="Test prompt",
+            system_message="Test prompt",
             model="openai/gpt-4o-mini",
             log_handler=log_handler,
         )
@@ -116,7 +116,7 @@ class TestShouldStream:
         log_handler = MockLogHandler()
         agent = DSPyAgentHandle(
             name="test_agent",
-            system_prompt="Test prompt",
+            system_message="Test prompt",
             model="openai/gpt-4o-mini",
             log_handler=log_handler,
             disable_streaming=True,
@@ -132,7 +132,7 @@ class TestShouldStream:
         log_handler = MockLogHandler()
         agent = DSPyAgentHandle(
             name="test_agent",
-            system_prompt="Test",
+            system_message="Test",
             model="openai/gpt-4o-mini",
             log_handler=log_handler,
             output_schema={"result": {"type": "string", "required": True}},
@@ -145,7 +145,7 @@ class TestShouldStream:
         log_handler = MockLogHandler()
         agent = DSPyAgentHandle(
             name="test_agent",
-            system_prompt="Test",
+            system_message="Test",
             model="openai/gpt-4o-mini",
             log_handler=log_handler,
             # Default output_schema is {"response": {"type": "string", "required": False}}
@@ -251,7 +251,7 @@ class TestStreamingWithExistingEventLoop:
         log_handler = MockLogHandler()
         agent = DSPyAgentHandle(
             name="test_agent",
-            system_prompt="Test prompt",
+            system_message="Test prompt",
             model="openai/gpt-4o-mini",
             log_handler=log_handler,
         )
