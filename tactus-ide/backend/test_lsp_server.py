@@ -209,7 +209,7 @@ def test_validation_with_errors(lsp_server):
             "params": {
                 "textDocument": {
                     "uri": "file:///test.tac",
-                    "text": 'version("1.0.0")\nprocedure(function() end)',  # Missing name
+                    "text": 'worker = Agent { system_prompt = "foo" }',  # Missing provider
                 }
             },
         }
@@ -217,10 +217,10 @@ def test_validation_with_errors(lsp_server):
 
     # Diagnostics should be generated
     diagnostics = lsp_server.handler.validate_document(
-        "file:///test.tac", 'version("1.0.0")\nprocedure(function() end)'
+        "file:///test.tac", 'worker = Agent { system_prompt = "foo" }'
     )
 
     assert len(diagnostics) > 0
-    # Should have error about missing name
+    # Should have error about missing provider
     messages = [d["message"] for d in diagnostics]
-    assert any("name is required" in msg.lower() for msg in messages)
+    assert any("missing provider" in msg.lower() for msg in messages)
