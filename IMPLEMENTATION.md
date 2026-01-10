@@ -1103,6 +1103,9 @@ Explicit checkpoints do **not** create suspend points. They simply persist curre
 
 - ✅ `Checkpoint.clear_all()` - Clear all checkpoints (execution log)
 - ✅ `Checkpoint.clear_after(position)` - Clear from position onwards
+- ✅ `Checkpoint.next_position()` - Get next checkpoint position
+- ✅ `Checkpoint.exists(position)` - Check whether a checkpoint exists
+- ✅ `Checkpoint.get(position)` - Get cached value (or nil)
 
 **Usage**: Testing and debugging checkpoint replay behavior. These are utility functions for test scenarios, not for production use.
 
