@@ -18,7 +18,7 @@ local done = require("tactus.tools.done")
 support_agent = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
-    system_prompt = [[
+    system_message = [[
 You are a customer support agent.
 
 The detected sentiment is: {State.sentiment}

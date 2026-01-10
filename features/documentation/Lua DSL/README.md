@@ -17,7 +17,7 @@ parameter "topic" { type = "string", required = true }
 agent "worker" {
     provider = "openai",
     model = "gpt-4o",
-    system_prompt = [[Research: {params.topic}]],
+    system_message = [[Research: {params.topic}]],
     tools = {"search", "done"},
     output = {
         findings = { type = "string", required = true }
@@ -97,7 +97,7 @@ class AgentDeclaration(BaseModel):
     name: str
     provider: str
     model: Union[str, dict[str, Any]] = "gpt-4o"
-    system_prompt: Union[str, Any]  # String with {markers} or Lua function
+    system_message: Union[str, Any]  # String with {markers} or Lua function
     initial_message: Optional[str] = None
     tools: list[str] = Field(default_factory=list)
     output: Optional[AgentOutputSchema] = None
@@ -376,13 +376,13 @@ def create_agent_with_templates(agent_decl: AgentDeclaration) -> Agent:
         output_type=build_output_model(agent_decl.output) if agent_decl.output else None,
     )
     
-    # If system_prompt is a string with markers, create prepare function
-    if isinstance(agent_decl.system_prompt, str) and "{" in agent_decl.system_prompt:
-        @agent.system_prompt
-        async def dynamic_system_prompt(ctx: RunContext[TactusContext]) -> str:
-            return resolve_template(agent_decl.system_prompt, ctx.deps)
+    # If system_message is a string with markers, create prepare function
+    if isinstance(agent_decl.system_message, str) and "{" in agent_decl.system_message:
+        @agent.system_message
+        async def dynamic_system_message(ctx: RunContext[TactusContext]) -> str:
+            return resolve_template(agent_decl.system_message, ctx.deps)
     else:
-        agent.system_prompt = agent_decl.system_prompt
+        agent.system_message = agent_decl.system_message
     
     return agent
 
@@ -876,7 +876,7 @@ stages { "greeting", "researching", "complete" }
 
 -- Agents
 agent "greeter" {
-    system_prompt = [[
+    system_message = [[
         You are a friendly greeter. Greet {params.name} warmly.
         When done, call the done tool with your greeting.
     ]],
@@ -888,7 +888,7 @@ agent "greeter" {
 
 agent "researcher" {
     model = "gpt-4o-mini",  -- Override default for cost savings
-    system_prompt = [[
+    system_message = [[
         Research interesting facts about the name: {params.name}
         Provide 2-3 interesting findings.
     ]],

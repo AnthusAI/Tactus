@@ -18,7 +18,7 @@ local done = require("tactus.tools.done")
 assistant = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
-    system_prompt = [[You are a helpful assistant with access to tools for calculations.
+    system_message = [[You are a helpful assistant with access to tools for calculations.
 
 IMPORTANT WORKFLOW:
 1. Read the user's question

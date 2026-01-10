@@ -32,7 +32,7 @@ Prerequisites:
 calculator = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
-    system_prompt = [[
+    system_message = [[
 You are a helpful calculator assistant.
 You have access to mathematical tools from an MCP server.
 

@@ -317,7 +317,7 @@ done = tactus.done
 worker = Agent {
     provider = "openai",
     model = "gpt-4o",
-    system_prompt = "Complete tasks efficiently",
+    system_message = "Complete tasks efficiently",
     tools = {done}
 }
 
@@ -650,7 +650,7 @@ main = procedure("main", {
 }, function()
     Worker = agent("worker", {
         model = "claude-sonnet-4-20250514",
-        system_prompt = "You look up weather information.",
+        system_message = "You look up weather information.",
         tools = {weather_lookup_tool}  -- Tool uses weather_api from deps
     })
 
@@ -776,8 +776,8 @@ Inline procedures are not parsed by `ProcedureYAMLParser` and cannot be invoked.
 - ✅ Structured output support (Pydantic models)
 
 **Configuration:**
-- ✅ `system_prompt` - Template-based system prompt
-- ✅ `initial_message` - First message to agent
+- ✅ `system_message` - Template-based system prompt
+- ✅ `message` (alias: `initial_message`) - First message to agent
 - ✅ `tools` - List of available tools
 - ✅ `model` - LLM model specification
 - ✅ `output_schema` - Structured output schema (per agent)

@@ -12,7 +12,7 @@ Current Syntax (assignment-based):
     -- Agents: assign to variable, tools as variable refs
     greeter = Agent {
         provider = "openai",
-        system_prompt = "...",
+        system_message = "...",
         tools = {done, multiply}
     }
 
@@ -1095,7 +1095,7 @@ def create_dsl_stubs(
         """
         Create a DSPy Agent.
 
-        Supports curried syntax: DSPyAgent { system_prompt = "...", ... }
+        Supports curried syntax: DSPyAgent { system_message = "...", ... }
 
         Args:
             config: Optional config dict
@@ -1105,7 +1105,7 @@ def create_dsl_stubs(
 
         Example (Lua):
             local agent = DSPyAgent {
-                system_prompt = "You are a helpful assistant"
+                system_message = "You are a helpful assistant"
             }
 
             -- Use the agent
@@ -1377,6 +1377,12 @@ def create_dsl_stubs(
                 config_dict["output_schema"] = output_schema
                 del config_dict["output"]
 
+        # Normalize message field (prefer 'message', support legacy 'initial_message')
+        if "message" not in config_dict and "initial_message" in config_dict:
+            config_dict["message"] = config_dict.pop("initial_message")
+        elif "message" in config_dict and "initial_message" in config_dict:
+            config_dict.pop("initial_message", None)
+
         # Support 'session' as an alias for 'message_history'
         if "session" in config_dict and "message_history" not in config_dict:
             config_dict["message_history"] = config_dict["session"]
@@ -1388,31 +1394,43 @@ def create_dsl_stubs(
         handle = AgentHandle(agent_name)
 
         # If we have runtime context, create the agent primitive immediately
-        if _runtime_context and not _runtime_context.get("skip_agents", False):
-            from tactus.dspy.agent import create_dspy_agent
+        if _runtime_context:
             import logging
 
             logger = logging.getLogger(__name__)
 
             try:
-                # Create the actual agent primitive NOW
-                # Note: builder.register_agent adds 'name' to config_dict, but create_dspy_agent
-                # expects name as a separate parameter. We need to pass config without 'name'.
-                agent_config = {k: v for k, v in config_dict.items() if k != "name"}
+                if _runtime_context.get("skip_agents", False):
+                    # Use mock agent primitive to avoid real LLM calls (e.g., in CI/BDD)
+                    from tactus.testing.mock_agent import MockAgentPrimitive
 
-                # Pre-process model format: combine provider and model into "provider:model"
-                # This matches what _setup_agents does
-                if "provider" in agent_config and "model" in agent_config:
-                    provider = agent_config["provider"]
-                    model_id = agent_config["model"]
-                    agent_config["model"] = f"{provider}:{model_id}"
+                    agent_primitive = MockAgentPrimitive(
+                        agent_name,
+                        _runtime_context.get("tool_primitive"),
+                        registry=builder.registry,
+                        mock_manager=_runtime_context.get("mock_manager"),
+                    )
+                else:
+                    from tactus.dspy.agent import create_dspy_agent
 
-                agent_primitive = create_dspy_agent(
-                    agent_name,
-                    agent_config,
-                    registry=builder.registry,
-                    mock_manager=_runtime_context.get("mock_manager"),
-                )
+                    # Create the actual agent primitive NOW
+                    # Note: builder.register_agent adds 'name' to config_dict, but create_dspy_agent
+                    # expects name as a separate parameter. We need to pass config without 'name'.
+                    agent_config = {k: v for k, v in config_dict.items() if k != "name"}
+
+                    # Pre-process model format: combine provider and model into "provider:model"
+                    # This matches what _setup_agents does
+                    if "provider" in agent_config and "model" in agent_config:
+                        provider = agent_config["provider"]
+                        model_id = agent_config["model"]
+                        agent_config["model"] = f"{provider}:{model_id}"
+
+                    agent_primitive = create_dspy_agent(
+                        agent_name,
+                        agent_config,
+                        registry=builder.registry,
+                        mock_manager=_runtime_context.get("mock_manager"),
+                    )
 
                 # Connect handle to primitive immediately
                 handle._set_primitive(
@@ -1427,6 +1445,23 @@ def create_dsl_stubs(
         # Register handle for lookup
         _agent_registry[agent_name] = handle
 
+        # Ensure handle has a primitive in mock/CI scenarios
+        if handle._primitive is None:
+            from tactus.testing.mock_agent import MockAgentPrimitive
+
+            agent_primitive = MockAgentPrimitive(
+                agent_name,
+                _runtime_context.get("tool_primitive") if _runtime_context else None,
+                registry=builder.registry,
+                mock_manager=_runtime_context.get("mock_manager") if _runtime_context else None,
+            )
+            handle._set_primitive(
+                agent_primitive,
+                execution_context=_runtime_context.get("execution_context")
+                if _runtime_context
+                else None,
+            )
+
         return handle
 
     def _new_agent(name_or_config=None):
@@ -1440,7 +1475,7 @@ def create_dsl_stubs(
         New syntax:
             greeter = Agent {
                 provider = "openai",
-                system_prompt = "...",
+                system_message = "...",
                 tools = {done, multiply},
             }
 
@@ -1503,6 +1538,12 @@ def create_dsl_stubs(
                 output_schema = output_config
                 config_dict["output_schema"] = output_schema
                 del config_dict["output"]
+
+        # Normalize message field (prefer 'message', support legacy 'initial_message')
+        if "message" not in config_dict and "initial_message" in config_dict:
+            config_dict["message"] = config_dict.pop("initial_message")
+        elif "message" in config_dict and "initial_message" in config_dict:
+            config_dict.pop("initial_message", None)
 
         # Support 'session' as an alias for 'message_history'
         if "session" in config_dict and "message_history" not in config_dict:

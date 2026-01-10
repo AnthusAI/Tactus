@@ -154,8 +154,10 @@ class ProcedureYAMLParser:
                 raise ProcedureConfigError(f"Agent '{agent_name}' definition must be a dictionary")
 
             # Validate required agent fields
-            required_agent_fields = ["system_prompt", "initial_message"]
+            required_agent_fields = ["system_message"]
             missing = [field for field in required_agent_fields if field not in agent_def]
+            if "message" not in agent_def and "initial_message" not in agent_def:
+                missing.append("message")
 
             if missing:
                 raise ProcedureConfigError(

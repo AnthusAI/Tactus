@@ -18,7 +18,7 @@ Feature: Model Primitive for ML Inference
   worker = Agent {
   provider = "openai",
   model = "gpt-4o",
-  system_prompt = "Process",
+  system_message = "Process",
   tools = {}
   }
 

@@ -69,7 +69,7 @@ agents:
     test_agent:
         provider: "openai"
         model: "gpt-4o-mini"
-        system_prompt: "You are a test agent. Call the add_numbers tool with a=5 and b=3."
+        system_message: "You are a test agent. Call the add_numbers tool with a=5 and b=3."
         initial_message: "Start"
         toolsets:
             - test_server

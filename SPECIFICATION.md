@@ -43,7 +43,7 @@ custom_tool = Tool {
 worker = Agent {
     provider = "openai",
     model = "gpt-4o",
-    system_prompt = "You are a helpful assistant",
+    system_message = "You are a helpful assistant",
     tools = {done}  -- Variable references, not strings
 }
 
@@ -291,7 +291,7 @@ local done = require("tactus.tools.done")
 researcher = Agent {
     provider = "openai",
     model = "gpt-4o",
-    system_prompt = "Research the topic",
+    system_message = "Research the topic",
     toolsets = {"brave_search", "done"},  -- MCP tools referenced by name
 
     message_history = {
@@ -318,7 +318,7 @@ local done = require("tactus.tools.done")
 extractor = Agent {
     provider = "openai",
     model = "gpt-4o",
-    system_prompt = "Extract structured data from user input",
+    system_message = "Extract structured data from user input",
     tools = {done},
 
     -- Define structured output schema (aligned with pydantic-ai's output_type)
@@ -370,7 +370,7 @@ This ensures type-safe, structured outputs from agents.
 worker = Agent {
     provider = "openai",
     model = "gpt-4o",
-    system_prompt = "You are helpful"
+    system_message = "You are helpful"
 }
 
 Procedure {
@@ -791,7 +791,7 @@ class GeneratedAgentDeps(AgentDeps):
     # Framework dependencies
     state_primitive: Any
     context: Dict[str, Any]
-    system_prompt_template: str
+    system_message_template: str
 
     # Your declared dependencies
     weather_api: httpx.AsyncClient
@@ -1272,7 +1272,7 @@ local done = require("tactus.tools.done")
 worker = Agent {
     provider = "openai",
     model = "gpt-4o",
-    system_prompt = "Complete the given task efficiently",
+    system_message = "Complete the given task efficiently",
     tools = {done}
 }
 
@@ -1460,7 +1460,7 @@ worker = Agent {
         }
     end,
 
-    system_prompt = [[
+    system_message = [[
 You are processing: {input.task}
 Context: {prepared.data}
     ]],
@@ -1500,7 +1500,7 @@ local done = require("tactus.tools.done")
 greeter = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
-    system_prompt = "You are a friendly greeter.",
+    system_message = "You are a friendly greeter.",
     tools = {done}
 }
 ```
@@ -1518,7 +1518,7 @@ creative_writer = Agent {
         top_p = 0.95,
         max_tokens = 2000
     },
-    system_prompt = "You are a creative writer.",
+    system_message = "You are a creative writer.",
     tools = {done}
 }
 ```
@@ -1551,7 +1551,7 @@ analyst = Agent {
         openai_reasoning_effort = "high",
         max_tokens = 4000
     },
-    system_prompt = "Analyze the data carefully.",
+    system_message = "Analyze the data carefully.",
     tools = {done}
 }
 
@@ -1562,7 +1562,7 @@ summarizer = Agent {
         temperature = 0.3,
         max_tokens = 500
     },
-    system_prompt = "Summarize concisely.",
+    system_message = "Summarize concisely.",
     tools = {done}
 }
 ```
@@ -1577,14 +1577,14 @@ local done = require("tactus.tools.done")
 openai_agent = Agent {
     provider = "openai",
     model = "gpt-4o",
-    system_prompt = "You are a helpful assistant.",
+    system_message = "You are a helpful assistant.",
     tools = {done}
 }
 
 bedrock_agent = Agent {
     provider = "bedrock",
     model = "anthropic.claude-3-5-sonnet-20240620-v1:0",
-    system_prompt = "You are a helpful assistant.",
+    system_message = "You are a helpful assistant.",
     tools = {done}
 }
 ```
@@ -1598,14 +1598,14 @@ local done = require("tactus.tools.done")
 
 worker = Agent {
     -- Uses default_model and default_provider from procedure
-    system_prompt = "Process the task.",
+    system_message = "Process the task.",
     tools = {done}
 }
 
 specialist = Agent {
     -- Can override provider/model in agent definition
     model = "gpt-4o",
-    system_prompt = "Specialist task.",
+    system_message = "Specialist task.",
     tools = {done}
 }
 
@@ -1628,14 +1628,14 @@ local done = require("tactus.tools.done")
 openai_agent = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
-    system_prompt = "Fast processing with OpenAI.",
+    system_message = "Fast processing with OpenAI.",
     tools = {done}
 }
 
 bedrock_agent = Agent {
     provider = "bedrock",
     model = "anthropic.claude-3-5-sonnet-20240620-v1:0",
-    system_prompt = "Deep analysis with Claude.",
+    system_message = "Deep analysis with Claude.",
     tools = {done}
 }
 ```
@@ -1935,7 +1935,7 @@ local done = require("tactus.tools.done")
 
 text_processor = Agent {
     provider = "openai",
-    system_prompt = "You process text",
+    system_message = "You process text",
     tools = {
         done,
         {
@@ -2529,7 +2529,7 @@ write_draft = Tool {
 -- Define agent
 writer = Agent {
     provider = "openai",
-    system_prompt = [[
+    system_message = [[
 You write content about: {input.topic}
 Target: {input.target}
     ]],
@@ -2750,7 +2750,7 @@ local done = require("tactus.tools.done")
 -- Define agents (MCP tools referenced by string name in toolsets)
 analyzer = Agent {
     provider = "openai",
-    system_prompt = [[
+    system_message = [[
 You are a Score optimization specialist. Analyze the current
 champion Score's performance and identify improvement opportunities.
 
@@ -2764,7 +2764,7 @@ Error patterns: {state.error_analysis}
 
 drafter = Agent {
     provider = "openai",
-    system_prompt = [[
+    system_message = [[
 Based on your analysis, draft an improved Score configuration.
 
 Analysis findings: {state.analysis_findings}

@@ -26,7 +26,7 @@ When you have an `output` block defined, the system will:
 storyteller = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
-    system_prompt = "You are a creative storyteller...",
+    system_message = "You are a creative storyteller...",
 }
 
 output {
@@ -43,7 +43,7 @@ You can explicitly disable streaming for an agent:
 
 ```lua
 agent("assistant", {
-    system_prompt = "You are helpful",
+    system_message = "You are helpful",
     model = "openai/gpt-4o",
     disable_streaming = true,  -- Force non-streaming mode
 })
@@ -105,7 +105,7 @@ Key files:
 storyteller = Agent {
     provider = "openai",
     model = "gpt-4o",
-    system_prompt = "You are a creative storyteller...",
+    system_message = "You are a creative storyteller...",
 }
 
 local result = storyteller({message = "Tell me a short story"})  -- This will stream!

@@ -18,7 +18,7 @@ Toolset "search_tools" {
 researcher = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
-    system_prompt = [[You are a research assistant with access to filesystem and search tools.
+    system_message = [[You are a research assistant with access to filesystem and search tools.
 
 Available MCP toolsets:
 - Filesystem tools (prefixed with filesystem_)
@@ -34,7 +34,7 @@ When done, call the done tool.]],
 file_manager = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
-    system_prompt = [[You are a file management assistant.
+    system_message = [[You are a file management assistant.
 
 Use filesystem tools to manage files.
 When done, call the done tool.]],

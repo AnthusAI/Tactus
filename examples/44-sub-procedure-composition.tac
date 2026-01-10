@@ -13,7 +13,7 @@ local done = require("tactus.tools.done")
 analyst = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
-    system_prompt = [[
+    system_message = [[
 You are a data analyst.
 
 The processed data shows:

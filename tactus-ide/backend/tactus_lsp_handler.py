@@ -100,7 +100,7 @@ class TactusLSPHandler:
             {
                 "label": "agent",
                 "kind": 3,
-                "insertText": 'agent("${1:agent_name}", {\n\tprovider = "${2:openai}",\n\tmodel = "${3:gpt-4o}",\n\tsystem_prompt = "${4:You are helpful}"\n})',
+                "insertText": 'agent("${1:agent_name}", {\n\tprovider = "${2:openai}",\n\tmodel = "${3:gpt-4o}",\n\tsystem_message = "${4:You are helpful}"\n})',
                 "insertTextFormat": 2,
                 "documentation": "Define an agent",
             },
@@ -213,12 +213,12 @@ class TactusLSPHandler:
         signatures = [
             {
                 "label": "agent(name: string, config: table)",
-                "documentation": "Define an agent with provider, model, and system_prompt",
+                "documentation": "Define an agent with provider, model, and system_message",
                 "parameters": [
                     {"label": "name", "documentation": "Agent name"},
                     {
                         "label": "config",
-                        "documentation": "Agent configuration: {provider, model, system_prompt, tools}",
+                        "documentation": "Agent configuration: {provider, model, system_message, tools}",
                     },
                 ],
             },

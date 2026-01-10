@@ -20,7 +20,7 @@ done = Tool {
 test_agent = Agent {
     provider = "openai",
     model = "gpt-4o",
-    system_prompt = "You are a test agent",
+    system_message = "You are a test agent",
     tools = {done}
 }
 

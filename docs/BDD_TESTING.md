@@ -255,7 +255,7 @@ Mocks {
 assistant = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
-    system_prompt = "You help with weather queries.",
+    system_message = "You help with weather queries.",
     tools = {weather, done}
 }
 
@@ -368,7 +368,7 @@ search = mcp.brave_search.search
 researcher = Agent {
   provider = "openai",
   model = "gpt-4o-mini",
-  system_prompt = "Research: {input.topic}",
+  system_message = "Research: {input.topic}",
   tools = {search, done}
 }
 

@@ -50,7 +50,7 @@ local done = require("tactus.tools.done")
 summarizer = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
-    system_prompt = [[You are a helpful assistant that summarizes calculation results.
+    system_message = [[You are a helpful assistant that summarizes calculation results.
 
 Given the calculation results in the context, provide a brief, friendly summary
 that explains what was calculated and the final amounts.

@@ -4,7 +4,7 @@
 -- Agents (defined at top level - reusable across procedures)
 worker = Agent {
     provider = "openai",
-    system_prompt = "A simple worker agent",
+    system_message = "A simple worker agent",
     initial_message = "Starting state management example",
     toolsets = {},
 }

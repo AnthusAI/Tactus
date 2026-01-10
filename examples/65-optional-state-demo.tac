@@ -8,7 +8,7 @@ local done = require("tactus.tools.done")
 assistant = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
-    system_prompt = "You are a helpful assistant. When asked to demonstrate something, explain it briefly and call done.",
+    system_message = "You are a helpful assistant. When asked to demonstrate something, explain it briefly and call done.",
     tools = {done}
 }
 
