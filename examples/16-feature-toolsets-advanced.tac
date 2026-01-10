@@ -20,7 +20,7 @@ local done = require("tactus.tools.done")
 analyst = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
-    system_prompt = [[You are a financial analyst with access to calculation tools.
+    system_message = [[You are a financial analyst with access to calculation tools.
 List the available tools and then call the done Tool.]],
     initial_message = "What tools do you have available?",
     toolsets = {
@@ -33,7 +33,7 @@ List the available tools and then call the done Tool.]],
 calculator = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
-    system_prompt = [[You are a calculator with access to mathematical functions.
+    system_message = [[You are a calculator with access to mathematical functions.
 List your tools and call done when finished.]],
     initial_message = "What mathematical tools can you use?",
     toolsets = {
@@ -47,7 +47,7 @@ List your tools and call done when finished.]],
 prefixed_agent = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
-    system_prompt = [[You have prefixed tools. List them and call done.]],
+    system_message = [[You have prefixed tools. List them and call done.]],
     initial_message = "Show me your prefixed tools",
     toolsets = {
         -- Add calc_ prefix to all tools from plugin
@@ -60,7 +60,7 @@ prefixed_agent = Agent {
 restricted = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
-    system_prompt = [[You have most tools except excluded ones. List them and call done.]],
+    system_message = [[You have most tools except excluded ones. List them and call done.]],
     initial_message = "What tools do you have?",
     toolsets = {
         -- Exclude specific tools from plugin toolset
@@ -73,7 +73,7 @@ restricted = Agent {
 observer = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
-    system_prompt = [[You are an observer with no tools. Just respond with your observation.]],
+    system_message = [[You are an observer with no tools. Just respond with your observation.]],
     initial_message = "Observe that you have no tools available.",
     toolsets = {}  -- Explicitly empty - NO tools at all
 }

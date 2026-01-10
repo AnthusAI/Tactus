@@ -21,7 +21,7 @@ git_status = Tool { use = "cli.git", description = "Get git repository status" }
 tool_demo = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
-    system_prompt = [[You are a helpful assistant that demonstrates using various tools.
+    system_message = [[You are a helpful assistant that demonstrates using various tools.
 
 Available tools:
 - log: Log messages at different levels

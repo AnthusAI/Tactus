@@ -11,7 +11,7 @@ Feature: Session Filters
   """
   worker = Agent {
   provider = "openai",
-  system_prompt = "Work",
+  system_message = "Work",
   tools = {},
   session = {
   source = "own",
@@ -33,7 +33,7 @@ Feature: Session Filters
   """
   worker = Agent {
   provider = "openai",
-  system_prompt = "Work",
+  system_message = "Work",
   tools = {},
   session = {
   source = "own",
@@ -55,7 +55,7 @@ Feature: Session Filters
   """
   worker = Agent {
   provider = "openai",
-  system_prompt = "Work",
+  system_message = "Work",
   tools = {},
   session = {
   source = "own",
@@ -77,7 +77,7 @@ Feature: Session Filters
   """
   worker = Agent {
   provider = "openai",
-  system_prompt = "Work",
+  system_message = "Work",
   tools = {},
   session = {
   source = "own",
@@ -102,7 +102,7 @@ Feature: Session Filters
   """
   worker = Agent {
   provider = "openai",
-  system_prompt = "Work",
+  system_message = "Work",
   tools = {}
   }
 

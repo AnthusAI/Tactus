@@ -49,7 +49,7 @@ Mocks {
 info_gatherer = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
-    system_prompt = [[You are an information gathering assistant.
+    system_message = [[You are an information gathering assistant.
 
 You have access to these tools:
 - weather: Get current weather information

@@ -59,7 +59,7 @@ calculator = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
     tool_choice = "required",
-    system_prompt = [[You are a helpful calculator assistant.
+    system_message = [[You are a helpful calculator assistant.
 
 IMPORTANT: You MUST call the appropriate tool for EVERY calculation. Never calculate directly.
 

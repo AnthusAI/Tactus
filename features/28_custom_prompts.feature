@@ -13,7 +13,7 @@ Feature: Custom Prompts (return, error, status)
 
   worker = Agent {
   provider = "openai",
-  system_prompt = "Work",
+  system_message = "Work",
   tools = {}
   }
 
@@ -33,7 +33,7 @@ Feature: Custom Prompts (return, error, status)
 
   worker = Agent {
   provider = "openai",
-  system_prompt = "Work",
+  system_message = "Work",
   tools = {}
   }
 
@@ -53,7 +53,7 @@ Feature: Custom Prompts (return, error, status)
 
   worker = Agent {
   provider = "openai",
-  system_prompt = "Work",
+  system_message = "Work",
   tools = {}
   }
 
@@ -75,7 +75,7 @@ Feature: Custom Prompts (return, error, status)
 
   worker = Agent {
   provider = "openai",
-  system_prompt = "Work",
+  system_message = "Work",
   tools = {}
   }
 
@@ -105,7 +105,7 @@ Feature: Custom Prompts (return, error, status)
   
   worker = Agent {
   provider = "openai",
-  system_prompt = "Work",
+  system_message = "Work",
   tools = {}
   }
 

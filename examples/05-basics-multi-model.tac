@@ -7,7 +7,7 @@ local done = require("tactus.tools.done")
 researcher = Agent {
     provider = "openai",
     model = "gpt-4o",
-    system_prompt = [[You are a researcher. Provide brief research findings (2-3 paragraphs maximum).
+    system_message = [[You are a researcher. Provide brief research findings (2-3 paragraphs maximum).
 IMPORTANT: You MUST call the 'done' tool when finished, passing your research as the 'reason' argument.
 ]],
     initial_message = "Please research this topic and call done when finished: {input.topic}",
@@ -17,7 +17,7 @@ IMPORTANT: You MUST call the 'done' tool when finished, passing your research as
 summarizer = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
-    system_prompt = [[You are a summarizer. Create a brief 1-2 paragraph summary of the provided text.
+    system_message = [[You are a summarizer. Create a brief 1-2 paragraph summary of the provided text.
 IMPORTANT: You MUST call the 'done' tool when finished, passing your summary as the 'reason' argument.
 ]],
     initial_message = "Please summarize the following research and call done when finished:\n\n{research}",

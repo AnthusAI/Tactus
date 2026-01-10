@@ -36,6 +36,19 @@ Procedure {
 
 
 @pytest.mark.asyncio
+async def test_top_level_return_raw_value(tmp_path):
+    """Test that top-level returns are passed through when no output schema."""
+    source = 'return "hello world"'
+
+    storage = FileStorage(str(tmp_path / "storage"))
+    runtime = TactusRuntime(procedure_id="test", storage_backend=storage)
+    result = await runtime.execute(source, context={}, format="lua")
+
+    assert result["success"]
+    assert result["result"] == "hello world"
+
+
+@pytest.mark.asyncio
 async def test_script_mode_no_input(tmp_path):
     """Test unnamed Procedure with only output schema."""
     source = """
@@ -72,7 +85,7 @@ local done = require("tactus.tools.done")
 worker = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
-    system_prompt = "Complete tasks",
+    system_message = "Complete tasks",
     tools = {done}
 }
 
@@ -193,7 +206,7 @@ local done = require("tactus.tools.done")
 worker = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
-    system_prompt = "Test",
+    system_message = "Test",
     tools = {done}
 }
 """

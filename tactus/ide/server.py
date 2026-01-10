@@ -457,9 +457,9 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                         "name": agent.name,
                         "provider": agent.provider,
                         "model": agent.model if isinstance(agent.model, str) else str(agent.model),
-                        "system_prompt": (
-                            agent.system_prompt
-                            if isinstance(agent.system_prompt, str)
+                        "system_message": (
+                            agent.system_message
+                            if isinstance(agent.system_message, str)
                             else "[Dynamic Prompt]"
                         ),
                         "tools": agent.tools,

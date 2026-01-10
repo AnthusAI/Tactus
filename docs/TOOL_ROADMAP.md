@@ -430,7 +430,7 @@ tool("done", {
 agent("worker", {
     provider = "openai",
     model = "gpt-4o",
-    system_prompt = "You are a helpful assistant",
+    system_message = "You are a helpful assistant",
     toolsets = {"search", "analyze", "done"}  -- All must be explicitly defined
 })
 ```

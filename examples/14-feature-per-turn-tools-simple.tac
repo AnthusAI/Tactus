@@ -7,7 +7,7 @@ local done = require("tactus.tools.done")
 tester = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
-    system_prompt = "You are a test agent. When you have tools, call done. When you don't have tools, just respond with 'No tools available'.",
+    system_message = "You are a test agent. When you have tools, call done. When you don't have tools, just respond with 'No tools available'.",
     initial_message = "Start test",
     tools = {done}  -- Default toolset
 }

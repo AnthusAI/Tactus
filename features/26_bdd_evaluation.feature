@@ -11,7 +11,7 @@ Feature: BDD Evaluation Configuration
   """
   worker = Agent {
   provider = "openai",
-  system_prompt = "Work",
+  system_message = "Work",
   tools = {"done"}
   }
 
@@ -43,7 +43,7 @@ Feature: BDD Evaluation Configuration
   """
   worker = Agent {
   provider = "openai",
-  system_prompt = "Work",
+  system_message = "Work",
   tools = {"done"}
   }
 
@@ -74,7 +74,7 @@ Feature: BDD Evaluation Configuration
   """
   worker = Agent {
   provider = "openai",
-  system_prompt = "Work",
+  system_message = "Work",
   tools = {"done"}
   }
 
@@ -106,7 +106,7 @@ Feature: BDD Evaluation Configuration
   """
   worker = Agent {
   provider = "openai",
-  system_prompt = "Work",
+  system_message = "Work",
   tools = {"done"}
   }
 

@@ -26,7 +26,7 @@ done = Tool {
 time_agent = Agent {
     provider = "openai",
     model = "gpt-4o",
-    system_prompt = [[
+    system_message = [[
 You are a helpful agent.
 
 For this test, just call done immediately.

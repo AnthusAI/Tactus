@@ -18,7 +18,7 @@ export interface AgentDeclaration {
   name: string;
   provider: string;
   model: string;
-  system_prompt: string;
+  system_message: string;
   tools: string[];
 }
 

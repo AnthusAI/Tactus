@@ -100,7 +100,7 @@ analyze = mcp.analyze.analyze
 
 researcher = Agent {
   model = "gpt-4o",
-  system_prompt = "Research the topic thoroughly.",
+  system_message = "Research the topic thoroughly.",
   tools = {search, analyze, done}
 }
 
@@ -262,7 +262,7 @@ done = tactus.done
 file_contact = mcp.contacts.file_contact
 
 importer = Agent {
-  system_prompt = "Extract contacts from the data. File each one you find.",
+  system_message = "Extract contacts from the data. File each one you find.",
   tools = {file_contact, done}
 }
 ```
@@ -459,7 +459,7 @@ done = tactus.done
 greeter = Agent {
   provider = "openai",
   model = "gpt-4o-mini",
-  system_prompt = [[
+  system_message = [[
     You are a friendly greeter. Greet the user by name: {input.name}
     When done, call the done tool.
   ]],
@@ -538,7 +538,7 @@ analyze = mcp.analyze.analyze
 researcher = Agent {
   provider = "openai",
   model = "gpt-4o",
-  system_prompt = "You are a research assistant.",
+  system_message = "You are a research assistant.",
   tools = {search, analyze, done}
 }
 
@@ -958,14 +958,14 @@ search = mcp.brave_search.search
 researcher = Agent {
   provider = "openai",
   model = "gpt-4o",  -- Use GPT-4o for complex research
-  system_prompt = "Research the topic thoroughly...",
+  system_message = "Research the topic thoroughly...",
   tools = {search, done}
 }
 
 summarizer = Agent {
   provider = "openai",
   model = "gpt-4o-mini",  -- Use GPT-4o-mini for simple summarization
-  system_prompt = "Summarize the findings concisely...",
+  system_message = "Summarize the findings concisely...",
   tools = {done}
 }
 ```
@@ -978,14 +978,14 @@ done = tactus.done
 openai_analyst = Agent {
   provider = "openai",
   model = "gpt-4o",
-  system_prompt = "Analyze the data...",
+  system_message = "Analyze the data...",
   tools = {done}
 }
 
 bedrock_reviewer = Agent {
   provider = "bedrock",
   model = "anthropic.claude-3-5-sonnet-20240620-v1:0",
-  system_prompt = "Review the analysis...",
+  system_message = "Review the analysis...",
   tools = {done}
 }
 ```
@@ -1002,7 +1002,7 @@ creative_writer = Agent {
     temperature = 0.9,  -- Higher creativity
     max_tokens = 2000
   },
-  system_prompt = "Write creatively...",
+  system_message = "Write creatively...",
   tools = {done}
 }
 
@@ -1013,7 +1013,7 @@ reasoning_agent = Agent {
     openai_reasoning_effort = "high",
     max_tokens = 4000
   },
-  system_prompt = "Solve this complex problem...",
+  system_message = "Solve this complex problem...",
   tools = {done}
 }
 ```
@@ -1105,7 +1105,7 @@ search = mcp.brave_search.search
 analyze = mcp.analyze.analyze
 
 worker = Agent {
-  system_prompt = "Process the task...",
+  system_message = "Process the task...",
   tools = {search, analyze, done},
 
   -- Control what this agent sees
@@ -1313,7 +1313,7 @@ The AI agent space is crowded. This section explains how Tactus differs from alt
 
 Tactus takes a different approach: rather than optimizing prompts automatically, it provides a token-efficient, sandboxed language that serves as a safe platform for user-contributed or AI-generated code. Where DSPy hides control flow behind module composition, Tactus makes it explicit—you write the loops, conditionals, and error handling while agents handle intelligence within each turn.
 
-The frameworks are complementary: you could use DSPy to optimize the prompts that go into a Tactus agent's `system_prompt`, then use Tactus to orchestrate those optimized agents in a durable, human-in-the-loop workflow.
+The frameworks are complementary: you could use DSPy to optimize the prompts that go into a Tactus agent's `system_message`, then use Tactus to orchestrate those optimized agents in a durable, human-in-the-loop workflow.
 
 | | DSPy | Tactus |
 |-|------|--------|
