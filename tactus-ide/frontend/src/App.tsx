@@ -128,7 +128,7 @@ const AppContent: React.FC = () => {
 
   // Results history and metadata state
   const [resultsHistory, setResultsHistory] = useState<ResultsHistoryState>({});
-  const [activeTab, setActiveTab] = useState<'procedure' | 'results'>('procedure');
+  const [activeTab, setActiveTab] = useState<'procedure' | 'results' | 'chat'>('procedure');
   const [procedureMetadata, setProcedureMetadata] = useState<ProcedureMetadata | null>(null);
   const [metadataLoading, setMetadataLoading] = useState(false);
   const [currentRunId, setCurrentRunId] = useState<string | null>(null);

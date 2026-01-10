@@ -1,16 +1,17 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { Loader2, Monitor, AlertTriangle } from 'lucide-react';
+import { Loader2, Monitor, AlertTriangle, MessageSquare } from 'lucide-react';
 import { FileResultsHistory } from '@/types/results';
 import { ProcedureMetadata } from '@/types/metadata';
 import { CheckpointEntry } from '@/types/tracing';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ProcedureTab } from './ProcedureTab';
 import { CollapsibleRun } from './CollapsibleRun';
+import { ChatSidebar } from './ChatSidebar';
 
 interface ResultsSidebarProps {
   currentFile: string | null;
-  activeTab: 'procedure' | 'results';
-  onTabChange: (tab: 'procedure' | 'results') => void;
+  activeTab: 'procedure' | 'results' | 'chat';
+  onTabChange: (tab: 'procedure' | 'results' | 'chat') => void;
 
   // Procedure tab
   procedureMetadata: ProcedureMetadata | null;
@@ -201,47 +202,58 @@ export const ResultsSidebar: React.FC<ResultsSidebarProps> = ({
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={(value) => onTabChange(value as 'procedure' | 'results')} className="flex flex-col flex-1 min-h-0">
-        <div className="h-10 px-2 border-b flex items-center justify-between bg-muted/30 flex-shrink-0">
-          <TabsList className="h-8">
-            <TabsTrigger value="procedure" className="text-xs">
-              Procedure
-            </TabsTrigger>
-            <TabsTrigger value="results" className="text-xs">
-              Results
-            </TabsTrigger>
-          </TabsList>
+      <Tabs value={activeTab} onValueChange={(value) => onTabChange(value as 'procedure' | 'results' | 'chat')} className="flex flex-col flex-1 min-h-0">
+        <div className="border-b bg-background flex-shrink-0">
+          <div className="flex items-center justify-between px-3 h-12">
+            <TabsList className="h-9 bg-muted/50">
+              <TabsTrigger value="procedure" className="text-xs data-[state=active]:bg-background">
+                Procedure
+              </TabsTrigger>
+              <TabsTrigger value="results" className="text-xs data-[state=active]:bg-background">
+                Results
+              </TabsTrigger>
+              <TabsTrigger value="chat" className="text-xs data-[state=active]:bg-background">
+                <MessageSquare className="h-3.5 w-3.5 mr-1.5" />
+                Chat
+              </TabsTrigger>
+            </TabsList>
 
-          {activeTab === 'results' && isRunning && containerStatus.status === 'idle' && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Loader2 className="h-3 w-3 animate-spin" />
-              <span>Running...</span>
-            </div>
-          )}
-          {activeTab === 'results' && containerStatus.status === 'starting' && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Loader2 className="h-3 w-3 animate-spin" />
-              <span>Container starting...</span>
-            </div>
-          )}
-          {activeTab === 'results' && containerStatus.status === 'ready' && (
-            <div className="flex items-center gap-2 text-xs text-green-600">
-              <Monitor className="h-3 w-3" />
-              <span>Ready in {(containerStatus.spinupMs! / 1000).toFixed(1)}s</span>
-            </div>
-          )}
-          {activeTab === 'results' && containerStatus.status === 'disabled' && isRunning && (
-            <div className="flex items-center gap-2 text-xs text-amber-600">
-              <AlertTriangle className="h-3 w-3" />
-              <span>⚠ No sandbox (security risk)</span>
-            </div>
-          )}
-          {activeTab === 'results' && containerStatus.status === 'error' && (
-            <div className="flex items-center gap-2 text-xs text-red-600">
-              <AlertTriangle className="h-3 w-3" />
-              <span>Sandbox unavailable</span>
-            </div>
-          )}
+            {/* Status indicators - only show on Results tab */}
+            {activeTab === 'results' && (
+              <div className="flex items-center gap-2">
+                {isRunning && containerStatus.status === 'idle' && (
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>Running...</span>
+                  </div>
+                )}
+                {containerStatus.status === 'starting' && (
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>Starting...</span>
+                  </div>
+                )}
+                {containerStatus.status === 'ready' && (
+                  <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400">
+                    <Monitor className="h-3.5 w-3.5" />
+                    <span>Ready ({(containerStatus.spinupMs! / 1000).toFixed(1)}s)</span>
+                  </div>
+                )}
+                {containerStatus.status === 'disabled' && isRunning && (
+                  <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    <span>No sandbox</span>
+                  </div>
+                )}
+                {containerStatus.status === 'error' && (
+                  <div className="flex items-center gap-1.5 text-xs text-destructive">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    <span>Error</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Tab Content Container - uses relative positioning for absolute TabsContent children */}
@@ -270,6 +282,11 @@ export const ResultsSidebar: React.FC<ResultsSidebarProps> = ({
                 ))}
               </div>
             )}
+          </TabsContent>
+
+          {/* Chat Tab Content */}
+          <TabsContent value="chat" className="absolute inset-0 m-0 data-[state=inactive]:pointer-events-none">
+            <ChatSidebar apiUrl={(path) => path} />
           </TabsContent>
         </div>
       </Tabs>
