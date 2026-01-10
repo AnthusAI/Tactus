@@ -2,6 +2,46 @@
 
 <!-- version list -->
 
+## v0.21.0 (2026-01-10)
+
+### Bug Fixes
+
+- Add Checkpoint.exists and Checkpoint.get
+  ([`d652411`](https://github.com/AnthusAI/Tactus/commit/d6524115dea8de42559b94a1f35309f7538958e7))
+
+- Add System.alert primitive
+  ([`18ece11`](https://github.com/AnthusAI/Tactus/commit/18ece114eea760e97b07a493b7ee13eb27034516))
+
+- Clarify summarization prompts are logged
+  ([`423b912`](https://github.com/AnthusAI/Tactus/commit/423b912c590cd7e9702a0e9dbb76288f26cdfd4a))
+
+- Clarify template namespaces and rendering
+  ([`a33a383`](https://github.com/AnthusAI/Tactus/commit/a33a3831fb335b81d1e3152f5feb6d24f436bdb8))
+
+- Expose agent Result usage and history
+  ([`7f41286`](https://github.com/AnthusAI/Tactus/commit/7f412860f94c79a442fc8e86365f71ddddc9b58f))
+
+- Handle string input in agent __call__ method
+  ([`4af6ad5`](https://github.com/AnthusAI/Tactus/commit/4af6ad590cacb116885ce60ca93656c092f01435))
+
+- Remove incompatible tests and skip deprecated YAML test
+  ([`f96f084`](https://github.com/AnthusAI/Tactus/commit/f96f0842ceffa8176329b5553096c39ff1ba15d1))
+
+- Standardize on TactusResult.value and fix agent mock lookup
+  ([`a4e02c0`](https://github.com/AnthusAI/Tactus/commit/a4e02c0699a40461a2d0476e1359216d02a82616))
+
+- Support message alias for agent calls
+  ([`9a2b817`](https://github.com/AnthusAI/Tactus/commit/9a2b817478acf5848dad346fa9d0f0dd1a78eb86))
+
+- **ci**: Only run twine upload when dist files exist
+  ([`d490f55`](https://github.com/AnthusAI/Tactus/commit/d490f5527c8588666ffcafa67d13e195815c2856))
+
+### Chores
+
+- Update .gitignore to include tmp/ directory
+  ([`1294360`](https://github.com/AnthusAI/Tactus/commit/1294360a261cec1ff8c35f8063ae2b652c340373))
+
+
 ## v0.20.0 (2026-01-09)
 
 
