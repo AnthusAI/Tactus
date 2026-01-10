@@ -5,9 +5,5 @@ World = Agent {
 }
 
 return {
-    message = (
-        World {
-            message = "Hello, World!"
-        }
-    ).value.response
+    World("Hello, World!")
 }
