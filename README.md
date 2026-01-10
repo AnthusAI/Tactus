@@ -460,7 +460,11 @@ greeter = Agent {
   provider = "openai",
   model = "gpt-4o-mini",
   system_message = [[
+<<<<<<< Updated upstream
     You are a friendly greeter. Greet the user by name: {input.name}
+=======
+    You are a friendly greeter. Greet the user by name: {{ input.name }}
+>>>>>>> Stashed changes
     When done, call the done tool.
   ]],
   tools = {done}

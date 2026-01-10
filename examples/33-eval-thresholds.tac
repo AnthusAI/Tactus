@@ -8,7 +8,7 @@ greeter = Agent {
 
 Generate a warm, personalized greeting for the given name.
 Call the 'done' tool with your greeting.]],
-    initial_message = "Generate a greeting for {name}",
+    message = "Generate a greeting for {name}",
 }
 
 Procedure {

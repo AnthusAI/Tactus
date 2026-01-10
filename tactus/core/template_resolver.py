@@ -1,142 +1,63 @@
 """
-Template variable resolution for DSL strings.
+Template resolution utilities for agent prompts.
 
-Resolves template markers like {params.topic}, {state.count}, etc.
-in system prompts, HITL messages, and other template strings.
+Supports two modes:
+- ``jinja2`` (default): renders strings with Jinja2 using StrictUndefined
+- ``plain``: returns the template unchanged
+
+Only the context explicitly provided by callers is available to templates.
 """
 
-import re
-from typing import Any, Optional
+from __future__ import annotations
+
+import logging
+from typing import Any, Mapping
+
+from jinja2 import Environment, StrictUndefined, TemplateError
+
+logger = logging.getLogger(__name__)
 
 
 class TemplateResolver:
-    """Resolves template variables in strings."""
+    """Render prompt templates using a constrained context."""
 
-    # Pattern matches {namespace.key} or {namespace.key.nested}
-    TEMPLATE_PATTERN = re.compile(r"\{([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*)\}")
+    VALID_MODES = {"jinja2", "plain"}
 
-    def __init__(
-        self,
-        params: Optional[dict[str, Any]] = None,
-        state: Optional[dict[str, Any]] = None,
-        outputs: Optional[dict[str, Any]] = None,
-        context: Optional[dict[str, Any]] = None,
-        prepared: Optional[dict[str, Any]] = None,
-        env: Optional[dict[str, str]] = None,
-    ):
+    def __init__(self, mode: str = "jinja2"):
+        if mode not in self.VALID_MODES:
+            raise ValueError(f"Unknown template mode '{mode}'. Expected one of {self.VALID_MODES}.")
+
+        self.mode = mode
+        self._env = None
+
+        if mode == "jinja2":
+            # StrictUndefined prevents silent fallback to empty strings when a variable is missing.
+            self._env = Environment(undefined=StrictUndefined, autoescape=False, trim_blocks=True)
+
+    def render(self, template: Any, context: Mapping[str, Any] | None = None) -> Any:
         """
-        Initialize template resolver with available namespaces.
+        Render a template string with the provided context.
 
-        Args:
-            params: Input parameters
-            state: Procedure state
-            outputs: Output values (for return_prompt)
-            context: Runtime context
-            prepared: Agent prepare hook output
-            env: Environment variables
+        Non-string inputs are returned unchanged so callers can safely pass
+        configuration values without pre-checking their types.
         """
-        self.namespaces = {
-            "params": params or {},
-            "state": state or {},
-            "output": outputs or {},
-            "context": context or {},
-            "prepared": prepared or {},
-            "env": env or {},
-        }
-
-    def resolve(self, template: str) -> str:
-        """
-        Resolve all template variables in a string.
-
-        Args:
-            template: String with {namespace.key} markers
-
-        Returns:
-            String with markers replaced by values
-
-        Example:
-            >>> resolver = TemplateResolver(params={"topic": "AI"})
-            >>> resolver.resolve("Research: {params.topic}")
-            "Research: AI"
-        """
-        if not template:
+        if not isinstance(template, str):
             return template
 
-        def replace_match(match):
-            path = match.group(1)
-            value = self._get_value(path)
-            if value is None:
-                # Keep the marker if value not found
-                return match.group(0)
-            return str(value)
+        if not template or self.mode == "plain":
+            return template
 
-        return self.TEMPLATE_PATTERN.sub(replace_match, template)
-
-    def _get_value(self, path: str) -> Any:
-        """
-        Get value from namespaces using dot notation.
-
-        Args:
-            path: Dot-separated path like "params.topic" or "state.count"
-
-        Returns:
-            Value at path, or None if not found
-        """
-        parts = path.split(".")
-        if not parts:
-            return None
-
-        # First part is the namespace
-        namespace_name = parts[0]
-        namespace = self.namespaces.get(namespace_name)
-        if namespace is None:
-            return None
-
-        # Navigate nested keys
-        current = namespace
-        for part in parts[1:]:
-            if isinstance(current, dict):
-                current = current.get(part)
-            else:
-                # Can't navigate further
-                return None
-
-            if current is None:
-                return None
-
-        return current
+        try:
+            assert self._env is not None
+            return self._env.from_string(template).render(**(context or {}))
+        except TemplateError as exc:
+            logger.warning(f"Template rendering failed ({exc}). Returning template unchanged.")
+            return template
+        except Exception as exc:  # pragma: no cover - defensive guard
+            logger.error(f"Unexpected template rendering error: {exc}")
+            return template
 
 
-def resolve_template(
-    template: str,
-    params: Optional[dict[str, Any]] = None,
-    state: Optional[dict[str, Any]] = None,
-    outputs: Optional[dict[str, Any]] = None,
-    context: Optional[dict[str, Any]] = None,
-    prepared: Optional[dict[str, Any]] = None,
-    env: Optional[dict[str, str]] = None,
-) -> str:
-    """
-    Convenience function to resolve a template string.
-
-    Args:
-        template: String with {namespace.key} markers
-        params: Input parameters
-        state: Procedure state
-        outputs: Output values
-        context: Runtime context
-        prepared: Agent prepare hook output
-        env: Environment variables
-
-    Returns:
-        Resolved string
-    """
-    resolver = TemplateResolver(
-        params=params,
-        state=state,
-        outputs=outputs,
-        context=context,
-        prepared=prepared,
-        env=env,
-    )
-    return resolver.resolve(template)
+def render_template(template: Any, context: Mapping[str, Any] | None = None, mode: str = "jinja2"):
+    """Convenience wrapper for one-off renders."""
+    return TemplateResolver(mode=mode).render(template, context)

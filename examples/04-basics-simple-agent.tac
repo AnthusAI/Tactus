@@ -9,7 +9,11 @@ greeter = Agent {
     temperature = 1.0,         -- Reasoning models require temperature=1.0
     max_tokens = 16000,        -- Reasoning models require max_tokens >= 16000
     system_message = "You are a friendly assistant. When asked to greet someone, provide a warm, friendly greeting. When you're done, call the done tool with reason set to your greeting message. Do not use emojis.",
+<<<<<<< Updated upstream
     initial_message = "Please greet the user with a friendly message",
+=======
+    message = "Please greet the user with a friendly message",
+>>>>>>> Stashed changes
     tools = {done},
 }
 

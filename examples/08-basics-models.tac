@@ -14,7 +14,11 @@ gpt4o = Agent {
     provider = "openai",
     model = "gpt-4o",
     system_message = "You are a physics expert. Be concise and accurate.",
+<<<<<<< Updated upstream
     initial_message = common_prompt,
+=======
+    message = common_prompt,
+>>>>>>> Stashed changes
     tools = {done},
     model_settings = {
         temperature = 0.7,
@@ -26,7 +30,11 @@ gpt4o_mini = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
     system_message = "You are a physics expert. Be concise and accurate.",
+<<<<<<< Updated upstream
     initial_message = common_prompt,
+=======
+    message = common_prompt,
+>>>>>>> Stashed changes
     tools = {done},
     model_settings = {
         temperature = 0.7,
@@ -38,7 +46,11 @@ gpt35_turbo = Agent {
     provider = "openai",
     model = "gpt-3.5-turbo",
     system_message = "You are a physics expert. Be concise and accurate.",
+<<<<<<< Updated upstream
     initial_message = common_prompt,
+=======
+    message = common_prompt,
+>>>>>>> Stashed changes
     tools = {done},
     model_settings = {
         temperature = 0.7,
@@ -51,7 +63,11 @@ claude_haiku = Agent {
     provider = "bedrock",
     model = "us.anthropic.claude-haiku-4-5-20251001-v1:0",
     system_message = "You are a physics expert. Be concise and accurate.",
+<<<<<<< Updated upstream
     initial_message = common_prompt,
+=======
+    message = common_prompt,
+>>>>>>> Stashed changes
     toolsets = {},  -- No tools for this example
     model_settings = {
         temperature = 0.7,
@@ -63,7 +79,11 @@ llama_8b = Agent {
     provider = "bedrock",
     model = "us.meta.llama3-1-8b-instruct-v1:0",
     system_message = "You are a physics expert. Be concise and accurate.",
+<<<<<<< Updated upstream
     initial_message = common_prompt,
+=======
+    message = common_prompt,
+>>>>>>> Stashed changes
     toolsets = {},  -- Explicitly no tools
     disable_streaming = true,  -- Llama models error with tools in streaming mode
     model_settings = {
@@ -78,7 +98,11 @@ llama_3b = Agent {
     provider = "bedrock",
     model = "us.meta.llama3-2-3b-instruct-v1:0",
     system_message = "You are a physics expert. Be concise and accurate.",
+<<<<<<< Updated upstream
     initial_message = common_prompt,
+=======
+    message = common_prompt,
+>>>>>>> Stashed changes
     toolsets = {},  -- Explicitly no tools - this model doesn't support tool calling
     disable_streaming = true,  -- Llama models error with tools in streaming mode
     model_settings = {
@@ -90,7 +114,11 @@ nova_micro = Agent {
     provider = "bedrock",
     model = "us.amazon.nova-micro-v1:0",
     system_message = "You are a physics expert. Be concise and accurate.",
+<<<<<<< Updated upstream
     initial_message = common_prompt,
+=======
+    message = common_prompt,
+>>>>>>> Stashed changes
     toolsets = {},  -- Explicitly no tools - using direct response mode
     disable_streaming = true,  -- Nova models may have issues with tools in streaming mode
     model_settings = {
@@ -102,7 +130,11 @@ nova_lite = Agent {
     provider = "bedrock",
     model = "us.amazon.nova-lite-v1:0",
     system_message = "You are a physics expert. Be concise and accurate.",
+<<<<<<< Updated upstream
     initial_message = common_prompt,
+=======
+    message = common_prompt,
+>>>>>>> Stashed changes
     toolsets = {},  -- Explicitly no tools - using direct response mode
     disable_streaming = true,  -- Nova models may have issues with tools in streaming mode
     model_settings = {

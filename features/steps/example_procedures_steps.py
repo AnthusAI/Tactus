@@ -7,6 +7,7 @@ from pathlib import Path
 from behave import given, when, then
 from tactus.core.runtime import TactusRuntime
 from tactus.adapters.memory import MemoryStorage
+from tactus.core.mocking import MockManager
 
 
 @given("a Tactus runtime environment")
@@ -117,6 +118,11 @@ def step_impl(context):
         skip_agents=True,  # Use mock agents to avoid real API calls in CI
     )
     context.runtime.mock_manager = MockManager()
+
+    # Use a mock manager so examples do not hit real LLMs
+    mock_manager = MockManager()
+    mock_manager.set_default_agent_response({"response": "mocked"})
+    context.runtime.mock_manager = mock_manager
 
     # Read file content
     file_content = context.example_file.read_text()

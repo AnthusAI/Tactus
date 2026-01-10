@@ -190,9 +190,14 @@ class TestAllExamples:
         # Create sandbox with DSL stubs (like the runtime does)
         sandbox = LuaSandbox(base_path=str(example["file"].parent.resolve()))
         builder = RegistryBuilder()
-        # Pass skip_agents=True to prevent immediate agent creation during validation
-        # (agent primitives require full runtime infrastructure)
-        dsl_stubs = create_dsl_stubs(builder, runtime_context={"skip_agents": True})
+        # Use a mock manager to avoid real LLM calls during validation
+        from tactus.core.mocking import MockManager
+
+        mock_manager = MockManager()
+        mock_manager.set_default_agent_response({"response": "mocked"})
+        dsl_stubs = create_dsl_stubs(
+            builder, runtime_context={"registry": builder.registry, "mock_manager": mock_manager}
+        )
 
         # Inject DSL stubs into sandbox
         lua_globals = sandbox.lua.globals()

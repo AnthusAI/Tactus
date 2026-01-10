@@ -43,7 +43,7 @@ custom_tool = Tool {
 worker = Agent {
     provider = "openai",
     model = "gpt-4o",
-    system_prompt = "You are a helpful assistant",
+    system_message = "You are a helpful assistant",
     tools = {done}  -- Variable references, not strings
 }
 
@@ -206,7 +206,7 @@ Procedure {
 - Nested structures are recursively converted
 - Lua code can use standard table operations (`#array`, `ipairs()`, `pairs()`)
 
-Input values are accessed in templates as `{input.topic}` and in Lua as `input.topic`.
+Input values are accessed in templates as `{{ input.topic }}` and in Lua as `input.topic`.
 
 ---
 
@@ -291,7 +291,7 @@ local done = require("tactus.tools.done")
 researcher = Agent {
     provider = "openai",
     model = "gpt-4o",
-    system_prompt = "Research the topic",
+    system_message = "Research the topic",
     toolsets = {"brave_search", "done"},  -- MCP tools referenced by name
 
     message_history = {
@@ -318,7 +318,7 @@ local done = require("tactus.tools.done")
 extractor = Agent {
     provider = "openai",
     model = "gpt-4o",
-    system_prompt = "Extract structured data from user input",
+    system_message = "Extract structured data from user input",
     tools = {done},
 
     -- Define structured output schema (aligned with pydantic-ai's output_type)
@@ -370,7 +370,7 @@ This ensures type-safe, structured outputs from agents.
 worker = Agent {
     provider = "openai",
     model = "gpt-4o",
-    system_prompt = "You are helpful"
+    system_message = "You are helpful"
 }
 
 Procedure {
@@ -794,7 +794,7 @@ class GeneratedAgentDeps(AgentDeps):
     # Framework dependencies
     state_primitive: Any
     context: Dict[str, Any]
-    system_prompt_template: str
+    system_message_template: str
 
     # Your declared dependencies
     weather_api: httpx.AsyncClient
@@ -843,10 +843,10 @@ Dependencies are **recreated** on procedure restart (after checkpoint). The depe
 
 | Namespace | Source | Example |
 |-----------|--------|---------|
-| `input` | Input parameters | `{input.topic}` |
+| `input` | Input parameters | `{{ input.topic }}` |
 | `output` | (In return_prompt) Final values | `{output.findings}` |
 | `context` | Runtime context from caller | `{context.parent_id}` |
-| `state` | Mutable procedure state | `{state.items_processed}` |
+| `state` | Mutable procedure state | `{{ state.items_processed }}` |
 | `prepared` | Output of agent's `prepare` hook | `{prepared.file_contents}` |
 | `env` | Environment variables | `{env.API_KEY}` |
 
@@ -1275,7 +1275,7 @@ done = tactus.done
 worker = Agent {
     provider = "openai",
     model = "gpt-4o",
-    system_prompt = "Complete the given task efficiently",
+    system_message = "Complete the given task efficiently",
     tools = {done}
 }
 
@@ -1465,12 +1465,12 @@ worker = Agent {
         }
     end,
 
-    system_prompt = [[
-You are processing: {input.task}
+    system_message = [[
+You are processing: {{ input.task }}
 Context: {prepared.data}
     ]],
 
-    initial_message = "Begin working on the task.",
+    message = "Begin working on the task.",
 
     tools = {search, analyze, done},  -- Variable references, not strings
 
@@ -1505,7 +1505,7 @@ done = tactus.done
 greeter = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
-    system_prompt = "You are a friendly greeter.",
+    system_message = "You are a friendly greeter.",
     tools = {done}
 }
 ```
@@ -1523,7 +1523,7 @@ creative_writer = Agent {
         top_p = 0.95,
         max_tokens = 2000
     },
-    system_prompt = "You are a creative writer.",
+    system_message = "You are a creative writer.",
     tools = {done}
 }
 ```
@@ -1556,7 +1556,7 @@ analyst = Agent {
         openai_reasoning_effort = "high",
         max_tokens = 4000
     },
-    system_prompt = "Analyze the data carefully.",
+    system_message = "Analyze the data carefully.",
     tools = {done}
 }
 
@@ -1567,7 +1567,7 @@ summarizer = Agent {
         temperature = 0.3,
         max_tokens = 500
     },
-    system_prompt = "Summarize concisely.",
+    system_message = "Summarize concisely.",
     tools = {done}
 }
 ```
@@ -1582,14 +1582,14 @@ done = tactus.done
 openai_agent = Agent {
     provider = "openai",
     model = "gpt-4o",
-    system_prompt = "You are a helpful assistant.",
+    system_message = "You are a helpful assistant.",
     tools = {done}
 }
 
 bedrock_agent = Agent {
     provider = "bedrock",
     model = "anthropic.claude-3-5-sonnet-20240620-v1:0",
-    system_prompt = "You are a helpful assistant.",
+    system_message = "You are a helpful assistant.",
     tools = {done}
 }
 ```
@@ -1603,14 +1603,14 @@ done = tactus.done
 
 worker = Agent {
     -- Uses default_model and default_provider from procedure
-    system_prompt = "Process the task.",
+    system_message = "Process the task.",
     tools = {done}
 }
 
 specialist = Agent {
     -- Can override provider/model in agent definition
     model = "gpt-4o",
-    system_prompt = "Specialist task.",
+    system_message = "Specialist task.",
     tools = {done}
 }
 
@@ -1633,14 +1633,14 @@ done = tactus.done
 openai_agent = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
-    system_prompt = "Fast processing with OpenAI.",
+    system_message = "Fast processing with OpenAI.",
     tools = {done}
 }
 
 bedrock_agent = Agent {
     provider = "bedrock",
     model = "anthropic.claude-3-5-sonnet-20240620-v1:0",
-    system_prompt = "Deep analysis with Claude.",
+    system_message = "Deep analysis with Claude.",
     tools = {done}
 }
 ```
@@ -1940,7 +1940,7 @@ done = tactus.done
 
 text_processor = Agent {
     provider = "openai",
-    system_prompt = "You process text",
+    system_message = "You process text",
     tools = {
         done,
         {
@@ -2533,9 +2533,9 @@ write_draft = Tool {
 -- Define agent
 writer = Agent {
     provider = "openai",
-    system_prompt = [[
-You write content about: {input.topic}
-Target: {input.target}
+    system_message = [[
+You write content about: {{ input.topic }}
+Target: {{ input.target }}
     ]],
     tools = {research, write_draft, done},
     filter = {class = "StandardFilter"}
@@ -2572,7 +2572,7 @@ Procedure {
 
         confirm_publish = {
             type = "approval",
-            message = "Publish to {input.target}?",
+            message = "Publish to {{ input.target }}?",
             timeout = 3600,
             default = false
         }
@@ -2762,13 +2762,13 @@ plexus_promote_score_version = mcp.plexus.promote_score_version
 -- Define agents
 analyzer = Agent {
     provider = "openai",
-    system_prompt = [[
+    system_message = [[
 You are a Score optimization specialist. Analyze the current
 champion Score's performance and identify improvement opportunities.
 
-Score ID: {input.score_id}
-Champion metrics: {state.champion_metrics}
-Error patterns: {state.error_analysis}
+Score ID: {{ input.score_id }}
+Champion metrics: {{ state.champion_metrics }}
+Error patterns: {{ state.error_analysis }}
     ]],
     tools = {plexus_get_score, plexus_get_evaluation_metrics, plexus_analyze_errors, done},
     max_turns = 20
@@ -2776,11 +2776,11 @@ Error patterns: {state.error_analysis}
 
 drafter = Agent {
     provider = "openai",
-    system_prompt = [[
+    system_message = [[
 Based on your analysis, draft an improved Score configuration.
 
-Analysis findings: {state.analysis_findings}
-Human feedback (if any): {state.human_feedback}
+Analysis findings: {{ state.analysis_findings }}
+Human feedback (if any): {{ state.human_feedback }}
 
 Be conservative - small targeted improvements are better than sweeping changes.
     ]],

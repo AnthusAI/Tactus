@@ -95,19 +95,24 @@ class MockAgentPrimitive:
         Returns:
             Mock response dict if configured, None otherwise
         """
-        if not self.registry or not self.mock_manager:
+        if not self.mock_manager:
             return None
 
-        # Check if agent has a mock in the registry
-        if not hasattr(self.registry, "mocks") or self.name not in self.registry.mocks:
-            return None
-
-        # Use mock_manager to get the response
         try:
-            return self.mock_manager.get_mock_response(self.name, opts)
+            if hasattr(self.mock_manager, "get_agent_mock_response"):
+                return self.mock_manager.get_agent_mock_response(self.name, opts)
+            # Fallback to explicit mock lookup
+            if (
+                self.registry
+                and hasattr(self.registry, "mocks")
+                and self.name in self.registry.mocks
+            ):
+                return self.mock_manager.get_mock_response(self.name, opts)
         except Exception as e:
             logger.warning(f"Error getting mock response for agent {self.name}: {e}")
             return None
+
+        return None
 
     def _handle_mock_response(self, mock_response: Dict[str, Any]) -> None:
         """

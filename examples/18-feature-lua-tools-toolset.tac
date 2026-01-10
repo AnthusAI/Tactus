@@ -114,7 +114,7 @@ Available tools:
 - square_root: Calculate square roots
 
 After calling the math tool, call done with the result.]],
-    initial_message = "{input.operation}",
+    message = "{{ input.operation }}",
     toolsets = {
         "math_tools",  -- Reference the entire Toolset "done"
     }

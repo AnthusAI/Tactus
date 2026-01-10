@@ -62,6 +62,11 @@ class MockManager:
         self.call_history: Dict[str, List[MockCall]] = {}
         self.call_counts: Dict[str, int] = {}
         self.enabled = True  # Global mock enable/disable
+        self.default_agent_response: Optional[Any] = None  # Fallback for agent mocks
+
+    def set_default_agent_response(self, response: Any) -> None:
+        """Set a default mock response for any agent without explicit mocks."""
+        self.default_agent_response = response
 
     def register_mock(self, tool_name: str, config: Union[MockConfig, Dict[str, Any]]) -> None:
         """
@@ -151,6 +156,20 @@ class MockManager:
 
         # No mock response configured
         return None
+
+    def get_agent_mock_response(self, agent_name: str, args: Dict[str, Any]) -> Optional[Any]:
+        """
+        Get a mock response for an agent turn.
+
+        Falls back to default_agent_response when no explicit mock exists.
+        """
+        # Try explicit agent mock first
+        response = self.get_mock_response(agent_name, args)
+        if response is not None:
+            return response
+
+        # Fallback to default agent response
+        return self.default_agent_response
 
     def record_call(self, tool_name: str, args: Dict[str, Any], result: Any) -> None:
         """

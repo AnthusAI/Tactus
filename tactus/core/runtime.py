@@ -75,7 +75,6 @@ class TactusRuntime:
         openai_api_key: Optional[str] = None,
         log_handler=None,
         tool_primitive: Optional[ToolPrimitive] = None,
-        skip_agents: bool = False,
         recursion_depth: int = 0,
         tool_paths: Optional[list] = None,
         external_config: Optional[Dict[str, Any]] = None,
@@ -95,7 +94,6 @@ class TactusRuntime:
             openai_api_key: Optional OpenAI API key for LLMs
             log_handler: Optional handler for structured log events
             tool_primitive: Optional pre-configured ToolPrimitive (for testing with mocks)
-            skip_agents: If True, skip agent setup and execution (for testing)
             tool_paths: Optional list of paths to scan for local Python tool plugins
             external_config: Optional external config (from .tac.yml) to merge with DSL config
             run_id: Optional run identifier for tagging checkpoints
@@ -112,18 +110,17 @@ class TactusRuntime:
         self.log_handler = log_handler
         self._injected_tool_primitive = tool_primitive
         self.tool_paths = tool_paths or []
-        self.skip_agents = skip_agents
         self.recursion_depth = recursion_depth
         self.external_config = external_config or {}
         self.run_id = run_id
         self.source_file_path = source_file_path
+        self.input_values: Dict[str, Any] = {}
 
         # Will be initialized during setup
         self.config: Optional[Dict[str, Any]] = None  # Legacy YAML support
         self.registry: Optional[ProcedureRegistry] = None  # New DSL registry
         self.lua_sandbox: Optional[LuaSandbox] = None
         self.output_validator: Optional[OutputValidator] = None
-        self.template_resolver: Optional[TemplateResolver] = None
         self.message_history_manager: Optional[MessageHistoryManager] = None
 
         # Execution context
@@ -322,13 +319,10 @@ class TactusRuntime:
             # Pass placeholder_tool so direct tool calls are tracked in the same primitive
             await self._initialize_primitives(placeholder_tool=placeholder_tool)
 
-            # 4b. Initialize template resolver and session manager
-            self.template_resolver = TemplateResolver(
-                params=context or {},
-                state={},  # Will be updated dynamically
-            )
+            # 4b. Initialize template context helpers and session manager
+            self.input_values = self._compute_input_values(self.context)
             self.message_history_manager = MessageHistoryManager()
-            logger.debug("Template resolver and message history manager initialized")
+            logger.debug("Template context and message history manager initialized")
 
             # 5. Start chat session if recorder available
             if self.chat_recorder:
@@ -1578,24 +1572,6 @@ class TactusRuntime:
             logger.info("No agents defined in configuration - skipping agent setup")
             return
 
-        # Skip agent setup in mock mode
-        if self.skip_agents:
-            logger.info("Skipping agent setup (mock mode)")
-            from tactus.testing.mock_agent import MockAgentPrimitive
-
-            # Create mock agent primitives with registry and mock_manager for Mocks {} support
-            for agent_name in agents_config.keys():
-                mock_agent = MockAgentPrimitive(
-                    agent_name,
-                    self.tool_primitive,
-                    registry=self.registry,
-                    mock_manager=self.mock_manager,
-                )
-                self.agents[agent_name] = mock_agent
-                logger.debug(f"Created mock agent: {agent_name}")
-
-            return
-
         # Import DSPy agent primitive (required)
         from tactus.dspy.agent import create_dspy_agent
 
@@ -1617,6 +1593,7 @@ class TactusRuntime:
 
             logger.info(f"Setting up agent: {agent_name}")
 
+<<<<<<< Updated upstream
             # Get agent prompts (initial_message needs template processing, system_message is dynamic)
             system_message_template = agent_config[
                 "system_message"
@@ -1628,6 +1605,21 @@ class TactusRuntime:
                 initial_message_raw = agent_config.get("initial_message", "")
             initial_message = (
                 self._process_template(initial_message_raw, context) if initial_message_raw else ""
+=======
+            template_mode = (agent_config.get("template_mode") or "jinja2").lower()
+            template_context = self._build_agent_template_context(agent_config)
+
+            system_message_template = agent_config["system_message"]
+            system_message = self._process_template(
+                system_message_template, template_context, template_mode
+            )
+
+            message_raw = agent_config.get("message")
+            message = (
+                self._process_template(message_raw, template_context, template_mode)
+                if message_raw
+                else ""
+>>>>>>> Stashed changes
             )
 
             # Provider is required - no defaults
@@ -1808,7 +1800,11 @@ class TactusRuntime:
 
             # Create DSPy-based agent
             dspy_config = {
+<<<<<<< Updated upstream
                 "system_message": system_message_template,
+=======
+                "system_message": system_message,
+>>>>>>> Stashed changes
                 "model": model_name,
                 "provider": agent_config.get("provider"),
                 "tools": filtered_tools,
@@ -1830,7 +1826,11 @@ class TactusRuntime:
                     else agent_config.get("model_type")
                 ),
                 "disable_streaming": agent_config.get("disable_streaming", False),
+<<<<<<< Updated upstream
                 "message": initial_message,
+=======
+                "message": message,
+>>>>>>> Stashed changes
                 "log_handler": self.log_handler,
             }
 
@@ -2060,20 +2060,29 @@ class TactusRuntime:
         else:
             logger.debug("All handles already connected during parsing")
 
+    def _compute_input_values(self, context: Dict[str, Any]) -> Dict[str, Any]:
+        """Compute input values using defaults and runtime context overrides."""
+        input_config = self.config.get("input", {}) if self.config else {}
+        input_values: Dict[str, Any] = {}
+
+        # Start with defaults defined in the input schema
+        for input_name, input_def in input_config.items():
+            if isinstance(input_def, dict) and "default" in input_def:
+                input_values[input_name] = input_def["default"]
+
+        # Override with values provided in the execution context
+        for input_name in input_config.keys():
+            if context and input_name in context:
+                input_values[input_name] = context[input_name]
+
+        return input_values
+
     def _inject_primitives(self):
         """Inject all primitives into Lua global scope."""
         # Inject input with default values, then override with context values
         if "input" in self.config:
             input_config = self.config["input"]
-            input_values = {}
-            # Start with defaults
-            for input_name, input_def in input_config.items():
-                if isinstance(input_def, dict) and "default" in input_def:
-                    input_values[input_name] = input_def["default"]
-            # Override with context values
-            for input_name in input_config.keys():
-                if input_name in self.context:
-                    input_values[input_name] = self.context[input_name]
+            input_values = dict(self.input_values)
 
             # Validate enum constraints
             for input_name, input_value in input_values.items():
@@ -2322,63 +2331,51 @@ class TactusRuntime:
             logger.error(f"Legacy procedure execution failed: {e}")
             raise
 
-    def _process_template(self, template: str, context: Dict[str, Any]) -> str:
-        """
-        Process a template string with variable substitution.
+    def _build_agent_template_context(self, agent_config: Dict[str, Any]) -> Dict[str, Any]:
+        """Build the safe context passed into agent prompt templates."""
+        template_context = agent_config.get("template_context") or {}
+        context: Dict[str, Any] = {"input": dict(self.input_values)}
 
-        Args:
-            template: Template string with {variable} placeholders
-            context: Context dict with variable values
+        locals_context = template_context.get("locals") or {}
+        if locals_context:
+            context["locals"] = locals_context
 
-        Returns:
-            Processed string with variables substituted
-        """
+        state_config = template_context.get("state")
+        if state_config:
+            state_snapshot = self.state_primitive.all() if self.state_primitive else {}
+
+            if isinstance(state_config, (list, tuple, set)):
+                state_snapshot = {
+                    k: state_snapshot.get(k) for k in state_config if k in state_snapshot
+                }
+            elif isinstance(state_config, dict) and isinstance(
+                state_config.get("include"), (list, tuple, set)
+            ):
+                allowed = state_config.get("include", [])
+                state_snapshot = {k: state_snapshot.get(k) for k in allowed if k in state_snapshot}
+            elif state_config is True:
+                # Use full state as-is
+                pass
+            else:
+                state_snapshot = {}
+
+            if state_snapshot:
+                context["state"] = state_snapshot
+
+        return context
+
+    def _process_template(
+        self, template: str, context: Dict[str, Any], mode: str = "jinja2"
+    ) -> str:
+        """Render a template string using the specified mode."""
         try:
-            # Build template variables from context (supports dot notation)
-            from string import Formatter
-
-            class DotFormatter(Formatter):
-                def get_field(self, field_name, args, kwargs):
-                    # Support dot notation like {params.topic}
-                    parts = field_name.split(".")
-                    obj = kwargs
-                    for part in parts:
-                        if isinstance(obj, dict):
-                            obj = obj.get(part, "")
-                        else:
-                            obj = getattr(obj, part, "")
-                    return obj, field_name
-
-            template_vars = {}
-
-            # Add context variables
-            if context:
-                template_vars.update(context)
-
-            # Add input from config with default values
-            if "input" in self.config:
-                input_config = self.config["input"]
-                input_values = {}
-                for input_name, input_def in input_config.items():
-                    if isinstance(input_def, dict) and "default" in input_def:
-                        input_values[input_name] = input_def["default"]
-                template_vars["input"] = input_values
-
-            # Add state (for dynamic templates)
-            if self.state_primitive:
-                template_vars["state"] = self.state_primitive.all()
-
-            # Use dot-notation formatter
-            formatter = DotFormatter()
-            result = formatter.format(template, **template_vars)
-            return result
-
-        except KeyError as e:
-            logger.warning(f"Template variable {e} not found, using template as-is")
+            resolver = TemplateResolver(mode=mode)
+            return resolver.render(template, context)
+        except ValueError as exc:
+            logger.warning(f"{exc}. Using plain template text.")
             return template
-
-        except Exception as e:
-            logger.error(f"Error processing template: {e}")
+        except Exception as exc:
+            logger.error(f"Error processing template: {exc}")
             return template
 
     def _format_output_schema_for_prompt(self) -> str:
@@ -2461,7 +2458,6 @@ class TactusRuntime:
             "registry": builder.registry,
             "mock_manager": self.mock_manager,
             "execution_context": self.execution_context,
-            "skip_agents": self.skip_agents,
         }
 
         # Inject DSL stubs (pass tool_primitive, mock_manager, and runtime_context)
@@ -2545,6 +2541,10 @@ class TactusRuntime:
                     "max_turns": agent.max_turns,
                     "disable_streaming": agent.disable_streaming,
                 }
+                if getattr(agent, "template_mode", None):
+                    config["agents"][name]["template_mode"] = agent.template_mode
+                if getattr(agent, "template_context", None):
+                    config["agents"][name]["template_context"] = agent.template_context
                 # Include model configuration parameters if present
                 if agent.temperature is not None:
                     config["agents"][name]["temperature"] = agent.temperature
@@ -2641,7 +2641,6 @@ class TactusRuntime:
             mcp_server=self.mcp_server,
             openai_api_key=self.openai_api_key,
             log_handler=self.log_handler,
-            skip_agents=self.skip_agents,
             recursion_depth=self.recursion_depth + 1,
         )
 

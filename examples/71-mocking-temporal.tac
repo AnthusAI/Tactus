@@ -56,7 +56,7 @@ Procedure {
 
             -- Start the agent
             progress_monitor({
-                initial_message = "Please monitor the progress by calling get_counter and check_status multiple times, then report your findings with done."
+                message = "Please monitor the progress by calling get_counter and check_status multiple times, then report your findings with done."
             })
 
             -- Wait for agent to complete

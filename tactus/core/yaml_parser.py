@@ -270,6 +270,14 @@ class ProcedureYAMLParser:
                         f"Got: {agent_def['provider']}"
                     )
 
+            if "template_mode" in agent_def:
+                valid_modes = {"jinja2", "plain"}
+                mode = str(agent_def["template_mode"]).lower()
+                if mode not in valid_modes:
+                    raise ProcedureConfigError(
+                        f"Agent '{agent_name}' template_mode must be one of: {', '.join(sorted(valid_modes))}"
+                    )
+
             # Validate tools field if present
             if "tools" in agent_def:
                 if not isinstance(agent_def["tools"], list):
