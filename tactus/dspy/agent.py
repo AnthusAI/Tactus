@@ -6,7 +6,7 @@ This module provides an Agent implementation built on top of DSPy primitives
 as the original pydantic_ai-based Agent while using DSPy for LLM interactions.
 
 The Agent uses:
-- Module with chain_of_thought strategy for reasoning
+- Configurable DSPy module (default: Predict for simple pass-through, or ChainOfThought for reasoning)
 - History for conversation management
 - Tool handling similar to DSPy's ReAct pattern
 - Unified mocking via Mocks {} primitive
@@ -56,6 +56,7 @@ class DSPyAgentHandle:
         temperature: float = 0.7,
         max_tokens: Optional[int] = None,
         model_type: Optional[str] = None,
+        module: str = "Predict",
         initial_message: Optional[str] = None,
         registry: Any = None,
         mock_manager: Any = None,
@@ -78,6 +79,9 @@ class DSPyAgentHandle:
             temperature: Model temperature (default: 0.7)
             max_tokens: Maximum tokens for response
             model_type: Model type for DSPy (e.g., "chat", "responses" for reasoning models)
+            module: DSPy module type to use (default: "Predict"). Options:
+                - "Predict": Simple pass-through prediction (no reasoning traces)
+                - "ChainOfThought": Adds step-by-step reasoning before response
             initial_message: Initial message to send on first turn if no inject
             registry: Optional Registry instance for accessing mocks
             mock_manager: Optional MockManager instance for checking mocks
@@ -98,6 +102,7 @@ class DSPyAgentHandle:
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.model_type = model_type
+        self.module = module
         self.initial_message = initial_message
         self.registry = registry
         self.mock_manager = mock_manager
@@ -267,6 +272,31 @@ class DSPyAgentHandle:
             cost_stats=cost_stats,
         )
 
+    def _module_to_strategy(self, module: str) -> str:
+        """
+        Map DSPy module name to internal strategy name.
+
+        Args:
+            module: DSPy module name (e.g., "Predict", "ChainOfThought")
+
+        Returns:
+            Internal strategy name for create_module()
+
+        Raises:
+            ValueError: If module name is not recognized
+        """
+        mapping = {
+            "Predict": "predict",
+            "ChainOfThought": "chain_of_thought",
+            # Future modules can be added here:
+            # "ReAct": "react",
+            # "ProgramOfThought": "program_of_thought",
+        }
+        strategy = mapping.get(module)
+        if strategy is None:
+            raise ValueError(f"Unknown module '{module}'. Supported: {list(mapping.keys())}")
+        return strategy
+
     def _build_module(self) -> TactusModule:
         """Build the internal DSPy module for this agent."""
         # Create a signature for agent turns
@@ -284,7 +314,7 @@ class DSPyAgentHandle:
             f"{self.name}_module",
             {
                 "signature": signature,
-                "strategy": "chain_of_thought",
+                "strategy": self._module_to_strategy(self.module),
             },
         )
 
@@ -874,6 +904,7 @@ def create_dspy_agent(
             - model: Model name (LiteLLM format)
             - tools: List of tools
             - toolsets: List of toolset names
+            - module: DSPy module type (default: "Predict"). Options: "Predict", "ChainOfThought"
             - Other optional configuration
         registry: Optional Registry instance for accessing mocks
         mock_manager: Optional MockManager instance for checking mocks
@@ -901,6 +932,7 @@ def create_dspy_agent(
         temperature=config.get("temperature", 0.7),
         max_tokens=config.get("max_tokens"),
         model_type=config.get("model_type"),
+        module=config.get("module", "Predict"),
         initial_message=config.get("initial_message"),
         registry=registry,
         mock_manager=mock_manager,
@@ -921,6 +953,7 @@ def create_dspy_agent(
                 "temperature",
                 "max_tokens",
                 "model_type",
+                "module",
                 "initial_message",
                 "log_handler",
                 "disable_streaming",
