@@ -266,6 +266,20 @@ class ToolCallEvent(BaseModel):
     model_config = {"arbitrary_types_allowed": True}
 
 
+class SystemAlertEvent(BaseModel):
+    """Event emitted for non-blocking system alerts."""
+
+    event_type: str = Field(default="system_alert", description="Event type")
+    level: str = Field(..., description="Alert level: info, warning, error, critical")
+    message: str = Field(..., description="Alert message")
+    source: Optional[str] = Field(default=None, description="Alert source identifier")
+    context: Optional[Dict[str, Any]] = Field(default=None, description="Structured context data")
+    timestamp: datetime = Field(default_factory=utc_now, description="Event timestamp")
+    procedure_id: Optional[str] = Field(None, description="Procedure identifier")
+
+    model_config = {"arbitrary_types_allowed": True}
+
+
 class CheckpointCreatedEvent(BaseModel):
     """Event emitted when a checkpoint is created during execution."""
 

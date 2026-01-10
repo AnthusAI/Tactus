@@ -72,6 +72,13 @@ class CLILogHandler:
             self._display_checkpoint_event(event)
             return
 
+        # Handle system alert events
+        from tactus.protocols.models import SystemAlertEvent
+
+        if isinstance(event, SystemAlertEvent):
+            self._display_system_alert_event(event)
+            return
+
         # Handle ExecutionSummaryEvent specially
         if event.event_type == "execution_summary":
             self._display_execution_summary(event)
@@ -183,6 +190,24 @@ class CLILogHandler:
                 f"  [green]✓ Cache hit: {event.cache_tokens:,} tokens"
                 f"{f' (saved ${event.cache_cost:.6f})' if event.cache_cost else ''}[/green]"
             )
+
+    def _display_system_alert_event(self, event) -> None:
+        """Display a System.alert() event."""
+        level = (event.level or "info").lower()
+        style = {
+            "info": "blue",
+            "warning": "yellow",
+            "error": "red",
+            "critical": "red bold",
+        }.get(level, "blue")
+
+        source_str = f" ({event.source})" if getattr(event, "source", None) else ""
+        self.console.print(f"[{style}]• Alert{source_str}:[/{style}] {event.message}")
+
+        if getattr(event, "context", None):
+            import json
+
+            self.console.print(f"  Context: {json.dumps(event.context, indent=2, default=str)}")
 
     def _display_execution_summary(self, event) -> None:
         """Display execution summary with cost breakdown."""

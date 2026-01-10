@@ -6,7 +6,7 @@ Implementations can render logs differently (CLI with Rich, IDE with React, etc.
 """
 
 from typing import Protocol, Union
-from tactus.protocols.models import LogEvent, ExecutionSummaryEvent
+from tactus.protocols.models import ExecutionSummaryEvent, LogEvent, SystemAlertEvent
 
 
 class LogHandler(Protocol):
@@ -17,7 +17,7 @@ class LogHandler(Protocol):
     appropriately for different environments (CLI, IDE, API, etc.).
     """
 
-    def log(self, event: Union[LogEvent, ExecutionSummaryEvent]) -> None:
+    def log(self, event: Union[LogEvent, ExecutionSummaryEvent, SystemAlertEvent]) -> None:
         """
         Handle a log or summary event.
 

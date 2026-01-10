@@ -16,6 +16,7 @@ from tactus.primitives.retry import RetryPrimitive
 from tactus.primitives.file import FilePrimitive
 
 from tactus.primitives.human import HumanPrimitive
+from tactus.primitives.system import SystemPrimitive
 
 # MessageHistory primitive is now available
 from tactus.primitives.message_history import MessageHistoryPrimitive
@@ -42,6 +43,7 @@ __all__ = [
     "JsonPrimitive",
     "RetryPrimitive",
     "FilePrimitive",
+    "SystemPrimitive",
     # "AgentPrimitive",  # Replaced by DSPy implementation
     # "ResultPrimitive",  # Replaced by DSPy implementation
 ]
