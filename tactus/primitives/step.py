@@ -115,6 +115,29 @@ class CheckpointPrimitive:
         """
         self.execution_context = execution_context
 
+    def _coerce_position(self, position: Any) -> int:
+        """
+        Coerce a Lua/Python value into a checkpoint position (int).
+
+        Lua commonly passes numbers as int/float and may pass strings; accept both.
+        """
+        if isinstance(position, bool):
+            raise TypeError("Checkpoint position must be a number (bool is not allowed)")
+
+        if isinstance(position, int):
+            return position
+
+        if isinstance(position, float) and position.is_integer():
+            return int(position)
+
+        if isinstance(position, str):
+            stripped = position.strip()
+            if stripped.isdigit() or (stripped.startswith("-") and stripped[1:].isdigit()):
+                return int(stripped)
+            raise TypeError(f"Checkpoint position must be an integer (got string {position!r})")
+
+        raise TypeError(f"Checkpoint position must be an integer (got {type(position).__name__})")
+
     def clear_all(self) -> None:
         """
         Clear all checkpoints. Restarts procedure from beginning.
@@ -150,3 +173,37 @@ class CheckpointPrimitive:
             print("Next checkpoint will be at position: " .. pos)
         """
         return self.execution_context.next_position()
+
+    def exists(self, position: Any) -> bool:
+        """
+        Check if a checkpoint exists at the given position.
+
+        Args:
+            position: Checkpoint position (0-indexed)
+
+        Returns:
+            True if an entry exists at that position, else False
+        """
+        coerced = self._coerce_position(position)
+        metadata = getattr(self.execution_context, "metadata", None)
+        if metadata is None or not hasattr(metadata, "execution_log"):
+            raise RuntimeError("ExecutionContext does not expose checkpoint metadata")
+        return 0 <= coerced < len(metadata.execution_log)
+
+    def get(self, position: Any) -> Any:
+        """
+        Get the cached value from a checkpoint without advancing replay.
+
+        Args:
+            position: Checkpoint position (0-indexed)
+
+        Returns:
+            Cached result at that position, or None (Lua nil) if not present
+        """
+        coerced = self._coerce_position(position)
+        metadata = getattr(self.execution_context, "metadata", None)
+        if metadata is None or not hasattr(metadata, "execution_log"):
+            raise RuntimeError("ExecutionContext does not expose checkpoint metadata")
+        if coerced < 0 or coerced >= len(metadata.execution_log):
+            return None
+        return metadata.execution_log[coerced].result

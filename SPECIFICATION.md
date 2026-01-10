@@ -2197,6 +2197,8 @@ For testing and debugging:
 Checkpoint.clear_all()              -- Clear all checkpoints
 Checkpoint.clear_after(position)    -- Clear checkpoint at position and all after (position is a number)
 Checkpoint.next_position()          -- Get the next checkpoint position number
+Checkpoint.exists(position)         -- Check if a checkpoint exists at a position
+Checkpoint.get(position)            -- Get cached value at a position (or nil)
 ```
 
 ### Human Interaction Primitives

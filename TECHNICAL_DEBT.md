@@ -77,18 +77,7 @@ These are minor features documented in the spec that could be implemented with s
 
 ### Checkpoint Inspection Methods
 
-The spec documents methods to inspect checkpoint state that don't exist:
-
-```lua
-Checkpoint.exists(name)  -- Check if a checkpoint exists
-Checkpoint.get(name)     -- Get the cached value from a checkpoint
-```
-
-**What exists:** `clear_all()`, `clear_after(position)`, `next_position()`
-
-**Why it matters:** These would be useful for testing and debugging checkpoint behavior.
-
-**Implementation location:** `tactus/primitives/step.py` CheckpointPrimitive class
+Implemented in `tactus/primitives/step.py` (`Checkpoint.exists(position)`, `Checkpoint.get(position)`).
 
 ---
 
