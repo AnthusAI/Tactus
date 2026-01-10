@@ -140,7 +140,7 @@ Procedure {
         if done.called() then
             answer = done.last_result() or "Task completed"
         else
-            answer = result.message
+            answer = tostring(result.value)
         end
 
         if #tools_used > 0 then

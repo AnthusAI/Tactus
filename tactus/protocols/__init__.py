@@ -13,6 +13,10 @@ from tactus.protocols.models import (
     ChatMessage,
 )
 
+# Shared usage/cost + standard result
+from tactus.protocols.cost import UsageStats, CostStats
+from tactus.protocols.result import TactusResult
+
 # Protocols
 from tactus.protocols.storage import StorageBackend
 from tactus.protocols.hitl import HITLHandler
@@ -28,6 +32,9 @@ __all__ = [
     "HITLRequest",
     "HITLResponse",
     "ChatMessage",
+    "UsageStats",
+    "CostStats",
+    "TactusResult",
     # Protocols
     "StorageBackend",
     "HITLHandler",

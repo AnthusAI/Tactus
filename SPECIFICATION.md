@@ -356,13 +356,11 @@ This ensures type-safe, structured outputs from agents.
 **Aligned with pydantic-ai:** The Result object wraps pydantic-ai's `RunResult` and provides Lua-accessible properties.
 
 **Properties:**
-- `result.message` - The response message (text string or structured data dict)
+- `result.value` - The response value (string or structured data)
 - `result.usage` - Token usage stats (prompt_tokens, completion_tokens, total_tokens)
 
 **Methods:**
-- `result.new_messages()` - Messages from this turn only
-- `result.all_messages()` - Full conversation history
-- `result.cost()` - Token usage (same as .usage, for cost calculation)
+- `result.cost()` - Cost statistics (total_cost, prompt_cost, completion_cost)
 
 **Example:**
 
@@ -377,8 +375,8 @@ Procedure {
     function(input)
         local result = worker()
 
-        -- Access response message
-        Log.info("Response", {message = result.message})
+        -- Access response value
+        Log.info("Response", {value = result.value})
 
         -- Access token usage
         Log.info("Tokens used", {
@@ -387,11 +385,6 @@ Procedure {
             total = result.usage.total_tokens
         })
 
-        -- Access messages
-        local messages = result.new_messages()
-        for i, msg in ipairs(messages) do
-            Log.info("Message", {role = msg.role, content = msg.content})
-        end
     end
 }
 ```
@@ -414,8 +407,8 @@ Procedure {
 
         -- Access structured data fields
         Log.info("Extracted", {
-            city = result.message.city,
-            country = result.message.country
+            city = result.value.city,
+            country = result.value.country
         })
     end
 }
@@ -2479,9 +2472,9 @@ local error_matcher = contains("error")
 
 -- Use in conditional logic
 local result = worker()
-if result.message:find("success") then
+if tostring(result.value):find("success") then
     -- Contains success
-elseif result.message:find("error") then
+elseif tostring(result.value):find("error") then
     -- Contains error
 end
 ```

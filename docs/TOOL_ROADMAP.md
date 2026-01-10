@@ -1126,7 +1126,7 @@ sequenceDiagram
     PA->>LLM: Send tool result
     LLM-->>PA: Final response
     PA-->>AP: RunResult
-    AP-->>Lua: ResultPrimitive
+    AP-->>Lua: Result
 
     Lua->>Lua: search.called()
     Lua->>Lua: search.last_result()

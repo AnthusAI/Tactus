@@ -2005,6 +2005,165 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             logger.error(f"Error getting events for {run_id}: {e}", exc_info=True)
             return jsonify({"error": str(e)}), 500
 
+    # Coding Assistant - persistent agent instance per session
+    coding_assistant = None
+
+    def get_or_create_assistant():
+        """Get or create the coding assistant instance."""
+        nonlocal coding_assistant
+        if coding_assistant is None and WORKSPACE_ROOT:
+            try:
+                from tactus.ide.coding_assistant import CodingAssistantAgent
+                from tactus.core.config_manager import ConfigManager
+
+                # Load configuration
+                config_manager = ConfigManager()
+                # For IDE, we don't have a procedure file, so use a dummy path
+                config = config_manager._load_from_environment()
+
+                # Try to load user config
+                for user_path in config_manager._get_user_config_paths():
+                    if user_path.exists():
+                        user_config = config_manager._load_yaml_file(user_path)
+                        if user_config:
+                            config = config_manager._deep_merge(config, user_config)
+                            break
+
+                coding_assistant = CodingAssistantAgent(WORKSPACE_ROOT, config)
+                logger.info("Coding assistant initialized")
+            except Exception as e:
+                logger.error(f"Failed to initialize coding assistant: {e}", exc_info=True)
+                raise
+        return coding_assistant
+
+    @app.route("/api/chat", methods=["POST"])
+    def chat_message():
+        """Handle chat messages from the user."""
+        try:
+            data = request.json
+            message = data.get("message")
+
+            if not message:
+                return jsonify({"error": "Missing 'message' parameter"}), 400
+
+            if not WORKSPACE_ROOT:
+                return jsonify({"error": "No workspace folder selected"}), 400
+
+            # Get or create assistant
+            assistant = get_or_create_assistant()
+
+            # Process message
+            result = assistant.process_message(message)
+
+            return jsonify(
+                {
+                    "success": True,
+                    "response": result["response"],
+                    "tool_calls": result.get("tool_calls", []),
+                }
+            )
+
+        except Exception as e:
+            logger.error(f"Error handling chat message: {e}", exc_info=True)
+            return jsonify({"error": str(e)}), 500
+
+    @app.route("/api/chat/stream", methods=["POST"])
+    def chat_stream():
+        """
+        Stream chat responses with SSE.
+
+        Request body:
+        - message: User's message
+        """
+        data = request.json or {}
+        message = data.get("message")
+
+        if not message:
+            return jsonify({"error": "Missing 'message' parameter"}), 400
+
+        if not WORKSPACE_ROOT:
+            return jsonify({"error": "No workspace folder selected"}), 400
+
+        def generate_events():
+            """Generator function that yields SSE chat events."""
+            try:
+                import json
+                from datetime import datetime
+
+                # Get or create assistant
+                assistant = get_or_create_assistant()
+
+                # Send start event
+                start_event = {
+                    "event_type": "chat_start",
+                    "timestamp": datetime.utcnow().isoformat() + "Z",
+                }
+                yield f"data: {json.dumps(start_event)}\n\n"
+
+                # Process message
+                result = assistant.process_message(message)
+
+                # Send response event
+                response_event = {
+                    "event_type": "chat_response",
+                    "timestamp": datetime.utcnow().isoformat() + "Z",
+                    "response": result["response"],
+                    "tool_calls": result.get("tool_calls", []),
+                }
+                yield f"data: {json.dumps(response_event)}\n\n"
+
+                # Send completion event
+                complete_event = {
+                    "event_type": "chat_complete",
+                    "timestamp": datetime.utcnow().isoformat() + "Z",
+                }
+                yield f"data: {json.dumps(complete_event)}\n\n"
+
+            except Exception as e:
+                logger.error(f"Error in chat streaming: {e}", exc_info=True)
+                error_event = {
+                    "event_type": "chat_error",
+                    "timestamp": datetime.utcnow().isoformat() + "Z",
+                    "error": str(e),
+                }
+                yield f"data: {json.dumps(error_event)}\n\n"
+
+        return Response(
+            stream_with_context(generate_events()),
+            mimetype="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no",
+                "Connection": "keep-alive",
+            },
+        )
+
+    @app.route("/api/chat/reset", methods=["POST"])
+    def chat_reset():
+        """Reset the chat conversation."""
+        try:
+            assistant = get_or_create_assistant()
+            if assistant:
+                assistant.reset_conversation()
+                return jsonify({"success": True})
+            return jsonify({"error": "Assistant not initialized"}), 400
+        except Exception as e:
+            logger.error(f"Error resetting chat: {e}", exc_info=True)
+            return jsonify({"error": str(e)}), 500
+
+    @app.route("/api/chat/tools", methods=["GET"])
+    def chat_tools():
+        """Get available tools for the coding assistant."""
+        try:
+            assistant = get_or_create_assistant()
+            if assistant:
+                tools = assistant.get_available_tools()
+                return jsonify({"tools": tools})
+            return jsonify({"error": "Assistant not initialized"}), 400
+        except Exception as e:
+            logger.error(f"Error getting tools: {e}", exc_info=True)
+            return jsonify({"error": str(e)}), 500
+
     @app.route("/api/lsp", methods=["POST"])
     def lsp_request():
         """Handle LSP requests via HTTP."""

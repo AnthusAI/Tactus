@@ -13,7 +13,7 @@ Procedure {
 
     log("Starting test...")
       local result = test_agent()
-      log("Agent responded: " .. result.data)
+      log("Agent responded: " .. tostring(result.value))
       return {success = true}
 
     end

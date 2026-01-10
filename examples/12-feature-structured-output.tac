@@ -1,11 +1,11 @@
 -- Structured Output Demo
 -- Demonstrates using output for structured data extraction
--- and accessing result.data, result.usage
+-- and accessing result.value, result.usage
 
 extractor = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
-    system_prompt = [[You extract city information. Return ONLY structured data with these fields:
+    system_prompt = [[You extract city information. Return ONLY a JSON object with these fields:
 - city: city name
 - country: country name
 - population: estimated population (number, optional)
@@ -32,30 +32,26 @@ Procedure {
     function(input)
         Log.info("Starting structured output demo", {query = input.query})
 
-        -- Call agent - in mock mode, returns mock response
+        -- Agent returns a Result wrapper (not raw data)
         local result = extractor()
 
-        -- Extract city data from response message
-        -- Note: Full result.data/result.usage support pending for mock mode
-        local city_data = {
-            city = "Paris",
-            country = "France",
-            population = 2161000
-        }
+        -- Access structured data via result.value
+        Log.info("Extracted city information", {
+            city = result.value.city,
+            country = result.value.country,
+            population = result.value.population or "unknown"
+        })
 
-        -- If the agent result has message, log it
-        if result and result.message then
-            Log.info("Agent response", {message = result.message})
-        end
-
-        Log.info("Extracted city information", city_data)
-
-        -- Simulated token count for demo
-        local tokens_used = 150
+        -- Access token usage stats
+        Log.info("Token usage", {
+            prompt_tokens = result.usage.prompt_tokens,
+            completion_tokens = result.usage.completion_tokens,
+            total_tokens = result.usage.total_tokens
+        })
 
         return {
-            city_data = city_data,
-            tokens_used = tokens_used
+            city_data = result.value,
+            tokens_used = result.usage.total_tokens
         }
     end
 }

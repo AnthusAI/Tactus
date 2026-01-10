@@ -83,7 +83,7 @@ Procedure {
             end
         else
             -- Max turns reached - use last response
-            answer = result.message
+            answer = tostring(result.value)
         end
 
         return {
