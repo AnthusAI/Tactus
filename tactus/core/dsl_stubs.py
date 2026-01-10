@@ -1395,6 +1395,10 @@ def create_dsl_stubs(
 
         # If we have runtime context, create the agent primitive immediately
         if _runtime_context:
+<<<<<<< Updated upstream
+=======
+            from tactus.dspy.agent import create_dspy_agent
+>>>>>>> Stashed changes
             import logging
 
             logger = logging.getLogger(__name__)
@@ -1561,7 +1565,7 @@ def create_dsl_stubs(
         handle = AgentHandle(temp_name)
 
         # If we have runtime context, create the agent primitive immediately
-        if _runtime_context and not _runtime_context.get("skip_agents", False):
+        if _runtime_context:
             from tactus.dspy.agent import create_dspy_agent
             import logging
 

@@ -109,7 +109,7 @@ Procedure {
             local result
 
             repeat
-                result = text_processor({initial_message = message})
+                result = text_processor({message = message})
                 turn_count = turn_count + 1
                 message = nil  -- Only use initial message on first turn
             until done.called() or turn_count >= max_turns

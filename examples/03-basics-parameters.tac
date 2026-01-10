@@ -5,7 +5,11 @@
 worker = Agent {
     provider = "openai",
     system_message = "A worker agent",
+<<<<<<< Updated upstream
     initial_message = "Processing task",
+=======
+    message = "Processing task",
+>>>>>>> Stashed changes
     toolsets = {}
 }
 

@@ -27,28 +27,39 @@ Toolsets group multiple tools together. The spec shows function-call syntax, but
 
 **Status:** Resolved. Implementation now accepts `message` (alias: `initial_message`) and also supports shorthand string calls (`worker("hi")` -> `{message = "hi"}`).
 
+<<<<<<< Updated upstream
 | Spec | Reality |
 |------|---------|
 | `worker({message = "..."})` | `worker({message = "..."})` (also accepts `initial_message` or bare string) |
+=======
+| Spec (Wrong) | Reality (Correct) |
+|--------------|-------------------|
+| `worker({message = "..."})` | `worker({message = "..."})` |
+
+**Why it matters:** Users following the spec will pass a parameter that gets ignored.
+
+**Files to update:** SPECIFICATION.md line 2235
+>>>>>>> Stashed changes
 
 ---
 
 ### Template Variable Namespaces
 
-Template variables let you inject dynamic values into prompts like `{input.topic}`. The spec documents six namespaces, but only two are implemented.
+Template variables now use Jinja2 (`{{ ... }}`). Only explicitly whitelisted data is exposed to templates.
 
 | Namespace | Spec Says | Reality |
 |-----------|-----------|---------|
-| `{input.*}` | Supported | **Working** |
-| `{state.*}` | Supported | **Working** |
-| `{output.*}` | Supported | Not implemented |
-| `{context.*}` | Supported | Not implemented |
-| `{prepared.*}` | Supported | Not implemented |
-| `{env.*}` | Supported | Not implemented |
+| `{{ input.* }}` | Supported | **Working** |
+| `{{ state.* }}` | Supported | **Opt-in via template_context.state** |
+| `{{ locals.* }}` | Not specified | **Working** (agent-defined literals) |
+| `{{ output.* }}` | Supported | Not implemented |
+| `{{ context.* }}` | Supported | Not implemented |
+| `{{ prepared.* }}` | Supported | Not implemented |
+| `{{ env.* }}` | Supported | Not implemented |
 
-**Why it matters:** Users trying to use `{env.API_KEY}` or `{prepared.data}` in prompts will get raw text instead of substituted values.
+**Why it matters:** Templates only see `input`, optional `state`, and `locals`. Other namespaces are intentionally excluded for safety.
 
-**Files to update:** SPECIFICATION.md lines 843-856 - mark unimplemented namespaces as "Planned"
+**Files to update:** SPECIFICATION.md lines 843-856 - document Jinja2 syntax, locals, and opt-in state.
 
 ---
 

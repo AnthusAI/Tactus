@@ -28,7 +28,7 @@ Available tools:
 - repeat_text: Repeat text a specified number of times
 
 After calling the tool, call done with the tool's result.]],
-    initial_message = "{input.message}",
+    message = "{{ input.message }}",
     -- Inline tool definitions specific to this agent
     tools = {
         {

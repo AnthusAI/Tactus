@@ -86,7 +86,7 @@ Procedure {
             end
 
             -- Run agent
-            assistant({initial_message = message})
+            assistant({message = message})
 
             -- Wait for completion
             local max_turns = 3

@@ -8,7 +8,11 @@ tester = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
     system_message = "You are a test agent. When you have tools, call done. When you don't have tools, just respond with 'No tools available'.",
+<<<<<<< Updated upstream
     initial_message = "Start test",
+=======
+    message = "Start test",
+>>>>>>> Stashed changes
     tools = {done}  -- Default toolset
 }
 

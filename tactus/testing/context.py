@@ -77,7 +77,6 @@ class TactusTestContext:
             storage_backend=storage,
             hitl_handler=hitl,
             tool_primitive=tool_primitive,  # Inject mocked tool if configured
-            skip_agents=bool(self.mock_tools),  # Skip agents in mock mode
             openai_api_key=os.environ.get("OPENAI_API_KEY"),  # Pass API key for real LLM calls
             log_handler=log_handler,  # Enable cost tracking
             source_file_path=str(self.procedure_file.resolve()),  # For require() path resolution
@@ -88,6 +87,8 @@ class TactusTestContext:
             from tactus.core.mocking import MockManager
 
             self.runtime.mock_manager = MockManager()
+            # Provide safe default agent responses to avoid real LLM calls
+            self.runtime.mock_manager.set_default_agent_response({"response": "mocked"})
             logger.info("Created MockManager for Mocks {} block support")
 
         logger.debug(f"Setup runtime for test: {self.procedure_file.stem}")

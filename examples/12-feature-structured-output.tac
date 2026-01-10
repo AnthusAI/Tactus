@@ -11,7 +11,7 @@ extractor = Agent {
 - population: estimated population (number, optional)
 
 Be concise and accurate.]],
-    initial_message = "{input.query}",
+    message = "{{ input.query }}",
 
     -- Structured output (aligned with pydantic-ai's output)
     output = {

@@ -206,7 +206,7 @@ Procedure {
 - Nested structures are recursively converted
 - Lua code can use standard table operations (`#array`, `ipairs()`, `pairs()`)
 
-Input values are accessed in templates as `{input.topic}` and in Lua as `input.topic`.
+Input values are accessed in templates as `{{ input.topic }}` and in Lua as `input.topic`.
 
 ---
 
@@ -840,14 +840,12 @@ Dependencies are **recreated** on procedure restart (after checkpoint). The depe
 
 | Namespace | Source | Example |
 |-----------|--------|---------|
-| `input` | Input parameters | `{input.topic}` |
-| `output` | (In return_prompt) Final values | `{output.findings}` |
-| `context` | Runtime context from caller | `{context.parent_id}` |
-| `state` | Mutable procedure state | `{state.items_processed}` |
-| `prepared` | Output of agent's `prepare` hook | `{prepared.file_contents}` |
-| `env` | Environment variables | `{env.API_KEY}` |
+| `input` | Input parameters | `{{ input.topic }}` |
+| `state` | Mutable procedure state (when explicitly allowed) | `{{ state.items_processed }}` |
+| `locals` | Agent-defined static values | `{{ locals.region }}` |
 
-Templates are re-evaluated before each agent turn.
+Templates use Jinja2 and are rendered during agent setup. State is omitted unless `template_context.state`
+is enabled for the agent. Set `template_mode = "plain"` to disable rendering for a specific agent.
 
 ---
 
@@ -1461,11 +1459,15 @@ worker = Agent {
     end,
 
     system_message = [[
+<<<<<<< Updated upstream
 You are processing: {input.task}
+=======
+You are processing: {{ input.task }}
+>>>>>>> Stashed changes
 Context: {prepared.data}
     ]],
 
-    initial_message = "Begin working on the task.",
+    message = "Begin working on the task.",
 
     toolsets = {"brave_search_search", "done"},  -- MCP tools referenced by string name
 
@@ -2530,8 +2532,13 @@ write_draft = Tool {
 writer = Agent {
     provider = "openai",
     system_message = [[
+<<<<<<< Updated upstream
 You write content about: {input.topic}
 Target: {input.target}
+=======
+You write content about: {{ input.topic }}
+Target: {{ input.target }}
+>>>>>>> Stashed changes
     ]],
     tools = {research, write_draft, done},
     filter = {class = "StandardFilter"}
@@ -2568,7 +2575,7 @@ Procedure {
 
         confirm_publish = {
             type = "approval",
-            message = "Publish to {input.target}?",
+            message = "Publish to {{ input.target }}?",
             timeout = 3600,
             default = false
         }
@@ -2754,9 +2761,9 @@ analyzer = Agent {
 You are a Score optimization specialist. Analyze the current
 champion Score's performance and identify improvement opportunities.
 
-Score ID: {input.score_id}
-Champion metrics: {state.champion_metrics}
-Error patterns: {state.error_analysis}
+Score ID: {{ input.score_id }}
+Champion metrics: {{ state.champion_metrics }}
+Error patterns: {{ state.error_analysis }}
     ]],
     toolsets = {"plexus_get_score", "plexus_get_evaluation_metrics", "plexus_analyze_errors", "done"},
     max_turns = 20
@@ -2767,8 +2774,8 @@ drafter = Agent {
     system_message = [[
 Based on your analysis, draft an improved Score configuration.
 
-Analysis findings: {state.analysis_findings}
-Human feedback (if any): {state.human_feedback}
+Analysis findings: {{ state.analysis_findings }}
+Human feedback (if any): {{ state.human_feedback }}
 
 Be conservative - small targeted improvements are better than sweeping changes.
     ]],

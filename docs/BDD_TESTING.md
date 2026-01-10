@@ -99,7 +99,7 @@ When you run `tactus test --mock`:
 
 1. **TactusTestContext** creates `MockToolRegistry` with configured mocks
 2. **MockedToolPrimitive** is created and injected into `TactusRuntime`
-3. **Runtime** is configured with `skip_agents=True`
+3. **Runtime** is configured with a mock manager that provides default agent responses, so no real LLM calls are made during specs.
 4. **During execution:**
    - Tool calls return mocked responses from registry
    - Agent turns use `MockAgentPrimitive` (calls done tool automatically)
@@ -368,7 +368,11 @@ search = mcp.brave_search.search
 researcher = Agent {
   provider = "openai",
   model = "gpt-4o-mini",
+<<<<<<< Updated upstream
   system_message = "Research: {input.topic}",
+=======
+  system_message = "Research: {{ input.topic }}",
+>>>>>>> Stashed changes
   tools = {search, done}
 }
 
@@ -782,7 +786,6 @@ See `examples/with-bdd-tests.lua` for a complete example demonstrating:
 ## API Reference
 
 See `tactus/testing/README.md` for complete API documentation.
-
 
 
 

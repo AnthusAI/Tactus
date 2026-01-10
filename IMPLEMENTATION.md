@@ -193,7 +193,7 @@ return {result = "done"}
 - Registry: `tactus/core/registry.py` (`RegistryBuilder.register_parameter()`)
 - Injection: `tactus/core/runtime.py` (`_inject_primitives()`)
 
-**Template Support**: ✅ Input accessible in templates via `{input.name}`
+**Template Support**: ✅ Input accessible in templates via `{{ input.name }}`
 
 **CLI Input System**: ✅ Comprehensive input handling
 - `--param key=value` for all types (string, number, boolean, array, object)
@@ -702,14 +702,17 @@ Dependencies follow Tactus's "thin layer over Pydantic AI" philosophy by mapping
 **Specification**: `input`, `output`, `context`, `state`, `prepared`, `env`
 
 **Current Implementation:**
-- ✅ `input` - Fully supported (formerly `params`)
-- ✅ `state` - Fully supported (via `StatePrimitive`)
-- ❌ `output` - Not available (only in return_prompt, which isn't implemented)
+- ✅ `input` - Fully supported via Jinja2 (`{{ input.* }}`)
+- ✅ `locals` - Supported via `template_context.locals`
+- ⚠️ `state` - Supported only when `template_context.state` is enabled (off by default)
+- ❌ `output` - Not available (return_prompt not implemented)
 - ❌ `context` - Not implemented
 - ❌ `prepared` - Not implemented (agent `prepare` hook not implemented)
 - ❌ `env` - Not implemented
 
-**Status**: ✅ **Partially Implemented** (input, state only)
+Templates render with Jinja2 by default; `template_mode = "plain"` disables rendering.
+
+**Status**: ✅ **Partially Implemented** (input, locals, opt-in state)
 
 ### Human-in-the-Loop (HITL)
 
@@ -769,7 +772,7 @@ Inline procedures are not parsed by `ProcedureYAMLParser` and cannot be invoked.
 
 **Features:**
 - ✅ LLM integration via Pydantic AI
-- ✅ System prompt with template variables (`{input.*}`, `{state.*}`)
+- ✅ System prompt with template variables (`{{ input.* }}`, `{{ state.* }}`)
 - ✅ Initial message support
 - ✅ Tool integration (via MCP server)
 - ✅ Conversation history tracking
@@ -777,7 +780,11 @@ Inline procedures are not parsed by `ProcedureYAMLParser` and cannot be invoked.
 
 **Configuration:**
 - ✅ `system_message` - Template-based system prompt
+<<<<<<< Updated upstream
 - ✅ `message` (alias: `initial_message`) - First message to agent
+=======
+- ✅ `message` - First message to agent
+>>>>>>> Stashed changes
 - ✅ `tools` - List of available tools
 - ✅ `model` - LLM model specification
 - ✅ `output_schema` - Structured output schema (per agent)

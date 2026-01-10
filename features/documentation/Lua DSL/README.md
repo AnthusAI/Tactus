@@ -98,7 +98,11 @@ class AgentDeclaration(BaseModel):
     provider: str
     model: Union[str, dict[str, Any]] = "gpt-4o"
     system_message: Union[str, Any]  # String with {markers} or Lua function
+<<<<<<< Updated upstream
     initial_message: Optional[str] = None
+=======
+    message: Optional[str] = None
+>>>>>>> Stashed changes
     tools: list[str] = Field(default_factory=list)
     output: Optional[AgentOutputSchema] = None
     session: Optional[SessionConfiguration] = None
@@ -359,10 +363,14 @@ async def create_tool_with_context(tool_name: str, tool_impl: Callable):
     return wrapped
 ```
 
-### Template Resolution via Prepare
+### Template Resolution
 
-System prompts with `{params.topic}` markers are resolved using Pydantic AI's prepare mechanism:
+Agent `system_message` and `message` fields support Jinja2 templates. Templates can reference:
+- `input` (procedure inputs)
+- `locals` (static values from `template_context.locals`)
+- `state` (only when `template_context.state` is enabled)
 
+<<<<<<< Updated upstream
 ```python
 from pydantic_ai import Agent
 
@@ -393,6 +401,9 @@ def resolve_template(template: str, context: TactusContext) -> str:
     # Accesses context.params, context.state, etc.
     ...
 ```
+=======
+Rendering happens during agent setup using `TemplateResolver`, with `template_mode = "plain"` available to skip templating.
+>>>>>>> Stashed changes
 
 ### Agent Output Schema to Pydantic Model
 
@@ -1044,7 +1055,7 @@ All tests must use new `.tac` format. Update:
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | File extension | `.tac` | Free syntax highlighting, distinctive |
-| Template syntax | `{params.x}` in strings | Matches current, resolved via Pydantic AI prepare |
+| Template syntax | `{{ input.x }}` in strings | Jinja2 with optional `state`/`locals` context |
 | Validation | Layered (quick + full) | IDE needs speed, CLI needs thoroughness |
 | Warnings vs errors | Both supported | Missing specs = warning, missing name = error |
 | Session/history | Per-agent with filters | Core DSL value proposition |

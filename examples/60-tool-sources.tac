@@ -65,7 +65,7 @@ Procedure {
             end
 
             -- Run the agent
-            local response = tool_demo({initial_message = message})
+            local response = tool_demo({message = message})
 
             -- Wait for done to be called
             local max_turns = 5

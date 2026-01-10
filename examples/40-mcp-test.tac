@@ -43,7 +43,7 @@ Steps:
 2. Use multiply to multiply the result by 2
 3. Call done with the final answer
 ]],
-    initial_message = "Calculate (5 + 3) * 2 and call done when finished",
+    message = "Calculate (5 + 3) * 2 and call done when finished",
     toolsets = {
         "test_server_add_numbers",
         "test_server_multiply",
