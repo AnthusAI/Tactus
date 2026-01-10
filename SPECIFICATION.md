@@ -1883,12 +1883,12 @@ local web_search = Tool.get("web_search")  -- From MCP server
 local result = web_search({query = "weather"})
 ```
 
-### toolset() with type="lua"
+### Toolset with type="lua"
 
 Group multiple related tools into a named toolset:
 
 ```lua
-toolset("math_tools", {
+Toolset "math_tools" {
     type = "lua",
     tools = {
         {
