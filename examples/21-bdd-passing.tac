@@ -85,6 +85,16 @@ Step("the items list has correct format", function(input)
   assert(items[1] == "item_1", "First item should be item_1")
 end)
 
+-- Agent Mocks for CI testing
+Mocks {
+    worker = {
+        tool_calls = {
+            {tool = "done", args = {reason = "Work completed"}}
+        },
+        message = "I have completed the work."
+    }
+}
+
 -- Evaluation configuration
 Evaluation({
   runs = 10,

@@ -93,6 +93,138 @@ default_model: "gpt-4o-mini"
 
 **Security**: Sidecar files can contain file paths and command execution. Only use trusted sidecar files.
 
+## Sandbox Configuration
+
+Tactus runs procedures in Docker containers by default for security isolation. You can configure sandbox behavior at any configuration level (user, project, or sidecar).
+
+### Basic Sandbox Settings
+
+```yaml
+# ~/.tactus/config.yml or .tactus/config.yml
+sandbox:
+  enabled: true                    # Default: true (if Docker available)
+  image: "tactus-sandbox:local"    # Docker image name (auto-built on first use)
+  timeout: 3600                    # Max execution time in seconds (default: 1 hour)
+  mcp_servers_path: "~/.tactus/mcp-servers"  # Path to MCP servers
+```
+
+**Note**: If Docker is unavailable and `enabled: true`, execution will fail with an error. Use `--no-sandbox` flag or `enabled: false` to explicitly run without isolation.
+
+### Resource Limits
+
+Control memory and CPU usage per container:
+
+```yaml
+sandbox:
+  limits:
+    memory: "2g"     # Per-container memory limit (default: 2GB)
+    cpus: "2"        # Per-container CPU cores (default: 2)
+```
+
+**Error handling**:
+- Out of memory: Container killed with exit code 137
+- Timeout exceeded: Container killed with exit code 124
+
+### Network Configuration
+
+Control network access for procedures:
+
+```yaml
+sandbox:
+  network: "bridge"  # Network mode (default: bridge)
+
+  # Options:
+  # - "bridge": Default Docker bridge (allows outbound connections)
+  # - "none": No network access (most secure, but can't call LLM APIs)
+  # - "host": Use host network (not recommended for security)
+  # - "custom-network": Use a custom Docker network
+```
+
+**Security consideration**: Default `bridge` mode allows outbound connections (needed for LLM API calls), but agents could potentially exfiltrate data. See [Sandboxing Guide: Threat Model](./SANDBOXING.md#threat-model) for details.
+
+### Volume Mounts
+
+Mount host directories into the container:
+
+```yaml
+sandbox:
+  volumes:
+    - "/host/data:/data:ro"           # Read-only mount
+    - "/host/outputs:/outputs:rw"     # Read-write mount
+    - "/shared/config:/config:ro"
+```
+
+**Default mounts** (always included):
+- Workspace: Temporary directory at `/workspace` (ephemeral, destroyed after run)
+- MCP Servers: `~/.tactus/mcp-servers` at `/mcp-servers` (read-only)
+
+### Environment Variables
+
+Pass environment variables to the container:
+
+```yaml
+sandbox:
+  env:
+    CUSTOM_VAR: "value"
+    DEBUG: "true"
+    LOG_LEVEL: "info"
+```
+
+**Automatically passed through** (no configuration needed):
+- `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`
+- `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION`, `AWS_SESSION_TOKEN`
+- `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`
+
+### Per-Procedure Sandbox Configuration
+
+Use sidecar files to customize sandbox settings per procedure:
+
+**Example**: `financial_analysis.tac.yml`
+```yaml
+# Procedure-specific sandbox configuration
+sandbox:
+  enabled: true
+
+  limits:
+    memory: "4g"      # More memory for data-heavy processing
+    cpus: "4"         # More CPU cores
+
+  timeout: 1800       # 30 minute timeout
+
+  network: "none"     # No network access for sensitive data
+
+  volumes:
+    - "/data/financial:/data:ro"      # Read-only financial data
+    - "/output/reports:/reports:rw"   # Write reports here
+
+  env:
+    DATA_PATH: "/data"
+    OUTPUT_PATH: "/reports"
+```
+
+**Use cases for per-procedure sandbox configs**:
+- Higher resource limits for data-intensive procedures
+- Network isolation for procedures handling sensitive data
+- Custom volume mounts for specific data sources
+- Procedure-specific environment variables
+
+### Disabling the Sandbox
+
+To run without Docker isolation:
+
+**Via CLI**:
+```bash
+tactus run procedure.tac --no-sandbox
+```
+
+**Via configuration**:
+```yaml
+sandbox:
+  enabled: false
+```
+
+**Security warning**: Running without sandbox removes OS-level isolation. Only disable for trusted procedures or development. See [Sandboxing Guide](./SANDBOXING.md) for security implications.
+
 ### Directory-Level Configuration
 
 You can place `.tactus/config.yml` files in any directory to configure settings for procedures in that directory and subdirectories.
@@ -322,6 +454,7 @@ api_key = config.get("openai_api_key")
 
 ## See Also
 
+- [Sandboxing & Security](SANDBOXING.md) - Security concepts and threat models
 - [Tool Roadmap](TOOL_ROADMAP.md) - Information about tool loading
 - [README](../README.md) - General Tactus documentation
 - [Examples](../examples/) - Example procedures with sidecar configs

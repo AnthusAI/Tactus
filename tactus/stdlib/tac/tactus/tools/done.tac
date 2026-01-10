@@ -16,7 +16,9 @@ Usage:
     end
 ]]--
 
-local done_tool = Tool {
+-- Use named syntax so the tool has explicit name "done"
+-- (required for mock mode where tool calls are recorded by name)
+return Tool "done" {
     description = "Signal task completion",
     input = {
         reason = field.string{required = false, description = "Reason for completion"}
@@ -29,5 +31,3 @@ local done_tool = Tool {
         }
     end
 }
-
-return done_tool

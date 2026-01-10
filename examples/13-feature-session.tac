@@ -52,6 +52,14 @@ Procedure {
     end
 }
 
+-- Agent Mocks for CI testing
+Mocks {
+    chatbot = {
+        tool_calls = {},
+        message = "Hello! How can I help you today?"
+    }
+}
+
 -- BDD Specifications
 Specifications([[
 Feature: Message History Management

@@ -172,7 +172,7 @@ class ToolHandle:
             return 0
 
         # Count all calls with this tool name
-        count = sum(1 for call in self.tool_primitive._tool_calls if call.tool_name == self.name)
+        count = sum(1 for call in self.tool_primitive._tool_calls if call.name == self.name)
         logger.debug(f"ToolHandle.call_count('{self.name}') = {count}")
         return count
 
@@ -206,7 +206,7 @@ class ToolHandle:
 
         # Remove all calls for this tool
         self.tool_primitive._tool_calls = [
-            call for call in self.tool_primitive._tool_calls if call.tool_name != self.name
+            call for call in self.tool_primitive._tool_calls if call.name != self.name
         ]
         logger.debug(f"ToolHandle.reset('{self.name}'): Cleared all call records")
 

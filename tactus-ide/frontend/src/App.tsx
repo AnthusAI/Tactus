@@ -41,8 +41,28 @@ import { ResultsHistoryState, RunHistory } from './types/results';
 import { ProcedureMetadata } from './types/metadata';
 import { AnyEvent, TestCompletedEvent } from './types/events';
 import { ProcedureInputsModal } from './components/ProcedureInputsModal';
+import { TestOptionsModal, TestOptions } from './components/TestOptionsModal';
 
 // Detect if running in Electron (moved inside component for runtime evaluation)
+
+// Extract scenario names from Gherkin specifications data
+function extractScenarioNames(specifications: { text: string } | null | undefined): string[] {
+  if (!specifications?.text) return [];
+
+  const scenarios: string[] = [];
+  const lines = specifications.text.split('\n');
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    // Match "Scenario: Name" or "Scenario Outline: Name"
+    const match = trimmed.match(/^Scenario(?:\s+Outline)?:\s*(.+)$/);
+    if (match) {
+      scenarios.push(match[1].trim());
+    }
+  }
+
+  return scenarios;
+}
 
 interface RunResult {
   success: boolean;
@@ -113,9 +133,16 @@ const AppContent: React.FC = () => {
   const [metadataLoading, setMetadataLoading] = useState(false);
   const [currentRunId, setCurrentRunId] = useState<string | null>(null);
 
+  // Container status state
+  const [containerStatus, setContainerStatus] = useState<{
+    status: 'idle' | 'starting' | 'ready' | 'disabled' | 'error';
+    spinupMs?: number;
+  }>({ status: 'idle' });
+
   // Input modal state
   const [inputModalOpen, setInputModalOpen] = useState(false);
   const [pendingInputs, setPendingInputs] = useState<Record<string, any> | null>(null);
+  const [testOptionsModalOpen, setTestOptionsModalOpen] = useState(false);
 
   // Editor ref for programmatic navigation
   const editorRef = useRef<EditorHandle>(null);
@@ -455,12 +482,26 @@ const AppContent: React.FC = () => {
     executeRunWithInputs({});
   }, [currentFile, procedureMetadata, executeRunWithInputs]);
 
-  // Test current file
-  const handleTest = useCallback(async () => {
+  // Test current file - opens options modal
+  const handleTest = useCallback(() => {
     if (!currentFile) {
       alert('Please select a file to test');
       return;
     }
+
+    if (!procedureMetadata?.specifications) {
+      alert('No specifications found in this file');
+      return;
+    }
+
+    setTestOptionsModalOpen(true);
+  }, [currentFile, procedureMetadata]);
+
+  // Run tests with specified options
+  const handleTestWithOptions = useCallback(async (options: TestOptions) => {
+    if (!currentFile) return;
+
+    setTestOptionsModalOpen(false);
 
     // Clear stream first to reset events
     setStreamUrl(null);
@@ -483,8 +524,11 @@ const AppContent: React.FC = () => {
         }),
       });
 
-      // Then start streaming test results (real mode by default - uses actual LLM)
-      const url = apiUrl(`/api/test/stream?path=${encodeURIComponent(currentFile)}&mock=false`);
+      // Build URL with options
+      let url = apiUrl(`/api/test/stream?path=${encodeURIComponent(currentFile)}&mock=${options.mockEnabled}`);
+      if (options.scenario) {
+        url += `&scenario=${encodeURIComponent(options.scenario)}`;
+      }
       setStreamUrl(url);
     } catch (error) {
       console.error('Error running tests:', error);
@@ -641,6 +685,40 @@ const AppContent: React.FC = () => {
 
     loadPersistedRuns();
   }, [currentFile]);
+
+  // Track container status from streaming events
+  useEffect(() => {
+    // Reset container status when events are cleared (new execution starting)
+    if (events.length === 0 && isStreaming) {
+      setContainerStatus({ status: 'idle' });
+      return;
+    }
+
+    if (events.length > 0) {
+      const lastEvent = events[events.length - 1];
+      if (lastEvent.event_type === 'container_status') {
+        const statusEvent = lastEvent as import('./types/events').ContainerStatusEvent;
+        if (statusEvent.status === 'ready') {
+          setContainerStatus({
+            status: 'ready',
+            spinupMs: statusEvent.spinup_duration_ms,
+          });
+        } else if (statusEvent.status === 'starting') {
+          setContainerStatus({ status: 'starting' });
+        } else if (statusEvent.status === 'stopped') {
+          // Don't reset to idle - keep the 'ready' status visible to show spinup time
+          // Container status will be reset when a new execution starts
+        } else if (statusEvent.status === 'disabled') {
+          setContainerStatus({ status: 'disabled' });
+        } else if (statusEvent.status === 'error') {
+          setContainerStatus({ status: 'error' });
+        }
+      }
+    }
+
+    // Don't reset container status when streaming stops - we want to show spinup time
+    // Container status persists after execution completes to show spinup duration
+  }, [events, isStreaming]);
 
   // Sync streaming events into current run
   useEffect(() => {
@@ -864,6 +942,7 @@ const AppContent: React.FC = () => {
                 metadataLoading={metadataLoading}
                 resultsHistory={currentFile ? resultsHistory[currentFile] : null}
                 isRunning={isStreaming}
+                containerStatus={containerStatus}
                 onToggleRunExpansion={handleToggleRunExpansion}
                 onJumpToSource={handleJumpToSource}
               />
@@ -913,6 +992,15 @@ const AppContent: React.FC = () => {
           onCancel={() => setInputModalOpen(false)}
         />
       )}
+
+      {/* Test Options Modal */}
+      <TestOptionsModal
+        open={testOptionsModalOpen}
+        onOpenChange={setTestOptionsModalOpen}
+        scenarios={extractScenarioNames(procedureMetadata?.specifications)}
+        onSubmit={handleTestWithOptions}
+        onCancel={() => setTestOptionsModalOpen(false)}
+      />
     </div>
   );
 };

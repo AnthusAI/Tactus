@@ -55,17 +55,25 @@ def check_requires_real_api(file_path: Path) -> bool:
 
 
 def check_uses_agents(file_path: Path) -> bool:
-    """Check if an example uses agents that require LLM calls to function properly.
-
-    Agent-based examples can't work correctly in mock mode because:
-    - Agents need to make LLM calls to decide which tools to use
-    - Without real LLM calls, agents never call tools like 'done'
-    - Mock mode only mocks tool responses, not agent decision-making
-    """
+    """Check if an example uses agents."""
     try:
         content = file_path.read_text()
         # Look for Agent declarations
         return "Agent {" in content or "Agent{" in content
+    except Exception:
+        return False
+
+
+def check_has_agent_mocks(file_path: Path) -> bool:
+    """Check if an example has Mocks {} block with agent mock configs.
+
+    Agent mocks are identified by having 'tool_calls' in the mock definition.
+    Examples with agent mocks can run in CI without real LLM calls.
+    """
+    try:
+        content = file_path.read_text()
+        # Must have Mocks block and tool_calls (indicates agent mock)
+        return "Mocks {" in content and "tool_calls" in content
     except Exception:
         return False
 
@@ -113,6 +121,7 @@ def collect_example_test_cases() -> List[Dict[str, Any]]:
         requires_mcp = check_requires_mcp(tac_file)
         requires_real_api = check_requires_real_api(tac_file)
         uses_agents = check_uses_agents(tac_file)
+        has_agent_mocks = check_has_agent_mocks(tac_file)
 
         test_cases.append(
             {
@@ -122,6 +131,7 @@ def collect_example_test_cases() -> List[Dict[str, Any]]:
                 "requires_mcp": requires_mcp,
                 "requires_real_api": requires_real_api,
                 "uses_agents": uses_agents,
+                "has_agent_mocks": has_agent_mocks,
                 "id": tac_file.stem,  # For test identification
             }
         )
@@ -283,15 +293,6 @@ class TestAllExamples:
             # Check results
             assert test_result.total_scenarios > 0, f"No scenarios found in {example['id']}"
 
-            # Skip agent-based examples in mock mode
-            # Agent examples need LLM calls to decide which tools to use - mocking tools
-            # alone doesn't make the agent actually call them
-            if example.get("uses_agents", False):
-                # For agent examples, we just verify they run without crashing
-                # The scenarios will fail because agents don't call tools in mock mode
-                return  # Pass the test - agent examples run but don't need to pass all scenarios
-
-            # Non-agent examples should have all scenarios pass
             assert test_result.failed_scenarios == 0, (
                 f"BDD tests failed for {example['id']}: "
                 f"{test_result.failed_scenarios}/{test_result.total_scenarios} scenarios failed"

@@ -45,6 +45,16 @@ Procedure {
     end
 }
 
+-- Agent mock for CI testing (used when mocks are enabled)
+Mocks {
+    greeter = {
+        tool_calls = {
+            { tool = "done", args = { reason = "Hello! Welcome! I hope you have a wonderful day." } }
+        },
+        message = "Hello! Welcome! I hope you have a wonderful day."
+    }
+}
+
 Specifications([[
 Feature: Simple Agent Interaction
   Demonstrate basic LLM agent interaction with done tool

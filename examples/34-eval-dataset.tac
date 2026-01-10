@@ -2,6 +2,9 @@
 -- This demonstrates loading evaluation cases from an external JSONL file
 -- instead of defining them inline in the .tac file.
 
+-- Import completion tool from standard library
+local done = require("tactus.tools.done")
+
 completer = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
@@ -10,6 +13,7 @@ completer = Agent {
 When you complete a task, call the 'done' tool with your result.
 Always start your response with "TASK_COMPLETE: " followed by your actual work.]],
     initial_message = "{task}\n\nPlease complete this task now.",
+    tools = {done}
 }
 
 Procedure {
@@ -43,24 +47,38 @@ Procedure {
     end
 }
 
+-- Agent Mocks for CI testing
+Mocks {
+    completer = {
+        tool_calls = {
+            {tool = "done", args = {reason = "TASK_COMPLETE: Task completed successfully."}}
+        },
+        message = "I've completed the task."
+    }
+}
+
 Specifications([[
 Feature: Task Completion with External Dataset
 
   Scenario: Agent completes task from external dataset
     Given the procedure has started
+    And the input task is "Say hello to the world"
     When the procedure runs
     Then the done tool should be called
     And the procedure should complete successfully
 ]])
 
 -- Pydantic AI Evaluations with External Dataset
+-- Note: Evaluations framework is partially implemented.
+-- Commented out until field.contains, field.llm_judge are available.
+--[[
 Evaluations({
     runs = 2,
     parallel = true,
-    
+
     -- Load cases from external JSONL file
     dataset_file = "eval-with-dataset-file.jsonl",
-    
+
     -- Can also include inline cases (these will be added to file cases)
     dataset = {
         {
@@ -73,13 +91,14 @@ Evaluations({
             }
         }
     },
-    
+
     evaluators = {
         -- Check for completion marker
         field.contains{},
-        
+
         -- Use LLM judge for quality
         field.llm_judge{}
     }
 }
 )
+]]--

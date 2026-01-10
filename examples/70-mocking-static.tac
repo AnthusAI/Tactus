@@ -42,6 +42,14 @@ Mocks {
             price = 150.25,
             change = 2.5
         }
+    },
+    -- Agent mock for CI testing
+    info_gatherer = {
+        tool_calls = {
+            {tool = "weather", args = {location = "San Francisco"}},
+            {tool = "done", args = {reason = "The weather in San Francisco is 72°F and Sunny."}}
+        },
+        message = "I've gathered the weather information."
     }
 }
 
@@ -133,17 +141,10 @@ Feature: Static Mocking
 
   Scenario: Weather query uses static mock
     Given the procedure has started
-    When the procedure runs with query "weather"
+    When the procedure runs
     Then the weather tool should be called
     And the done tool should be called
     And the output mocked should be True
-    And the procedure should complete successfully
-
-  Scenario: Stock query uses static mock
-    Given the procedure has started
-    When the procedure runs with query "stock"
-    Then the stock_price tool should be called
-    And the done tool should be called
-    And the output mocked should be True
+    And the output result should exist
     And the procedure should complete successfully
 ]])

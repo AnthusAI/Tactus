@@ -20,6 +20,7 @@ import {
 } from './EvaluationEventComponent';
 import { ToolCallEventComponent } from './ToolCallEventComponent';
 import { CheckpointEventComponent } from './CheckpointEventComponent';
+import { ContainerStatusEventComponent } from './ContainerStatusEventComponent';
 import { BaseEventComponent } from './BaseEventComponent';
 
 interface EventRendererProps {
@@ -29,24 +30,9 @@ interface EventRendererProps {
 }
 
 export const EventRenderer: React.FC<EventRendererProps> = ({ event, isAlternate, onJumpToSource }) => {
-  // Convert AgentTurnEvent to LoadingEvent for display
-  if (event.event_type === 'agent_turn') {
-    const agentEvent = event as any;
-    if (agentEvent.stage === 'started') {
-      // Show as loading indicator
-      const loadingEvent = {
-        event_type: 'loading',
-        message: `Waiting for ${agentEvent.agent_name} response...`,
-        timestamp: agentEvent.timestamp,
-        procedure_id: agentEvent.procedure_id,
-      };
-      return <LoadingEventComponent event={loadingEvent as any} isAlternate={isAlternate} />;
-    } else if (agentEvent.stage === 'completed') {
-      // Don't show a separate "completed" message - the cost event shows the response
-      return null;
-    }
-  }
-  
+  // Agent turn events are now converted to loading events in useEventStream
+  // so they won't reach here anymore
+
   switch (event.event_type) {
     case 'log':
       return <LogEventComponent event={event} isAlternate={isAlternate} />;
@@ -71,11 +57,17 @@ export const EventRenderer: React.FC<EventRendererProps> = ({ event, isAlternate
     case 'loading':
       return <LoadingEventComponent event={event} isAlternate={isAlternate} />;
     case 'test_started':
-      return <TestStartedEventComponent event={event} isAlternate={isAlternate} />;
+      // Handled by TestProgressContainer - suppress individual rendering
+      return null;
+    case 'test_scenario_started':
+      // Handled by TestProgressContainer - suppress individual rendering
+      return null;
     case 'test_scenario_completed':
-      return <TestScenarioCompletedEventComponent event={event} isAlternate={isAlternate} />;
+      // Handled by TestProgressContainer - suppress individual rendering
+      return null;
     case 'test_completed':
-      return <TestCompletedEventComponent event={event} isAlternate={isAlternate} />;
+      // Handled by TestProgressContainer - suppress individual rendering
+      return null;
     case 'evaluation_started':
       return <EvaluationStartedEventComponent event={event} isAlternate={isAlternate} />;
     case 'evaluation_progress':
@@ -86,6 +78,8 @@ export const EventRenderer: React.FC<EventRendererProps> = ({ event, isAlternate
       return <ToolCallEventComponent event={event} isAlternate={isAlternate} />;
     case 'checkpoint_created':
       return <CheckpointEventComponent event={event} isAlternate={isAlternate} onJumpToSource={onJumpToSource} />;
+    case 'container_status':
+      return <ContainerStatusEventComponent event={event as any} isAlternate={isAlternate} />;
     default:
       return (
         <BaseEventComponent isAlternate={isAlternate} className="py-2 px-3 text-sm text-muted-foreground">

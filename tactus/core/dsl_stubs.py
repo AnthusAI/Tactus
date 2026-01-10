@@ -870,10 +870,11 @@ def create_dsl_stubs(
 
     def _mocks(config):
         """
-        Define mock configurations for tools.
+        Define mock configurations for tools and agents.
 
         Example usage:
             Mocks {
+                -- Tool mocks
                 search = {
                     returns = {results = {"mocked result"}}
                 },
@@ -889,6 +890,15 @@ def create_dsl_stubs(
                         {when = {text = "hello"}, returns = {translation = "hola"}},
                         {when = {text = "goodbye"}, returns = {translation = "adiós"}}
                     }
+                },
+
+                -- Agent mocks (specifies what tool calls to simulate)
+                my_agent = {
+                    tool_calls = {
+                        {tool = "search", args = {query = "test"}},
+                        {tool = "done", args = {reason = "completed"}}
+                    },
+                    message = "I found the results."
                 }
             }
 
@@ -901,10 +911,21 @@ def create_dsl_stubs(
         config_dict = lua_table_to_dict(config)
 
         # Register mock configurations with the builder
-        for tool_name, mock_config in config_dict.items():
+        for name, mock_config in config_dict.items():
             if not isinstance(mock_config, dict):
                 continue
 
+            # Check if this is an agent mock (has tool_calls key)
+            if "tool_calls" in mock_config:
+                # Agent mock - specifies what tool calls the agent should simulate
+                agent_config = {
+                    "tool_calls": mock_config.get("tool_calls", []),
+                    "message": mock_config.get("message", ""),
+                }
+                builder.register_agent_mock(name, agent_config)
+                continue
+
+            # Otherwise, it's a tool mock
             # Convert DSL syntax to MockConfig format
             processed_config = {}
 
@@ -929,8 +950,8 @@ def create_dsl_stubs(
             elif "error" in mock_config:
                 processed_config["error"] = mock_config["error"]
 
-            # Register the mock configuration
-            builder.register_mock(tool_name, processed_config)
+            # Register the tool mock configuration
+            builder.register_mock(name, processed_config)
 
     def _history(messages=None):
         """
@@ -1388,11 +1409,18 @@ def create_dsl_stubs(
         handle = AgentHandle(agent_name)
 
         # If we have runtime context, create the agent primitive immediately
+        import logging
+
+        logger = logging.getLogger(__name__)
+
+        logger.info(
+            f"[AGENT_CREATION] Agent '{agent_name}': runtime_context={bool(_runtime_context)}, skip_agents={_runtime_context.get('skip_agents', 'N/A') if _runtime_context else 'N/A'}, has_log_handler={('log_handler' in _runtime_context) if _runtime_context else False}"
+        )
+
         if _runtime_context and not _runtime_context.get("skip_agents", False):
             from tactus.dspy.agent import create_dspy_agent
-            import logging
 
-            logger = logging.getLogger(__name__)
+            logger.info(f"[AGENT_CREATION] Attempting immediate creation for agent '{agent_name}'")
 
             try:
                 # Create the actual agent primitive NOW
@@ -1407,6 +1435,10 @@ def create_dsl_stubs(
                     model_id = agent_config["model"]
                     agent_config["model"] = f"{provider}:{model_id}"
 
+                # Add log_handler from runtime context
+                if "log_handler" in _runtime_context:
+                    agent_config["log_handler"] = _runtime_context["log_handler"]
+
                 agent_primitive = create_dspy_agent(
                     agent_name,
                     agent_config,
@@ -1418,10 +1450,21 @@ def create_dsl_stubs(
                 handle._set_primitive(
                     agent_primitive, execution_context=_runtime_context.get("execution_context")
                 )
-                logger.debug(f"Agent '{agent_name}' created immediately during declaration")
+                logger.info(
+                    f"[AGENT_CREATION] Agent '{agent_name}' created immediately during declaration, has_log_handler={hasattr(agent_primitive, 'log_handler') and agent_primitive.log_handler is not None}"
+                )
+
+                # Store primitive in a dict so runtime can access it later
+                if "_created_agents" not in _runtime_context:
+                    _runtime_context["_created_agents"] = {}
+                _runtime_context["_created_agents"][agent_name] = agent_primitive
+                logger.info(f"[AGENT_CREATION] Stored agent '{agent_name}' in _created_agents dict")
 
             except Exception as e:
-                logger.warning(f"Failed to create agent '{agent_name}' immediately: {e}")
+                logger.error(
+                    f"[AGENT_CREATION] Failed to create agent '{agent_name}' immediately: {e}",
+                    exc_info=True,
+                )
                 # Fall back to two-phase initialization if immediate creation fails
 
         # Register handle for lookup
@@ -1520,11 +1563,18 @@ def create_dsl_stubs(
         handle = AgentHandle(temp_name)
 
         # If we have runtime context, create the agent primitive immediately
+        import logging
+
+        logger = logging.getLogger(__name__)
+
+        logger.info(
+            f"[AGENT_CREATION] Agent '{temp_name}': runtime_context={bool(_runtime_context)}, skip_agents={_runtime_context.get('skip_agents', 'N/A') if _runtime_context else 'N/A'}, has_log_handler={('log_handler' in _runtime_context) if _runtime_context else False}"
+        )
+
         if _runtime_context and not _runtime_context.get("skip_agents", False):
             from tactus.dspy.agent import create_dspy_agent
-            import logging
 
-            logger = logging.getLogger(__name__)
+            logger.info(f"[AGENT_CREATION] Attempting immediate creation for agent '{temp_name}'")
 
             try:
                 # Create the actual agent primitive NOW
@@ -1539,7 +1589,13 @@ def create_dsl_stubs(
                     model_id = agent_config["model"]
                     agent_config["model"] = f"{provider}:{model_id}"
 
-                logger.debug(f"Creating agent immediately: name={temp_name}")
+                # Add log_handler from runtime context
+                if "log_handler" in _runtime_context:
+                    agent_config["log_handler"] = _runtime_context["log_handler"]
+
+                logger.info(
+                    f"[AGENT_CREATION] Creating agent immediately: name={temp_name}, has_log_handler={'log_handler' in agent_config}"
+                )
                 agent_primitive = create_dspy_agent(
                     temp_name,
                     agent_config,
@@ -1551,12 +1607,23 @@ def create_dsl_stubs(
                 handle._set_primitive(
                     agent_primitive, execution_context=_runtime_context.get("execution_context")
                 )
-                logger.debug(f"Agent '{temp_name}' created immediately during declaration")
+                logger.info(
+                    f"[AGENT_CREATION] Agent '{temp_name}' created immediately during declaration, has_log_handler={hasattr(agent_primitive, 'log_handler') and agent_primitive.log_handler is not None}"
+                )
+
+                # Store primitive in a dict so runtime can access it later
+                if "_created_agents" not in _runtime_context:
+                    _runtime_context["_created_agents"] = {}
+                _runtime_context["_created_agents"][temp_name] = agent_primitive
+                logger.info(f"[AGENT_CREATION] Stored agent '{temp_name}' in _created_agents dict")
 
             except Exception as e:
                 import traceback
 
-                logger.warning(f"Failed to create agent '{temp_name}' immediately: {e}")
+                logger.error(
+                    f"[AGENT_CREATION] Failed to create agent '{temp_name}' immediately: {e}",
+                    exc_info=True,
+                )
                 logger.debug(f"Full traceback: {traceback.format_exc()}")
                 # Fall back to two-phase initialization if immediate creation fails
 
@@ -1630,14 +1697,16 @@ def create_dsl_stubs(
         },
         # Assignment interception callback
         "_tactus_register_binding": _make_binding_callback(
-            builder, _tool_registry, _agent_registry
+            builder, _tool_registry, _agent_registry, _runtime_context
         ),
     }
 
 
-def _make_binding_callback(builder: RegistryBuilder, tool_registry: dict, agent_registry: dict):
+def _make_binding_callback(
+    builder: RegistryBuilder, tool_registry: dict, agent_registry: dict, runtime_context: dict
+):
     """
-    Factory to create the binding callback with closure over builder/registries.
+    Factory to create the binding callback with closure over builder/registries/runtime_context.
 
     This callback is called by Lua's __newindex metatable when assignments happen.
     """
@@ -1687,9 +1756,16 @@ def _make_binding_callback(builder: RegistryBuilder, tool_registry: dict, agent_
         if isinstance(value, AgentHandle):
             old_name = value.name
             if old_name.startswith("_temp_agent_"):
-                # Rename the agent
-                callback_logger.debug(f"Renaming agent '{old_name}' to '{name}'")
+                # Rename the agent handle
+                callback_logger.info(f"[AGENT_RENAME] Renaming agent '{old_name}' to '{name}'")
                 value.name = name
+
+                # Also rename the underlying primitive if it exists
+                if value._primitive is not None:
+                    value._primitive.name = name
+                    callback_logger.info(
+                        f"[AGENT_RENAME] Updated primitive name: '{old_name}' -> '{name}'"
+                    )
 
                 # Remove old registry entry, add new one
                 if old_name in agent_registry:
@@ -1701,9 +1777,18 @@ def _make_binding_callback(builder: RegistryBuilder, tool_registry: dict, agent_
                 if hasattr(builder, "registry") and old_name in builder.registry.agents:
                     agent_data = builder.registry.agents.pop(old_name)
                     builder.registry.agents[name] = agent_data
-                    callback_logger.debug(
-                        f"Re-registered agent '{name}' in builder.registry.agents"
+                    callback_logger.info(
+                        f"[AGENT_RENAME] Re-registered agent '{name}' in builder.registry.agents"
                     )
+
+                # Update _created_agents dict if this agent was immediately created
+                if runtime_context and "_created_agents" in runtime_context:
+                    if old_name in runtime_context["_created_agents"]:
+                        agent_primitive = runtime_context["_created_agents"].pop(old_name)
+                        runtime_context["_created_agents"][name] = agent_primitive
+                        callback_logger.info(
+                            f"[AGENT_RENAME] Updated _created_agents dict: '{old_name}' -> '{name}'"
+                        )
 
         # Log all assignments for debugging (only at trace level to avoid noise)
         callback_logger.debug(f"Assignment captured: {name} = {type(value).__name__}")

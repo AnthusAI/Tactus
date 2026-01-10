@@ -1,12 +1,15 @@
 -- Comprehensive BDD Testing Example for Tactus
 -- Demonstrates all major features of the BDD testing framework
 
+local done = require("tactus.tools.done")
+
 -- Agent
 processor = Agent {
   provider = "openai",
   model = "gpt-4o-mini",
   system_prompt = "Process the task: {input.task}. Call done when finished.",
   initial_message = "Start processing",
+  tools = {done},
 }
 
 -- Stages
@@ -106,6 +109,16 @@ Feature: Comprehensive Workflow Testing
     When the procedure runs
     Then the total iterations should be less than 20
 ]])
+
+-- Agent mock for CI testing (used when mocks are enabled)
+Mocks {
+    processor = {
+        tool_calls = {
+            { tool = "done", args = { reason = "Processing complete" } }
+        },
+        message = "Processing complete."
+    }
+}
 
 -- Custom step for advanced validation
 Step("the processing was efficient", function(input)

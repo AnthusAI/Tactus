@@ -187,6 +187,9 @@ class BaseExecutionContext(ExecutionContext):
         On replay, returns cached result from execution log.
         On first execution, runs fn(), records in log, and returns result.
         """
+        logger.info(
+            f"[CHECKPOINT] checkpoint() called, type={checkpoint_type}, has_log_handler={self.log_handler is not None}"
+        )
         current_position = self.metadata.replay_index
 
         # Check if we're in replay mode (checkpoint exists at this position)
@@ -256,9 +259,14 @@ class BaseExecutionContext(ExecutionContext):
                     source_location=source_location,
                     procedure_id=self.procedure_id,
                 )
+                logger.info(
+                    f"[CHECKPOINT] Emitting CheckpointCreatedEvent: position={current_position}, type={checkpoint_type}, duration_ms={duration_ms}"
+                )
                 self.log_handler.log(event)
             except Exception as e:
                 logger.warning(f"Failed to emit checkpoint event: {e}")
+        else:
+            logger.warning("[CHECKPOINT] No log_handler available to emit checkpoint event")
 
         # Persist metadata
         self.storage.save_procedure_metadata(self.procedure_id, self.metadata)

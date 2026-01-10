@@ -109,6 +109,18 @@ class DependencyDeclaration(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
 
+class AgentMockConfig(BaseModel):
+    """Mock configuration for an agent's behavior.
+
+    Specifies what tool calls the agent should simulate when mocking is enabled.
+    This allows agent-based tests to pass in CI without making real LLM calls.
+    """
+
+    tool_calls: list[dict[str, Any]] = Field(default_factory=list)
+    # List of tool calls to simulate: [{"tool": "done", "args": {"reason": "..."}}, ...]
+    message: str = ""  # The agent's final message response
+
+
 class ProcedureRegistry(BaseModel):
     """Collects all declarations from a .tac file."""
 
@@ -130,6 +142,7 @@ class ProcedureRegistry(BaseModel):
     specifications: list[SpecificationDeclaration] = Field(default_factory=list)
     dependencies: dict[str, DependencyDeclaration] = Field(default_factory=dict)
     mocks: dict[str, dict[str, Any]] = Field(default_factory=dict)  # Mock configurations
+    agent_mocks: dict[str, AgentMockConfig] = Field(default_factory=dict)  # Agent mock configs
 
     # Message history configuration (aligned with pydantic-ai)
     message_history_config: dict[str, Any] = Field(default_factory=dict)
@@ -306,6 +319,18 @@ class RegistryBuilder:
             config: Mock configuration (output, temporal, conditional_mocks, error)
         """
         self.registry.mocks[tool_name] = config
+
+    def register_agent_mock(self, agent_name: str, config: dict) -> None:
+        """Register a mock configuration for an agent.
+
+        Args:
+            agent_name: Name of the agent to mock
+            config: Mock configuration with tool_calls and message
+        """
+        try:
+            self.registry.agent_mocks[agent_name] = AgentMockConfig(**config)
+        except Exception as e:
+            self._add_error(f"Invalid agent mock config for '{agent_name}': {e}")
 
     def set_stages(self, stage_names: list[str]) -> None:
         """Set stage names."""

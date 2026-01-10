@@ -83,28 +83,39 @@ class MockedToolPrimitive(ToolPrimitive):
         super().__init__()
         self.mock_registry = mock_registry
 
-    def record_call(self, tool_name: str, args: Dict[str, Any]) -> Any:
+    def record_call(
+        self, tool_name: str, args: Dict[str, Any], result: Any = None, agent_name: str = None
+    ) -> Any:
         """
         Record tool call and return mock response.
 
         Args:
             tool_name: Name of the tool
             args: Tool arguments
+            result: Optional result (ignored in mock mode - we use mock registry)
+            agent_name: Optional agent name (for compatibility with base class)
 
         Returns:
-            Mocked tool result
+            Mocked tool result (or default if no mock registered)
         """
-        # Get mock response
-        result = self.mock_registry.get_response(tool_name, args)
+        # Get mock response, or use default if not registered
+        # Ignore the passed result - we always use mock responses
+        if self.mock_registry.has_mock(tool_name):
+            mock_result = self.mock_registry.get_response(tool_name, args)
+        else:
+            # No mock registered - use a default response
+            # This allows agent mocks to call tools that don't have explicit mocks
+            mock_result = {"status": "ok", "tool": tool_name}
+            logger.debug(f"No mock registered for {tool_name}, using default response")
 
         # Record the call (same as real ToolPrimitive)
-        call = ToolCall(tool_name, args, result)
+        call = ToolCall(tool_name, args, mock_result)
         self._tool_calls.append(call)
         self._last_calls[tool_name] = call
 
-        logger.info(f"Mocked tool call: {tool_name}(args={args}) -> {result}")
+        logger.info(f"Mocked tool call: {tool_name}(args={args}) -> {mock_result}")
 
-        return result
+        return mock_result
 
 
 def create_default_mocks() -> Dict[str, Any]:

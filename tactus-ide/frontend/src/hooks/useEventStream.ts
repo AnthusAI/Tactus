@@ -60,16 +60,30 @@ export function useEventStream(url: string | null): StreamState {
         console.log('[SSE] Adding event to state, prev count:', prev.length);
         // #endregion
         
-        // If this is a streaming chunk event, replace loading and previous chunks for this agent
+        // If this is a streaming chunk event, update loading event and replace previous chunks
         if (event.event_type === 'agent_stream_chunk') {
           const chunkEvent = event as any;
-          const filtered = prev.filter(e => {
-            // Remove loading events that match this agent
+          const updated = prev.map(e => {
+            // Convert loading event to "completed" state on first chunk
             if (e.event_type === 'loading') {
               const loadingMsg = (e as any).message;
-              return loadingMsg !== `Waiting for ${chunkEvent.agent_name} response...`;
+              if (loadingMsg === `Waiting for ${chunkEvent.agent_name} response...`) {
+                // Calculate duration from loading event timestamp to now
+                const loadingTime = new Date(e.timestamp).getTime();
+                const chunkTime = new Date(chunkEvent.timestamp).getTime();
+                const durationMs = chunkTime - loadingTime;
+                return {
+                  ...e,
+                  message: `${chunkEvent.agent_name} response received`,
+                  completed: true,
+                  duration_ms: durationMs,
+                };
+              }
             }
-            // Remove previous stream chunks for this agent
+            return e;
+          });
+          // Remove previous stream chunks for this agent
+          const filtered = updated.filter(e => {
             if (e.event_type === 'agent_stream_chunk') {
               const prevChunk = e as any;
               return prevChunk.agent_name !== chunkEvent.agent_name;
@@ -79,23 +93,36 @@ export function useEventStream(url: string | null): StreamState {
           return [...filtered, event];
         }
         
-        // If this is a cost event, remove loading and agent_turn events (but KEEP streaming chunks visible)
+        // If this is a cost event, update loading events to completed state (but KEEP streaming chunks visible)
         if (event.event_type === 'cost') {
           const costEvent = event as any;
           // #region agent log
           console.log('[SSE] Cost event received:', JSON.stringify({agent_name: costEvent.agent_name, has_response_data: !!costEvent.response_data, response_data_keys: costEvent.response_data ? Object.keys(costEvent.response_data) : null, response_data: costEvent.response_data}));
           // #endregion
-          const filtered = prev.filter(e => {
-            // Remove loading events that match this agent
-            if (e.event_type === 'loading') {
+          const updated = prev.map(e => {
+            // Convert loading event to "completed" state if not already done by streaming
+            if (e.event_type === 'loading' && !(e as any).completed) {
               const loadingMsg = (e as any).message;
-              const shouldRemove = loadingMsg === `Waiting for ${costEvent.agent_name} response...`;
-              // #region agent log
-              if (shouldRemove) console.log('[SSE] Removing loading event:', loadingMsg);
-              // #endregion
-              return !shouldRemove;
+              if (loadingMsg === `Waiting for ${costEvent.agent_name} response...`) {
+                // Calculate duration from loading event timestamp to cost event
+                const loadingTime = new Date(e.timestamp).getTime();
+                const costTime = new Date(costEvent.timestamp).getTime();
+                const durationMs = costTime - loadingTime;
+                // #region agent log
+                console.log('[SSE] Converting loading event to completed:', loadingMsg, 'duration:', durationMs);
+                // #endregion
+                return {
+                  ...e,
+                  message: `${costEvent.agent_name} response received`,
+                  completed: true,
+                  duration_ms: durationMs,
+                };
+              }
             }
-            // Remove agent_turn started events for this agent
+            return e;
+          });
+          // Remove agent_turn started events for this agent
+          const filtered = updated.filter(e => {
             if (e.event_type === 'agent_turn') {
               const turnEvent = e as any;
               const shouldRemove = turnEvent.agent_name === costEvent.agent_name && turnEvent.stage === 'started';
@@ -118,7 +145,55 @@ export function useEventStream(url: string | null): StreamState {
           }
           return [...filtered, event];
         }
-        
+
+        // Convert agent_turn started events to loading events so they can be tracked/completed
+        if (event.event_type === 'agent_turn') {
+          const turnEvent = event as any;
+          if (turnEvent.stage === 'started') {
+            // Create a loading event instead of adding the agent_turn event
+            const loadingEvent = {
+              event_type: 'loading',
+              message: `Waiting for ${turnEvent.agent_name} response...`,
+              timestamp: turnEvent.timestamp,
+              procedure_id: turnEvent.procedure_id,
+              completed: false,
+            };
+            console.log('[SSE] Converting agent_turn started to loading event:', turnEvent.agent_name);
+            return [...prev, loadingEvent];
+          }
+          // Don't add agent_turn completed events (they're redundant with cost events)
+          return prev;
+        }
+
+        // Handle container_status events - update "starting" to "completed" when "running" arrives
+        if (event.event_type === 'container_status') {
+          const containerEvent = event as any;
+
+          if (containerEvent.status === 'running') {
+            // Find the "starting" event and update it to show completion with duration
+            const updated = prev.map(e => {
+              if (e.event_type === 'container_status' && (e as any).status === 'starting') {
+                const startTime = new Date(e.timestamp).getTime();
+                const runningTime = new Date(containerEvent.timestamp).getTime();
+                const durationMs = runningTime - startTime;
+                console.log('[SSE] Container started, duration:', durationMs, 'ms');
+                return {
+                  ...e,
+                  status: 'started',  // New status to indicate completion
+                  completed: true,
+                  duration_ms: durationMs,
+                };
+              }
+              return e;
+            });
+            // Don't add the "running" event - we've updated "starting" to show completion
+            return updated;
+          }
+
+          // For "starting" and other statuses, add the event normally
+          return [...prev, event];
+        }
+
         return [...prev, event];
       });
 

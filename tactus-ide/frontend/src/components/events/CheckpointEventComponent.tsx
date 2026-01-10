@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { CheckpointCreatedEvent } from '@/types/events';
 import { BaseEventComponent } from './BaseEventComponent';
-import { Circle, ChevronDown, ChevronRight, ArrowUpRight } from 'lucide-react';
+import { Pin, ChevronDown, ChevronRight, ArrowUpRight } from 'lucide-react';
 import { CheckpointDetails } from '../debugger/CheckpointDetails';
 import { Timestamp } from '../Timestamp';
 import type { CheckpointEntry } from '@/types/tracing';
@@ -25,12 +25,13 @@ export const CheckpointEventComponent: React.FC<CheckpointEventComponentProps> =
   };
 
   // Convert CheckpointCreatedEvent to CheckpointEntry format for CheckpointDetails
+  // Note: CheckpointCreatedEvent is a lightweight event without result/captured_vars
   const checkpointEntry: CheckpointEntry = {
     position: event.checkpoint_position,
     type: event.checkpoint_type,
     timestamp: event.timestamp,
-    result: event.result,
-    captured_vars: event.captured_vars,
+    result: undefined as any, // Not available in the event
+    captured_vars: undefined,
     source_location: event.source_location,
     duration_ms: event.duration_ms,
   };
@@ -38,7 +39,7 @@ export const CheckpointEventComponent: React.FC<CheckpointEventComponentProps> =
   return (
     <BaseEventComponent isAlternate={isAlternate} className="py-2 px-3 text-sm">
       <div className="flex items-start gap-2">
-        <Circle className="h-4 w-4 text-yellow-500 fill-yellow-500 flex-shrink-0 mt-0.5" />
+        <Pin className="h-5 w-5 text-muted-foreground flex-shrink-0 stroke-[2.5]" />
         <div className="flex-1 min-w-0">
           {/* Header row: checkpoint info, jump button, timestamp */}
           <div className="flex items-center justify-between gap-2">
@@ -96,7 +97,7 @@ export const CheckpointEventComponent: React.FC<CheckpointEventComponentProps> =
       </div>
 
       {isExpanded && (
-        <div className="ml-6 mt-2 border-l-2 border-yellow-500/30 pl-3">
+        <div className="ml-6 mt-2 border-l-2 border-muted-foreground/30 pl-3">
           <CheckpointDetails checkpoint={checkpointEntry} onJumpToSource={onJumpToSource} />
         </div>
       )}

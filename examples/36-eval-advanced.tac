@@ -50,6 +50,16 @@ Procedure {
     end
 }
 
+-- Agent Mocks for CI testing
+Mocks {
+    formatter = {
+        tool_calls = {
+            {tool = "done", args = {reason = "test formatted result"}}
+        },
+        message = "I've formatted the data."
+    }
+}
+
 Specifications([[
 Feature: Advanced Evaluator Types
 

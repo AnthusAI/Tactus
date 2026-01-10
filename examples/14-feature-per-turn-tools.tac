@@ -120,6 +120,15 @@ Procedure {
     end
 }
 
+-- Agent Mocks for CI testing
+-- worker is called multiple times with different tool contexts
+Mocks {
+    worker = {
+        tool_calls = {},
+        message = "I'm ready to help with the task."
+    }
+}
+
 Specifications([[
 Feature: Per-Turn Tool Control
   Demonstrate dynamic tool availability control

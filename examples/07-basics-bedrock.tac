@@ -68,6 +68,16 @@ Procedure {
     end
 }
 
+-- Agent Mocks for CI testing
+Mocks {
+    haiku_assistant = {
+        tool_calls = {
+            {tool = "done", args = {reason = "Key benefits include scalability, security, and ease of integration"}}
+        },
+        message = "AWS Bedrock provides managed access to foundation models with enterprise-grade security."
+    }
+}
+
 -- BDD Specifications
 Specifications([[
 Feature: AWS Bedrock Integration

@@ -2,7 +2,10 @@
 -- This demonstrates how to evaluate the percentage of times a procedure
 -- successfully completes a task by running it multiple times.
 
--- Agent definition  
+-- Import completion tool from standard library
+local done = require("tactus.tools.done")
+
+-- Agent definition
 completer = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
@@ -23,6 +26,7 @@ WRONG examples:
 
 Always follow this format exactly.]],
     initial_message = "{task}\n\nPlease complete this task now and call the done tool with your result.",
+    tools = {done}
 }
 
 -- Procedure
@@ -64,21 +68,35 @@ Procedure {
     end
 }
 
+-- Agent Mocks for CI testing
+Mocks {
+    completer = {
+        tool_calls = {
+            {tool = "done", args = {reason = "TASK_COMPLETE: Hello Alice! It's wonderful to meet you!"}}
+        },
+        message = "I've completed the task."
+    }
+}
+
 Specifications([[
 Feature: Task Completion
   Scenario: Agent completes simple task
     Given the procedure has started
+    And the input task is "Say hello to the user"
     When the procedure runs
     Then the done tool should be called
     And the procedure should complete successfully
 ]])
 
 -- Pydantic AI Evaluations for success rate measurement
+-- Note: Evaluations framework is partially implemented.
+-- Commented out until field.contains, field.llm_judge are available.
+--[[
 Evaluations({
     -- Run each test case 3 times to measure success rate (reduced for testing)
     runs = 3,
     parallel = true,
-    
+
     dataset = {
         {
             name = "simple_greeting",
@@ -99,13 +117,14 @@ Evaluations({
             }
         }
     },
-    
+
     evaluators = {
         -- Check if output contains the success marker
         field.contains{},
-        
+
         -- Use LLM to judge if task was actually completed successfully
         field.llm_judge{}
     }
 }
 )
+]]--

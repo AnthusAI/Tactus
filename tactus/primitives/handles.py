@@ -108,6 +108,9 @@ class AgentHandle:
             result = worker({message = "Process this task"})
             print(result.response)
         """
+        logger.info(
+            f"[CHECKPOINT] AgentHandle '{self.name}'.__call__ invoked, _primitive={self._primitive is not None}, _execution_context={self._execution_context is not None}"
+        )
         if self._primitive is None:
             raise RuntimeError(
                 f"Agent '{self.name}' initialization failed.\n"
@@ -118,6 +121,9 @@ class AgentHandle:
         converted_inputs = _convert_lua_table(inputs) if inputs is not None else None
 
         # If we have an execution context, checkpoint the agent call
+        logger.info(
+            f"[CHECKPOINT] AgentHandle '{self.name}' called, has_execution_context={self._execution_context is not None}"
+        )
         if self._execution_context is not None:
 
             def agent_call():
@@ -140,6 +146,9 @@ class AgentHandle:
                 except Exception as e:
                     logger.debug(f"Could not capture source location: {e}")
 
+            logger.info(
+                f"[CHECKPOINT] Creating checkpoint for agent '{self.name}', type=agent_turn, source_info={source_info}"
+            )
             return self._execution_context.checkpoint(
                 agent_call, checkpoint_type="agent_turn", source_info=source_info
             )
@@ -161,8 +170,8 @@ class AgentHandle:
         """
         self._primitive = primitive
         self._execution_context = execution_context
-        logger.debug(
-            f"AgentHandle '{self.name}' connected to primitive (checkpointing={'enabled' if execution_context else 'disabled'})"
+        logger.info(
+            f"[CHECKPOINT] AgentHandle '{self.name}' connected to primitive (checkpointing={'enabled' if execution_context else 'disabled'}, execution_context={execution_context})"
         )
 
     def __repr__(self) -> str:

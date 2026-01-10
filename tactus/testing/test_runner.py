@@ -137,6 +137,24 @@ class TactusTestRunner:
         # Build test result
         return self._build_test_result([feature_result])
 
+    def run_single_scenario(self, scenario_name: str) -> ScenarioResult:
+        """
+        Run a single scenario and return its result immediately.
+
+        This method enables real-time streaming of test progress by allowing
+        the caller to run scenarios one at a time and emit events between each.
+
+        Args:
+            scenario_name: Name of the scenario to run
+
+        Returns:
+            ScenarioResult for the executed scenario
+        """
+        if not self.work_dir:
+            raise RuntimeError("Must call setup() before run_single_scenario()")
+
+        return self._run_single_scenario(scenario_name, str(self.work_dir))
+
     @staticmethod
     def _run_single_scenario(scenario_name: str, work_dir: str) -> ScenarioResult:
         """

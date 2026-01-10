@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Monitor, AlertTriangle } from 'lucide-react';
 import { FileResultsHistory } from '@/types/results';
 import { ProcedureMetadata } from '@/types/metadata';
 import { CheckpointEntry } from '@/types/tracing';
@@ -21,6 +21,10 @@ interface ResultsSidebarProps {
   isRunning: boolean;
   onToggleRunExpansion: (runId: string) => void;
   onJumpToSource?: (filePath: string, lineNumber: number) => void;
+  containerStatus: {
+    status: 'idle' | 'starting' | 'ready' | 'disabled' | 'error';
+    spinupMs?: number;
+  };
 }
 
 export const ResultsSidebar: React.FC<ResultsSidebarProps> = ({
@@ -33,6 +37,7 @@ export const ResultsSidebar: React.FC<ResultsSidebarProps> = ({
   isRunning,
   onToggleRunExpansion,
   onJumpToSource,
+  containerStatus,
 }) => {
   const resultsContentRef = useRef<HTMLDivElement>(null);
   const lastRunCountRef = useRef<number>(0);
@@ -207,10 +212,34 @@ export const ResultsSidebar: React.FC<ResultsSidebarProps> = ({
             </TabsTrigger>
           </TabsList>
 
-          {activeTab === 'results' && isRunning && (
+          {activeTab === 'results' && isRunning && containerStatus.status === 'idle' && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Loader2 className="h-3 w-3 animate-spin" />
               <span>Running...</span>
+            </div>
+          )}
+          {activeTab === 'results' && containerStatus.status === 'starting' && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              <span>Container starting...</span>
+            </div>
+          )}
+          {activeTab === 'results' && containerStatus.status === 'ready' && (
+            <div className="flex items-center gap-2 text-xs text-green-600">
+              <Monitor className="h-3 w-3" />
+              <span>Ready in {(containerStatus.spinupMs! / 1000).toFixed(1)}s</span>
+            </div>
+          )}
+          {activeTab === 'results' && containerStatus.status === 'disabled' && isRunning && (
+            <div className="flex items-center gap-2 text-xs text-amber-600">
+              <AlertTriangle className="h-3 w-3" />
+              <span>⚠️ No sandbox (security risk)</span>
+            </div>
+          )}
+          {activeTab === 'results' && containerStatus.status === 'error' && (
+            <div className="flex items-center gap-2 text-xs text-red-600">
+              <AlertTriangle className="h-3 w-3" />
+              <span>Sandbox unavailable</span>
             </div>
           )}
         </div>

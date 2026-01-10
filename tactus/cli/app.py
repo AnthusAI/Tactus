@@ -342,6 +342,12 @@ def run(
     real: Optional[list[str]] = typer.Option(
         None, "--real", help="Use real implementation for specific tool(s)"
     ),
+    sandbox: Optional[bool] = typer.Option(
+        None,
+        "--sandbox/--no-sandbox",
+        help="Run in Docker sandbox (default: required unless --no-sandbox). "
+        "Use --no-sandbox to run without isolation (security risk).",
+    ),
 ):
     """
     Run a Tactus workflow.
@@ -486,6 +492,49 @@ def run(
     # Get MCP servers from merged config
     mcp_servers = merged_config.get("mcp_servers", {})
 
+    # Handle sandbox mode
+    from tactus.sandbox import (
+        is_docker_available,
+        SandboxConfig,
+        ContainerRunner,
+    )
+
+    # Build sandbox config from merged config and CLI flag
+    sandbox_config_dict = merged_config.get("sandbox", {})
+    if sandbox is not None:
+        # CLI flag overrides config
+        sandbox_config_dict["enabled"] = sandbox
+    sandbox_config = SandboxConfig(**sandbox_config_dict)
+
+    # Check Docker availability
+    docker_available, docker_reason = is_docker_available()
+
+    # Determine if we should use sandbox
+    use_sandbox = sandbox_config.should_use_sandbox(docker_available)
+
+    if not use_sandbox:
+        if sandbox_config.is_explicitly_disabled():
+            # User explicitly disabled sandbox - show notice
+            console.print(
+                "[yellow][SANDBOX] Container isolation disabled (--no-sandbox or config).[/yellow]"
+            )
+            console.print("[yellow][SANDBOX] Proceeding without Docker isolation.[/yellow]")
+        elif sandbox_config.should_error_if_unavailable() and not docker_available:
+            # Sandbox required but Docker unavailable - ERROR
+            console.print(f"[red][SANDBOX ERROR] Docker not available: {docker_reason}[/red]")
+            console.print(
+                "[red][SANDBOX ERROR] Cannot run procedure without container isolation.[/red]"
+            )
+            console.print("[red][SANDBOX ERROR] Either:[/red]")
+            console.print("[red]  - Start Docker Desktop / Docker daemon[/red]")
+            console.print(
+                "[red]  - Use --no-sandbox flag to explicitly run without isolation (security risk)[/red]"
+            )
+            console.print(
+                "[red]  - Set sandbox.enabled: false in config to permanently disable (security risk)[/red]"
+            )
+            raise typer.Exit(1)
+
     # Note: CLI params have already been parsed and added to context above
     # This section used to re-parse them, but that would override the
     # properly JSON-parsed values with raw strings
@@ -558,12 +607,49 @@ def run(
                 console.print(f"[blue]Using real implementation for tool: {tool_name}[/blue]")
 
     # Execute procedure
-    console.print(
-        f"[blue]Running procedure:[/blue] [bold]{workflow_file.name}[/bold] ({file_format} format)\n"
-    )
+    if use_sandbox:
+        console.print(
+            f"[blue]Running procedure in sandbox:[/blue] [bold]{workflow_file.name}[/bold] ({file_format} format)\n"
+        )
+    else:
+        console.print(
+            f"[blue]Running procedure:[/blue] [bold]{workflow_file.name}[/bold] ({file_format} format)\n"
+        )
 
     try:
-        result = asyncio.run(runtime.execute(source_content, context, format=file_format))
+        if use_sandbox:
+            # Execute in Docker sandbox
+            runner = ContainerRunner(sandbox_config)
+            sandbox_result = asyncio.run(
+                runner.run(
+                    source=source_content,
+                    params=context,
+                    config=merged_config,
+                    mcp_servers=mcp_servers,
+                    source_file_path=str(workflow_file),
+                    format=file_format,
+                )
+            )
+
+            # Convert sandbox result to the expected format
+            if sandbox_result.status.value == "success":
+                result = {
+                    "success": True,
+                    "result": sandbox_result.result,
+                    "state": sandbox_result.metadata.get("state", {}),
+                    "iterations": sandbox_result.metadata.get("iterations", 0),
+                    "tools_used": sandbox_result.metadata.get("tools_used", []),
+                }
+            else:
+                result = {
+                    "success": False,
+                    "error": sandbox_result.error,
+                }
+                if sandbox_result.traceback and verbose:
+                    console.print(f"[dim]{sandbox_result.traceback}[/dim]")
+        else:
+            # Execute directly (non-sandboxed)
+            result = asyncio.run(runtime.execute(source_content, context, format=file_format))
 
         if result["success"]:
             console.print("\n[green]✓ Procedure completed successfully[/green]\n")
@@ -600,6 +686,105 @@ def run(
         console.print(f"\n[red]✗ Execution error: {e}[/red]")
         if verbose:
             console.print_exception()
+        raise typer.Exit(1)
+
+
+# Sandbox subcommand group
+sandbox_app = typer.Typer(help="Manage Docker sandbox for secure procedure execution")
+app.add_typer(sandbox_app, name="sandbox")
+
+
+@sandbox_app.command("status")
+def sandbox_status():
+    """
+    Show Docker sandbox status and availability.
+
+    Displays whether Docker is available and if the sandbox image exists.
+    """
+    from tactus.sandbox import is_docker_available, DockerManager
+
+    # Check Docker availability
+    available, reason = is_docker_available()
+
+    console.print("\n[bold]Docker Sandbox Status[/bold]\n")
+
+    if available:
+        console.print("[green]Docker:[/green] Available")
+    else:
+        console.print(f"[red]Docker:[/red] Not available - {reason}")
+
+    # Check image status
+    manager = DockerManager()
+    if manager.image_exists():
+        version = manager.get_image_version() or "unknown"
+        console.print(
+            f"[green]Sandbox image:[/green] {manager.full_image_name} (version: {version})"
+        )
+    else:
+        console.print(f"[yellow]Sandbox image:[/yellow] Not built ({manager.full_image_name})")
+        console.print("[dim]Run 'tactus sandbox rebuild' to build the image[/dim]")
+
+    console.print()
+
+
+@sandbox_app.command("rebuild")
+def sandbox_rebuild(
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show build output"),
+    force: bool = typer.Option(False, "--force", "-f", help="Force rebuild even if image exists"),
+):
+    """
+    Build or rebuild the Docker sandbox image.
+
+    Creates the sandbox image used for isolated procedure execution.
+    """
+    from pathlib import Path
+    from tactus.sandbox import is_docker_available, DockerManager
+    import tactus
+
+    # Check Docker availability
+    available, reason = is_docker_available()
+    if not available:
+        console.print(f"[red]Error:[/red] Docker not available - {reason}")
+        raise typer.Exit(1)
+
+    # Get Tactus package path for build context
+    tactus_path = Path(tactus.__file__).parent.parent
+    dockerfile_path = tactus_path / "tactus" / "docker" / "Dockerfile"
+
+    if not dockerfile_path.exists():
+        console.print(f"[red]Error:[/red] Dockerfile not found: {dockerfile_path}")
+        console.print("[dim]This may indicate an incomplete installation.[/dim]")
+        raise typer.Exit(1)
+
+    # Get version
+    version = getattr(tactus, "__version__", "dev")
+
+    manager = DockerManager()
+
+    if not force and manager.image_exists():
+        image_version = manager.get_image_version()
+        if image_version == version:
+            console.print(
+                f"[green]Image is up to date:[/green] {manager.full_image_name} (v{version})"
+            )
+            console.print("[dim]Use --force to rebuild anyway[/dim]")
+            return
+
+    console.print(f"[blue]Building sandbox image:[/blue] {manager.full_image_name}")
+    console.print(f"[dim]Version: {version}[/dim]")
+    console.print(f"[dim]Context: {tactus_path}[/dim]\n")
+
+    success, message = manager.build_image(
+        dockerfile_path=dockerfile_path,
+        context_path=tactus_path,
+        version=version,
+        verbose=verbose,
+    )
+
+    if success:
+        console.print("\n[green]Successfully built sandbox image[/green]")
+    else:
+        console.print(f"\n[red]Failed to build sandbox image:[/red] {message}")
         raise typer.Exit(1)
 
 
@@ -1087,7 +1272,7 @@ def _display_test_results(test_result):
             if scenario.status == "failed":
                 for step in scenario.steps:
                     if step.status == "failed":
-                        console.print(f"    [red]Failed:[/red] {step.keyword} {step.text}")
+                        console.print(f"    [red]Failed:[/red] {step.keyword} {step.message}")
                         if step.error_message:
                             console.print(f"      {step.error_message}")
 

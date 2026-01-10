@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { CostEvent } from '@/types/events';
-import { Bot, ChevronDown, ChevronRight } from 'lucide-react';
+import { Coins, ChevronDown, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { BaseEventComponent } from './BaseEventComponent';
 import { Timestamp } from '../Timestamp';
@@ -17,7 +17,7 @@ export const CostEventComponent: React.FC<CostEventComponentProps> = ({ event, i
   return (
     <BaseEventComponent isAlternate={isAlternate} className="py-2 px-3 text-sm">
       <div className="flex items-start gap-2">
-        <Bot className="h-5 w-5 text-muted-foreground flex-shrink-0 stroke-[2]" />
+        <Coins className="h-5 w-5 text-muted-foreground flex-shrink-0 stroke-[2]" />
         <div className="flex-1 min-w-0">
           {/* Agent name and timestamp - clean alignment */}
           <div className="flex items-center justify-between">

@@ -200,13 +200,23 @@ class ConfigManager:
             "AWS_SECRET_ACCESS_KEY": ("aws", "secret_access_key"),
             "AWS_DEFAULT_REGION": ("aws", "default_region"),
             "TOOL_PATHS": "tool_paths",
+            # Sandbox configuration
+            "TACTUS_SANDBOX_ENABLED": ("sandbox", "enabled"),
+            "TACTUS_SANDBOX_IMAGE": ("sandbox", "image"),
         }
+
+        # Boolean env vars that need special parsing
+        boolean_env_keys = {"TACTUS_SANDBOX_ENABLED"}
 
         for env_key, config_key in env_mappings.items():
             value = os.environ.get(env_key)
             if value:
+                # Parse boolean values
+                if env_key in boolean_env_keys:
+                    value = value.lower() in ("true", "1", "yes", "on")
+
                 if isinstance(config_key, tuple):
-                    # Nested key (e.g., aws.access_key_id)
+                    # Nested key (e.g., aws.access_key_id, sandbox.enabled)
                     if config_key[0] not in config:
                         config[config_key[0]] = {}
                     config[config_key[0]][config_key[1]] = value

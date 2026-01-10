@@ -42,7 +42,7 @@ IMPORTANT: To calculate 15% of 200, use the percentage tool with these exact par
 - value: 200 (the number to calculate percentage of)
 - percent: 15 (the percentage amount)
 
-When done, call the done tool with your answer.]],
+CRITICAL: After getting the calculation result, you MUST immediately call the 'done' tool with the answer in the 'reason' parameter. Do not just respond with text - you must call the done tool to signal completion.]],
     initial_message = "Calculate 15% of 200 and tell me the result",
     tools = {multiply, percentage, done}
 }
@@ -63,16 +63,18 @@ Procedure {
         Log.info("Note: Agent uses toolsets directly via toolsets parameter")
 
         -- Have the agent perform calculation with safety limit
-        local max_turns = 3
+        local max_turns = 5
         local turn_count = 0
         local result
 
         repeat
             result = calculator()
             turn_count = turn_count + 1
+            Log.info("Turn completed", {turn = turn_count, done_called = done.called()})
         until done.called() or turn_count >= max_turns
 
         -- Check if agent called done
+        Log.info("Loop ended", {done_called = done.called(), turn_count = turn_count, max_turns = max_turns})
         if done.called() then
             local call = done.last_call()
             local answer = "Task completed"
@@ -99,6 +101,18 @@ Procedure {
 
     -- BDD Specifications
     end
+}
+
+-- Agent mock for CI testing (used when mocks are enabled)
+-- Simulates the calculator agent calling percentage tool then done tool
+Mocks {
+    calculator = {
+        tool_calls = {
+            { tool = "percentage", args = { value = 200, percent = 15 } },
+            { tool = "done", args = { reason = "15% of 200 is 30" } }
+        },
+        message = "The calculation result is 30."
+    }
 }
 
 Specifications([[

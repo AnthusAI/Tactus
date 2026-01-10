@@ -7,6 +7,8 @@ Provides HTTP-based LSP server for the Tactus IDE.
 import json
 import logging
 import os
+import platform
+import queue
 import subprocess
 import threading
 import time
@@ -23,6 +25,11 @@ logger = logging.getLogger(__name__)
 
 # Workspace state
 WORKSPACE_ROOT = None
+
+# Event queues for sandbox callback streaming
+# Key: execution_id, Value: queue.Queue of events
+_sandbox_event_queues: Dict[str, queue.Queue] = {}
+_sandbox_event_queues_lock = threading.Lock()
 
 
 class TactusLSPHandler:
@@ -747,10 +754,53 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                     # Read procedure source
                     source = path.read_text()
 
+                    # Check Docker availability for sandbox execution
+                    from tactus.sandbox import is_docker_available, SandboxConfig, ContainerRunner
+
+                    docker_available, docker_reason = is_docker_available()
+                    sandbox_config = SandboxConfig()
+                    use_sandbox = docker_available and not sandbox_config.is_explicitly_disabled()
+
+                    if use_sandbox:
+                        logger.info("[SANDBOX] Docker available, using container execution")
+                    else:
+                        logger.info(
+                            f"[SANDBOX] Direct execution (Docker: {docker_available}, reason: {docker_reason})"
+                        )
+
+                    # Create event queue for sandbox callback (if using sandbox)
+                    callback_url = None
+                    sandbox_event_queue = None
+                    if use_sandbox:
+                        # Create event queue for this execution
+                        with _sandbox_event_queues_lock:
+                            _sandbox_event_queues[run_id] = queue.Queue()
+                            sandbox_event_queue = _sandbox_event_queues[run_id]
+
+                        # Generate callback URL for container
+                        callback_url = _get_callback_url(run_id)
+                        logger.info(f"[SANDBOX] Callback URL: {callback_url}")
+
+                        # Emit container starting event
+                        container_start_time = time.time()
+                        container_starting_event = {
+                            "event_type": "container_status",
+                            "status": "starting",
+                            "execution_id": run_id,
+                            "timestamp": datetime.utcnow().isoformat() + "Z",
+                        }
+                        all_events.append(container_starting_event)
+                        yield f"data: {json.dumps(container_starting_event)}\n\n"
+
                     # Run in a thread to avoid blocking
                     import asyncio
 
-                    result_container = {"result": None, "error": None, "done": False}
+                    result_container = {
+                        "result": None,
+                        "error": None,
+                        "done": False,
+                        "container_ready": False,
+                    }
 
                     # Capture inputs in closure scope for the thread
                     procedure_inputs = inputs
@@ -760,10 +810,37 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                             # Create new event loop for this thread
                             loop = asyncio.new_event_loop()
                             asyncio.set_event_loop(loop)
-                            result = loop.run_until_complete(
-                                runtime.execute(source, context=procedure_inputs, format="lua")
-                            )
-                            result_container["result"] = result
+
+                            if use_sandbox:
+                                # Use sandbox execution with callback URL
+                                runner = ContainerRunner(sandbox_config)
+                                exec_result = loop.run_until_complete(
+                                    runner.run(
+                                        source=source,
+                                        params=procedure_inputs,
+                                        config={},
+                                        mcp_servers={},
+                                        source_file_path=str(path),
+                                        format="lua",
+                                        callback_url=callback_url,
+                                    )
+                                )
+
+                                # Mark container as ready after first response
+                                if not result_container["container_ready"]:
+                                    result_container["container_ready"] = True
+
+                                # Extract result from ExecutionResult
+                                if exec_result.status.value == "success":
+                                    result_container["result"] = exec_result.result
+                                else:
+                                    raise Exception(exec_result.error or "Sandbox execution failed")
+                            else:
+                                # Direct execution (no sandbox)
+                                result = loop.run_until_complete(
+                                    runtime.execute(source, context=procedure_inputs, format="lua")
+                                )
+                                result_container["result"] = result
                         except Exception as e:
                             result_container["error"] = e
                         finally:
@@ -774,9 +851,76 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                     exec_thread.daemon = True
                     exec_thread.start()
 
-                    # Stream log events as they arrive
+                    # Emit container running event after starting
+                    if use_sandbox:
+                        container_running_event = {
+                            "event_type": "container_status",
+                            "status": "running",
+                            "execution_id": run_id,
+                            "timestamp": datetime.utcnow().isoformat() + "Z",
+                        }
+                        all_events.append(container_running_event)
+                        yield f"data: {json.dumps(container_running_event)}\n\n"
+
+                    # Stream events based on execution mode
                     while not result_container["done"]:
-                        # Get log events from handler
+                        if use_sandbox and sandbox_event_queue:
+                            # Stream from sandbox callback queue
+                            try:
+                                event_dict = sandbox_event_queue.get(timeout=0.1)
+                                all_events.append(event_dict)
+                                yield f"data: {json.dumps(event_dict)}\n\n"
+                            except queue.Empty:
+                                pass
+                        else:
+                            # Stream from IDELogHandler (direct execution)
+                            events = log_handler.get_events(timeout=0.1)
+                            for event in events:
+                                try:
+                                    # Serialize with ISO format for datetime
+                                    event_dict = event.model_dump(mode="json")
+                                    # Format timestamp: add 'Z' only if no timezone info present
+                                    iso_string = event.timestamp.isoformat()
+                                    if not (
+                                        iso_string.endswith("Z")
+                                        or "+" in iso_string
+                                        or iso_string.count("-") > 2
+                                    ):
+                                        iso_string += "Z"
+                                    event_dict["timestamp"] = iso_string
+                                    all_events.append(event_dict)
+                                    yield f"data: {json.dumps(event_dict)}\n\n"
+                                except Exception as e:
+                                    logger.error(f"Error serializing event: {e}", exc_info=True)
+                                    logger.error(f"Event type: {type(event)}, Event: {event}")
+
+                        time.sleep(0.05)
+
+                    # Get any remaining events
+                    if use_sandbox and sandbox_event_queue:
+                        # Drain sandbox event queue
+                        while True:
+                            try:
+                                event_dict = sandbox_event_queue.get_nowait()
+                                all_events.append(event_dict)
+                                yield f"data: {json.dumps(event_dict)}\n\n"
+                            except queue.Empty:
+                                break
+
+                        # Emit container stopped event
+                        container_stopped_event = {
+                            "event_type": "container_status",
+                            "status": "stopped",
+                            "execution_id": run_id,
+                            "timestamp": datetime.utcnow().isoformat() + "Z",
+                        }
+                        all_events.append(container_stopped_event)
+                        yield f"data: {json.dumps(container_stopped_event)}\n\n"
+
+                        # Cleanup event queue
+                        _cleanup_sandbox_queue(run_id)
+                    else:
+                        # Drain IDELogHandler events (direct execution)
                         events = log_handler.get_events(timeout=0.1)
                         for event in events:
                             try:
@@ -796,29 +940,6 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                             except Exception as e:
                                 logger.error(f"Error serializing event: {e}", exc_info=True)
                                 logger.error(f"Event type: {type(event)}, Event: {event}")
-
-                        time.sleep(0.05)
-
-                    # Get any remaining events
-                    events = log_handler.get_events(timeout=0.1)
-                    for event in events:
-                        try:
-                            # Serialize with ISO format for datetime
-                            event_dict = event.model_dump(mode="json")
-                            # Format timestamp: add 'Z' only if no timezone info present
-                            iso_string = event.timestamp.isoformat()
-                            if not (
-                                iso_string.endswith("Z")
-                                or "+" in iso_string
-                                or iso_string.count("-") > 2
-                            ):
-                                iso_string += "Z"
-                            event_dict["timestamp"] = iso_string
-                            all_events.append(event_dict)
-                            yield f"data: {json.dumps(event_dict)}\n\n"
-                        except Exception as e:
-                            logger.error(f"Error serializing event: {e}", exc_info=True)
-                            logger.error(f"Event type: {type(event)}, Event: {event}")
 
                     # Wait for thread to finish
                     exec_thread.join(timeout=1)
@@ -900,6 +1021,60 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             logger.error(f"Error setting up streaming execution: {e}", exc_info=True)
             return jsonify({"error": str(e)}), 500
 
+    @app.route("/api/run/callback/<execution_id>", methods=["POST"])
+    def run_callback(execution_id: str):
+        """
+        Receive event callbacks from sandbox container.
+
+        The container POSTs events here, which are queued for SSE streaming.
+        """
+        global _sandbox_event_queues
+
+        try:
+            event = request.json
+
+            with _sandbox_event_queues_lock:
+                if execution_id not in _sandbox_event_queues:
+                    # Create queue if it doesn't exist (container started before stream)
+                    _sandbox_event_queues[execution_id] = queue.Queue()
+
+                _sandbox_event_queues[execution_id].put(event)
+
+            logger.debug(
+                f"[SANDBOX_CALLBACK] Received event for {execution_id}: {event.get('event_type')}"
+            )
+            return jsonify({"status": "ok"})
+
+        except Exception as e:
+            logger.error(f"[SANDBOX_CALLBACK] Error handling callback for {execution_id}: {e}")
+            return jsonify({"error": str(e)}), 500
+
+    def _get_callback_url(execution_id: str) -> str:
+        """
+        Generate callback URL for container to POST events to.
+
+        Uses host.docker.internal on macOS/Windows, localhost on Linux.
+        """
+        system = platform.system()
+        if system in ("Darwin", "Windows"):
+            host = "host.docker.internal"
+        else:
+            host = "127.0.0.1"
+
+        # Get the port from environment or default
+        port = os.environ.get("TACTUS_IDE_PORT", "5001")
+
+        return f"http://{host}:{port}/api/run/callback/{execution_id}"
+
+    def _cleanup_sandbox_queue(execution_id: str):
+        """Clean up event queue for execution."""
+        global _sandbox_event_queues
+
+        with _sandbox_event_queues_lock:
+            if execution_id in _sandbox_event_queues:
+                del _sandbox_event_queues[execution_id]
+                logger.debug(f"[SANDBOX_CALLBACK] Cleaned up queue for {execution_id}")
+
     @app.route("/api/test/stream", methods=["GET"])
     def test_procedure_stream():
         """
@@ -918,7 +1093,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
 
         # Get options
         mock = request.args.get("mock", "true").lower() == "true"
-        parallel = request.args.get("parallel", "false").lower() == "true"
+        # Note: parallel option removed - running sequentially for real-time streaming
 
         try:
             # Resolve path within workspace
@@ -994,9 +1169,20 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                     except Exception as e:
                         logger.warning(f"Could not reset Behave step registry: {e}")
 
-                    # Setup test runner
-                    mock_tools = {"done": {"status": "ok"}} if mock else None
-                    runner = TactusTestRunner(path, mock_tools=mock_tools)
+                    # Setup test runner with mocks from registry
+                    mock_tools = None
+                    if mock:
+                        # Start with default done mock
+                        mock_tools = {"done": {"status": "ok"}}
+                        # Add tool mocks from Mocks {} block in .tac file
+                        if validation_result.registry.mocks:
+                            for tool_name, mock_config in validation_result.registry.mocks.items():
+                                # Extract output/response from mock config
+                                if isinstance(mock_config, dict) and "output" in mock_config:
+                                    mock_tools[tool_name] = mock_config["output"]
+                                else:
+                                    mock_tools[tool_name] = mock_config
+                    runner = TactusTestRunner(path, mock_tools=mock_tools, mocked=mock)
                     runner.setup(validation_result.registry.gherkin_specifications)
 
                     # Get parsed feature to count scenarios
@@ -1013,41 +1199,76 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                     }
                     yield f"data: {json.dumps(start_event)}\n\n"
 
-                    # Run tests
-                    test_result = runner.run_tests(parallel=parallel)
+                    # Run scenarios one at a time for real-time progress streaming
+                    # (parallel mode sacrifices real-time feedback for speed)
+                    scenario_results = []
+                    all_tools_used = set()
 
-                    # Emit scenario completion events
-                    for feature in test_result.features:
-                        for scenario in feature.scenarios:
-                            scenario_event = {
-                                "event_type": "test_scenario_completed",
-                                "scenario_name": scenario.name,
-                                "status": scenario.status,
-                                "duration": scenario.duration,
-                                "total_cost": scenario.total_cost,
-                                "total_tokens": scenario.total_tokens,
-                                "llm_calls": scenario.llm_calls,
-                                "iterations": scenario.iterations,
-                                "tools_used": scenario.tools_used,
-                                "timestamp": datetime.utcnow().isoformat() + "Z",
-                            }
-                            yield f"data: {json.dumps(scenario_event)}\n\n"
+                    for i, scenario in enumerate(parsed_feature.scenarios):
+                        # Emit scenario started event
+                        started_event = {
+                            "event_type": "test_scenario_started",
+                            "scenario_name": scenario.name,
+                            "scenario_index": i,
+                            "total_scenarios": total_scenarios,
+                            "timestamp": datetime.utcnow().isoformat() + "Z",
+                        }
+                        yield f"data: {json.dumps(started_event)}\n\n"
+
+                        # Run single scenario
+                        scenario_result = runner.run_single_scenario(scenario.name)
+                        scenario_results.append(scenario_result)
+
+                        # Track tools used
+                        all_tools_used.update(scenario_result.tools_used or [])
+
+                        # Emit scenario completed event immediately
+                        scenario_event = {
+                            "event_type": "test_scenario_completed",
+                            "scenario_name": scenario_result.name,
+                            "status": scenario_result.status,
+                            "duration": scenario_result.duration,
+                            "total_cost": scenario_result.total_cost,
+                            "total_tokens": scenario_result.total_tokens,
+                            "llm_calls": scenario_result.llm_calls,
+                            "iterations": scenario_result.iterations,
+                            "tools_used": scenario_result.tools_used,
+                            "steps": [
+                                {
+                                    "keyword": step.keyword,
+                                    "text": step.message,
+                                    "status": step.status,
+                                    "error_message": step.error_message,
+                                }
+                                for step in scenario_result.steps
+                            ],
+                            "timestamp": datetime.utcnow().isoformat() + "Z",
+                        }
+                        yield f"data: {json.dumps(scenario_event)}\n\n"
+
+                    # Calculate aggregated results
+                    passed_count = sum(1 for s in scenario_results if s.status == "passed")
+                    failed_count = sum(1 for s in scenario_results if s.status != "passed")
+                    total_cost = sum(s.total_cost for s in scenario_results)
+                    total_tokens = sum(s.total_tokens for s in scenario_results)
+                    total_llm_calls = sum(s.llm_calls for s in scenario_results)
+                    total_iterations = sum(s.iterations for s in scenario_results)
 
                     # Emit completed event
                     complete_event = {
                         "event_type": "test_completed",
                         "result": {
-                            "total_scenarios": test_result.total_scenarios,
-                            "passed_scenarios": test_result.passed_scenarios,
-                            "failed_scenarios": test_result.failed_scenarios,
-                            "total_cost": test_result.total_cost,
-                            "total_tokens": test_result.total_tokens,
-                            "total_llm_calls": test_result.total_llm_calls,
-                            "total_iterations": test_result.total_iterations,
-                            "unique_tools_used": test_result.unique_tools_used,
+                            "total_scenarios": total_scenarios,
+                            "passed_scenarios": passed_count,
+                            "failed_scenarios": failed_count,
+                            "total_cost": total_cost,
+                            "total_tokens": total_tokens,
+                            "total_llm_calls": total_llm_calls,
+                            "total_iterations": total_iterations,
+                            "unique_tools_used": list(all_tools_used),
                             "features": [
                                 {
-                                    "name": f.name,
+                                    "name": parsed_feature.name,
                                     "scenarios": [
                                         {
                                             "name": s.name,
@@ -1056,17 +1277,16 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                                             "steps": [
                                                 {
                                                     "keyword": step.keyword,
-                                                    "text": step.text,
+                                                    "text": step.message,
                                                     "status": step.status,
                                                     "error_message": step.error_message,
                                                 }
                                                 for step in s.steps
                                             ],
                                         }
-                                        for s in f.scenarios
+                                        for s in scenario_results
                                     ],
                                 }
-                                for f in test_result.features
                             ],
                         },
                         "timestamp": datetime.utcnow().isoformat() + "Z",

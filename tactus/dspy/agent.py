@@ -525,6 +525,9 @@ class DSPyAgentHandle:
             result = worker({message = "Process this task"})
             print(result.response)
         """
+        logger.info(
+            f"[CHECKPOINT] DSPyAgentHandle.__call__ invoked directly for agent '{self.name}' - THIS BYPASSES AgentHandle checkpoint logic!"
+        )
         inputs = inputs or {}
 
         # Convert Lua table to dict if needed

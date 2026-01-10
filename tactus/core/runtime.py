@@ -210,6 +210,37 @@ class TactusRuntime:
                 base_path=sandbox_base_path,
             )
 
+            # 0.5. Create execution context EARLY so it's available during DSL parsing
+            # This is critical for immediate agent creation during parsing
+            logger.info("Step 0.5: Creating execution context (early)")
+            self.execution_context = BaseExecutionContext(
+                procedure_id=self.procedure_id,
+                storage_backend=self.storage_backend,
+                hitl_handler=self.hitl_handler,
+                strict_determinism=strict_determinism,
+                log_handler=self.log_handler,
+            )
+
+            # Set run_id if provided
+            if self.run_id:
+                self.execution_context.set_run_id(self.run_id)
+            logger.debug(
+                "[CHECKPOINT] BaseExecutionContext created early for immediate agent creation"
+            )
+
+            # Attach execution context to sandbox for determinism checking (bidirectional)
+            self.lua_sandbox.set_execution_context(self.execution_context)
+            # Also store lua_sandbox reference on execution_context for debug.getinfo access
+            self.execution_context.set_lua_sandbox(self.lua_sandbox)
+            logger.debug("[CHECKPOINT] ExecutionContext and LuaSandbox connected bidirectionally")
+
+            # Set .tac file path NOW (before parsing) so source location is available during agent calls
+            if self.source_file_path:
+                self.execution_context.set_tac_file(self.source_file_path, source)
+                logger.info(f"[CHECKPOINT] Set .tac file path EARLY: {self.source_file_path}")
+            else:
+                logger.warning("[CHECKPOINT] .tac file path NOT set - source_file_path is None")
+
             # 0b. For Lua DSL, inject placeholder primitives BEFORE parsing
             # so they're available in the procedure function's closure
             placeholder_tool = None  # Will be set for Lua DSL
@@ -223,10 +254,16 @@ class TactusRuntime:
                 # Create minimal primitives that don't need full config
                 placeholder_log = LuaLogPrimitive(procedure_id=self.procedure_id)
                 placeholder_state = LuaStatePrimitive()
-                # Create tool primitive with log_handler so direct tool calls are tracked
-                placeholder_tool = LuaToolPrimitive(
-                    log_handler=self.log_handler, procedure_id=self.procedure_id
-                )
+                # Use injected tool primitive if provided (for mock mode)
+                # This ensures ToolHandles (like done) use the same primitive as MockAgentPrimitive
+                if self._injected_tool_primitive:
+                    placeholder_tool = self._injected_tool_primitive
+                    logger.debug("Using injected tool primitive for parsing (mock mode)")
+                else:
+                    # Create tool primitive with log_handler so direct tool calls are tracked
+                    placeholder_tool = LuaToolPrimitive(
+                        log_handler=self.log_handler, procedure_id=self.procedure_id
+                    )
                 placeholder_params = {}  # Empty params dict
                 self.lua_sandbox.inject_primitive("Log", placeholder_log)
                 # Inject _state_primitive for metatable to use
@@ -339,39 +376,9 @@ class TactusRuntime:
                 else:
                     logger.warning("Failed to create chat session - continuing without recording")
 
-            # 6. Create execution context
-            logger.info("Step 6: Creating execution context")
-            self.execution_context = BaseExecutionContext(
-                procedure_id=self.procedure_id,
-                storage_backend=self.storage_backend,
-                hitl_handler=self.hitl_handler,
-                strict_determinism=strict_determinism,
-                log_handler=self.log_handler,
-            )
-
-            # Set run_id if provided
-            if self.run_id:
-                self.execution_context.set_run_id(self.run_id)
-            logger.debug("BaseExecutionContext created")
-
-            # Set .tac file path for accurate source location capture
-            if format == "lua" and self.source_file_path:
-                self.execution_context.set_tac_file(self.source_file_path, source)
-                logger.info(f"✓ Set .tac file path: {self.source_file_path}")
-                with open("/tmp/tactus-debug.log", "a") as f:
-                    f.write(f"DEBUG: Set .tac file path: {self.source_file_path}\n")
-            elif format == "lua":
-                logger.warning("✗ .tac file path NOT set - source_file_path is None or empty")
-                with open("/tmp/tactus-debug.log", "a") as f:
-                    f.write(
-                        f"DEBUG: .tac file path NOT set - source_file_path={self.source_file_path}\n"
-                    )
-
-            # 6b. Attach execution context to sandbox for determinism checking
-            self.lua_sandbox.set_execution_context(self.execution_context)
-            # Also store lua_sandbox reference on execution_context for debug.getinfo access
-            self.execution_context.set_lua_sandbox(self.lua_sandbox)
-            logger.debug("ExecutionContext connected to LuaSandbox for determinism checking")
+            # 6. Execution context already created in Step 0.5
+            # (.tac file path and lua_sandbox reference already set in Step 0.5)
+            logger.info("Step 6: Execution context configuration (already done in Step 0.5)")
 
             # 7. Initialize HITL and checkpoint primitives (require execution_context)
             logger.info("Step 7: Initializing HITL and checkpoint primitives")
@@ -2021,6 +2028,7 @@ class TactusRuntime:
 
         # Enhance agent handles (only if not already connected)
         enhanced_count = 0
+        execution_context_updated_count = 0
         for agent_name, primitive in self.agents.items():
             if agent_name in agent_registry:
                 handle = agent_registry[agent_name]
@@ -2031,7 +2039,16 @@ class TactusRuntime:
                         logger.info(f"Enhanced AgentHandle '{agent_name}' (fallback)")
                         enhanced_count += 1
                     else:
-                        logger.debug(f"AgentHandle '{agent_name}' already connected - skipping")
+                        # For immediate agents: primitive is already connected but execution_context might be None
+                        # Update execution_context if needed (it wasn't available during parsing)
+                        if handle._execution_context is None and self.execution_context is not None:
+                            handle._execution_context = self.execution_context
+                            logger.info(
+                                f"[CHECKPOINT] Updated execution_context for immediately-created agent '{agent_name}', handle id={id(handle)}, handle in Lua globals={agent_name in self.lua_sandbox.lua.globals()}"
+                            )
+                            execution_context_updated_count += 1
+                        else:
+                            logger.debug(f"AgentHandle '{agent_name}' already connected - skipping")
                 else:
                     logger.warning(
                         f"Agent registry entry '{agent_name}' is not an AgentHandle: {type(handle)}"
@@ -2055,6 +2072,10 @@ class TactusRuntime:
 
         if enhanced_count > 0:
             logger.debug(f"Handle enhancement (fallback) connected {enhanced_count} handles")
+        elif execution_context_updated_count > 0:
+            logger.info(
+                f"[CHECKPOINT] Updated execution_context for {execution_context_updated_count} immediately-created agents"
+            )
         else:
             logger.debug("All handles already connected during parsing")
 
@@ -2460,12 +2481,25 @@ class TactusRuntime:
             "mock_manager": self.mock_manager,
             "execution_context": self.execution_context,
             "skip_agents": self.skip_agents,
+            "log_handler": self.log_handler,
+            "_created_agents": {},  # Will be populated during parsing
         }
 
         # Inject DSL stubs (pass tool_primitive, mock_manager, and runtime_context)
         stubs = create_dsl_stubs(
             builder, tool_primitive, mock_manager=self.mock_manager, runtime_context=runtime_context
         )
+
+        # Register any agents that were created immediately during parsing
+        created_agents = runtime_context.get("_created_agents", {})
+        logger.info(
+            f"[AGENT_REGISTRATION] Found {len(created_agents)} immediately-created agents: {list(created_agents.keys())}"
+        )
+        for agent_name, agent_primitive in created_agents.items():
+            self.agents[agent_name] = agent_primitive
+            logger.info(
+                f"[AGENT_REGISTRATION] Registered immediately-created agent '{agent_name}' in runtime.agents"
+            )
 
         # Store registries for later handle enhancement
         self._dsl_registries = stubs.pop("_registries", {})
@@ -2558,7 +2592,7 @@ class TactusRuntime:
                 if agent.output:
                     config["agents"][name]["output_schema"] = {
                         field_name: {
-                            "type": field.field_type.value,
+                            "type": field.field_type,  # Already a string, no .value needed
                             "required": field.required,
                         }
                         for field_name, field in agent.output.fields.items()

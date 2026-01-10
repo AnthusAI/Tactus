@@ -146,6 +146,8 @@ export interface TestCompletedEvent extends BaseEvent {
 export interface TestScenarioStartedEvent extends BaseEvent {
   event_type: 'test_scenario_started';
   scenario_name: string;
+  scenario_index: number;
+  total_scenarios: number;
 }
 
 export interface TestScenarioCompletedEvent extends BaseEvent {
@@ -158,6 +160,12 @@ export interface TestScenarioCompletedEvent extends BaseEvent {
   llm_calls: number;
   iterations: number;
   tools_used: string[];
+  steps?: Array<{
+    keyword: string;
+    text: string;
+    status: string;
+    error_message?: string;
+  }>;
 }
 
 export interface EvaluationStartedEvent extends BaseEvent {
@@ -238,6 +246,14 @@ export interface CheckpointCreatedEvent extends BaseEvent {
   procedure_id?: string;
 }
 
+export interface ContainerStatusEvent extends BaseEvent {
+  event_type: 'container_status';
+  status: 'starting' | 'ready' | 'stopped';
+  container_id?: string;
+  execution_id?: string;
+  spinup_duration_ms?: number;
+}
+
 export type AnyEvent =
   | LogEvent
   | CostEvent
@@ -256,7 +272,8 @@ export type AnyEvent =
   | AgentStreamChunkEvent
   | AgentTurnEvent
   | ToolCallEvent
-  | CheckpointCreatedEvent;
+  | CheckpointCreatedEvent
+  | ContainerStatusEvent;
 
 
 
