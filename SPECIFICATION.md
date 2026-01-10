@@ -206,7 +206,7 @@ Procedure {
 - Nested structures are recursively converted
 - Lua code can use standard table operations (`#array`, `ipairs()`, `pairs()`)
 
-Input values are accessed in templates as `{{ input.topic }}` and in Lua as `input.topic`.
+Input values are accessed in templates as `{input.topic}` and in Lua as `input.topic`.
 
 ---
 
@@ -423,75 +423,6 @@ Procedure {
 
 ---
 
-## Summarization Prompts
-
-These prompts control how the procedure communicates its results:
-
-### `return_prompt:`
-
-Injected when the procedure completes successfully. The agent does one final turn to generate a summary, which becomes the return value.
-
-```lua
-Procedure {
-    return_prompt = [[
-Summarize your work:
-- What was accomplished
-- Key findings or results
-- Any important notes for the caller
-    ]],
-    -- rest of procedure...
-}
-```
-
-### `error_prompt:`
-
-Injected when the procedure fails (exception or max iterations exceeded). The agent explains what went wrong.
-
-```lua
-Procedure {
-    error_prompt = [[
-The task could not be completed. Explain:
-- What you were attempting
-- What went wrong
-- Any partial progress made
-    ]],
-    -- rest of procedure...
-}
-```
-
-### `status_prompt:`
-
-Injected when a caller requests a status update (async procedures only). The agent reports current progress without stopping.
-
-```lua
-Procedure {
-    status_prompt = [[
-Provide a brief progress update:
-- What has been completed
-- What you're currently working on
-- Estimated remaining work
-    ]],
-    -- rest of procedure...
-}
-```
-
-### Defaults
-
-If not specified, the following defaults are used:
-
-```lua
--- Default return_prompt:
-"Summarize the result of your work concisely."
-
--- Default error_prompt:
-"Explain what went wrong and any partial progress made."
-
--- Default status_prompt:
-"Briefly describe your current progress and remaining work."
-```
-
----
-
 ## Async and Recursion Settings
 
 ```lua
@@ -511,6 +442,20 @@ Procedure {
     -- rest of procedure...
 }
 ```
+
+---
+
+## Summary Prompts (Logged Only)
+
+Tactus accepts three optional procedure-level prompt fields:
+
+- `return_prompt` — intended for successful completion summaries
+- `error_prompt` — intended for failure summaries
+- `status_prompt` — intended for async status updates
+
+**Current behavior:** these values are logged for visibility, but do not trigger any additional agent turns and do not affect the procedure return value.
+
+To produce a summary today, implement it explicitly (for example, add a final agent call that writes to output fields).
 
 ---
 
@@ -840,12 +785,13 @@ Dependencies are **recreated** on procedure restart (after checkpoint). The depe
 
 | Namespace | Source | Example |
 |-----------|--------|---------|
-| `input` | Input parameters | `{{ input.topic }}` |
-| `state` | Mutable procedure state (when explicitly allowed) | `{{ state.items_processed }}` |
-| `locals` | Agent-defined static values | `{{ locals.region }}` |
+| `input` | Input parameters | `{input.topic}` |
+| `context` | Runtime context from caller | `{context.parent_id}` |
+| `state` | Mutable procedure state | `{state.items_processed}` |
+| `prepared` | Output of agent's `prepare` hook | `{prepared.file_contents}` |
+| `env` | Environment variables | `{env.API_KEY}` |
 
-Templates use Jinja2 and are rendered during agent setup. State is omitted unless `template_context.state`
-is enabled for the agent. Set `template_mode = "plain"` to disable rendering for a specific agent.
+Templates are re-evaluated before each agent turn.
 
 ---
 
@@ -1410,8 +1356,6 @@ researcher = Procedure {
         findings = field.string{required = true}
     },
 
-    return_prompt = "Summarize your research findings.",
-
     function(input)
         -- Define agent inline or reference a top-level agent
         repeat
@@ -1459,15 +1403,11 @@ worker = Agent {
     end,
 
     system_message = [[
-<<<<<<< Updated upstream
 You are processing: {input.task}
-=======
-You are processing: {{ input.task }}
->>>>>>> Stashed changes
 Context: {prepared.data}
     ]],
 
-    message = "Begin working on the task.",
+    initial_message = "Begin working on the task.",
 
     toolsets = {"brave_search_search", "done"},  -- MCP tools referenced by string name
 
@@ -2532,13 +2472,8 @@ write_draft = Tool {
 writer = Agent {
     provider = "openai",
     system_message = [[
-<<<<<<< Updated upstream
 You write content about: {input.topic}
 Target: {input.target}
-=======
-You write content about: {{ input.topic }}
-Target: {{ input.target }}
->>>>>>> Stashed changes
     ]],
     tools = {research, write_draft, done},
     filter = {class = "StandardFilter"}
@@ -2575,7 +2510,7 @@ Procedure {
 
         confirm_publish = {
             type = "approval",
-            message = "Publish to {{ input.target }}?",
+            message = "Publish to {input.target}?",
             timeout = 3600,
             default = false
         }
@@ -2761,9 +2696,9 @@ analyzer = Agent {
 You are a Score optimization specialist. Analyze the current
 champion Score's performance and identify improvement opportunities.
 
-Score ID: {{ input.score_id }}
-Champion metrics: {{ state.champion_metrics }}
-Error patterns: {{ state.error_analysis }}
+Score ID: {input.score_id}
+Champion metrics: {state.champion_metrics}
+Error patterns: {state.error_analysis}
     ]],
     toolsets = {"plexus_get_score", "plexus_get_evaluation_metrics", "plexus_analyze_errors", "done"},
     max_turns = 20
@@ -2774,8 +2709,8 @@ drafter = Agent {
     system_message = [[
 Based on your analysis, draft an improved Score configuration.
 
-Analysis findings: {{ state.analysis_findings }}
-Human feedback (if any): {{ state.human_feedback }}
+Analysis findings: {state.analysis_findings}
+Human feedback (if any): {state.human_feedback}
 
 Be conservative - small targeted improvements are better than sweeping changes.
     ]],
@@ -2998,7 +2933,7 @@ procedure_run(procedure_id):
     6. Execute until:
        - Completion → mark complete, exit
        - HITL event → create PENDING_* message, checkpoint, exit
-       - Error → handle per error_prompt, exit
+       - Error → capture error details, exit
 ```
 
 ### Checkpoint Storage
