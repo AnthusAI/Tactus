@@ -741,9 +741,9 @@ Defines interface for HITL implementations.
 
 **Specification**: Programmatic alerts from anywhere (not just procedures).
 
-**Status**: ❌ **Not Implemented**
+**Status**: ✅ **Implemented**
 
-Only `Human.notify()` exists, which logs notifications. No `System.alert()` primitive or system-level alert infrastructure.
+Implemented as a non-blocking primitive that emits a structured `SystemAlertEvent` via the configured `LogHandler` (CLI/IDE), with a fallback to standard Python logging when no handler is present.
 
 #### Message Classification
 
@@ -1754,9 +1754,9 @@ tactus evaluate procedure.tac --runs 10
    - Only local context exists
    - No AWS Lambda integration
 
-4. **System.alert()** ❌
-   - No system-level alerts
-   - Only `Human.notify()` exists
+4. **System.alert()** ✅
+   - Non-blocking alerts via `System.alert()`
+   - Emits structured `system_alert` events to log handlers (CLI/IDE)
 
 5. **Async Procedure Spawning** ❌
    - No `Procedure.spawn()` for async invocation
@@ -1899,7 +1899,7 @@ To align the implementation with the specification:
 ### Medium Priority
 4. **Inline Procedures** - Parse and support `procedures:` section in YAML
 5. **Agent `prepare` hook** - Enable `prepared` template namespace
-6. **System.alert()** - System-level alert infrastructure
+6. **System.alert() integrations** - Route alerts to external monitoring
 7. **Template variables** - Add `context`, `env`, `output` support
 8. **More Model Backends** - BERT, scikit-learn, ONNX, SageMaker
 

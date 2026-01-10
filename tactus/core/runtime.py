@@ -47,6 +47,7 @@ from tactus.primitives.json import JsonPrimitive
 from tactus.primitives.retry import RetryPrimitive
 from tactus.primitives.file import FilePrimitive
 from tactus.primitives.procedure import ProcedurePrimitive
+from tactus.primitives.system import SystemPrimitive
 
 logger = logging.getLogger(__name__)
 
@@ -143,6 +144,7 @@ class TactusRuntime:
         self.retry_primitive: Optional[RetryPrimitive] = None
         self.file_primitive: Optional[FilePrimitive] = None
         self.procedure_primitive: Optional[ProcedurePrimitive] = None
+        self.system_primitive: Optional[SystemPrimitive] = None
 
         # Agent primitives (one per agent)
         self.agents: Dict[str, Any] = {}
@@ -250,6 +252,7 @@ class TactusRuntime:
                 from tactus.primitives.log import LogPrimitive as LuaLogPrimitive
                 from tactus.primitives.state import StatePrimitive as LuaStatePrimitive
                 from tactus.primitives.tool import ToolPrimitive as LuaToolPrimitive
+                from tactus.primitives.system import SystemPrimitive as LuaSystemPrimitive
 
                 # Create minimal primitives that don't need full config
                 placeholder_log = LuaLogPrimitive(procedure_id=self.procedure_id)
@@ -297,6 +300,10 @@ class TactusRuntime:
                 )
                 self.lua_sandbox.inject_primitive("Tool", placeholder_tool)
                 self.lua_sandbox.inject_primitive("params", placeholder_params)
+                placeholder_system = LuaSystemPrimitive(
+                    procedure_id=self.procedure_id, log_handler=self.log_handler
+                )
+                self.lua_sandbox.inject_primitive("System", placeholder_system)
 
             # 1. Parse configuration (Lua DSL or YAML)
             if format == "lua":
@@ -399,6 +406,9 @@ class TactusRuntime:
             self.json_primitive = JsonPrimitive(lua_sandbox=self.lua_sandbox)
             self.retry_primitive = RetryPrimitive()
             self.file_primitive = FilePrimitive(execution_context=self.execution_context)
+            self.system_primitive = SystemPrimitive(
+                procedure_id=self.procedure_id, log_handler=self.log_handler
+            )
 
             # Initialize Procedure primitive (requires execution_context)
             max_depth = self.config.get("max_depth", 5) if self.config else 5
@@ -2228,6 +2238,10 @@ class TactusRuntime:
         if self.procedure_primitive:
             logger.info(f"Injecting Procedure primitive: {self.procedure_primitive}")
             self.lua_sandbox.inject_primitive("Procedure", self.procedure_primitive)
+
+        if self.system_primitive:
+            logger.info(f"Injecting System primitive: {self.system_primitive}")
+            self.lua_sandbox.inject_primitive("System", self.system_primitive)
 
         # Inject Sleep function
         def sleep_wrapper(seconds):
