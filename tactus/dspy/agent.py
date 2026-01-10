@@ -646,6 +646,10 @@ class DSPyAgentHandle:
         )
         inputs = inputs or {}
 
+        # Handle string input as a convenience: Agent("message") -> Agent({message="message"})
+        if isinstance(inputs, str):
+            inputs = {"message": inputs}
+
         # Convert Lua table to dict if needed
         if hasattr(inputs, "items"):
             try:
