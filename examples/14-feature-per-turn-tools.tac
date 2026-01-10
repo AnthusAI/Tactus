@@ -55,7 +55,7 @@ Toolset "math_tools" {
 -- Agent with no tools initially defined
 worker = Agent {
     provider = "openai",
-    system_prompt = [[You are a helpful assistant. Use the available tools to complete tasks.
+    system_message = [[You are a helpful assistant. Use the available tools to complete tasks.
 When you have completed your task, call the 'done' Tool.]],
     initial_message = "I'm ready to help. What would you like me to do?",
     toolsets = {},  -- Empty - will control per-turn

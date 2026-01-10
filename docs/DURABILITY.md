@@ -25,7 +25,7 @@ handle_escalation = procedure "handle_escalation" {
     run = function()
         Supervisor = agent "supervisor" {
             model = "claude-sonnet-4-20250514",
-            system_prompt = "You are a senior support supervisor..."
+            system_message = "You are a senior support supervisor..."
         }
         Supervisor({message = input.issue})
         return {resolution = Supervisor.output}
@@ -56,12 +56,12 @@ main = procedure "main" {
         -- Agents for LLM-powered conversation
         BillingAgent = agent "billing" {
             model = "claude-sonnet-4-20250514",
-            system_prompt = "You handle billing inquiries..."
+            system_message = "You handle billing inquiries..."
         }
 
         TechnicalAgent = agent "technical" {
             model = "claude-sonnet-4-20250514",
-            system_prompt = "You handle technical support..."
+            system_message = "You handle technical support..."
         }
 
         -- Route based on ML classification
@@ -252,7 +252,7 @@ done = tactus.done
 worker = Agent {
     provider = "openai",
     model = "gpt-4o",
-    system_prompt = "Complete tasks efficiently",
+    system_message = "Complete tasks efficiently",
     tools = {done}
 }
 
@@ -532,14 +532,14 @@ Agents wrap Pydantic AI and support conversation history, tools, and structured 
 ```lua
 Researcher = agent "researcher" {
     model = "claude-sonnet-4-20250514",
-    system_prompt = "You are a research assistant...",
+    system_message = "You are a research assistant...",
     tools = {web_search, read_file},
     output_type = ResearchReport
 }
 
 Reviewer = agent "reviewer" {
     model = "gpt-4o",
-    system_prompt = "You review research reports for accuracy..."
+    system_message = "You review research reports for accuracy..."
 }
 ```
 
@@ -761,7 +761,7 @@ end
 -- Safe: math.random() used inside an agent prompt (already checkpointed)
 Worker = agent "worker" {
     model = "claude-sonnet-4",
-    system_prompt = function()
+    system_message = function()
         local request_id = math.random(100000)  -- Safe: inside checkpointed operation
         return "You are agent " .. request_id
     end

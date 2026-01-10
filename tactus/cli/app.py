@@ -659,7 +659,7 @@ def validate(
                     # Convert Pydantic models to dicts
                     for name, agent in result.registry.agents.items():
                         config["agents"][name] = {
-                            "system_prompt": agent.system_prompt,
+                            "system_message": agent.system_message,
                             "provider": agent.provider,
                             "model": agent.model,
                         }
@@ -729,7 +729,7 @@ def validate(
             agents_table.add_column("System Prompt", style="magenta")
 
             for name, agent_config in config["agents"].items():
-                prompt = agent_config.get("system_prompt", "N/A")
+                prompt = agent_config.get("system_message", "N/A")
                 # Truncate long prompts
                 if len(prompt) > 50:
                     prompt = prompt[:47] + "..."
@@ -881,12 +881,12 @@ def info(
                     if agent_def.tools:
                         tools_str = ", ".join(agent_def.tools)
                         console.print(f"    Tools: {tools_str}")
-                    if agent_def.system_prompt:
+                    if agent_def.system_message:
                         # Show first 100 chars of system prompt
                         prompt_preview = (
-                            agent_def.system_prompt[:100] + "..."
-                            if len(agent_def.system_prompt) > 100
-                            else agent_def.system_prompt
+                            agent_def.system_message[:100] + "..."
+                            if len(agent_def.system_message) > 100
+                            else agent_def.system_message
                         )
                         console.print(f"    Prompt: [dim]{prompt_preview}[/dim]")
                     console.print()

@@ -5,7 +5,7 @@
 processor = Agent {
   provider = "openai",
   model = "gpt-4o-mini",
-  system_prompt = "Process the task: {input.task}. Call done when finished.",
+  system_message = "Process the task: {input.task}. Call done when finished.",
   initial_message = "Start processing",
 }
 

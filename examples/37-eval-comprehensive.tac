@@ -21,7 +21,7 @@ validate = Tool {
 contact_formatter = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
-    system_prompt = [[You are a contact information formatter.
+    system_message = [[You are a contact information formatter.
 
 Given raw contact information, format it properly:
 1. Extract and validate phone number

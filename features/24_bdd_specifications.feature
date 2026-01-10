@@ -11,7 +11,7 @@ Feature: BDD Specifications (Gherkin)
   """
   worker = Agent {
   provider = "openai",
-  system_prompt = "Work",
+  system_message = "Work",
   tools = {"done"}
   }
 
@@ -38,7 +38,7 @@ Feature: BDD Specifications (Gherkin)
   """
   worker = Agent {
   provider = "openai",
-  system_prompt = "Work",
+  system_message = "Work",
   tools = {"done"}
   }
   
@@ -76,7 +76,7 @@ Feature: BDD Specifications (Gherkin)
   """
   worker = Agent {
   provider = "openai",
-  system_prompt = "Work",
+  system_message = "Work",
   tools = {"done"}
   }
   
@@ -107,7 +107,7 @@ Feature: BDD Specifications (Gherkin)
   """
   worker = Agent {
   provider = "openai",
-  system_prompt = "Work",
+  system_message = "Work",
   tools = {"search", "done"}
   }
 
@@ -135,7 +135,7 @@ Feature: BDD Specifications (Gherkin)
   """
   worker = Agent {
   provider = "openai",
-  system_prompt = "Work",
+  system_message = "Work",
   tools = {}
   }
   

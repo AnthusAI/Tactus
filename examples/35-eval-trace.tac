@@ -18,7 +18,7 @@ search = Tool {
 researcher = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
-    system_prompt = [[You are a research assistant.
+    system_message = [[You are a research assistant.
 
 When given a topic, search for information and then provide a summary.
 1. First, call the 'search' tool with the topic
@@ -30,7 +30,7 @@ When given a topic, search for information and then provide a summary.
 reviewer = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
-    system_prompt = [[You are a quality reviewer.
+    system_message = [[You are a quality reviewer.
 
 Review the research and call 'done' with your assessment.]],
     initial_message = "Review this research: {research}",

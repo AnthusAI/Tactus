@@ -55,7 +55,7 @@ greet = Tool {
 -- Use tools in an agent
 assistant = Agent {
     provider = "openai",
-    system_prompt = "You are a friendly assistant",
+    system_message = "You are a friendly assistant",
     tools = {greet, done}  -- Variable references, not strings
 }
 
@@ -172,7 +172,7 @@ done = tactus.done
 
 text_processor = Agent {
     provider = "openai",
-    system_prompt = "You process text",
+    system_message = "You process text",
     tools = {
         done,
         {
@@ -590,7 +590,7 @@ done = tactus.done
 
 content_editor = Agent {
     provider = "openai",
-    system_prompt = "You are a content editing assistant",
+    system_message = "You are a content editing assistant",
     tools = {
         done,
         {

@@ -16,7 +16,7 @@ text_processor = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
     tool_choice = "required",
-    system_prompt = [[You are a text processing assistant.
+    system_message = [[You are a text processing assistant.
 
 IMPORTANT: You MUST call the appropriate tool for EVERY request. Never process text directly.
 

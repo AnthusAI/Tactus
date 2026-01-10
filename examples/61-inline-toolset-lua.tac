@@ -58,7 +58,7 @@ Toolset "text_tools" {
 text_processor = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
-    system_prompt = [[You are a text processing assistant.
+    system_message = [[You are a text processing assistant.
 
 Available tools:
 - uppercase: Convert text to uppercase

@@ -31,12 +31,12 @@ export const AgentsSection: React.FC<AgentsSectionProps> = ({ agents }) => {
                 {agent.provider}
               </div>
             </div>
-            {agent.system_prompt && agent.system_prompt !== '[Dynamic Prompt]' && (
+            {agent.system_message && agent.system_message !== '[Dynamic Prompt]' && (
               <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                {agent.system_prompt}
+                {agent.system_message}
               </p>
             )}
-            {agent.system_prompt === '[Dynamic Prompt]' && (
+            {agent.system_message === '[Dynamic Prompt]' && (
               <p className="text-xs text-muted-foreground italic mt-1">
                 Dynamic system prompt
               </p>

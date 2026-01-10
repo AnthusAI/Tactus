@@ -6,7 +6,7 @@
 storyteller = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
-    system_prompt = [[You are a creative storyteller. Write engaging short stories.
+    system_message = [[You are a creative storyteller. Write engaging short stories.
 
 When asked to write a story:
 - Write ONE complete story (about 100-150 words)

@@ -22,7 +22,7 @@ Model "sentiment_classifier" {
 support_agent = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
-    system_prompt = [[
+    system_message = [[
 You are a customer support agent.
 
 The customer's message sentiment is: {State.sentiment}

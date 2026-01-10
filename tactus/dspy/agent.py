@@ -32,7 +32,7 @@ class DSPyAgentHandle:
 
     Example usage in Lua:
         worker = Agent {
-            system_prompt = "You are a helpful assistant",
+            system_message = "You are a helpful assistant",
             tools = {search, calculator}
         }
 
@@ -44,7 +44,7 @@ class DSPyAgentHandle:
     def __init__(
         self,
         name: str,
-        system_prompt: str = "",
+        system_message: str = "",
         model: Optional[str] = None,
         provider: Optional[str] = None,
         tools: Optional[List[Any]] = None,
@@ -66,7 +66,7 @@ class DSPyAgentHandle:
 
         Args:
             name: Agent name (used for tracking/logging)
-            system_prompt: System prompt for the agent
+            system_message: System prompt for the agent
             model: Model name (in LiteLLM format, e.g., "openai/gpt-4o")
             provider: Provider name (deprecated, use model instead)
             tools: List of tools available to the agent
@@ -76,7 +76,7 @@ class DSPyAgentHandle:
             temperature: Model temperature (default: 0.7)
             max_tokens: Maximum tokens for response
             model_type: Model type for DSPy (e.g., "chat", "responses" for reasoning models)
-            initial_message: Initial message to send on first turn if no inject
+            initial_message: Initial message to send on first turn if no inject (alias: message)
             registry: Optional Registry instance for accessing mocks
             mock_manager: Optional MockManager instance for checking mocks
             log_handler: Optional log handler for emitting streaming events
@@ -84,7 +84,7 @@ class DSPyAgentHandle:
             **kwargs: Additional configuration
         """
         self.name = name
-        self.system_prompt = system_prompt
+        self.system_message = system_message
         self.model = model
         self.provider = provider
         self.tools = tools or []
@@ -96,7 +96,8 @@ class DSPyAgentHandle:
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.model_type = model_type
-        self.initial_message = initial_message
+        message = kwargs.pop("message", None)
+        self.initial_message = initial_message or message
         self.registry = registry
         self.mock_manager = mock_manager
         self.log_handler = log_handler
@@ -115,15 +116,15 @@ class DSPyAgentHandle:
     def _build_module(self) -> TactusModule:
         """Build the internal DSPy module for this agent."""
         # Create a signature for agent turns
-        # Input: system_prompt, history, user_message, available_tools
+        # Input: system_message, history, user_message, available_tools
         # Output: response and tool_calls (if tools are needed)
         # Include tools in the signature if they're available
         if self.tools or self.toolsets:
             signature = (
-                "system_prompt, history, user_message, available_tools -> response, tool_calls"
+                "system_message, history, user_message, available_tools -> response, tool_calls"
             )
         else:
-            signature = "system_prompt, history, user_message -> response"
+            signature = "system_message, history, user_message -> response"
 
         return create_module(
             f"{self.name}_module",
@@ -525,7 +526,11 @@ class DSPyAgentHandle:
             result = worker({message = "Process this task"})
             print(result.response)
         """
-        inputs = inputs or {}
+        if isinstance(inputs, str):
+            # Shorthand: agent("hi") -> agent({message = "hi"})
+            inputs = {"message": inputs}
+        elif inputs is None:
+            inputs = {}
 
         # Convert Lua table to dict if needed
         if hasattr(inputs, "items"):
@@ -594,7 +599,7 @@ class DSPyAgentHandle:
 
         # Build the prompt context
         prompt_context = {
-            "system_prompt": self.system_prompt,
+            "system_message": self.system_message,
             "history": self._history.to_dspy(),
             "user_message": user_message or "",
         }
@@ -741,7 +746,7 @@ def create_dspy_agent(
     Args:
         name: Agent name
         config: Configuration dict with:
-            - system_prompt: System prompt
+            - system_message: System prompt
             - model: Model name (LiteLLM format)
             - tools: List of tools
             - toolsets: List of toolset names
@@ -763,7 +768,7 @@ def create_dspy_agent(
 
     return DSPyAgentHandle(
         name=name,
-        system_prompt=config.get("system_prompt", ""),
+        system_message=config.get("system_message", ""),
         model=config.get("model"),
         provider=config.get("provider"),
         tools=config.get("tools", []),
@@ -772,7 +777,7 @@ def create_dspy_agent(
         temperature=config.get("temperature", 0.7),
         max_tokens=config.get("max_tokens"),
         model_type=config.get("model_type"),
-        initial_message=config.get("initial_message"),
+        initial_message=config.get("message") or config.get("initial_message"),
         registry=registry,
         mock_manager=mock_manager,
         log_handler=config.get("log_handler"),
@@ -782,7 +787,7 @@ def create_dspy_agent(
             for k, v in config.items()
             if k
             not in [
-                "system_prompt",
+                "system_message",
                 "model",
                 "provider",
                 "tools",
@@ -793,6 +798,7 @@ def create_dspy_agent(
                 "max_tokens",
                 "model_type",
                 "initial_message",
+                "message",
                 "log_handler",
                 "disable_streaming",
             ]

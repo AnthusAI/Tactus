@@ -59,7 +59,7 @@ Agent "openai_agent" {
         name = "gpt-4o",
         temperature = 0.7
     },
-    system_prompt = "...",
+    system_message = "...",
     toolsets = {"done"}
 }
 
@@ -67,7 +67,7 @@ Agent "openai_agent" {
 Agent "bedrock_agent" {
     provider = "bedrock",
     model = "anthropic.claude-3-5-sonnet-20240620-v1:0",
-    system_prompt = "...",
+    system_message = "...",
     toolsets = {"done"}
 }
 ```

@@ -4,7 +4,7 @@
 greeter = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
-    system_prompt = [[You are a friendly greeter.
+    system_message = [[You are a friendly greeter.
 
 Generate a warm, personalized greeting for the given name.
 Call the 'done' tool with your greeting.]],

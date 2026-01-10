@@ -11,7 +11,7 @@ Feature: Input Declarations (Procedure Parameters)
   """
   worker = Agent {
   provider = "openai",
-  system_prompt = "Hello {input.name}",
+  system_message = "Hello {input.name}",
   tools = {}
   }
 
@@ -33,7 +33,7 @@ Feature: Input Declarations (Procedure Parameters)
   """
   worker = Agent {
   provider = "openai",
-  system_prompt = "Research {input.topic}",
+  system_message = "Research {input.topic}",
   tools = {}
   }
 
@@ -54,7 +54,7 @@ Feature: Input Declarations (Procedure Parameters)
   """
   worker = Agent {
   provider = "openai",
-  system_prompt = "Process {input.name}",
+  system_message = "Process {input.name}",
   tools = {}
   }
 
@@ -81,7 +81,7 @@ Feature: Input Declarations (Procedure Parameters)
   """
   worker = Agent {
   provider = "openai",
-  system_prompt = "Level: {input.level}",
+  system_message = "Level: {input.level}",
   tools = {}
   }
 
@@ -103,7 +103,7 @@ Feature: Input Declarations (Procedure Parameters)
   """
   worker = Agent {
   provider = "openai",
-  system_prompt = "You are researching: {input.topic}",
+  system_message = "You are researching: {input.topic}",
   tools = {}
   }
 
@@ -118,14 +118,14 @@ Feature: Input Declarations (Procedure Parameters)
   """
   When I validate the file
   Then validation should succeed
-  And the agent system_prompt should contain "{input.topic}"
+  And the agent system_message should contain "{input.topic}"
 
   Scenario: Input accessed in Lua code
   Given a Lua DSL file with content:
   """
   worker = Agent {
   provider = "openai",
-  system_prompt = "Calculate",
+  system_message = "Calculate",
   tools = {}
   }
 
