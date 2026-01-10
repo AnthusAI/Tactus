@@ -16,7 +16,10 @@ import os
 import sys
 import time
 import traceback
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from tactus.sandbox.protocol import ExecutionResult
 
 # Configure logging to stderr (stdout is reserved for result)
 logging.basicConfig(

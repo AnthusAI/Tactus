@@ -250,7 +250,8 @@ class TestCLIInputs:
     def test_run_override_default(self, cli_runner, procedure_with_default_input):
         """Test --param overrides default value."""
         result = cli_runner.invoke(
-            app, ["run", str(procedure_with_default_input), "--param", "name=Custom", "--no-sandbox"]
+            app,
+            ["run", str(procedure_with_default_input), "--param", "name=Custom", "--no-sandbox"],
         )
         assert result.exit_code == 0
         assert "Hello, Custom!" in result.stdout
@@ -258,7 +259,14 @@ class TestCLIInputs:
     def test_run_with_array_param_json(self, cli_runner, procedure_with_array_input):
         """Test running with JSON array parameter - verifies array is accepted."""
         result = cli_runner.invoke(
-            app, ["run", str(procedure_with_array_input), "--param", "numbers=[1,2,3,4]", "--no-sandbox"]
+            app,
+            [
+                "run",
+                str(procedure_with_array_input),
+                "--param",
+                "numbers=[1,2,3,4]",
+                "--no-sandbox",
+            ],
         )
         # The test verifies that:
         # 1. The JSON array parameter is parsed correctly
@@ -347,7 +355,9 @@ class TestCLIParamParsing:
         f = tmp_path / "test.tac"
         f.write_text(content)
 
-        result = cli_runner.invoke(app, ["run", str(f), "--param", 'cfg={"key":"value"}', "--no-sandbox"])
+        result = cli_runner.invoke(
+            app, ["run", str(f), "--param", 'cfg={"key":"value"}', "--no-sandbox"]
+        )
         assert result.exit_code == 0
 
     def test_param_boolean(self, cli_runner, tmp_path):

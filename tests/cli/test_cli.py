@@ -115,5 +115,7 @@ Procedure {
     workflow_file = tmp_path / "params.tac"
     workflow_file.write_text(workflow_content)
 
-    result = cli_runner.invoke(app, ["run", str(workflow_file), "--param", "name=TestUser", "--no-sandbox"])
+    result = cli_runner.invoke(
+        app, ["run", str(workflow_file), "--param", "name=TestUser", "--no-sandbox"]
+    )
     assert result.exit_code == 0

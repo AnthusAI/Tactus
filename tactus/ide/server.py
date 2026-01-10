@@ -782,7 +782,6 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                         logger.info(f"[SANDBOX] Callback URL: {callback_url}")
 
                         # Emit container starting event
-                        container_start_time = time.time()
                         container_starting_event = {
                             "event_type": "container_status",
                             "status": "starting",
