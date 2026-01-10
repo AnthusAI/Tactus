@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v0.22.0 (2026-01-10)
+
+### Features
+
+- **agent**: Add configurable `module` parameter for DSPy module selection (#21)
+  ([#21](https://github.com/AnthusAI/Tactus/pull/21),
+  [`0c93af0`](https://github.com/AnthusAI/Tactus/commit/0c93af0575d191be58ed0635ed236e359d8b35af))
+
+
 ## v0.21.1 (2026-01-10)
 
 ### Bug Fixes
