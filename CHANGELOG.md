@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.20.1 (2026-01-10)
+
+### Bug Fixes
+
+- Correct Toolset declaration syntax
+  ([`c075c97`](https://github.com/AnthusAI/Tactus/commit/c075c97841c918187d83378224687155a4c2d924))
+
+
 ## v0.20.0 (2026-01-09)
 
 
