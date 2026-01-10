@@ -15,7 +15,7 @@ When the user asks you a question, provide a clear and concise answer.
 After answering, call the done tool with a brief summary of what you explained.
 
 IMPORTANT: Always call the done tool after providing your answer.]],
-    initial_message = "What are the key benefits of using AWS Bedrock for AI applications?",
+    message = "What are the key benefits of using AWS Bedrock for AI applications?",
     tools = {done}
 }
 

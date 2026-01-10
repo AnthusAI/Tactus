@@ -86,7 +86,7 @@ Procedure {
             end
 
             -- Run agent
-            info_gatherer({initial_message = message})
+            info_gatherer({message = message})
 
             -- Wait for done
             local max_turns = 3

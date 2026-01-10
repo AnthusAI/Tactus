@@ -47,9 +47,15 @@ class AgentDeclaration(BaseModel):
     provider: Optional[str] = None
     model: Union[str, dict[str, Any]] = "gpt-4o"
     system_message: Union[str, Any]  # String with {markers} or Lua function
+<<<<<<< Updated upstream
     message: Optional[str] = Field(
         default=None, validation_alias=AliasChoices("message", "initial_message")
     )
+=======
+    message: Optional[str] = None
+    template_mode: str = "jinja2"
+    template_context: dict[str, Any] = Field(default_factory=dict)
+>>>>>>> Stashed changes
     tools: list[Union[str, dict[str, Any]]] = Field(
         default_factory=list
     )  # Supports toolset expressions
@@ -251,6 +257,16 @@ class RegistryBuilder:
             config["provider"] = self.registry.default_provider
         if "model" not in config and self.registry.default_model:
             config["model"] = self.registry.default_model
+
+        if "template_mode" in config:
+            mode = str(config["template_mode"]).lower()
+            if mode not in {"jinja2", "plain"}:
+                self._add_error(
+                    f"Invalid template_mode '{config['template_mode']}' for agent '{name}'. "
+                    "Valid options are: jinja2, plain."
+                )
+            else:
+                config["template_mode"] = mode
         try:
             self.registry.agents[name] = AgentDeclaration(**config)
         except ValidationError as e:

@@ -85,7 +85,7 @@ Procedure {
 
             repeat
                 if turn_count == 0 then
-                    result = text_processor({initial_message = message})
+                    result = text_processor({message = message})
                 else
                     result = text_processor()
                 end

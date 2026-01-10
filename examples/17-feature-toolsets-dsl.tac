@@ -43,7 +43,7 @@ IMPORTANT: To calculate 15% of 200, use the percentage tool with these exact par
 - percent: 15 (the percentage amount)
 
 When done, call the done tool with your answer.]],
-    initial_message = "Calculate 15% of 200 and tell me the result",
+    message = "Calculate 15% of 200 and tell me the result",
     tools = {multiply, percentage, done}
 }
 

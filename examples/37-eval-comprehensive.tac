@@ -30,7 +30,7 @@ Given raw contact information, format it properly:
 4. Call 'done' with the formatted data
 
 Return JSON with: {phone, email, score}]],
-    initial_message = "Format this contact: {raw_contact}",
+    message = "Format this contact: {raw_contact}",
     tools = {validate, done}
 }
 

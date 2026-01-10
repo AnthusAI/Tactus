@@ -5,8 +5,13 @@
 processor = Agent {
   provider = "openai",
   model = "gpt-4o-mini",
+<<<<<<< Updated upstream
   system_message = "Process the task: {input.task}. Call done when finished.",
   initial_message = "Start processing",
+=======
+  system_message = "Process the task: {{ input.task }}. Call done when finished.",
+  message = "Start processing",
+>>>>>>> Stashed changes
 }
 
 -- Stages

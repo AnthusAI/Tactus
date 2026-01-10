@@ -22,7 +22,7 @@ WRONG examples:
 - done(reason="Hello Alice!")  ← Missing TASK_COMPLETE prefix!
 
 Always follow this format exactly.]],
-    initial_message = "{task}\n\nPlease complete this task now and call the done tool with your result.",
+    message = "{task}\n\nPlease complete this task now and call the done tool with your result.",
 }
 
 -- Procedure
@@ -40,7 +40,7 @@ Procedure {
     Log.info("Starting task", {task = input.task})
 
         -- Have agent complete the task
-        -- The initial_message template will inject the task parameter
+        -- The message template will inject the task parameter
         completer()
 
         -- Get result from done tool

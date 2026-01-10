@@ -11,7 +11,11 @@ Feature: Input Declarations (Procedure Parameters)
   """
   worker = Agent {
   provider = "openai",
+<<<<<<< Updated upstream
   system_message = "Hello {input.name}",
+=======
+  system_message = "Hello {{ input.name }}",
+>>>>>>> Stashed changes
   tools = {}
   }
 
@@ -33,7 +37,11 @@ Feature: Input Declarations (Procedure Parameters)
   """
   worker = Agent {
   provider = "openai",
+<<<<<<< Updated upstream
   system_message = "Research {input.topic}",
+=======
+  system_message = "Research {{ input.topic }}",
+>>>>>>> Stashed changes
   tools = {}
   }
 
@@ -54,7 +62,11 @@ Feature: Input Declarations (Procedure Parameters)
   """
   worker = Agent {
   provider = "openai",
+<<<<<<< Updated upstream
   system_message = "Process {input.name}",
+=======
+  system_message = "Process {{ input.name }}",
+>>>>>>> Stashed changes
   tools = {}
   }
 
@@ -81,7 +93,11 @@ Feature: Input Declarations (Procedure Parameters)
   """
   worker = Agent {
   provider = "openai",
+<<<<<<< Updated upstream
   system_message = "Level: {input.level}",
+=======
+  system_message = "Level: {{ input.level }}",
+>>>>>>> Stashed changes
   tools = {}
   }
 
@@ -103,7 +119,11 @@ Feature: Input Declarations (Procedure Parameters)
   """
   worker = Agent {
   provider = "openai",
+<<<<<<< Updated upstream
   system_message = "You are researching: {input.topic}",
+=======
+  system_message = "You are researching: {{ input.topic }}",
+>>>>>>> Stashed changes
   tools = {}
   }
 
@@ -118,7 +138,11 @@ Feature: Input Declarations (Procedure Parameters)
   """
   When I validate the file
   Then validation should succeed
+<<<<<<< Updated upstream
   And the agent system_message should contain "{input.topic}"
+=======
+  And the agent system_message should contain "{{ input.topic }}"
+>>>>>>> Stashed changes
 
   Scenario: Input accessed in Lua code
   Given a Lua DSL file with content:

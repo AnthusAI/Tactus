@@ -70,7 +70,11 @@ agents:
         provider: "openai"
         model: "gpt-4o-mini"
         system_message: "You are a test agent. Call the add_numbers tool with a=5 and b=3."
+<<<<<<< Updated upstream
         initial_message: "Start"
+=======
+        message: "Start"
+>>>>>>> Stashed changes
         toolsets:
             - test_server
 """

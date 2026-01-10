@@ -94,7 +94,8 @@ return {result = "completed"}
 """
     storage = FileStorage(str(tmp_path / "storage"))
     mock_manager = MockManager()
-    runtime = TactusRuntime(procedure_id="test", storage_backend=storage, skip_agents=True)
+    mock_manager.set_default_agent_response({"response": "Task completed!"})
+    runtime = TactusRuntime(procedure_id="test", storage_backend=storage)
     runtime.mock_manager = mock_manager
     result = await runtime.execute(source, context={"task": "test task"}, format="lua")
 

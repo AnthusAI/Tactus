@@ -20,7 +20,7 @@ greeter = Agent {
 You are a friendly greeter.
 Call the greet tool with the name "Alice" and then call done.
 ]],
-    initial_message = "Greet Alice",
+    message = "Greet Alice",
     toolsets = {
         "test_server_greet",
         "done"

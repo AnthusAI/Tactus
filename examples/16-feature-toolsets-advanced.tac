@@ -22,7 +22,7 @@ analyst = Agent {
     model = "gpt-4o-mini",
     system_message = [[You are a financial analyst with access to calculation tools.
 List the available tools and then call the done Tool.]],
-    initial_message = "What tools do you have available?",
+    message = "What tools do you have available?",
     toolsets = {
         "all_tools"  -- References combined toolset from config
     },
@@ -35,7 +35,7 @@ calculator = Agent {
     model = "gpt-4o-mini",
     system_message = [[You are a calculator with access to mathematical functions.
 List your tools and call done when finished.]],
-    initial_message = "What mathematical tools can you use?",
+    message = "What mathematical tools can you use?",
     toolsets = {
         -- Include only specific tools from plugin toolset
         {name = "plugin", include = {"calculate_mortgage", "compound_interest"}}
@@ -48,7 +48,11 @@ prefixed_agent = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
     system_message = [[You have prefixed tools. List them and call done.]],
+<<<<<<< Updated upstream
     initial_message = "Show me your prefixed tools",
+=======
+    message = "Show me your prefixed tools",
+>>>>>>> Stashed changes
     toolsets = {
         -- Add calc_ prefix to all tools from plugin
         {name = "plugin", prefix = "calc_"}
@@ -61,7 +65,11 @@ restricted = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
     system_message = [[You have most tools except excluded ones. List them and call done.]],
+<<<<<<< Updated upstream
     initial_message = "What tools do you have?",
+=======
+    message = "What tools do you have?",
+>>>>>>> Stashed changes
     toolsets = {
         -- Exclude specific tools from plugin toolset
         {name = "plugin", exclude = {"web_search", "wikipedia_lookup"}}
@@ -74,7 +82,11 @@ observer = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
     system_message = [[You are an observer with no tools. Just respond with your observation.]],
+<<<<<<< Updated upstream
     initial_message = "Observe that you have no tools available.",
+=======
+    message = "Observe that you have no tools available.",
+>>>>>>> Stashed changes
     toolsets = {}  -- Explicitly empty - NO tools at all
 }
 

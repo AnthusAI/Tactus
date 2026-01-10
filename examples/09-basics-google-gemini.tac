@@ -16,7 +16,7 @@ When the user asks you a question, provide a clear and comprehensive answer.
 After answering, call the done tool with a brief summary of what you explained.
 
 IMPORTANT: Always call the done tool after providing your answer.]],
-    initial_message = "What are the key benefits of using Google Gemini for AI applications?",
+    message = "What are the key benefits of using Google Gemini for AI applications?",
     tools = {done}
 }
 
@@ -30,7 +30,7 @@ When the user asks you a question, provide a detailed and comprehensive answer.
 After answering, call the done tool with a brief summary of what you explained.
 
 IMPORTANT: Always call the done tool after providing your answer.]],
-    initial_message = "Explain the key advantages of using Gemini Flash for fast AI responses.",
+    message = "Explain the key advantages of using Gemini Flash for fast AI responses.",
     tools = {done}
 }
 

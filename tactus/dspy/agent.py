@@ -54,7 +54,7 @@ class DSPyAgentHandle:
         temperature: float = 0.7,
         max_tokens: Optional[int] = None,
         model_type: Optional[str] = None,
-        initial_message: Optional[str] = None,
+        message: Optional[str] = None,
         registry: Any = None,
         mock_manager: Any = None,
         log_handler: Any = None,
@@ -76,7 +76,11 @@ class DSPyAgentHandle:
             temperature: Model temperature (default: 0.7)
             max_tokens: Maximum tokens for response
             model_type: Model type for DSPy (e.g., "chat", "responses" for reasoning models)
+<<<<<<< Updated upstream
             initial_message: Initial message to send on first turn if no inject (alias: message)
+=======
+            message: Initial message to send on first turn if no inject
+>>>>>>> Stashed changes
             registry: Optional Registry instance for accessing mocks
             mock_manager: Optional MockManager instance for checking mocks
             log_handler: Optional log handler for emitting streaming events
@@ -96,8 +100,12 @@ class DSPyAgentHandle:
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.model_type = model_type
+<<<<<<< Updated upstream
         message = kwargs.pop("message", None)
         self.initial_message = initial_message or message
+=======
+        self.message = message
+>>>>>>> Stashed changes
         self.registry = registry
         self.mock_manager = mock_manager
         self.log_handler = log_handler
@@ -426,8 +434,8 @@ class DSPyAgentHandle:
 
         # Update history
         user_message = opts.get("inject")
-        if self._turn_count == 1 and not user_message and self.initial_message:
-            user_message = self.initial_message
+        if self._turn_count == 1 and not user_message and self.message:
+            user_message = self.message
 
         if user_message:
             self._history.add({"role": "user", "content": user_message})
@@ -490,8 +498,8 @@ class DSPyAgentHandle:
 
         # Update history
         user_message = opts.get("inject")
-        if self._turn_count == 1 and not user_message and self.initial_message:
-            user_message = self.initial_message
+        if self._turn_count == 1 and not user_message and self.message:
+            user_message = self.message
 
         if user_message:
             self._history.add({"role": "user", "content": user_message})
@@ -527,10 +535,16 @@ class DSPyAgentHandle:
             print(result.response)
         """
         if isinstance(inputs, str):
+<<<<<<< Updated upstream
             # Shorthand: agent("hi") -> agent({message = "hi"})
             inputs = {"message": inputs}
         elif inputs is None:
             inputs = {}
+=======
+            inputs = {"message": inputs}
+        else:
+            inputs = inputs or {}
+>>>>>>> Stashed changes
 
         # Convert Lua table to dict if needed
         if hasattr(inputs, "items"):
@@ -591,9 +605,9 @@ class DSPyAgentHandle:
         # Extract options
         user_message = opts.get("inject")
 
-        # Use initial_message on first turn if no inject provided
-        if self._turn_count == 1 and not user_message and self.initial_message:
-            user_message = self.initial_message
+        # Use message on first turn if no inject provided
+        if self._turn_count == 1 and not user_message and self.message:
+            user_message = self.message
 
         context = opts.get("context")
 
@@ -651,13 +665,18 @@ class DSPyAgentHandle:
         """
         agent_name = self.name
 
-        # Check if agent has a mock in the registry
-        if agent_name not in self.registry.mocks:
+        if not self.mock_manager:
             return None
 
-        # Use mock_manager to get the response (handles static/temporal/conditional logic)
+        # Prefer explicit registry mock when available, otherwise use default agent mock
         try:
-            mock_data = self.mock_manager.get_mock_response(agent_name, opts)
+            if hasattr(self.mock_manager, "get_agent_mock_response"):
+                mock_data = self.mock_manager.get_agent_mock_response(agent_name, opts)
+            else:
+                if self.registry and agent_name not in getattr(self.registry, "mocks", {}):
+                    return None
+                mock_data = self.mock_manager.get_mock_response(agent_name, opts)
+
             if mock_data is not None:
                 return self._wrap_mock_response(mock_data, opts)
         except Exception:
@@ -707,8 +726,8 @@ class DSPyAgentHandle:
 
         # Update history with mock response (to maintain conversation state)
         user_message = opts.get("inject")
-        if self._turn_count == 1 and not user_message and self.initial_message:
-            user_message = self.initial_message
+        if self._turn_count == 1 and not user_message and self.message:
+            user_message = self.message
 
         if user_message:
             self._history.add({"role": "user", "content": user_message})
@@ -777,7 +796,11 @@ def create_dspy_agent(
         temperature=config.get("temperature", 0.7),
         max_tokens=config.get("max_tokens"),
         model_type=config.get("model_type"),
+<<<<<<< Updated upstream
         initial_message=config.get("message") or config.get("initial_message"),
+=======
+        message=config.get("message"),
+>>>>>>> Stashed changes
         registry=registry,
         mock_manager=mock_manager,
         log_handler=config.get("log_handler"),
@@ -797,7 +820,10 @@ def create_dspy_agent(
                 "temperature",
                 "max_tokens",
                 "model_type",
+<<<<<<< Updated upstream
                 "initial_message",
+=======
+>>>>>>> Stashed changes
                 "message",
                 "log_handler",
                 "disable_streaming",

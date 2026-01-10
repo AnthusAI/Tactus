@@ -9,7 +9,7 @@ Feature: Prompt Templates
   Scenario: Simple prompt template
   Given a Lua DSL file with content:
   """
-  Prompt "greeting" "Hello, {input.name}! How can I help you today?"
+  Prompt "greeting" "Hello, {{ input.name }}! How can I help you today?"
 
   worker = Agent {
   provider = "openai",
@@ -78,7 +78,7 @@ Feature: Prompt Templates
   Scenario: Prompt template with input substitution
   Given a Lua DSL file with content:
   """
-  Prompt "task_prompt" "Research the topic: {input.topic}"
+  Prompt "task_prompt" "Research the topic: {{ input.topic }}"
 
   researcher = Agent {
   provider = "openai",

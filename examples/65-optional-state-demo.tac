@@ -77,7 +77,7 @@ Procedure {
             input.demo_type, result
         )
 
-        assistant({initial_message = agent_message})
+        assistant({message = agent_message})
 
         -- Wait for done
         local max_turns = 3

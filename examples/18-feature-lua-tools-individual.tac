@@ -64,7 +64,7 @@ calculator = Agent {
 IMPORTANT: You MUST call the appropriate tool for EVERY calculation. Never calculate directly.
 
 After calling the calculation tool, call done with the result.]],
-    initial_message = "{input.task}",
+    message = "{{ input.task }}",
     toolsets = {
         -- Reference individual tools by name
         "calculate_tip",
