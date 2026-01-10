@@ -11,14 +11,29 @@ from typing import Any, Dict, List, Optional
 logger = logging.getLogger(__name__)
 
 
-class MockAgentResult:
-    """Result from a mock agent turn."""
+class MockUsageStats:
+    """Mock usage stats for compatibility with TactusResult.usage."""
 
-    def __init__(self, message: str = "", tool_calls: Optional[List[Dict]] = None):
+    def __init__(self):
+        self.prompt_tokens = 0
+        self.completion_tokens = 0
+        self.total_tokens = 0
+
+
+class MockAgentResult:
+    """Result from a mock agent turn - matches TactusResult interface."""
+
+    def __init__(
+        self, message: str = "", tool_calls: Optional[List[Dict]] = None, data: Any = None
+    ):
         self.message = message
         self.tool_calls = tool_calls or []
         self.cost = 0.0
         self.tokens = 0
+        # value matches TactusResult.value - use structured data if provided, else message
+        self.value = data if data is not None else message
+        # usage matches TactusResult.usage
+        self.usage = MockUsageStats()
 
     def __repr__(self) -> str:
         return f"MockAgentResult(message={self.message!r}, tool_calls={len(self.tool_calls)})"
@@ -106,10 +121,11 @@ class MockAgentPrimitive:
         # Execute the configured tool calls
         tool_calls_executed = self._execute_tool_calls(mock_config.tool_calls)
 
-        # Return the configured message
+        # Return the configured message and data
         return MockAgentResult(
             message=mock_config.message,
             tool_calls=tool_calls_executed,
+            data=mock_config.data,
         )
 
     def _get_agent_mock_config(self) -> Optional[Any]:
@@ -154,15 +170,14 @@ class MockAgentPrimitive:
             logger.debug(f"Mock agent {self.name} executing tool call: {tool_name}({args})")
 
             # Record the tool call via tool primitive
-            # MockedToolPrimitive.record_call(tool_name, args) returns the mock response
-            result = None
+            # Default result for mock tool calls
+            result = {"status": "ok", "tool": tool_name, "args": args}
             if self.tool_primitive:
                 try:
-                    # record_call returns the mock response and records the call
-                    result = self.tool_primitive.record_call(tool_name, args)
+                    # record_call records the tool call for assertions
+                    self.tool_primitive.record_call(tool_name, args, result)
                 except Exception as e:
                     logger.warning(f"Error recording tool call {tool_name}: {e}")
-                    result = {"status": "ok", "tool": tool_name}
 
             executed.append(
                 {

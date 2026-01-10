@@ -120,6 +120,11 @@ def step_impl(context):
         external_config=merged_config,
     )
 
+    # Create MockManager to enable Mocks {} blocks (prevents real API calls in CI)
+    from tactus.core.mocking import MockManager
+
+    context.runtime.mock_manager = MockManager()
+
     # Read file content
     file_content = context.example_file.read_text()
 

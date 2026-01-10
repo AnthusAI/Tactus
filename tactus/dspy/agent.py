@@ -755,7 +755,7 @@ class DSPyAgentHandle:
         """
         Check if this agent has a mock configured and return mock response.
 
-        Uses the same mock logic as tools and modules: static (returns), temporal, and conditional.
+        Checks registry.agent_mocks for agent mock configurations from Mocks {} blocks.
 
         Args:
             opts: The turn options
@@ -765,20 +765,25 @@ class DSPyAgentHandle:
         """
         agent_name = self.name
 
-        # Check if agent has a mock in the registry
-        if agent_name not in self.registry.mocks:
+        # Check if agent has a mock in registry.agent_mocks (from Mocks {} block)
+        if not hasattr(self.registry, "agent_mocks") or agent_name not in self.registry.agent_mocks:
             return None
 
-        # Use mock_manager to get the response (handles static/temporal/conditional logic)
-        try:
-            mock_data = self.mock_manager.get_mock_response(agent_name, opts)
-            if mock_data is not None:
-                return self._wrap_mock_response(mock_data, opts)
-        except Exception:
-            # If mock_manager throws an error (e.g., error simulation), let it propagate
-            raise
+        # Get the agent mock config
+        mock_config = self.registry.agent_mocks[agent_name]
+        logger.debug(
+            f"Agent '{agent_name}' using mock config: message={mock_config.message[:50] if mock_config.message else 'None'}..."
+        )
 
-        return None
+        # Build mock response data
+        mock_data = {
+            "message": mock_config.message,
+            "tool_calls": mock_config.tool_calls,
+        }
+        if mock_config.data is not None:
+            mock_data["data"] = mock_config.data
+
+        return self._wrap_mock_response(mock_data, opts)
 
     def _wrap_mock_response(self, mock_data: Dict[str, Any], opts: Dict[str, Any]) -> TactusResult:
         """

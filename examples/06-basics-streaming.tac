@@ -26,7 +26,7 @@ Procedure {
         local result = storyteller({message = input.prompt})
 
         return {
-            story = result.response,
+            story = result.value,
             success = true
         }
     end

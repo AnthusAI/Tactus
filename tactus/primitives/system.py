@@ -91,4 +91,3 @@ class SystemPrimitive:
 
     def __repr__(self) -> str:
         return f"SystemPrimitive(procedure_id={self.procedure_id})"
-

@@ -71,4 +71,3 @@ async def test_system_alert_rejects_invalid_level():
     result = await runtime.execute(source=source, context={}, format="lua")
     assert result["success"] is False
     assert "Invalid alert level" in result.get("error", "")
-

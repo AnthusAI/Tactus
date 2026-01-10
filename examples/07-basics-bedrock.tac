@@ -36,9 +36,9 @@ Procedure {
             local response = haiku_assistant()
             turn_count = turn_count + 1
 
-            -- Accumulate the response message from each turn using .message property
-            if response.message and response.message ~= "" then
-                response_text = response_text .. response.message
+            -- Accumulate the response value from each turn using .value property
+            if response.value and response.value ~= "" then
+                response_text = response_text .. response.value
             end
 
             -- Safety check: exit if too many turns

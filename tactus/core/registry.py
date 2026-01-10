@@ -119,6 +119,7 @@ class AgentMockConfig(BaseModel):
     tool_calls: list[dict[str, Any]] = Field(default_factory=list)
     # List of tool calls to simulate: [{"tool": "done", "args": {"reason": "..."}}, ...]
     message: str = ""  # The agent's final message response
+    data: Optional[dict[str, Any]] = None  # Structured output data (for result.value)
 
 
 class ProcedureRegistry(BaseModel):
