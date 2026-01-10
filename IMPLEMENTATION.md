@@ -1184,35 +1184,30 @@ main = procedure("main", {
 end)
 ```
 
-#### ResultPrimitive (`tactus/primitives/result.py`)
+#### Result (`tactus/protocols/result.py`)
 
-**Status**: ✅ **Fully Implemented**
+**Status**: ✅ **Implemented (DSPy)**
 
-Wraps pydantic-ai's `RunResult` for Lua access.
-
-**Aligned with pydantic-ai:** Direct mapping to `RunResult.data`, `RunResult.usage()`, `RunResult.new_messages()`, `RunResult.all_messages()`.
+`Agent()` returns a standard `TactusResult` wrapper (instead of raw text).
 
 **Features:**
-- ✅ `result.data` - Response data (text or structured dict)
+- ✅ `result.value` - Response value (string or structured data)
 - ✅ `result.usage` - Token usage stats (prompt_tokens, completion_tokens, total_tokens)
-- ✅ `result.new_messages()` - Messages from this turn
-- ✅ `result.all_messages()` - Full conversation history
-- ✅ `result.cost()` - Token usage (for cost calculation)
+- ✅ `result.cost()` - Cost stats (total_cost, prompt_cost, completion_cost)
 
-**Breaking change:** `Agent()` now returns `ResultPrimitive` instead of raw data. Access response via `result.data`.
+**Breaking change:** Access agent output via `result.value` (not `result.message` / `result.data`).
+
+**Implementation locations:**
+- `tactus/dspy/agent.py` (`DSPyAgentHandle.__call__`)
+- `tactus/protocols/result.py` (`TactusResult`)
+- `tactus/protocols/cost.py` (`UsageStats`, `CostStats`)
 
 **Example:**
 ```lua
 local result = Agent()
-
--- Access response
-Log.info(result.data)
-
--- Access usage
+Log.info(result.value)
 Log.info("Tokens", {total = result.usage.total_tokens})
-
--- Access messages
-local msgs = result.new_messages()
+Log.info("Cost", {total = result.cost().total_cost})
 ```
 
 #### Structured Output (output_type)
@@ -1237,7 +1232,7 @@ agent("extractor", {
 
 -- Agent automatically validates output against schema
 local result = Extractor()
-Log.info(result.data.city)  -- Type-safe access
+Log.info(result.value.city)
 ```
 
 #### State Primitives
@@ -1828,7 +1823,6 @@ tactus/
 │   ├── retry.py                # RetryPrimitive
 │   ├── file.py                 # FilePrimitive
 │   ├── message_history.py      # MessageHistoryPrimitive
-│   ├── result.py               # ResultPrimitive
 │   └── deps_generator.py       # Dynamic AgentDeps generation [NEW]
 │
 ├── backends/

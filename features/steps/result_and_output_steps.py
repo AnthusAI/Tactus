@@ -137,19 +137,19 @@ def step_when_workflow_parsed(context):
 def step_then_returns_result_object(context):
     """Verify agent returns result object."""
     assert context.has_agent_call, "Agent should be called"
-    # This is verified by the fact that turn() returns ResultPrimitive
+    # This is verified by the fact that Agent() returns a Result wrapper
 
 
-@then("the result should have a data property")
-def step_then_result_has_data(context):
-    """Result should have data property."""
-    assert True, "ResultPrimitive has data property"
+@then("the result should have a value property")
+def step_then_result_has_value(context):
+    """Result should have value property."""
+    assert True, "Result has value property"
 
 
 @then("the result should have usage information")
 def step_then_result_has_usage(context):
     """Result should have usage info."""
-    assert True, "ResultPrimitive has usage property"
+    assert True, "Result has usage property"
 
 
 @then("usage should include {field}")
@@ -163,7 +163,7 @@ def step_then_usage_includes(context, field):
 def step_then_result_has_method(context, method):
     """Check result has method."""
     method_name = method.replace("()", "")
-    assert True, f"ResultPrimitive has {method_name} method"
+    assert True, f"Result has {method_name} method"
 
 
 @then("the procedure should complete successfully")

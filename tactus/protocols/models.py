@@ -203,7 +203,7 @@ class CostEvent(BaseModel):
 
     # Response data (new field)
     response_data: Optional[Dict[str, Any]] = Field(
-        None, description="Agent's response data (extracted from result.data)"
+        None, description="Agent's response data (extracted from result.value)"
     )
 
     model_config = {"arbitrary_types_allowed": True}

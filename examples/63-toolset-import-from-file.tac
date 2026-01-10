@@ -106,8 +106,8 @@ Procedure {
                         answer = reason
                     end
                 end
-            elseif result and result.message then
-                answer = result.message
+            elseif result and result.value ~= nil then
+                answer = tostring(result.value)
             end
 
             Log.info("Import result", {

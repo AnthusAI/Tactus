@@ -127,8 +127,8 @@ Procedure {
                         answer = reason
                     end
                 end
-            elseif result and result.message then
-                answer = result.message
+            elseif result and result.value then
+                answer = tostring(result.value)
             end
 
             Log.info("Task completed", {result = answer, completed = completed})

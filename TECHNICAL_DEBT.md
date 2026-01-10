@@ -83,20 +83,26 @@ Implemented in `tactus/primitives/step.py` (`Checkpoint.exists(position)`, `Chec
 
 ### Result Object with Usage Statistics
 
-The spec documents a rich Result object with token usage and message history:
+We want a standard Result object with response data + token usage + cost:
 
 ```lua
-result.usage          -- {prompt_tokens, completion_tokens, total_tokens}
-result.new_messages() -- Messages from this turn only
-result.all_messages() -- Full conversation history
-result.cost()         -- Cost calculation
+result.value   -- string or structured data
+result.usage   -- {prompt_tokens, completion_tokens, total_tokens}
+result.cost()  -- {total_cost, prompt_cost, completion_cost}
 ```
 
-**What exists:** `TactusPrediction` with `.text` only
+**What exists now:** `TactusResult` returned by `Agent()` (breaking change: use `result.value`)
+
+**Intentionally not implemented (YAGNI for now):**
+- `result.new_messages()`
+- `result.all_messages()`
 
 **Why it matters:** Users can't track token usage or costs per-call, which is important for optimization and budgeting.
 
-**Implementation location:** `tactus/dspy/prediction.py`
+**Implementation locations:**
+- `tactus/dspy/agent.py`
+- `tactus/protocols/result.py`
+- `tactus/protocols/cost.py`
 
 ---
 

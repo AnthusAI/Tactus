@@ -45,7 +45,7 @@ Procedure {
         if done.called() then
             research = done.last_result() or "Task completed"
         else
-            research = result.message or "Research not completed"
+            research = tostring(result.value) or "Research not completed"
             Log.warn("Researcher did not call done within max turns")
         end
         state.research = research
@@ -66,7 +66,7 @@ Procedure {
         if done.called() then
             summary = done.last_result() or "Task completed"
         else
-            summary = result.message or "Summary not completed"
+            summary = tostring(result.value) or "Summary not completed"
             Log.warn("Summarizer did not call done within max turns")
         end
 
