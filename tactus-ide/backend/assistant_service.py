@@ -180,6 +180,7 @@ Root: {self.workspace_root}
         
         # Create DSPy agent with tools
         # Pass model in LiteLLM format (provider/model-name)
+        # Use Raw module for minimal formatting overhead and better streaming
         self.agent = DSPyAgentHandle(
             name="coding_assistant",
             system_prompt=system_prompt,
@@ -187,6 +188,7 @@ Root: {self.workspace_root}
             tools=[read_file_tool, list_files_tool, search_files_tool],
             temperature=temperature,
             max_tokens=max_tokens,
+            module="Raw",  # Use Raw module for minimal formatting
             log_handler=self.log_handler,
         )
         
@@ -300,6 +302,9 @@ Root: {self.workspace_root}
             result = result_container["result"]
             if isinstance(result, dict) and "response" in result:
                 response_text = result["response"]
+            elif hasattr(result, "value"):
+                # TactusResult has a 'value' attribute, not 'response'
+                response_text = result.value
             elif hasattr(result, "response"):
                 response_text = result.response
             else:

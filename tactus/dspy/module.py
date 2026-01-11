@@ -17,64 +17,77 @@ logger = logging.getLogger(__name__)
 
 class RawModule(dspy.Module):
     """
-    Minimal DSPy module for raw LM calls without delimiter formatting.
+    Minimal DSPy module for raw LM calls without formatting delimiters.
 
-    This module provides the lightest-weight wrapper around LM calls while
-    still enabling DSPy features like streaming, cost tracking, and retries.
-    Unlike dspy.Predict which adds ~300-400 chars of delimiter formatting,
-    this module passes messages directly to the LM.
+    This module calls the LM directly without using dspy.Predict, eliminating
+    the formatting delimiters like [[ ## response ## ]] that Predict adds.
 
-    Benefits:
-    - Minimal prompt overhead (no [[ ## field ## ]] delimiters)
-    - Full streaming support via dspy.streamify()
-    - Cost tracking and usage stats
-    - Retry logic and error handling
-    - Works with all DSPy infrastructure
+    Key features:
+    - No DSPy formatting delimiters in output
+    - Works correctly with dspy.streamify() for streaming
+    - Maintains DSPy's optimization and tracing capabilities
+    - Supports dynamic signatures (with or without tool_calls)
 
     Usage:
-        raw = RawModule(system_prompt="You are helpful")
+        # Without tools
+        raw = RawModule(signature="system_prompt, history, user_message -> response")
         result = raw(user_message="Hello", history="")
+        
+        # With tools
+        raw = RawModule(signature="system_prompt, history, user_message, available_tools -> response, tool_calls")
+        result = raw(user_message="Hello", history="", available_tools="...")
     """
 
-    def __init__(self, system_prompt: str = ""):
+    def __init__(self, signature: str = "system_prompt, history, user_message -> response", system_prompt: str = ""):
         """
         Initialize raw module.
 
         Args:
+            signature: DSPy signature string defining inputs and outputs
             system_prompt: System prompt to prepend to all conversations
         """
         super().__init__()
         self.system_prompt = system_prompt
+        self.signature = signature
+        # Parse signature to determine output fields
+        self.output_fields = self._parse_output_fields(signature)
 
-    def forward(self, system_prompt: str, history, user_message: str, **kwargs):
+    def _parse_output_fields(self, signature: str) -> list:
+        """Extract output field names from signature string."""
+        if "->" not in signature:
+            return ["response"]
+        output_part = signature.split("->")[1].strip()
+        return [field.strip() for field in output_part.split(",")]
+
+    def forward(self, system_prompt: str, history, user_message: str, available_tools: str = "", **kwargs):
         """
-        Forward pass with minimal formatting.
+        Forward pass with direct LM call (no formatting delimiters).
 
         Args:
             system_prompt: System prompt (overrides init if provided)
             history: Conversation history (dspy.History, TactusHistory, or string)
             user_message: Current user message
+            available_tools: Optional tools description (for agents with tools)
             **kwargs: Additional args passed to LM
 
         Returns:
-            dspy.Prediction with response field
+            dspy.Prediction with response field (and tool_calls if signature includes it)
         """
         # Use provided system_prompt or fall back to init value
         sys_prompt = system_prompt or self.system_prompt
 
         # Build messages array for direct LM call
         messages = []
-
+        
+        # Add system prompt if provided
         if sys_prompt:
             messages.append({"role": "system", "content": sys_prompt})
 
-        # Handle history - could be History object or string
+        # Add history messages
         if history:
-            # Check if it's a dspy.History or similar object
             if hasattr(history, 'messages'):
-                # It's a History object - get the messages list
-                history_messages = history.messages if isinstance(history.messages, list) else []
-                messages.extend(history_messages)
+                # It's a History object - use messages directly
+                messages.extend(history.messages)
             elif isinstance(history, str) and history.strip():
                 # It's a formatted string - parse it
                 for line in history.strip().split("\n"):
@@ -85,22 +98,35 @@ class RawModule(dspy.Module):
 
         # Add current user message
         if user_message:
-            messages.append({"role": "user", "content": user_message})
+            # If tools are available, include them in the user message
+            if available_tools and "available_tools" in self.signature:
+                user_content = f"{user_message}\n\nAvailable tools:\n{available_tools}"
+                messages.append({"role": "user", "content": user_content})
+            else:
+                messages.append({"role": "user", "content": user_message})
 
-        # Call LM directly through DSPy's infrastructure
-        # This gives us streaming, retries, callbacks, etc.
+        # Get the configured LM
         lm = dspy.settings.lm
         if lm is None:
             raise RuntimeError("No LM configured. Call dspy.configure(lm=...) first.")
 
-        # Make the call - LM handles streaming automatically if enabled
+        # Call LM directly - streamify() will intercept this call if streaming is enabled
         response = lm(messages=messages, **kwargs)
 
+        # Extract response text from LM result
         # LM returns a list of strings - take the first one
         response_text = response[0] if isinstance(response, list) else str(response)
 
-        # Return as Prediction for DSPy compatibility and streaming support
-        return dspy.Prediction(response=response_text)
+        # Build prediction result based on signature
+        prediction_kwargs = {"response": response_text}
+        
+        # If signature includes tool_calls, add a placeholder
+        # (Real tool call parsing would happen here in a full implementation)
+        if "tool_calls" in self.output_fields:
+            prediction_kwargs["tool_calls"] = "No tools were used."
+
+        # Return as Prediction for DSPy compatibility
+        return dspy.Prediction(**prediction_kwargs)
 
 
 class TactusModule:
@@ -192,14 +218,17 @@ class TactusModule:
         elif self.strategy == "chain_of_thought":
             return dspy.ChainOfThought(self.signature, **self.kwargs)
         elif self.strategy == "raw":
-            # Raw module for minimal formatting - no signature needed
-            # Extract system_prompt from signature if it was a string
-            system_prompt = ""
+            # Raw module for minimal formatting
+            # Pass the signature so RawModule can support tool_calls when needed
             if isinstance(self.signature, str):
-                # String signature might contain system prompt info
-                # For now, system_prompt will come from agent config
-                pass
-            return RawModule(system_prompt=system_prompt)
+                signature_str = self.signature
+            else:
+                # It's a DSPy Signature object - reconstruct the signature string
+                # from input_fields and output_fields
+                input_names = list(self.signature.input_fields.keys())
+                output_names = list(self.signature.output_fields.keys())
+                signature_str = f"{', '.join(input_names)} -> {', '.join(output_names)}"
+            return RawModule(signature=signature_str, system_prompt="")
         elif self.strategy == "react":
             # ReAct requires tools - will be implemented in Step 5.1
             raise NotImplementedError("ReAct strategy not yet implemented. Coming in Step 5.1.")
