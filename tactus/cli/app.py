@@ -55,6 +55,7 @@ def main_callback(
     """Tactus CLI callback for global options."""
     if version:
         from tactus import __version__
+
         console.print(f"Tactus version: [bold]{__version__}[/bold]")
         raise typer.Exit()
 
