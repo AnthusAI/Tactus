@@ -70,7 +70,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({ entry, level, onFileSelect, selecte
       return expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />;
     }
     if (isTactusFile) {
-      return <FilePlay className="h-4 w-4 text-blue-500" />;
+      return <FilePlay className="h-4 w-4 text-primary" />;
     }
     return <File className="h-4 w-4" />;
   };
@@ -87,7 +87,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({ entry, level, onFileSelect, selecte
         onClick={handleClick}
       >
         {getIcon()}
-        {isDirectory && <Folder className="h-4 w-4 text-yellow-600" />}
+        {isDirectory && <Folder className="h-4 w-4 text-muted-foreground" />}
         <span className="truncate">{entry.name}</span>
         {loading && <span className="ml-auto text-xs text-muted-foreground">...</span>}
       </div>
@@ -162,7 +162,7 @@ export const FileTree: React.FC<FileTreeProps> = ({ workspaceRoot, workspaceName
         {/* Workspace folder root */}
         <div className="flex items-center gap-1 px-2 py-1 text-sm font-medium">
           <ChevronDown className="h-4 w-4" />
-          <Folder className="h-4 w-4 text-yellow-600" />
+          <Folder className="h-4 w-4 text-muted-foreground" />
           <span className="truncate">{workspaceName || 'Workspace'}</span>
         </div>
         {/* Root entries at level 1 */}
