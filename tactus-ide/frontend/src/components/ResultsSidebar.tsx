@@ -26,6 +26,9 @@ interface ResultsSidebarProps {
     status: 'idle' | 'starting' | 'ready' | 'disabled' | 'error';
     spinupMs?: number;
   };
+
+  // Chat tab
+  workspaceRoot: string | null;
 }
 
 export const ResultsSidebar: React.FC<ResultsSidebarProps> = ({
@@ -39,6 +42,7 @@ export const ResultsSidebar: React.FC<ResultsSidebarProps> = ({
   onToggleRunExpansion,
   onJumpToSource,
   containerStatus,
+  workspaceRoot,
 }) => {
   const resultsContentRef = useRef<HTMLDivElement>(null);
   const lastRunCountRef = useRef<number>(0);
@@ -286,7 +290,7 @@ export const ResultsSidebar: React.FC<ResultsSidebarProps> = ({
 
           {/* Chat Tab Content */}
           <TabsContent value="chat" className="absolute inset-0 m-0 data-[state=inactive]:pointer-events-none">
-            <ChatSidebar apiUrl={(path) => path} />
+            <ChatSidebar apiUrl={(path) => path} workspaceRoot={workspaceRoot} />
           </TabsContent>
         </div>
       </Tabs>

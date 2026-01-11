@@ -177,9 +177,8 @@ const AppContent: React.FC = () => {
           setWorkspaceName(data.name);
         } else {
           // No workspace set, try to open examples folder
-          // Try common paths where examples might be
+          // Try common relative paths where examples might be
           const possiblePaths = [
-            '/Users/ryan.porter/Projects/Tactus/examples',
             './examples',
             '../examples',
             '../../examples',
@@ -945,6 +944,7 @@ const AppContent: React.FC = () => {
                 containerStatus={containerStatus}
                 onToggleRunExpansion={handleToggleRunExpansion}
                 onJumpToSource={handleJumpToSource}
+                workspaceRoot={workspaceRoot}
               />
             </div>
           </>
