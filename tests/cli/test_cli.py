@@ -121,6 +121,7 @@ Procedure {
     )
     assert result.exit_code == 0
 
+
 def test_cli_run_help_includes_logging_options(cli_runner):
     """Test that run --help documents log-level and log-format options."""
     result = cli_runner.invoke(app, ["run", "--help"])
