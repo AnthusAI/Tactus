@@ -82,6 +82,7 @@ class DSPyAgentHandle:
             module: DSPy module type to use (default: "Predict"). Options:
                 - "Predict": Simple pass-through prediction (no reasoning traces)
                 - "ChainOfThought": Adds step-by-step reasoning before response
+                - "Raw": Minimal formatting, direct LM calls (lowest token overhead)
             initial_message: Initial message to send on first turn if no inject
             registry: Optional Registry instance for accessing mocks
             mock_manager: Optional MockManager instance for checking mocks
@@ -288,6 +289,7 @@ class DSPyAgentHandle:
         mapping = {
             "Predict": "predict",
             "ChainOfThought": "chain_of_thought",
+            "Raw": "raw",
             # Future modules can be added here:
             # "ReAct": "react",
             # "ProgramOfThought": "program_of_thought",
