@@ -515,3 +515,161 @@ class FakeSessionStore:
             for session in self.sessions.values()
             if session.context.get("task_type") == task_type
         ]
+
+
+# ---------------------------------------------------------------------------
+# Chat assistant helpers
+# ---------------------------------------------------------------------------
+
+
+class ChatAssistantHarness:
+    """
+    Test harness for chat assistant that captures tool calls and responses.
+
+    Mocks the LLM to return deterministic tool calls based on message patterns,
+    but calls the actual tool implementations to verify they work correctly.
+    """
+
+    def __init__(self, workspace_root: str):
+        import os
+
+        # Convert to absolute path if relative
+        if not os.path.isabs(workspace_root):
+            # Resolve relative to project root (where behave is run from)
+            workspace_root = os.path.abspath(workspace_root)
+        self.workspace_root = workspace_root
+        self.config = {}
+        self.messages = []
+        self.tool_calls = []
+        self.response = None
+
+    def configure(self, config: Dict[str, Any]):
+        """Configure assistant (provider, model, etc.)"""
+        self.config = config
+
+    def send_message(self, message: str):
+        """
+        Send message and simulate assistant behavior.
+
+        For testing, we mock the LLM's decision-making but call real tools.
+        """
+        self.messages.append({"role": "user", "content": message})
+
+        # Mock LLM behavior based on message patterns
+        message_lower = message.lower()
+
+        if "hello" in message_lower and "show" not in message_lower:
+            # Simple greeting - no tools
+            self.response = "Hello! How can I help you today?"
+
+        elif "show me" in message_lower or "what files" in message_lower:
+            # File operation - simulate tool call
+            self._simulate_file_tool_call(message)
+
+        else:
+            # Default response
+            self.response = "I'm not sure how to help with that."
+
+    def _simulate_file_tool_call(self, message: str):
+        """
+        Simulate LLM deciding to call the file tool.
+
+        Parse the message to extract file path and determine command,
+        then call the actual tool implementation.
+        """
+        # Extract file path from message
+        # Simple pattern matching for testing
+        import re
+
+        # Check for line range first (more specific pattern)
+        view_range = None
+        range_match = re.search(r"lines (\d+)-(\d+) of (.+)", message.lower())
+        if range_match:
+            start = int(range_match.group(1))
+            end = int(range_match.group(2))
+            view_range = [start, end]
+            path = range_match.group(3).strip()
+        else:
+            # Pattern: "show me <path>" or "what files in <path>"
+            path_match = re.search(r"show me ([^\s]+)", message.lower())
+            if not path_match:
+                # Pattern: "what files are in this directory"
+                if "in this directory" in message.lower():
+                    path = "."
+                else:
+                    # Pattern: "what files are in the <path> directory"
+                    path_match = re.search(r"in the ([^\s]+) directory", message.lower())
+                    if path_match:
+                        # Add trailing slash for directory
+                        path = path_match.group(1) + "/"
+                    else:
+                        self.response = "I couldn't find a file path in your message."
+                        return
+            else:
+                path = path_match.group(1)
+
+        # Determine if it's a directory or file
+        command = "view"
+
+        # Call the actual tool (will be implemented later)
+        try:
+            # For now, just record the call - tool implementation comes next
+            tool_result = self._call_tool(command, path, view_range)
+
+            self.tool_calls.append(
+                {
+                    "tool": "str_replace_based_edit_tool",
+                    "params": {
+                        "command": command,
+                        "path": path,
+                        **({"view_range": view_range} if view_range else {}),
+                    },
+                    "result": tool_result,
+                }
+            )
+
+            # Generate response based on tool result
+            if "Error" in tool_result:
+                self.response = f"I encountered an error: {tool_result}"
+            else:
+                self.response = f"Here's what I found:\n\n{tool_result}"
+
+        except Exception as e:
+            self.response = f"Error calling tool: {str(e)}"
+
+    def _call_tool(self, command: str, path: str, view_range: Optional[List[int]] = None) -> str:
+        """
+        Call the actual tool implementation.
+        """
+        # Import the real tool
+        import sys
+        import os
+
+        backend_path = os.path.join(
+            os.path.dirname(__file__), "..", "..", "..", "tactus-ide", "backend"
+        )
+        if backend_path not in sys.path:
+            sys.path.insert(0, backend_path)
+
+        from text_editor_tool import str_replace_based_edit_tool
+
+        # Call the real tool
+        return str_replace_based_edit_tool(
+            workspace_root=self.workspace_root, command=command, path=path, view_range=view_range
+        )
+
+    def has_response(self) -> bool:
+        """Check if assistant generated a response."""
+        return self.response is not None
+
+    def get_response(self) -> str:
+        """Get the assistant's response."""
+        return self.response or ""
+
+    def get_tool_calls(self) -> List[Dict[str, Any]]:
+        """Get list of tool calls made."""
+        return self.tool_calls
+
+    def tool_was_called(self, tool_name: str) -> bool:
+        """Check if a specific tool was called."""
+        return any(call["tool"] == tool_name for call in self.tool_calls)

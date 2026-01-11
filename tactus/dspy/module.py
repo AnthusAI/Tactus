@@ -32,13 +32,17 @@ class RawModule(dspy.Module):
         # Without tools
         raw = RawModule(signature="system_prompt, history, user_message -> response")
         result = raw(user_message="Hello", history="")
-        
+
         # With tools
         raw = RawModule(signature="system_prompt, history, user_message, available_tools -> response, tool_calls")
         result = raw(user_message="Hello", history="", available_tools="...")
     """
 
-    def __init__(self, signature: str = "system_prompt, history, user_message -> response", system_prompt: str = ""):
+    def __init__(
+        self,
+        signature: str = "system_prompt, history, user_message -> response",
+        system_prompt: str = "",
+    ):
         """
         Initialize raw module.
 
@@ -59,7 +63,9 @@ class RawModule(dspy.Module):
         output_part = signature.split("->")[1].strip()
         return [field.strip() for field in output_part.split(",")]
 
-    def forward(self, system_prompt: str, history, user_message: str, available_tools: str = "", **kwargs):
+    def forward(
+        self, system_prompt: str, history, user_message: str, available_tools: str = "", **kwargs
+    ):
         """
         Forward pass with direct LM call (no formatting delimiters).
 
@@ -78,14 +84,14 @@ class RawModule(dspy.Module):
 
         # Build messages array for direct LM call
         messages = []
-        
+
         # Add system prompt if provided
         if sys_prompt:
             messages.append({"role": "system", "content": sys_prompt})
 
         # Add history messages
         if history:
-            if hasattr(history, 'messages'):
+            if hasattr(history, "messages"):
                 # It's a History object - use messages directly
                 messages.extend(history.messages)
             elif isinstance(history, str) and history.strip():
@@ -119,7 +125,7 @@ class RawModule(dspy.Module):
 
         # Build prediction result based on signature
         prediction_kwargs = {"response": response_text}
-        
+
         # If signature includes tool_calls, add a placeholder
         # (Real tool call parsing would happen here in a full implementation)
         if "tool_calls" in self.output_fields:

@@ -61,6 +61,7 @@ export function useChatSSE(workspaceRoot: string, config: ChatConfig) {
       const decoder = new TextDecoder();
       let assistantMessage = '';
       let hasAssistantMessage = false;
+      let currentAssistantMessageIndex: number | null = null;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -86,11 +87,14 @@ export function useChatSSE(workspaceRoot: string, config: ChatConfig) {
                     console.log('[SSE] Already showing thinking indicator');
                   } else {
                     console.log('[SSE] Adding thinking indicator');
-                    newMessages.push({
-                      role: 'assistant',
+                    const thinkingMsg = {
+                      role: 'assistant' as const,
                       content: '_thinking_...',
                       timestamp: new Date(),
-                    });
+                    };
+                    newMessages.push(thinkingMsg);
+                    // Track this as the current assistant message index
+                    currentAssistantMessageIndex = newMessages.length - 1;
                   }
                   return newMessages;
                 });
@@ -107,33 +111,33 @@ export function useChatSSE(workspaceRoot: string, config: ChatConfig) {
                   const newMessages = [...prev];
                   const lastMsg = newMessages[newMessages.length - 1];
                   
-                  // Remove thinking indicator if present
+                  // Remove thinking indicator if present and track the new message
                   if (lastMsg && lastMsg.role === 'assistant' && lastMsg.content.startsWith('_thinking_')) {
                     console.log('[SSE] Removing thinking indicator, starting real message');
                     newMessages.pop();
+                    currentAssistantMessageIndex = null;
                   }
                   
-                  // Find or create assistant message
-                  const assistantMsgIndex = newMessages.findLastIndex(
-                    msg => msg.role === 'assistant' && !msg.content.startsWith('_thinking_')
-                  );
-                  
-                  if (assistantMsgIndex >= 0) {
-                    // Append chunk to existing message
-                    newMessages[assistantMsgIndex].content += chunk;
+                  // If we have a tracked index for the current streaming message, use it
+                  if (currentAssistantMessageIndex !== null && currentAssistantMessageIndex < newMessages.length) {
+                    // Append chunk to the tracked message
+                    newMessages[currentAssistantMessageIndex].content += chunk;
                   } else {
-                    // Create new assistant message with this chunk
-                    newMessages.push({
-                      role: 'assistant',
+                    // Create new assistant message with this chunk and track it
+                    const newMsg = {
+                      role: 'assistant' as const,
                       content: chunk,
                       timestamp: new Date(),
-                    });
+                    };
+                    newMessages.push(newMsg);
+                    currentAssistantMessageIndex = newMessages.length - 1;
                   }
                   
                   return newMessages;
                 });
               } else if (event.type === 'done') {
                 // Stream complete
+                currentAssistantMessageIndex = null;
                 setIsLoading(false);
               } else if (event.type === 'error') {
                 throw new Error(event.error || 'Unknown error');

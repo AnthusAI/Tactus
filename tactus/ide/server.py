@@ -2082,23 +2082,23 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             import os
             import uuid
             import asyncio
-            
+
             # Add backend directory to path so we can import our modules
-            backend_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'tactus-ide', 'backend')
+            backend_dir = os.path.join(
+                os.path.dirname(__file__), "..", "..", "tactus-ide", "backend"
+            )
             if backend_dir not in sys.path:
                 sys.path.insert(0, backend_dir)
-            
+
             from assistant_service import AssistantService
-            
+
             data = request.json or {}
-            workspace_root = data.get('workspace_root') or WORKSPACE_ROOT
-            user_message = data.get('message')
-            config = data.get('config', {
-                'provider': 'openai',
-                'model': 'gpt-4o',
-                'temperature': 0.7,
-                'max_tokens': 4000
-            })
+            workspace_root = data.get("workspace_root") or WORKSPACE_ROOT
+            user_message = data.get("message")
+            config = data.get(
+                "config",
+                {"provider": "openai", "model": "gpt-4o", "temperature": 0.7, "max_tokens": 4000},
+            )
 
             if not workspace_root or not user_message:
                 return jsonify({"error": "workspace_root and message required"}), 400
@@ -2111,17 +2111,17 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                 """Generator function that yields SSE events."""
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
-                
+
                 try:
                     # Start conversation (configures DSPy LM internally)
                     loop.run_until_complete(service.start_conversation(conversation_id))
-                    
+
                     # Send immediate thinking indicator
                     yield f"data: {json.dumps({'type': 'thinking', 'content': 'Processing your request...'})}\n\n"
-                    
+
                     # Create async generator
                     async_gen = service.send_message(user_message)
-                    
+
                     # Consume events one at a time and yield immediately
                     while True:
                         try:
@@ -2129,19 +2129,23 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                             yield f"data: {json.dumps(event)}\n\n"
                         except StopAsyncIteration:
                             break
-                            
+
                 except Exception as e:
                     logger.error(f"Error streaming message: {e}", exc_info=True)
                     yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
                 finally:
                     loop.close()
-            
-            return Response(stream_with_context(generate()), mimetype='text/event-stream', headers={
-                'Cache-Control': 'no-cache',
-                'X-Accel-Buffering': 'no',
-                'Connection': 'keep-alive'
-            })
-            
+
+            return Response(
+                stream_with_context(generate()),
+                mimetype="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "X-Accel-Buffering": "no",
+                    "Connection": "keep-alive",
+                },
+            )
+
         except Exception as e:
             logger.error(f"Error in stream endpoint: {e}", exc_info=True)
             return jsonify({"error": str(e)}), 500

@@ -131,3 +131,69 @@ def reset_lm_configuration() -> None:
     _current_lm = None
     # Also reset DSPy's global configuration
     dspy.configure(lm=None)
+
+
+def create_lm(
+    model: str,
+    api_key: Optional[str] = None,
+    api_base: Optional[str] = None,
+    temperature: float = 0.7,
+    max_tokens: Optional[int] = None,
+    model_type: Optional[str] = None,
+    **kwargs: Any,
+) -> dspy.LM:
+    """
+    Create a Language Model instance WITHOUT setting it as global default.
+
+    This is useful for creating LMs in async contexts where dspy.configure()
+    cannot be called (e.g., in different event loops or async tasks).
+
+    Use with dspy.context(lm=...) to set the LM for a specific scope:
+        lm = create_lm("openai/gpt-4o")
+        with dspy.context(lm=lm):
+            # Use DSPy operations here
+
+    Args:
+        model: Model identifier in LiteLLM format (e.g., "openai/gpt-4o")
+        api_key: API key (optional, can use environment variables)
+        api_base: Custom API base URL (optional)
+        temperature: Sampling temperature (default: 0.7)
+        max_tokens: Maximum tokens in response (optional)
+        model_type: Model type (e.g., "chat", "responses" for reasoning models)
+        **kwargs: Additional LiteLLM parameters
+
+    Returns:
+        dspy.LM instance (not configured globally)
+    """
+    # Validate model parameter
+    if model is None or not model:
+        raise ValueError("model is required for LM configuration")
+
+    if not isinstance(model, str) or not model.startswith(
+        ("openai/", "anthropic/", "bedrock/", "gemini/", "ollama/")
+    ):
+        # Check if it's at least formatted correctly
+        if "/" not in model:
+            raise ValueError(
+                f"Invalid model format: {model}. Expected format like 'provider/model-name'"
+            )
+
+    # Build configuration
+    lm_kwargs = {
+        "temperature": temperature,
+        # IMPORTANT: Disable caching to enable streaming
+        "cache": False,
+        **kwargs,
+    }
+
+    if api_key:
+        lm_kwargs["api_key"] = api_key
+    if api_base:
+        lm_kwargs["api_base"] = api_base
+    if max_tokens:
+        lm_kwargs["max_tokens"] = max_tokens
+    if model_type:
+        lm_kwargs["model_type"] = model_type
+
+    # Create LM without setting as global default
+    return dspy.LM(model, **lm_kwargs)
