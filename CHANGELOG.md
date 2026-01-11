@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v0.27.0 (2026-01-11)
+
+### Features
+
+- **broker**: Brokered sandbox runtime MVP (secretless runtime container) (#24)
+  ([#24](https://github.com/AnthusAI/Tactus/pull/24),
+  [`f922432`](https://github.com/AnthusAI/Tactus/commit/f922432da5a881c5eceb7c1410276ab45264ddaa))
+
+
 ## v0.26.0 (2026-01-11)
 
 ### Features
