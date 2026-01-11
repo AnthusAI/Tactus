@@ -11,7 +11,10 @@ export function setupMenu(mainWindow: BrowserWindow): void {
     {
       label: app.name,
       submenu: [
-        { role: 'about' },
+        {
+          label: 'About Tactus',
+          click: () => sendCommand('tactus.about'),
+        },
         { type: 'separator' },
         { role: 'quit' },
       ],

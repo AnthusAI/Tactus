@@ -16,6 +16,12 @@ import {
   MenubarTrigger,
 } from './components/ui/menubar';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from './components/ui/dropdown-menu';
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -34,7 +40,7 @@ import {
   TestTube,
   BarChart2,
 } from 'lucide-react';
-import { registerCommandHandler, executeCommand, ALL_COMMAND_GROUPS } from './commands/registry';
+import { registerCommandHandler, executeCommand, ALL_COMMAND_GROUPS, RUN_COMMANDS } from './commands/registry';
 import { useEventStream } from './hooks/useEventStream';
 import { ThemeProvider } from './components/theme-provider';
 import { ResultsHistoryState, RunHistory } from './types/results';
@@ -42,6 +48,8 @@ import { ProcedureMetadata } from './types/metadata';
 import { AnyEvent, TestCompletedEvent } from './types/events';
 import { ProcedureInputsModal } from './components/ProcedureInputsModal';
 import { TestOptionsModal, TestOptions } from './components/TestOptionsModal';
+import { AboutDialog } from './components/AboutDialog';
+import { PreferencesView } from './components/PreferencesView';
 
 // Detect if running in Electron (moved inside component for runtime evaluation)
 
@@ -116,7 +124,8 @@ const AppContent: React.FC = () => {
   // Dialog state
   const [openFolderDialogOpen, setOpenFolderDialogOpen] = useState(false);
   const [folderPath, setFolderPath] = useState('');
-  
+  const [showPreferences, setShowPreferences] = useState(false);
+
   // Run/validation state
   const [runResult, setRunResult] = useState<RunResult | null>(null);
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
@@ -143,6 +152,7 @@ const AppContent: React.FC = () => {
   const [inputModalOpen, setInputModalOpen] = useState(false);
   const [pendingInputs, setPendingInputs] = useState<Record<string, any> | null>(null);
   const [testOptionsModalOpen, setTestOptionsModalOpen] = useState(false);
+  const [aboutDialogOpen, setAboutDialogOpen] = useState(false);
 
   // Editor ref for programmatic navigation
   const editorRef = useRef<EditorHandle>(null);
@@ -584,6 +594,8 @@ const AppContent: React.FC = () => {
     registerCommandHandler('run.validate', handleValidate);
     registerCommandHandler('run.run', handleRun);
     registerCommandHandler('run.test', handleTest);
+    registerCommandHandler('tactus.preferences', () => setShowPreferences(true));
+    registerCommandHandler('tactus.about', () => setAboutDialogOpen(true));
     registerCommandHandler('run.evaluate', handleEvaluate);  // Pydantic Evals
   }, [handleOpenFolder, handleSave, handleValidate, handleRun, handleTest, handleEvaluate]);
 
@@ -802,21 +814,42 @@ const AppContent: React.FC = () => {
       {!isElectron && (
         <div className="flex items-center justify-between h-12 px-4 border-b bg-card">
           <div className="flex items-center gap-4">
-            <Logo className="text-xl font-semibold" />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="focus:outline-none">
+                  <Logo className="text-xl font-semibold cursor-pointer hover:opacity-80 transition-opacity" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem onClick={() => executeCommand('tactus.preferences')}>
+                  Preferences...
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => executeCommand('tactus.about')}>
+                  About Tactus
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Menubar className="border-0 bg-transparent shadow-none">
-              {ALL_COMMAND_GROUPS.map((group) => (
-                <MenubarMenu key={group.label}>
-                  <MenubarTrigger>{group.label}</MenubarTrigger>
-                  <MenubarContent>
-                    {group.commands.map((cmd) => (
-                      <MenubarItem key={cmd.id} onClick={() => executeCommand(cmd.id)}>
-                        {cmd.label}
-                        {cmd.shortcut && <MenubarShortcut>{cmd.shortcut}</MenubarShortcut>}
-                      </MenubarItem>
-                    ))}
-                  </MenubarContent>
-                </MenubarMenu>
-              ))}
+              {ALL_COMMAND_GROUPS.map((group) => {
+                // Only show Procedure menu for .tac files
+                if (group.label === RUN_COMMANDS.label && !currentFile?.endsWith('.tac')) {
+                  return null;
+                }
+
+                return (
+                  <MenubarMenu key={group.label}>
+                    <MenubarTrigger>{group.label}</MenubarTrigger>
+                    <MenubarContent>
+                      {group.commands.map((cmd) => (
+                        <MenubarItem key={cmd.id} onClick={() => executeCommand(cmd.id)}>
+                          {cmd.label}
+                          {cmd.shortcut && <MenubarShortcut>{cmd.shortcut}</MenubarShortcut>}
+                        </MenubarItem>
+                      ))}
+                    </MenubarContent>
+                  </MenubarMenu>
+                );
+              })}
             </Menubar>
           </div>
           <div className="flex items-center gap-2">
@@ -1001,6 +1034,23 @@ const AppContent: React.FC = () => {
         onSubmit={handleTestWithOptions}
         onCancel={() => setTestOptionsModalOpen(false)}
       />
+
+      {/* About Dialog */}
+      <AboutDialog
+        open={aboutDialogOpen}
+        onOpenChange={setAboutDialogOpen}
+      />
+
+      {/* Preferences View */}
+      {showPreferences && (
+        <PreferencesView
+          onClose={() => setShowPreferences(false)}
+          onSave={() => {
+            // Config saved successfully
+            setShowPreferences(false);
+          }}
+        />
+      )}
     </div>
   );
 };

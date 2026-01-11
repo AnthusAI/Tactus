@@ -42,3 +42,4 @@ examples/output/
 
 *storybook.log
 storybook-static
+*.bak
