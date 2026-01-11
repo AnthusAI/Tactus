@@ -403,8 +403,32 @@ class DSPyAgentHandle:
             logger.warning(f"Streaming produced no result for agent '{self.name}', falling back")
             return self._turn_without_streaming(opts, prompt_context)
 
-        # Wrap the result
-        wrapped_result = wrap_prediction(result_holder["result"])
+        # Track new messages for this turn
+        new_messages = []
+
+        # Determine user message
+        user_message = opts.get("inject")
+        if self._turn_count == 1 and not user_message and self.initial_message:
+            user_message = self.initial_message
+
+        # Add user message to new_messages if present
+        if user_message:
+            user_msg = {"role": "user", "content": user_message}
+            new_messages.append(user_msg)
+            self._history.add(user_msg)
+
+        # Add assistant response to new_messages
+        if hasattr(result_holder["result"], "response"):
+            assistant_msg = {"role": "assistant", "content": result_holder["result"].response}
+            new_messages.append(assistant_msg)
+            self._history.add(assistant_msg)
+
+        # Wrap the result with message tracking
+        wrapped_result = wrap_prediction(
+            result_holder["result"],
+            new_messages=new_messages,
+            all_messages=self._history.get(),
+        )
 
         # Handle tool calls if present
         if hasattr(wrapped_result, "tool_calls") and wrapped_result.tool_calls:
@@ -422,16 +446,6 @@ class DSPyAgentHandle:
                     {"status": "completed", "reason": reason, "tool": "done"},
                     agent_name=self.name,
                 )
-
-        # Update history
-        user_message = opts.get("inject")
-        if self._turn_count == 1 and not user_message and self.initial_message:
-            user_message = self.initial_message
-
-        if user_message:
-            self._history.add({"role": "user", "content": user_message})
-        if hasattr(wrapped_result, "response"):
-            self._history.add({"role": "assistant", "content": wrapped_result.response})
 
         # Emit turn completed event
         self.log_handler.log(
@@ -467,8 +481,32 @@ class DSPyAgentHandle:
         # Execute the module
         dspy_result = self._module.module(**prompt_context)
 
-        # Wrap the result
-        wrapped_result = wrap_prediction(dspy_result)
+        # Track new messages for this turn
+        new_messages = []
+
+        # Determine user message
+        user_message = opts.get("inject")
+        if self._turn_count == 1 and not user_message and self.initial_message:
+            user_message = self.initial_message
+
+        # Add user message to new_messages if present
+        if user_message:
+            user_msg = {"role": "user", "content": user_message}
+            new_messages.append(user_msg)
+            self._history.add(user_msg)
+
+        # Add assistant response to new_messages
+        if hasattr(dspy_result, "response"):
+            assistant_msg = {"role": "assistant", "content": dspy_result.response}
+            new_messages.append(assistant_msg)
+            self._history.add(assistant_msg)
+
+        # Wrap the result with message tracking
+        wrapped_result = wrap_prediction(
+            dspy_result,
+            new_messages=new_messages,
+            all_messages=self._history.get(),
+        )
 
         # Handle tool calls if present
         if hasattr(wrapped_result, "tool_calls") and wrapped_result.tool_calls:
@@ -486,16 +524,6 @@ class DSPyAgentHandle:
                     {"status": "completed", "reason": reason, "tool": "done"},
                     agent_name=self.name,
                 )
-
-        # Update history
-        user_message = opts.get("inject")
-        if self._turn_count == 1 and not user_message and self.initial_message:
-            user_message = self.initial_message
-
-        if user_message:
-            self._history.add({"role": "user", "content": user_message})
-        if hasattr(wrapped_result, "response"):
-            self._history.add({"role": "assistant", "content": wrapped_result.response})
 
         # Emit cost event with usage and cost information
         self._emit_cost_event()
@@ -639,7 +667,8 @@ class DSPyAgentHandle:
         """
         Check if this agent has a mock configured and return mock response.
 
-        Uses the same mock logic as tools and modules: static (returns), temporal, and conditional.
+        Agent mocks are stored in registry.agent_mocks (not registry.mocks which is for tools).
+        Agent mock configs specify tool_calls, message, data, and usage.
 
         Args:
             opts: The turn options
@@ -649,20 +678,28 @@ class DSPyAgentHandle:
         """
         agent_name = self.name
 
-        # Check if agent has a mock in the registry
-        if agent_name not in self.registry.mocks:
+        # Check if agent has a mock in the registry (agent_mocks, not mocks)
+        if not self.registry or agent_name not in self.registry.agent_mocks:
             return None
 
-        # Use mock_manager to get the response (handles static/temporal/conditional logic)
-        try:
-            mock_data = self.mock_manager.get_mock_response(agent_name, opts)
-            if mock_data is not None:
-                return self._wrap_mock_response(mock_data, opts)
-        except Exception:
-            # If mock_manager throws an error (e.g., error simulation), let it propagate
-            raise
+        # Get agent mock config from registry.agent_mocks
+        mock_config = self.registry.agent_mocks[agent_name]
 
-        return None
+        # Convert AgentMockConfig to format expected by _wrap_mock_response
+        # _wrap_mock_response expects: response (or message), tool_calls, data, usage
+        # We convert message -> response here for clarity
+        mock_data = {
+            "response": mock_config.message,
+            "tool_calls": mock_config.tool_calls,
+            "data": mock_config.data,
+            "usage": mock_config.usage,
+        }
+
+        try:
+            return self._wrap_mock_response(mock_data, opts)
+        except Exception:
+            # If wrapping throws an error, let it propagate
+            raise
 
     def _wrap_mock_response(
         self, mock_data: Dict[str, Any], opts: Dict[str, Any]
@@ -673,7 +710,10 @@ class DSPyAgentHandle:
         Also handles special mock behaviors like recording done tool calls.
 
         Args:
-            mock_data: The mock response data
+            mock_data: The mock response data. Can contain either 'message' or 'response'
+                      field for the text response. If 'message' is present and 'response'
+                      is not, it will be normalized to 'response' to match the agent's
+                      output signature.
             opts: The turn options
 
         Returns:
@@ -681,18 +721,48 @@ class DSPyAgentHandle:
         """
         from tactus.dspy.prediction import create_prediction
 
-        # Create prediction from mock data
-        result = create_prediction(**mock_data)
+        # Normalize mock data to match agent's output signature
+        # Mock data uses "message" field, but agent signature uses "response" field
+        normalized_data = dict(mock_data)
+        if "message" in normalized_data and "response" not in normalized_data:
+            normalized_data["response"] = normalized_data["message"]
+
+        # Track new messages for this turn
+        new_messages = []
+        
+        # Determine user message
+        user_message = opts.get("inject")
+        if self._turn_count == 1 and not user_message and self.initial_message:
+            user_message = self.initial_message
+
+        # Add user message to new_messages if present
+        if user_message:
+            user_msg = {"role": "user", "content": user_message}
+            new_messages.append(user_msg)
+            self._history.add(user_msg)
+        
+        # Add assistant response to new_messages
+        if "response" in normalized_data:
+            assistant_msg = {"role": "assistant", "content": normalized_data["response"]}
+            new_messages.append(assistant_msg)
+            self._history.add(assistant_msg)
+
+        # Add message tracking to normalized data
+        normalized_data["__new_messages__"] = new_messages
+        normalized_data["__all_messages__"] = self._history.get()
+
+        # Create prediction from normalized mock data
+        result = create_prediction(**normalized_data)
 
         # Check if mock simulates a done tool call
         # This allows mocks to trigger Tool.called("done") behavior
         # Use getattr since _tool_primitive is set externally by runtime
         tool_primitive = getattr(self, "_tool_primitive", None)
-        if "tool_calls" in mock_data and tool_primitive:
-            tool_calls = mock_data.get("tool_calls", "")
+        if "tool_calls" in normalized_data and tool_primitive:
+            tool_calls = normalized_data.get("tool_calls", "")
             if "done" in str(tool_calls).lower():
                 # Extract reason from mock response
-                reason = mock_data.get("response", "Task completed (mocked)")
+                reason = normalized_data.get("response", "Task completed (mocked)")
 
                 # Record that the done tool was called
                 logger.debug(f"Mock recording done tool call with reason: {reason}")
@@ -702,16 +772,6 @@ class DSPyAgentHandle:
                     {"status": "completed", "reason": reason, "tool": "done"},
                     agent_name=self.name,
                 )
-
-        # Update history with mock response (to maintain conversation state)
-        user_message = opts.get("inject")
-        if self._turn_count == 1 and not user_message and self.initial_message:
-            user_message = self.initial_message
-
-        if user_message:
-            self._history.add({"role": "user", "content": user_message})
-        if "response" in mock_data:
-            self._history.add({"role": "assistant", "content": mock_data["response"]})
 
         return result
 

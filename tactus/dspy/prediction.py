@@ -5,7 +5,7 @@ This module provides the Prediction primitive that maps to DSPy Prediction,
 representing the output of DSPy Module calls with convenient access methods.
 """
 
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 
 import dspy
 
@@ -35,16 +35,29 @@ class TactusPrediction:
         if result.has("reasoning") then
             print(result.reasoning)
         end
+
+        -- Access conversation messages
+        local new_msgs = result.new_messages()  -- Messages from this turn
+        local all_msgs = result.all_messages()  -- All conversation messages
     """
 
-    def __init__(self, dspy_prediction: dspy.Prediction):
+    def __init__(
+        self,
+        dspy_prediction: dspy.Prediction,
+        new_messages: Optional[List[Dict[str, Any]]] = None,
+        all_messages: Optional[List[Dict[str, Any]]] = None,
+    ):
         """
         Initialize a TactusPrediction from a DSPy Prediction.
 
         Args:
             dspy_prediction: The DSPy Prediction object to wrap
+            new_messages: Messages added during this turn (user + assistant)
+            all_messages: All messages in the conversation history
         """
         self._prediction = dspy_prediction
+        self._new_messages = new_messages or []
+        self._all_messages = all_messages or []
 
     def __getattr__(self, name: str) -> Any:
         """
@@ -147,6 +160,43 @@ class TactusPrediction:
 
         return ""
 
+    def new_messages(self) -> List[Dict[str, Any]]:
+        """
+        Get messages that were added during this turn.
+
+        Returns a list of message dictionaries with 'role' and 'content' keys.
+        Typically includes the user message (if any) and the assistant's response.
+
+        Returns:
+            List of message dicts from this turn
+
+        Example:
+            result = agent({message = "Hello"})
+            msgs = result.new_messages()
+            -- msgs = [
+            --   {role = "user", content = "Hello"},
+            --   {role = "assistant", content = "Hi there!"}
+            -- ]
+        """
+        return self._new_messages.copy()
+
+    def all_messages(self) -> List[Dict[str, Any]]:
+        """
+        Get all messages in the conversation history.
+
+        Returns the complete conversation history including all previous turns
+        and the current turn.
+
+        Returns:
+            List of all message dicts in the conversation
+
+        Example:
+            result = agent({message = "What's next?"})
+            all_msgs = result.all_messages()
+            -- Returns all messages from the entire conversation
+        """
+        return self._all_messages.copy()
+
 
 def validate_field_name(field_name: str) -> bool:
     """
@@ -206,6 +256,10 @@ def create_prediction(**kwargs: Any) -> TactusPrediction:
 
     Args:
         **kwargs: Field values for the prediction
+                 Special keys:
+                 - __schema__: Optional schema for validation
+                 - __new_messages__: Messages from this turn
+                 - __all_messages__: All conversation messages
 
     Returns:
         A TactusPrediction instance
@@ -213,6 +267,10 @@ def create_prediction(**kwargs: Any) -> TactusPrediction:
     Raises:
         ValueError: For invalid field names or missing required fields
     """
+    # Extract special message tracking keys
+    new_messages = kwargs.pop("__new_messages__", [])
+    all_messages = kwargs.pop("__all_messages__", [])
+
     # Validate field names
     for field in kwargs.keys():
         if not validate_field_name(field):
@@ -236,17 +294,27 @@ def create_prediction(**kwargs: Any) -> TactusPrediction:
             )
 
     # Create and return the Prediction
-    return TactusPrediction(dspy.Prediction(**kwargs))
+    return TactusPrediction(
+        dspy.Prediction(**kwargs), new_messages=new_messages, all_messages=all_messages
+    )
 
 
-def wrap_prediction(dspy_prediction: dspy.Prediction) -> TactusPrediction:
+def wrap_prediction(
+    dspy_prediction: dspy.Prediction,
+    new_messages: Optional[List[Dict[str, Any]]] = None,
+    all_messages: Optional[List[Dict[str, Any]]] = None,
+) -> TactusPrediction:
     """
     Wrap a DSPy Prediction in a TactusPrediction.
 
     Args:
         dspy_prediction: The DSPy Prediction to wrap
+        new_messages: Messages added during this turn
+        all_messages: All messages in the conversation history
 
     Returns:
         A TactusPrediction instance
     """
-    return TactusPrediction(dspy_prediction)
+    return TactusPrediction(
+        dspy_prediction, new_messages=new_messages, all_messages=all_messages
+    )
