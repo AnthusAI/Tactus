@@ -1,11 +1,11 @@
 -- Structured Output Demo
 -- Demonstrates using output for structured data extraction
--- and accessing result.value, result.usage
+-- and accessing result.data, result.usage
 
 extractor = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
-    system_prompt = [[You extract city information. Return ONLY a JSON object with these fields:
+    system_prompt = [[You extract city information. Return ONLY structured data with these fields:
 - city: city name
 - country: country name
 - population: estimated population (number, optional)
@@ -32,14 +32,14 @@ Procedure {
     function(input)
         Log.info("Starting structured output demo", {query = input.query})
 
-        -- Agent returns a Result wrapper (not raw data)
+        -- Agent returns ResultPrimitive (not raw data)
         local result = extractor()
 
-        -- Access structured data via result.value
+        -- Access structured data via result.data
         Log.info("Extracted city information", {
-            city = result.value.city,
-            country = result.value.country,
-            population = result.value.population or "unknown"
+            city = result.data.city,
+            country = result.data.country,
+            population = result.data.population or "unknown"
         })
 
         -- Access token usage stats
@@ -49,8 +49,20 @@ Procedure {
             total_tokens = result.usage.total_tokens
         })
 
+        -- Access messages from this turn
+        local new_msgs = result.new_messages()
+        Log.info("Messages generated in this turn", {count = #new_msgs})
+
+        -- Log first message (if any)
+        if #new_msgs > 0 then
+            Log.info("First message", {
+                role = new_msgs[1].role,
+                content_preview = string.sub(new_msgs[1].content, 1, 100)
+            })
+        end
+
         return {
-            city_data = result.value,
+            city_data = result.data,
             tokens_used = result.usage.total_tokens
         }
     end

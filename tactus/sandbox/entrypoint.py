@@ -10,16 +10,17 @@ Usage:
     python -m tactus.sandbox.entrypoint
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import os
 import sys
 import time
 import traceback
-from typing import Any, Dict, Optional, TYPE_CHECKING
+from typing import Any, Dict, Optional
 
-if TYPE_CHECKING:
-    from tactus.sandbox.protocol import ExecutionResult
+from tactus.sandbox.protocol import ExecutionResult
 
 # Configure logging to stderr (stdout is reserved for result)
 _LOG_LEVELS = {
@@ -57,8 +58,9 @@ def read_request_from_stdin() -> Optional[Dict[str, Any]]:
     import json
 
     try:
-        # Read all of stdin
-        input_data = sys.stdin.read()
+        # Read exactly one JSON message (the initial ExecutionRequest).
+        # Keep stdin open for broker responses during execution.
+        input_data = sys.stdin.readline()
         if not input_data.strip():
             logger.error("No input received on stdin")
             return None
@@ -69,7 +71,7 @@ def read_request_from_stdin() -> Optional[Dict[str, Any]]:
         return None
 
 
-def write_result_to_stdout(result: "ExecutionResult") -> None:
+def write_result_to_stdout(result: ExecutionResult) -> None:
     """Write the execution result to stdout with markers."""
     from tactus.sandbox.protocol import wrap_result_for_stdout
 
@@ -81,8 +83,6 @@ def write_result_to_stdout(result: "ExecutionResult") -> None:
 async def execute_procedure(
     source: str,
     params: Dict[str, Any],
-    config: Dict[str, Any],
-    mcp_servers: Dict[str, Any],
     source_file_path: Optional[str] = None,
     format: str = "lua",
 ) -> Any:
@@ -102,6 +102,7 @@ async def execute_procedure(
     """
     from tactus.core import TactusRuntime
     from tactus.adapters.memory import MemoryStorage
+    from tactus.adapters.broker_log import BrokerLogHandler
     from tactus.adapters.http_callback_log import HTTPCallbackLogHandler
     from tactus.adapters.cost_collector_log import CostCollectorLogHandler
 
@@ -110,24 +111,30 @@ async def execute_procedure(
 
     procedure_id = str(uuid.uuid4())
 
-    # Check for HTTP callback URL in environment (for IDE event streaming)
+    # Prefer HTTP callbacks when configured (IDE streaming with container networking).
     log_handler = HTTPCallbackLogHandler.from_environment()
     if log_handler:
         logger.info(
             f"[SANDBOX] Using HTTP callback log handler: {os.environ.get('TACTUS_CALLBACK_URL')}"
         )
     else:
-        # Provide cost collection + checkpoint event handling even without IDE callbacks.
-        # This avoids misleading 0-cost summaries for sandbox runs, while keeping streaming off.
-        log_handler = CostCollectorLogHandler()
-        logger.info("[SANDBOX] No callback URL set; using CostCollectorLogHandler")
+        # Otherwise, try broker socket streaming (works without container networking, e.g. stdio/UDS).
+        log_handler = BrokerLogHandler.from_environment()
+        if log_handler:
+            logger.info(
+                f"[SANDBOX] Using broker log handler: {os.environ.get('TACTUS_BROKER_SOCKET')}"
+            )
+        else:
+            # Provide cost collection + checkpoint event handling even without IDE callbacks.
+            log_handler = CostCollectorLogHandler()
+            logger.info("[SANDBOX] No callback configured; using CostCollectorLogHandler")
 
     # Create runtime with log handler for event streaming
     runtime = TactusRuntime(
         procedure_id=procedure_id,
         storage_backend=MemoryStorage(),
-        mcp_servers=mcp_servers if mcp_servers else None,
-        external_config=config,
+        mcp_servers=None,
+        external_config={},
         source_file_path=source_file_path,
         log_handler=log_handler,  # Enable event streaming to IDE
     )
@@ -170,8 +177,6 @@ async def main_async() -> int:
         proc_result = await execute_procedure(
             source=request.source,
             params=request.params,
-            config=request.config,
-            mcp_servers=request.mcp_servers,
             source_file_path=request.source_file_path,
             format=request.format,
         )
@@ -199,6 +204,14 @@ async def main_async() -> int:
 
         write_result_to_stdout(result)
         return 1
+    finally:
+        # Ensure stdio broker transport is closed cleanly to avoid pending-task warnings.
+        try:
+            from tactus.broker.client import close_stdio_transport
+
+            await close_stdio_transport()
+        except Exception:
+            pass
 
 
 def main() -> int:

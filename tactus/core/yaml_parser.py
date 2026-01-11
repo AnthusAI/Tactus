@@ -154,10 +154,8 @@ class ProcedureYAMLParser:
                 raise ProcedureConfigError(f"Agent '{agent_name}' definition must be a dictionary")
 
             # Validate required agent fields
-            required_agent_fields = ["system_message"]
+            required_agent_fields = ["system_prompt", "initial_message"]
             missing = [field for field in required_agent_fields if field not in agent_def]
-            if "message" not in agent_def and "initial_message" not in agent_def:
-                missing.append("message")
 
             if missing:
                 raise ProcedureConfigError(
@@ -268,14 +266,6 @@ class ProcedureYAMLParser:
                     raise ProcedureConfigError(
                         f"Agent '{agent_name}' provider must be one of: {', '.join(valid_providers)}. "
                         f"Got: {agent_def['provider']}"
-                    )
-
-            if "template_mode" in agent_def:
-                valid_modes = {"jinja2", "plain"}
-                mode = str(agent_def["template_mode"]).lower()
-                if mode not in valid_modes:
-                    raise ProcedureConfigError(
-                        f"Agent '{agent_name}' template_mode must be one of: {', '.join(sorted(valid_modes))}"
                     )
 
             # Validate tools field if present

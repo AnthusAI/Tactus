@@ -48,6 +48,7 @@ from tactus.primitives.retry import RetryPrimitive
 from tactus.primitives.file import FilePrimitive
 from tactus.primitives.procedure import ProcedurePrimitive
 from tactus.primitives.system import SystemPrimitive
+from tactus.primitives.host import HostPrimitive
 
 logger = logging.getLogger(__name__)
 
@@ -145,6 +146,7 @@ class TactusRuntime:
         self.file_primitive: Optional[FilePrimitive] = None
         self.procedure_primitive: Optional[ProcedurePrimitive] = None
         self.system_primitive: Optional[SystemPrimitive] = None
+        self.host_primitive: Optional[HostPrimitive] = None
 
         # Agent primitives (one per agent)
         self.agents: Dict[str, Any] = {}
@@ -409,12 +411,14 @@ class TactusRuntime:
             self.system_primitive = SystemPrimitive(
                 procedure_id=self.procedure_id, log_handler=self.log_handler
             )
+            self.host_primitive = HostPrimitive()
 
             # Initialize Procedure primitive (requires execution_context)
             max_depth = self.config.get("max_depth", 5) if self.config else 5
             self.procedure_primitive = ProcedurePrimitive(
                 execution_context=self.execution_context,
                 runtime_factory=self._create_runtime_for_procedure,
+                lua_sandbox=self.lua_sandbox,
                 max_depth=max_depth,
                 current_depth=self.recursion_depth,
             )
@@ -1607,6 +1611,7 @@ class TactusRuntime:
                     self.tool_primitive,
                     registry=self.registry,
                     mock_manager=self.mock_manager,
+                    lua_runtime=self.lua_sandbox.lua if self.lua_sandbox else None,
                 )
                 self.agents[agent_name] = mock_agent
                 logger.debug(f"Created mock agent: {agent_name}")
@@ -1889,6 +1894,7 @@ class TactusRuntime:
                     model_name=model_name,
                     config=model_config,
                     context=self.execution_context,
+                    mock_manager=self.mock_manager,
                 )
 
                 self.models[model_name] = model_primitive
@@ -2242,6 +2248,10 @@ class TactusRuntime:
         if self.system_primitive:
             logger.info(f"Injecting System primitive: {self.system_primitive}")
             self.lua_sandbox.inject_primitive("System", self.system_primitive)
+
+        if self.host_primitive:
+            logger.info(f"Injecting Host primitive: {self.host_primitive}")
+            self.lua_sandbox.inject_primitive("Host", self.host_primitive)
 
         # Inject Sleep function
         def sleep_wrapper(seconds):
@@ -2606,7 +2616,11 @@ class TactusRuntime:
                 if agent.output:
                     config["agents"][name]["output_schema"] = {
                         field_name: {
-                            "type": field.field_type,  # Already a string, no .value needed
+                            "type": (
+                                field.field_type.value
+                                if hasattr(field.field_type, "value")
+                                else field.field_type
+                            ),
                             "required": field.required,
                         }
                         for field_name, field in agent.output.fields.items()

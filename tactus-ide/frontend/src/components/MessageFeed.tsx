@@ -2,7 +2,6 @@ import React, { useMemo } from 'react';
 import { AnyEvent, LogEvent } from '@/types/events';
 import { EventRenderer } from './events/EventRenderer';
 import { LogCluster } from './events/LogCluster';
-import { TestProgressContainer, hasTestEvents, extractTestEvents, getNonTestEvents } from './events/TestProgressContainer';
 
 interface MessageFeedProps {
   events: AnyEvent[];
@@ -88,9 +87,6 @@ export const MessageFeed: React.FC<MessageFeedProps> = ({
   showFullLogs = false,
   onJumpToSource
 }) => {
-  // Check if events contain test events that should be grouped
-  const hasTests = useMemo(() => hasTestEvents(events), [events]);
-
   const displayItems = useMemo(() => {
     // Filter out loading spinners when we have actual content
     const filteredEvents = filterSupersededLoadingEvents(events);
@@ -101,33 +97,11 @@ export const MessageFeed: React.FC<MessageFeedProps> = ({
       console.log('[MessageFeed] Display items includes', streamChunks.length, 'stream chunks');
     }
 
-    // If we have test events, separate them from non-test events
-    if (hasTests) {
-      // Get non-test events for regular rendering
-      return clustered ? clusterEvents(getNonTestEvents(filteredEvents)) : getNonTestEvents(filteredEvents);
-    }
-
     return clustered ? clusterEvents(filteredEvents) : filteredEvents;
-  }, [events, clustered, hasTests]);
-
-  // Extract test events separately for TestProgressContainer
-  const testEvents = useMemo(() => {
-    if (hasTests) {
-      return extractTestEvents(events);
-    }
-    return [];
-  }, [events, hasTests]);
+  }, [events, clustered]);
 
   return (
     <div className="flex flex-col">
-      {/* Render test progress container at the top if we have test events */}
-      {hasTests && testEvents.length > 0 && (
-        <div className="mb-2">
-          <TestProgressContainer events={testEvents} />
-        </div>
-      )}
-
-      {/* Render non-test events normally */}
       {displayItems.map((item, index) => {
         const isAlternate = index % 2 === 1;
 

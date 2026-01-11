@@ -57,17 +57,11 @@ export const EventRenderer: React.FC<EventRendererProps> = ({ event, isAlternate
     case 'loading':
       return <LoadingEventComponent event={event} isAlternate={isAlternate} />;
     case 'test_started':
-      // Handled by TestProgressContainer - suppress individual rendering
-      return null;
-    case 'test_scenario_started':
-      // Handled by TestProgressContainer - suppress individual rendering
-      return null;
+      return <TestStartedEventComponent event={event} isAlternate={isAlternate} />;
     case 'test_scenario_completed':
-      // Handled by TestProgressContainer - suppress individual rendering
-      return null;
+      return <TestScenarioCompletedEventComponent event={event} isAlternate={isAlternate} />;
     case 'test_completed':
-      // Handled by TestProgressContainer - suppress individual rendering
-      return null;
+      return <TestCompletedEventComponent event={event} isAlternate={isAlternate} />;
     case 'evaluation_started':
       return <EvaluationStartedEventComponent event={event} isAlternate={isAlternate} />;
     case 'evaluation_progress':

@@ -26,8 +26,15 @@ Procedure {
         local result = storyteller({message = input.prompt})
 
         return {
-            story = result.value,
+            story = result.response,
             success = true
         }
     end
+}
+
+Mocks {
+    storyteller = {
+        tool_calls = {},
+        message = "A curious robot dipped its brush into blue paint and discovered joy in every stroke."
+    }
 }

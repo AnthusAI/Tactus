@@ -66,7 +66,7 @@ Procedure {
             -- 2. Extract all Tool and Toolset definitions
             -- 3. Make them available to the agent
 
-            Log.warn(
+            Log.warning(
                 "Note: .tac file toolset imports are partially implemented. " ..
                 "Full implementation would extract tools from ./helpers/text_tools.tac"
             )
@@ -106,8 +106,8 @@ Procedure {
                         answer = reason
                     end
                 end
-            elseif result and result.value ~= nil then
-                answer = tostring(result.value)
+            elseif result and result.message then
+                answer = result.message
             end
 
             Log.info("Import result", {

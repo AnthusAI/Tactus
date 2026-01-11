@@ -1097,7 +1097,7 @@ class AgentPrimitive:
         )
         return {
             "output": result.output,
-            "messages": self.messages
+            "messages": self.messages + result.new_messages()
         }
 ```
 
