@@ -12,7 +12,6 @@ export interface ChatMessage {
   id: string;
   type: 'user' | 'assistant' | 'system' | 'tool_call' | 'tool_result' | 'error';
   content: string;
-  timestamp: Date;
   metadata?: any;
 }
 
@@ -36,10 +35,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ workspaceRoot }) =
   useEffect(() => {
     if (sseMessages.length > 0) {
       const formattedMessages: ChatMessage[] = sseMessages.map((msg, idx) => ({
-        id: `${msg.timestamp.getTime()}-${idx}`,
+        id: `${Date.now()}-${idx}`,
         type: msg.role,
         content: msg.content,
-        timestamp: msg.timestamp,
       }));
       setMessages(formattedMessages);
     }

@@ -32,7 +32,7 @@ export function useChatSSE(workspaceRoot: string, config: ChatConfig) {
     abortControllerRef.current = new AbortController();
 
     try {
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://127.0.0.1:5003';
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
       const response = await fetch(`${backendUrl}/api/chat/stream`, {
         method: 'POST',
         headers: {
