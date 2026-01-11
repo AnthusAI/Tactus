@@ -251,7 +251,7 @@ Root: {self.workspace_root}
             result_container = {"result": None, "error": None}
 
             def run_streaming_agent():
-                """Run ReAct agent with streaming in background thread."""
+                """Run ReAct agent with streaming support."""
                 try:
                     # Create new event loop for this thread
                     import asyncio
@@ -263,22 +263,24 @@ Root: {self.workspace_root}
                         try:
                             # Use dspy.context to set LM for this async task
                             with dspy.context(lm=self.lm):
-                                # Wrap agent with streamify for streaming support
-                                streaming_agent = dspy.streamify(self.agent)
+                                # Create StreamListener with allow_reuse=True for ReAct iterations
+                                stream_listener = dspy.streaming.StreamListener(
+                                    signature_field_name="answer", allow_reuse=True
+                                )
+
+                                # Wrap agent with streamify
+                                streaming_agent = dspy.streamify(
+                                    self.agent, stream_listeners=[stream_listener]
+                                )
 
                                 # Call agent - returns async generator
                                 async for chunk in streaming_agent(question=context):
+                                    # Check if this is a streaming token
+                                    if isinstance(chunk, dspy.streaming.StreamResponse):
+                                        chunk_queue.put(("chunk", chunk.chunk))
                                     # Check if this is the final prediction
-                                    if isinstance(chunk, dspy.Prediction):
+                                    elif isinstance(chunk, dspy.Prediction):
                                         result_container["result"] = chunk
-                                    # Check for streaming response chunks
-                                    elif hasattr(chunk, "choices") and chunk.choices:
-                                        delta = chunk.choices[0].delta
-                                        if hasattr(delta, "content") and delta.content:
-                                            chunk_queue.put(("chunk", delta.content))
-                                    # Handle string chunks
-                                    elif isinstance(chunk, str) and chunk:
-                                        chunk_queue.put(("chunk", chunk))
                         except Exception as e:
                             logger.error(f"Streaming error: {e}", exc_info=True)
                             result_container["error"] = e
@@ -296,7 +298,7 @@ Root: {self.workspace_root}
             agent_thread = threading.Thread(target=run_streaming_agent, daemon=True)
             agent_thread.start()
 
-            # ReAct markup patterns to filter out
+            # ReAct markup patterns to filter out (for non-streaming fallback)
             REACT_PATTERNS = [
                 re.compile(r"^Thought:\s*", re.MULTILINE),
                 re.compile(r"^Action:\s*", re.MULTILINE),
@@ -304,12 +306,9 @@ Root: {self.workspace_root}
             ]
             ANSWER_PATTERN = re.compile(r"^Answer:\s*", re.MULTILINE)
 
-            # Buffer for filtering
-            buffer = ""
             accumulated_text = ""
-            in_answer_section = False
 
-            # Process streaming chunks with filtering
+            # Process streaming chunks - ReAct streams answer directly without markup
             while True:
                 try:
                     msg_type, msg_data = chunk_queue.get(timeout=120.0)
@@ -318,59 +317,23 @@ Root: {self.workspace_root}
                         break
 
                     if msg_type == "chunk" and msg_data:
-                        buffer += msg_data
-
-                        # Check if we've entered the Answer section
-                        if ANSWER_PATTERN.search(buffer):
-                            in_answer_section = True
-                            # Remove "Answer:" prefix and send remaining content
-                            buffer = ANSWER_PATTERN.sub("", buffer)
-
-                        # If in answer section, send chunks (filtering out other markup)
-                        if in_answer_section:
-                            # Filter out any ReAct markup that might appear
-                            filtered = buffer
-                            for pattern in REACT_PATTERNS:
-                                filtered = pattern.sub("", filtered)
-
-                            # Send the filtered chunk if it has content
-                            if filtered and filtered != buffer:
-                                # We filtered something, update buffer
-                                buffer = filtered
-
-                            # Send complete lines or when buffer is substantial
-                            if "\n" in buffer or len(buffer) > 50:
-                                to_send = buffer
-                                buffer = ""
-
-                                if to_send.strip():
-                                    accumulated_text += to_send
-                                    yield {
-                                        "type": "message",
-                                        "content": to_send,
-                                        "role": "assistant",
-                                    }
-                        else:
-                            # Not in answer section yet, check for complete lines to discard
-                            if "\n" in buffer:
-                                lines = buffer.split("\n")
-                                buffer = lines[-1]  # Keep incomplete line
-                                # Discard complete lines (they're Thought/Action/Observation)
+                        # ReAct streams the answer field directly, no filtering needed
+                        accumulated_text += msg_data
+                        yield {
+                            "type": "message",
+                            "content": msg_data,
+                            "role": "assistant",
+                        }
 
                 except queue.Empty:
                     logger.warning("Timeout waiting for streaming chunks")
                     break
 
-            # Send any remaining buffered content
-            if buffer.strip() and in_answer_section:
-                accumulated_text += buffer
-                yield {"type": "message", "content": buffer, "role": "assistant"}
-
             # Check for errors
             if result_container["error"]:
                 raise result_container["error"]
 
-            # If no streaming chunks were sent, extract answer from result
+            # Fallback: If no streaming chunks were sent, extract answer from result
             if not accumulated_text and result_container["result"]:
                 result = result_container["result"]
                 if hasattr(result, "answer"):
@@ -382,7 +345,7 @@ Root: {self.workspace_root}
                 else:
                     response_text = str(result)
 
-                # Filter out ReAct markup from final response
+                # Filter out ReAct markup
                 for pattern in REACT_PATTERNS:
                     response_text = pattern.sub("", response_text)
                 response_text = ANSWER_PATTERN.sub("", response_text)
