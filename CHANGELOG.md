@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v0.25.0 (2026-01-11)
+
+### Features
+
+- Add IDE preferences UI with config source tracking (#25)
+  ([#25](https://github.com/AnthusAI/Tactus/pull/25),
+  [`cedf64d`](https://github.com/AnthusAI/Tactus/commit/cedf64d87f1707305283d073710ee3c6b674c44a))
+
+
 ## v0.24.0 (2026-01-11)
 
 ### Code Style
