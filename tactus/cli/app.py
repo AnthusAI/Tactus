@@ -41,6 +41,29 @@ app = typer.Typer(
 )
 
 
+@app.callback(invoke_without_command=True)
+def main_callback(
+    ctx: typer.Context,
+    version: bool = typer.Option(
+        False,
+        "--version",
+        "-V",
+        help="Show version and exit",
+        is_eager=True,
+    ),
+):
+    """Tactus CLI callback for global options."""
+    if version:
+        from tactus import __version__
+        console.print(f"Tactus version: [bold]{__version__}[/bold]")
+        raise typer.Exit()
+
+    # If no subcommand was invoked and version flag not set, show help
+    if ctx.invoked_subcommand is None:
+        console.print(ctx.get_help())
+        raise typer.Exit()
+
+
 def load_tactus_config():
     """
     Load Tactus configuration from standard config locations.
