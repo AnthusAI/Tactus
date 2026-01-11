@@ -2070,73 +2070,85 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
     @app.route("/api/chat/stream", methods=["POST"])
     def chat_stream():
         """
-        Stream chat responses with SSE.
+        Stream chat responses with SSE using our working implementation.
 
         Request body:
+        - workspace_root: Workspace path
         - message: User's message
+        - config: Optional config with provider, model, etc.
         """
-        data = request.json or {}
-        message = data.get("message")
+        try:
+            import sys
+            import os
+            import uuid
+            import asyncio
 
-        if not message:
-            return jsonify({"error": "Missing 'message' parameter"}), 400
+            # Add backend directory to path so we can import our modules
+            backend_dir = os.path.join(
+                os.path.dirname(__file__), "..", "..", "tactus-ide", "backend"
+            )
+            if backend_dir not in sys.path:
+                sys.path.insert(0, backend_dir)
 
-        if not WORKSPACE_ROOT:
-            return jsonify({"error": "No workspace folder selected"}), 400
+            from assistant_service import AssistantService
 
-        def generate_events():
-            """Generator function that yields SSE chat events."""
-            try:
-                import json
-                from datetime import datetime
+            data = request.json or {}
+            workspace_root = data.get("workspace_root") or WORKSPACE_ROOT
+            user_message = data.get("message")
+            config = data.get(
+                "config",
+                {"provider": "openai", "model": "gpt-4o", "temperature": 0.7, "max_tokens": 4000},
+            )
 
-                # Get or create assistant
-                assistant = get_or_create_assistant()
+            if not workspace_root or not user_message:
+                return jsonify({"error": "workspace_root and message required"}), 400
 
-                # Send start event
-                start_event = {
-                    "event_type": "chat_start",
-                    "timestamp": datetime.utcnow().isoformat() + "Z",
-                }
-                yield f"data: {json.dumps(start_event)}\n\n"
+            # Create service instance
+            conversation_id = str(uuid.uuid4())
+            service = AssistantService(workspace_root, config)
 
-                # Process message
-                result = assistant.process_message(message)
+            def generate():
+                """Generator function that yields SSE events."""
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
 
-                # Send response event
-                response_event = {
-                    "event_type": "chat_response",
-                    "timestamp": datetime.utcnow().isoformat() + "Z",
-                    "response": result["response"],
-                    "tool_calls": result.get("tool_calls", []),
-                }
-                yield f"data: {json.dumps(response_event)}\n\n"
+                try:
+                    # Start conversation (configures DSPy LM internally)
+                    loop.run_until_complete(service.start_conversation(conversation_id))
 
-                # Send completion event
-                complete_event = {
-                    "event_type": "chat_complete",
-                    "timestamp": datetime.utcnow().isoformat() + "Z",
-                }
-                yield f"data: {json.dumps(complete_event)}\n\n"
+                    # Send immediate thinking indicator
+                    yield f"data: {json.dumps({'type': 'thinking', 'content': 'Processing your request...'})}\n\n"
 
-            except Exception as e:
-                logger.error(f"Error in chat streaming: {e}", exc_info=True)
-                error_event = {
-                    "event_type": "chat_error",
-                    "timestamp": datetime.utcnow().isoformat() + "Z",
-                    "error": str(e),
-                }
-                yield f"data: {json.dumps(error_event)}\n\n"
+                    # Create async generator
+                    async_gen = service.send_message(user_message)
 
-        return Response(
-            stream_with_context(generate_events()),
-            mimetype="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache",
-                "X-Accel-Buffering": "no",
-                "Connection": "keep-alive",
-            },
-        )
+                    # Consume events one at a time and yield immediately
+                    while True:
+                        try:
+                            event = loop.run_until_complete(async_gen.__anext__())
+                            yield f"data: {json.dumps(event)}\n\n"
+                        except StopAsyncIteration:
+                            break
+
+                except Exception as e:
+                    logger.error(f"Error streaming message: {e}", exc_info=True)
+                    yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
+                finally:
+                    loop.close()
+
+            return Response(
+                stream_with_context(generate()),
+                mimetype="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "X-Accel-Buffering": "no",
+                    "Connection": "keep-alive",
+                },
+            )
+
+        except Exception as e:
+            logger.error(f"Error in stream endpoint: {e}", exc_info=True)
+            return jsonify({"error": str(e)}), 500
 
     @app.route("/api/chat/reset", methods=["POST"])
     def chat_reset():
