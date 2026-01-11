@@ -268,15 +268,46 @@ Root: {self.workspace_root}
                                     signature_field_name="answer", allow_reuse=True
                                 )
 
+                                # Create status message provider for tool call feedback
+                                class ToolStatusProvider(dspy.streaming.StatusMessageProvider):
+                                    def tool_start_status_message(self, instance, inputs):
+                                        tool_name = getattr(instance, "name", "tool")
+                                        # Format inputs nicely
+                                        if inputs:
+                                            # Unwrap kwargs if present
+                                            actual_inputs = inputs
+                                            if len(inputs) == 1 and "kwargs" in inputs:
+                                                actual_inputs = inputs["kwargs"]
+
+                                            # Convert inputs dict to readable format with wrapping
+                                            params = []
+                                            for key, value in actual_inputs.items():
+                                                # Truncate long values
+                                                str_value = str(value)
+                                                if len(str_value) > 50:
+                                                    str_value = str_value[:47] + "..."
+                                                params.append(f"{key} = {str_value}")
+                                            params_str = ", ".join(params)
+                                            return f"{tool_name}  {params_str}"
+                                        return tool_name
+
+                                    def tool_end_status_message(self, outputs):
+                                        return None  # Don't show end message
+
                                 # Wrap agent with streamify
                                 streaming_agent = dspy.streamify(
-                                    self.agent, stream_listeners=[stream_listener]
+                                    self.agent,
+                                    stream_listeners=[stream_listener],
+                                    status_message_provider=ToolStatusProvider(),
                                 )
 
                                 # Call agent - returns async generator
                                 async for chunk in streaming_agent(question=context):
+                                    # Check if this is a status message (tool call)
+                                    if isinstance(chunk, dspy.streaming.StatusMessage):
+                                        chunk_queue.put(("status", chunk.message))
                                     # Check if this is a streaming token
-                                    if isinstance(chunk, dspy.streaming.StreamResponse):
+                                    elif isinstance(chunk, dspy.streaming.StreamResponse):
                                         chunk_queue.put(("chunk", chunk.chunk))
                                     # Check if this is the final prediction
                                     elif isinstance(chunk, dspy.Prediction):
@@ -316,7 +347,15 @@ Root: {self.workspace_root}
                     if msg_type == "done":
                         break
 
-                    if msg_type == "chunk" and msg_data:
+                    if msg_type == "status" and msg_data:
+                        # Tool call status message
+                        yield {
+                            "type": "status",
+                            "content": msg_data,
+                            "role": "assistant",
+                        }
+
+                    elif msg_type == "chunk" and msg_data:
                         # ReAct streams the answer field directly, no filtering needed
                         accumulated_text += msg_data
                         yield {

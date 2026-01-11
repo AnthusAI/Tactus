@@ -3,7 +3,6 @@ import { useState, useCallback, useRef } from 'react';
 export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
-  timestamp: Date;
 }
 
 export interface ChatConfig {
@@ -24,7 +23,6 @@ export function useChatSSE(workspaceRoot: string, config: ChatConfig) {
     const userMsg: ChatMessage = {
       role: 'user',
       content: userMessage,
-      timestamp: new Date(),
     };
     setMessages(prev => [...prev, userMsg]);
     setIsLoading(true);
@@ -90,11 +88,30 @@ export function useChatSSE(workspaceRoot: string, config: ChatConfig) {
                     const thinkingMsg = {
                       role: 'assistant' as const,
                       content: '_thinking_...',
-                      timestamp: new Date(),
                     };
                     newMessages.push(thinkingMsg);
                     // Track this as the current assistant message index
                     currentAssistantMessageIndex = newMessages.length - 1;
+                  }
+                  return newMessages;
+                });
+              } else if (event.type === 'status' && event.role === 'assistant') {
+                // Tool call status message
+                console.log('[SSE] Received status:', event.content);
+                setMessages(prev => {
+                  const newMessages = [...prev];
+                  const lastMsg = newMessages[newMessages.length - 1];
+                  
+                  // Replace thinking indicator with status, or add new status message
+                  if (lastMsg && lastMsg.role === 'assistant' && lastMsg.content.startsWith('_thinking_')) {
+                    lastMsg.content = `_status_${event.content}`;
+                  } else if (lastMsg && lastMsg.role === 'assistant' && lastMsg.content.startsWith('_status_')) {
+                    lastMsg.content = `_status_${event.content}`;
+                  } else {
+                    newMessages.push({
+                      role: 'assistant' as const,
+                      content: `_status_${event.content}`,
+                    });
                   }
                   return newMessages;
                 });
@@ -111,10 +128,13 @@ export function useChatSSE(workspaceRoot: string, config: ChatConfig) {
                   const newMessages = [...prev];
                   const lastMsg = newMessages[newMessages.length - 1];
                   
-                  // Remove thinking indicator if present and track the new message
+                  // Remove thinking indicator but keep status (tool call) messages
                   if (lastMsg && lastMsg.role === 'assistant' && lastMsg.content.startsWith('_thinking_')) {
                     console.log('[SSE] Removing thinking indicator, starting real message');
                     newMessages.pop();
+                    currentAssistantMessageIndex = null;
+                  } else if (lastMsg && lastMsg.role === 'assistant' && lastMsg.content.startsWith('_status_')) {
+                    console.log('[SSE] Keeping status message, adding new message after it');
                     currentAssistantMessageIndex = null;
                   }
                   
@@ -127,7 +147,6 @@ export function useChatSSE(workspaceRoot: string, config: ChatConfig) {
                     const newMsg = {
                       role: 'assistant' as const,
                       content: chunk,
-                      timestamp: new Date(),
                     };
                     newMessages.push(newMsg);
                     currentAssistantMessageIndex = newMessages.length - 1;

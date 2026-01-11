@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bot, User, Loader2 } from 'lucide-react';
+import { Bot, User, Loader2, Wrench } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ChatMessage } from './ChatInterface';
 
@@ -44,7 +44,17 @@ interface MessageItemProps {
 const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
   const isUser = message.type === 'user';
   const isThinking = message.content.startsWith('_thinking_');
-  const displayContent = isThinking ? '...' : message.content;
+  const isStatus = message.content.startsWith('_status_');
+  
+  let displayContent = message.content;
+  let statusText = '';
+  
+  if (isStatus) {
+    statusText = message.content.replace(/^_status_/, '');
+    displayContent = '';
+  } else if (isThinking) {
+    displayContent = '...';
+  }
 
   if (isThinking) {
     return (
@@ -57,6 +67,23 @@ const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
         <div className="flex-1 space-y-2 pt-1">
           <div className="text-sm text-muted-foreground italic">
             Thinking...
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isStatus) {
+    return (
+      <div className="flex gap-3 items-start">
+        <div className="flex-shrink-0 mt-1">
+          <div className="rounded-full bg-blue-500/10 p-2">
+            <Wrench className="h-4 w-4 text-blue-500" />
+          </div>
+        </div>
+        <div className="flex-1 space-y-2 pt-1">
+          <div className="text-xs font-mono text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30 px-2 py-1 rounded">
+            {statusText}
           </div>
         </div>
       </div>
@@ -86,21 +113,11 @@ const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
       )}>
         <div className={cn(
           "inline-block rounded-lg px-4 py-2.5 text-sm",
-          isUser 
-            ? "bg-primary text-primary-foreground" 
-            : "bg-muted"
+          "bg-muted/50 text-foreground"
         )}>
           <div className="whitespace-pre-wrap break-words">
             {displayContent}
           </div>
-        </div>
-        
-        {/* Timestamp */}
-        <div className={cn(
-          "text-xs text-muted-foreground px-1",
-          isUser && "text-right"
-        )}>
-          {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </div>
       </div>
     </div>
