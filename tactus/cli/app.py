@@ -1179,6 +1179,7 @@ def test(
             ("aws", "access_key_id"): "AWS_ACCESS_KEY_ID",
             ("aws", "secret_access_key"): "AWS_SECRET_ACCESS_KEY",
             ("aws", "default_region"): "AWS_DEFAULT_REGION",
+            ("aws", "profile"): "AWS_PROFILE",
         }
 
         for config_key, env_key in env_mappings.items():

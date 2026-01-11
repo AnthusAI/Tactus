@@ -109,6 +109,25 @@ When writing commit messages:
 - Include detailed explanations in the commit body when necessary
 - Follow the Angular Commit Message Convention for the subject line
 
+## Git Branching Strategy
+
+**Branch naming conventions** - Use these prefixes for all branches:
+
+- `feature/` - New features or enhancements (e.g., `feature/preferences-ui`, `feature/mcp-server-config`)
+- `fix/` - Bug fixes (e.g., `fix/config-cascade-merge`)
+- `docs/` - Documentation changes (e.g., `docs/update-api-guide`)
+- `refactor/` - Code refactoring (e.g., `refactor/config-manager`)
+- `test/` - Test additions or improvements (e.g., `test/add-preferences-e2e`)
+
+**IMPORTANT**: Always use `feature/` prefix for feature branches, NOT `feat/` or `feat-`.
+
+**Branch workflow**:
+1. Create feature branch from `main`: `git checkout -b feature/my-feature`
+2. Make changes and commit following commit message guidelines
+3. Push to remote: `git push -u origin feature/my-feature`
+4. Create pull request to `main` branch
+5. After approval and merge, delete feature branch
+
 ## Parser Generation Requirements
 
 **IMPORTANT**: Tactus uses ANTLR4 to generate parsers from the Lua grammar for both Python and TypeScript.

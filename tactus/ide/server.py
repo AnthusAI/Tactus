@@ -197,6 +197,24 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             return jsonify({"cwd": WORKSPACE_ROOT})
         return jsonify({"cwd": str(Path.cwd())})
 
+    @app.route("/api/about", methods=["GET"])
+    def get_about_info():
+        """Get application version and metadata."""
+        from tactus import __version__
+
+        return jsonify(
+            {
+                "version": __version__,
+                "name": "Tactus IDE",
+                "description": "A Lua-based DSL for agentic workflows",
+                "author": "Ryan Porter",
+                "license": "MIT",
+                "repository": "https://github.com/AnthusAI/Tactus",
+                "documentation": "https://github.com/AnthusAI/Tactus/tree/main/docs",
+                "issues": "https://github.com/AnthusAI/Tactus/issues",
+            }
+        )
+
     @app.route("/api/workspace", methods=["GET", "POST"])
     def workspace_operations():
         """Handle workspace operations."""
@@ -2240,6 +2258,23 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
         except Exception as e:
             logger.error(f"Error handling LSP notification: {e}")
             return jsonify({"error": str(e)}), 500
+
+    # Register config API routes
+    try:
+        import sys
+
+        # Add tactus-ide/backend to path for imports
+        # Path from tactus/ide/server.py -> project root -> tactus-ide/backend
+        backend_dir = Path(__file__).parent.parent.parent / "tactus-ide" / "backend"
+        if backend_dir.exists():
+            sys.path.insert(0, str(backend_dir))
+            from config_server import register_config_routes
+
+            register_config_routes(app)
+        else:
+            logger.warning(f"Config server backend directory not found: {backend_dir}")
+    except ImportError as e:
+        logger.warning(f"Could not register config routes: {e}")
 
     # Serve frontend if dist directory is provided
     if frontend_dist_dir:

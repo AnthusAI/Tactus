@@ -724,7 +724,9 @@ class DSPyAgentHandle:
 
         if get_current_lm() is None and self.model:
             # Convert model format from "provider:model" to "provider/model" for LiteLLM
-            model_for_litellm = self.model.replace(":", "/") if ":" in self.model else self.model
+            # Only replace the FIRST colon (provider separator), not all colons
+            # Bedrock model IDs like "us.anthropic.claude-haiku-4-5-20251001-v1:0" have a version suffix
+            model_for_litellm = self.model.replace(":", "/", 1) if ":" in self.model else self.model
             logger.info(f"Auto-configuring DSPy LM with model: {model_for_litellm}")
 
             # Build kwargs for configure_lm
