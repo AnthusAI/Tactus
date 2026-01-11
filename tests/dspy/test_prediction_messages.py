@@ -76,9 +76,7 @@ def test_messages_are_copied():
     new_msgs = [{"role": "user", "content": "Hello"}]
     all_msgs = [{"role": "user", "content": "Hello"}]
 
-    result = create_prediction(
-        response="Hi", __new_messages__=new_msgs, __all_messages__=all_msgs
-    )
+    result = create_prediction(response="Hi", __new_messages__=new_msgs, __all_messages__=all_msgs)
 
     # Get messages
     returned_new = result.new_messages()

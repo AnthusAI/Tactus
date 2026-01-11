@@ -315,6 +315,4 @@ def wrap_prediction(
     Returns:
         A TactusPrediction instance
     """
-    return TactusPrediction(
-        dspy_prediction, new_messages=new_messages, all_messages=all_messages
-    )
+    return TactusPrediction(dspy_prediction, new_messages=new_messages, all_messages=all_messages)

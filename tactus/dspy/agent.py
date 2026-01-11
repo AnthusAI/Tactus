@@ -917,7 +917,7 @@ class DSPyAgentHandle:
 
         # Track new messages for this turn
         new_messages = []
-        
+
         # Determine user message
         user_message = opts.get("inject")
         if self._turn_count == 1 and not user_message and self.initial_message:
@@ -928,7 +928,7 @@ class DSPyAgentHandle:
             user_msg = {"role": "user", "content": user_message}
             new_messages.append(user_msg)
             self._history.add(user_msg)
-        
+
         # Add assistant response to new_messages
         if "response" in normalized_data:
             assistant_msg = {"role": "assistant", "content": normalized_data["response"]}

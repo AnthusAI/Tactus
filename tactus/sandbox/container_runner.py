@@ -8,6 +8,7 @@ and collecting results via stdio communication.
 import asyncio
 import json
 import logging
+import os
 import shutil
 import ssl
 import tempfile
@@ -250,7 +251,7 @@ class ContainerRunner:
         """
         # Ensure sandbox is up to date (auto-rebuild if code changed)
         # Skip for IDE to avoid blocking UI - IDE has its own rebuild mechanism
-        skip_rebuild_for_ide = callback_url is not None
+        skip_rebuild_for_ide = event_handler is not None
         self._ensure_sandbox_up_to_date(skip_for_ide=skip_rebuild_for_ide)
 
         execution_id = str(uuid.uuid4())[:8]
