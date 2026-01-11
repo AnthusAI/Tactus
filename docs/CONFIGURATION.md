@@ -131,16 +131,32 @@ Control network access for procedures:
 
 ```yaml
 sandbox:
-  network: "bridge"  # Network mode (default: bridge)
+  network: "none"  # Network mode (default: none)
 
   # Options:
   # - "bridge": Default Docker bridge (allows outbound connections)
-  # - "none": No network access (most secure, but can't call LLM APIs)
+  # - "none": No network access in the runtime container (most secure)
   # - "host": Use host network (not recommended for security)
   # - "custom-network": Use a custom Docker network
 ```
 
-**Security consideration**: Default `bridge` mode allows outbound connections (needed for LLM API calls), but agents could potentially exfiltrate data. See [Sandboxing Guide: Threat Model](./SANDBOXING.md#threat-model) for details.
+With the brokered sandbox runtime, `network: none` can still support LLM calls because the runtime talks to a host-side broker over the configured broker transport (default: `stdio`).
+
+If you enable runtime networking (`network != none`), treat that as higher risk and enforce egress controls so the runtime can only reach the broker. See [Sandboxing Guide: Threat Model](./SANDBOXING.md#threat-model).
+
+### Broker Transport
+
+Control how the secretless runtime container communicates with the host broker:
+
+```yaml
+sandbox:
+  broker_transport: "stdio"  # default (works with network: none)
+```
+
+Options:
+- `stdio`: Local Docker MVP; container stays networkless and communicates via the docker attach stdio channel
+- `tcp`: Remote-style connectivity; requires `sandbox.network != none`
+- `tls`: Same as `tcp` but wrapped in TLS; requires `sandbox.network != none`
 
 ### Volume Mounts
 
@@ -170,10 +186,7 @@ sandbox:
     LOG_LEVEL: "info"
 ```
 
-**Automatically passed through** (no configuration needed):
-- `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`
-- `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION`, `AWS_SESSION_TOKEN`
-- `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`
+Tactus intentionally blocks common secret env vars from entering the runtime container. For LLM calls, provide credentials to the host/broker side (for example via your shell environment or host-side config loading), not via `sandbox.env`.
 
 ### Per-Procedure Sandbox Configuration
 
