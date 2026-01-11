@@ -329,10 +329,12 @@ class ContainerRunner:
         stdio_request_prefix: str | None = None
         if broker_transport == "stdio":
             from tactus.broker.server import OpenAIChatBackend
+            from tactus.broker.server import HostToolRegistry
             from tactus.broker.stdio import STDIO_REQUEST_PREFIX
 
             stdio_request_prefix = STDIO_REQUEST_PREFIX
             openai_backend = OpenAIChatBackend()
+            tool_registry = HostToolRegistry.default()
 
             async def send_event(writer: asyncio.StreamWriter, event: dict[str, Any]) -> None:
                 if writer.is_closing():
@@ -373,6 +375,71 @@ class ContainerRunner:
                         except Exception:
                             logger.debug("[BROKER] event_handler raised", exc_info=True)
                     await send_event(writer, {"id": req_id, "event": "done", "data": {"ok": True}})
+                    return
+
+                if method == "tool.call":
+                    name = params.get("name") if isinstance(params, dict) else None
+                    args = params.get("args") if isinstance(params, dict) else None
+                    if args is None:
+                        args = {}
+
+                    if not isinstance(name, str) or not name:
+                        await send_event(
+                            writer,
+                            {
+                                "id": req_id,
+                                "event": "error",
+                                "error": {
+                                    "type": "BadRequest",
+                                    "message": "params.name must be a string",
+                                },
+                            },
+                        )
+                        return
+                    if not isinstance(args, dict):
+                        await send_event(
+                            writer,
+                            {
+                                "id": req_id,
+                                "event": "error",
+                                "error": {
+                                    "type": "BadRequest",
+                                    "message": "params.args must be an object",
+                                },
+                            },
+                        )
+                        return
+
+                    try:
+                        result = tool_registry.call(name, args)
+                    except KeyError:
+                        await send_event(
+                            writer,
+                            {
+                                "id": req_id,
+                                "event": "error",
+                                "error": {
+                                    "type": "ToolNotAllowed",
+                                    "message": f"Tool not allowlisted: {name}",
+                                },
+                            },
+                        )
+                        return
+                    except Exception as e:
+                        logger.debug("[BROKER] tool.call error", exc_info=True)
+                        await send_event(
+                            writer,
+                            {
+                                "id": req_id,
+                                "event": "error",
+                                "error": {"type": type(e).__name__, "message": str(e)},
+                            },
+                        )
+                        return
+
+                    await send_event(
+                        writer, {"id": req_id, "event": "done", "data": {"result": result}}
+                    )
                     return
 
                 if method != "llm.chat":

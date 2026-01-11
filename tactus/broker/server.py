@@ -81,15 +81,43 @@ class OpenAIChatBackend:
         return await client.chat.completions.create(**kwargs)
 
 
+class HostToolRegistry:
+    """
+    Minimal deny-by-default registry for broker-executed host tools.
+
+    Phase 1B starts with a tiny allowlist and expands deliberately.
+    """
+
+    def __init__(self, tools: Optional[dict[str, Callable[[dict[str, Any]], Any]]] = None):
+        self._tools = tools or {}
+
+    @classmethod
+    def default(cls) -> "HostToolRegistry":
+        def host_ping(args: dict[str, Any]) -> dict[str, Any]:
+            return {"ok": True, "echo": args}
+
+        def host_echo(args: dict[str, Any]) -> dict[str, Any]:
+            return {"echo": args}
+
+        return cls({"host.ping": host_ping, "host.echo": host_echo})
+
+    def call(self, name: str, args: dict[str, Any]) -> Any:
+        if name not in self._tools:
+            raise KeyError(f"Tool not allowlisted: {name}")
+        return self._tools[name](args)
+
+
 class _BaseBrokerServer:
     def __init__(
         self,
         *,
         openai_backend: Optional[OpenAIChatBackend] = None,
+        tool_registry: Optional[HostToolRegistry] = None,
         event_handler: Optional[Callable[[dict[str, Any]], None]] = None,
     ):
         self._server: Optional[asyncio.AbstractServer] = None
         self._openai = openai_backend or OpenAIChatBackend()
+        self._tools = tool_registry or HostToolRegistry.default()
         self._event_handler = event_handler
 
     async def start(self) -> None:
@@ -138,6 +166,10 @@ class _BaseBrokerServer:
 
             if method == "llm.chat":
                 await self._handle_llm_chat(req_id, params, writer)
+                return
+
+            if method == "tool.call":
+                await self._handle_tool_call(req_id, params, writer)
                 return
 
             await _write_event(
@@ -315,6 +347,62 @@ class _BaseBrokerServer:
                 },
             )
 
+    async def _handle_tool_call(
+        self, req_id: str, params: dict[str, Any], writer: asyncio.StreamWriter
+    ) -> None:
+        name = params.get("name")
+        args = params.get("args") or {}
+
+        if not isinstance(name, str) or not name:
+            await _write_event(
+                writer,
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {"type": "BadRequest", "message": "params.name must be a string"},
+                },
+            )
+            return
+        if not isinstance(args, dict):
+            await _write_event(
+                writer,
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {"type": "BadRequest", "message": "params.args must be an object"},
+                },
+            )
+            return
+
+        try:
+            result = self._tools.call(name, args)
+        except KeyError:
+            await _write_event(
+                writer,
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {
+                        "type": "ToolNotAllowed",
+                        "message": f"Tool not allowlisted: {name}",
+                    },
+                },
+            )
+            return
+        except Exception as e:
+            logger.debug("[BROKER] tool.call error", exc_info=True)
+            await _write_event(
+                writer,
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {"type": type(e).__name__, "message": str(e)},
+                },
+            )
+            return
+
+        await _write_event(writer, {"id": req_id, "event": "done", "data": {"result": result}})
+
 
 class BrokerServer(_BaseBrokerServer):
     """
@@ -334,9 +422,12 @@ class BrokerServer(_BaseBrokerServer):
         socket_path: Path,
         *,
         openai_backend: Optional[OpenAIChatBackend] = None,
+        tool_registry: Optional[HostToolRegistry] = None,
         event_handler: Optional[Callable[[dict[str, Any]], None]] = None,
     ):
-        super().__init__(openai_backend=openai_backend, event_handler=event_handler)
+        super().__init__(
+            openai_backend=openai_backend, tool_registry=tool_registry, event_handler=event_handler
+        )
         self.socket_path = Path(socket_path)
 
     async def start(self) -> None:
@@ -381,9 +472,12 @@ class TcpBrokerServer(_BaseBrokerServer):
         port: int = 0,
         ssl_context: ssl.SSLContext | None = None,
         openai_backend: Optional[OpenAIChatBackend] = None,
+        tool_registry: Optional[HostToolRegistry] = None,
         event_handler: Optional[Callable[[dict[str, Any]], None]] = None,
     ):
-        super().__init__(openai_backend=openai_backend, event_handler=event_handler)
+        super().__init__(
+            openai_backend=openai_backend, tool_registry=tool_registry, event_handler=event_handler
+        )
         self.host = host
         self.port = port
         self.ssl_context = ssl_context

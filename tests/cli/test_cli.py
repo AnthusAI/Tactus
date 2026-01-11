@@ -69,7 +69,8 @@ def test_cli_validate_invalid_yaml(cli_runner, tmp_path):
 
 def test_cli_run_valid_file(cli_runner, example_workflow_file):
     """Test that run command executes a valid workflow file."""
-    result = cli_runner.invoke(app, ["run", str(example_workflow_file)])
+    # Avoid invoking the Docker sandbox in unit/integration tests (can hang on some machines).
+    result = cli_runner.invoke(app, ["run", str(example_workflow_file), "--no-sandbox"])
     # Should succeed (exit code 0) for a simple workflow
     assert result.exit_code == 0
     assert "completed successfully" in result.stdout.lower() or "result" in result.stdout.lower()
@@ -115,7 +116,9 @@ Procedure {
     workflow_file = tmp_path / "params.tac"
     workflow_file.write_text(workflow_content)
 
-    result = cli_runner.invoke(app, ["run", str(workflow_file), "--param", "name=TestUser"])
+    result = cli_runner.invoke(
+        app, ["run", str(workflow_file), "--no-sandbox", "--param", "name=TestUser"]
+    )
     assert result.exit_code == 0
 
 

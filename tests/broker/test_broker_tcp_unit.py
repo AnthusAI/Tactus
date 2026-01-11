@@ -57,9 +57,6 @@ async def test_tcp_transport_sends_request_and_yields_events(monkeypatch: pytest
 
     client = BrokerClient("tcp://example.com:1234")
 
-    async def fake_uuid():
-        return "req"
-
     monkeypatch.setattr("tactus.broker.client.uuid.uuid4", lambda: type("U", (), {"hex": "req"})())
 
     events = []
@@ -75,6 +72,63 @@ async def test_tcp_transport_sends_request_and_yields_events(monkeypatch: pytest
     assert writer.closed is True
     sent = b"".join(writer.writes).decode("utf-8")
     assert '"method":"llm.chat"' in sent
+
+
+@pytest.mark.asyncio
+async def test_tcp_tool_call_returns_result(monkeypatch: pytest.MonkeyPatch):
+    reader = _FakeReader(
+        [
+            json.dumps(
+                {"id": "req", "event": "done", "data": {"result": {"ok": True, "echo": {"x": 1}}}}
+            ).encode("utf-8")
+            + b"\n",
+        ]
+    )
+    writer = _FakeWriter()
+
+    async def fake_open_connection(host: str, port: int, ssl=None):
+        assert host == "example.com"
+        assert port == 1234
+        assert ssl is None
+        return reader, writer
+
+    monkeypatch.setattr(asyncio, "open_connection", fake_open_connection)
+    monkeypatch.setattr("tactus.broker.client.uuid.uuid4", lambda: type("U", (), {"hex": "req"})())
+
+    client = BrokerClient("tcp://example.com:1234")
+    result = await client.call_tool(name="host.ping", args={"x": 1})
+
+    sent = b"".join(writer.writes).decode("utf-8")
+    assert '"method":"tool.call"' in sent
+    assert result == {"ok": True, "echo": {"x": 1}}
+
+
+@pytest.mark.asyncio
+async def test_tcp_tool_call_raises_on_error(monkeypatch: pytest.MonkeyPatch):
+    reader = _FakeReader(
+        [
+            json.dumps(
+                {
+                    "id": "req",
+                    "event": "error",
+                    "error": {"type": "ToolNotAllowed", "message": "no"},
+                }
+            ).encode("utf-8")
+            + b"\n",
+        ]
+    )
+    writer = _FakeWriter()
+
+    async def fake_open_connection(host: str, port: int, ssl=None):
+        return reader, writer
+
+    monkeypatch.setattr(asyncio, "open_connection", fake_open_connection)
+    monkeypatch.setattr("tactus.broker.client.uuid.uuid4", lambda: type("U", (), {"hex": "req"})())
+
+    client = BrokerClient("tcp://example.com:1234")
+
+    with pytest.raises(RuntimeError):
+        await client.call_tool(name="host.not_allowed", args={})
 
 
 @pytest.mark.asyncio

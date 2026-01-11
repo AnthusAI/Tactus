@@ -1,6 +1,6 @@
 # Brokered Capabilities & Tool Runners (Planning)
 
-Status: Phase 1 (Local Docker MVP) in progress
+Status: Phase 1A complete • Phase 1B (Host Tools) in progress • Phase 2 spike complete (as of Jan 2026)
 
 This document proposes an architecture that:
 
@@ -24,6 +24,33 @@ To get to a working milestone quickly, we are explicitly deferring:
 - An explicit secret store / secrets manager integration
 - `isolated` tool runner containers
 - Multi-provider LLM support beyond the first proof-of-concept provider
+
+### Current Status Snapshot
+
+What works today:
+
+- **Local Docker MVP (Phase 1A)**: runtime container uses **brokered LLM calls + event streaming over stdio** with `--network none`.
+- **Host tools (Phase 1B, WIP)**: runtime container can call a tiny allowlisted set of **brokered host tools** via `Host.call(...)` / `tool.call` (stdio or TCP broker transport).
+- **Remote-mode spike (Phase 2)**: runtime container can connect to broker via **TCP** (and optional TLS) for cloud/K8s-style deployments where Docker stdio attach doesn’t apply.
+
+What is still deferred (intentional):
+
+- A full tool runner system (`isolated` tool runner containers, discovery, packaging)
+- Tool discovery and manifests (`tools/`, `mcp.json`, etc.)
+- Secret store integration (broker still reads credentials from host environment)
+- Multi-provider beyond the initial proof-of-concept path
+
+Manual validation commands:
+
+- Rebuild sandbox image (required after sandbox entrypoint changes): `tactus sandbox rebuild --force`
+- Dev-only Docker integration smoke tests (skipped by default): `TACTUS_RUN_DOCKER_TESTS=1 pytest -m docker -v` (or `make test-docker-sandbox`)
+- Networkless runtime, stdio broker transport: `tactus run examples/53-tsv-file-io.tac --sandbox --verbose`
+- Brokered LLM + streaming, still networkless runtime: `tactus run examples/06-basics-streaming.tac --sandbox --verbose`
+- Brokered host tools, still networkless runtime: `tactus run examples/66-host-tools-via-broker.tac --sandbox --verbose`
+- Remote-mode spike over TCP (runtime network enabled): `tactus run examples/53-tsv-file-io.tac --sandbox --sandbox-broker tcp --verbose`
+- Remote-mode spike LLM + streaming over TCP (runtime network enabled): `tactus run examples/06-basics-streaming.tac --sandbox --sandbox-broker tcp --verbose`
+
+Security note: TCP mode exists to prove cloud viability. In real deployments you must enforce “runtime can only talk to broker” with infra controls (K8s NetworkPolicy / SGs), because the runtime container has network access in this mode.
 
 ## Goals
 
@@ -509,6 +536,19 @@ Deliverables (minimum viable):
 1. A small allowlisted “host tool” registry owned by the broker
 2. `tool.call` RPC for those tools
 3. Basic tool call auditing (names + args sizes + durations)
+
+Implementation note (current WIP):
+
+- The broker protocol includes `tool.call` and the runtime container exposes a `Host` primitive (`Host.call(name, args)`) that routes via the broker. The initial allowlist is intentionally tiny and deny-by-default.
+
+Recommended next step (implementation order):
+
+1. Add `tool.call` RPC and a minimal allowlisted registry (e.g., `host.ping`, `host.read_text` with strict path allowlist).
+2. Add a Lua DSL/tool “source” for broker tools (e.g., `source = "broker.host.ping"` or a dedicated `BrokerTool{...}` constructor).
+3. Add tests that prove:
+   - runtime cannot access host env/secrets
+   - broker tool calls are allowlisted (deny-by-default)
+   - tool call audit events stream back via `events.emit`
 
 ### Phase 1C: Isolated Tool Runner (Deferred)
 

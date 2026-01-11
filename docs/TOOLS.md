@@ -1,23 +1,33 @@
-# Defining Tools with Lua Functions
+# Tools in Tactus
 
-This guide explains how to define tools as Lua functions within Tactus procedures, giving agents the ability to perform custom operations without requiring external Python plugins or MCP servers.
+This guide explains the major tool types in Tactus, where they run, and how to keep secrets out of sandboxed runs.
 
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [Quick Start](#quick-start)
-3. [Three Approaches](#three-approaches)
-4. [Parameter Specifications](#parameter-specifications)
-5. [Tool Implementation Patterns](#tool-implementation-patterns)
-6. [Error Handling](#error-handling)
-7. [Tool Call Tracking](#tool-call-tracking)
-8. [Advanced Examples](#advanced-examples)
-9. [Comparison with Plugin Tools](#comparison-with-plugin-tools)
-10. [Best Practices](#best-practices)
+2. [Trust Zones](#trust-zones)
+3. [Brokered Host Tools](#brokered-host-tools)
+4. [Quick Start](#quick-start)
+5. [Three Approaches](#three-approaches)
+6. [Parameter Specifications](#parameter-specifications)
+7. [Tool Implementation Patterns](#tool-implementation-patterns)
+8. [Error Handling](#error-handling)
+9. [Tool Call Tracking](#tool-call-tracking)
+10. [Advanced Examples](#advanced-examples)
+11. [Comparison with Plugin Tools](#comparison-with-plugin-tools)
+12. [Best Practices](#best-practices)
 
 ## Overview
 
-Tactus supports three ways to define tools as Lua functions:
+Tactus supports several tool types:
+
+- **Built-in Tactus tools** (shipped with Tactus): e.g. `tactus.tools.done`
+- **Lua function tools** (defined inside `.tac`): simple, fast, co-located with the workflow
+- **Python plugin tools** (loaded from `tool_paths`): run Python code from your repo without MCP
+- **MCP tools** (Model Context Protocol): tools provided by external stdio servers
+- **Brokered host tools** (Phase 1B): privileged “host-side” tools executed by the broker and invoked from the sandbox via `Host.call(...)`
+
+Lua function tools support three ways to define tools:
 
 1. **Individual `tool()` declarations** - Define single tools globally
 2. **`toolset()` with `type="lua"`** - Group multiple related tools
@@ -32,6 +42,53 @@ All three approaches are powered by Pydantic AI's function toolset feature and i
 - **Type-safe**: Parameter validation through Pydantic models
 - **Tracked**: Full integration with `Tool.called()` and `Tool.last_call()`
 - **Fast**: Minimal overhead for simple operations
+
+## Trust Zones
+
+Tactus aims to keep the **runtime container** (when using `--sandbox`) both:
+
+- **Networkless** by default (`--network none`)
+- **Secretless** (no long-lived API keys in the container env, mounts, or request payload)
+
+That means not all “tools” are equal: different tool types run in different trust zones.
+
+At a high level:
+
+- **Lua tools** run inside the runtime (and therefore inside the sandbox container when `--sandbox` is enabled).
+- **MCP servers** run as subprocesses of the runtime (so they share the runtime’s trust zone unless explicitly isolated).
+- **Brokered host tools** run on the trusted host-side broker and can hold secrets without exposing them to the sandbox.
+
+For the broader architecture (including future isolated tool runners), see `planning/BROKER_AND_TOOL_RUNNERS.md`.
+
+## Brokered Host Tools
+
+Brokered host tools are allowlisted operations executed by the **host-side broker** and invoked from the runtime via the `Host` primitive.
+
+This is the core mechanism for “remote tools with secrets” (e.g., a Tab search API key) while keeping the sandbox container secretless.
+
+### Running the Example
+
+Run the example:
+
+```bash
+tactus sandbox rebuild --force
+tactus run examples/66-host-tools-via-broker.tac --sandbox --verbose
+```
+
+Call a host tool from Lua:
+
+```lua
+local result = Host.call("host.ping", {value = 1})
+```
+
+### Default Allowlist (Phase 1B)
+
+The default broker allowlist intentionally starts small:
+
+- `host.ping`
+- `host.echo`
+
+To add real host tools, extend the broker’s allowlist (see `tactus/broker/server.py:HostToolRegistry`).
 
 ## Quick Start
 
@@ -652,7 +709,7 @@ content_editor = Agent {
 - Lua language constraints
 - No async operations
 - Limited to Lua ecosystem
-- Can't call external APIs directly
+- Can't safely hold secrets (use brokered host tools instead)
 
 **Best for:**
 - Data transformations
@@ -683,6 +740,23 @@ content_editor = Agent {
 - Shared across projects
 - Complex algorithms
 
+### Brokered Host Tools (via Host.call)
+
+**Pros:**
+- Secrets stay out of the sandbox container
+- Can perform network calls without giving the runtime network access
+- Centralized allowlist and auditing point (the broker)
+
+**Cons:**
+- Requires a broker transport (`--sandbox` uses broker by default)
+- Must be explicitly allowlisted (deny-by-default)
+- Privileged by design; treat host tools as trusted code
+
+**Best for:**
+- Remote API tools that require API keys
+- “Host-integrated” capabilities (e.g., talking to a local index, keychain, or daemon)
+- Anything that must be kept out of the untrusted runtime container
+
 ### When to Use Which?
 
 Use **Lua Function Tools** when:
@@ -704,6 +778,11 @@ Use **MCP Tools** when:
 - You need remote capabilities
 - Tool is maintained separately
 - Multiple procedures share it
+
+Use **Brokered Host Tools** when:
+- A tool needs secrets but the runtime container must remain secretless
+- The runtime container must remain networkless (`--network none`)
+- You want a narrow, allowlisted capability surface area
 
 ## Best Practices
 

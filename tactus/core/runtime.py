@@ -48,6 +48,7 @@ from tactus.primitives.retry import RetryPrimitive
 from tactus.primitives.file import FilePrimitive
 from tactus.primitives.procedure import ProcedurePrimitive
 from tactus.primitives.system import SystemPrimitive
+from tactus.primitives.host import HostPrimitive
 
 logger = logging.getLogger(__name__)
 
@@ -145,6 +146,7 @@ class TactusRuntime:
         self.file_primitive: Optional[FilePrimitive] = None
         self.procedure_primitive: Optional[ProcedurePrimitive] = None
         self.system_primitive: Optional[SystemPrimitive] = None
+        self.host_primitive: Optional[HostPrimitive] = None
 
         # Agent primitives (one per agent)
         self.agents: Dict[str, Any] = {}
@@ -409,6 +411,7 @@ class TactusRuntime:
             self.system_primitive = SystemPrimitive(
                 procedure_id=self.procedure_id, log_handler=self.log_handler
             )
+            self.host_primitive = HostPrimitive()
 
             # Initialize Procedure primitive (requires execution_context)
             max_depth = self.config.get("max_depth", 5) if self.config else 5
@@ -2245,6 +2248,10 @@ class TactusRuntime:
         if self.system_primitive:
             logger.info(f"Injecting System primitive: {self.system_primitive}")
             self.lua_sandbox.inject_primitive("System", self.system_primitive)
+
+        if self.host_primitive:
+            logger.info(f"Injecting Host primitive: {self.host_primitive}")
+            self.lua_sandbox.inject_primitive("Host", self.host_primitive)
 
         # Inject Sleep function
         def sleep_wrapper(seconds):

@@ -12,6 +12,7 @@ import json
 import os
 import ssl
 import sys
+import threading
 import uuid
 from pathlib import Path
 from typing import Any, AsyncIterator, Optional
@@ -25,29 +26,28 @@ def _json_dumps(obj: Any) -> str:
 
 class _StdioBrokerTransport:
     def __init__(self):
-        self._write_lock = asyncio.Lock()
-        self._pending: dict[str, asyncio.Queue[dict[str, Any]]] = {}
-        self._reader_task: Optional[asyncio.Task[None]] = None
-        self._reader: Optional[asyncio.StreamReader] = None
+        self._write_lock = threading.Lock()
+        self._pending: dict[
+            str, tuple[asyncio.AbstractEventLoop, asyncio.Queue[dict[str, Any]]]
+        ] = {}
+        self._pending_lock = threading.Lock()
+        self._reader_thread: Optional[threading.Thread] = None
+        self._stop = threading.Event()
 
-    async def _ensure_reader(self) -> None:
-        if self._reader_task is not None:
+    def _ensure_reader_thread(self) -> None:
+        if self._reader_thread is not None and self._reader_thread.is_alive():
             return
 
-        # Attach stdin as an asyncio stream to avoid blocking threads that can hang
-        # `asyncio.run()` shutdown (Docker sandbox relies on keeping stdin open).
-        loop = asyncio.get_running_loop()
-        reader = asyncio.StreamReader()
-        protocol = asyncio.StreamReaderProtocol(reader)
-        await loop.connect_read_pipe(lambda: protocol, sys.stdin.buffer)
-        self._reader = reader
-        self._reader_task = asyncio.create_task(self._read_loop())
+        self._reader_thread = threading.Thread(
+            target=self._read_loop,
+            name="tactus-broker-stdio-reader",
+            daemon=True,
+        )
+        self._reader_thread.start()
 
-    async def _read_loop(self) -> None:
-        if self._reader is None:
-            return
-        while True:
-            line = await self._reader.readline()
+    def _read_loop(self) -> None:
+        while not self._stop.is_set():
+            line = sys.stdin.buffer.readline()
             if not line:
                 return
             try:
@@ -58,21 +58,41 @@ class _StdioBrokerTransport:
             req_id = event.get("id")
             if not isinstance(req_id, str):
                 continue
-            queue = self._pending.get(req_id)
-            if queue is None:
+
+            with self._pending_lock:
+                pending = self._pending.get(req_id)
+            if pending is None:
                 continue
-            queue.put_nowait(event)
+
+            loop, queue = pending
+            try:
+                loop.call_soon_threadsafe(queue.put_nowait, event)
+            except RuntimeError:
+                # Loop is closed or unavailable; ignore.
+                continue
+
+    async def aclose(self) -> None:
+        self._stop.set()
+        thread = self._reader_thread
+        if thread is None or not thread.is_alive():
+            return
+        try:
+            await asyncio.to_thread(thread.join, 0.5)
+        except Exception:
+            return
 
     async def request(
         self, req_id: str, method: str, params: dict[str, Any]
     ) -> AsyncIterator[dict[str, Any]]:
-        await self._ensure_reader()
+        self._ensure_reader_thread()
+        loop = asyncio.get_running_loop()
         queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
-        self._pending[req_id] = queue
+        with self._pending_lock:
+            self._pending[req_id] = (loop, queue)
 
         try:
             payload = _json_dumps({"id": req_id, "method": method, "params": params})
-            async with self._write_lock:
+            with self._write_lock:
                 sys.stderr.write(f"{STDIO_REQUEST_PREFIX}{payload}\n")
                 sys.stderr.flush()
 
@@ -82,10 +102,15 @@ class _StdioBrokerTransport:
                 if event.get("event") in ("done", "error"):
                     return
         finally:
-            self._pending.pop(req_id, None)
+            with self._pending_lock:
+                self._pending.pop(req_id, None)
 
 
 _STDIO_TRANSPORT = _StdioBrokerTransport()
+
+
+async def close_stdio_transport() -> None:
+    await _STDIO_TRANSPORT.aclose()
 
 
 class BrokerClient:
@@ -207,6 +232,28 @@ class BrokerClient:
         if max_tokens is not None:
             params["max_tokens"] = max_tokens
         return self._request("llm.chat", params)
+
+    async def call_tool(self, *, name: str, args: dict[str, Any]) -> Any:
+        """
+        Call an allowlisted host tool via the broker.
+
+        Returns the decoded `result` payload from the broker.
+        """
+        if not isinstance(name, str) or not name:
+            raise ValueError("tool name must be a non-empty string")
+        if not isinstance(args, dict):
+            raise ValueError("tool args must be an object")
+
+        async for event in self._request("tool.call", {"name": name, "args": args}):
+            event_type = event.get("event")
+            if event_type == "done":
+                data = event.get("data") or {}
+                return data.get("result")
+            if event_type == "error":
+                err = event.get("error") or {}
+                raise RuntimeError(err.get("message") or "Broker tool error")
+
+        raise RuntimeError("Broker tool call ended without a response")
 
     async def emit_event(self, event: dict[str, Any]) -> None:
         async for _ in self._request("events.emit", {"event": event}):

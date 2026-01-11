@@ -167,6 +167,14 @@ async def main_async() -> int:
 
         write_result_to_stdout(result)
         return 1
+    finally:
+        # Ensure stdio broker transport is closed cleanly to avoid pending-task warnings.
+        try:
+            from tactus.broker.client import close_stdio_transport
+
+            await close_stdio_transport()
+        except Exception:
+            pass
 
 
 def main() -> int:

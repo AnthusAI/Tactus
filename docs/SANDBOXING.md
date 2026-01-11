@@ -1,6 +1,6 @@
 # Sandboxing & Security
 
-Tactus provides **three layers of sandboxing** to protect against different threat models. This defense-in-depth approach makes Tactus safe for user-contributed code, secure for local development, and production-ready for multi-tenant AI systems.
+Tactus provides **three layers of sandboxing** to protect against different threat models. This defense-in-depth approach makes Tactus safe for user-contributed code, secure for local development, and designed to support secure multi-tenant AI systems.
 
 ## Overview: Three Layers of Protection
 
@@ -458,6 +458,7 @@ logger.info(f"Tool call: {tool_name}", extra={
 ## Development
 - [ ] Docker Desktop installed and running
 - [ ] Sandbox enabled in config (default)
+- [ ] Run opt-in Docker sandbox tests (dev-only): `tactus sandbox rebuild --force` then `make test-docker-sandbox` (or `TACTUS_RUN_DOCKER_TESTS=1 pytest -m docker -v`)
 - [ ] MCP servers reviewed for security issues
 - [ ] Tool calls logged for debugging
 - [ ] Resource limits configured appropriately
@@ -485,7 +486,7 @@ logger.info(f"Tool call: {tool_name}", extra={
 2. **Default security:** Sandbox enabled by default, opt-out requires explicit acknowledgment
 3. **AI-native design:** Built from the ground up to prevent session leakage
 4. **Embeddable safety:** Lua sandboxing makes Tactus safe for user-contributed code
-5. **Production-ready:** Cloud sandboxing provides multi-tenant isolation at scale
+5. **Multi-tenant isolation:** Cloud sandboxing provides per-invocation isolation at scale
 6. **Information security DNA:** Per-invocation sandboxing prevents AI session leakage, a critical requirement for multi-tenant AI systems
 
 ---
