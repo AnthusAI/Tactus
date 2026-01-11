@@ -207,16 +207,15 @@ export const ResultsSidebar: React.FC<ResultsSidebarProps> = ({
     <div className="flex flex-col h-full overflow-hidden">
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={(value) => onTabChange(value as 'procedure' | 'results' | 'chat')} className="flex flex-col flex-1 min-h-0">
-        <div className="border-b bg-background flex-shrink-0">
-          <div className="flex items-center justify-between px-3 h-12">
-            <TabsList className="h-9 bg-muted/50">
-              <TabsTrigger value="procedure" className="text-xs data-[state=active]:bg-background">
+        <div className="flex items-center justify-between px-2 h-10 border-b bg-muted/30 flex-shrink-0">
+            <TabsList className="h-8 bg-transparent p-0 gap-1">
+              <TabsTrigger value="procedure" className="text-sm h-8 data-[state=active]:bg-background data-[state=active]:shadow-none">
                 Procedure
               </TabsTrigger>
-              <TabsTrigger value="results" className="text-xs data-[state=active]:bg-background">
+              <TabsTrigger value="results" className="text-sm h-8 data-[state=active]:bg-background data-[state=active]:shadow-none">
                 Results
               </TabsTrigger>
-              <TabsTrigger value="chat" className="text-xs data-[state=active]:bg-background">
+              <TabsTrigger value="chat" className="text-sm h-8 data-[state=active]:bg-background data-[state=active]:shadow-none">
                 <MessageSquare className="h-3.5 w-3.5 mr-1.5" />
                 Chat
               </TabsTrigger>
@@ -257,7 +256,6 @@ export const ResultsSidebar: React.FC<ResultsSidebarProps> = ({
                 )}
               </div>
             )}
-          </div>
         </div>
 
         {/* Tab Content Container - uses relative positioning for absolute TabsContent children */}
