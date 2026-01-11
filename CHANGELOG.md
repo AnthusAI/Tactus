@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.26.0 (2026-01-11)
+
+### Features
+
+- Improve logging UX and fs helpers (#26) ([#26](https://github.com/AnthusAI/Tactus/pull/26),
+  [`a2a8704`](https://github.com/AnthusAI/Tactus/commit/a2a8704c1a0ab3b2cad45b9514af2152d12faa3b))
+
+
 ## v0.25.0 (2026-01-11)
 
 ### Features
