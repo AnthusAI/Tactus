@@ -39,6 +39,8 @@ progress.output
 .tac/
 tmp/
 examples/output/
+_recovery/
+.tactus-broker/
 
 *storybook.log
 storybook-static

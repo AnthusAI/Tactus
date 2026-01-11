@@ -233,7 +233,7 @@ export const ResultsSidebar: React.FC<ResultsSidebarProps> = ({
           {activeTab === 'results' && containerStatus.status === 'disabled' && isRunning && (
             <div className="flex items-center gap-2 text-xs text-amber-600">
               <AlertTriangle className="h-3 w-3" />
-              <span>⚠ No sandbox (security risk)</span>
+              <span>⚠️ No sandbox (security risk)</span>
             </div>
           )}
           {activeTab === 'results' && containerStatus.status === 'error' && (

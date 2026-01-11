@@ -921,6 +921,8 @@ def create_dsl_stubs(
                 agent_config = {
                     "tool_calls": mock_config.get("tool_calls", []),
                     "message": mock_config.get("message", ""),
+                    "data": mock_config.get("data", {}),
+                    "usage": mock_config.get("usage", {}),
                 }
                 builder.register_agent_mock(name, agent_config)
                 continue

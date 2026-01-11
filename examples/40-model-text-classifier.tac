@@ -47,29 +47,17 @@ Procedure {
     },
     function(input)
 
-    -- Simple sentiment detection for demo/testing
-        -- Note: Model primitive mocking not yet implemented, using simple heuristic
-        local msg_lower = string.lower(input.customer_message)
-        if string.find(msg_lower, "love") or string.find(msg_lower, "great") or string.find(msg_lower, "amazing") then
-            State.sentiment = "positive"
-        elseif string.find(msg_lower, "hate") or string.find(msg_lower, "terrible") or string.find(msg_lower, "awful") then
-            State.sentiment = "negative"
-        else
-            State.sentiment = "neutral"
-        end
+    -- 1. Classify sentiment with ML model (checkpointed)
+        State.sentiment = Model("sentiment_classifier").predict({
+            text = input.customer_message
+        })
 
-        -- Agent responds based on sentiment (checkpointed)
+        -- 2. Agent responds based on sentiment (checkpointed)
         support_agent({message = input.customer_message})
-
-        -- Get response from done tool
-        local response = "Thank you for your message."
-        if done.called() then
-            response = done.last_result() or "I'm here to help."
-        end
 
         return {
             sentiment = State.sentiment,
-            response = response
+            response = support_agent.output
         }
 
     -- BDD Specifications
@@ -78,6 +66,9 @@ Procedure {
 
 -- Agent Mocks for CI testing
 Mocks {
+    sentiment_classifier = {
+        returns = "positive"
+    },
     support_agent = {
         tool_calls = {
             {tool = "done", args = {reason = "I'm happy to help! Thank you for your positive feedback."}}

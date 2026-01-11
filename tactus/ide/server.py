@@ -7,7 +7,6 @@ Provides HTTP-based LSP server for the Tactus IDE.
 import json
 import logging
 import os
-import platform
 import queue
 import subprocess
 import threading
@@ -25,11 +24,6 @@ logger = logging.getLogger(__name__)
 
 # Workspace state
 WORKSPACE_ROOT = None
-
-# Event queues for sandbox callback streaming
-# Key: execution_id, Value: queue.Queue of events
-_sandbox_event_queues: Dict[str, queue.Queue] = {}
-_sandbox_event_queues_lock = threading.Lock()
 
 
 class TactusLSPHandler:
@@ -768,18 +762,10 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                             f"[SANDBOX] Direct execution (Docker: {docker_available}, reason: {docker_reason})"
                         )
 
-                    # Create event queue for sandbox callback (if using sandbox)
-                    callback_url = None
+                    # Create event queue for sandbox event streaming (if using sandbox)
                     sandbox_event_queue = None
                     if use_sandbox:
-                        # Create event queue for this execution
-                        with _sandbox_event_queues_lock:
-                            _sandbox_event_queues[run_id] = queue.Queue()
-                            sandbox_event_queue = _sandbox_event_queues[run_id]
-
-                        # Generate callback URL for container
-                        callback_url = _get_callback_url(run_id)
-                        logger.info(f"[SANDBOX] Callback URL: {callback_url}")
+                        sandbox_event_queue = queue.Queue()
 
                         # Emit container starting event
                         container_starting_event = {
@@ -811,17 +797,17 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                             asyncio.set_event_loop(loop)
 
                             if use_sandbox:
-                                # Use sandbox execution with callback URL
+                                # Use sandbox execution (events streamed via broker over UDS)
                                 runner = ContainerRunner(sandbox_config)
                                 exec_result = loop.run_until_complete(
                                     runner.run(
                                         source=source,
                                         params=procedure_inputs,
-                                        config={},
-                                        mcp_servers={},
                                         source_file_path=str(path),
                                         format="lua",
-                                        callback_url=callback_url,
+                                        event_handler=(
+                                            sandbox_event_queue.put if sandbox_event_queue else None
+                                        ),
                                     )
                                 )
 
@@ -915,9 +901,6 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                         }
                         all_events.append(container_stopped_event)
                         yield f"data: {json.dumps(container_stopped_event)}\n\n"
-
-                        # Cleanup event queue
-                        _cleanup_sandbox_queue(run_id)
                     else:
                         # Drain IDELogHandler events (direct execution)
                         events = log_handler.get_events(timeout=0.1)
@@ -1020,60 +1003,6 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             logger.error(f"Error setting up streaming execution: {e}", exc_info=True)
             return jsonify({"error": str(e)}), 500
 
-    @app.route("/api/run/callback/<execution_id>", methods=["POST"])
-    def run_callback(execution_id: str):
-        """
-        Receive event callbacks from sandbox container.
-
-        The container POSTs events here, which are queued for SSE streaming.
-        """
-        global _sandbox_event_queues
-
-        try:
-            event = request.json
-
-            with _sandbox_event_queues_lock:
-                if execution_id not in _sandbox_event_queues:
-                    # Create queue if it doesn't exist (container started before stream)
-                    _sandbox_event_queues[execution_id] = queue.Queue()
-
-                _sandbox_event_queues[execution_id].put(event)
-
-            logger.debug(
-                f"[SANDBOX_CALLBACK] Received event for {execution_id}: {event.get('event_type')}"
-            )
-            return jsonify({"status": "ok"})
-
-        except Exception as e:
-            logger.error(f"[SANDBOX_CALLBACK] Error handling callback for {execution_id}: {e}")
-            return jsonify({"error": str(e)}), 500
-
-    def _get_callback_url(execution_id: str) -> str:
-        """
-        Generate callback URL for container to POST events to.
-
-        Uses host.docker.internal on macOS/Windows, localhost on Linux.
-        """
-        system = platform.system()
-        if system in ("Darwin", "Windows"):
-            host = "host.docker.internal"
-        else:
-            host = "127.0.0.1"
-
-        # Get the port from environment or default
-        port = os.environ.get("TACTUS_IDE_PORT", "5001")
-
-        return f"http://{host}:{port}/api/run/callback/{execution_id}"
-
-    def _cleanup_sandbox_queue(execution_id: str):
-        """Clean up event queue for execution."""
-        global _sandbox_event_queues
-
-        with _sandbox_event_queues_lock:
-            if execution_id in _sandbox_event_queues:
-                del _sandbox_event_queues[execution_id]
-                logger.debug(f"[SANDBOX_CALLBACK] Cleaned up queue for {execution_id}")
-
     @app.route("/api/test/stream", methods=["GET"])
     def test_procedure_stream():
         """
@@ -1092,7 +1021,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
 
         # Get options
         mock = request.args.get("mock", "true").lower() == "true"
-        # Note: parallel option removed - running sequentially for real-time streaming
+        parallel = request.args.get("parallel", "false").lower() == "true"
 
         try:
             # Resolve path within workspace
@@ -1198,76 +1127,41 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                     }
                     yield f"data: {json.dumps(start_event)}\n\n"
 
-                    # Run scenarios one at a time for real-time progress streaming
-                    # (parallel mode sacrifices real-time feedback for speed)
-                    scenario_results = []
-                    all_tools_used = set()
+                    # Run tests
+                    test_result = runner.run_tests(parallel=parallel)
 
-                    for i, scenario in enumerate(parsed_feature.scenarios):
-                        # Emit scenario started event
-                        started_event = {
-                            "event_type": "test_scenario_started",
-                            "scenario_name": scenario.name,
-                            "scenario_index": i,
-                            "total_scenarios": total_scenarios,
-                            "timestamp": datetime.utcnow().isoformat() + "Z",
-                        }
-                        yield f"data: {json.dumps(started_event)}\n\n"
-
-                        # Run single scenario
-                        scenario_result = runner.run_single_scenario(scenario.name)
-                        scenario_results.append(scenario_result)
-
-                        # Track tools used
-                        all_tools_used.update(scenario_result.tools_used or [])
-
-                        # Emit scenario completed event immediately
-                        scenario_event = {
-                            "event_type": "test_scenario_completed",
-                            "scenario_name": scenario_result.name,
-                            "status": scenario_result.status,
-                            "duration": scenario_result.duration,
-                            "total_cost": scenario_result.total_cost,
-                            "total_tokens": scenario_result.total_tokens,
-                            "llm_calls": scenario_result.llm_calls,
-                            "iterations": scenario_result.iterations,
-                            "tools_used": scenario_result.tools_used,
-                            "steps": [
-                                {
-                                    "keyword": step.keyword,
-                                    "text": step.message,
-                                    "status": step.status,
-                                    "error_message": step.error_message,
-                                }
-                                for step in scenario_result.steps
-                            ],
-                            "timestamp": datetime.utcnow().isoformat() + "Z",
-                        }
-                        yield f"data: {json.dumps(scenario_event)}\n\n"
-
-                    # Calculate aggregated results
-                    passed_count = sum(1 for s in scenario_results if s.status == "passed")
-                    failed_count = sum(1 for s in scenario_results if s.status != "passed")
-                    total_cost = sum(s.total_cost for s in scenario_results)
-                    total_tokens = sum(s.total_tokens for s in scenario_results)
-                    total_llm_calls = sum(s.llm_calls for s in scenario_results)
-                    total_iterations = sum(s.iterations for s in scenario_results)
+                    # Emit scenario completion events
+                    for feature in test_result.features:
+                        for scenario in feature.scenarios:
+                            scenario_event = {
+                                "event_type": "test_scenario_completed",
+                                "scenario_name": scenario.name,
+                                "status": scenario.status,
+                                "duration": scenario.duration,
+                                "total_cost": scenario.total_cost,
+                                "total_tokens": scenario.total_tokens,
+                                "llm_calls": scenario.llm_calls,
+                                "iterations": scenario.iterations,
+                                "tools_used": scenario.tools_used,
+                                "timestamp": datetime.utcnow().isoformat() + "Z",
+                            }
+                            yield f"data: {json.dumps(scenario_event)}\n\n"
 
                     # Emit completed event
                     complete_event = {
                         "event_type": "test_completed",
                         "result": {
-                            "total_scenarios": total_scenarios,
-                            "passed_scenarios": passed_count,
-                            "failed_scenarios": failed_count,
-                            "total_cost": total_cost,
-                            "total_tokens": total_tokens,
-                            "total_llm_calls": total_llm_calls,
-                            "total_iterations": total_iterations,
-                            "unique_tools_used": list(all_tools_used),
+                            "total_scenarios": test_result.total_scenarios,
+                            "passed_scenarios": test_result.passed_scenarios,
+                            "failed_scenarios": test_result.failed_scenarios,
+                            "total_cost": test_result.total_cost,
+                            "total_tokens": test_result.total_tokens,
+                            "total_llm_calls": test_result.total_llm_calls,
+                            "total_iterations": test_result.total_iterations,
+                            "unique_tools_used": test_result.unique_tools_used,
                             "features": [
                                 {
-                                    "name": parsed_feature.name,
+                                    "name": f.name,
                                     "scenarios": [
                                         {
                                             "name": s.name,
@@ -1283,9 +1177,10 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                                                 for step in s.steps
                                             ],
                                         }
-                                        for s in scenario_results
+                                        for s in f.scenarios
                                     ],
                                 }
+                                for f in test_result.features
                             ],
                         },
                         "timestamp": datetime.utcnow().isoformat() + "Z",
@@ -2003,165 +1898,6 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             return jsonify({"events": events})
         except Exception as e:
             logger.error(f"Error getting events for {run_id}: {e}", exc_info=True)
-            return jsonify({"error": str(e)}), 500
-
-    # Coding Assistant - persistent agent instance per session
-    coding_assistant = None
-
-    def get_or_create_assistant():
-        """Get or create the coding assistant instance."""
-        nonlocal coding_assistant
-        if coding_assistant is None and WORKSPACE_ROOT:
-            try:
-                from tactus.ide.coding_assistant import CodingAssistantAgent
-                from tactus.core.config_manager import ConfigManager
-
-                # Load configuration
-                config_manager = ConfigManager()
-                # For IDE, we don't have a procedure file, so use a dummy path
-                config = config_manager._load_from_environment()
-
-                # Try to load user config
-                for user_path in config_manager._get_user_config_paths():
-                    if user_path.exists():
-                        user_config = config_manager._load_yaml_file(user_path)
-                        if user_config:
-                            config = config_manager._deep_merge(config, user_config)
-                            break
-
-                coding_assistant = CodingAssistantAgent(WORKSPACE_ROOT, config)
-                logger.info("Coding assistant initialized")
-            except Exception as e:
-                logger.error(f"Failed to initialize coding assistant: {e}", exc_info=True)
-                raise
-        return coding_assistant
-
-    @app.route("/api/chat", methods=["POST"])
-    def chat_message():
-        """Handle chat messages from the user."""
-        try:
-            data = request.json
-            message = data.get("message")
-
-            if not message:
-                return jsonify({"error": "Missing 'message' parameter"}), 400
-
-            if not WORKSPACE_ROOT:
-                return jsonify({"error": "No workspace folder selected"}), 400
-
-            # Get or create assistant
-            assistant = get_or_create_assistant()
-
-            # Process message
-            result = assistant.process_message(message)
-
-            return jsonify(
-                {
-                    "success": True,
-                    "response": result["response"],
-                    "tool_calls": result.get("tool_calls", []),
-                }
-            )
-
-        except Exception as e:
-            logger.error(f"Error handling chat message: {e}", exc_info=True)
-            return jsonify({"error": str(e)}), 500
-
-    @app.route("/api/chat/stream", methods=["POST"])
-    def chat_stream():
-        """
-        Stream chat responses with SSE.
-
-        Request body:
-        - message: User's message
-        """
-        data = request.json or {}
-        message = data.get("message")
-
-        if not message:
-            return jsonify({"error": "Missing 'message' parameter"}), 400
-
-        if not WORKSPACE_ROOT:
-            return jsonify({"error": "No workspace folder selected"}), 400
-
-        def generate_events():
-            """Generator function that yields SSE chat events."""
-            try:
-                import json
-                from datetime import datetime
-
-                # Get or create assistant
-                assistant = get_or_create_assistant()
-
-                # Send start event
-                start_event = {
-                    "event_type": "chat_start",
-                    "timestamp": datetime.utcnow().isoformat() + "Z",
-                }
-                yield f"data: {json.dumps(start_event)}\n\n"
-
-                # Process message
-                result = assistant.process_message(message)
-
-                # Send response event
-                response_event = {
-                    "event_type": "chat_response",
-                    "timestamp": datetime.utcnow().isoformat() + "Z",
-                    "response": result["response"],
-                    "tool_calls": result.get("tool_calls", []),
-                }
-                yield f"data: {json.dumps(response_event)}\n\n"
-
-                # Send completion event
-                complete_event = {
-                    "event_type": "chat_complete",
-                    "timestamp": datetime.utcnow().isoformat() + "Z",
-                }
-                yield f"data: {json.dumps(complete_event)}\n\n"
-
-            except Exception as e:
-                logger.error(f"Error in chat streaming: {e}", exc_info=True)
-                error_event = {
-                    "event_type": "chat_error",
-                    "timestamp": datetime.utcnow().isoformat() + "Z",
-                    "error": str(e),
-                }
-                yield f"data: {json.dumps(error_event)}\n\n"
-
-        return Response(
-            stream_with_context(generate_events()),
-            mimetype="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache",
-                "X-Accel-Buffering": "no",
-                "Connection": "keep-alive",
-            },
-        )
-
-    @app.route("/api/chat/reset", methods=["POST"])
-    def chat_reset():
-        """Reset the chat conversation."""
-        try:
-            assistant = get_or_create_assistant()
-            if assistant:
-                assistant.reset_conversation()
-                return jsonify({"success": True})
-            return jsonify({"error": "Assistant not initialized"}), 400
-        except Exception as e:
-            logger.error(f"Error resetting chat: {e}", exc_info=True)
-            return jsonify({"error": str(e)}), 500
-
-    @app.route("/api/chat/tools", methods=["GET"])
-    def chat_tools():
-        """Get available tools for the coding assistant."""
-        try:
-            assistant = get_or_create_assistant()
-            if assistant:
-                tools = assistant.get_available_tools()
-                return jsonify({"tools": tools})
-            return jsonify({"error": "Assistant not initialized"}), 400
-        except Exception as e:
-            logger.error(f"Error getting tools: {e}", exc_info=True)
             return jsonify({"error": str(e)}), 500
 
     @app.route("/api/lsp", methods=["POST"])

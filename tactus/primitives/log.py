@@ -150,6 +150,10 @@ class LogPrimitive:
             formatted = self._format_message(message, context)
             self.logger.warning(formatted)
 
+    def warning(self, message: str, context: Optional[Dict[str, Any]] = None) -> None:
+        """Alias for warn(), matching common logging APIs."""
+        self.warn(message, context)
+
     def error(self, message: str, context: Optional[Dict[str, Any]] = None) -> None:
         """
         Log error message.

@@ -3,7 +3,7 @@ Model primitive for ML inference with automatic checkpointing.
 """
 
 import logging
-from typing import Any
+from typing import Any, Optional
 
 from tactus.core.execution_context import ExecutionContext
 
@@ -23,7 +23,13 @@ class ModelPrimitive:
     Each .predict() call is automatically checkpointed for durability.
     """
 
-    def __init__(self, model_name: str, config: dict, context: ExecutionContext | None = None):
+    def __init__(
+        self,
+        model_name: str,
+        config: dict,
+        context: ExecutionContext | None = None,
+        mock_manager: Optional[Any] = None,
+    ):
         """
         Initialize model primitive.
 
@@ -39,6 +45,7 @@ class ModelPrimitive:
         self.model_name = model_name
         self.config = config
         self.context = context
+        self.mock_manager = mock_manager
 
         # Extract optional input/output schemas
         self.input_schema = config.get("input", {})
@@ -124,6 +131,17 @@ class ModelPrimitive:
         Returns:
             Model prediction result
         """
+        if self.mock_manager is not None:
+            args = input_data if isinstance(input_data, dict) else {"input": input_data}
+            mock_result = self.mock_manager.get_mock_response(self.model_name, args)
+            if mock_result is not None:
+                # Ensure temporal mocks advance and calls are available for assertions.
+                try:
+                    self.mock_manager.record_call(self.model_name, args, mock_result)
+                except Exception:
+                    pass
+                return mock_result
+
         return self.backend.predict_sync(input_data)
 
     def __call__(self, input_data: Any) -> Any:

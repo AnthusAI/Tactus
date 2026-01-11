@@ -348,6 +348,21 @@ def run(
         help="Run in Docker sandbox (default: required unless --no-sandbox). "
         "Use --no-sandbox to run without isolation (security risk).",
     ),
+    sandbox_broker: str = typer.Option(
+        "stdio",
+        "--sandbox-broker",
+        help="Broker transport for sandbox runtime: stdio (default, --network none) or tcp/tls (remote-mode spike).",
+    ),
+    sandbox_network: Optional[str] = typer.Option(
+        None,
+        "--sandbox-network",
+        help="Docker network mode for sandbox container (default: none for stdio; bridge for tcp/tls).",
+    ),
+    sandbox_broker_host: Optional[str] = typer.Option(
+        None,
+        "--sandbox-broker-host",
+        help="Broker hostname from inside the sandbox container (tcp/tls only).",
+    ),
 ):
     """
     Run a Tactus workflow.
@@ -504,6 +519,19 @@ def run(
     if sandbox is not None:
         # CLI flag overrides config
         sandbox_config_dict["enabled"] = sandbox
+    if sandbox_network is not None:
+        sandbox_config_dict["network"] = sandbox_network
+    if sandbox_broker_host is not None:
+        sandbox_config_dict["broker_host"] = sandbox_broker_host
+
+    sandbox_config_dict["broker_transport"] = sandbox_broker
+    if (
+        sandbox_network is None
+        and sandbox_broker in ("tcp", "tls")
+        and "network" not in sandbox_config_dict
+    ):
+        # Remote-mode requires container networking; default to bridge if user didn't specify.
+        sandbox_config_dict["network"] = "bridge"
     sandbox_config = SandboxConfig(**sandbox_config_dict)
 
     # Check Docker availability
@@ -519,6 +547,11 @@ def run(
                 "[yellow][SANDBOX] Container isolation disabled (--no-sandbox or config).[/yellow]"
             )
             console.print("[yellow][SANDBOX] Proceeding without Docker isolation.[/yellow]")
+        elif not docker_available and not sandbox_config.should_error_if_unavailable():
+            # Sandbox is auto-mode (default): fall back when Docker is unavailable
+            console.print(
+                f"[yellow][SANDBOX] Docker not available ({docker_reason}); running without container isolation.[/yellow]"
+            )
         elif sandbox_config.should_error_if_unavailable() and not docker_available:
             # Sandbox required but Docker unavailable - ERROR
             console.print(f"[red][SANDBOX ERROR] Docker not available: {docker_reason}[/red]")
@@ -618,14 +651,17 @@ def run(
 
     try:
         if use_sandbox:
+            # Host-side broker reads OpenAI credentials from the host process environment.
+            # Keep secrets OUT of the sandbox container by setting the env var only on the host.
+            if api_key:
+                os.environ["OPENAI_API_KEY"] = api_key
+
             # Execute in Docker sandbox
             runner = ContainerRunner(sandbox_config)
             sandbox_result = asyncio.run(
                 runner.run(
                     source=source_content,
                     params=context,
-                    config=merged_config,
-                    mcp_servers=mcp_servers,
                     source_file_path=str(workflow_file),
                     format=file_format,
                 )

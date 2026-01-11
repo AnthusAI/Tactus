@@ -26,12 +26,12 @@ class SandboxConfig(BaseModel):
 
     # Core settings
     # Security model:
-    # - enabled=None (default): Sandbox REQUIRED, error if Docker unavailable
+    # - enabled=None (default): Sandbox AUTO (use if available; otherwise run without isolation)
     # - enabled=True: Sandbox REQUIRED, error if Docker unavailable
     # - enabled=False: Sandbox explicitly disabled (security risk acknowledged)
     enabled: Optional[bool] = Field(
         default=None,
-        description="Enable sandbox mode. None/True=required (error if unavailable), False=disabled",
+        description="Enable sandbox mode. None=auto, True=required, False=disabled",
     )
 
     # Docker image settings
@@ -60,8 +60,36 @@ class SandboxConfig(BaseModel):
 
     # Network mode
     network: str = Field(
-        default="bridge",
+        default="none",
         description="Docker network mode (bridge allows outbound, none blocks all)",
+    )
+
+    # Broker transport (how the secretless runtime reaches the host broker)
+    # - stdio: local Docker MVP (works on Docker Desktop with --network none)
+    # - tcp/tls: remote-mode spike (for K8s/cloud; requires container networking)
+    broker_transport: str = Field(
+        default="stdio",
+        description="Broker transport for the runtime container: stdio, tcp, or tls",
+    )
+    broker_host: str = Field(
+        default="host.docker.internal",
+        description="Broker hostname for tcp/tls (as seen from inside the container)",
+    )
+    broker_bind_host: str = Field(
+        default="0.0.0.0",
+        description="Bind address for the host-side broker server in tcp/tls modes",
+    )
+    broker_port: int = Field(
+        default=0,
+        description="Port for the host-side broker server in tcp/tls modes (0=auto)",
+    )
+    broker_tls_cert_file: Optional[str] = Field(
+        default=None,
+        description="TLS certificate file for broker (PEM). Required when broker_transport='tls'",
+    )
+    broker_tls_key_file: Optional[str] = Field(
+        default=None,
+        description="TLS private key file for broker (PEM). Required when broker_transport='tls'",
     )
 
     # Resource limits
@@ -109,9 +137,9 @@ class SandboxConfig(BaseModel):
 
         Returns:
             True if Docker unavailability should be a fatal error.
-            This is True unless the user explicitly disabled sandbox.
+            This is True only when the user explicitly requires the sandbox (enabled=True).
         """
-        return not self.is_explicitly_disabled()
+        return self.enabled is True
 
     model_config = {"arbitrary_types_allowed": True}
 

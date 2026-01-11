@@ -146,8 +146,6 @@ export interface TestCompletedEvent extends BaseEvent {
 export interface TestScenarioStartedEvent extends BaseEvent {
   event_type: 'test_scenario_started';
   scenario_name: string;
-  scenario_index: number;
-  total_scenarios: number;
 }
 
 export interface TestScenarioCompletedEvent extends BaseEvent {
@@ -160,12 +158,6 @@ export interface TestScenarioCompletedEvent extends BaseEvent {
   llm_calls: number;
   iterations: number;
   tools_used: string[];
-  steps?: Array<{
-    keyword: string;
-    text: string;
-    status: string;
-    error_message?: string;
-  }>;
 }
 
 export interface EvaluationStartedEvent extends BaseEvent {

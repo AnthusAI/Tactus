@@ -75,10 +75,13 @@ class OutputValidator:
         # If no schema defined, accept any output
         if not self.schema:
             logger.debug("No output schema defined, skipping validation")
-            # Convert Lua table to dict if needed, otherwise return as-is
-            if hasattr(output, "items") and not isinstance(output, dict):
+            if isinstance(output, dict):
+                return output
+            elif hasattr(output, "items"):
+                # Lua table - convert to dict
                 return dict(output.items())
-            return output
+            else:
+                return {"result": output}
 
         # Convert Lua tables to dicts recursively
         if hasattr(output, "items") or isinstance(output, dict):

@@ -19,8 +19,6 @@ from typing import Any, Dict, List, Optional
 from tactus.dspy.history import TactusHistory, create_history
 from tactus.dspy.module import TactusModule, create_module
 from tactus.dspy.prediction import wrap_prediction, TactusPrediction
-from tactus.protocols.cost import UsageStats, CostStats
-from tactus.protocols.result import TactusResult
 
 logger = logging.getLogger(__name__)
 
@@ -111,161 +109,8 @@ class DSPyAgentHandle:
         # Track conversation state
         self._turn_count = 0
 
-        # Cumulative cost/usage stats (monotonic across turns)
-        self._cumulative_usage = UsageStats()
-        self._cumulative_cost = CostStats()
-
         # Build the internal DSPy module
         self._module = self._build_module()
-
-    @property
-    def usage(self) -> UsageStats:
-        """Return cumulative token usage incurred by this agent so far."""
-        return self._cumulative_usage
-
-    def cost(self) -> CostStats:
-        """Return cumulative cost incurred by this agent so far."""
-        return self._cumulative_cost
-
-    def _add_usage_and_cost(self, usage_stats: UsageStats, cost_stats: CostStats) -> None:
-        """Accumulate a per-call UsageStats/CostStats into agent totals."""
-        self._cumulative_usage.prompt_tokens += usage_stats.prompt_tokens
-        self._cumulative_usage.completion_tokens += usage_stats.completion_tokens
-        self._cumulative_usage.total_tokens += usage_stats.total_tokens
-
-        self._cumulative_cost.total_cost += cost_stats.total_cost
-        self._cumulative_cost.prompt_cost += cost_stats.prompt_cost
-        self._cumulative_cost.completion_cost += cost_stats.completion_cost
-
-        # Preserve "latest known" model/provider for introspection
-        if cost_stats.model:
-            self._cumulative_cost.model = cost_stats.model
-        if cost_stats.provider:
-            self._cumulative_cost.provider = cost_stats.provider
-
-    def _extract_last_call_stats(self) -> tuple[UsageStats, CostStats]:
-        """
-        Extract usage+cost from DSPy's LM history for the most recent call.
-
-        Returns zeroed stats if no LM history is available (e.g., mocked calls).
-        """
-        import dspy
-
-        # Default to zero (e.g., mocks or no LM configured)
-        usage_stats = UsageStats()
-        cost_stats = CostStats()
-
-        lm = dspy.settings.lm
-        if lm is None or not hasattr(lm, "history") or not lm.history:
-            return usage_stats, cost_stats
-
-        last_call = lm.history[-1]
-
-        # Usage
-        usage = last_call.get("usage", {}) or {}
-        prompt_tokens = int(usage.get("prompt_tokens", 0) or 0)
-        completion_tokens = int(usage.get("completion_tokens", 0) or 0)
-        total_tokens = int(usage.get("total_tokens", 0) or 0)
-        usage_stats = UsageStats(
-            prompt_tokens=prompt_tokens,
-            completion_tokens=completion_tokens,
-            total_tokens=total_tokens,
-        )
-
-        # Model/provider
-        model = last_call.get("model", self.model or None)
-        provider = None
-        if model and "/" in str(model):
-            provider = str(model).split("/")[0]
-
-        # Cost: prefer the history value, fallback to hidden params / LiteLLM calc
-        total_cost = last_call.get("cost")
-        if total_cost is None:
-            response = last_call.get("response")
-            if response and hasattr(response, "_hidden_params"):
-                total_cost = response._hidden_params.get("response_cost")
-
-            if total_cost is None and response:
-                try:
-                    import litellm
-
-                    total_cost = litellm.completion_cost(completion_response=response)
-                except Exception as e:
-                    logger.warning(f"[COST] Agent '{self.name}': failed to calculate cost: {e}")
-                    total_cost = 0.0
-            elif total_cost is None:
-                total_cost = 0.0
-
-        total_cost = float(total_cost or 0.0)
-
-        # Approximate prompt/completion split by token ratio
-        if total_tokens > 0 and total_cost > 0:
-            prompt_cost = total_cost * (prompt_tokens / total_tokens)
-            completion_cost = total_cost * (completion_tokens / total_tokens)
-        else:
-            prompt_cost = 0.0
-            completion_cost = 0.0
-
-        cost_stats = CostStats(
-            total_cost=total_cost,
-            prompt_cost=prompt_cost,
-            completion_cost=completion_cost,
-            model=str(model) if model is not None else None,
-            provider=provider,
-        )
-
-        return usage_stats, cost_stats
-
-    def _prediction_to_value(self, prediction: TactusPrediction) -> Any:
-        """
-        Convert a Prediction into a stable `result.value`.
-
-        Default behavior:
-        - Prefer the `response` field when present (string)
-        - Otherwise fall back to `prediction.message`
-        - If an output schema is configured, attempt to parse JSON into a dict/list
-        - If multiple output fields exist, return a dict (excluding internal fields)
-        """
-        try:
-            data = prediction.data()
-        except Exception:
-            data = {}
-
-        filtered = {k: v for k, v in data.items() if k not in {"tool_calls"}}
-
-        if "response" in filtered and isinstance(filtered["response"], str) and len(filtered) <= 1:
-            text = filtered["response"]
-        else:
-            text = prediction.message
-
-        # If output schema is configured, prefer structured JSON when possible
-        if self.output_schema and isinstance(text, str) and text.strip():
-            import json
-
-            try:
-                parsed = json.loads(text)
-                return parsed
-            except Exception:
-                pass
-
-        # If multiple non-internal output fields exist, return structured dict
-        if len(filtered) > 1:
-            return filtered
-
-        if len(filtered) == 1:
-            return next(iter(filtered.values()))
-
-        return text
-
-    def _wrap_as_result(
-        self, prediction: TactusPrediction, usage_stats: UsageStats, cost_stats: CostStats
-    ) -> TactusResult:
-        """Wrap a Prediction into the standard TactusResult."""
-        return TactusResult(
-            value=self._prediction_to_value(prediction),
-            usage=usage_stats,
-            cost_stats=cost_stats,
-        )
 
     def _build_module(self) -> TactusModule:
         """Build the internal DSPy module for this agent."""
@@ -329,46 +174,89 @@ class DSPyAgentHandle:
         if self.log_handler is None:
             return
 
+        import dspy
         from tactus.protocols.models import CostEvent
 
-        usage_stats, cost_stats = self._extract_last_call_stats()
+        # Get the current LM
+        lm = dspy.settings.lm
+        if lm is None or not hasattr(lm, "history") or not lm.history:
+            logger.debug(f"[COST] Agent '{self.name}': no LM history available")
+            return
 
-        # Extract duration from response metadata (best-effort; not part of CostStats)
+        # Get the most recent call
+        last_call = lm.history[-1]
+
+        # Extract usage information
+        usage = last_call.get("usage", {})
+        prompt_tokens = usage.get("prompt_tokens", 0)
+        completion_tokens = usage.get("completion_tokens", 0)
+        total_tokens = usage.get("total_tokens", 0)
+
+        # Extract cost information
+        total_cost = last_call.get("cost")
+        logger.debug(f"[COST] Agent '{self.name}': raw cost from history = {total_cost}")
+
+        # If cost is None (happens with streamify()), calculate it using LiteLLM
+        if total_cost is None:
+            response = last_call.get("response")
+            if response and hasattr(response, "_hidden_params"):
+                total_cost = response._hidden_params.get("response_cost")
+                logger.debug(f"[COST] Agent '{self.name}': cost from _hidden_params = {total_cost}")
+
+            # If still None, calculate manually using litellm.completion_cost
+            if total_cost is None and response:
+                try:
+                    import litellm
+
+                    total_cost = litellm.completion_cost(completion_response=response)
+                    logger.debug(f"[COST] Agent '{self.name}': calculated cost = {total_cost}")
+                except Exception as e:
+                    logger.warning(f"[COST] Agent '{self.name}': failed to calculate cost: {e}")
+                    total_cost = 0.0
+            elif total_cost is None:
+                total_cost = 0.0
+                logger.warning(f"[COST] Agent '{self.name}': no cost information available")
+
+        # Calculate per-token costs (approximate)
+        # Note: LiteLLM provides total cost, we can approximate prompt/completion split
+        # based on token ratios
+        if total_tokens > 0 and total_cost > 0:
+            prompt_cost = total_cost * (prompt_tokens / total_tokens)
+            completion_cost = total_cost * (completion_tokens / total_tokens)
+        else:
+            prompt_cost = 0.0
+            completion_cost = 0.0
+
+        # Extract duration from response metadata
+        response = last_call.get("response")
         duration_ms = None
-        try:
-            import dspy
+        if response and hasattr(response, "_hidden_params"):
+            duration_ms = response._hidden_params.get("_response_ms")
 
-            lm = dspy.settings.lm
-            if lm is not None and hasattr(lm, "history") and lm.history:
-                last_call = lm.history[-1]
-                response = last_call.get("response")
-                if response and hasattr(response, "_hidden_params"):
-                    duration_ms = response._hidden_params.get("_response_ms")
-        except Exception:
-            pass
+        # Extract model info
+        model = last_call.get("model", self.model or "unknown")
 
-        model = cost_stats.model or (self.model or "unknown")
-        provider = cost_stats.provider or "unknown"
+        # Parse provider from model string (e.g., "openai/gpt-4o" -> "openai")
+        provider = "unknown"
+        if "/" in str(model):
+            provider = str(model).split("/")[0]
 
         # Create and emit cost event
         cost_event = CostEvent(
             agent_name=self.name,
             model=model,
             provider=provider,
-            prompt_tokens=usage_stats.prompt_tokens,
-            completion_tokens=usage_stats.completion_tokens,
-            total_tokens=usage_stats.total_tokens,
-            prompt_cost=cost_stats.prompt_cost,
-            completion_cost=cost_stats.completion_cost,
-            total_cost=cost_stats.total_cost,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
+            prompt_cost=prompt_cost,
+            completion_cost=completion_cost,
+            total_cost=total_cost,
             duration_ms=duration_ms,
         )
 
         self.log_handler.log(cost_event)
-        logger.info(
-            f"[COST] Agent '{self.name}': ${cost_stats.total_cost:.6f} "
-            f"({usage_stats.total_tokens} tokens)"
-        )
+        logger.info(f"[COST] Agent '{self.name}': ${total_cost:.6f} ({total_tokens} tokens)")
 
     def _turn_with_streaming(
         self,
@@ -387,7 +275,7 @@ class DSPyAgentHandle:
             prompt_context: Prepared prompt context for the module
 
         Returns:
-            TactusResult with the response value and usage/cost
+            TactusPrediction with the response
         """
         import asyncio
         import threading
@@ -557,9 +445,7 @@ class DSPyAgentHandle:
         # Emit cost event with usage and cost information
         self._emit_cost_event()
 
-        usage_stats, cost_stats = self._extract_last_call_stats()
-        self._add_usage_and_cost(usage_stats, cost_stats)
-        return self._wrap_as_result(wrapped_result, usage_stats, cost_stats)
+        return wrapped_result
 
     def _turn_without_streaming(
         self,
@@ -576,7 +462,7 @@ class DSPyAgentHandle:
             prompt_context: Prepared prompt context for the module
 
         Returns:
-            TactusResult with the response value and usage/cost
+            TactusPrediction with the response
         """
         # Execute the module
         dspy_result = self._module.module(**prompt_context)
@@ -614,11 +500,9 @@ class DSPyAgentHandle:
         # Emit cost event with usage and cost information
         self._emit_cost_event()
 
-        usage_stats, cost_stats = self._extract_last_call_stats()
-        self._add_usage_and_cost(usage_stats, cost_stats)
-        return self._wrap_as_result(wrapped_result, usage_stats, cost_stats)
+        return wrapped_result
 
-    def __call__(self, inputs: Optional[Dict[str, Any]] = None) -> TactusResult:
+    def __call__(self, inputs: Optional[Dict[str, Any]] = None) -> Any:
         """
         Execute an agent turn using the callable interface.
 
@@ -645,10 +529,6 @@ class DSPyAgentHandle:
             f"[CHECKPOINT] DSPyAgentHandle.__call__ invoked directly for agent '{self.name}' - THIS BYPASSES AgentHandle checkpoint logic!"
         )
         inputs = inputs or {}
-
-        # Handle string input as a convenience: Agent("message") -> Agent({message="message"})
-        if isinstance(inputs, str):
-            inputs = {"message": inputs}
 
         # Convert Lua table to dict if needed
         if hasattr(inputs, "items"):
@@ -755,43 +635,40 @@ class DSPyAgentHandle:
             logger.error(f"Agent '{self.name}' turn failed: {e}")
             raise
 
-    def _get_mock_response(self, opts: Dict[str, Any]) -> Optional[TactusResult]:
+    def _get_mock_response(self, opts: Dict[str, Any]) -> Optional[TactusPrediction]:
         """
         Check if this agent has a mock configured and return mock response.
 
-        Checks registry.agent_mocks for agent mock configurations from Mocks {} blocks.
+        Uses the same mock logic as tools and modules: static (returns), temporal, and conditional.
 
         Args:
             opts: The turn options
 
         Returns:
-            TactusResult if mocked, None otherwise
+            TactusPrediction if mocked, None otherwise
         """
         agent_name = self.name
 
-        # Check if agent has a mock in registry.agent_mocks (from Mocks {} block)
-        if not hasattr(self.registry, "agent_mocks") or agent_name not in self.registry.agent_mocks:
+        # Check if agent has a mock in the registry
+        if agent_name not in self.registry.mocks:
             return None
 
-        # Get the agent mock config
-        mock_config = self.registry.agent_mocks[agent_name]
-        logger.debug(
-            f"Agent '{agent_name}' using mock config: message={mock_config.message[:50] if mock_config.message else 'None'}..."
-        )
+        # Use mock_manager to get the response (handles static/temporal/conditional logic)
+        try:
+            mock_data = self.mock_manager.get_mock_response(agent_name, opts)
+            if mock_data is not None:
+                return self._wrap_mock_response(mock_data, opts)
+        except Exception:
+            # If mock_manager throws an error (e.g., error simulation), let it propagate
+            raise
 
-        # Build mock response data
-        mock_data = {
-            "message": mock_config.message,
-            "tool_calls": mock_config.tool_calls,
-        }
-        if mock_config.data is not None:
-            mock_data["data"] = mock_config.data
+        return None
 
-        return self._wrap_mock_response(mock_data, opts)
-
-    def _wrap_mock_response(self, mock_data: Dict[str, Any], opts: Dict[str, Any]) -> TactusResult:
+    def _wrap_mock_response(
+        self, mock_data: Dict[str, Any], opts: Dict[str, Any]
+    ) -> TactusPrediction:
         """
-        Wrap mock data as a TactusResult.
+        Wrap mock data as a TactusPrediction.
 
         Also handles special mock behaviors like recording done tool calls.
 
@@ -800,7 +677,7 @@ class DSPyAgentHandle:
             opts: The turn options
 
         Returns:
-            TactusResult wrapping the mock data
+            TactusPrediction wrapping the mock data
         """
         from tactus.dspy.prediction import create_prediction
 
@@ -836,10 +713,7 @@ class DSPyAgentHandle:
         if "response" in mock_data:
             self._history.add({"role": "assistant", "content": mock_data["response"]})
 
-        usage_stats = UsageStats()
-        cost_stats = CostStats()
-        self._add_usage_and_cost(usage_stats, cost_stats)
-        return self._wrap_as_result(result, usage_stats, cost_stats)
+        return result
 
     def clear_history(self) -> None:
         """Clear the conversation history."""

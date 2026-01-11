@@ -75,6 +75,7 @@ class ProcedurePrimitive:
         self,
         execution_context: Any,
         runtime_factory: Callable[[str, Dict[str, Any]], Any],
+        lua_sandbox: Any = None,
         max_depth: int = 5,
         current_depth: int = 0,
     ):
@@ -84,17 +85,41 @@ class ProcedurePrimitive:
         Args:
             execution_context: Execution context for state management
             runtime_factory: Factory function to create TactusRuntime instances
+            lua_sandbox: LuaSandbox instance for in-file procedure lookup
             max_depth: Maximum recursion depth
             current_depth: Current recursion depth
         """
         self.execution_context = execution_context
         self.runtime_factory = runtime_factory
+        self.lua_sandbox = lua_sandbox
         self.max_depth = max_depth
         self.current_depth = current_depth
         self.handles: Dict[str, ProcedureHandle] = {}
         self._lock = threading.Lock()
 
         logger.info(f"ProcedurePrimitive initialized (depth {current_depth}/{max_depth})")
+
+    def __call__(self, name: str) -> Any:
+        """
+        Look up an in-file named procedure by name.
+
+        Enables Lua syntax:
+            local res = Procedure("my_proc")({ ... })
+
+        Named procedures are injected into Lua globals by the runtime during initialization.
+        """
+        if not self.lua_sandbox or not hasattr(self.lua_sandbox, "lua"):
+            raise ProcedureExecutionError("Procedure lookup is not available (lua_sandbox missing)")
+
+        try:
+            proc = self.lua_sandbox.lua.globals()[name]
+        except Exception:
+            proc = None
+
+        if proc is None:
+            raise ProcedureExecutionError(f"Named procedure '{name}' not found")
+
+        return proc
 
     def run(self, name: str, params: Optional[Dict[str, Any]] = None) -> Any:
         """
@@ -122,6 +147,12 @@ class ProcedurePrimitive:
 
         # Normalize params
         params = params or {}
+        if hasattr(params, "items"):
+            from tactus.core.dsl_stubs import lua_table_to_dict
+
+            params = lua_table_to_dict(params)
+            if isinstance(params, list) and len(params) == 0:
+                params = {}
 
         # Wrap execution in checkpoint for durability
         def execute_procedure():
@@ -134,26 +165,37 @@ class ProcedurePrimitive:
 
                 # Execute synchronously (runtime.execute is async, so we need to run it)
                 import asyncio
+                import threading
+
+                async def run_subprocedure():
+                    return await runtime.execute(source=source, context=params, format="lua")
 
                 try:
-                    loop = asyncio.get_running_loop()
-                    # We're already in an async context, use run_until_complete would fail
-                    # Instead, we need to await it, but we're in a sync function
-                    # Solution: Create a task and wait for it
-                    result = asyncio.create_task(
-                        runtime.execute(source=source, context=params, format="lua")
-                    )
-                    # This won't work in sync context - we need to handle this differently
-                    # For now, use run_until_complete in a new loop
-                    raise RuntimeError("Cannot run nested async in sync context")
+                    asyncio.get_running_loop()
+                    has_running_loop = True
                 except RuntimeError:
-                    # No running loop or nested loop issue - create new one
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                    result = loop.run_until_complete(
-                        runtime.execute(source=source, context=params, format="lua")
-                    )
-                    loop.close()
+                    has_running_loop = False
+
+                if has_running_loop:
+                    result_holder = {}
+                    error_holder = {}
+
+                    def run_in_thread():
+                        try:
+                            result_holder["result"] = asyncio.run(run_subprocedure())
+                        except Exception as e:
+                            error_holder["error"] = e
+
+                    t = threading.Thread(target=run_in_thread, daemon=True)
+                    t.start()
+                    t.join()
+
+                    if "error" in error_holder:
+                        raise error_holder["error"]
+
+                    result = result_holder.get("result")
+                else:
+                    result = asyncio.run(run_subprocedure())
 
                 # Extract result from execution response
                 if result.get("success"):
@@ -469,41 +511,54 @@ class ProcedurePrimitive:
         Raises:
             FileNotFoundError: If procedure file not found
         """
-        import os
         from pathlib import Path
 
-        # Build search paths
-        search_paths = [
-            name,  # Exact path
-            f"{name}.tac",  # Add extension
-        ]
+        search_paths: list[Path] = []
+        seen: set[Path] = set()
 
-        # Add paths relative to the current procedure file's directory
-        if (
-            hasattr(self.execution_context, "current_tac_file")
-            and self.execution_context.current_tac_file
-        ):
-            current_file = Path(self.execution_context.current_tac_file)
-            current_dir = current_file.parent
-            search_paths.extend(
-                [
-                    str(current_dir / name),  # Relative to current file
-                    str(current_dir / f"{name}.tac"),  # Relative with extension
-                ]
-            )
+        def add_path(path: Path) -> None:
+            normalized = path.resolve() if path.is_absolute() else path
+            if normalized in seen:
+                return
+            seen.add(normalized)
+            search_paths.append(path)
 
-        # Add examples directory as fallback
-        search_paths.extend(
-            [
-                f"examples/{name}",  # Examples directory
-                f"examples/{name}.tac",  # Examples with extension
-            ]
-        )
+        name_path = Path(name)
+
+        def add_candidates(base: Path | None, rel: Path) -> None:
+            candidate = (base / rel) if base is not None else rel
+            add_path(candidate)
+            if candidate.suffix != ".tac":
+                add_path(Path(str(candidate) + ".tac"))
+
+        # Absolute path: try as-is.
+        if name_path.is_absolute():
+            add_candidates(None, name_path)
+        else:
+            # Relative to current working directory (CLI usage).
+            add_candidates(None, name_path)
+
+            # Relative to the current .tac file directory and its parents (BDD/temp cwd usage).
+            current_tac_file = getattr(self.execution_context, "current_tac_file", None)
+            if current_tac_file:
+                current_dir = Path(current_tac_file).parent
+                add_candidates(current_dir, name_path)
+
+                # Also try resolving from parent directories (helps when callers pass paths
+                # relative to project root, but cwd is not the project root).
+                for parent in list(current_dir.parents)[:5]:
+                    add_candidates(parent, name_path)
+
+            # Fallback: examples directory relative to repo root in common layouts.
+            add_candidates(None, Path("examples") / name_path)
 
         for path in search_paths:
-            if os.path.exists(path):
-                logger.debug(f"Loading procedure from: {path}")
-                with open(path, "r") as f:
-                    return f.read()
+            try:
+                if path.exists() and path.is_file():
+                    logger.debug(f"Loading procedure from: {path}")
+                    return path.read_text()
+            except Exception:
+                continue
 
-        raise FileNotFoundError(f"Procedure '{name}' not found. Searched: {search_paths}")
+        searched = [str(p) for p in search_paths]
+        raise FileNotFoundError(f"Procedure '{name}' not found. Searched: {searched}")
