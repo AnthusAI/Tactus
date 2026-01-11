@@ -187,7 +187,7 @@ class BaseExecutionContext(ExecutionContext):
         On replay, returns cached result from execution log.
         On first execution, runs fn(), records in log, and returns result.
         """
-        logger.info(
+        logger.debug(
             f"[CHECKPOINT] checkpoint() called, type={checkpoint_type}, has_log_handler={self.log_handler is not None}"
         )
         current_position = self.metadata.replay_index
@@ -259,7 +259,7 @@ class BaseExecutionContext(ExecutionContext):
                     source_location=source_location,
                     procedure_id=self.procedure_id,
                 )
-                logger.info(
+                logger.debug(
                     f"[CHECKPOINT] Emitting CheckpointCreatedEvent: position={current_position}, type={checkpoint_type}, duration_ms={duration_ms}"
                 )
                 self.log_handler.log(event)

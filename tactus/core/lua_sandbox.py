@@ -73,7 +73,7 @@ class LuaSandbox:
         # Setup safe globals
         self._setup_safe_globals()
 
-        logger.info("Lua sandbox initialized successfully")
+        logger.debug("Lua sandbox initialized successfully")
 
     def _attribute_filter(self, obj, attr_name, is_setting):
         """
@@ -274,7 +274,7 @@ class LuaSandbox:
             self.lua.globals()["math"] = safe_math_table
             self.lua.globals()["os"] = safe_os_table
 
-            logger.info("Installed safe math and os libraries with determinism checking")
+            logger.debug("Installed safe math and os libraries with determinism checking")
             return  # Skip default os.date setup below
 
         # Add safe subset of os module (only date function for timestamps)

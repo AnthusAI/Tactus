@@ -2457,6 +2457,24 @@ File.write(path, contents)
 File.exists(path)
 ```
 
+### Filesystem Helpers (stdlib)
+
+Workflows sometimes need to enumerate files within the sandboxed working directory (for example, iterating over documents to lint or review). Use the filesystem helper module:
+
+```lua
+local fs = require("tactus.io.fs")
+
+-- List entries in a directory (relative paths)
+local entries = fs.list_dir("chapters", {files_only = true, sort = true})
+
+-- Glob files (relative paths)
+local qmd_files = fs.glob("chapters/*.qmd", {sort = true})
+```
+
+**Security model:** Paths are restricted to the procedure working directory; absolute paths and path traversal (`..`) are rejected.
+
+**Determinism:** Filesystem contents can change between runs; wrap file enumeration and reads in `Step.checkpoint()` for durable workflows.
+
 ---
 
 ## Matchers

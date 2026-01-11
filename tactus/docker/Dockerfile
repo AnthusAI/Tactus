@@ -36,6 +36,10 @@ COPY pyproject.toml ./
 COPY README.md ./
 COPY tactus/ ./tactus/
 
+# Ensure the non-root runtime user can read the codebase even if the host
+# working tree has restrictive permissions (e.g., umask 077).
+RUN chmod -R a+rX /app/tactus
+
 # Install Tactus and its dependencies
 RUN pip install --no-cache-dir -e .
 
