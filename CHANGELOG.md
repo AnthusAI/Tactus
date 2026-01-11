@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v0.24.0 (2026-01-11)
+
+### Code Style
+
+- Format app.py with black
+  ([`f3286ce`](https://github.com/AnthusAI/Tactus/commit/f3286ce6b6207fcc1eb15a30cd9e58763943a021))
+
+### Features
+
+- Add --version flag support to CLI
+  ([`b7bbc52`](https://github.com/AnthusAI/Tactus/commit/b7bbc520fbd332764b61016d8e9edf03062fcf1d))
+
+
 ## v0.23.0 (2026-01-11)
 
 ### Features
