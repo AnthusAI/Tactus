@@ -134,7 +134,7 @@ class StdlibModuleLoader:
         # Cache
         self.loaded_modules[module_name] = lua_table
 
-        logger.info(f"Loaded stdlib Python module: {module_name}")
+        logger.debug(f"Loaded stdlib Python module: {module_name}")
         return lua_table
 
     def _get_module_exports(self, module) -> Dict[str, Callable]:

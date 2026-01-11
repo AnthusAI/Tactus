@@ -915,43 +915,49 @@ def create_dsl_stubs(
             if not isinstance(mock_config, dict):
                 continue
 
-            # Check if this is an agent mock (has tool_calls key)
-            if "tool_calls" in mock_config:
-                # Agent mock - specifies what tool calls the agent should simulate
+            # Tool mocks use explicit keys.
+            tool_mock_keys = {"returns", "temporal", "conditional", "error"}
+            if any(k in mock_config for k in tool_mock_keys):
+                # Convert DSL syntax to MockConfig format
+                processed_config = {}
+
+                # Static mocking with 'returns' key
+                if "returns" in mock_config:
+                    processed_config["output"] = mock_config["returns"]
+
+                # Temporal mocking
+                elif "temporal" in mock_config:
+                    processed_config["temporal"] = mock_config["temporal"]
+
+                # Conditional mocking
+                elif "conditional" in mock_config:
+                    # Convert DSL conditional format to MockManager format
+                    conditionals = []
+                    for cond in mock_config["conditional"]:
+                        if isinstance(cond, dict) and "when" in cond and "returns" in cond:
+                            conditionals.append({"when": cond["when"], "return": cond["returns"]})
+                    processed_config["conditional_mocks"] = conditionals
+
+                # Error simulation
+                elif "error" in mock_config:
+                    processed_config["error"] = mock_config["error"]
+
+                # Register the tool mock configuration
+                builder.register_mock(name, processed_config)
+                continue
+
+            # Agent mocks can be message-only, tool_calls-only, or both.
+            if any(k in mock_config for k in ("tool_calls", "message", "data")):
                 agent_config = {
                     "tool_calls": mock_config.get("tool_calls", []),
                     "message": mock_config.get("message", ""),
+                    "data": mock_config.get("data"),
                 }
                 builder.register_agent_mock(name, agent_config)
                 continue
 
-            # Otherwise, it's a tool mock
-            # Convert DSL syntax to MockConfig format
-            processed_config = {}
-
-            # Static mocking with 'returns' key
-            if "returns" in mock_config:
-                processed_config["output"] = mock_config["returns"]
-
-            # Temporal mocking
-            elif "temporal" in mock_config:
-                processed_config["temporal"] = mock_config["temporal"]
-
-            # Conditional mocking
-            elif "conditional" in mock_config:
-                # Convert DSL conditional format to MockManager format
-                conditionals = []
-                for cond in mock_config["conditional"]:
-                    if isinstance(cond, dict) and "when" in cond and "returns" in cond:
-                        conditionals.append({"when": cond["when"], "return": cond["returns"]})
-                processed_config["conditional_mocks"] = conditionals
-
-            # Error simulation
-            elif "error" in mock_config:
-                processed_config["error"] = mock_config["error"]
-
-            # Register the tool mock configuration
-            builder.register_mock(name, processed_config)
+            # Otherwise, ignore unknown mock config.
+            continue
 
     def _history(messages=None):
         """
@@ -1413,14 +1419,14 @@ def create_dsl_stubs(
 
         logger = logging.getLogger(__name__)
 
-        logger.info(
+        logger.debug(
             f"[AGENT_CREATION] Agent '{agent_name}': runtime_context={bool(_runtime_context)}, skip_agents={_runtime_context.get('skip_agents', 'N/A') if _runtime_context else 'N/A'}, has_log_handler={('log_handler' in _runtime_context) if _runtime_context else False}"
         )
 
         if _runtime_context and not _runtime_context.get("skip_agents", False):
             from tactus.dspy.agent import create_dspy_agent
 
-            logger.info(f"[AGENT_CREATION] Attempting immediate creation for agent '{agent_name}'")
+            logger.debug(f"[AGENT_CREATION] Attempting immediate creation for agent '{agent_name}'")
 
             try:
                 # Create the actual agent primitive NOW
@@ -1450,7 +1456,7 @@ def create_dsl_stubs(
                 handle._set_primitive(
                     agent_primitive, execution_context=_runtime_context.get("execution_context")
                 )
-                logger.info(
+                logger.debug(
                     f"[AGENT_CREATION] Agent '{agent_name}' created immediately during declaration, has_log_handler={hasattr(agent_primitive, 'log_handler') and agent_primitive.log_handler is not None}"
                 )
 
@@ -1458,7 +1464,9 @@ def create_dsl_stubs(
                 if "_created_agents" not in _runtime_context:
                     _runtime_context["_created_agents"] = {}
                 _runtime_context["_created_agents"][agent_name] = agent_primitive
-                logger.info(f"[AGENT_CREATION] Stored agent '{agent_name}' in _created_agents dict")
+                logger.debug(
+                    f"[AGENT_CREATION] Stored agent '{agent_name}' in _created_agents dict"
+                )
 
             except Exception as e:
                 logger.error(
@@ -1567,14 +1575,14 @@ def create_dsl_stubs(
 
         logger = logging.getLogger(__name__)
 
-        logger.info(
+        logger.debug(
             f"[AGENT_CREATION] Agent '{temp_name}': runtime_context={bool(_runtime_context)}, skip_agents={_runtime_context.get('skip_agents', 'N/A') if _runtime_context else 'N/A'}, has_log_handler={('log_handler' in _runtime_context) if _runtime_context else False}"
         )
 
         if _runtime_context and not _runtime_context.get("skip_agents", False):
             from tactus.dspy.agent import create_dspy_agent
 
-            logger.info(f"[AGENT_CREATION] Attempting immediate creation for agent '{temp_name}'")
+            logger.debug(f"[AGENT_CREATION] Attempting immediate creation for agent '{temp_name}'")
 
             try:
                 # Create the actual agent primitive NOW
@@ -1593,7 +1601,7 @@ def create_dsl_stubs(
                 if "log_handler" in _runtime_context:
                     agent_config["log_handler"] = _runtime_context["log_handler"]
 
-                logger.info(
+                logger.debug(
                     f"[AGENT_CREATION] Creating agent immediately: name={temp_name}, has_log_handler={'log_handler' in agent_config}"
                 )
                 agent_primitive = create_dspy_agent(
@@ -1607,7 +1615,7 @@ def create_dsl_stubs(
                 handle._set_primitive(
                     agent_primitive, execution_context=_runtime_context.get("execution_context")
                 )
-                logger.info(
+                logger.debug(
                     f"[AGENT_CREATION] Agent '{temp_name}' created immediately during declaration, has_log_handler={hasattr(agent_primitive, 'log_handler') and agent_primitive.log_handler is not None}"
                 )
 
@@ -1615,7 +1623,7 @@ def create_dsl_stubs(
                 if "_created_agents" not in _runtime_context:
                     _runtime_context["_created_agents"] = {}
                 _runtime_context["_created_agents"][temp_name] = agent_primitive
-                logger.info(f"[AGENT_CREATION] Stored agent '{temp_name}' in _created_agents dict")
+                logger.debug(f"[AGENT_CREATION] Stored agent '{temp_name}' in _created_agents dict")
 
             except Exception as e:
                 import traceback
@@ -1757,13 +1765,13 @@ def _make_binding_callback(
             old_name = value.name
             if old_name.startswith("_temp_agent_"):
                 # Rename the agent handle
-                callback_logger.info(f"[AGENT_RENAME] Renaming agent '{old_name}' to '{name}'")
+                callback_logger.debug(f"[AGENT_RENAME] Renaming agent '{old_name}' to '{name}'")
                 value.name = name
 
                 # Also rename the underlying primitive if it exists
                 if value._primitive is not None:
                     value._primitive.name = name
-                    callback_logger.info(
+                    callback_logger.debug(
                         f"[AGENT_RENAME] Updated primitive name: '{old_name}' -> '{name}'"
                     )
 
@@ -1777,7 +1785,7 @@ def _make_binding_callback(
                 if hasattr(builder, "registry") and old_name in builder.registry.agents:
                     agent_data = builder.registry.agents.pop(old_name)
                     builder.registry.agents[name] = agent_data
-                    callback_logger.info(
+                    callback_logger.debug(
                         f"[AGENT_RENAME] Re-registered agent '{name}' in builder.registry.agents"
                     )
 
@@ -1786,7 +1794,7 @@ def _make_binding_callback(
                     if old_name in runtime_context["_created_agents"]:
                         agent_primitive = runtime_context["_created_agents"].pop(old_name)
                         runtime_context["_created_agents"][name] = agent_primitive
-                        callback_logger.info(
+                        callback_logger.debug(
                             f"[AGENT_RENAME] Updated _created_agents dict: '{old_name}' -> '{name}'"
                         )
 

@@ -34,9 +34,12 @@ def calculate_source_hash(tactus_root: Path) -> str:
     # Key paths that affect sandbox behavior
     paths_to_hash = [
         tactus_root / "tactus" / "dspy",
+        tactus_root / "tactus" / "adapters",
         tactus_root / "tactus" / "core",
         tactus_root / "tactus" / "primitives",
         tactus_root / "tactus" / "sandbox",
+        tactus_root / "tactus" / "stdlib",
+        tactus_root / "tactus" / "docker",
         tactus_root / "pyproject.toml",  # Dependencies affect sandbox
     ]
 
@@ -50,12 +53,21 @@ def calculate_source_hash(tactus_root: Path) -> str:
             # Hash file contents
             hasher.update(path.read_bytes())
         elif path.is_dir():
-            # Hash all Python files in directory (recursively)
-            for py_file in sorted(path.rglob("*.py")):
+            # Hash directory files (recursively), skipping caches.
+            for file in sorted(path.rglob("*")):
+                if not file.is_file():
+                    continue
+                if "__pycache__" in file.parts:
+                    continue
+                if file.suffix == ".pyc":
+                    continue
+                if file.name == ".DS_Store":
+                    continue
+
                 # Hash relative path + contents for reproducibility
-                rel_path = str(py_file.relative_to(tactus_root))
+                rel_path = str(file.relative_to(tactus_root))
                 hasher.update(rel_path.encode())
-                hasher.update(py_file.read_bytes())
+                hasher.update(file.read_bytes())
 
     # Return short hash (16 chars is plenty for collision avoidance)
     return hasher.hexdigest()[:16]
