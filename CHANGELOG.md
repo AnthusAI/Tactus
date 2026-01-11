@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.23.0 (2026-01-11)
+
+### Features
+
+- Add AI chat assistant to Tactus IDE with streaming and tool execution
+  ([`81f544a`](https://github.com/AnthusAI/Tactus/commit/81f544a16e86a8f26b328583b432ad2f1ad26504))
+
+
 ## v0.22.0 (2026-01-10)
 
 ### Features
