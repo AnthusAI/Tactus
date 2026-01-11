@@ -44,3 +44,4 @@ _recovery/
 
 *storybook.log
 storybook-static
+*.bak

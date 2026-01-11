@@ -191,6 +191,24 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             return jsonify({"cwd": WORKSPACE_ROOT})
         return jsonify({"cwd": str(Path.cwd())})
 
+    @app.route("/api/about", methods=["GET"])
+    def get_about_info():
+        """Get application version and metadata."""
+        from tactus import __version__
+
+        return jsonify(
+            {
+                "version": __version__,
+                "name": "Tactus IDE",
+                "description": "A Lua-based DSL for agentic workflows",
+                "author": "Ryan Porter",
+                "license": "MIT",
+                "repository": "https://github.com/AnthusAI/Tactus",
+                "documentation": "https://github.com/AnthusAI/Tactus/tree/main/docs",
+                "issues": "https://github.com/AnthusAI/Tactus/issues",
+            }
+        )
+
     @app.route("/api/workspace", methods=["GET", "POST"])
     def workspace_operations():
         """Handle workspace operations."""
@@ -1900,6 +1918,177 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             logger.error(f"Error getting events for {run_id}: {e}", exc_info=True)
             return jsonify({"error": str(e)}), 500
 
+    # Coding Assistant - persistent agent instance per session
+    coding_assistant = None
+
+    def get_or_create_assistant():
+        """Get or create the coding assistant instance."""
+        nonlocal coding_assistant
+        if coding_assistant is None and WORKSPACE_ROOT:
+            try:
+                from tactus.ide.coding_assistant import CodingAssistantAgent
+                from tactus.core.config_manager import ConfigManager
+
+                # Load configuration
+                config_manager = ConfigManager()
+                # For IDE, we don't have a procedure file, so use a dummy path
+                config = config_manager._load_from_environment()
+
+                # Try to load user config
+                for user_path in config_manager._get_user_config_paths():
+                    if user_path.exists():
+                        user_config = config_manager._load_yaml_file(user_path)
+                        if user_config:
+                            config = config_manager._deep_merge(config, user_config)
+                            break
+
+                coding_assistant = CodingAssistantAgent(WORKSPACE_ROOT, config)
+                logger.info("Coding assistant initialized")
+            except Exception as e:
+                logger.error(f"Failed to initialize coding assistant: {e}", exc_info=True)
+                raise
+        return coding_assistant
+
+    @app.route("/api/chat", methods=["POST"])
+    def chat_message():
+        """Handle chat messages from the user."""
+        try:
+            data = request.json
+            message = data.get("message")
+
+            if not message:
+                return jsonify({"error": "Missing 'message' parameter"}), 400
+
+            if not WORKSPACE_ROOT:
+                return jsonify({"error": "No workspace folder selected"}), 400
+
+            # Get or create assistant
+            assistant = get_or_create_assistant()
+
+            # Process message
+            result = assistant.process_message(message)
+
+            return jsonify(
+                {
+                    "success": True,
+                    "response": result["response"],
+                    "tool_calls": result.get("tool_calls", []),
+                }
+            )
+
+        except Exception as e:
+            logger.error(f"Error handling chat message: {e}", exc_info=True)
+            return jsonify({"error": str(e)}), 500
+
+    @app.route("/api/chat/stream", methods=["POST"])
+    def chat_stream():
+        """
+        Stream chat responses with SSE using our working implementation.
+
+        Request body:
+        - workspace_root: Workspace path
+        - message: User's message
+        - config: Optional config with provider, model, etc.
+        """
+        try:
+            import sys
+            import os
+            import uuid
+            import asyncio
+
+            # Add backend directory to path so we can import our modules
+            backend_dir = os.path.join(
+                os.path.dirname(__file__), "..", "..", "tactus-ide", "backend"
+            )
+            if backend_dir not in sys.path:
+                sys.path.insert(0, backend_dir)
+
+            from assistant_service import AssistantService
+
+            data = request.json or {}
+            workspace_root = data.get("workspace_root") or WORKSPACE_ROOT
+            user_message = data.get("message")
+            config = data.get(
+                "config",
+                {"provider": "openai", "model": "gpt-4o", "temperature": 0.7, "max_tokens": 4000},
+            )
+
+            if not workspace_root or not user_message:
+                return jsonify({"error": "workspace_root and message required"}), 400
+
+            # Create service instance
+            conversation_id = str(uuid.uuid4())
+            service = AssistantService(workspace_root, config)
+
+            def generate():
+                """Generator function that yields SSE events."""
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+
+                try:
+                    # Start conversation (configures DSPy LM internally)
+                    loop.run_until_complete(service.start_conversation(conversation_id))
+
+                    # Send immediate thinking indicator
+                    yield f"data: {json.dumps({'type': 'thinking', 'content': 'Processing your request...'})}\n\n"
+
+                    # Create async generator
+                    async_gen = service.send_message(user_message)
+
+                    # Consume events one at a time and yield immediately
+                    while True:
+                        try:
+                            event = loop.run_until_complete(async_gen.__anext__())
+                            yield f"data: {json.dumps(event)}\n\n"
+                        except StopAsyncIteration:
+                            break
+
+                except Exception as e:
+                    logger.error(f"Error streaming message: {e}", exc_info=True)
+                    yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
+                finally:
+                    loop.close()
+
+            return Response(
+                stream_with_context(generate()),
+                mimetype="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "X-Accel-Buffering": "no",
+                    "Connection": "keep-alive",
+                },
+            )
+
+        except Exception as e:
+            logger.error(f"Error in stream endpoint: {e}", exc_info=True)
+            return jsonify({"error": str(e)}), 500
+
+    @app.route("/api/chat/reset", methods=["POST"])
+    def chat_reset():
+        """Reset the chat conversation."""
+        try:
+            assistant = get_or_create_assistant()
+            if assistant:
+                assistant.reset_conversation()
+                return jsonify({"success": True})
+            return jsonify({"error": "Assistant not initialized"}), 400
+        except Exception as e:
+            logger.error(f"Error resetting chat: {e}", exc_info=True)
+            return jsonify({"error": str(e)}), 500
+
+    @app.route("/api/chat/tools", methods=["GET"])
+    def chat_tools():
+        """Get available tools for the coding assistant."""
+        try:
+            assistant = get_or_create_assistant()
+            if assistant:
+                tools = assistant.get_available_tools()
+                return jsonify({"tools": tools})
+            return jsonify({"error": "Assistant not initialized"}), 400
+        except Exception as e:
+            logger.error(f"Error getting tools: {e}", exc_info=True)
+            return jsonify({"error": str(e)}), 500
+
     @app.route("/api/lsp", methods=["POST"])
     def lsp_request():
         """Handle LSP requests via HTTP."""
@@ -1964,6 +2153,23 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
         except Exception as e:
             logger.error(f"Error handling LSP notification: {e}")
             return jsonify({"error": str(e)}), 500
+
+    # Register config API routes
+    try:
+        import sys
+
+        # Add tactus-ide/backend to path for imports
+        # Path from tactus/ide/server.py -> project root -> tactus-ide/backend
+        backend_dir = Path(__file__).parent.parent.parent / "tactus-ide" / "backend"
+        if backend_dir.exists():
+            sys.path.insert(0, str(backend_dir))
+            from config_server import register_config_routes
+
+            register_config_routes(app)
+        else:
+            logger.warning(f"Config server backend directory not found: {backend_dir}")
+    except ImportError as e:
+        logger.warning(f"Could not register config routes: {e}")
 
     # Serve frontend if dist directory is provided
     if frontend_dist_dir:

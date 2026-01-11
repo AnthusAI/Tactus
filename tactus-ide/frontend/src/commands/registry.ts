@@ -128,6 +128,22 @@ export const RUN_COMMANDS: CommandGroup = {
   ],
 };
 
+export const TACTUS_COMMANDS: CommandGroup = {
+  label: 'Tactus',
+  commands: [
+    {
+      id: 'tactus.preferences',
+      label: 'Preferences...',
+      shortcut: 'Cmd+,',
+    },
+    {
+      id: 'tactus.about',
+      label: 'About Tactus',
+    },
+  ],
+};
+
+// Tactus commands are shown in the logo dropdown, not in the menubar
 export const ALL_COMMAND_GROUPS = [
   FILE_COMMANDS,
   EDIT_COMMANDS,

@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 from .config import SandboxConfig
+from .docker_manager import DockerManager, calculate_source_hash
 from .protocol import (
     ExecutionRequest,
     ExecutionResult,
@@ -80,6 +81,76 @@ class ContainerRunner:
             config: Sandbox configuration.
         """
         self.config = config
+
+        # Parse image name and tag from config.image (e.g., "tactus-sandbox:local")
+        image_parts = config.image.split(":")
+        image_name = image_parts[0] if len(image_parts) > 0 else "tactus-sandbox"
+        image_tag = image_parts[1] if len(image_parts) > 1 else "local"
+
+        self.docker_manager = DockerManager(
+            image_name=image_name,
+            image_tag=image_tag,
+        )
+
+    def _ensure_sandbox_up_to_date(self, skip_for_ide: bool = False) -> None:
+        """
+        Automatically rebuild sandbox if code has changed.
+
+        This enables fast, automatic rebuilds during development without
+        requiring manual `tactus sandbox rebuild` commands. Uses source
+        hash for change detection with Docker layer caching for speed.
+
+        Can be disabled by setting TACTUS_AUTO_REBUILD_SANDBOX=false or
+        when running from IDE (to avoid blocking UI).
+
+        Args:
+            skip_for_ide: If True, skip rebuild (used when called from IDE)
+
+        Raises:
+            RuntimeError: If rebuild is needed but fails.
+        """
+        # Skip auto-rebuild in IDE to avoid blocking UI
+        if skip_for_ide:
+            logger.debug("Auto-rebuild skipped for IDE execution")
+            return
+
+        # Check if auto-rebuild is disabled
+        auto_rebuild = os.environ.get("TACTUS_AUTO_REBUILD_SANDBOX", "true").lower()
+        if auto_rebuild not in ("true", "1", "yes"):
+            logger.debug("Auto-rebuild disabled via TACTUS_AUTO_REBUILD_SANDBOX")
+            return
+
+        # Get current version and source hash
+        from tactus import __version__
+
+        # Calculate tactus root from this file's location
+        # container_runner.py is in tactus/sandbox/, so root is 2 levels up
+        tactus_root = Path(__file__).parent.parent.parent
+
+        current_hash = calculate_source_hash(tactus_root)
+
+        # Check if rebuild is needed
+        if self.docker_manager.needs_rebuild(__version__, current_hash):
+            logger.info("Code changes detected, rebuilding sandbox...")
+
+            # Get paths
+            dockerfile_path = tactus_root / "tactus" / "docker" / "Dockerfile"
+
+            # Build with source hash
+            success, msg = self.docker_manager.build_image(
+                dockerfile_path=dockerfile_path,
+                context_path=tactus_root,
+                version=__version__,
+                source_hash=current_hash,
+                verbose=False,
+            )
+
+            if not success:
+                raise RuntimeError(f"Failed to rebuild sandbox: {msg}")
+
+            logger.info("Sandbox rebuilt successfully")
+        else:
+            logger.debug("Sandbox is up to date")
 
     def _build_docker_command(
         self,
@@ -177,6 +248,11 @@ class ContainerRunner:
         Returns:
             ExecutionResult with status, result/error, and metadata.
         """
+        # Ensure sandbox is up to date (auto-rebuild if code changed)
+        # Skip for IDE to avoid blocking UI - IDE has its own rebuild mechanism
+        skip_rebuild_for_ide = callback_url is not None
+        self._ensure_sandbox_up_to_date(skip_for_ide=skip_rebuild_for_ide)
+
         execution_id = str(uuid.uuid4())[:8]
         start_time = time.time()
         broker_server = None

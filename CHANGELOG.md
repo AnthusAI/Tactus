@@ -2,6 +2,45 @@
 
 <!-- version list -->
 
+## v0.25.0 (2026-01-11)
+
+### Features
+
+- Add IDE preferences UI with config source tracking (#25)
+  ([#25](https://github.com/AnthusAI/Tactus/pull/25),
+  [`cedf64d`](https://github.com/AnthusAI/Tactus/commit/cedf64d87f1707305283d073710ee3c6b674c44a))
+
+
+## v0.24.0 (2026-01-11)
+
+### Code Style
+
+- Format app.py with black
+  ([`f3286ce`](https://github.com/AnthusAI/Tactus/commit/f3286ce6b6207fcc1eb15a30cd9e58763943a021))
+
+### Features
+
+- Add --version flag support to CLI
+  ([`b7bbc52`](https://github.com/AnthusAI/Tactus/commit/b7bbc520fbd332764b61016d8e9edf03062fcf1d))
+
+
+## v0.23.0 (2026-01-11)
+
+### Features
+
+- Add AI chat assistant to Tactus IDE with streaming and tool execution
+  ([`81f544a`](https://github.com/AnthusAI/Tactus/commit/81f544a16e86a8f26b328583b432ad2f1ad26504))
+
+
+## v0.22.0 (2026-01-10)
+
+### Features
+
+- **agent**: Add configurable `module` parameter for DSPy module selection (#21)
+  ([#21](https://github.com/AnthusAI/Tactus/pull/21),
+  [`0c93af0`](https://github.com/AnthusAI/Tactus/commit/0c93af0575d191be58ed0635ed236e359d8b35af))
+
+
 ## v0.21.1 (2026-01-10)
 
 ### Bug Fixes

@@ -6,7 +6,7 @@ This module provides an Agent implementation built on top of DSPy primitives
 as the original pydantic_ai-based Agent while using DSPy for LLM interactions.
 
 The Agent uses:
-- Module with chain_of_thought strategy for reasoning
+- Configurable DSPy module (default: Predict for simple pass-through, or ChainOfThought for reasoning)
 - History for conversation management
 - Tool handling similar to DSPy's ReAct pattern
 - Unified mocking via Mocks {} primitive
@@ -15,10 +15,11 @@ The Agent uses:
 import logging
 from typing import Any, Dict, List, Optional
 
-
 from tactus.dspy.history import TactusHistory, create_history
 from tactus.dspy.module import TactusModule, create_module
-from tactus.dspy.prediction import wrap_prediction, TactusPrediction
+from tactus.dspy.prediction import TactusPrediction, wrap_prediction
+from tactus.protocols.cost import CostStats, UsageStats
+from tactus.protocols.result import TactusResult
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +55,7 @@ class DSPyAgentHandle:
         temperature: float = 0.7,
         max_tokens: Optional[int] = None,
         model_type: Optional[str] = None,
+        module: str = "Predict",
         initial_message: Optional[str] = None,
         registry: Any = None,
         mock_manager: Any = None,
@@ -76,6 +78,10 @@ class DSPyAgentHandle:
             temperature: Model temperature (default: 0.7)
             max_tokens: Maximum tokens for response
             model_type: Model type for DSPy (e.g., "chat", "responses" for reasoning models)
+            module: DSPy module type to use (default: "Predict"). Options:
+                - "Predict": Simple pass-through prediction (no reasoning traces)
+                - "ChainOfThought": Adds step-by-step reasoning before response
+                - "Raw": Minimal formatting, direct LM calls (lowest token overhead)
             initial_message: Initial message to send on first turn if no inject
             registry: Optional Registry instance for accessing mocks
             mock_manager: Optional MockManager instance for checking mocks
@@ -96,6 +102,7 @@ class DSPyAgentHandle:
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.model_type = model_type
+        self.module = module
         self.initial_message = initial_message
         self.registry = registry
         self.mock_manager = mock_manager
@@ -109,8 +116,187 @@ class DSPyAgentHandle:
         # Track conversation state
         self._turn_count = 0
 
+        # Cumulative cost/usage stats (monotonic across turns)
+        self._cumulative_usage = UsageStats()
+        self._cumulative_cost = CostStats()
+
         # Build the internal DSPy module
         self._module = self._build_module()
+
+    @property
+    def usage(self) -> UsageStats:
+        """Return cumulative token usage incurred by this agent so far."""
+        return self._cumulative_usage
+
+    def cost(self) -> CostStats:
+        """Return cumulative cost incurred by this agent so far."""
+        return self._cumulative_cost
+
+    def _add_usage_and_cost(self, usage_stats: UsageStats, cost_stats: CostStats) -> None:
+        """Accumulate a per-call UsageStats/CostStats into agent totals."""
+        self._cumulative_usage.prompt_tokens += usage_stats.prompt_tokens
+        self._cumulative_usage.completion_tokens += usage_stats.completion_tokens
+        self._cumulative_usage.total_tokens += usage_stats.total_tokens
+
+        self._cumulative_cost.total_cost += cost_stats.total_cost
+        self._cumulative_cost.prompt_cost += cost_stats.prompt_cost
+        self._cumulative_cost.completion_cost += cost_stats.completion_cost
+
+        # Preserve "latest known" model/provider for introspection
+        if cost_stats.model:
+            self._cumulative_cost.model = cost_stats.model
+        if cost_stats.provider:
+            self._cumulative_cost.provider = cost_stats.provider
+
+    def _extract_last_call_stats(self) -> tuple[UsageStats, CostStats]:
+        """
+        Extract usage+cost from DSPy's LM history for the most recent call.
+
+        Returns zeroed stats if no LM history is available (e.g., mocked calls).
+        """
+        import dspy
+
+        # Default to zero (e.g., mocks or no LM configured)
+        usage_stats = UsageStats()
+        cost_stats = CostStats()
+
+        lm = dspy.settings.lm
+        if lm is None or not hasattr(lm, "history") or not lm.history:
+            return usage_stats, cost_stats
+
+        last_call = lm.history[-1]
+
+        # Usage
+        usage = last_call.get("usage", {}) or {}
+        prompt_tokens = int(usage.get("prompt_tokens", 0) or 0)
+        completion_tokens = int(usage.get("completion_tokens", 0) or 0)
+        total_tokens = int(usage.get("total_tokens", 0) or 0)
+        usage_stats = UsageStats(
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
+        )
+
+        # Model/provider
+        model = last_call.get("model", self.model or None)
+        provider = None
+        if model and "/" in str(model):
+            provider = str(model).split("/")[0]
+
+        # Cost: prefer the history value, fallback to hidden params / LiteLLM calc
+        total_cost = last_call.get("cost")
+        if total_cost is None:
+            response = last_call.get("response")
+            if response and hasattr(response, "_hidden_params"):
+                total_cost = response._hidden_params.get("response_cost")
+
+            if total_cost is None and response:
+                try:
+                    import litellm
+
+                    total_cost = litellm.completion_cost(completion_response=response)
+                except Exception as e:
+                    logger.warning(f"[COST] Agent '{self.name}': failed to calculate cost: {e}")
+                    total_cost = 0.0
+            elif total_cost is None:
+                total_cost = 0.0
+
+        total_cost = float(total_cost or 0.0)
+
+        # Approximate prompt/completion split by token ratio
+        if total_tokens > 0 and total_cost > 0:
+            prompt_cost = total_cost * (prompt_tokens / total_tokens)
+            completion_cost = total_cost * (completion_tokens / total_tokens)
+        else:
+            prompt_cost = 0.0
+            completion_cost = 0.0
+
+        cost_stats = CostStats(
+            total_cost=total_cost,
+            prompt_cost=prompt_cost,
+            completion_cost=completion_cost,
+            model=str(model) if model is not None else None,
+            provider=provider,
+        )
+
+        return usage_stats, cost_stats
+
+    def _prediction_to_value(self, prediction: TactusPrediction) -> Any:
+        """
+        Convert a Prediction into a stable `result.value`.
+
+        Default behavior:
+        - Prefer the `response` field when present (string)
+        - Otherwise fall back to `prediction.message`
+        - If an output schema is configured, attempt to parse JSON into a dict/list
+        - If multiple output fields exist, return a dict (excluding internal fields)
+        """
+        try:
+            data = prediction.data()
+        except Exception:
+            data = {}
+
+        filtered = {k: v for k, v in data.items() if k not in {"tool_calls"}}
+
+        if "response" in filtered and isinstance(filtered["response"], str) and len(filtered) <= 1:
+            text = filtered["response"]
+        else:
+            text = prediction.message
+
+        # If output schema is configured, prefer structured JSON when possible
+        if self.output_schema and isinstance(text, str) and text.strip():
+            import json
+
+            try:
+                parsed = json.loads(text)
+                return parsed
+            except Exception:
+                pass
+
+        # If multiple non-internal output fields exist, return structured dict
+        if len(filtered) > 1:
+            return filtered
+
+        if len(filtered) == 1:
+            return next(iter(filtered.values()))
+
+        return text
+
+    def _wrap_as_result(
+        self, prediction: TactusPrediction, usage_stats: UsageStats, cost_stats: CostStats
+    ) -> TactusResult:
+        """Wrap a Prediction into the standard TactusResult."""
+        return TactusResult(
+            value=self._prediction_to_value(prediction),
+            usage=usage_stats,
+            cost_stats=cost_stats,
+        )
+
+    def _module_to_strategy(self, module: str) -> str:
+        """
+        Map DSPy module name to internal strategy name.
+
+        Args:
+            module: DSPy module name (e.g., "Predict", "ChainOfThought")
+
+        Returns:
+            Internal strategy name for create_module()
+
+        Raises:
+            ValueError: If module name is not recognized
+        """
+        mapping = {
+            "Predict": "predict",
+            "ChainOfThought": "chain_of_thought",
+            "Raw": "raw",
+            # Future modules can be added here:
+            # "ReAct": "react",
+            # "ProgramOfThought": "program_of_thought",
+        }
+        strategy = mapping.get(module)
+        if strategy is None:
+            raise ValueError(f"Unknown module '{module}'. Supported: {list(mapping.keys())}")
+        return strategy
 
     def _build_module(self) -> TactusModule:
         """Build the internal DSPy module for this agent."""
@@ -129,7 +315,7 @@ class DSPyAgentHandle:
             f"{self.name}_module",
             {
                 "signature": signature,
-                "strategy": "chain_of_thought",
+                "strategy": self._module_to_strategy(self.module),
             },
         )
 
@@ -600,7 +786,9 @@ class DSPyAgentHandle:
 
         if get_current_lm() is None and self.model:
             # Convert model format from "provider:model" to "provider/model" for LiteLLM
-            model_for_litellm = self.model.replace(":", "/") if ":" in self.model else self.model
+            # Only replace the FIRST colon (provider separator), not all colons
+            # Bedrock model IDs like "us.anthropic.claude-haiku-4-5-20251001-v1:0" have a version suffix
+            model_for_litellm = self.model.replace(":", "/", 1) if ":" in self.model else self.model
             logger.info(f"Auto-configuring DSPy LM with model: {model_for_litellm}")
 
             # Build kwargs for configure_lm
@@ -808,6 +996,7 @@ def create_dspy_agent(
             - model: Model name (LiteLLM format)
             - tools: List of tools
             - toolsets: List of toolset names
+            - module: DSPy module type (default: "Predict"). Options: "Predict", "ChainOfThought"
             - Other optional configuration
         registry: Optional Registry instance for accessing mocks
         mock_manager: Optional MockManager instance for checking mocks
@@ -835,6 +1024,7 @@ def create_dspy_agent(
         temperature=config.get("temperature", 0.7),
         max_tokens=config.get("max_tokens"),
         model_type=config.get("model_type"),
+        module=config.get("module", "Predict"),
         initial_message=config.get("initial_message"),
         registry=registry,
         mock_manager=mock_manager,
@@ -855,6 +1045,7 @@ def create_dspy_agent(
                 "temperature",
                 "max_tokens",
                 "model_type",
+                "module",
                 "initial_message",
                 "log_handler",
                 "disable_streaming",

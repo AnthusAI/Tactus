@@ -1,5 +1,5 @@
 #!/bin/bash
-# Development mode: backend auto-restart + frontend rebuild-on-change (no Vite dev server)
+# Development mode: backend auto-restart + frontend Vite dev server with HMR
 
 set -e
 
@@ -12,7 +12,7 @@ NC='\033[0m' # No Color
 
 echo -e "${BLUE}Starting Tactus IDE in development mode...${NC}"
 echo -e "${YELLOW}Backend will auto-reload on Python changes${NC}"
-echo -e "${YELLOW}Frontend will rebuild on TS/React changes (refresh browser)${NC}"
+echo -e "${YELLOW}Frontend will use Vite HMR (instant hot reloading, no refresh needed)${NC}"
 echo ""
 
 # Find tactus-ide directory (where this script lives) and project root
@@ -125,27 +125,23 @@ else
     echo -e "${YELLOW}Check output above for errors${NC}"
 fi
 
-# Start frontend build watcher (writes into dist/)
-echo -e "${GREEN}Starting frontend rebuild watcher...${NC}"
+# Start Vite dev server with HMR
+echo -e "${GREEN}Starting Vite dev server with HMR on port ${FRONTEND_PORT}...${NC}"
 cd "$TACTUS_IDE_DIR/frontend"
 
 # Ensure backend URL is embedded into the frontend bundle
 export VITE_BACKEND_URL="http://127.0.0.1:${BACKEND_PORT}"
 echo -e "${BLUE}Setting VITE_BACKEND_URL=${VITE_BACKEND_URL}${NC}"
-npm run build -- --watch &
 
-FRONTEND_BUILD_PID=$!
+# Start Vite dev server (with port override)
+PORT=$FRONTEND_PORT npm run dev &
 
-# Serve dist/ (simple static server)
-echo -e "${GREEN}Serving frontend from dist on port ${FRONTEND_PORT}...${NC}"
-python -m http.server "$FRONTEND_PORT" --directory "$TACTUS_IDE_DIR/frontend/dist" >/dev/null 2>&1 &
-
-FRONTEND_SERVER_PID=$!
+FRONTEND_PID=$!
 
 # Wait for both processes
 echo ""
 echo -e "${GREEN}✓ Development servers running!${NC}"
-echo -e "  Frontend: ${BLUE}http://localhost:${FRONTEND_PORT}${NC} (rebuild-on-change; refresh browser)"
+echo -e "  Frontend: ${BLUE}http://localhost:${FRONTEND_PORT}${NC} (Vite dev server with instant HMR)"
 echo -e "  Backend:  ${BLUE}http://127.0.0.1:${BACKEND_PORT}${NC} (auto-restart enabled)"
 echo ""
 echo -e "${YELLOW}Press Ctrl+C to stop all servers${NC}"
