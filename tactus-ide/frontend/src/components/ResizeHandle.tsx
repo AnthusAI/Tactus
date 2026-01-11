@@ -50,13 +50,22 @@ export const ResizeHandle: React.FC<ResizeHandleProps> = ({ onResize, direction,
   return (
     <div
       className={cn(
-        'relative w-1 hover:w-1.5 transition-all cursor-col-resize group',
-        'hover:bg-blue-500/50',
+        'relative cursor-col-resize group',
         className
       )}
+      style={{ width: '1px' }}
       onMouseDown={handleMouseDown}
+      role="separator"
+      aria-label={`Resize ${direction} panel`}
     >
-      <div className="absolute inset-0 hover:bg-blue-500/30" />
+      {/* Background line - matches top nav bar border */}
+      <div className="absolute inset-0 bg-border" />
+
+      {/* Drag handle oval indicator */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-8 border border-border rounded-full bg-card/80 transition-all duration-150 group-hover:scale-110 group-hover:border-primary/50 z-10" />
+
+      {/* Hover effect overlay */}
+      <div className="absolute inset-0 group-hover:bg-blue-500/30 transition-colors" />
     </div>
   );
 };
