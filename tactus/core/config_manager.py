@@ -150,7 +150,7 @@ class ConfigManager:
             sidecar_config = self._load_yaml_file(sidecar_path)
             if sidecar_config:
                 configs.append(("sidecar", sidecar_config))
-                logger.info(f"Loaded sidecar config: {sidecar_path}")
+                logger.debug(f"Loaded sidecar config: {sidecar_path}")
 
         # Store for debugging
         self.loaded_configs = configs
@@ -158,7 +158,7 @@ class ConfigManager:
         # Merge all configs (later configs override earlier ones)
         merged = self._merge_configs([c[1] for c in configs])
 
-        logger.info(f"Merged configuration from {len(configs)} source(s)")
+        logger.debug(f"Merged configuration from {len(configs)} source(s)")
         return merged
 
     def _find_sidecar_config(self, tac_path: Path) -> Optional[Path]:

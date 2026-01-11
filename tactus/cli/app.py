@@ -134,15 +134,92 @@ def load_tactus_config():
         return {}
 
 
-def setup_logging(verbose: bool = False):
-    """Setup logging with rich handler."""
-    level = logging.DEBUG if verbose else logging.INFO
+_LOG_LEVELS = {
+    "debug": logging.DEBUG,
+    "info": logging.INFO,
+    "warning": logging.WARNING,
+    "warn": logging.WARNING,
+    "error": logging.ERROR,
+    "critical": logging.CRITICAL,
+}
 
-    logging.basicConfig(
-        level=level,
-        format="%(message)s",
-        handlers=[RichHandler(console=console, show_path=False, rich_tracebacks=True)],
-    )
+_LOG_FORMATS = {"rich", "terminal", "raw"}
+
+
+class _TerminalLogHandler(logging.Handler):
+    """Minimal, high-signal terminal logger (no timestamps/levels)."""
+
+    def __init__(self, console: Console):
+        super().__init__()
+        self._console = console
+        self.setFormatter(logging.Formatter("%(message)s"))
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            message = self.format(record)
+
+            # Make procedure-level logs the most prominent.
+            if record.name.startswith("procedure"):
+                style = "bold"
+            elif record.levelno >= logging.ERROR:
+                style = "bold red"
+            elif record.levelno >= logging.WARNING:
+                style = "yellow"
+            elif record.levelno <= logging.DEBUG:
+                style = "dim"
+            else:
+                style = ""
+
+            self._console.print(message, style=style, markup=False, highlight=False)
+        except Exception:
+            self.handleError(record)
+
+
+def setup_logging(
+    verbose: bool = False,
+    log_level: Optional[str] = None,
+    log_format: str = "rich",
+) -> None:
+    """Setup CLI logging (level + format)."""
+    if log_level is None:
+        level = logging.DEBUG if verbose else logging.INFO
+    else:
+        key = str(log_level).strip().lower()
+        if key not in _LOG_LEVELS:
+            raise typer.BadParameter(
+                f"Invalid --log-level '{log_level}'. "
+                f"Use one of: {', '.join(sorted(_LOG_LEVELS.keys()))}"
+            )
+        level = _LOG_LEVELS[key]
+
+    fmt = (log_format or "rich").strip().lower()
+    if fmt not in _LOG_FORMATS:
+        raise typer.BadParameter(
+            f"Invalid --log-format '{log_format}'. Use one of: {', '.join(sorted(_LOG_FORMATS))}"
+        )
+
+    # Default: rich logs (group repeated timestamps).
+    if fmt == "rich":
+        handler: logging.Handler = RichHandler(
+            console=console,
+            show_path=False,
+            rich_tracebacks=True,
+            omit_repeated_times=True,
+        )
+        handler.setFormatter(logging.Formatter("%(message)s"))
+        logging.basicConfig(level=level, format="%(message)s", handlers=[handler], force=True)
+        return
+
+    # Raw logs: one line per entry, CloudWatch-friendly.
+    if fmt == "raw":
+        handler = logging.StreamHandler(stream=sys.stderr)
+        handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+        logging.basicConfig(level=level, handlers=[handler], force=True)
+        return
+
+    # Terminal logs: no timestamps/levels, color by signal.
+    handler = _TerminalLogHandler(console)
+    logging.basicConfig(level=level, handlers=[handler], force=True)
 
 
 def _parse_value(value_str: str, field_type: str) -> Any:
@@ -352,6 +429,12 @@ def run(
         None, envvar="OPENAI_API_KEY", help="OpenAI API key"
     ),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose logging"),
+    log_level: Optional[str] = typer.Option(
+        None, "--log-level", help="Log level: debug, info, warning, error, critical"
+    ),
+    log_format: str = typer.Option(
+        "rich", "--log-format", help="Log format: rich (default), terminal, raw"
+    ),
     param: Optional[list[str]] = typer.Option(None, help="Parameters in format key=value"),
     interactive: bool = typer.Option(
         False, "--interactive", "-i", help="Interactively prompt for all inputs"
@@ -414,7 +497,7 @@ def run(
         # Use real implementation for specific tools while mocking others
         tactus run workflow.tac --mock-all --real done
     """
-    setup_logging(verbose)
+    setup_logging(verbose=verbose, log_level=log_level, log_format=log_format)
 
     # Check if file exists
     if not workflow_file.exists():
@@ -557,6 +640,12 @@ def run(
         # Remote-mode requires container networking; default to bridge if user didn't specify.
         sandbox_config_dict["network"] = "bridge"
     sandbox_config = SandboxConfig(**sandbox_config_dict)
+
+    # Pass logging preferences through to the sandbox container so container stderr matches CLI UX.
+    sandbox_config.env.setdefault(
+        "TACTUS_LOG_LEVEL", str(log_level or ("debug" if verbose else "info"))
+    )
+    sandbox_config.env.setdefault("TACTUS_LOG_FORMAT", str(log_format))
 
     # Check Docker availability
     docker_available, docker_reason = is_docker_available()

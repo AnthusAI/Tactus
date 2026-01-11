@@ -23,12 +23,34 @@ from typing import Any, Dict, Optional
 from tactus.sandbox.protocol import ExecutionResult
 
 # Configure logging to stderr (stdout is reserved for result)
+_LOG_LEVELS = {
+    "debug": logging.DEBUG,
+    "info": logging.INFO,
+    "warning": logging.WARNING,
+    "warn": logging.WARNING,
+    "error": logging.ERROR,
+    "critical": logging.CRITICAL,
+}
+
+_log_level_str = os.environ.get("TACTUS_LOG_LEVEL", "info").strip().lower()
+_log_level = _LOG_LEVELS.get(_log_level_str, logging.INFO)
+
+# CloudWatch-friendly, one line per record.
+_log_fmt = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    level=_log_level,
+    format=_log_fmt,
     stream=sys.stderr,
 )
 logger = logging.getLogger(__name__)
+
+# Keep container stderr focused on procedure logs by default.
+# Use `TACTUS_LOG_LEVEL=debug` to include internal runtime logs.
+if _log_level > logging.DEBUG:
+    logging.getLogger("tactus.core").setLevel(logging.WARNING)
+    logging.getLogger("tactus.primitives").setLevel(logging.WARNING)
+    logging.getLogger("tactus.stdlib").setLevel(logging.WARNING)
 
 
 def read_request_from_stdin() -> Optional[Dict[str, Any]]:
@@ -81,16 +103,31 @@ async def execute_procedure(
     from tactus.core import TactusRuntime
     from tactus.adapters.memory import MemoryStorage
     from tactus.adapters.broker_log import BrokerLogHandler
+    from tactus.adapters.http_callback_log import HTTPCallbackLogHandler
+    from tactus.adapters.cost_collector_log import CostCollectorLogHandler
 
     # Create a unique procedure ID
     import uuid
 
     procedure_id = str(uuid.uuid4())
 
-    # Check for broker socket in environment (for IDE/CLI event streaming without networking)
-    log_handler = BrokerLogHandler.from_environment()
+    # Prefer HTTP callbacks when configured (IDE streaming with container networking).
+    log_handler = HTTPCallbackLogHandler.from_environment()
     if log_handler:
-        logger.info(f"[SANDBOX] Using broker log handler: {os.environ.get('TACTUS_BROKER_SOCKET')}")
+        logger.info(
+            f"[SANDBOX] Using HTTP callback log handler: {os.environ.get('TACTUS_CALLBACK_URL')}"
+        )
+    else:
+        # Otherwise, try broker socket streaming (works without container networking, e.g. stdio/UDS).
+        log_handler = BrokerLogHandler.from_environment()
+        if log_handler:
+            logger.info(
+                f"[SANDBOX] Using broker log handler: {os.environ.get('TACTUS_BROKER_SOCKET')}"
+            )
+        else:
+            # Provide cost collection + checkpoint event handling even without IDE callbacks.
+            log_handler = CostCollectorLogHandler()
+            logger.info("[SANDBOX] No callback configured; using CostCollectorLogHandler")
 
     # Create runtime with log handler for event streaming
     runtime = TactusRuntime(

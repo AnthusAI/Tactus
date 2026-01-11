@@ -9,8 +9,10 @@ import asyncio
 import json
 import logging
 import os
+import re
 import shutil
 import ssl
+import sys
 import tempfile
 import time
 import uuid
@@ -28,6 +30,22 @@ from .protocol import (
 )
 
 logger = logging.getLogger(__name__)
+
+_CONTAINER_LOG_RE = re.compile(
+    r"^(?P<asctime>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3}) "
+    r"\[(?P<level>[A-Z]+)\] "
+    r"(?P<logger>[^:]+): "
+    r"(?P<message>.*)$"
+)
+
+_LEVEL_MAP = {
+    "DEBUG": logging.DEBUG,
+    "INFO": logging.INFO,
+    "WARNING": logging.WARNING,
+    "WARN": logging.WARNING,
+    "ERROR": logging.ERROR,
+    "CRITICAL": logging.CRITICAL,
+}
 
 
 class SandboxError(Exception):
@@ -159,6 +177,8 @@ class ContainerRunner:
         mcp_servers_path: Optional[Path] = None,
         extra_env: Optional[Dict[str, str]] = None,
         execution_id: Optional[str] = None,
+        callback_url: Optional[str] = None,
+        volume_base_dir: Optional[Path] = None,
     ) -> List[str]:
         """
         Build the docker run command.
@@ -204,7 +224,7 @@ class ContainerRunner:
 
         # Additional user-configured volumes
         for volume in self.config.volumes:
-            cmd.extend(["-v", volume])
+            cmd.extend(["-v", self._normalize_volume_spec(volume, base_dir=volume_base_dir)])
 
         # User-configured additional env vars
         for key, value in self.config.env.items():
@@ -212,6 +232,10 @@ class ContainerRunner:
                 logger.warning(f"[SANDBOX] Refusing to pass secret env var into container: {key}")
                 continue
             cmd.extend(["--env", f"{key}={value}"])
+
+        # Optional per-run callback URL for HTTP event streaming (IDE).
+        if callback_url:
+            cmd.extend(["--env", f"TACTUS_CALLBACK_URL={callback_url}"])
 
         # Extra env vars for this run
         if extra_env:
@@ -226,6 +250,42 @@ class ContainerRunner:
 
         return cmd
 
+    def _normalize_volume_spec(self, volume: str, base_dir: Optional[Path]) -> str:
+        """
+        Normalize a docker volume spec.
+
+        Docker only accepts absolute host paths for bind mounts. For convenience,
+        allow sidecar configs to use relative paths and normalize them here.
+
+        Expected formats:
+          - /abs/host:/container[:mode]
+          - ./rel/host:/container[:mode]
+          - ../rel/host:/container[:mode]
+          - volume_name:/container[:mode]  (left unchanged)
+        """
+        # Basic split: host:container[:mode]
+        parts = volume.split(":")
+        if len(parts) < 2:
+            return volume
+
+        host = parts[0]
+        container = parts[1]
+        mode = parts[2] if len(parts) > 2 else None
+
+        host_is_path = host.startswith(("/", "./", "../", "~"))
+        if not host_is_path:
+            # Named volume (or other special form) - leave unchanged
+            return volume
+
+        host_path = Path(host).expanduser()
+        if not host_path.is_absolute():
+            host_path = (base_dir or Path.cwd()) / host_path
+        host_path = host_path.resolve()
+
+        if mode:
+            return f"{host_path}:{container}:{mode}"
+        return f"{host_path}:{container}"
+
     async def run(
         self,
         source: str,
@@ -234,6 +294,7 @@ class ContainerRunner:
         working_dir: Optional[Path] = None,
         format: str = "lua",
         event_handler: Optional[Callable[[Dict[str, Any]], None]] = None,
+        callback_url: Optional[str] = None,
     ) -> ExecutionResult:
         """
         Execute a procedure in a sandboxed container.
@@ -251,7 +312,7 @@ class ContainerRunner:
         """
         # Ensure sandbox is up to date (auto-rebuild if code changed)
         # Skip for IDE to avoid blocking UI - IDE has its own rebuild mechanism
-        skip_rebuild_for_ide = event_handler is not None
+        skip_rebuild_for_ide = (event_handler is not None) or (callback_url is not None)
         self._ensure_sandbox_up_to_date(skip_for_ide=skip_rebuild_for_ide)
 
         execution_id = str(uuid.uuid4())[:8]
@@ -277,6 +338,15 @@ class ContainerRunner:
         try:
             # Get MCP servers path
             mcp_path = self.config.get_mcp_servers_path()
+
+            # Resolve relative bind-mount paths in sandbox.volumes relative to the procedure file
+            # when available (makes sidecar configs portable).
+            volume_base_dir = None
+            if source_file_path:
+                try:
+                    volume_base_dir = Path(source_file_path).resolve().parent
+                except Exception:
+                    volume_base_dir = None
 
             # Configure broker transport for this run.
             broker_transport = (self.config.broker_transport or "stdio").lower()
@@ -327,12 +397,13 @@ class ContainerRunner:
                 raise SandboxError(
                     f"Unsupported sandbox.broker_transport: {self.config.broker_transport!r}"
                 )
-
             docker_cmd = self._build_docker_command(
                 working_dir=working_dir,
                 mcp_servers_path=mcp_path if mcp_path.exists() else None,
                 extra_env=broker_env,
                 execution_id=execution_id,
+                callback_url=callback_url,
+                volume_base_dir=volume_base_dir,
             )
 
             logger.debug(f"Docker command: {' '.join(docker_cmd)}")
@@ -869,6 +940,61 @@ class ContainerRunner:
                 except Exception:
                     pass
             raise
+
+    def _handle_container_stderr(self, stderr: str) -> None:
+        """
+        Forward container stderr into the host log UX.
+
+        - raw: pass through container stderr as-is (CloudWatch-friendly)
+        - rich/terminal: parse container log lines and re-emit with host formatting
+        """
+        if not stderr:
+            return
+
+        fmt = str(self.config.env.get("TACTUS_LOG_FORMAT", "rich")).strip().lower()
+
+        # Raw mode: avoid double timestamps by forwarding container stderr directly.
+        if fmt == "raw":
+            sys.stderr.write(stderr)
+            sys.stderr.flush()
+            return
+
+        # Rich/terminal: parse our container log format and re-emit.
+        current: tuple[str, int, list[str]] | None = None  # (logger_name, levelno, lines)
+
+        def flush_current() -> None:
+            nonlocal current
+            if current is None:
+                return
+            logger_name, levelno, lines = current
+            message = "\n".join(lines).rstrip("\n")
+            logging.getLogger(logger_name).log(levelno, message)
+            current = None
+
+        for line in stderr.splitlines():
+            m = _CONTAINER_LOG_RE.match(line)
+            if m:
+                flush_current()
+                levelno = _LEVEL_MAP.get(m.group("level"), logging.INFO)
+                current = (m.group("logger"), levelno, [m.group("message")])
+                continue
+
+            # Continuation heuristic: keep multi-line LogEvent context attached.
+            if current is not None and (
+                line == ""
+                or line.startswith((" ", "\t"))
+                or line.startswith("Context:")
+                or line.startswith("{")
+                or line.startswith("[")
+            ):
+                current[2].append(line)
+                continue
+
+            # Otherwise treat as standalone stderr (warnings/tracebacks/etc).
+            flush_current()
+            logging.getLogger("container.stderr").warning(line)
+
+        flush_current()
 
     def run_sync(
         self,

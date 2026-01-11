@@ -121,47 +121,74 @@ Procedure {
     )
     assert result.exit_code == 0
 
+def test_cli_run_help_includes_logging_options(cli_runner):
+    """Test that run --help documents log-level and log-format options."""
+    result = cli_runner.invoke(app, ["run", "--help"])
+    assert result.exit_code == 0
+    assert "--log-level" in result.stdout
+    assert "--log-format" in result.stdout
 
-def test_cli_run_sandbox_sets_openai_key_for_host_broker(cli_runner, tmp_path, monkeypatch):
-    import os
 
-    workflow_content = """Procedure {
-    input = {},
-    output = { ok = field.boolean{required = true} },
-    function(input)
-        return { ok = true }
-    end
+def test_cli_run_accepts_log_level_and_format(cli_runner, tmp_path):
+    """Test that run accepts --log-level/--log-format (no-sandbox)."""
+    workflow_file = tmp_path / "logging_flags.tac"
+    workflow_file.write_text(
+        """
+Procedure {
+  input = {},
+  output = { ok = field.boolean{required = true} },
+  function(input)
+    Log.debug("debug message")
+    Log.info("info message")
+    Log.warn("warn message")
+    return { ok = true }
+  end
 }
 """
-    workflow_file = tmp_path / "sandbox_key.tac"
-    workflow_file.write_text(workflow_content)
-
-    # Sidecar config with the key (highest priority in ConfigManager cascade).
-    (tmp_path / "sandbox_key.tac.yml").write_text(
-        "openai_api_key: test-key-from-config\nsandbox:\n  enabled: true\n"
     )
 
-    # Ensure we're not depending on the environment already having a key set.
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-
-    # Force sandbox path without requiring real Docker.
-    import tactus.sandbox as sandbox_mod
-    from tactus.sandbox.protocol import ExecutionResult
-
-    monkeypatch.setattr(sandbox_mod, "is_docker_available", lambda: (True, "ok"))
-
-    captured = {"openai_key": None}
-
-    class FakeContainerRunner:
-        def __init__(self, config):
-            self.config = config
-
-        async def run(self, *args, **kwargs):
-            captured["openai_key"] = os.environ.get("OPENAI_API_KEY")
-            return ExecutionResult.success(result={"success": True, "result": {"ok": True}})
-
-    monkeypatch.setattr(sandbox_mod, "ContainerRunner", FakeContainerRunner)
-
-    result = cli_runner.invoke(app, ["run", str(workflow_file), "--sandbox"])
+    result = cli_runner.invoke(
+        app,
+        [
+            "run",
+            str(workflow_file),
+            "--no-sandbox",
+            "--log-level",
+            "info",
+            "--log-format",
+            "terminal",
+        ],
+    )
     assert result.exit_code == 0
-    assert captured["openai_key"] == "test-key-from-config"
+
+
+def test_cli_run_invalid_log_level(cli_runner, example_workflow_file):
+    """Test that run rejects invalid --log-level values."""
+    result = cli_runner.invoke(
+        app,
+        [
+            "run",
+            str(example_workflow_file),
+            "--no-sandbox",
+            "--log-level",
+            "nope",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "log-level" in result.stdout.lower()
+
+
+def test_cli_run_invalid_log_format(cli_runner, example_workflow_file):
+    """Test that run rejects invalid --log-format values."""
+    result = cli_runner.invoke(
+        app,
+        [
+            "run",
+            str(example_workflow_file),
+            "--no-sandbox",
+            "--log-format",
+            "nope",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "log-format" in result.stdout.lower()

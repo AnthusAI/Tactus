@@ -190,11 +190,19 @@ class DSPyAgentHandle:
             if response and hasattr(response, "_hidden_params"):
                 total_cost = response._hidden_params.get("response_cost")
 
-            if total_cost is None and response:
+            if total_cost is None and total_tokens > 0:
                 try:
-                    import litellm
+                    # We already have token counts, so compute cost from tokens to avoid relying
+                    # on provider-specific response object shapes.
+                    from litellm.cost_calculator import cost_per_token
 
-                    total_cost = litellm.completion_cost(completion_response=response)
+                    prompt_cost, completion_cost = cost_per_token(
+                        model=str(model) if model is not None else "",
+                        prompt_tokens=prompt_tokens,
+                        completion_tokens=completion_tokens,
+                        call_type="completion",
+                    )
+                    total_cost = float(prompt_cost) + float(completion_cost)
                 except Exception as e:
                     logger.warning(f"[COST] Agent '{self.name}': failed to calculate cost: {e}")
                     total_cost = 0.0
@@ -325,6 +333,7 @@ class DSPyAgentHandle:
 
         Streaming is enabled when:
         - log_handler is available (for emitting events)
+        - log_handler supports streaming events
         - disable_streaming is False
         - No structured output schema (streaming only works with plain text)
 
@@ -334,6 +343,14 @@ class DSPyAgentHandle:
         # Must have log_handler to emit streaming events
         if self.log_handler is None:
             logger.debug(f"[STREAMING] Agent '{self.name}': no log_handler, streaming disabled")
+            return False
+
+        # Allow log handlers to opt out of streaming (e.g., cost-only collectors)
+        supports_streaming = getattr(self.log_handler, "supports_streaming", True)
+        if not supports_streaming:
+            logger.debug(
+                f"[STREAMING] Agent '{self.name}': log_handler supports_streaming=False, streaming disabled"
+            )
             return False
 
         # Respect explicit disable flag
@@ -739,9 +756,7 @@ class DSPyAgentHandle:
             result = worker({message = "Process this task"})
             print(result.response)
         """
-        logger.info(
-            f"[CHECKPOINT] DSPyAgentHandle.__call__ invoked directly for agent '{self.name}' - THIS BYPASSES AgentHandle checkpoint logic!"
-        )
+        logger.debug(f"Agent '{self.name}' invoked via __call__()")
         inputs = inputs or {}
 
         # Convert Lua table to dict if needed

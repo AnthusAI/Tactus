@@ -1437,6 +1437,21 @@ tactus run workflow.tac  # If procedure has required inputs, you'll be prompted
 tactus run workflow.tac --storage file --storage-path ./data
 ```
 
+#### Logging Options
+
+The `run` command supports filtering and formatting logs:
+
+```bash
+# Show less/more output
+tactus run workflow.tac --log-level warning
+tactus run workflow.tac --log-level debug
+
+# Choose a log format
+tactus run workflow.tac --log-format rich      # default, grouped timestamps
+tactus run workflow.tac --log-format terminal  # no timestamps, higher-signal terminal output
+tactus run workflow.tac --log-format raw       # one-line-per-record, timestamped (CloudWatch-friendly)
+```
+
 The CLI automatically parses parameter types:
 - **Strings**: Direct values or quoted strings
 - **Numbers**: Integers or floats are auto-detected
