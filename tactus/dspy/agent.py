@@ -465,7 +465,7 @@ class DSPyAgentHandle:
         self,
         opts: Dict[str, Any],
         prompt_context: Dict[str, Any],
-    ) -> Any:
+    ) -> TactusResult:
         """
         Execute an agent turn with streaming enabled.
 
@@ -478,7 +478,7 @@ class DSPyAgentHandle:
             prompt_context: Prepared prompt context for the module
 
         Returns:
-            TactusPrediction with the response
+            TactusResult with value, usage, and cost_stats
         """
         import asyncio
         import threading
@@ -659,16 +659,20 @@ class DSPyAgentHandle:
         )
         logger.info(f"[STREAMING] Agent '{self.name}' emitted AgentTurnEvent(completed)")
 
+        # Extract usage and cost stats
+        usage_stats, cost_stats = self._extract_last_call_stats()
+
         # Emit cost event with usage and cost information
         self._emit_cost_event()
 
-        return wrapped_result
+        # Wrap as TactusResult with value, usage, and cost
+        return self._wrap_as_result(wrapped_result, usage_stats, cost_stats)
 
     def _turn_without_streaming(
         self,
         opts: Dict[str, Any],
         prompt_context: Dict[str, Any],
-    ) -> Any:
+    ) -> TactusResult:
         """
         Execute an agent turn without streaming.
 
@@ -679,7 +683,7 @@ class DSPyAgentHandle:
             prompt_context: Prepared prompt context for the module
 
         Returns:
-            TactusPrediction with the response
+            TactusResult with value, usage, and cost_stats
         """
         # Execute the module
         dspy_result = self._module.module(**prompt_context)
@@ -728,10 +732,14 @@ class DSPyAgentHandle:
                     agent_name=self.name,
                 )
 
+        # Extract usage and cost stats
+        usage_stats, cost_stats = self._extract_last_call_stats()
+
         # Emit cost event with usage and cost information
         self._emit_cost_event()
 
-        return wrapped_result
+        # Wrap as TactusResult with value, usage, and cost
+        return self._wrap_as_result(wrapped_result, usage_stats, cost_stats)
 
     def __call__(self, inputs: Optional[Dict[str, Any]] = None) -> Any:
         """
@@ -906,9 +914,9 @@ class DSPyAgentHandle:
 
     def _wrap_mock_response(
         self, mock_data: Dict[str, Any], opts: Dict[str, Any]
-    ) -> TactusPrediction:
+    ) -> TactusResult:
         """
-        Wrap mock data as a TactusPrediction.
+        Wrap mock data as a TactusResult.
 
         Also handles special mock behaviors like recording done tool calls.
 
@@ -920,7 +928,7 @@ class DSPyAgentHandle:
             opts: The turn options
 
         Returns:
-            TactusPrediction wrapping the mock data
+            TactusResult with value, usage, and cost_stats (zeroed for mocks)
         """
         from tactus.dspy.prediction import create_prediction
 
@@ -976,7 +984,8 @@ class DSPyAgentHandle:
                     agent_name=self.name,
                 )
 
-        return result
+        # Return as TactusResult with zeroed usage/cost (mocks don't incur costs)
+        return self._wrap_as_result(result, UsageStats(), CostStats())
 
     def clear_history(self) -> None:
         """Clear the conversation history."""
