@@ -55,7 +55,7 @@ class DSPyAgentHandle:
         temperature: float = 0.7,
         max_tokens: Optional[int] = None,
         model_type: Optional[str] = None,
-        module: str = "Predict",
+        module: str = "Raw",
         initial_message: Optional[str] = None,
         registry: Any = None,
         mock_manager: Any = None,
@@ -78,10 +78,10 @@ class DSPyAgentHandle:
             temperature: Model temperature (default: 0.7)
             max_tokens: Maximum tokens for response
             model_type: Model type for DSPy (e.g., "chat", "responses" for reasoning models)
-            module: DSPy module type to use (default: "Predict"). Options:
+            module: DSPy module type to use (default: "Raw", case-insensitive). Options:
+                - "Raw": Minimal formatting, direct LM calls (lowest token overhead)
                 - "Predict": Simple pass-through prediction (no reasoning traces)
                 - "ChainOfThought": Adds step-by-step reasoning before response
-                - "Raw": Minimal formatting, direct LM calls (lowest token overhead)
             initial_message: Initial message to send on first turn if no inject
             registry: Optional Registry instance for accessing mocks
             mock_manager: Optional MockManager instance for checking mocks
@@ -294,14 +294,14 @@ class DSPyAgentHandle:
             ValueError: If module name is not recognized
         """
         mapping = {
-            "Predict": "predict",
-            "ChainOfThought": "chain_of_thought",
-            "Raw": "raw",
+            "predict": "predict",
+            "chainofthought": "chain_of_thought",
+            "raw": "raw",
             # Future modules can be added here:
-            # "ReAct": "react",
-            # "ProgramOfThought": "program_of_thought",
+            # "react": "react",
+            # "programofthought": "program_of_thought",
         }
-        strategy = mapping.get(module)
+        strategy = mapping.get(module.lower())
         if strategy is None:
             raise ValueError(f"Unknown module '{module}'. Supported: {list(mapping.keys())}")
         return strategy
@@ -1039,7 +1039,7 @@ def create_dspy_agent(
         temperature=config.get("temperature", 0.7),
         max_tokens=config.get("max_tokens"),
         model_type=config.get("model_type"),
-        module=config.get("module", "Predict"),
+        module=config.get("module", "Raw"),
         initial_message=config.get("initial_message"),
         registry=registry,
         mock_manager=mock_manager,
