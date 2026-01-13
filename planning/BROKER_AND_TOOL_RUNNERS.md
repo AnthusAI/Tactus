@@ -30,7 +30,7 @@ To get to a working milestone quickly, we are explicitly deferring:
 What works today:
 
 - **Local Docker MVP (Phase 1A)**: runtime container uses **brokered LLM calls + event streaming over stdio** with `--network none`.
-- **Host tools (Phase 1B, WIP)**: runtime container can call a tiny allowlisted set of **brokered host tools** via `Host.call(...)` / `tool.call` (stdio or TCP broker transport).
+- **Host tools (Phase 1B, WIP)**: runtime container can call a tiny allowlisted set of **brokered host tools** via `Host.call(...)` / `tool.call` (stdio or TCP broker transport), and can wrap allowlisted broker tools as normal Lua tools via `Tool { use = "broker.<tool>" }`.
 - **Remote-mode spike (Phase 2)**: runtime container can connect to broker via **TCP** (and optional TLS) for cloud/K8s-style deployments where Docker stdio attach doesn’t apply.
 
 What is still deferred (intentional):
@@ -47,6 +47,7 @@ Manual validation commands:
 - Networkless runtime, stdio broker transport: `tactus run examples/53-tsv-file-io.tac --sandbox --verbose`
 - Brokered LLM + streaming, still networkless runtime: `tactus run examples/06-basics-streaming.tac --sandbox --verbose`
 - Brokered host tools, still networkless runtime: `tactus run examples/66-host-tools-via-broker.tac --sandbox --verbose`
+- Brokered host tool source (wrap as `Tool { use = "broker.host.ping" }`): `tactus run examples/67-host-tool-source.tac --sandbox --verbose`
 - Remote-mode spike over TCP (runtime network enabled): `tactus run examples/53-tsv-file-io.tac --sandbox --sandbox-broker tcp --verbose`
 - Remote-mode spike LLM + streaming over TCP (runtime network enabled): `tactus run examples/06-basics-streaming.tac --sandbox --sandbox-broker tcp --verbose`
 
@@ -544,7 +545,7 @@ Implementation note (current WIP):
 Recommended next step (implementation order):
 
 1. Add `tool.call` RPC and a minimal allowlisted registry (e.g., `host.ping`, `host.read_text` with strict path allowlist).
-2. Add a Lua DSL/tool “source” for broker tools (e.g., `source = "broker.host.ping"` or a dedicated `BrokerTool{...}` constructor).
+2. Done: add a Lua DSL/tool “source” for broker tools via `Tool { use = "broker.<tool>" }` (with assignment-based syntax only; curried `Tool "name" { ... }` is intentionally not supported).
 3. Add tests that prove:
    - runtime cannot access host env/secrets
    - broker tool calls are allowlisted (deny-by-default)
