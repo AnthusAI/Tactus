@@ -119,7 +119,14 @@ class AgentMockConfig(BaseModel):
     tool_calls: list[dict[str, Any]] = Field(default_factory=list)
     # List of tool calls to simulate: [{"tool": "done", "args": {"reason": "..."}}, ...]
     message: str = ""  # The agent's final message response
-    data: Optional[dict[str, Any]] = None  # Structured output data (for result.value)
+    data: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Optional structured response payload (exposed as result.data in Lua)",
+    )
+    usage: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Optional token usage payload (exposed as result.usage in Lua)",
+    )
 
 
 class ProcedureRegistry(BaseModel):

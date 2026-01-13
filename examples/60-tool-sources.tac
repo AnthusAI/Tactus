@@ -9,7 +9,8 @@ local log = require("tactus.tools.log")
 -- http = require("tactus.http")
 
 -- 2. CLI Tool Wrapper (wraps git command)
--- Note: CLI tool wrappers are not yet implemented
+-- Tool sources (e.g., `use = "cli.git"`) are supported, but they require the
+-- underlying command to exist in the runtime environment.
 -- git_status = Tool { use = "cli.git", description = "Get git repository status" }
 
 -- 3. Plugin Tool (would need to be implemented)

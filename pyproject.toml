@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "tactus"
-version = "0.21.0"
+version = "0.27.0"
 description = "Tactus: Lua-based DSL for agentic workflows"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -79,6 +79,14 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 asyncio_mode = "auto"
 addopts = "-v --tb=short"
+markers = [
+    "integration: Integration tests (may be slower than unit tests)",
+    "execution: End-to-end execution tests",
+    "bdd: Behavior-driven (Gherkin) tests",
+    "examples: Example procedure tests",
+    "docker: Requires a running Docker daemon (opt-in; see TACTUS_RUN_DOCKER_TESTS)",
+    "xdist_group: pytest-xdist grouping marker",
+]
 
 [tool.black]
 line-length = 100

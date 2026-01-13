@@ -4,6 +4,4 @@ World = Agent {
     system_prompt = "Your name is World."
 }
 
-return {
-    World("Hello, World!")
-}
+return World({message = "Hello, World!"})

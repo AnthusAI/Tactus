@@ -48,6 +48,7 @@ from tactus.primitives.retry import RetryPrimitive
 from tactus.primitives.file import FilePrimitive
 from tactus.primitives.procedure import ProcedurePrimitive
 from tactus.primitives.system import SystemPrimitive
+from tactus.primitives.host import HostPrimitive
 
 logger = logging.getLogger(__name__)
 
@@ -145,6 +146,7 @@ class TactusRuntime:
         self.file_primitive: Optional[FilePrimitive] = None
         self.procedure_primitive: Optional[ProcedurePrimitive] = None
         self.system_primitive: Optional[SystemPrimitive] = None
+        self.host_primitive: Optional[HostPrimitive] = None
 
         # Agent primitives (one per agent)
         self.agents: Dict[str, Any] = {}
@@ -409,12 +411,14 @@ class TactusRuntime:
             self.system_primitive = SystemPrimitive(
                 procedure_id=self.procedure_id, log_handler=self.log_handler
             )
+            self.host_primitive = HostPrimitive()
 
             # Initialize Procedure primitive (requires execution_context)
             max_depth = self.config.get("max_depth", 5) if self.config else 5
             self.procedure_primitive = ProcedurePrimitive(
                 execution_context=self.execution_context,
                 runtime_factory=self._create_runtime_for_procedure,
+                lua_sandbox=self.lua_sandbox,
                 max_depth=max_depth,
                 current_depth=self.recursion_depth,
             )
@@ -1195,6 +1199,54 @@ class TactusRuntime:
                 logger.error(f"Failed to create CLI tool wrapper '{source}': {e}", exc_info=True)
                 return None
 
+        # Handle broker host tools (broker.*)
+        elif source.startswith("broker."):
+            broker_tool = source[7:]  # Remove "broker." prefix
+            if not broker_tool:
+                logger.error(
+                    f"Invalid broker tool source for '{tool_name}': {source} (expected broker.<tool>)"
+                )
+                return None
+
+            try:
+                from pydantic_ai import Tool
+                from pydantic_ai.toolsets import FunctionToolset
+
+                tool_primitive = self.tool_primitive
+                host_primitive = self.host_primitive
+                mock_manager = self.mock_manager
+
+                def broker_tool_wrapper(**kwargs: Any):
+                    if mock_manager:
+                        mock_result = mock_manager.get_mock_response(tool_name, kwargs)
+                        if mock_result is not None:
+                            if tool_primitive:
+                                tool_primitive.record_call(tool_name, kwargs, mock_result)
+                            mock_manager.record_call(tool_name, kwargs, mock_result)
+                            return mock_result
+
+                    result = host_primitive.call(broker_tool, kwargs)
+
+                    if tool_primitive:
+                        tool_primitive.record_call(tool_name, kwargs, result)
+                    if mock_manager:
+                        mock_manager.record_call(tool_name, kwargs, result)
+
+                    return result
+
+                broker_tool_wrapper.__name__ = tool_name
+                broker_tool_wrapper.__doc__ = f"Brokered host tool: {broker_tool}"
+
+                wrapped_tool = Tool(broker_tool_wrapper, name=tool_name)
+                return FunctionToolset(tools=[wrapped_tool])
+
+            except Exception as e:
+                logger.error(
+                    f"Failed to create broker tool '{tool_name}' from source '{source}': {e}",
+                    exc_info=True,
+                )
+                return None
+
         else:
             logger.error(f"Unknown tool source format: {source}")
             return None
@@ -1607,6 +1659,7 @@ class TactusRuntime:
                     self.tool_primitive,
                     registry=self.registry,
                     mock_manager=self.mock_manager,
+                    lua_runtime=self.lua_sandbox.lua if self.lua_sandbox else None,
                 )
                 self.agents[agent_name] = mock_agent
                 logger.debug(f"Created mock agent: {agent_name}")
@@ -1889,6 +1942,7 @@ class TactusRuntime:
                     model_name=model_name,
                     config=model_config,
                     context=self.execution_context,
+                    mock_manager=self.mock_manager,
                 )
 
                 self.models[model_name] = model_primitive
@@ -2242,6 +2296,10 @@ class TactusRuntime:
         if self.system_primitive:
             logger.info(f"Injecting System primitive: {self.system_primitive}")
             self.lua_sandbox.inject_primitive("System", self.system_primitive)
+
+        if self.host_primitive:
+            logger.info(f"Injecting Host primitive: {self.host_primitive}")
+            self.lua_sandbox.inject_primitive("Host", self.host_primitive)
 
         # Inject Sleep function
         def sleep_wrapper(seconds):
@@ -2606,7 +2664,11 @@ class TactusRuntime:
                 if agent.output:
                     config["agents"][name]["output_schema"] = {
                         field_name: {
-                            "type": field.field_type,  # Already a string, no .value needed
+                            "type": (
+                                field.field_type.value
+                                if hasattr(field.field_type, "value")
+                                else field.field_type
+                            ),
                             "required": field.required,
                         }
                         for field_name, field in agent.output.fields.items()

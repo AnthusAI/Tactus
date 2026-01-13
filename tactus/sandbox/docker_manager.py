@@ -4,6 +4,7 @@ Docker management utilities for sandbox execution.
 Handles Docker availability detection, image building, and version management.
 """
 
+import hashlib
 import logging
 import shutil
 import subprocess
@@ -15,6 +16,61 @@ logger = logging.getLogger(__name__)
 # Default image name for local sandbox
 DEFAULT_IMAGE_NAME = "tactus-sandbox"
 DEFAULT_IMAGE_TAG = "local"
+
+
+def calculate_source_hash(tactus_root: Path) -> str:
+    """
+    Calculate hash of Tactus source files for change detection.
+
+    This enables fast, automatic rebuilds when code changes without
+    requiring manual version bumps or rebuild commands.
+
+    Args:
+        tactus_root: Root directory of the Tactus package
+
+    Returns:
+        Short hash (16 chars) representing the current state of source code
+    """
+    # Key paths that affect sandbox behavior
+    paths_to_hash = [
+        tactus_root / "tactus" / "dspy",
+        tactus_root / "tactus" / "adapters",
+        tactus_root / "tactus" / "core",
+        tactus_root / "tactus" / "primitives",
+        tactus_root / "tactus" / "sandbox",
+        tactus_root / "tactus" / "stdlib",
+        tactus_root / "tactus" / "docker",
+        tactus_root / "pyproject.toml",  # Dependencies affect sandbox
+    ]
+
+    hasher = hashlib.sha256()
+
+    for path in sorted(paths_to_hash):
+        if not path.exists():
+            continue
+
+        if path.is_file():
+            # Hash file contents
+            hasher.update(path.read_bytes())
+        elif path.is_dir():
+            # Hash directory files (recursively), skipping caches.
+            for file in sorted(path.rglob("*")):
+                if not file.is_file():
+                    continue
+                if "__pycache__" in file.parts:
+                    continue
+                if file.suffix == ".pyc":
+                    continue
+                if file.name == ".DS_Store":
+                    continue
+
+                # Hash relative path + contents for reproducibility
+                rel_path = str(file.relative_to(tactus_root))
+                hasher.update(rel_path.encode())
+                hasher.update(file.read_bytes())
+
+    # Return short hash (16 chars is plenty for collision avoidance)
+    return hasher.hexdigest()[:16]
 
 
 def is_docker_available() -> Tuple[bool, str]:
@@ -123,12 +179,45 @@ class DockerManager:
         except Exception:
             return None
 
-    def needs_rebuild(self, current_version: str) -> bool:
+    def get_image_source_hash(self) -> Optional[str]:
+        """
+        Get the source hash label from the existing image.
+
+        Returns:
+            Source hash string if found, None otherwise.
+        """
+        try:
+            result = subprocess.run(
+                [
+                    "docker",
+                    "image",
+                    "inspect",
+                    "--format",
+                    '{{index .Config.Labels "tactus.source_hash"}}',
+                    self.full_image_name,
+                ],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                return result.stdout.strip()
+            return None
+        except Exception:
+            return None
+
+    def needs_rebuild(self, current_version: str, current_hash: Optional[str] = None) -> bool:
         """
         Check if the image needs to be rebuilt.
 
+        Checks both version and source hash (if provided) to determine
+        if a rebuild is necessary. This enables automatic rebuilds when
+        code changes without requiring manual version bumps.
+
         Args:
             current_version: Current Tactus version.
+            current_hash: Optional source hash of current code. If provided,
+                         will trigger rebuild when hash doesn't match.
 
         Returns:
             True if image should be rebuilt.
@@ -136,17 +225,34 @@ class DockerManager:
         if not self.image_exists():
             return True
 
+        # Check version mismatch
         image_version = self.get_image_version()
         if image_version is None:
             return True
 
-        return image_version != current_version
+        if image_version != current_version:
+            return True
+
+        # Check source hash mismatch (if hash checking is enabled)
+        if current_hash is not None:
+            image_hash = self.get_image_source_hash()
+            if image_hash is None:
+                # Old image without hash label - rebuild to add it
+                logger.debug("Image missing source hash label, rebuild needed")
+                return True
+
+            if image_hash != current_hash:
+                logger.debug(f"Source hash mismatch: {image_hash} != {current_hash}")
+                return True
+
+        return False
 
     def build_image(
         self,
         dockerfile_path: Path,
         context_path: Path,
         version: str,
+        source_hash: Optional[str] = None,
         verbose: bool = False,
     ) -> Tuple[bool, str]:
         """
@@ -156,6 +262,7 @@ class DockerManager:
             dockerfile_path: Path to the Dockerfile
             context_path: Build context path (usually the Tactus package root)
             version: Tactus version to label the image with
+            source_hash: Optional source hash to label the image with for change detection
             verbose: If True, stream build output
 
         Returns:
@@ -178,8 +285,13 @@ class DockerManager:
             str(dockerfile_path),
             "--label",
             f"tactus.version={version}",
-            str(context_path),
         ]
+
+        # Add source hash label if provided
+        if source_hash:
+            cmd.extend(["--label", f"tactus.source_hash={source_hash}"])
+
+        cmd.append(str(context_path))
 
         try:
             if verbose:

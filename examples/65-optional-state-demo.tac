@@ -60,15 +60,13 @@ Procedure {
         local result
         local message
 
-        -- Simplified: inline the demo logic instead of calling named procedures
-        -- Note: Procedure("name")({...}) syntax not yet supported in mock mode
         if input.demo_type == "stateful" then
-            -- Simulate what stateful_demo would do
-            result = "Stateful demo count: 1"
+            local res = Procedure("stateful_demo")({})
+            result = "Stateful demo count: " .. tostring(res.count)
             message = "State was used and incremented"
         else
-            -- Simulate what simple_demo would do
-            result = "Processed: Testing optional state"
+            local res = Procedure("simple_demo")({message = "Testing optional state"})
+            result = res.result
             message = "No state declaration was needed!"
         end
 

@@ -236,7 +236,8 @@ class TestCLIInputs:
     def test_run_with_string_param(self, cli_runner, procedure_with_string_input):
         """Test running with a string parameter via --param."""
         result = cli_runner.invoke(
-            app, ["run", str(procedure_with_string_input), "--param", "name=Alice", "--no-sandbox"]
+            app,
+            ["run", str(procedure_with_string_input), "--no-sandbox", "--param", "name=Alice"],
         )
         assert result.exit_code == 0
         assert "Hello, Alice!" in result.stdout
@@ -251,7 +252,7 @@ class TestCLIInputs:
         """Test --param overrides default value."""
         result = cli_runner.invoke(
             app,
-            ["run", str(procedure_with_default_input), "--param", "name=Custom", "--no-sandbox"],
+            ["run", str(procedure_with_default_input), "--no-sandbox", "--param", "name=Custom"],
         )
         assert result.exit_code == 0
         assert "Hello, Custom!" in result.stdout
@@ -263,9 +264,9 @@ class TestCLIInputs:
             [
                 "run",
                 str(procedure_with_array_input),
+                "--no-sandbox",
                 "--param",
                 "numbers=[1,2,3,4]",
-                "--no-sandbox",
             ],
         )
         # The test verifies that:
@@ -279,7 +280,7 @@ class TestCLIInputs:
         """Test interactive mode prompts for inputs."""
         result = cli_runner.invoke(
             app,
-            ["run", str(procedure_with_string_input), "-i", "--no-sandbox"],
+            ["run", str(procedure_with_string_input), "--no-sandbox", "-i"],
             input="TestUser\n",
         )
         # Should prompt and complete
@@ -302,13 +303,13 @@ class TestCLIInputs:
             [
                 "run",
                 str(procedure_with_all_types),
+                "--no-sandbox",
                 "--param",
                 "text=hello",
                 "--param",
                 "count=5",
                 "--param",
                 "enabled=true",
-                "--no-sandbox",
             ],
         )
         assert result.exit_code == 0
@@ -318,7 +319,7 @@ class TestCLIInputs:
         """Test interactive mode shows pre-existing --param values."""
         result = cli_runner.invoke(
             app,
-            ["run", str(procedure_with_all_types), "-i", "--param", "text=preset", "--no-sandbox"],
+            ["run", str(procedure_with_all_types), "--no-sandbox", "-i", "--param", "text=preset"],
             input="\n5\nn\n[]\n{}\n",  # Accept defaults for remaining
         )
         # Should show "preset" in the current column
@@ -340,7 +341,7 @@ class TestCLIParamParsing:
         f = tmp_path / "test.tac"
         f.write_text(content)
 
-        result = cli_runner.invoke(app, ["run", str(f), "--param", "nums=[1,2,3]", "--no-sandbox"])
+        result = cli_runner.invoke(app, ["run", str(f), "--no-sandbox", "--param", "nums=[1,2,3]"])
         assert result.exit_code == 0
 
     def test_param_json_object(self, cli_runner, tmp_path):
@@ -356,7 +357,7 @@ class TestCLIParamParsing:
         f.write_text(content)
 
         result = cli_runner.invoke(
-            app, ["run", str(f), "--param", 'cfg={"key":"value"}', "--no-sandbox"]
+            app, ["run", str(f), "--no-sandbox", "--param", 'cfg={"key":"value"}']
         )
         assert result.exit_code == 0
 
@@ -372,7 +373,7 @@ class TestCLIParamParsing:
         f = tmp_path / "test.tac"
         f.write_text(content)
 
-        result = cli_runner.invoke(app, ["run", str(f), "--param", "flag=true", "--no-sandbox"])
+        result = cli_runner.invoke(app, ["run", str(f), "--no-sandbox", "--param", "flag=true"])
         assert result.exit_code == 0
 
     def test_param_number(self, cli_runner, tmp_path):
@@ -387,6 +388,6 @@ class TestCLIParamParsing:
         f = tmp_path / "test.tac"
         f.write_text(content)
 
-        result = cli_runner.invoke(app, ["run", str(f), "--param", "n=21", "--no-sandbox"])
+        result = cli_runner.invoke(app, ["run", str(f), "--no-sandbox", "--param", "n=21"])
         assert result.exit_code == 0
         assert "42" in result.stdout

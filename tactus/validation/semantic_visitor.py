@@ -155,6 +155,23 @@ class TactusDSLVisitor(LuaParserVisitor):
                 elif func_name == "Tool":
                     # Extract config from Tool {...}
                     config = self._extract_single_table_arg(func_call)
+                    if (
+                        config
+                        and isinstance(config, dict)
+                        and isinstance(config.get("name"), str)
+                        and config.get("name") != var_name
+                    ):
+                        self.errors.append(
+                            ValidationMessage(
+                                level="error",
+                                message=(
+                                    f"Tool name mismatch: '{var_name} = Tool {{ name = \"{config.get('name')}\" }}'. "
+                                    f"Remove the 'name' field or set it to '{var_name}'."
+                                ),
+                                location=(self.current_line, self.current_col),
+                                declaration="Tool",
+                            )
+                        )
                     self.builder.register_tool(var_name, config if config else {}, None)
                 elif func_name == "Toolset":
                     # Extract config from Toolset {...}
@@ -508,28 +525,21 @@ class TactusDSLVisitor(LuaParserVisitor):
             if args and len(args) >= 1 and isinstance(args[0], dict):
                 self.builder.register_top_level_output(args[0])
         elif func_name == "Tool":  # CamelCase only
-            # Tool("name", {config}, function) - DEPRECATED curried syntax
-            # New syntax: tool_name = Tool { config, function }
-            if args and len(args) >= 1:  # Support curried syntax
-                # First arg must be name (string)
-                if isinstance(args[0], str):
-                    tool_name = args[0]
-                    # Check for special stdlib import syntax: Tool "name" { use = "..." }
-                    # This is still allowed for backwards compatibility
-                    config = args[1] if len(args) >= 2 and isinstance(args[1], dict) else {}
-                    if config.get("use"):
-                        # This is a stdlib import, still allowed
-                        self.builder.register_tool(tool_name, config, None)
-                    else:
-                        # This is deprecated curried syntax
-                        self.errors.append(
-                            ValidationMessage(
-                                level="error",
-                                message=f'Curried syntax Tool "{tool_name}" {{...}} is deprecated. Use assignment syntax: {tool_name} = Tool {{...}}',
-                                location=(self.current_line, self.current_col),
-                                declaration="Tool",
-                            )
-                        )
+            # Curried syntax (Tool "name" {...} / Tool("name", ...)) is not supported.
+            # Use assignment syntax: my_tool = Tool { ... }.
+            if args and len(args) >= 1 and isinstance(args[0], str):
+                tool_name = args[0]
+                self.errors.append(
+                    ValidationMessage(
+                        level="error",
+                        message=(
+                            f'Curried Tool syntax is not supported: Tool "{tool_name}" {{...}}. '
+                            f"Use assignment syntax: {tool_name} = Tool {{...}}."
+                        ),
+                        location=(self.current_line, self.current_col),
+                        declaration="Tool",
+                    )
+                )
         elif func_name == "Toolset":  # CamelCase only
             # Toolset("name", {config})
             # or new curried syntax: Toolset "name" { config }

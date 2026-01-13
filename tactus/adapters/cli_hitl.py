@@ -32,7 +32,7 @@ class CLIHITLHandler:
             console: Rich Console instance (creates new one if not provided)
         """
         self.console = console or Console()
-        logger.info("CLIHITLHandler initialized")
+        logger.debug("CLIHITLHandler initialized")
 
     def request_interaction(self, procedure_id: str, request: HITLRequest) -> HITLResponse:
         """
@@ -45,7 +45,7 @@ class CLIHITLHandler:
         Returns:
             HITLResponse with user's response
         """
-        logger.info(f"HITL request: {request.request_type} - {request.message}")
+        logger.debug(f"HITL request: {request.request_type} - {request.message}")
 
         # Display the request in a panel
         self.console.print()

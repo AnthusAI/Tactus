@@ -1633,6 +1633,72 @@ bedrock_agent = Agent {
 }
 ```
 
+### Module Configuration
+
+Agents can specify which DSPy module strategy to use via the `module` parameter. This controls how prompts are formatted and whether reasoning steps are included.
+
+**Default module** (Predict):
+
+```lua
+local done = require("tactus.tools.done")
+
+simple_agent = Agent {
+    provider = "openai",
+    model = "gpt-4o-mini",
+    system_prompt = "You are a helpful assistant.",
+    tools = {done}
+}
+```
+
+**ChainOfThought module** (adds reasoning steps):
+
+```lua
+local done = require("tactus.tools.done")
+
+thinking_agent = Agent {
+    provider = "openai",
+    model = "gpt-4o",
+    module = "ChainOfThought",
+    system_prompt = "You are a careful analyst.",
+    tools = {done}
+}
+```
+
+**Raw module** (minimal formatting for cost optimization):
+
+```lua
+local done = require("tactus.tools.done")
+
+efficient_agent = Agent {
+    provider = "openai",
+    model = "gpt-4o-mini",
+    module = "Raw",
+    system_prompt = "You are concise.",
+    tools = {done}
+}
+```
+
+**Available module options:**
+
+- **`"Predict"`** (default): Simple prediction without reasoning traces. Uses DSPy's standard field delimiters (~300-400 characters overhead per call).
+
+- **`"ChainOfThought"`**: Adds step-by-step reasoning before generating the final response. Useful for complex tasks requiring explicit reasoning. Increases token usage due to reasoning output (~500-2000 additional tokens depending on complexity).
+
+- **`"Raw"`**: Minimal formatting with direct LM calls. No DSPy delimiter overhead. Best for simple interactions, cost optimization, or when prompt space is constrained.
+
+**Token overhead comparison:**
+
+For a simple "Hello, World!" interaction:
+- **Raw**: 29 tokens total (20 prompt + 9 completion)
+- **Predict**: 230 tokens total (210 prompt + 19 completion)
+- **Difference**: ~8x more tokens with Predict due to delimiter formatting
+
+**When to use each module:**
+
+- Use **`Raw`** for simple interactions, high-volume API calls, or when minimizing cost is a priority
+- Use **`Predict`** when you need structured outputs or are using DSPy's optimization features (bootstrapping, etc.)
+- Use **`ChainOfThought`** for complex reasoning tasks where you want to see the agent's thought process
+
 ---
 
 ## DSPy Integration
@@ -2390,6 +2456,24 @@ File.read(path)
 File.write(path, contents)
 File.exists(path)
 ```
+
+### Filesystem Helpers (stdlib)
+
+Workflows sometimes need to enumerate files within the sandboxed working directory (for example, iterating over documents to lint or review). Use the filesystem helper module:
+
+```lua
+local fs = require("tactus.io.fs")
+
+-- List entries in a directory (relative paths)
+local entries = fs.list_dir("chapters", {files_only = true, sort = true})
+
+-- Glob files (relative paths)
+local qmd_files = fs.glob("chapters/*.qmd", {sort = true})
+```
+
+**Security model:** Paths are restricted to the procedure working directory; absolute paths and path traversal (`..`) are rejected.
+
+**Determinism:** Filesystem contents can change between runs; wrap file enumeration and reads in `Step.checkpoint()` for durable workflows.
 
 ---
 

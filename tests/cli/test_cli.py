@@ -69,6 +69,7 @@ def test_cli_validate_invalid_yaml(cli_runner, tmp_path):
 
 def test_cli_run_valid_file(cli_runner, example_workflow_file):
     """Test that run command executes a valid workflow file."""
+    # Avoid invoking the Docker sandbox in unit/integration tests (can hang on some machines).
     result = cli_runner.invoke(app, ["run", str(example_workflow_file), "--no-sandbox"])
     # Should succeed (exit code 0) for a simple workflow
     assert result.exit_code == 0
@@ -116,6 +117,79 @@ Procedure {
     workflow_file.write_text(workflow_content)
 
     result = cli_runner.invoke(
-        app, ["run", str(workflow_file), "--param", "name=TestUser", "--no-sandbox"]
+        app, ["run", str(workflow_file), "--no-sandbox", "--param", "name=TestUser"]
     )
     assert result.exit_code == 0
+
+
+def test_cli_run_help_includes_logging_options(cli_runner):
+    """Test that run --help documents log-level and log-format options."""
+    result = cli_runner.invoke(app, ["run", "--help"])
+    assert result.exit_code == 0
+    assert "--log-level" in result.stdout
+    assert "--log-format" in result.stdout
+
+
+def test_cli_run_accepts_log_level_and_format(cli_runner, tmp_path):
+    """Test that run accepts --log-level/--log-format (no-sandbox)."""
+    workflow_file = tmp_path / "logging_flags.tac"
+    workflow_file.write_text(
+        """
+Procedure {
+  input = {},
+  output = { ok = field.boolean{required = true} },
+  function(input)
+    Log.debug("debug message")
+    Log.info("info message")
+    Log.warn("warn message")
+    return { ok = true }
+  end
+}
+"""
+    )
+
+    result = cli_runner.invoke(
+        app,
+        [
+            "run",
+            str(workflow_file),
+            "--no-sandbox",
+            "--log-level",
+            "info",
+            "--log-format",
+            "terminal",
+        ],
+    )
+    assert result.exit_code == 0
+
+
+def test_cli_run_invalid_log_level(cli_runner, example_workflow_file):
+    """Test that run rejects invalid --log-level values."""
+    result = cli_runner.invoke(
+        app,
+        [
+            "run",
+            str(example_workflow_file),
+            "--no-sandbox",
+            "--log-level",
+            "nope",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "log-level" in result.stdout.lower()
+
+
+def test_cli_run_invalid_log_format(cli_runner, example_workflow_file):
+    """Test that run rejects invalid --log-format values."""
+    result = cli_runner.invoke(
+        app,
+        [
+            "run",
+            str(example_workflow_file),
+            "--no-sandbox",
+            "--log-format",
+            "nope",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "log-format" in result.stdout.lower()

@@ -33,6 +33,7 @@ class ToolHandle:
         impl_fn: Callable,
         tool_primitive: Optional["ToolPrimitive"] = None,
         is_async: bool = False,
+        record_calls: bool = True,
     ):
         """
         Initialize a tool handle.
@@ -47,6 +48,7 @@ class ToolHandle:
         self.impl_fn = impl_fn
         self.tool_primitive = tool_primitive
         self.is_async = is_async
+        self.record_calls = record_calls
 
         logger.debug(f"ToolHandle created for '{name}' (async={is_async})")
 
@@ -77,7 +79,7 @@ class ToolHandle:
                 result = self.impl_fn(args)
 
             # Record the call for tracking
-            if self.tool_primitive:
+            if self.tool_primitive and self.record_calls:
                 self.tool_primitive.record_call(self.name, args, result)
 
             logger.debug(f"ToolHandle.call('{self.name}') returned: {result}")

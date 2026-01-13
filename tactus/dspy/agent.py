@@ -6,7 +6,7 @@ This module provides an Agent implementation built on top of DSPy primitives
 as the original pydantic_ai-based Agent while using DSPy for LLM interactions.
 
 The Agent uses:
-- Module with chain_of_thought strategy for reasoning
+- Configurable DSPy module (default: Predict for simple pass-through, or ChainOfThought for reasoning)
 - History for conversation management
 - Tool handling similar to DSPy's ReAct pattern
 - Unified mocking via Mocks {} primitive
@@ -15,11 +15,10 @@ The Agent uses:
 import logging
 from typing import Any, Dict, List, Optional
 
-
 from tactus.dspy.history import TactusHistory, create_history
 from tactus.dspy.module import TactusModule, create_module
-from tactus.dspy.prediction import wrap_prediction, TactusPrediction
-from tactus.protocols.cost import UsageStats, CostStats
+from tactus.dspy.prediction import TactusPrediction, wrap_prediction
+from tactus.protocols.cost import CostStats, UsageStats
 from tactus.protocols.result import TactusResult
 
 logger = logging.getLogger(__name__)
@@ -56,6 +55,7 @@ class DSPyAgentHandle:
         temperature: float = 0.7,
         max_tokens: Optional[int] = None,
         model_type: Optional[str] = None,
+        module: str = "Raw",
         initial_message: Optional[str] = None,
         registry: Any = None,
         mock_manager: Any = None,
@@ -78,6 +78,10 @@ class DSPyAgentHandle:
             temperature: Model temperature (default: 0.7)
             max_tokens: Maximum tokens for response
             model_type: Model type for DSPy (e.g., "chat", "responses" for reasoning models)
+            module: DSPy module type to use (default: "Raw", case-insensitive). Options:
+                - "Raw": Minimal formatting, direct LM calls (lowest token overhead)
+                - "Predict": Simple pass-through prediction (no reasoning traces)
+                - "ChainOfThought": Adds step-by-step reasoning before response
             initial_message: Initial message to send on first turn if no inject
             registry: Optional Registry instance for accessing mocks
             mock_manager: Optional MockManager instance for checking mocks
@@ -98,6 +102,7 @@ class DSPyAgentHandle:
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.model_type = model_type
+        self.module = module
         self.initial_message = initial_message
         self.registry = registry
         self.mock_manager = mock_manager
@@ -185,11 +190,19 @@ class DSPyAgentHandle:
             if response and hasattr(response, "_hidden_params"):
                 total_cost = response._hidden_params.get("response_cost")
 
-            if total_cost is None and response:
+            if total_cost is None and total_tokens > 0:
                 try:
-                    import litellm
+                    # We already have token counts, so compute cost from tokens to avoid relying
+                    # on provider-specific response object shapes.
+                    from litellm.cost_calculator import cost_per_token
 
-                    total_cost = litellm.completion_cost(completion_response=response)
+                    prompt_cost, completion_cost = cost_per_token(
+                        model=str(model) if model is not None else "",
+                        prompt_tokens=prompt_tokens,
+                        completion_tokens=completion_tokens,
+                        call_type="completion",
+                    )
+                    total_cost = float(prompt_cost) + float(completion_cost)
                 except Exception as e:
                     logger.warning(f"[COST] Agent '{self.name}': failed to calculate cost: {e}")
                     total_cost = 0.0
@@ -267,6 +280,32 @@ class DSPyAgentHandle:
             cost_stats=cost_stats,
         )
 
+    def _module_to_strategy(self, module: str) -> str:
+        """
+        Map DSPy module name to internal strategy name.
+
+        Args:
+            module: DSPy module name (e.g., "Predict", "ChainOfThought")
+
+        Returns:
+            Internal strategy name for create_module()
+
+        Raises:
+            ValueError: If module name is not recognized
+        """
+        mapping = {
+            "predict": "predict",
+            "chainofthought": "chain_of_thought",
+            "raw": "raw",
+            # Future modules can be added here:
+            # "react": "react",
+            # "programofthought": "program_of_thought",
+        }
+        strategy = mapping.get(module.lower())
+        if strategy is None:
+            raise ValueError(f"Unknown module '{module}'. Supported: {list(mapping.keys())}")
+        return strategy
+
     def _build_module(self) -> TactusModule:
         """Build the internal DSPy module for this agent."""
         # Create a signature for agent turns
@@ -284,7 +323,7 @@ class DSPyAgentHandle:
             f"{self.name}_module",
             {
                 "signature": signature,
-                "strategy": "chain_of_thought",
+                "strategy": self._module_to_strategy(self.module),
             },
         )
 
@@ -294,6 +333,7 @@ class DSPyAgentHandle:
 
         Streaming is enabled when:
         - log_handler is available (for emitting events)
+        - log_handler supports streaming events
         - disable_streaming is False
         - No structured output schema (streaming only works with plain text)
 
@@ -303,6 +343,14 @@ class DSPyAgentHandle:
         # Must have log_handler to emit streaming events
         if self.log_handler is None:
             logger.debug(f"[STREAMING] Agent '{self.name}': no log_handler, streaming disabled")
+            return False
+
+        # Allow log handlers to opt out of streaming (e.g., cost-only collectors)
+        supports_streaming = getattr(self.log_handler, "supports_streaming", True)
+        if not supports_streaming:
+            logger.debug(
+                f"[STREAMING] Agent '{self.name}': log_handler supports_streaming=False, streaming disabled"
+            )
             return False
 
         # Respect explicit disable flag
@@ -329,52 +377,95 @@ class DSPyAgentHandle:
         if self.log_handler is None:
             return
 
+        import dspy
         from tactus.protocols.models import CostEvent
 
-        usage_stats, cost_stats = self._extract_last_call_stats()
+        # Get the current LM
+        lm = dspy.settings.lm
+        if lm is None or not hasattr(lm, "history") or not lm.history:
+            logger.debug(f"[COST] Agent '{self.name}': no LM history available")
+            return
 
-        # Extract duration from response metadata (best-effort; not part of CostStats)
+        # Get the most recent call
+        last_call = lm.history[-1]
+
+        # Extract usage information
+        usage = last_call.get("usage", {})
+        prompt_tokens = usage.get("prompt_tokens", 0)
+        completion_tokens = usage.get("completion_tokens", 0)
+        total_tokens = usage.get("total_tokens", 0)
+
+        # Extract cost information
+        total_cost = last_call.get("cost")
+        logger.debug(f"[COST] Agent '{self.name}': raw cost from history = {total_cost}")
+
+        # If cost is None (happens with streamify()), calculate it using LiteLLM
+        if total_cost is None:
+            response = last_call.get("response")
+            if response and hasattr(response, "_hidden_params"):
+                total_cost = response._hidden_params.get("response_cost")
+                logger.debug(f"[COST] Agent '{self.name}': cost from _hidden_params = {total_cost}")
+
+            # If still None, calculate manually using litellm.completion_cost
+            if total_cost is None and response:
+                try:
+                    import litellm
+
+                    total_cost = litellm.completion_cost(completion_response=response)
+                    logger.debug(f"[COST] Agent '{self.name}': calculated cost = {total_cost}")
+                except Exception as e:
+                    logger.warning(f"[COST] Agent '{self.name}': failed to calculate cost: {e}")
+                    total_cost = 0.0
+            elif total_cost is None:
+                total_cost = 0.0
+                logger.warning(f"[COST] Agent '{self.name}': no cost information available")
+
+        # Calculate per-token costs (approximate)
+        # Note: LiteLLM provides total cost, we can approximate prompt/completion split
+        # based on token ratios
+        if total_tokens > 0 and total_cost > 0:
+            prompt_cost = total_cost * (prompt_tokens / total_tokens)
+            completion_cost = total_cost * (completion_tokens / total_tokens)
+        else:
+            prompt_cost = 0.0
+            completion_cost = 0.0
+
+        # Extract duration from response metadata
+        response = last_call.get("response")
         duration_ms = None
-        try:
-            import dspy
+        if response and hasattr(response, "_hidden_params"):
+            duration_ms = response._hidden_params.get("_response_ms")
 
-            lm = dspy.settings.lm
-            if lm is not None and hasattr(lm, "history") and lm.history:
-                last_call = lm.history[-1]
-                response = last_call.get("response")
-                if response and hasattr(response, "_hidden_params"):
-                    duration_ms = response._hidden_params.get("_response_ms")
-        except Exception:
-            pass
+        # Extract model info
+        model = last_call.get("model", self.model or "unknown")
 
-        model = cost_stats.model or (self.model or "unknown")
-        provider = cost_stats.provider or "unknown"
+        # Parse provider from model string (e.g., "openai/gpt-4o" -> "openai")
+        provider = "unknown"
+        if "/" in str(model):
+            provider = str(model).split("/")[0]
 
         # Create and emit cost event
         cost_event = CostEvent(
             agent_name=self.name,
             model=model,
             provider=provider,
-            prompt_tokens=usage_stats.prompt_tokens,
-            completion_tokens=usage_stats.completion_tokens,
-            total_tokens=usage_stats.total_tokens,
-            prompt_cost=cost_stats.prompt_cost,
-            completion_cost=cost_stats.completion_cost,
-            total_cost=cost_stats.total_cost,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
+            prompt_cost=prompt_cost,
+            completion_cost=completion_cost,
+            total_cost=total_cost,
             duration_ms=duration_ms,
         )
 
         self.log_handler.log(cost_event)
-        logger.info(
-            f"[COST] Agent '{self.name}': ${cost_stats.total_cost:.6f} "
-            f"({usage_stats.total_tokens} tokens)"
-        )
+        logger.info(f"[COST] Agent '{self.name}': ${total_cost:.6f} ({total_tokens} tokens)")
 
     def _turn_with_streaming(
         self,
         opts: Dict[str, Any],
         prompt_context: Dict[str, Any],
-    ) -> Any:
+    ) -> TactusResult:
         """
         Execute an agent turn with streaming enabled.
 
@@ -387,7 +478,7 @@ class DSPyAgentHandle:
             prompt_context: Prepared prompt context for the module
 
         Returns:
-            TactusResult with the response value and usage/cost
+            TactusResult with value, usage, and cost_stats
         """
         import asyncio
         import threading
@@ -515,8 +606,32 @@ class DSPyAgentHandle:
             logger.warning(f"Streaming produced no result for agent '{self.name}', falling back")
             return self._turn_without_streaming(opts, prompt_context)
 
-        # Wrap the result
-        wrapped_result = wrap_prediction(result_holder["result"])
+        # Track new messages for this turn
+        new_messages = []
+
+        # Determine user message
+        user_message = opts.get("inject")
+        if self._turn_count == 1 and not user_message and self.initial_message:
+            user_message = self.initial_message
+
+        # Add user message to new_messages if present
+        if user_message:
+            user_msg = {"role": "user", "content": user_message}
+            new_messages.append(user_msg)
+            self._history.add(user_msg)
+
+        # Add assistant response to new_messages
+        if hasattr(result_holder["result"], "response"):
+            assistant_msg = {"role": "assistant", "content": result_holder["result"].response}
+            new_messages.append(assistant_msg)
+            self._history.add(assistant_msg)
+
+        # Wrap the result with message tracking
+        wrapped_result = wrap_prediction(
+            result_holder["result"],
+            new_messages=new_messages,
+            all_messages=self._history.get(),
+        )
 
         # Handle tool calls if present
         if hasattr(wrapped_result, "tool_calls") and wrapped_result.tool_calls:
@@ -534,16 +649,6 @@ class DSPyAgentHandle:
                     {"status": "completed", "reason": reason, "tool": "done"},
                     agent_name=self.name,
                 )
-
-        # Update history
-        user_message = opts.get("inject")
-        if self._turn_count == 1 and not user_message and self.initial_message:
-            user_message = self.initial_message
-
-        if user_message:
-            self._history.add({"role": "user", "content": user_message})
-        if hasattr(wrapped_result, "response"):
-            self._history.add({"role": "assistant", "content": wrapped_result.response})
 
         # Emit turn completed event
         self.log_handler.log(
@@ -554,18 +659,20 @@ class DSPyAgentHandle:
         )
         logger.info(f"[STREAMING] Agent '{self.name}' emitted AgentTurnEvent(completed)")
 
+        # Extract usage and cost stats
+        usage_stats, cost_stats = self._extract_last_call_stats()
+
         # Emit cost event with usage and cost information
         self._emit_cost_event()
 
-        usage_stats, cost_stats = self._extract_last_call_stats()
-        self._add_usage_and_cost(usage_stats, cost_stats)
+        # Wrap as TactusResult with value, usage, and cost
         return self._wrap_as_result(wrapped_result, usage_stats, cost_stats)
 
     def _turn_without_streaming(
         self,
         opts: Dict[str, Any],
         prompt_context: Dict[str, Any],
-    ) -> Any:
+    ) -> TactusResult:
         """
         Execute an agent turn without streaming.
 
@@ -576,13 +683,37 @@ class DSPyAgentHandle:
             prompt_context: Prepared prompt context for the module
 
         Returns:
-            TactusResult with the response value and usage/cost
+            TactusResult with value, usage, and cost_stats
         """
         # Execute the module
         dspy_result = self._module.module(**prompt_context)
 
-        # Wrap the result
-        wrapped_result = wrap_prediction(dspy_result)
+        # Track new messages for this turn
+        new_messages = []
+
+        # Determine user message
+        user_message = opts.get("inject")
+        if self._turn_count == 1 and not user_message and self.initial_message:
+            user_message = self.initial_message
+
+        # Add user message to new_messages if present
+        if user_message:
+            user_msg = {"role": "user", "content": user_message}
+            new_messages.append(user_msg)
+            self._history.add(user_msg)
+
+        # Add assistant response to new_messages
+        if hasattr(dspy_result, "response"):
+            assistant_msg = {"role": "assistant", "content": dspy_result.response}
+            new_messages.append(assistant_msg)
+            self._history.add(assistant_msg)
+
+        # Wrap the result with message tracking
+        wrapped_result = wrap_prediction(
+            dspy_result,
+            new_messages=new_messages,
+            all_messages=self._history.get(),
+        )
 
         # Handle tool calls if present
         if hasattr(wrapped_result, "tool_calls") and wrapped_result.tool_calls:
@@ -601,24 +732,16 @@ class DSPyAgentHandle:
                     agent_name=self.name,
                 )
 
-        # Update history
-        user_message = opts.get("inject")
-        if self._turn_count == 1 and not user_message and self.initial_message:
-            user_message = self.initial_message
-
-        if user_message:
-            self._history.add({"role": "user", "content": user_message})
-        if hasattr(wrapped_result, "response"):
-            self._history.add({"role": "assistant", "content": wrapped_result.response})
+        # Extract usage and cost stats
+        usage_stats, cost_stats = self._extract_last_call_stats()
 
         # Emit cost event with usage and cost information
         self._emit_cost_event()
 
-        usage_stats, cost_stats = self._extract_last_call_stats()
-        self._add_usage_and_cost(usage_stats, cost_stats)
+        # Wrap as TactusResult with value, usage, and cost
         return self._wrap_as_result(wrapped_result, usage_stats, cost_stats)
 
-    def __call__(self, inputs: Optional[Dict[str, Any]] = None) -> TactusResult:
+    def __call__(self, inputs: Optional[Dict[str, Any]] = None) -> Any:
         """
         Execute an agent turn using the callable interface.
 
@@ -641,14 +764,8 @@ class DSPyAgentHandle:
             result = worker({message = "Process this task"})
             print(result.response)
         """
-        logger.info(
-            f"[CHECKPOINT] DSPyAgentHandle.__call__ invoked directly for agent '{self.name}' - THIS BYPASSES AgentHandle checkpoint logic!"
-        )
+        logger.debug(f"Agent '{self.name}' invoked via __call__()")
         inputs = inputs or {}
-
-        # Handle string input as a convenience: Agent("message") -> Agent({message="message"})
-        if isinstance(inputs, str):
-            inputs = {"message": inputs}
 
         # Convert Lua table to dict if needed
         if hasattr(inputs, "items"):
@@ -692,7 +809,9 @@ class DSPyAgentHandle:
 
         if get_current_lm() is None and self.model:
             # Convert model format from "provider:model" to "provider/model" for LiteLLM
-            model_for_litellm = self.model.replace(":", "/") if ":" in self.model else self.model
+            # Only replace the FIRST colon (provider separator), not all colons
+            # Bedrock model IDs like "us.anthropic.claude-haiku-4-5-20251001-v1:0" have a version suffix
+            model_for_litellm = self.model.replace(":", "/", 1) if ":" in self.model else self.model
             logger.info(f"Auto-configuring DSPy LM with model: {model_for_litellm}")
 
             # Build kwargs for configure_lm
@@ -755,67 +874,106 @@ class DSPyAgentHandle:
             logger.error(f"Agent '{self.name}' turn failed: {e}")
             raise
 
-    def _get_mock_response(self, opts: Dict[str, Any]) -> Optional[TactusResult]:
+    def _get_mock_response(self, opts: Dict[str, Any]) -> Optional[TactusPrediction]:
         """
         Check if this agent has a mock configured and return mock response.
 
-        Checks registry.agent_mocks for agent mock configurations from Mocks {} blocks.
+        Agent mocks are stored in registry.agent_mocks (not registry.mocks which is for tools).
+        Agent mock configs specify tool_calls, message, data, and usage.
 
         Args:
             opts: The turn options
 
         Returns:
-            TactusResult if mocked, None otherwise
+            TactusPrediction if mocked, None otherwise
         """
         agent_name = self.name
 
-        # Check if agent has a mock in registry.agent_mocks (from Mocks {} block)
-        if not hasattr(self.registry, "agent_mocks") or agent_name not in self.registry.agent_mocks:
+        # Check if agent has a mock in the registry (agent_mocks, not mocks)
+        if not self.registry or agent_name not in self.registry.agent_mocks:
             return None
 
-        # Get the agent mock config
+        # Get agent mock config from registry.agent_mocks
         mock_config = self.registry.agent_mocks[agent_name]
-        logger.debug(
-            f"Agent '{agent_name}' using mock config: message={mock_config.message[:50] if mock_config.message else 'None'}..."
-        )
 
-        # Build mock response data
+        # Convert AgentMockConfig to format expected by _wrap_mock_response
+        # _wrap_mock_response expects: response (or message), tool_calls, data, usage
+        # We convert message -> response here for clarity
         mock_data = {
-            "message": mock_config.message,
+            "response": mock_config.message,
             "tool_calls": mock_config.tool_calls,
+            "data": mock_config.data,
+            "usage": mock_config.usage,
         }
-        if mock_config.data is not None:
-            mock_data["data"] = mock_config.data
 
-        return self._wrap_mock_response(mock_data, opts)
+        try:
+            return self._wrap_mock_response(mock_data, opts)
+        except Exception:
+            # If wrapping throws an error, let it propagate
+            raise
 
-    def _wrap_mock_response(self, mock_data: Dict[str, Any], opts: Dict[str, Any]) -> TactusResult:
+    def _wrap_mock_response(
+        self, mock_data: Dict[str, Any], opts: Dict[str, Any]
+    ) -> TactusResult:
         """
         Wrap mock data as a TactusResult.
 
         Also handles special mock behaviors like recording done tool calls.
 
         Args:
-            mock_data: The mock response data
+            mock_data: The mock response data. Can contain either 'message' or 'response'
+                      field for the text response. If 'message' is present and 'response'
+                      is not, it will be normalized to 'response' to match the agent's
+                      output signature.
             opts: The turn options
 
         Returns:
-            TactusResult wrapping the mock data
+            TactusResult with value, usage, and cost_stats (zeroed for mocks)
         """
         from tactus.dspy.prediction import create_prediction
 
-        # Create prediction from mock data
-        result = create_prediction(**mock_data)
+        # Normalize mock data to match agent's output signature
+        # Mock data uses "message" field, but agent signature uses "response" field
+        normalized_data = dict(mock_data)
+        if "message" in normalized_data and "response" not in normalized_data:
+            normalized_data["response"] = normalized_data["message"]
+
+        # Track new messages for this turn
+        new_messages = []
+
+        # Determine user message
+        user_message = opts.get("inject")
+        if self._turn_count == 1 and not user_message and self.initial_message:
+            user_message = self.initial_message
+
+        # Add user message to new_messages if present
+        if user_message:
+            user_msg = {"role": "user", "content": user_message}
+            new_messages.append(user_msg)
+            self._history.add(user_msg)
+
+        # Add assistant response to new_messages
+        if "response" in normalized_data:
+            assistant_msg = {"role": "assistant", "content": normalized_data["response"]}
+            new_messages.append(assistant_msg)
+            self._history.add(assistant_msg)
+
+        # Add message tracking to normalized data
+        normalized_data["__new_messages__"] = new_messages
+        normalized_data["__all_messages__"] = self._history.get()
+
+        # Create prediction from normalized mock data
+        result = create_prediction(**normalized_data)
 
         # Check if mock simulates a done tool call
         # This allows mocks to trigger Tool.called("done") behavior
         # Use getattr since _tool_primitive is set externally by runtime
         tool_primitive = getattr(self, "_tool_primitive", None)
-        if "tool_calls" in mock_data and tool_primitive:
-            tool_calls = mock_data.get("tool_calls", "")
+        if "tool_calls" in normalized_data and tool_primitive:
+            tool_calls = normalized_data.get("tool_calls", "")
             if "done" in str(tool_calls).lower():
                 # Extract reason from mock response
-                reason = mock_data.get("response", "Task completed (mocked)")
+                reason = normalized_data.get("response", "Task completed (mocked)")
 
                 # Record that the done tool was called
                 logger.debug(f"Mock recording done tool call with reason: {reason}")
@@ -826,20 +984,8 @@ class DSPyAgentHandle:
                     agent_name=self.name,
                 )
 
-        # Update history with mock response (to maintain conversation state)
-        user_message = opts.get("inject")
-        if self._turn_count == 1 and not user_message and self.initial_message:
-            user_message = self.initial_message
-
-        if user_message:
-            self._history.add({"role": "user", "content": user_message})
-        if "response" in mock_data:
-            self._history.add({"role": "assistant", "content": mock_data["response"]})
-
-        usage_stats = UsageStats()
-        cost_stats = CostStats()
-        self._add_usage_and_cost(usage_stats, cost_stats)
-        return self._wrap_as_result(result, usage_stats, cost_stats)
+        # Return as TactusResult with zeroed usage/cost (mocks don't incur costs)
+        return self._wrap_as_result(result, UsageStats(), CostStats())
 
     def clear_history(self) -> None:
         """Clear the conversation history."""
@@ -874,6 +1020,7 @@ def create_dspy_agent(
             - model: Model name (LiteLLM format)
             - tools: List of tools
             - toolsets: List of toolset names
+            - module: DSPy module type (default: "Predict"). Options: "Predict", "ChainOfThought"
             - Other optional configuration
         registry: Optional Registry instance for accessing mocks
         mock_manager: Optional MockManager instance for checking mocks
@@ -901,6 +1048,7 @@ def create_dspy_agent(
         temperature=config.get("temperature", 0.7),
         max_tokens=config.get("max_tokens"),
         model_type=config.get("model_type"),
+        module=config.get("module", "Raw"),
         initial_message=config.get("initial_message"),
         registry=registry,
         mock_manager=mock_manager,
@@ -921,6 +1069,7 @@ def create_dspy_agent(
                 "temperature",
                 "max_tokens",
                 "model_type",
+                "module",
                 "initial_message",
                 "log_handler",
                 "disable_streaming",

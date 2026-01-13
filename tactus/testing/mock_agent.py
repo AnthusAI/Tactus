@@ -11,32 +11,51 @@ from typing import Any, Dict, List, Optional
 logger = logging.getLogger(__name__)
 
 
-class MockUsageStats:
-    """Mock usage stats for compatibility with TactusResult.usage."""
-
-    def __init__(self):
-        self.prompt_tokens = 0
-        self.completion_tokens = 0
-        self.total_tokens = 0
-
-
 class MockAgentResult:
-    """Result from a mock agent turn - matches TactusResult interface."""
+    """Result from a mock agent turn."""
 
     def __init__(
-        self, message: str = "", tool_calls: Optional[List[Dict]] = None, data: Any = None
+        self,
+        message: str = "",
+        tool_calls: Optional[List[Dict]] = None,
+        data: Optional[Dict[str, Any]] = None,
+        usage: Optional[Dict[str, Any]] = None,
+        new_messages: Optional[List[Dict[str, Any]]] = None,
+        lua_table_from: Optional[Any] = None,
     ):
         self.message = message
+        self.response = message
         self.tool_calls = tool_calls or []
+        self.data = data or {}
+        self.usage = usage or {}
         self.cost = 0.0
-        self.tokens = 0
-        # value matches TactusResult.value - use structured data if provided, else message
-        self.value = data if data is not None else message
-        # usage matches TactusResult.usage
-        self.usage = MockUsageStats()
+        try:
+            self.tokens = int(self.usage.get("total_tokens", 0) or 0)
+        except Exception:
+            self.tokens = 0
+
+        self._new_messages = new_messages or []
+        self._lua_table_from = lua_table_from
 
     def __repr__(self) -> str:
-        return f"MockAgentResult(message={self.message!r}, tool_calls={len(self.tool_calls)})"
+        return (
+            f"MockAgentResult(message={self.message!r}, tool_calls={len(self.tool_calls)}, "
+            f"data_keys={len(self.data) if hasattr(self.data, '__len__') else 'n/a'})"
+        )
+
+    def new_messages(self):
+        """
+        Return messages generated in this turn.
+
+        In Lua, callers expect a table (for `#msgs` and 1-based indexing).
+        """
+        if self._lua_table_from is not None:
+            try:
+                return self._lua_table_from(self._new_messages)
+            except Exception:
+                # Fall back to raw Python list if conversion fails.
+                pass
+        return self._new_messages
 
 
 class MockAgentPrimitive:
@@ -65,6 +84,8 @@ class MockAgentPrimitive:
         tool_primitive: Any,
         registry: Any = None,
         mock_manager: Any = None,
+        lua_runtime: Any = None,
+        lua_table_from: Any = None,
     ):
         """
         Initialize mock agent.
@@ -80,6 +101,12 @@ class MockAgentPrimitive:
         self.registry = registry
         self.mock_manager = mock_manager
         self.turn_count = 0
+        if lua_table_from is not None:
+            self._lua_table_from = lua_table_from
+        elif lua_runtime is not None and hasattr(lua_runtime, "table_from"):
+            self._lua_table_from = lua_runtime.table_from
+        else:
+            self._lua_table_from = None
 
     def turn(self, opts: Optional[Dict[str, Any]] = None) -> MockAgentResult:
         """
@@ -121,11 +148,40 @@ class MockAgentPrimitive:
         # Execute the configured tool calls
         tool_calls_executed = self._execute_tool_calls(mock_config.tool_calls)
 
-        # Return the configured message and data
+        # Structured payload (optional) for result.data
+        data = getattr(mock_config, "data", None) or {}
+        if not data:
+            data = {"response": mock_config.message}
+
+        # Token usage payload (optional) for result.usage
+        raw_usage = getattr(mock_config, "usage", None) or {}
+        usage = dict(raw_usage) if isinstance(raw_usage, dict) else {}
+        prompt_tokens = int(usage.get("prompt_tokens", 0) or 0)
+        completion_tokens = int(usage.get("completion_tokens", 0) or 0)
+        total_tokens = usage.get("total_tokens")
+        if total_tokens is None:
+            total_tokens = prompt_tokens + completion_tokens
+        total_tokens = int(total_tokens or 0)
+        usage.setdefault("prompt_tokens", prompt_tokens)
+        usage.setdefault("completion_tokens", completion_tokens)
+        usage.setdefault("total_tokens", total_tokens)
+
+        # Messages generated in this turn
+        user_message = opts.get("message") or opts.get("inject")
+        new_messages = []
+        if user_message:
+            new_messages.append({"role": "user", "content": user_message})
+        if mock_config.message:
+            new_messages.append({"role": "assistant", "content": mock_config.message})
+
+        # Return the configured message
         return MockAgentResult(
             message=mock_config.message,
             tool_calls=tool_calls_executed,
-            data=mock_config.data,
+            data=data,
+            usage=usage,
+            new_messages=new_messages,
+            lua_table_from=self._lua_table_from,
         )
 
     def _get_agent_mock_config(self) -> Optional[Any]:
@@ -170,14 +226,15 @@ class MockAgentPrimitive:
             logger.debug(f"Mock agent {self.name} executing tool call: {tool_name}({args})")
 
             # Record the tool call via tool primitive
-            # Default result for mock tool calls
-            result = {"status": "ok", "tool": tool_name, "args": args}
+            # MockedToolPrimitive.record_call(tool_name, args) returns the mock response
+            result = None
             if self.tool_primitive:
                 try:
-                    # record_call records the tool call for assertions
-                    self.tool_primitive.record_call(tool_name, args, result)
+                    # record_call returns the mock response and records the call
+                    result = self.tool_primitive.record_call(tool_name, args)
                 except Exception as e:
                     logger.warning(f"Error recording tool call {tool_name}: {e}")
+                    result = {"status": "ok", "tool": tool_name}
 
             executed.append(
                 {

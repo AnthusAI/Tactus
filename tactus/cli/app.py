@@ -41,6 +41,30 @@ app = typer.Typer(
 )
 
 
+@app.callback(invoke_without_command=True)
+def main_callback(
+    ctx: typer.Context,
+    version: bool = typer.Option(
+        False,
+        "--version",
+        "-V",
+        help="Show version and exit",
+        is_eager=True,
+    ),
+):
+    """Tactus CLI callback for global options."""
+    if version:
+        from tactus import __version__
+
+        console.print(f"Tactus version: [bold]{__version__}[/bold]")
+        raise typer.Exit()
+
+    # If no subcommand was invoked and version flag not set, show help
+    if ctx.invoked_subcommand is None:
+        console.print(ctx.get_help())
+        raise typer.Exit()
+
+
 def load_tactus_config():
     """
     Load Tactus configuration from standard config locations.
@@ -110,15 +134,92 @@ def load_tactus_config():
         return {}
 
 
-def setup_logging(verbose: bool = False):
-    """Setup logging with rich handler."""
-    level = logging.DEBUG if verbose else logging.INFO
+_LOG_LEVELS = {
+    "debug": logging.DEBUG,
+    "info": logging.INFO,
+    "warning": logging.WARNING,
+    "warn": logging.WARNING,
+    "error": logging.ERROR,
+    "critical": logging.CRITICAL,
+}
 
-    logging.basicConfig(
-        level=level,
-        format="%(message)s",
-        handlers=[RichHandler(console=console, show_path=False, rich_tracebacks=True)],
-    )
+_LOG_FORMATS = {"rich", "terminal", "raw"}
+
+
+class _TerminalLogHandler(logging.Handler):
+    """Minimal, high-signal terminal logger (no timestamps/levels)."""
+
+    def __init__(self, console: Console):
+        super().__init__()
+        self._console = console
+        self.setFormatter(logging.Formatter("%(message)s"))
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            message = self.format(record)
+
+            # Make procedure-level logs the most prominent.
+            if record.name.startswith("procedure"):
+                style = "bold"
+            elif record.levelno >= logging.ERROR:
+                style = "bold red"
+            elif record.levelno >= logging.WARNING:
+                style = "yellow"
+            elif record.levelno <= logging.DEBUG:
+                style = "dim"
+            else:
+                style = ""
+
+            self._console.print(message, style=style, markup=False, highlight=False)
+        except Exception:
+            self.handleError(record)
+
+
+def setup_logging(
+    verbose: bool = False,
+    log_level: Optional[str] = None,
+    log_format: str = "rich",
+) -> None:
+    """Setup CLI logging (level + format)."""
+    if log_level is None:
+        level = logging.DEBUG if verbose else logging.INFO
+    else:
+        key = str(log_level).strip().lower()
+        if key not in _LOG_LEVELS:
+            raise typer.BadParameter(
+                f"Invalid --log-level '{log_level}'. "
+                f"Use one of: {', '.join(sorted(_LOG_LEVELS.keys()))}"
+            )
+        level = _LOG_LEVELS[key]
+
+    fmt = (log_format or "rich").strip().lower()
+    if fmt not in _LOG_FORMATS:
+        raise typer.BadParameter(
+            f"Invalid --log-format '{log_format}'. Use one of: {', '.join(sorted(_LOG_FORMATS))}"
+        )
+
+    # Default: rich logs (group repeated timestamps).
+    if fmt == "rich":
+        handler: logging.Handler = RichHandler(
+            console=console,
+            show_path=False,
+            rich_tracebacks=True,
+            omit_repeated_times=True,
+        )
+        handler.setFormatter(logging.Formatter("%(message)s"))
+        logging.basicConfig(level=level, format="%(message)s", handlers=[handler], force=True)
+        return
+
+    # Raw logs: one line per entry, CloudWatch-friendly.
+    if fmt == "raw":
+        handler = logging.StreamHandler(stream=sys.stderr)
+        handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+        logging.basicConfig(level=level, handlers=[handler], force=True)
+        return
+
+    # Terminal logs: no timestamps/levels, color by signal.
+    handler = _TerminalLogHandler(console)
+    logging.basicConfig(level=level, handlers=[handler], force=True)
 
 
 def _parse_value(value_str: str, field_type: str) -> Any:
@@ -328,6 +429,12 @@ def run(
         None, envvar="OPENAI_API_KEY", help="OpenAI API key"
     ),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose logging"),
+    log_level: Optional[str] = typer.Option(
+        None, "--log-level", help="Log level: debug, info, warning, error, critical"
+    ),
+    log_format: str = typer.Option(
+        "rich", "--log-format", help="Log format: rich (default), terminal, raw"
+    ),
     param: Optional[list[str]] = typer.Option(None, help="Parameters in format key=value"),
     interactive: bool = typer.Option(
         False, "--interactive", "-i", help="Interactively prompt for all inputs"
@@ -347,6 +454,21 @@ def run(
         "--sandbox/--no-sandbox",
         help="Run in Docker sandbox (default: required unless --no-sandbox). "
         "Use --no-sandbox to run without isolation (security risk).",
+    ),
+    sandbox_broker: str = typer.Option(
+        "stdio",
+        "--sandbox-broker",
+        help="Broker transport for sandbox runtime: stdio (default, --network none) or tcp/tls (remote-mode spike).",
+    ),
+    sandbox_network: Optional[str] = typer.Option(
+        None,
+        "--sandbox-network",
+        help="Docker network mode for sandbox container (default: none for stdio; bridge for tcp/tls).",
+    ),
+    sandbox_broker_host: Optional[str] = typer.Option(
+        None,
+        "--sandbox-broker-host",
+        help="Broker hostname from inside the sandbox container (tcp/tls only).",
     ),
 ):
     """
@@ -375,7 +497,7 @@ def run(
         # Use real implementation for specific tools while mocking others
         tactus run workflow.tac --mock-all --real done
     """
-    setup_logging(verbose)
+    setup_logging(verbose=verbose, log_level=log_level, log_format=log_format)
 
     # Check if file exists
     if not workflow_file.exists():
@@ -504,7 +626,26 @@ def run(
     if sandbox is not None:
         # CLI flag overrides config
         sandbox_config_dict["enabled"] = sandbox
+    if sandbox_network is not None:
+        sandbox_config_dict["network"] = sandbox_network
+    if sandbox_broker_host is not None:
+        sandbox_config_dict["broker_host"] = sandbox_broker_host
+
+    sandbox_config_dict["broker_transport"] = sandbox_broker
+    if (
+        sandbox_network is None
+        and sandbox_broker in ("tcp", "tls")
+        and "network" not in sandbox_config_dict
+    ):
+        # Remote-mode requires container networking; default to bridge if user didn't specify.
+        sandbox_config_dict["network"] = "bridge"
     sandbox_config = SandboxConfig(**sandbox_config_dict)
+
+    # Pass logging preferences through to the sandbox container so container stderr matches CLI UX.
+    sandbox_config.env.setdefault(
+        "TACTUS_LOG_LEVEL", str(log_level or ("debug" if verbose else "info"))
+    )
+    sandbox_config.env.setdefault("TACTUS_LOG_FORMAT", str(log_format))
 
     # Check Docker availability
     docker_available, docker_reason = is_docker_available()
@@ -519,6 +660,11 @@ def run(
                 "[yellow][SANDBOX] Container isolation disabled (--no-sandbox or config).[/yellow]"
             )
             console.print("[yellow][SANDBOX] Proceeding without Docker isolation.[/yellow]")
+        elif not docker_available and not sandbox_config.should_error_if_unavailable():
+            # Sandbox is auto-mode (default): fall back when Docker is unavailable
+            console.print(
+                f"[yellow][SANDBOX] Docker not available ({docker_reason}); running without container isolation.[/yellow]"
+            )
         elif sandbox_config.should_error_if_unavailable() and not docker_available:
             # Sandbox required but Docker unavailable - ERROR
             console.print(f"[red][SANDBOX ERROR] Docker not available: {docker_reason}[/red]")
@@ -618,14 +764,17 @@ def run(
 
     try:
         if use_sandbox:
+            # Host-side broker reads OpenAI credentials from the host process environment.
+            # Keep secrets OUT of the sandbox container by setting the env var only on the host.
+            if api_key:
+                os.environ["OPENAI_API_KEY"] = api_key
+
             # Execute in Docker sandbox
             runner = ContainerRunner(sandbox_config)
             sandbox_result = asyncio.run(
                 runner.run(
                     source=source_content,
                     params=context,
-                    config=merged_config,
-                    mcp_servers=mcp_servers,
                     source_file_path=str(workflow_file),
                     format=file_format,
                 )
@@ -1155,6 +1304,7 @@ def test(
             ("aws", "access_key_id"): "AWS_ACCESS_KEY_ID",
             ("aws", "secret_access_key"): "AWS_SECRET_ACCESS_KEY",
             ("aws", "default_region"): "AWS_DEFAULT_REGION",
+            ("aws", "profile"): "AWS_PROFILE",
         }
 
         for config_key, env_key in env_mappings.items():

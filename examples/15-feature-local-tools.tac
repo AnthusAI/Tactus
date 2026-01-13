@@ -83,7 +83,7 @@ Procedure {
             end
         else
             -- Max turns reached - use last response
-            answer = tostring(result.value)
+            answer = result.message
         end
 
         return {
@@ -91,4 +91,14 @@ Procedure {
             completed = done.called()
         }
     end
+}
+
+Mocks {
+    assistant = {
+        tool_calls = {
+            {tool = "calculate_mortgage", args = {principal = 300000, annual_interest_rate = 0.065, years = 30}},
+            {tool = "done", args = {reason = "Monthly payment is $1,896.20 (mocked)."}}
+        },
+        message = "Monthly payment is $1,896.20 (mocked)."
+    }
 }

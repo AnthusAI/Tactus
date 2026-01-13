@@ -51,3 +51,12 @@ Procedure {
 
     end
 }
+
+Mocks {
+    tester = {
+        tool_calls = {
+            {tool = "done", args = {reason = "Completed per-turn tool control demo"}}
+        },
+        message = "No tools available"
+    }
+}

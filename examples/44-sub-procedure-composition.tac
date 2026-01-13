@@ -39,19 +39,17 @@ Procedure {
     },
     function(input)
 
-    -- Step 1: Calculate sum (inline for testing - Procedure.run path resolution has issues in mock mode)
-        local sum = 0
-        for _, v in ipairs(input.numbers) do
-            sum = sum + v
-        end
-        State.sum = sum
+    -- Step 1: Calculate sum (auto-checkpointed)
+        local sum_result = Procedure.run("examples/helpers/sum.tac", {
+            values = input.numbers
+        })
+        State.sum = sum_result.result or sum_result
 
-        -- Step 2: Calculate product (inline)
-        local product = 1
-        for _, v in ipairs(input.numbers) do
-            product = product * v
-        end
-        State.product = product
+        -- Step 2: Calculate product (auto-checkpointed)
+        local product_result = Procedure.run("examples/helpers/product.tac", {
+            values = input.numbers
+        })
+        State.product = product_result.result or product_result
 
         -- Step 3: Calculate average
         State.average = State.sum / #input.numbers
@@ -59,17 +57,11 @@ Procedure {
         -- Step 4: Get AI analysis (auto-checkpointed agent turn)
         analyst({})
 
-        -- Get analysis from done tool
-        local analysis = "No analysis provided"
-        if done.called() then
-            analysis = done.last_result() or "Analysis complete"
-        end
-
         return {
             sum = State.sum,
             product = State.product,
             average = State.average,
-            analysis = analysis
+            analysis = analyst.output
         }
 
     -- BDD Specifications

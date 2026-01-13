@@ -108,7 +108,7 @@ class AgentHandle:
             result = worker({message = "Process this task"})
             print(result.response)
         """
-        logger.info(
+        logger.debug(
             f"[CHECKPOINT] AgentHandle '{self.name}'.__call__ invoked, _primitive={self._primitive is not None}, _execution_context={self._execution_context is not None}"
         )
         if self._primitive is None:
@@ -121,7 +121,7 @@ class AgentHandle:
         converted_inputs = _convert_lua_table(inputs) if inputs is not None else None
 
         # If we have an execution context, checkpoint the agent call
-        logger.info(
+        logger.debug(
             f"[CHECKPOINT] AgentHandle '{self.name}' called, has_execution_context={self._execution_context is not None}"
         )
         if self._execution_context is not None:
@@ -146,15 +146,41 @@ class AgentHandle:
                 except Exception as e:
                     logger.debug(f"Could not capture source location: {e}")
 
-            logger.info(
+            logger.debug(
                 f"[CHECKPOINT] Creating checkpoint for agent '{self.name}', type=agent_turn, source_info={source_info}"
             )
-            return self._execution_context.checkpoint(
+            result = self._execution_context.checkpoint(
                 agent_call, checkpoint_type="agent_turn", source_info=source_info
             )
         else:
             # No execution context - call directly without checkpointing
-            return self._primitive(converted_inputs)
+            result = self._primitive(converted_inputs)
+
+        # Convenience: expose the last agent output on the handle as `.output`
+        # for Lua patterns like `agent(); return agent.output`.
+        output_text = None
+        if result is not None:
+            for attr in ("response", "message"):
+                try:
+                    value = getattr(result, attr, None)
+                except Exception:
+                    value = None
+                if isinstance(value, str):
+                    output_text = value
+                    break
+
+            if output_text is None and isinstance(result, dict):
+                for key in ("response", "message"):
+                    value = result.get(key)
+                    if isinstance(value, str):
+                        output_text = value
+                        break
+
+            if output_text is None:
+                output_text = str(result)
+
+        self.output = output_text
+        return result
 
     def _set_primitive(
         self, primitive: "DSPyAgentHandle", execution_context: Optional[Any] = None
@@ -170,7 +196,7 @@ class AgentHandle:
         """
         self._primitive = primitive
         self._execution_context = execution_context
-        logger.info(
+        logger.debug(
             f"[CHECKPOINT] AgentHandle '{self.name}' connected to primitive (checkpointing={'enabled' if execution_context else 'disabled'}, execution_context={execution_context})"
         )
 
@@ -216,7 +242,8 @@ class ModelHandle:
                 f"Model '{self.name}' initialization failed.\n"
                 f"This should not happen - please report this as a bug."
             )
-        return self._primitive.predict(data)
+        converted_data = _convert_lua_table(data) if data is not None else None
+        return self._primitive.predict(converted_data)
 
     def __call__(self, data: Any = None) -> Any:
         """
