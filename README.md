@@ -585,6 +585,22 @@ researcher({
 
 See `examples/14-feature-per-turn-tools.tac` for a complete working example.
 
+### Checkpointed Steps (Determinism)
+
+For durable execution, any operation that touches external state (randomness, time, APIs not in tools) must be checkpointed. Tactus provides `Step.checkpoint` for this:
+
+```lua
+-- Non-deterministic operation wrapped in checkpoint
+local data = Step.checkpoint(function()
+  return http_get("https://api.example.com/data")
+end)
+
+-- On replay, the function is NOT called again.
+-- The previously saved 'data' is returned immediately.
+```
+
+This ensures that when a procedure resumes after a pause (e.g. waiting for a human), it doesn't re-execute side effects or get different random values.
+
 ### File I/O Operations
 
 Tactus provides safe file I/O operations for reading and writing data files, with all operations restricted to the current working directory for security.
@@ -1034,6 +1050,60 @@ default_provider: openai
 default_model: gpt-4o
 ```
 
+### DSPy Integration
+
+Tactus provides first-class support for **DSPy Modules and Signatures**, enabling you to build declarative, self-optimizing AI components directly within your agent workflows.
+
+**Modules & Signatures:**
+
+Instead of hand-tuning prompts, define what you want the model to do using typed signatures:
+
+```lua
+-- Configure the Language Model for DSPy
+LM("openai/gpt-4o")
+
+-- Define a module with a typed signature
+summarizer = Module {
+  signature = "text -> summary",
+  strategy = "chain_of_thought"  -- Use Chain of Thought reasoning
+}
+
+-- Or define complex signatures with specific fields
+classifier = Module {
+  signature = Signature {
+    input = {
+      text = field.string{description = "The customer email to classify"}
+    },
+    output = {
+      category = field.string{description = "Support category (Billing, Tech, Sales)"},
+      priority = field.string{description = "Priority level (Low, High, Critical)"}
+    }
+  },
+  strategy = "predict"
+}
+```
+
+**Using Modules:**
+
+Modules are callable just like Agents or Tools:
+
+```lua
+Procedure {
+  function(input)
+    -- Call the module
+    local result = classifier({text = input.email})
+    
+    if result.priority == "Critical" then
+      human_escalation({context = result})
+    else
+      auto_responder({category = result.category})
+    end
+  end
+}
+```
+
+This brings the power of DSPy's programmable LLM interfaces into Tactus's durable, orchestrated environment.
+
 ### Asynchronous Execution
 
 Tactus is built on **async I/O** from the ground up, making it ideal for LLM-based workflows where you spend most of your time waiting for API responses.
@@ -1224,6 +1294,21 @@ Then reference them in your procedure:
 local approved = Human.approve("confirm_publish")
 ```
 
+**System Alerts:**
+
+Send alerts to your monitoring infrastructure (Datadog, PagerDuty) directly from the workflow:
+
+```lua
+System.alert({
+  message = "Failure rate exceeded threshold",
+  level = "error",  -- info, warning, error, critical
+  context = {
+    current_rate = 0.15,
+    threshold = 0.05
+  }
+})
+```
+
 ### Cost Tracking & Metrics
 
 Tactus provides **comprehensive cost and performance tracking** for all LLM calls. Every agent interaction is monitored with detailed metrics, giving you complete visibility into costs, performance, and behavior.
@@ -1309,20 +1394,37 @@ The AI agent space is crowded. This section explains how Tactus differs from alt
 
 ### DSPy
 
-[DSPy](https://dspy.ai) (Declarative Self-improving Python) treats prompting as a compilation target. You define typed signatures and let optimizers automatically discover effective prompts, few-shot examples, or fine-tuning strategies. DSPy excels at tasks where you have training data and clear metrics—classification, RAG, information extraction—and want to programmatically iterate on prompt quality without manual tuning.
+[DSPy](https://dspy.ai) (Declarative Self-improving Python) is the engine that powers Tactus's intelligence layer. Tactus integrates DSPy directly, allowing you to define DSPy Modules, Signatures, and Optimizers within your `.tac` files using a clean Lua syntax.
 
-Tactus takes a different approach: rather than optimizing prompts automatically, it provides a token-efficient, sandboxed language that serves as a safe platform for user-contributed or AI-generated code. Where DSPy hides control flow behind module composition, Tactus makes it explicit—you write the loops, conditionals, and error handling while agents handle intelligence within each turn.
+While DSPy provides the primitives for programming with language models (optimizing prompts, few-shot examples, and reasoning steps), Tactus provides the **orchestration layer** that makes these components production-ready:
 
-The frameworks are complementary: you could use DSPy to optimize the prompts that go into a Tactus agent's `system_prompt`, then use Tactus to orchestrate those optimized agents in a durable, human-in-the-loop workflow.
+- **Durability**: Tactus handles checkpointing and resuming DSPy module calls transparently.
+- **Orchestration**: Tactus manages the control flow (loops, conditionals) around your DSPy modules.
+- **Human-in-the-Loop**: Tactus allows humans to inspect, approve, or correct DSPy module outputs.
+- **Sandboxing**: Tactus runs DSPy components in a safe, sandboxed environment suitable for user-contributed code.
 
-| | DSPy | Tactus |
-|-|------|--------|
-| **Core idea** | Programming, not prompting | Token-efficient, AI-manipulable orchestration language |
-| **Optimization** | Automatic (optimizers) | Manual or agent-driven self-evolution |
-| **Control flow** | Declarative composition | Imperative Lua DSL |
-| **Human-in-the-loop** | Not built-in | First-class citizen |
-| **Durability** | Caching | Checkpointing + replay |
-| **Target** | Researchers optimizing prompts | Engineers building production workflows |
+You can use Tactus to define standard DSPy modules:
+
+```lua
+-- Define a DSPy Module with a typed signature
+qa = Module {
+  signature = "question -> answer",
+  strategy = "chain_of_thought"
+}
+
+-- Invoke it as part of a durable workflow
+local result = qa({question = "How does this work?"})
+```
+
+Tactus and DSPy work together: DSPy handles the *thinking* (optimizing how to get the best answer), while Tactus handles the *doing* (ensuring the workflow completes reliably, even if it takes days).
+
+| | DSPy (Python) | Tactus (Lua) |
+|---|---|---|
+| **Role** | Intelligence Engine | Orchestration Engine |
+| **Focus** | Prompt optimization, reasoning | Durability, HITL, Sandboxing |
+| **Definition** | Python classes | Lua DSL primitives |
+| **State** | In-memory | Persisted & Resumable |
+| **Optimization** | Automatic (Teleprompters) | Agent-driven or Manual |
 
 ### LangGraph
 
@@ -1358,17 +1460,18 @@ The major AI companies have released their own agent frameworks:
 
 - **[Meta Llama Stack](https://ai.meta.com/blog/meta-llama-3-1/)** — Standardized interfaces for building agentic applications with Llama models. More of an API specification than a workflow framework.
 
-These frameworks are valuable if you're committed to a specific vendor's ecosystem. Tactus is model-agnostic (via Pydantic-AI) and designed to run anywhere—local, cloud, or AWS Lambda Durable Functions.
+These frameworks are valuable if you're committed to a specific vendor's ecosystem. Tactus is model-agnostic (via [DSPy](https://dspy.ai)) and designed to run anywhere—local, cloud, or AWS Lambda Durable Functions.
 
 ### Other Tools
 
-- **[Pydantic-AI](https://github.com/pydantic/pydantic-ai)** — Type-safe LLM integration that Tactus uses under the hood. Tactus adds orchestration, HITL, and durability on top.
+- **[Pydantic-AI](https://github.com/pydantic/pydantic-ai)** — Used for type-safe tool definitions and message structures.
 
 - **[Guidance](https://github.com/guidance-ai/guidance)** (Microsoft) — Interleaves constrained generation with control flow. Focuses on token-level control during generation rather than workflow orchestration.
 
 ## Complete Feature List
 
 - **Durable Execution**: Automatic position-based checkpointing for all operations (agent turns, model predictions, sub-procedure calls, HITL interactions) with replay-based recovery—resume from exactly where you left off after crashes, timeouts, or pauses
+- **DSPy Integration**: First-class support for DSPy Modules and Signatures, enabling declarative machine learning components and prompt optimization alongside agentic workflows
 - **Model Primitive**: First-class support for ML inference (PyTorch, HTTP, HuggingFace Transformers) with automatic checkpointing—distinct from conversational agents for classification, prediction, and transformation tasks
 - **Script Mode**: Write procedures without explicit `main` definitions—top-level `input`/`output` declarations and code automatically wrapped as the main procedure
 - **State Management**: Typed, schema-validated persistent state with automatic initialization from defaults and runtime validation
@@ -1383,7 +1486,7 @@ These frameworks are valuable if you're committed to a specific vendor's ecosyst
 - **Context Engineering**: Fine-grained control over conversation history per agent
 - **Typed Input/Output**: JSON Schema validation with UI generation support using `input`/`output`/`state` declarations
 - **Pluggable Backends**: Storage, HITL, and chat recording via Pydantic protocols
-- **LLM Integration**: Works with OpenAI and Bedrock via [pydantic-ai](https://github.com/pydantic/pydantic-ai)
+- **LLM Integration**: Works with OpenAI and Bedrock via [DSPy](https://dspy.ai)
 - **Standalone CLI**: Run workflows without any infrastructure
 - **Type-Safe**: Pydantic models throughout for validation and type safety
 
