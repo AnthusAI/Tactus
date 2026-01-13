@@ -81,6 +81,14 @@ Call a host tool from Lua:
 local result = Host.call("host.ping", {value = 1})
 ```
 
+Or wrap it as a normal `Tool` using a broker tool source:
+
+```lua
+host_ping = Tool { use = "broker.host.ping" } -- calls broker allowlisted tool: host.ping
+
+local result = host_ping({value = 1})
+```
+
 ### Default Allowlist (Phase 1B)
 
 The default broker allowlist intentionally starts small:
