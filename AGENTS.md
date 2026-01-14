@@ -158,6 +158,63 @@ make generate-typescript-parser
 - `tactus/validation/generated/*.py` - Python parser
 - `tactus-ide/frontend/src/validation/generated/*.ts` - TypeScript parser
 
+## Container Development Mode
+
+**IMPORTANT**: The sandbox container uses development mode to avoid constant rebuilds during active development.
+
+### What is Development Mode?
+
+Development mode (`dev_mode: true`) mounts your live Tactus source code into the container at runtime. This means:
+- Code changes are **instantly available** in containers
+- No rebuilding needed after changes
+- No version mismatch errors between host and container
+
+### How It Works
+
+The IDE automatically enables dev mode. The system finds your Tactus repository via:
+1. `TACTUS_DEV_PATH` environment variable (if set)
+2. Python module location (`tactus.__file__` when installed with `pip install -e .`)
+3. Current working directory (if it contains `tactus/` and `pyproject.toml`)
+
+### For Tactus Developers (Typical Workflow)
+
+If you installed Tactus with `pip install -e .` from a repo clone:
+- ✅ Dev mode works automatically everywhere
+- ✅ No manual configuration needed
+- ✅ No need to be in repo directory
+
+### Initial Container Build
+
+Build the container once initially:
+```bash
+docker build -t tactus-sandbox:local -f tactus/docker/Dockerfile .
+```
+
+After that, code changes are instantly available with dev mode enabled.
+
+### When Dev Mode Activates
+
+You'll see this log message:
+```
+INFO:tactus.sandbox.container_runner:[DEV MODE] Mounting live Tactus source from: /path/to/Tactus
+```
+
+If it can't find the source (e.g., PyPI-installed Tactus), you'll see:
+```
+WARNING:tactus.sandbox.container_runner:[DEV MODE] Could not locate Tactus source directory, using baked-in version
+```
+
+### When to Rebuild Container
+
+Only rebuild when:
+- Changing dependencies in `pyproject.toml`
+- Updating base system packages in Dockerfile
+- Dev mode cannot find your source (rare)
+
+**Never rebuild for regular code changes** - that's what dev mode prevents.
+
+See [docs/development-mode.md](docs/development-mode.md) for complete details.
+
 ## Tactus IDE Development
 
 When working on the Tactus IDE:

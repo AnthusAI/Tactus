@@ -169,6 +169,43 @@ class ContainerRunner:
         else:
             logger.debug("Sandbox is up to date")
 
+    def _find_tactus_source_dir(self) -> Optional[Path]:
+        """
+        Find the Tactus source directory for development mode.
+
+        Searches in order:
+        1. TACTUS_DEV_PATH environment variable
+        2. Directory containing the tactus module (via __file__)
+        3. Current working directory if it contains tactus/ subdirectory
+
+        Returns:
+            Path to Tactus repository root, or None if not found.
+        """
+        # Option 1: Explicit environment variable
+        env_path = os.environ.get("TACTUS_DEV_PATH")
+        if env_path:
+            path = Path(env_path).resolve()
+            if path.exists() and (path / "tactus").is_dir():
+                return path
+
+        # Option 2: Find via the tactus module location
+        try:
+            import tactus
+            tactus_module_path = Path(tactus.__file__).resolve()
+            # Go up from tactus/__init__.py to the repo root
+            repo_root = tactus_module_path.parent.parent
+            if (repo_root / "tactus").is_dir() and (repo_root / "pyproject.toml").exists():
+                return repo_root
+        except Exception:
+            pass
+
+        # Option 3: Check current working directory
+        cwd = Path.cwd()
+        if (cwd / "tactus").is_dir() and (cwd / "pyproject.toml").exists():
+            return cwd
+
+        return None
+
     def _build_docker_command(
         self,
         working_dir: Path,
@@ -234,6 +271,15 @@ class ContainerRunner:
         # Mount MCP servers if available
         if mcp_servers_path and mcp_servers_path.exists():
             cmd.extend(["-v", f"{mcp_servers_path}:/mcp-servers:ro"])
+
+        # Development mode: mount live Tactus source code
+        if self.config.dev_mode:
+            tactus_src_dir = self._find_tactus_source_dir()
+            if tactus_src_dir:
+                logger.info(f"[DEV MODE] Mounting live Tactus source from: {tactus_src_dir}")
+                cmd.extend(["-v", f"{tactus_src_dir}/tactus:/app/tactus:ro"])
+            else:
+                logger.warning("[DEV MODE] Could not locate Tactus source directory, using baked-in version")
 
         # Additional user-configured volumes
         for volume in self.config.volumes:

@@ -76,6 +76,12 @@ class SandboxConfig(BaseModel):
         description="Maximum execution time in seconds before container is killed",
     )
 
+    # Development mode: mount live Tactus source code
+    dev_mode: bool = Field(
+        default=False,
+        description="Enable development mode: mount live Tactus source code instead of using baked-in version",
+    )
+
     def get_mcp_servers_path(self) -> Path:
         """Get the expanded MCP servers path."""
         return Path(self.mcp_servers_path).expanduser()

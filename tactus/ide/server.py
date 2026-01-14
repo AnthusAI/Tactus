@@ -776,7 +776,8 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                     from tactus.sandbox import is_docker_available, SandboxConfig, ContainerRunner
 
                     docker_available, docker_reason = is_docker_available()
-                    sandbox_config = SandboxConfig()
+                    # Enable dev_mode by default in IDE for live code mounting
+                    sandbox_config = SandboxConfig(dev_mode=True)
                     use_sandbox = docker_available and not sandbox_config.is_explicitly_disabled()
 
                     if use_sandbox:
