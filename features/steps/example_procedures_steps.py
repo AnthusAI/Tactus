@@ -123,7 +123,6 @@ def step_impl(context):
         mcp_server=None,
         mcp_servers=mcp_servers,
         tool_primitive=tool_primitive,
-        skip_agents=True,
         tool_paths=tool_paths,
         external_config=merged_config,
         source_file_path=str(context.example_file),

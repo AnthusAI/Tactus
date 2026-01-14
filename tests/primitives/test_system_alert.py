@@ -34,7 +34,6 @@ async def test_system_alert_emits_structured_event():
         procedure_id="test-system-alert",
         storage_backend=MemoryStorage(),
         log_handler=handler,
-        skip_agents=True,
     )
 
     result = await runtime.execute(source=source, context={}, format="lua")
@@ -65,7 +64,6 @@ async def test_system_alert_rejects_invalid_level():
     runtime = TactusRuntime(
         procedure_id="test-system-alert-invalid",
         storage_backend=MemoryStorage(),
-        skip_agents=True,
     )
 
     result = await runtime.execute(source=source, context={}, format="lua")

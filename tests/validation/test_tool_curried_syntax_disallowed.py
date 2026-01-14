@@ -50,7 +50,6 @@ Procedure {
     runtime = TactusRuntime(
         procedure_id="test-curried-tool-disallowed",
         storage_backend=MemoryStorage(),
-        skip_agents=True,
     )
 
     result = await runtime.execute(source=source, context={}, format="lua")

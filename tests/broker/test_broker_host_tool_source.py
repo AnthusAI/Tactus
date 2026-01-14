@@ -30,7 +30,6 @@ Procedure {
     runtime = TactusRuntime(
         procedure_id="test-broker-host-tool-source",
         storage_backend=MemoryStorage(),
-        skip_agents=True,
     )
 
     result = await runtime.execute(source=source, context={}, format="lua")

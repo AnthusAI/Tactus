@@ -1621,10 +1621,10 @@ def create_dsl_stubs(
         logger = logging.getLogger(__name__)
 
         logger.debug(
-            f"[AGENT_CREATION] Agent '{agent_name}': runtime_context={bool(_runtime_context)}, skip_agents={_runtime_context.get('skip_agents', 'N/A') if _runtime_context else 'N/A'}, has_log_handler={('log_handler' in _runtime_context) if _runtime_context else False}"
+            f"[AGENT_CREATION] Agent '{agent_name}': runtime_context={bool(_runtime_context)}, has_log_handler={('log_handler' in _runtime_context) if _runtime_context else False}"
         )
 
-        if _runtime_context and not _runtime_context.get("skip_agents", False):
+        if _runtime_context:
             from tactus.dspy.agent import create_dspy_agent
 
             logger.debug(f"[AGENT_CREATION] Attempting immediate creation for agent '{agent_name}'")
@@ -1777,10 +1777,10 @@ def create_dsl_stubs(
         logger = logging.getLogger(__name__)
 
         logger.debug(
-            f"[AGENT_CREATION] Agent '{temp_name}': runtime_context={bool(_runtime_context)}, skip_agents={_runtime_context.get('skip_agents', 'N/A') if _runtime_context else 'N/A'}, has_log_handler={('log_handler' in _runtime_context) if _runtime_context else False}"
+            f"[AGENT_CREATION] Agent '{temp_name}': runtime_context={bool(_runtime_context)}, has_log_handler={('log_handler' in _runtime_context) if _runtime_context else False}"
         )
 
-        if _runtime_context and not _runtime_context.get("skip_agents", False):
+        if _runtime_context:
             from tactus.dspy.agent import create_dspy_agent
 
             logger.debug(f"[AGENT_CREATION] Attempting immediate creation for agent '{temp_name}'")

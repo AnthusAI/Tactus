@@ -77,7 +77,6 @@ class TactusRuntime:
         openai_api_key: Optional[str] = None,
         log_handler=None,
         tool_primitive: Optional[ToolPrimitive] = None,
-        skip_agents: bool = False,
         recursion_depth: int = 0,
         tool_paths: Optional[list] = None,
         external_config: Optional[Dict[str, Any]] = None,
@@ -97,7 +96,6 @@ class TactusRuntime:
             openai_api_key: Optional OpenAI API key for LLMs
             log_handler: Optional handler for structured log events
             tool_primitive: Optional pre-configured ToolPrimitive (for testing with mocks)
-            skip_agents: If True, skip agent setup and execution (for testing)
             tool_paths: Optional list of paths to scan for local Python tool plugins
             external_config: Optional external config (from .tac.yml) to merge with DSL config
             run_id: Optional run identifier for tagging checkpoints
@@ -114,7 +112,6 @@ class TactusRuntime:
         self.log_handler = log_handler
         self._injected_tool_primitive = tool_primitive
         self.tool_paths = tool_paths or []
-        self.skip_agents = skip_agents
         self.recursion_depth = recursion_depth
         self.external_config = external_config or {}
         self.run_id = run_id
@@ -1647,25 +1644,6 @@ class TactusRuntime:
             logger.info("No agents defined in configuration - skipping agent setup")
             return
 
-        # Skip agent setup in mock mode
-        if self.skip_agents:
-            logger.info("Skipping agent setup (mock mode)")
-            from tactus.testing.mock_agent import MockAgentPrimitive
-
-            # Create mock agent primitives with registry and mock_manager for Mocks {} support
-            for agent_name in agents_config.keys():
-                mock_agent = MockAgentPrimitive(
-                    agent_name,
-                    self.tool_primitive,
-                    registry=self.registry,
-                    mock_manager=self.mock_manager,
-                    lua_runtime=self.lua_sandbox.lua if self.lua_sandbox else None,
-                )
-                self.agents[agent_name] = mock_agent
-                logger.debug(f"Created mock agent: {agent_name}")
-
-            return
-
         # Import DSPy agent primitive (required)
         from tactus.dspy.agent import create_dspy_agent
 
@@ -2552,7 +2530,6 @@ class TactusRuntime:
             "registry": builder.registry,
             "mock_manager": self.mock_manager,
             "execution_context": self.execution_context,
-            "skip_agents": self.skip_agents,
             "log_handler": self.log_handler,
             "_created_agents": {},  # Will be populated during parsing
         }
@@ -2749,7 +2726,6 @@ class TactusRuntime:
             mcp_server=self.mcp_server,
             openai_api_key=self.openai_api_key,
             log_handler=self.log_handler,
-            skip_agents=self.skip_agents,
             recursion_depth=self.recursion_depth + 1,
         )
 
