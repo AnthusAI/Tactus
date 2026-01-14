@@ -68,10 +68,10 @@ export const CollapsibleRun: React.FC<CollapsibleRunProps> = ({ run, isExpanded,
           className="flex-1 px-3 py-2 flex items-center justify-between hover:bg-muted/30 transition-colors"
         >
           <div className="flex items-center gap-2">
-            <span className="text-muted-foreground">{operationIcon}</span>
             {statusIcon}
             <span className="text-sm font-medium capitalize">{run.operationType}</span>
             <span className="text-xs text-muted-foreground">{formatTimestamp(run.timestamp)}</span>
+            <span className="text-muted-foreground">{operationIcon}</span>
             {!isExpanded && run.checkpoints && run.checkpoints.length > 0 && (
               <>
                 <span className="text-xs text-muted-foreground">•</span>
