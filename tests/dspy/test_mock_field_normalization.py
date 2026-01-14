@@ -85,8 +85,8 @@ def test_mock_without_message_field():
     # Wrap mock response
     result = agent._wrap_mock_response(mock_data, {})
 
-    # Verify that 'response' field is accessible
-    assert result.value["response"] == "Direct response", "Response should be accessible"
+    # Verify that 'response' value is accessible (simplified to string when single field)
+    assert result.value == "Direct response", "Response should be accessible"
 
 
 def test_mock_data_with_tool_calls():

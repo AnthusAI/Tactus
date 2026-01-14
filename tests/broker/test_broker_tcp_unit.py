@@ -94,7 +94,7 @@ async def test_tcp_transport_sends_request_and_yields_events(monkeypatch: pytest
     assert [e["event"] for e in events] == ["delta", "done"]
     assert writer.closed is True
     sent = b"".join(writer.writes).decode("utf-8")
-    assert '"method":"llm.chat"' in sent
+    assert '"method": "llm.chat"' in sent
 
 
 @pytest.mark.asyncio
@@ -121,7 +121,7 @@ async def test_tcp_tool_call_returns_result(monkeypatch: pytest.MonkeyPatch):
     result = await client.call_tool(name="host.ping", args={"x": 1})
 
     sent = b"".join(writer.writes).decode("utf-8")
-    assert '"method":"tool.call"' in sent
+    assert '"method": "tool.call"' in sent
     assert result == {"ok": True, "echo": {"x": 1}}
 
 
@@ -154,8 +154,12 @@ async def test_tcp_tool_call_raises_on_error(monkeypatch: pytest.MonkeyPatch):
 
 @pytest.mark.asyncio
 async def test_tls_transport_uses_ssl_context(monkeypatch: pytest.MonkeyPatch):
-    # Empty reader - test will timeout/complete before reading
-    reader = _FakeReader([])
+    # Provide a done event so the client can complete
+    reader = _FakeReader(
+        [
+            _encode_message({"id": "req", "event": "done", "data": {"text": "response"}}),
+        ]
+    )
     writer = _FakeWriter()
 
     async def fake_open_connection(host: str, port: int, ssl=None):
@@ -179,4 +183,5 @@ async def test_tls_transport_uses_ssl_context(monkeypatch: pytest.MonkeyPatch):
     ):
         events.append(event)
 
-    assert events == []
+    assert len(events) == 1
+    assert events[0]["event"] == "done"
