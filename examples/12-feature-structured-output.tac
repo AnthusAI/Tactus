@@ -1,6 +1,6 @@
 -- Structured Output Demo
 -- Demonstrates using output for structured data extraction
--- and accessing result.data, result.usage
+-- and accessing result.value, result.usage
 
 extractor = Agent {
     provider = "openai",
@@ -35,11 +35,11 @@ Procedure {
         -- Agent returns ResultPrimitive (not raw data)
         local result = extractor()
 
-        -- Access structured data via result.data
+        -- Access structured data via result.value
         Log.info("Extracted city information", {
-            city = result.data.city,
-            country = result.data.country,
-            population = result.data.population or "unknown"
+            city = result.value.city,
+            country = result.value.country,
+            population = result.value.population or "unknown"
         })
 
         -- Access token usage stats
@@ -62,7 +62,7 @@ Procedure {
         end
 
         return {
-            city_data = result.data,
+            city_data = result.value,
             tokens_used = result.usage.total_tokens
         }
     end
@@ -72,12 +72,7 @@ Procedure {
 Mocks {
     extractor = {
         tool_calls = {},
-        message = "Paris is the capital of France.",
-        data = {
-            city = "Paris",
-            country = "France",
-            population = 2161000
-        }
+        message = '{"city": "Paris", "country": "France", "population": 2161000}'
     }
 }
 

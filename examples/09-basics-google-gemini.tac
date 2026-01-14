@@ -56,8 +56,14 @@ Procedure {
             pro_turns = pro_turns + 1
 
             -- Accumulate the response text
-            if response.message and response.message ~= "" then
-                pro_response = pro_response .. response.message
+            if response.value and response.value ~= "" then
+                local msg = response.value
+                if type(msg) == "table" and msg.response then
+                    msg = msg.response
+                end
+                if type(msg) == "string" then
+                    pro_response = pro_response .. msg
+                end
             end
 
             -- Safety check
@@ -86,8 +92,14 @@ Procedure {
             flash_turns = flash_turns + 1
 
             -- Accumulate the response text
-            if response.message and response.message ~= "" then
-                flash_response = flash_response .. response.message
+            if response.value and response.value ~= "" then
+                local msg = response.value
+                if type(msg) == "table" and msg.response then
+                    msg = msg.response
+                end
+                if type(msg) == "string" then
+                    flash_response = flash_response .. msg
+                end
             end
 
             -- Safety check

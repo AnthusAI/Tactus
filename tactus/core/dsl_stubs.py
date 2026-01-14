@@ -1653,6 +1653,11 @@ def create_dsl_stubs(
                     mock_manager=_runtime_context.get("mock_manager"),
                 )
 
+                # Set tool_primitive for mock tool call recording
+                tool_primitive = _runtime_context.get("tool_primitive")
+                if tool_primitive:
+                    agent_primitive._tool_primitive = tool_primitive
+
                 # Connect handle to primitive immediately
                 handle._set_primitive(
                     agent_primitive, execution_context=_runtime_context.get("execution_context")
@@ -1811,6 +1816,11 @@ def create_dsl_stubs(
                     registry=builder.registry,
                     mock_manager=_runtime_context.get("mock_manager"),
                 )
+
+                # Set tool_primitive for mock tool call recording
+                tool_primitive = _runtime_context.get("tool_primitive")
+                if tool_primitive:
+                    agent_primitive._tool_primitive = tool_primitive
 
                 # Connect handle to primitive immediately
                 handle._set_primitive(

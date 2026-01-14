@@ -963,24 +963,33 @@ class DSPyAgentHandle:
         # Create prediction from normalized mock data
         result = create_prediction(**normalized_data)
 
-        # Check if mock simulates a done tool call
-        # This allows mocks to trigger Tool.called("done") behavior
+        # Record all tool calls from the mock
+        # This allows mocks to trigger Tool.called(...) behavior
         # Use getattr since _tool_primitive is set externally by runtime
         tool_primitive = getattr(self, "_tool_primitive", None)
         if "tool_calls" in normalized_data and tool_primitive:
-            tool_calls = normalized_data.get("tool_calls", "")
-            if "done" in str(tool_calls).lower():
-                # Extract reason from mock response
-                reason = normalized_data.get("response", "Task completed (mocked)")
+            tool_calls_list = normalized_data.get("tool_calls", [])
+            if isinstance(tool_calls_list, list):
+                for tool_call in tool_calls_list:
+                    if isinstance(tool_call, dict) and "tool" in tool_call:
+                        tool_name = tool_call["tool"]
+                        tool_args = tool_call.get("args", {})
 
-                # Record that the done tool was called
-                logger.debug(f"Mock recording done tool call with reason: {reason}")
-                tool_primitive.record_call(
-                    "done",
-                    {"reason": reason},
-                    {"status": "completed", "reason": reason, "tool": "done"},
-                    agent_name=self.name,
-                )
+                        # For done tool, extract reason for result
+                        if tool_name == "done":
+                            reason = tool_args.get("reason", normalized_data.get("response", "Task completed (mocked)"))
+                            tool_result = {"status": "completed", "reason": reason, "tool": "done"}
+                        else:
+                            # For other tools, use a generic result
+                            tool_result = {"tool": tool_name, "args": tool_args}
+
+                        logger.debug(f"Mock recording {tool_name} tool call")
+                        tool_primitive.record_call(
+                            tool_name,
+                            tool_args,
+                            tool_result,
+                            agent_name=self.name,
+                        )
 
         # Return as TactusResult with zeroed usage/cost (mocks don't incur costs)
         return self._wrap_as_result(result, UsageStats(), CostStats())
