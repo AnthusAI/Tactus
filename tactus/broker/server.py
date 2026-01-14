@@ -15,6 +15,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
 
+import anyio
+from anyio.streams.buffered import BufferedByteReceiveStream
+from anyio.streams.tls import TLSStream
+
+from tactus.broker.protocol import read_message_anyio, write_message_anyio
+
 logger = logging.getLogger(__name__)
 
 
@@ -22,9 +28,9 @@ def _json_dumps(obj: Any) -> str:
     return json.dumps(obj, ensure_ascii=False, separators=(",", ":"))
 
 
-async def _write_event(writer: asyncio.StreamWriter, event: dict[str, Any]) -> None:
-    writer.write((_json_dumps(event) + "\n").encode("utf-8"))
-    await writer.drain()
+async def _write_event_anyio(stream: anyio.abc.ByteStream, event: dict[str, Any]) -> None:
+    """Write an event using length-prefixed protocol."""
+    await write_message_anyio(stream, event)
 
 
 @dataclass(frozen=True)
@@ -115,7 +121,7 @@ class _BaseBrokerServer:
         tool_registry: Optional[HostToolRegistry] = None,
         event_handler: Optional[Callable[[dict[str, Any]], None]] = None,
     ):
-        self._server: Optional[asyncio.AbstractServer] = None
+        self._listener = None
         self._openai = openai_backend or OpenAIChatBackend()
         self._tools = tool_registry or HostToolRegistry.default()
         self._event_handler = event_handler
@@ -123,11 +129,16 @@ class _BaseBrokerServer:
     async def start(self) -> None:
         raise NotImplementedError
 
+    async def serve(self) -> None:
+        """Serve connections (blocks until listener is closed)."""
+        if self._listener is None:
+            raise RuntimeError("Server not started - call start() first")
+        await self._listener.serve(self._handle_connection)
+
     async def aclose(self) -> None:
-        if self._server is not None:
-            self._server.close()
-            await self._server.wait_closed()
-            self._server = None
+        if self._listener is not None:
+            await self._listener.aclose()
+            self._listener = None
 
     async def __aenter__(self) -> "_BaseBrokerServer":
         await self.start()
@@ -137,21 +148,30 @@ class _BaseBrokerServer:
         await self.aclose()
 
     async def _handle_connection(
-        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+        self, byte_stream: anyio.abc.ByteStream
     ) -> None:
-        try:
-            line = await reader.readline()
-            if not line:
-                return
+        # For TLS connections, wrap the stream with TLS
+        # Note: TcpBrokerServer subclass can override self.ssl_context
+        if hasattr(self, 'ssl_context') and self.ssl_context is not None:
+            byte_stream = await TLSStream.wrap(
+                byte_stream,
+                ssl_context=self.ssl_context,
+                server_side=True
+            )
 
-            req = json.loads(line.decode("utf-8"))
+        # Wrap the stream for buffered reading
+        buffered_stream = BufferedByteReceiveStream(byte_stream)
+
+        try:
+            # Use length-prefixed protocol to handle arbitrarily large messages
+            req = await read_message_anyio(buffered_stream)
             req_id = req.get("id")
             method = req.get("method")
             params = req.get("params") or {}
 
             if not req_id or not method:
-                await _write_event(
-                    writer,
+                await _write_event_anyio(
+                    byte_stream,
                     {
                         "id": req_id or "",
                         "event": "error",
@@ -161,19 +181,19 @@ class _BaseBrokerServer:
                 return
 
             if method == "events.emit":
-                await self._handle_events_emit(req_id, params, writer)
+                await self._handle_events_emit(req_id, params, byte_stream)
                 return
 
             if method == "llm.chat":
-                await self._handle_llm_chat(req_id, params, writer)
+                await self._handle_llm_chat(req_id, params, byte_stream)
                 return
 
             if method == "tool.call":
-                await self._handle_tool_call(req_id, params, writer)
+                await self._handle_tool_call(req_id, params, byte_stream)
                 return
 
-            await _write_event(
-                writer,
+            await _write_event_anyio(
+                byte_stream,
                 {
                     "id": req_id,
                     "event": "error",
@@ -184,8 +204,8 @@ class _BaseBrokerServer:
         except Exception as e:
             logger.debug("[BROKER] Connection handler error", exc_info=True)
             try:
-                await _write_event(
-                    writer,
+                await _write_event_anyio(
+                    byte_stream,
                     {
                         "id": "",
                         "event": "error",
@@ -196,18 +216,17 @@ class _BaseBrokerServer:
                 pass
         finally:
             try:
-                writer.close()
-                await writer.wait_closed()
+                await byte_stream.aclose()
             except Exception:
                 pass
 
     async def _handle_events_emit(
-        self, req_id: str, params: dict[str, Any], writer: asyncio.StreamWriter
+        self, req_id: str, params: dict[str, Any], byte_stream: anyio.abc.ByteStream
     ) -> None:
         event = params.get("event")
         if not isinstance(event, dict):
-            await _write_event(
-                writer,
+            await _write_event_anyio(
+                byte_stream,
                 {
                     "id": req_id,
                     "event": "error",
@@ -222,15 +241,15 @@ class _BaseBrokerServer:
         except Exception:
             logger.debug("[BROKER] event_handler raised", exc_info=True)
 
-        await _write_event(writer, {"id": req_id, "event": "done", "data": {"ok": True}})
+        await _write_event_anyio(byte_stream, {"id": req_id, "event": "done", "data": {"ok": True}})
 
     async def _handle_llm_chat(
-        self, req_id: str, params: dict[str, Any], writer: asyncio.StreamWriter
+        self, req_id: str, params: dict[str, Any], byte_stream: anyio.abc.ByteStream
     ) -> None:
         provider = params.get("provider") or "openai"
         if provider != "openai":
-            await _write_event(
-                writer,
+            await _write_event_anyio(
+                byte_stream,
                 {
                     "id": req_id,
                     "event": "error",
@@ -249,8 +268,8 @@ class _BaseBrokerServer:
         max_tokens = params.get("max_tokens")
 
         if not isinstance(model, str) or not model:
-            await _write_event(
-                writer,
+            await _write_event_anyio(
+                byte_stream,
                 {
                     "id": req_id,
                     "event": "error",
@@ -259,8 +278,8 @@ class _BaseBrokerServer:
             )
             return
         if not isinstance(messages, list):
-            await _write_event(
-                writer,
+            await _write_event_anyio(
+                byte_stream,
                 {
                     "id": req_id,
                     "event": "error",
@@ -291,12 +310,12 @@ class _BaseBrokerServer:
                         continue
 
                     full_text += text
-                    await _write_event(
-                        writer, {"id": req_id, "event": "delta", "data": {"text": text}}
+                    await _write_event_anyio(
+                        byte_stream, {"id": req_id, "event": "delta", "data": {"text": text}}
                     )
 
-                await _write_event(
-                    writer,
+                await _write_event_anyio(
+                    byte_stream,
                     {
                         "id": req_id,
                         "event": "done",
@@ -325,8 +344,8 @@ class _BaseBrokerServer:
             except Exception:
                 text = ""
 
-            await _write_event(
-                writer,
+            await _write_event_anyio(
+                byte_stream,
                 {
                     "id": req_id,
                     "event": "done",
@@ -338,8 +357,8 @@ class _BaseBrokerServer:
             )
         except Exception as e:
             logger.debug("[BROKER] llm.chat error", exc_info=True)
-            await _write_event(
-                writer,
+            await _write_event_anyio(
+                byte_stream,
                 {
                     "id": req_id,
                     "event": "error",
@@ -348,14 +367,14 @@ class _BaseBrokerServer:
             )
 
     async def _handle_tool_call(
-        self, req_id: str, params: dict[str, Any], writer: asyncio.StreamWriter
+        self, req_id: str, params: dict[str, Any], byte_stream: anyio.abc.ByteStream
     ) -> None:
         name = params.get("name")
         args = params.get("args") or {}
 
         if not isinstance(name, str) or not name:
-            await _write_event(
-                writer,
+            await _write_event_anyio(
+                byte_stream,
                 {
                     "id": req_id,
                     "event": "error",
@@ -364,8 +383,8 @@ class _BaseBrokerServer:
             )
             return
         if not isinstance(args, dict):
-            await _write_event(
-                writer,
+            await _write_event_anyio(
+                byte_stream,
                 {
                     "id": req_id,
                     "event": "error",
@@ -377,8 +396,8 @@ class _BaseBrokerServer:
         try:
             result = self._tools.call(name, args)
         except KeyError:
-            await _write_event(
-                writer,
+            await _write_event_anyio(
+                byte_stream,
                 {
                     "id": req_id,
                     "event": "error",
@@ -391,8 +410,8 @@ class _BaseBrokerServer:
             return
         except Exception as e:
             logger.debug("[BROKER] tool.call error", exc_info=True)
-            await _write_event(
-                writer,
+            await _write_event_anyio(
+                byte_stream,
                 {
                     "id": req_id,
                     "event": "error",
@@ -401,7 +420,7 @@ class _BaseBrokerServer:
             )
             return
 
-        await _write_event(writer, {"id": req_id, "event": "done", "data": {"result": result}})
+        await _write_event_anyio(byte_stream, {"id": req_id, "event": "done", "data": {"result": result}})
 
 
 class BrokerServer(_BaseBrokerServer):
@@ -484,20 +503,18 @@ class TcpBrokerServer(_BaseBrokerServer):
         self.bound_port: int | None = None
 
     async def start(self) -> None:
-        self._server = await asyncio.start_server(
-            self._handle_connection,
-            host=self.host,
-            port=self.port,
-            ssl=self.ssl_context,
+        # Create AnyIO TCP listener (doesn't block, just binds to port)
+        self._listener = await anyio.create_tcp_listener(
+            local_host=self.host,
+            local_port=self.port
         )
 
-        sockets = self._server.sockets or []
-        if sockets:
-            try:
-                sockname = sockets[0].getsockname()
-                self.bound_port = int(sockname[1])
-            except Exception:
-                self.bound_port = None
+        # Get the bound port
+        try:
+            sockname = self._listener.extra(anyio.abc.SocketAttribute.raw_socket).getsockname()
+            self.bound_port = int(sockname[1])
+        except Exception:
+            self.bound_port = None
 
         scheme = "tls" if self.ssl_context is not None else "tcp"
         logger.info(

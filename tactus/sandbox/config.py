@@ -60,16 +60,17 @@ class SandboxConfig(BaseModel):
 
     # Network mode
     network: str = Field(
-        default="none",
-        description="Docker network mode (bridge allows outbound, none blocks all)",
+        default="bridge",
+        description="Docker network mode (bridge for broker access, none blocks all network)",
     )
 
     # Broker transport (how the secretless runtime reaches the host broker)
-    # - stdio: local Docker MVP (works on Docker Desktop with --network none)
-    # - tcp/tls: remote-mode spike (for K8s/cloud; requires container networking)
+    # - tcp: Standard mode using TCP sockets (works locally and in K8s/cloud)
+    # - tls: TCP with TLS encryption (for production deployments)
+    # - stdio: Legacy mode using stdin/stdout (deprecated due to buffering issues)
     broker_transport: str = Field(
-        default="stdio",
-        description="Broker transport for the runtime container: stdio, tcp, or tls",
+        default="tcp",
+        description="Broker transport for the runtime container: tcp, tls, or stdio (deprecated)",
     )
     broker_host: str = Field(
         default="host.docker.internal",

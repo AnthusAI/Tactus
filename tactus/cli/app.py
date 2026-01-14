@@ -456,9 +456,9 @@ def run(
         "Use --no-sandbox to run without isolation (security risk).",
     ),
     sandbox_broker: str = typer.Option(
-        "stdio",
+        "tcp",
         "--sandbox-broker",
-        help="Broker transport for sandbox runtime: stdio (default, --network none) or tcp/tls (remote-mode spike).",
+        help="Broker transport for sandbox runtime: tcp (default), tls, or stdio (deprecated due to buffering issues).",
     ),
     sandbox_network: Optional[str] = typer.Option(
         None,

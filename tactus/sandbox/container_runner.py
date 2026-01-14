@@ -419,12 +419,39 @@ class ContainerRunner:
             )
 
             # Run container
-            result = await self._run_container(
-                docker_cmd,
-                request,
-                timeout=self.config.timeout,
-                event_handler=event_handler,
-            )
+            # If TCP broker is active, run it concurrently with the container
+            if broker_transport in ("tcp", "tls") and broker_server is not None:
+                async def run_broker_server():
+                    """Serve broker connections until explicitly closed."""
+                    try:
+                        await broker_server.serve()
+                    except Exception:
+                        # Broker server was closed (expected on cleanup)
+                        pass
+
+                # Run broker and container concurrently
+                broker_task = asyncio.create_task(run_broker_server())
+                try:
+                    result = await self._run_container(
+                        docker_cmd,
+                        request,
+                        timeout=self.config.timeout,
+                        event_handler=event_handler,
+                    )
+                finally:
+                    # Cancel broker task when container finishes
+                    broker_task.cancel()
+                    try:
+                        await broker_task
+                    except asyncio.CancelledError:
+                        pass
+            else:
+                result = await self._run_container(
+                    docker_cmd,
+                    request,
+                    timeout=self.config.timeout,
+                    event_handler=event_handler,
+                )
 
             result.duration_seconds = time.time() - start_time
             return result

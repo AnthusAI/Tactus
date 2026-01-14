@@ -17,6 +17,7 @@ import uuid
 from pathlib import Path
 from typing import Any, AsyncIterator, Optional
 
+from tactus.broker.protocol import read_message, write_message
 from tactus.broker.stdio import STDIO_REQUEST_PREFIX, STDIO_TRANSPORT_VALUE
 
 
@@ -161,19 +162,11 @@ class BrokerClient:
                     ssl_ctx.verify_mode = ssl.CERT_NONE
 
             reader, writer = await asyncio.open_connection(host, port, ssl=ssl_ctx)
-            writer.write(
-                (_json_dumps({"id": req_id, "method": method, "params": params}) + "\n").encode(
-                    "utf-8"
-                )
-            )
-            await writer.drain()
+            await write_message(writer, {"id": req_id, "method": method, "params": params})
 
             try:
                 while True:
-                    line = await reader.readline()
-                    if not line:
-                        return
-                    event = json.loads(line.decode("utf-8"))
+                    event = await read_message(reader)
                     if event.get("id") != req_id:
                         continue
                     yield event
@@ -187,17 +180,11 @@ class BrokerClient:
                     pass
 
         reader, writer = await asyncio.open_unix_connection(self.socket_path)
-        writer.write(
-            (_json_dumps({"id": req_id, "method": method, "params": params}) + "\n").encode("utf-8")
-        )
-        await writer.drain()
+        await write_message(writer, {"id": req_id, "method": method, "params": params})
 
         try:
             while True:
-                line = await reader.readline()
-                if not line:
-                    return
-                event = json.loads(line.decode("utf-8"))
+                event = await read_message(reader)
                 # Ignore unrelated messages (defensive; current server is 1-req/conn).
                 if event.get("id") != req_id:
                     continue

@@ -64,5 +64,6 @@ if [ -d "/mcp-servers" ] && [ "$(ls -A /mcp-servers 2>/dev/null)" ]; then
     fi
 fi
 
-# Run the Tactus sandbox entrypoint
-exec python -m tactus.sandbox.entrypoint "$@"
+# Run the Tactus sandbox entrypoint with unbuffered I/O (-u flag)
+# This ensures stdin/stdout/stderr are not buffered, enabling real-time streaming
+exec python -u -m tactus.sandbox.entrypoint "$@"
