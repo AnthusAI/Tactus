@@ -69,7 +69,8 @@ Available tools:
 When asked to process text, use the appropriate tool.
 After processing, call done with the result.]],
 
-    toolsets = {"text_tools", "done"}
+    toolsets = {"text_tools"},
+    tools = {done}
 }
 
 -- Main procedure

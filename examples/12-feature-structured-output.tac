@@ -49,17 +49,8 @@ Procedure {
             total_tokens = result.usage.total_tokens
         })
 
-        -- Access messages from this turn
-        local new_msgs = result.new_messages()
-        Log.info("Messages generated in this turn", {count = #new_msgs})
-
-        -- Log first message (if any)
-        if #new_msgs > 0 then
-            Log.info("First message", {
-                role = new_msgs[1].role,
-                content_preview = string.sub(new_msgs[1].content, 1, 100)
-            })
-        end
+        -- Note: new_messages() is not available on TactusResult in mock mode
+        -- In real execution, conversation history is managed by the agent
 
         return {
             city_data = result.value,

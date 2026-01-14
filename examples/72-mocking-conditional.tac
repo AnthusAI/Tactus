@@ -4,6 +4,29 @@
 -- Import completion tool from standard library
 local done = require("tactus.tools.done")
 
+-- Define tools that will be mocked
+translate = Tool {
+    description = "Translate English text to Spanish",
+    input = {
+        text = field.string{required = true, description = "Text to translate"}
+    },
+    function(args)
+        return {translation = "default translation", language = "Spanish"}
+    end
+}
+
+calculate = Tool {
+    description = "Perform math operations",
+    input = {
+        operation = field.string{required = true, description = "Operation: add, multiply, divide, subtract"},
+        x = field.number{required = true, description = "First number"},
+        y = field.number{required = true, description = "Second number"}
+    },
+    function(args)
+        return {result = 0}
+    end
+}
+
 -- Conditional mocks - return based on input parameters
 Mocks {
     translate = {
@@ -45,7 +68,7 @@ You have access to:
 - done: Signal completion
 
 Follow the user's instructions and use the appropriate tools.]],
-    toolsets = {"translate", "calculate", "done"}
+    tools = {translate, calculate, done}
 }
 
 -- Main procedure
