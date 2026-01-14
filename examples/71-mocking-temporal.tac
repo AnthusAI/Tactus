@@ -6,7 +6,6 @@ local done = require("tactus.tools.done")
 
 -- Define tools that will be mocked
 get_counter = Tool {
-    name = "get_counter",
     description = "Get an incremental counter value",
     input = {},
     function(args)
@@ -15,7 +14,6 @@ get_counter = Tool {
 }
 
 check_status = Tool {
-    name = "check_status",
     description = "Check the current status of a task",
     input = {},
     function(args)
@@ -70,7 +68,7 @@ Your task:
 1. Call get_counter three times to see it increment
 2. Call check_status three times to see status progression
 3. Call done with a summary of what you observed]],
-    tools = {get_counter, check_status, done}
+    toolsets = {"get_counter", "check_status", "done"}
 }
 
 -- Main procedure
