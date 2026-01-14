@@ -147,16 +147,12 @@ class _BaseBrokerServer:
     async def __aexit__(self, exc_type, exc, tb) -> None:
         await self.aclose()
 
-    async def _handle_connection(
-        self, byte_stream: anyio.abc.ByteStream
-    ) -> None:
+    async def _handle_connection(self, byte_stream: anyio.abc.ByteStream) -> None:
         # For TLS connections, wrap the stream with TLS
         # Note: TcpBrokerServer subclass can override self.ssl_context
-        if hasattr(self, 'ssl_context') and self.ssl_context is not None:
+        if hasattr(self, "ssl_context") and self.ssl_context is not None:
             byte_stream = await TLSStream.wrap(
-                byte_stream,
-                ssl_context=self.ssl_context,
-                server_side=True
+                byte_stream, ssl_context=self.ssl_context, server_side=True
             )
 
         # Wrap the stream for buffered reading
@@ -420,7 +416,9 @@ class _BaseBrokerServer:
             )
             return
 
-        await _write_event_anyio(byte_stream, {"id": req_id, "event": "done", "data": {"result": result}})
+        await _write_event_anyio(
+            byte_stream, {"id": req_id, "event": "done", "data": {"result": result}}
+        )
 
 
 class BrokerServer(_BaseBrokerServer):
@@ -504,10 +502,7 @@ class TcpBrokerServer(_BaseBrokerServer):
 
     async def start(self) -> None:
         # Create AnyIO TCP listener (doesn't block, just binds to port)
-        self._listener = await anyio.create_tcp_listener(
-            local_host=self.host,
-            local_port=self.port
-        )
+        self._listener = await anyio.create_tcp_listener(local_host=self.host, local_port=self.port)
 
         # Get the bound port
         try:

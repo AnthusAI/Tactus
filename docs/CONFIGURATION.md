@@ -160,19 +160,40 @@ Options:
 
 ### Volume Mounts
 
-Mount host directories into the container:
+**Default behavior**: Tactus automatically mounts your current directory to `/workspace:rw`, making it easy for procedures to read and write project files. This is safe because:
+- Container isolation prevents access outside the mounted directory
+- Git provides version control and rollback capability
+- You can review all changes before committing
+
+To disable the default mount:
+
+```yaml
+sandbox:
+  mount_current_dir: false  # Disable automatic current directory mount
+```
+
+**Additional volume mounts**: Mount other host directories into the container:
 
 ```yaml
 sandbox:
   volumes:
     - "/host/data:/data:ro"           # Read-only mount
     - "/host/outputs:/outputs:rw"     # Read-write mount
-    - "/shared/config:/config:ro"
+    - "../other-repo:/external:ro"    # Relative paths supported
 ```
 
+**Path resolution**:
+- Relative paths (e.g., `./data`, `../repo`) resolve from the procedure directory
+- `~` expands to your home directory
+- Absolute paths used as-is
+
+**Volume modes**:
+- `:ro` - Read-only (safer when you don't need writes)
+- `:rw` - Read-write (default if not specified)
+
 **Default mounts** (always included):
-- Workspace: Temporary directory at `/workspace` (ephemeral, destroyed after run)
-- MCP Servers: `~/.tactus/mcp-servers` at `/mcp-servers` (read-only)
+- Current directory: `.:/workspace:rw` (unless `mount_current_dir: false`)
+- MCP Servers: `~/.tactus/mcp-servers` at `/mcp-servers` (read-only, if exists)
 
 ### Environment Variables
 

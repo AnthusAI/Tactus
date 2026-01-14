@@ -912,9 +912,7 @@ class DSPyAgentHandle:
             # If wrapping throws an error, let it propagate
             raise
 
-    def _wrap_mock_response(
-        self, mock_data: Dict[str, Any], opts: Dict[str, Any]
-    ) -> TactusResult:
+    def _wrap_mock_response(self, mock_data: Dict[str, Any], opts: Dict[str, Any]) -> TactusResult:
         """
         Wrap mock data as a TactusResult.
 

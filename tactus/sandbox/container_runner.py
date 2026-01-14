@@ -421,6 +421,7 @@ class ContainerRunner:
             # Run container
             # If TCP broker is active, run it concurrently with the container
             if broker_transport in ("tcp", "tls") and broker_server is not None:
+
                 async def run_broker_server():
                     """Serve broker connections until explicitly closed."""
                     try:

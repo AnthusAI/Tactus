@@ -107,12 +107,12 @@ tactus sandbox rebuild
 - Persistent state leakage between runs
 
 ## How It Works
-- **Fresh container per execution:** Each \`tactus run\` spawns a new Docker container
-- **Ephemeral filesystem:** All files created during execution are destroyed when the container exits
+- **Fresh container per execution:** Each `tactus run` spawns a new Docker container
+- **Default project access:** Your current directory is automatically mounted to `/workspace:rw`, allowing procedures to read and write project files
 - **Resource limits:** Memory (default 2GB) and CPU (default 2 cores) limits
-- **Network isolation:** Default `none` (no outbound network in the runtime container)
-- **Projected workspace:** The procedure directory is copied into a temp workspace and mounted at `/workspace`
-- **Volume mounts:** Only explicitly configured directories are mounted into the runtime container
+- **Network isolation:** Default `bridge` mode for broker communication; procedures don't get direct network access without explicit tools
+- **Container isolation:** Procedures can only access the mounted project directory, not your entire filesystem
+- **Additional volume mounts:** You can mount other directories (e.g., external data) via sidecar configuration
 
 ## Security-First Model
 
@@ -198,6 +198,26 @@ sandbox:
     - "/sensitive/data:/data:ro"  # Read-only to prevent modification
 ```
 Allows procedures to access data without modification risk.
+
+**Default project mount:**
+By default, Tactus mounts your current directory to `/workspace:rw`, allowing procedures to read and write project files. This is safe with Git version control but can be disabled:
+
+```yaml
+sandbox:
+  mount_current_dir: false  # Disable automatic current directory mount
+```
+
+**When to disable the default mount:**
+- Running untrusted procedures from unknown sources
+- Output-only workflows (reports, builds) that don't need source access
+- Production deployments requiring explicit permissions
+- Multi-tenant systems with shared procedure libraries
+
+**Safety with default mount enabled:**
+- Container isolation prevents access outside the project directory
+- Git provides version control and easy rollback
+- You can review all changes with `git diff` before committing
+- Only the current project is exposed, not your home directory or system files
 
 ### Sidecar Configuration Security
 

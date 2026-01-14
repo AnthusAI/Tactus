@@ -89,7 +89,7 @@ async def read_message(reader: asyncio.StreamReader) -> Dict[str, Any]:
     try:
         message = json.loads(json_bytes.decode("utf-8"))
     except (json.JSONDecodeError, UnicodeDecodeError) as e:
-        raise ValueError(f"Invalid JSON payload") from e
+        raise ValueError("Invalid JSON payload") from e
 
     return message
 
@@ -178,6 +178,6 @@ async def read_message_anyio(stream: BufferedByteReceiveStream) -> Dict[str, Any
     try:
         message = json.loads(json_bytes.decode("utf-8"))
     except (json.JSONDecodeError, UnicodeDecodeError) as e:
-        raise ValueError(f"Invalid JSON payload") from e
+        raise ValueError("Invalid JSON payload") from e
 
     return message
