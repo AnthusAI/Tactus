@@ -112,7 +112,9 @@ def test_mock_data_with_tool_calls():
 
     # Verify that 'response' field is accessible (normalized from 'message')
     assert "response" in result.value, "Result should have 'response' field"
-    assert result.value["response"] == "Task completed successfully", "Response should match mock message"
+    assert (
+        result.value["response"] == "Task completed successfully"
+    ), "Response should match mock message"
 
     # Verify other fields are preserved
     assert "data" in result.value, "Result should have 'data' field"
