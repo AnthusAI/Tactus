@@ -977,7 +977,9 @@ class DSPyAgentHandle:
 
                         # For done tool, extract reason for result
                         if tool_name == "done":
-                            reason = tool_args.get("reason", normalized_data.get("response", "Task completed (mocked)"))
+                            reason = tool_args.get(
+                                "reason", normalized_data.get("response", "Task completed (mocked)")
+                            )
                             tool_result = {"status": "completed", "reason": reason, "tool": "done"}
                         else:
                             # For other tools, use a generic result
