@@ -57,6 +57,7 @@ class _FakeSendStream:
         self.items.append(item)
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_tcp_broker_events_emit_round_trip():
     received: list[dict] = []
@@ -74,6 +75,7 @@ async def test_tcp_broker_events_emit_round_trip():
     assert received == [{"kind": "test", "value": 1}]
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_tcp_brokered_lm_non_streaming(monkeypatch: pytest.MonkeyPatch):
     async with TcpBrokerServer(
@@ -88,6 +90,7 @@ async def test_tcp_brokered_lm_non_streaming(monkeypatch: pytest.MonkeyPatch):
     assert resp.choices[0].message.content == "hello"
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_tcp_brokered_lm_streaming_sends_model_response_stream_chunks(
     monkeypatch: pytest.MonkeyPatch,
