@@ -6,15 +6,40 @@ import pytest
 from tactus.broker.client import BrokerClient
 
 
+def _encode_message(message: dict) -> bytes:
+    """Encode a message with length prefix for the protocol."""
+    json_bytes = json.dumps(message).encode("utf-8")
+    length = len(json_bytes)
+    length_prefix = f"{length:010d}\n".encode("ascii")
+    return length_prefix + json_bytes
+
+
 class _FakeReader:
-    def __init__(self, lines: list[bytes]):
-        self._lines = list(lines)
+    def __init__(self, messages: list[bytes]):
+        self._buffer = b"".join(messages)
+        self._pos = 0
 
     async def readline(self) -> bytes:
         await asyncio.sleep(0)
-        if not self._lines:
+        if self._pos >= len(self._buffer):
             return b""
-        return self._lines.pop(0)
+        newline_pos = self._buffer.find(b"\n", self._pos)
+        if newline_pos == -1:
+            result = self._buffer[self._pos :]
+            self._pos = len(self._buffer)
+            return result
+        result = self._buffer[self._pos : newline_pos + 1]
+        self._pos = newline_pos + 1
+        return result
+
+    async def readexactly(self, n: int) -> bytes:
+        """Read exactly n bytes from the buffer."""
+        await asyncio.sleep(0)
+        if self._pos + n > len(self._buffer):
+            raise asyncio.IncompleteReadError(self._buffer[self._pos :], n)
+        result = self._buffer[self._pos : self._pos + n]
+        self._pos += n
+        return result
 
 
 class _FakeWriter:
@@ -39,10 +64,8 @@ class _FakeWriter:
 async def test_tcp_transport_sends_request_and_yields_events(monkeypatch: pytest.MonkeyPatch):
     reader = _FakeReader(
         [
-            json.dumps({"id": "req", "event": "delta", "data": {"text": "he"}}).encode("utf-8")
-            + b"\n",
-            json.dumps({"id": "req", "event": "done", "data": {"text": "hello"}}).encode("utf-8")
-            + b"\n",
+            _encode_message({"id": "req", "event": "delta", "data": {"text": "he"}}),
+            _encode_message({"id": "req", "event": "done", "data": {"text": "hello"}}),
         ]
     )
     writer = _FakeWriter()
@@ -78,10 +101,9 @@ async def test_tcp_transport_sends_request_and_yields_events(monkeypatch: pytest
 async def test_tcp_tool_call_returns_result(monkeypatch: pytest.MonkeyPatch):
     reader = _FakeReader(
         [
-            json.dumps(
+            _encode_message(
                 {"id": "req", "event": "done", "data": {"result": {"ok": True, "echo": {"x": 1}}}}
-            ).encode("utf-8")
-            + b"\n",
+            ),
         ]
     )
     writer = _FakeWriter()
@@ -107,14 +129,13 @@ async def test_tcp_tool_call_returns_result(monkeypatch: pytest.MonkeyPatch):
 async def test_tcp_tool_call_raises_on_error(monkeypatch: pytest.MonkeyPatch):
     reader = _FakeReader(
         [
-            json.dumps(
+            _encode_message(
                 {
                     "id": "req",
                     "event": "error",
                     "error": {"type": "ToolNotAllowed", "message": "no"},
                 }
-            ).encode("utf-8")
-            + b"\n",
+            ),
         ]
     )
     writer = _FakeWriter()
@@ -133,7 +154,8 @@ async def test_tcp_tool_call_raises_on_error(monkeypatch: pytest.MonkeyPatch):
 
 @pytest.mark.asyncio
 async def test_tls_transport_uses_ssl_context(monkeypatch: pytest.MonkeyPatch):
-    reader = _FakeReader([b""])
+    # Empty reader - test will timeout/complete before reading
+    reader = _FakeReader([])
     writer = _FakeWriter()
 
     async def fake_open_connection(host: str, port: int, ssl=None):
