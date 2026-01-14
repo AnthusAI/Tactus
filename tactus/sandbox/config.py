@@ -7,7 +7,7 @@ Defines the SandboxConfig Pydantic model for controlling container execution.
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class SandboxLimits(BaseModel):
@@ -26,12 +26,12 @@ class SandboxConfig(BaseModel):
 
     # Core settings
     # Security model:
-    # - enabled=None (default): Sandbox REQUIRED, error if Docker unavailable
+    # - enabled=None (default): Sandbox AUTO (use if available; otherwise run without isolation)
     # - enabled=True: Sandbox REQUIRED, error if Docker unavailable
     # - enabled=False: Sandbox explicitly disabled (security risk acknowledged)
     enabled: Optional[bool] = Field(
         default=None,
-        description="Enable sandbox mode. None/True=required (error if unavailable), False=disabled",
+        description="Enable sandbox mode. None=auto, True=required, False=disabled",
     )
 
     # Docker image settings
@@ -52,6 +52,12 @@ class SandboxConfig(BaseModel):
         description="Additional environment variables to pass to the container",
     )
 
+    # Volume mount settings
+    mount_current_dir: bool = Field(
+        default=True,
+        description="Mount current directory to /workspace:rw by default. Set false to disable.",
+    )
+
     # Additional volume mounts
     volumes: List[str] = Field(
         default_factory=list,
@@ -61,7 +67,36 @@ class SandboxConfig(BaseModel):
     # Network mode
     network: str = Field(
         default="bridge",
-        description="Docker network mode (bridge allows outbound, none blocks all)",
+        description="Docker network mode (bridge for broker access, none blocks all network)",
+    )
+
+    # Broker transport (how the secretless runtime reaches the host broker)
+    # - tcp: Standard mode using TCP sockets (works locally and in K8s/cloud)
+    # - tls: TCP with TLS encryption (for production deployments)
+    # - stdio: Legacy mode using stdin/stdout (deprecated due to buffering issues)
+    broker_transport: str = Field(
+        default="tcp",
+        description="Broker transport for the runtime container: tcp, tls, or stdio (deprecated)",
+    )
+    broker_host: str = Field(
+        default="host.docker.internal",
+        description="Broker hostname for tcp/tls (as seen from inside the container)",
+    )
+    broker_bind_host: str = Field(
+        default="0.0.0.0",
+        description="Bind address for the host-side broker server in tcp/tls modes",
+    )
+    broker_port: int = Field(
+        default=0,
+        description="Port for the host-side broker server in tcp/tls modes (0=auto)",
+    )
+    broker_tls_cert_file: Optional[str] = Field(
+        default=None,
+        description="TLS certificate file for broker (PEM). Required when broker_transport='tls'",
+    )
+    broker_tls_key_file: Optional[str] = Field(
+        default=None,
+        description="TLS private key file for broker (PEM). Required when broker_transport='tls'",
     )
 
     # Resource limits
@@ -115,11 +150,20 @@ class SandboxConfig(BaseModel):
 
         Returns:
             True if Docker unavailability should be a fatal error.
-            This is True unless the user explicitly disabled sandbox.
+            This is True only when the user explicitly requires the sandbox (enabled=True).
         """
-        return not self.is_explicitly_disabled()
+        return self.enabled is True
 
     model_config = {"arbitrary_types_allowed": True}
+
+    @model_validator(mode="after")
+    def add_default_volumes(self):
+        """Add default volume mounts based on config flags."""
+        if self.mount_current_dir:
+            # Insert at beginning so user volumes can override
+            if ".:/workspace:rw" not in self.volumes:
+                self.volumes.insert(0, ".:/workspace:rw")
+        return self
 
 
 def get_default_sandbox_config() -> SandboxConfig:

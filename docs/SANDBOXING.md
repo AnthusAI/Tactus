@@ -1,6 +1,26 @@
 # Sandboxing & Security
 
-Tactus provides **three layers of sandboxing** to protect against different threat models. This defense-in-depth approach makes Tactus safe for user-contributed code, secure for local development, and production-ready for multi-tenant AI systems.
+Tactus provides **three layers of sandboxing** to protect against different threat models. This defense-in-depth approach makes Tactus safe for user-contributed code, secure for local development, and designed to support secure multi-tenant AI systems.
+
+## Current Status (What Works Today)
+
+The merged “brokered sandbox runtime MVP” changes the default local security model:
+
+- The **runtime container is secretless** (Tactus refuses to pass common API-key env vars into the container).
+- The **runtime container is networkless by default** (`sandbox.network: none`).
+- Privileged operations (currently: **LLM API calls**, plus a tiny allowlisted set of **host tools**) are executed by a **host-side broker** and streamed back to the runtime.
+
+What works now:
+- Local Docker sandbox with `sandbox.broker_transport: stdio` (default) and `sandbox.network: none`
+- Remote-style broker connectivity with `sandbox.broker_transport: tcp|tls` (requires `sandbox.network != none`)
+- Brokered host tools via a deny-by-default allowlist (currently very small)
+
+What is intentionally not done yet:
+- Full tool runner system (`sandbox`/`isolated`/`host` runners for arbitrary tools)
+- Tool discovery conventions and packaging/manifest workflows
+- Multi-provider LLM support beyond the first proof-of-concept path
+
+For the living roadmap, see `planning/BROKER_AND_TOOL_RUNNERS.md`.
 
 ## Overview: Three Layers of Protection
 
@@ -87,20 +107,21 @@ tactus sandbox rebuild
 - Persistent state leakage between runs
 
 ## How It Works
-- **Fresh container per execution:** Each \`tactus run\` spawns a new Docker container
-- **Ephemeral filesystem:** All files created during execution are destroyed when the container exits
+- **Fresh container per execution:** Each `tactus run` spawns a new Docker container
+- **Default project access:** Your current directory is automatically mounted to `/workspace:rw`, allowing procedures to read and write project files
 - **Resource limits:** Memory (default 2GB) and CPU (default 2 cores) limits
-- **Network isolation:** Controlled network access (default: bridge mode, allows outbound)
-- **Volume mounts:** Only explicitly configured directories are accessible
+- **Network isolation:** Default `bridge` mode for broker communication; procedures don't get direct network access without explicit tools
+- **Container isolation:** Procedures can only access the mounted project directory, not your entire filesystem
+- **Additional volume mounts:** You can mount other directories (e.g., external data) via sidecar configuration
 
 ## Security-First Model
 
 | Scenario | Behavior |
 |----------|----------|
-| Docker available | ✅ Runs in container automatically |
-| Docker unavailable, sandbox not disabled | ❌ **ERROR:** Cannot run without isolation |
-| \`--no-sandbox\` flag | ⚠️ Shows security warning, proceeds without Docker |
-| \`sandbox.enabled: false\` in config | ⚠️ Shows security warning, proceeds without Docker |
+| Docker available | ✓ Runs in container automatically |
+| Docker unavailable, sandbox not disabled | ✗ **ERROR:** Cannot run without isolation |
+| \`--no-sandbox\` flag | ⚠ Shows security warning, proceeds without Docker |
+| \`sandbox.enabled: false\` in config | ⚠ Shows security warning, proceeds without Docker |
 
 ### Example: Docker Unavailable
 
@@ -146,9 +167,19 @@ For detailed configuration syntax and examples, see the [Configuration Guide](./
 **Network isolation:**
 ```yaml
 sandbox:
-  network: "none"  # Disable all network access
+  network: "none"           # Disable all network access in the runtime container (default)
+  broker_transport: "stdio" # Brokered capabilities still work without container networking
 ```
-Use for procedures handling sensitive data that don't need LLM API access.
+With the brokered runtime, `network: none` can still support LLM calls (the runtime talks to the host broker over stdio).
+
+**Remote-style broker connectivity (cloud/K8s spike):**
+```yaml
+sandbox:
+  network: "bridge"        # Runtime container has networking
+  broker_transport: "tcp"  # Or "tls"
+  broker_host: "broker"    # As seen from inside the container
+```
+In this mode you must rely on infrastructure controls (K8s NetworkPolicy / security groups) so the runtime can only reach the broker.
 
 **Resource limits:**
 ```yaml
@@ -167,6 +198,26 @@ sandbox:
     - "/sensitive/data:/data:ro"  # Read-only to prevent modification
 ```
 Allows procedures to access data without modification risk.
+
+**Default project mount:**
+By default, Tactus mounts your current directory to `/workspace:rw`, allowing procedures to read and write project files. This is safe with Git version control but can be disabled:
+
+```yaml
+sandbox:
+  mount_current_dir: false  # Disable automatic current directory mount
+```
+
+**When to disable the default mount:**
+- Running untrusted procedures from unknown sources
+- Output-only workflows (reports, builds) that don't need source access
+- Production deployments requiring explicit permissions
+- Multi-tenant systems with shared procedure libraries
+
+**Safety with default mount enabled:**
+- Container isolation prevents access outside the project directory
+- Git provides version control and easy rollback
+- You can review all changes with `git diff` before committing
+- Only the current project is exposed, not your home directory or system files
 
 ### Sidecar Configuration Security
 
@@ -292,13 +343,13 @@ public static async Task<object> Run(
 
 ## Production Best Practices
 
-### ✅ DO
+### ✓ DO
 - Use separate storage backends per user/tenant
 - Scope checkpoint IDs to include user/session identifiers
 - Clear any caches between invocations
 - Use serverless functions for automatic isolation
 
-### ❌ DON'T
+### ✗ DON'T
 - Share storage backends between users
 - Use global in-memory caches
 - Persist tool state between invocations
@@ -332,7 +383,7 @@ public static async Task<object> Run(
 
 **Tactus Defenses:**
 
-✅ **Per-Invocation Isolation**
+✓ **Per-Invocation Isolation**
 \`\`\`python
 # Each user gets fresh execution context
 runtime = TactusRuntime(
@@ -341,7 +392,7 @@ runtime = TactusRuntime(
 )
 \`\`\`
 
-✅ **Scoped Storage**
+✓ **Scoped Storage**
 \`\`\`python
 # Checkpoints scoped to user/session
 storage = S3Storage(
@@ -370,12 +421,12 @@ loadstring("malicious_code()")()  -- Blocked (loadstring disabled)
 
 **Tactus Defenses:**
 
-✅ **Lua VM Sandboxing**
+✓ **Lua VM Sandboxing**
 - Restricted standard library (no \`os\`, \`io\`, \`loadstring\`)
 - All I/O through registered tools
 - No dynamic code execution
 
-✅ **Docker Resource Limits**
+✓ **Docker Resource Limits**
 \`\`\`yaml
 sandbox:
   limits:
@@ -409,14 +460,14 @@ call_tool("web", {
 
 **Tactus Defenses:**
 
-✅ **Container Filesystem Isolation**
+✓ **Container Filesystem Isolation**
 \`\`\`bash
 # Only workspace directory accessible
 docker run -v /tmp/tactus-workspace:/workspace:rw
 # No access to host filesystem outside mount
 \`\`\`
 
-✅ **Tool-Level Authorization**
+✓ **Tool-Level Authorization**
 \`\`\`python
 # Tools can implement permission checks
 class FilesystemTool:
@@ -425,7 +476,7 @@ class FilesystemTool:
             raise PermissionError(f"Access denied: {path}")
 \`\`\`
 
-✅ **Audit Logging**
+✓ **Audit Logging**
 \`\`\`python
 # All tool calls logged for security audit
 logger.info(f"Tool call: {tool_name}", extra={
@@ -435,21 +486,21 @@ logger.info(f"Tool call: {tool_name}", extra={
 })
 \`\`\`
 
-⚠️ **Network Access**
-- Outbound network access allowed by default (needed for LLM APIs)
-- Use \`network: none\` in config to disable
-- Consider implementing egress filtering for production
+⚠ **Network Access**
+- Default runtime container has no outbound network (`sandbox.network: none`)
+- Broker process has network access for LLM calls and other brokered capabilities
+- If enabling runtime networking (`sandbox.network != none`), enforce egress controls (NetworkPolicy / SGs) so the runtime can only reach the broker
 
 ## Threat Summary
 
 | Threat | Lua Sandbox | Docker Sandbox | Cloud Sandbox |
 |--------|-------------|----------------|---------------|
-| Malicious agent code | ✅ Protects | - | - |
-| Filesystem access | ❌ Cannot prevent | ✅ Protects | ✅ Protects |
-| Network exfiltration | ❌ Cannot prevent | ✅ Protects | ✅ Protects |
-| Resource exhaustion | ⚠️ Limited | ✅ Protects | ✅ Protects |
-| Cross-user contamination | - | ⚠️ Same machine | ✅ Protects |
-| Session leakage | - | ⚠️ Same machine | ✅ Protects |
+| Malicious agent code | ✓ Protects | - | - |
+| Filesystem access | ✗ Cannot prevent | ✓ Protects | ✓ Protects |
+| Network exfiltration | ✗ Cannot prevent | ✓ Protects | ✓ Protects |
+| Resource exhaustion | ⚠ Limited | ✓ Protects | ✓ Protects |
+| Cross-user contamination | - | ⚠ Same machine | ✓ Protects |
+| Session leakage | - | ⚠ Same machine | ✓ Protects |
 
 ---
 
@@ -458,6 +509,7 @@ logger.info(f"Tool call: {tool_name}", extra={
 ## Development
 - [ ] Docker Desktop installed and running
 - [ ] Sandbox enabled in config (default)
+- [ ] Run opt-in Docker sandbox tests (dev-only): `tactus sandbox rebuild --force` then `make test-docker-sandbox` (or `TACTUS_RUN_DOCKER_TESTS=1 pytest -m docker -v`)
 - [ ] MCP servers reviewed for security issues
 - [ ] Tool calls logged for debugging
 - [ ] Resource limits configured appropriately
@@ -485,7 +537,7 @@ logger.info(f"Tool call: {tool_name}", extra={
 2. **Default security:** Sandbox enabled by default, opt-out requires explicit acknowledgment
 3. **AI-native design:** Built from the ground up to prevent session leakage
 4. **Embeddable safety:** Lua sandboxing makes Tactus safe for user-contributed code
-5. **Production-ready:** Cloud sandboxing provides multi-tenant isolation at scale
+5. **Multi-tenant isolation:** Cloud sandboxing provides per-invocation isolation at scale
 6. **Information security DNA:** Per-invocation sandboxing prevents AI session leakage, a critical requirement for multi-tenant AI systems
 
 ---

@@ -110,7 +110,7 @@ Procedure {
         if done.called() then
             answer = done.last_result() or "Task completed"
         else
-            answer = tostring(result.value)
+            answer = result.message
         end
 
         return {

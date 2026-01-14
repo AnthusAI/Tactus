@@ -48,6 +48,7 @@ from tactus.primitives.retry import RetryPrimitive
 from tactus.primitives.file import FilePrimitive
 from tactus.primitives.procedure import ProcedurePrimitive
 from tactus.primitives.system import SystemPrimitive
+from tactus.primitives.host import HostPrimitive
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +77,6 @@ class TactusRuntime:
         openai_api_key: Optional[str] = None,
         log_handler=None,
         tool_primitive: Optional[ToolPrimitive] = None,
-        skip_agents: bool = False,
         recursion_depth: int = 0,
         tool_paths: Optional[list] = None,
         external_config: Optional[Dict[str, Any]] = None,
@@ -96,7 +96,6 @@ class TactusRuntime:
             openai_api_key: Optional OpenAI API key for LLMs
             log_handler: Optional handler for structured log events
             tool_primitive: Optional pre-configured ToolPrimitive (for testing with mocks)
-            skip_agents: If True, skip agent setup and execution (for testing)
             tool_paths: Optional list of paths to scan for local Python tool plugins
             external_config: Optional external config (from .tac.yml) to merge with DSL config
             run_id: Optional run identifier for tagging checkpoints
@@ -113,7 +112,6 @@ class TactusRuntime:
         self.log_handler = log_handler
         self._injected_tool_primitive = tool_primitive
         self.tool_paths = tool_paths or []
-        self.skip_agents = skip_agents
         self.recursion_depth = recursion_depth
         self.external_config = external_config or {}
         self.run_id = run_id
@@ -145,6 +143,7 @@ class TactusRuntime:
         self.file_primitive: Optional[FilePrimitive] = None
         self.procedure_primitive: Optional[ProcedurePrimitive] = None
         self.system_primitive: Optional[SystemPrimitive] = None
+        self.host_primitive: Optional[HostPrimitive] = None
 
         # Agent primitives (one per agent)
         self.agents: Dict[str, Any] = {}
@@ -409,12 +408,14 @@ class TactusRuntime:
             self.system_primitive = SystemPrimitive(
                 procedure_id=self.procedure_id, log_handler=self.log_handler
             )
+            self.host_primitive = HostPrimitive()
 
             # Initialize Procedure primitive (requires execution_context)
             max_depth = self.config.get("max_depth", 5) if self.config else 5
             self.procedure_primitive = ProcedurePrimitive(
                 execution_context=self.execution_context,
                 runtime_factory=self._create_runtime_for_procedure,
+                lua_sandbox=self.lua_sandbox,
                 max_depth=max_depth,
                 current_depth=self.recursion_depth,
             )
@@ -1195,6 +1196,54 @@ class TactusRuntime:
                 logger.error(f"Failed to create CLI tool wrapper '{source}': {e}", exc_info=True)
                 return None
 
+        # Handle broker host tools (broker.*)
+        elif source.startswith("broker."):
+            broker_tool = source[7:]  # Remove "broker." prefix
+            if not broker_tool:
+                logger.error(
+                    f"Invalid broker tool source for '{tool_name}': {source} (expected broker.<tool>)"
+                )
+                return None
+
+            try:
+                from pydantic_ai import Tool
+                from pydantic_ai.toolsets import FunctionToolset
+
+                tool_primitive = self.tool_primitive
+                host_primitive = self.host_primitive
+                mock_manager = self.mock_manager
+
+                def broker_tool_wrapper(**kwargs: Any):
+                    if mock_manager:
+                        mock_result = mock_manager.get_mock_response(tool_name, kwargs)
+                        if mock_result is not None:
+                            if tool_primitive:
+                                tool_primitive.record_call(tool_name, kwargs, mock_result)
+                            mock_manager.record_call(tool_name, kwargs, mock_result)
+                            return mock_result
+
+                    result = host_primitive.call(broker_tool, kwargs)
+
+                    if tool_primitive:
+                        tool_primitive.record_call(tool_name, kwargs, result)
+                    if mock_manager:
+                        mock_manager.record_call(tool_name, kwargs, result)
+
+                    return result
+
+                broker_tool_wrapper.__name__ = tool_name
+                broker_tool_wrapper.__doc__ = f"Brokered host tool: {broker_tool}"
+
+                wrapped_tool = Tool(broker_tool_wrapper, name=tool_name)
+                return FunctionToolset(tools=[wrapped_tool])
+
+            except Exception as e:
+                logger.error(
+                    f"Failed to create broker tool '{tool_name}' from source '{source}': {e}",
+                    exc_info=True,
+                )
+                return None
+
         else:
             logger.error(f"Unknown tool source format: {source}")
             return None
@@ -1595,24 +1644,6 @@ class TactusRuntime:
             logger.info("No agents defined in configuration - skipping agent setup")
             return
 
-        # Skip agent setup in mock mode
-        if self.skip_agents:
-            logger.info("Skipping agent setup (mock mode)")
-            from tactus.testing.mock_agent import MockAgentPrimitive
-
-            # Create mock agent primitives with registry and mock_manager for Mocks {} support
-            for agent_name in agents_config.keys():
-                mock_agent = MockAgentPrimitive(
-                    agent_name,
-                    self.tool_primitive,
-                    registry=self.registry,
-                    mock_manager=self.mock_manager,
-                )
-                self.agents[agent_name] = mock_agent
-                logger.debug(f"Created mock agent: {agent_name}")
-
-            return
-
         # Import DSPy agent primitive (required)
         from tactus.dspy.agent import create_dspy_agent
 
@@ -1889,6 +1920,7 @@ class TactusRuntime:
                     model_name=model_name,
                     config=model_config,
                     context=self.execution_context,
+                    mock_manager=self.mock_manager,
                 )
 
                 self.models[model_name] = model_primitive
@@ -2243,6 +2275,10 @@ class TactusRuntime:
             logger.info(f"Injecting System primitive: {self.system_primitive}")
             self.lua_sandbox.inject_primitive("System", self.system_primitive)
 
+        if self.host_primitive:
+            logger.info(f"Injecting Host primitive: {self.host_primitive}")
+            self.lua_sandbox.inject_primitive("Host", self.host_primitive)
+
         # Inject Sleep function
         def sleep_wrapper(seconds):
             """Sleep for specified number of seconds."""
@@ -2494,7 +2530,6 @@ class TactusRuntime:
             "registry": builder.registry,
             "mock_manager": self.mock_manager,
             "execution_context": self.execution_context,
-            "skip_agents": self.skip_agents,
             "log_handler": self.log_handler,
             "_created_agents": {},  # Will be populated during parsing
         }
@@ -2606,7 +2641,11 @@ class TactusRuntime:
                 if agent.output:
                     config["agents"][name]["output_schema"] = {
                         field_name: {
-                            "type": field.field_type,  # Already a string, no .value needed
+                            "type": (
+                                field.field_type.value
+                                if hasattr(field.field_type, "value")
+                                else field.field_type
+                            ),
                             "required": field.required,
                         }
                         for field_name, field in agent.output.fields.items()
@@ -2687,7 +2726,6 @@ class TactusRuntime:
             mcp_server=self.mcp_server,
             openai_api_key=self.openai_api_key,
             log_handler=self.log_handler,
-            skip_agents=self.skip_agents,
             recursion_depth=self.recursion_depth + 1,
         )
 

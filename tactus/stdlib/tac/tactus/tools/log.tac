@@ -17,6 +17,7 @@ Note: For direct logging in procedures, use the Log global directly:
 ]]--
 
 local log_tool = Tool {
+    name = "log",
     description = "Log a message during procedure execution",
     input = {
         message = field.string{required = true, description = "Message to log"},

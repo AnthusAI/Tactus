@@ -5,7 +5,7 @@
 extractor = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
-    system_prompt = [[You extract city information. Return ONLY a JSON object with these fields:
+    system_prompt = [[You extract city information. Return ONLY structured data with these fields:
 - city: city name
 - country: country name
 - population: estimated population (number, optional)
@@ -32,7 +32,7 @@ Procedure {
     function(input)
         Log.info("Starting structured output demo", {query = input.query})
 
-        -- Agent returns a Result wrapper (not raw data)
+        -- Agent returns ResultPrimitive (not raw data)
         local result = extractor()
 
         -- Access structured data via result.value
@@ -49,6 +49,9 @@ Procedure {
             total_tokens = result.usage.total_tokens
         })
 
+        -- Note: new_messages() is not available on TactusResult in mock mode
+        -- In real execution, conversation history is managed by the agent
+
         return {
             city_data = result.value,
             tokens_used = result.usage.total_tokens
@@ -60,12 +63,7 @@ Procedure {
 Mocks {
     extractor = {
         tool_calls = {},
-        message = "Paris is the capital of France.",
-        data = {
-            city = "Paris",
-            country = "France",
-            population = 2161000
-        }
+        message = '{"city": "Paris", "country": "France", "population": 2161000}'
     }
 }
 

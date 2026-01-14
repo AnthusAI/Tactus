@@ -57,7 +57,13 @@ Procedure {
 
             -- Accumulate the response text
             if response.value and response.value ~= "" then
-                pro_response = pro_response .. response.value
+                local msg = response.value
+                if type(msg) == "table" and msg.response then
+                    msg = msg.response
+                end
+                if type(msg) == "string" then
+                    pro_response = pro_response .. msg
+                end
             end
 
             -- Safety check
@@ -87,7 +93,13 @@ Procedure {
 
             -- Accumulate the response text
             if response.value and response.value ~= "" then
-                flash_response = flash_response .. response.value
+                local msg = response.value
+                if type(msg) == "table" and msg.response then
+                    msg = msg.response
+                end
+                if type(msg) == "string" then
+                    flash_response = flash_response .. msg
+                end
             end
 
             -- Safety check

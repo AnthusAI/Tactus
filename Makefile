@@ -1,4 +1,5 @@
 .PHONY: help generate-parsers generate-python-parser generate-typescript-parser test-parsers clean-generated dev-ide test-examples test-examples-fast test-examples-parallel test-examples-bdd
+.PHONY: test-docker-sandbox
 
 help:
 	@echo "Tactus Parser Generation and Testing"
@@ -16,6 +17,9 @@ help:
 	@echo "  test-examples-fast      - Test examples without slow/integration tests"
 	@echo "  test-examples-parallel  - Test examples in parallel for speed"
 	@echo "  test-examples-bdd       - Test only examples with BDD specifications"
+	@echo ""
+	@echo "Docker Sandbox Testing:"
+	@echo "  test-docker-sandbox     - Run opt-in Docker sandbox smoke tests"
 	@echo ""
 	@echo "Requirements:"
 	@echo "  - Docker must be running (for parser generation)"
@@ -113,6 +117,11 @@ test-examples-bdd:
 	@echo "Testing examples with BDD specifications..."
 	pytest tests/testing/test_all_examples.py::TestAllExamples::test_example_bdd_specs -v --tb=short
 
+# Docker sandbox integration tests (dev-only, opt-in)
+test-docker-sandbox:
+	@echo "Running Docker sandbox integration tests (opt-in)..."
+	@echo "Pre-req: tactus sandbox rebuild --force"
+	TACTUS_RUN_DOCKER_TESTS=1 pytest -m docker -v --tb=short
 
 
 

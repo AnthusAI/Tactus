@@ -20,13 +20,13 @@ class TestModuleParameterConfiguration:
         reset_lm_configuration()
 
     def test_default_module_is_predict(self):
-        """Test that default module is Predict (simple pass-through)."""
+        """Test that default module is Raw (simple pass-through)."""
         agent = DSPyAgentHandle(
             name="test_agent",
             system_prompt="Test prompt",
             model="openai/gpt-4o-mini",
         )
-        assert agent.module == "Predict"
+        assert agent.module == "Raw"
 
     def test_module_can_be_set_to_chain_of_thought(self):
         """Test that module can be explicitly set to ChainOfThought."""
@@ -77,7 +77,7 @@ class TestCreateDspyAgentModule:
         reset_lm_configuration()
 
     def test_create_dspy_agent_default_module(self):
-        """Test that create_dspy_agent uses Predict by default."""
+        """Test that create_dspy_agent uses Raw by default."""
         agent = create_dspy_agent(
             name="test_agent",
             config={
@@ -85,7 +85,7 @@ class TestCreateDspyAgentModule:
                 "model": "openai/gpt-4o-mini",
             },
         )
-        assert agent.module == "Predict"
+        assert agent.module == "Raw"
 
     def test_create_dspy_agent_explicit_module(self):
         """Test that create_dspy_agent accepts explicit module parameter."""

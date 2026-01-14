@@ -39,7 +39,10 @@ async def test_mcp_server_connection():
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="Test uses deprecated YAML format - needs rewrite for Lua DSL")
+@pytest.mark.skipif(
+    "OPENAI_API_KEY" not in __import__("os").environ,
+    reason="Requires OPENAI_API_KEY environment variable",
+)
 async def test_mcp_tools_in_procedure(tmp_path):
     """Test using MCP tools in a Tactus procedure."""
     import sys
@@ -66,7 +69,7 @@ agents:
     test_agent:
         provider: "openai"
         model: "gpt-4o-mini"
-        system_message: "You are a test agent. Call the add_numbers tool with a=5 and b=3."
+        system_prompt: "You are a test agent. Call the add_numbers tool with a=5 and b=3."
         initial_message: "Start"
         toolsets:
             - test_server

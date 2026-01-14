@@ -48,15 +48,6 @@ class ExecutionRequest:
     # Input parameters for the procedure
     params: Dict[str, Any] = field(default_factory=dict)
 
-    # Runtime configuration overrides
-    config: Dict[str, Any] = field(default_factory=dict)
-
-    # MCP server configurations to start
-    mcp_servers: Dict[str, Any] = field(default_factory=dict)
-
-    # Environment variables (already passed via docker, but useful for reference)
-    env_vars: List[str] = field(default_factory=list)
-
     # Unique execution ID for tracking
     execution_id: Optional[str] = None
 

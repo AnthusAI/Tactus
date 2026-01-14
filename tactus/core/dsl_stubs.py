@@ -951,7 +951,8 @@ def create_dsl_stubs(
                 agent_config = {
                     "tool_calls": mock_config.get("tool_calls", []),
                     "message": mock_config.get("message", ""),
-                    "data": mock_config.get("data"),
+                    "data": mock_config.get("data", {}),
+                    "usage": mock_config.get("usage", {}),
                 }
                 builder.register_agent_mock(name, agent_config)
                 continue
@@ -1259,15 +1260,110 @@ def create_dsl_stubs(
         if handler_fn is None and isinstance(config_dict, dict):
             handler_fn = config_dict.pop("handler", None)
 
-        if handler_fn is None:
+        # Tool sources: allow `use = "..."` (or legacy/internal `source = "..."`) in lieu of a handler.
+        source = None
+        if isinstance(config_dict, dict):
+            source = config_dict.pop("use", None)
+            if source is not None:
+                if "source" in config_dict:
+                    raise TypeError(f"Tool '{tool_name}' cannot specify both 'use' and 'source'")
+                config_dict["source"] = source
+            else:
+                source = config_dict.get("source")
+
+        if handler_fn is not None and isinstance(source, str) and source.strip():
             raise TypeError(
-                f"Tool '{tool_name}' requires a function. "
-                "Use: multiply = Tool {{ function(args) ... end }}"
+                f"Tool '{tool_name}' cannot specify both a function and 'use = \"...\"'"
             )
+
+        is_source_tool = handler_fn is None and isinstance(source, str) and bool(source.strip())
+
+        if handler_fn is None and not is_source_tool:
+            raise TypeError(
+                f"Tool '{tool_name}' requires either a function or 'use = \"...\"'. "
+                'Example: my_tool = Tool { use = "broker.host.ping" }'
+            )
+
+        if is_source_tool:
+            source_str = source.strip()
+
+            def source_tool_handler(args):
+                import asyncio
+                import threading
+
+                # Resolve at call time so runtime toolsets are available.
+                if tool_primitive is None:
+                    raise RuntimeError(
+                        f"Tool '{tool_name}' is not available (tool primitive missing)"
+                    )
+
+                runtime = getattr(tool_primitive, "_runtime", None)
+                if runtime is None:
+                    raise RuntimeError(
+                        f"Tool '{tool_name}' is not available (runtime not connected)"
+                    )
+
+                toolset = runtime.toolset_registry.get(tool_name)
+                if toolset is None:
+                    raise RuntimeError(
+                        f"Tool '{tool_name}' not resolved from source '{source_str}'"
+                    )
+
+                tool_fn = tool_primitive._extract_tool_function(toolset, tool_name)
+
+                # Support both tool_fn(**kwargs) and tool_fn(args_dict) styles.
+                # Prefer kwargs (pydantic-ai Tool functions) then fall back to dict.
+                if hasattr(args, "items"):
+                    args_dict = lua_table_to_dict(args)
+                else:
+                    args_dict = args or {}
+                if not isinstance(args_dict, dict):
+                    raise TypeError(f"Tool '{tool_name}' args must be an object/table")
+
+                if asyncio.iscoroutinefunction(tool_fn):
+
+                    def _run_coro(coro):
+                        try:
+                            asyncio.get_running_loop()
+                        except RuntimeError:
+                            return asyncio.run(coro)
+
+                        result_container = {"value": None, "exception": None}
+
+                        def run_in_thread():
+                            try:
+                                result_container["value"] = asyncio.run(coro)
+                            except Exception as e:
+                                result_container["exception"] = e
+
+                        thread = threading.Thread(target=run_in_thread)
+                        thread.start()
+                        thread.join()
+
+                        if result_container["exception"] is not None:
+                            raise result_container["exception"]
+                        return result_container["value"]
+
+                    try:
+                        return _run_coro(tool_fn(**args_dict))
+                    except TypeError:
+                        return _run_coro(tool_fn(args_dict))
+
+                try:
+                    return tool_fn(**args_dict)
+                except TypeError:
+                    return tool_fn(args_dict)
+
+            handler_fn = source_tool_handler
 
         # Register tool with provided name
         builder.register_tool(tool_name, config_dict, handler_fn)
-        handle = ToolHandle(tool_name, handler_fn, tool_primitive)
+        handle = ToolHandle(
+            tool_name,
+            handler_fn,
+            tool_primitive,
+            record_calls=not is_source_tool,
+        )
 
         # Store in registry
         _tool_registry[tool_name] = handle
@@ -1293,21 +1389,18 @@ def create_dsl_stubs(
         The name is captured via assignment interception.
 
         Args:
-            name_or_config: Either a string name (curried) or configuration table
+            name_or_config: Configuration table
 
         Returns:
-            ToolHandle that will be assigned to variable, or curried function
+            ToolHandle that will be assigned to a variable (or returned directly)
         """
         from tactus.primitives.tool_handle import ToolHandle
 
-        # Handle curried syntax: Tool "name" returns a function that accepts config
         if isinstance(name_or_config, str):
-            tool_name = name_or_config
-
-            def accept_config(config):
-                return _process_tool_config(tool_name, config)
-
-            return accept_config
+            raise TypeError(
+                "Curried Tool syntax is not supported. Use assignment syntax: my_tool = Tool { ... }, "
+                'or provide an explicit name in the config: Tool { name = "my_tool", ... }.'
+            )
 
         # Handle direct config syntax: multiply = Tool { ... }
         config = name_or_config
@@ -1340,22 +1433,130 @@ def create_dsl_stubs(
         if handler_fn is None and isinstance(config_dict, dict):
             handler_fn = config_dict.pop("handler", None)
 
-        if handler_fn is None:
+        # Tool sources: allow `use = "..."` (or legacy/internal `source = "..."`) in lieu of a handler.
+        source = None
+        if isinstance(config_dict, dict):
+            source = config_dict.pop("use", None)
+            if source is not None:
+                if "source" in config_dict:
+                    raise TypeError("Tool cannot specify both 'use' and 'source'")
+                config_dict["source"] = source
+            else:
+                source = config_dict.get("source")
+
+        if handler_fn is not None and isinstance(source, str) and source.strip():
+            raise TypeError("Tool cannot specify both a function and 'use = \"...\"'")
+
+        is_source_tool = handler_fn is None and isinstance(source, str) and bool(source.strip())
+
+        if handler_fn is None and not is_source_tool:
             raise TypeError(
-                "Tool requires a function. Use: multiply = Tool { function(args) ... end }"
+                "Tool requires either a function or 'use = \"...\"'. "
+                'Example: my_tool = Tool { use = "broker.host.ping" }'
             )
+
+        # Optional explicit tool name (primarily for `return Tool { ... }` cases).
+        explicit_name = None
+        if isinstance(config_dict, dict):
+            explicit_name = config_dict.pop("name", None)
+            if explicit_name is not None and not isinstance(explicit_name, str):
+                raise TypeError("Tool 'name' must be a string")
+            if isinstance(explicit_name, str) and not explicit_name.strip():
+                raise TypeError("Tool 'name' cannot be empty")
 
         # Generate a temporary name - will be replaced when assigned
         import uuid
 
-        temp_name = f"_temp_tool_{uuid.uuid4().hex[:8]}"
+        temp_name = (
+            explicit_name.strip()
+            if isinstance(explicit_name, str)
+            else f"_temp_tool_{uuid.uuid4().hex[:8]}"
+        )
+
+        if is_source_tool:
+            import asyncio
+            import threading
+
+            source_str = source.strip()
+            handle_ref = {"handle": None}
+
+            def source_tool_handler(args):
+                # Resolve at call time so runtime toolsets are available.
+                if tool_primitive is None:
+                    raise RuntimeError("Tool not available (tool primitive missing)")
+
+                runtime = getattr(tool_primitive, "_runtime", None)
+                if runtime is None:
+                    raise RuntimeError("Tool not available (runtime not connected)")
+
+                resolved_name = handle_ref["handle"].name if handle_ref["handle"] else temp_name
+                toolset = runtime.toolset_registry.get(resolved_name)
+                if toolset is None:
+                    raise RuntimeError(
+                        f"Tool '{resolved_name}' not resolved from source '{source_str}'"
+                    )
+
+                tool_fn = tool_primitive._extract_tool_function(toolset, resolved_name)
+
+                # Support both tool_fn(**kwargs) and tool_fn(args_dict) styles.
+                # Prefer kwargs (pydantic-ai Tool functions) then fall back to dict.
+                if hasattr(args, "items"):
+                    args_dict = lua_table_to_dict(args)
+                else:
+                    args_dict = args or {}
+                if not isinstance(args_dict, dict):
+                    raise TypeError("Tool args must be an object/table")
+
+                if asyncio.iscoroutinefunction(tool_fn):
+
+                    def _run_coro(coro):
+                        try:
+                            asyncio.get_running_loop()
+                        except RuntimeError:
+                            return asyncio.run(coro)
+
+                        result_container = {"value": None, "exception": None}
+
+                        def run_in_thread():
+                            try:
+                                result_container["value"] = asyncio.run(coro)
+                            except Exception as e:
+                                result_container["exception"] = e
+
+                        thread = threading.Thread(target=run_in_thread)
+                        thread.start()
+                        thread.join()
+
+                        if result_container["exception"] is not None:
+                            raise result_container["exception"]
+                        return result_container["value"]
+
+                    try:
+                        return _run_coro(tool_fn(**args_dict))
+                    except TypeError:
+                        return _run_coro(tool_fn(args_dict))
+
+                try:
+                    return tool_fn(**args_dict)
+                except TypeError:
+                    return tool_fn(args_dict)
+
+            handler_fn = source_tool_handler
 
         # Register tool
         builder.register_tool(temp_name, config_dict, handler_fn)
-        handle = ToolHandle(temp_name, handler_fn, tool_primitive)
+        handle = ToolHandle(
+            temp_name,
+            handler_fn,
+            tool_primitive,
+            record_calls=not is_source_tool,
+        )
 
         # Store in registry with temp name
         _tool_registry[temp_name] = handle
+
+        if is_source_tool:
+            handle_ref["handle"] = handle
 
         return handle
 
@@ -1420,10 +1621,10 @@ def create_dsl_stubs(
         logger = logging.getLogger(__name__)
 
         logger.debug(
-            f"[AGENT_CREATION] Agent '{agent_name}': runtime_context={bool(_runtime_context)}, skip_agents={_runtime_context.get('skip_agents', 'N/A') if _runtime_context else 'N/A'}, has_log_handler={('log_handler' in _runtime_context) if _runtime_context else False}"
+            f"[AGENT_CREATION] Agent '{agent_name}': runtime_context={bool(_runtime_context)}, has_log_handler={('log_handler' in _runtime_context) if _runtime_context else False}"
         )
 
-        if _runtime_context and not _runtime_context.get("skip_agents", False):
+        if _runtime_context:
             from tactus.dspy.agent import create_dspy_agent
 
             logger.debug(f"[AGENT_CREATION] Attempting immediate creation for agent '{agent_name}'")
@@ -1451,6 +1652,11 @@ def create_dsl_stubs(
                     registry=builder.registry,
                     mock_manager=_runtime_context.get("mock_manager"),
                 )
+
+                # Set tool_primitive for mock tool call recording
+                tool_primitive = _runtime_context.get("tool_primitive")
+                if tool_primitive:
+                    agent_primitive._tool_primitive = tool_primitive
 
                 # Connect handle to primitive immediately
                 handle._set_primitive(
@@ -1576,10 +1782,10 @@ def create_dsl_stubs(
         logger = logging.getLogger(__name__)
 
         logger.debug(
-            f"[AGENT_CREATION] Agent '{temp_name}': runtime_context={bool(_runtime_context)}, skip_agents={_runtime_context.get('skip_agents', 'N/A') if _runtime_context else 'N/A'}, has_log_handler={('log_handler' in _runtime_context) if _runtime_context else False}"
+            f"[AGENT_CREATION] Agent '{temp_name}': runtime_context={bool(_runtime_context)}, has_log_handler={('log_handler' in _runtime_context) if _runtime_context else False}"
         )
 
-        if _runtime_context and not _runtime_context.get("skip_agents", False):
+        if _runtime_context:
             from tactus.dspy.agent import create_dspy_agent
 
             logger.debug(f"[AGENT_CREATION] Attempting immediate creation for agent '{temp_name}'")
@@ -1610,6 +1816,11 @@ def create_dsl_stubs(
                     registry=builder.registry,
                     mock_manager=_runtime_context.get("mock_manager"),
                 )
+
+                # Set tool_primitive for mock tool call recording
+                tool_primitive = _runtime_context.get("tool_primitive")
+                if tool_primitive:
+                    agent_primitive._tool_primitive = tool_primitive
 
                 # Connect handle to primitive immediately
                 handle._set_primitive(
@@ -1759,6 +1970,11 @@ def _make_binding_callback(
                     callback_logger.debug(
                         f"Re-registered tool '{name}' in builder.registry.lua_tools"
                     )
+            elif old_name != name:
+                raise RuntimeError(
+                    f"Tool name mismatch: assigned to '{name}' but tool is named '{old_name}'. "
+                    "Remove the Tool config 'name' field or make it match the assigned variable."
+                )
 
         # Check if this is an AgentHandle with a temp name
         if isinstance(value, AgentHandle):

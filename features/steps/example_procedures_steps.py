@@ -2,7 +2,6 @@
 Step definitions for Example Procedures feature.
 """
 
-import os
 from pathlib import Path
 from behave import given, when, then
 from tactus.core.runtime import TactusRuntime
@@ -89,11 +88,19 @@ def step_impl(context):
     """Execute the procedure from the example file."""
     import asyncio
     from tactus.core.config_manager import ConfigManager
+    from tactus.core.mocking import MockManager
+    from tactus.testing.mock_tools import (
+        MockToolRegistry,
+        MockedToolPrimitive,
+        create_default_mocks,
+    )
 
-    # Skip if no OpenAI API key is available
-    if not os.environ.get("OPENAI_API_KEY"):
-        context.scenario.skip("Skipping: OPENAI_API_KEY not set")
-        return
+    # Example procedures are validated in mocked mode so the BDD suite is deterministic
+    # and does not require network access or real API keys.
+    mock_registry = MockToolRegistry()
+    for tool_name, response in create_default_mocks().items():
+        mock_registry.register(tool_name, response)
+    tool_primitive = MockedToolPrimitive(mock_registry)
 
     # Determine format
     is_lua_dsl = context.example_file.suffix == ".lua" or ".tac" in context.example_file.suffixes
@@ -115,14 +122,11 @@ def step_impl(context):
         chat_recorder=None,
         mcp_server=None,
         mcp_servers=mcp_servers,
-        openai_api_key=os.environ.get("OPENAI_API_KEY"),
+        tool_primitive=tool_primitive,
         tool_paths=tool_paths,
         external_config=merged_config,
+        source_file_path=str(context.example_file),
     )
-
-    # Create MockManager to enable Mocks {} blocks (prevents real API calls in CI)
-    from tactus.core.mocking import MockManager
-
     context.runtime.mock_manager = MockManager()
 
     # Read file content

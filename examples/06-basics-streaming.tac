@@ -31,3 +31,10 @@ Procedure {
         }
     end
 }
+
+Mocks {
+    storyteller = {
+        tool_calls = {},
+        message = "A curious robot dipped its brush into blue paint and discovered joy in every stroke."
+    }
+}

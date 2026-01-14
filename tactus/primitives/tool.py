@@ -22,8 +22,6 @@ class ToolCall:
 
     def __init__(self, name: str, args: Dict[str, Any], result: Any):
         self.name = name
-        # Backward/compatibility alias used by some callers
-        self.tool_name = name
         self.args = args
         self.result = result
         self.timestamp = None  # Could add timestamp tracking

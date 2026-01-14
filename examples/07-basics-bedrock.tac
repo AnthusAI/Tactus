@@ -36,9 +36,16 @@ Procedure {
             local response = haiku_assistant()
             turn_count = turn_count + 1
 
-            -- Accumulate the response value from each turn using .value property
+            -- Accumulate the response message from each turn
             if response.value and response.value ~= "" then
-                response_text = response_text .. response.value
+                -- Handle both string values and dict values with response field
+                local msg = response.value
+                if type(msg) == "table" and msg.response then
+                    msg = msg.response
+                end
+                if type(msg) == "string" then
+                    response_text = response_text .. msg
+                end
             end
 
             -- Safety check: exit if too many turns

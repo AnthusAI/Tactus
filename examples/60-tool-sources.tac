@@ -3,13 +3,37 @@
 
 -- 1. Standard Library Tools (via require)
 local done = require("tactus.tools.done")
-local log = require("tactus.tools.log")
+
+-- 2. Inline tool definition (log tool for demonstration)
+log = Tool {
+    name = "log",
+    description = "Log a message during procedure execution",
+    input = {
+        message = field.string{required = true, description = "Message to log"},
+        level = field.string{required = false, description = "Log level: debug, info, warn, error"}
+    },
+    function(args)
+        local level = args.level or "info"
+        if level == "info" then
+            Log.info(args.message)
+        elseif level == "warn" then
+            Log.warn(args.message)
+        elseif level == "error" then
+            Log.error(args.message)
+        else
+            Log.debug(args.message)
+        end
+        return {logged = true, level = level, message = args.message}
+    end
+}
+
 -- Note: file and http tools are not yet available in stdlib
 -- file = require("tactus.file")
 -- http = require("tactus.http")
 
 -- 2. CLI Tool Wrapper (wraps git command)
--- Note: CLI tool wrappers are not yet implemented
+-- Tool sources (e.g., `use = "cli.git"`) are supported, but they require the
+-- underlying command to exist in the runtime environment.
 -- git_status = Tool { use = "cli.git", description = "Get git repository status" }
 
 -- 3. Plugin Tool (would need to be implemented)
@@ -36,7 +60,7 @@ When asked to demonstrate tools:
 3. Log the result
 4. Call done when finished]],
 
-    toolsets = {"done", "log", "file", "http"}
+    toolsets = {"log", "done"}
 }
 
 -- Main procedure

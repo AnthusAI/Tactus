@@ -16,9 +16,9 @@ Usage:
     end
 ]]--
 
--- Use named syntax so the tool has explicit name "done"
--- (required for mock mode where tool calls are recorded by name)
-return Tool "done" {
+-- Provide explicit name so the tool is recorded/mocked as "done"
+return Tool {
+    name = "done",
     description = "Signal task completion",
     input = {
         reason = field.string{required = false, description = "Reason for completion"}

@@ -4,6 +4,23 @@
 -- Import completion tool from standard library
 local done = require("tactus.tools.done")
 
+-- Define tools that will be mocked
+get_counter = Tool {
+    description = "Get an incremental counter value",
+    input = {},
+    function(args)
+        return {value = 0, message = "Default counter value"}
+    end
+}
+
+check_status = Tool {
+    description = "Check the current status of a task",
+    input = {},
+    function(args)
+        return {status = "unknown", progress = 0}
+    end
+}
+
 -- Temporal mocks - return different values per call
 Mocks {
     get_counter = {
@@ -120,6 +137,10 @@ Procedure {
     end
 }
 
+-- Note: This example currently fails with "Toolset 'get_counter' not found"
+-- The tools are defined correctly with explicit names and proper Tool{} declarations
+-- This appears to be a bug in how temporal mocking interacts with toolset registration
+-- TODO: Investigate why temporal mocks prevent tools from being found in toolset registry
 Specifications([[
 Feature: Temporal Mocking
   Tools return different values on successive calls

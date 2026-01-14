@@ -2,6 +2,70 @@
 
 <!-- version list -->
 
+## v0.28.0 (2026-01-14)
+
+### Bug Fixes
+
+- Correct test assertions for protocol changes
+  ([`79b1bdb`](https://github.com/AnthusAI/Tactus/commit/79b1bdb6d4fd1e5c6dd5e7bd0089d2049d05ede8))
+
+- Disallow curried Tool syntax (#27) ([#27](https://github.com/AnthusAI/Tactus/pull/27),
+  [`e5b25c2`](https://github.com/AnthusAI/Tactus/commit/e5b25c23f1ba50e1fed1b8a13fef77c172ed48ab))
+
+- Enable TCP broker streaming with length-prefixed protocol
+  ([`68d4d91`](https://github.com/AnthusAI/Tactus/commit/68d4d915316928b9ce180737259363b49f38788b))
+
+- Mark broker integration tests to skip in CI
+  ([`a34de74`](https://github.com/AnthusAI/Tactus/commit/a34de74f083a229c7e6480ac80984808e9d76207))
+
+- Mark TCP broker integration tests to skip in CI
+  ([`e8ecfa5`](https://github.com/AnthusAI/Tactus/commit/e8ecfa5216c19b7339e342c2e8682265f25a2808))
+
+- Update DSPy agent tests for TactusResult API changes
+  ([`aeb16f0`](https://github.com/AnthusAI/Tactus/commit/aeb16f0d0bd45481840bdc26cb1ecc1b4d46c8a7))
+
+- Update TCP unit tests for length-prefixed protocol
+  ([`803bcd8`](https://github.com/AnthusAI/Tactus/commit/803bcd87b294082b2e598be4c299a8840f2be6f6))
+
+- **agent**: Make Raw the default module and case-insensitive matching
+  ([`0cac3fa`](https://github.com/AnthusAI/Tactus/commit/0cac3fa75b3ee49b6e87221eea5d232b9e751ca7))
+
+- **agent**: Return TactusResult with value and cost stats
+  ([`c83f92d`](https://github.com/AnthusAI/Tactus/commit/c83f92dd561b553f7db8cf32cb9a93e9dfad1b20))
+
+- **broker**: Handle async event emission from sync threads
+  ([`340e288`](https://github.com/AnthusAI/Tactus/commit/340e28891bcaefb174d5d2babb34a16f0c3abd84))
+
+### Chores
+
+- Update GitHub Actions workflow for release process
+  ([`310a5a5`](https://github.com/AnthusAI/Tactus/commit/310a5a5e07028257b04811d5a8e8e1fca2d34d90))
+
+### Code Style
+
+- Run black on test_mock_field_normalization.py
+  ([`4522f4b`](https://github.com/AnthusAI/Tactus/commit/4522f4b7e2e093d3041cea086d84efcece5cb06f))
+
+### Documentation
+
+- Update sandboxing and broker defaults
+  ([`9ac4dcc`](https://github.com/AnthusAI/Tactus/commit/9ac4dcc7f65b54ab1a516d190afc748c933ee6e8))
+
+### Features
+
+- Add default current directory volume mount
+  ([`095c687`](https://github.com/AnthusAI/Tactus/commit/095c687c3758c01c2c93929f929a2e00045e831b))
+
+
+## v0.27.0 (2026-01-11)
+
+### Features
+
+- **broker**: Brokered sandbox runtime MVP (secretless runtime container) (#24)
+  ([#24](https://github.com/AnthusAI/Tactus/pull/24),
+  [`f922432`](https://github.com/AnthusAI/Tactus/commit/f922432da5a881c5eceb7c1410276ab45264ddaa))
+
+
 ## v0.26.0 (2026-01-11)
 
 ### Features

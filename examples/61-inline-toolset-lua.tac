@@ -69,7 +69,8 @@ Available tools:
 When asked to process text, use the appropriate tool.
 After processing, call done with the result.]],
 
-    toolsets = {"text_tools", "done"}
+    toolsets = {"text_tools"},
+    tools = {done}
 }
 
 -- Main procedure
@@ -127,8 +128,8 @@ Procedure {
                         answer = reason
                     end
                 end
-            elseif result and result.value then
-                answer = tostring(result.value)
+            elseif result and result.message then
+                answer = result.message
             end
 
             Log.info("Task completed", {result = answer, completed = completed})
