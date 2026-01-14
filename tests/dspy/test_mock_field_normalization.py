@@ -30,13 +30,14 @@ def test_mock_message_field_normalized_to_response():
     # Wrap mock response
     result = agent._wrap_mock_response(mock_data, {})
 
-    # Verify that 'response' field is accessible (normalized from 'message')
-    assert hasattr(result, "response"), "Prediction should have 'response' field"
-    assert result.response == "Hello from mock", "Response should match mock message"
+    # Verify that result.value contains the prediction with 'response' field
+    assert isinstance(result.value, dict), "Result value should be a dict"
+    assert "response" in result.value, "Prediction should have 'response' field"
+    assert result.value["response"] == "Hello from mock", "Response should match mock message"
 
     # Verify that 'message' field is still accessible
-    assert hasattr(result, "message"), "Prediction should have 'message' field"
-    assert result.message == "Hello from mock", "Message should match mock message"
+    assert "message" in result.value, "Prediction should have 'message' field"
+    assert result.value["message"] == "Hello from mock", "Message should match mock message"
 
 
 def test_mock_response_field_not_overwritten():
@@ -60,11 +61,9 @@ def test_mock_response_field_not_overwritten():
     result = agent._wrap_mock_response(mock_data, {})
 
     # Verify that explicit 'response' field is preserved
-    assert result.response == "Response field", "Explicit response should be preserved"
-    # Note: .message property returns 'response' field first (by design in TactusPrediction)
-    # Both fields exist in the prediction, but .message property prioritizes 'response'
-    assert hasattr(result._prediction, "message"), "Message field should exist in prediction"
-    assert result._prediction.message == "Message field", "Message field should be preserved"
+    assert result.value["response"] == "Response field", "Explicit response should be preserved"
+    # Both fields should exist in the value dict
+    assert result.value["message"] == "Message field", "Message field should be preserved"
 
 
 def test_mock_without_message_field():
@@ -87,7 +86,7 @@ def test_mock_without_message_field():
     result = agent._wrap_mock_response(mock_data, {})
 
     # Verify that 'response' field is accessible
-    assert result.response == "Direct response", "Response should be accessible"
+    assert result.value["response"] == "Direct response", "Response should be accessible"
 
 
 def test_mock_data_with_tool_calls():
@@ -112,9 +111,9 @@ def test_mock_data_with_tool_calls():
     result = agent._wrap_mock_response(mock_data, {})
 
     # Verify that 'response' field is accessible (normalized from 'message')
-    assert hasattr(result, "response"), "Result should have 'response' field"
-    assert result.response == "Task completed successfully", "Response should match mock message"
+    assert "response" in result.value, "Result should have 'response' field"
+    assert result.value["response"] == "Task completed successfully", "Response should match mock message"
 
     # Verify other fields are preserved
-    assert hasattr(result._prediction, "data"), "Result should have 'data' field"
-    assert result._prediction.data == {"result": "success"}, "Data should be preserved"
+    assert "data" in result.value, "Result should have 'data' field"
+    assert result.value["data"] == {"result": "success"}, "Data should be preserved"
