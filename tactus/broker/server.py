@@ -10,7 +10,7 @@ import json
 import logging
 import os
 import ssl
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
@@ -19,7 +19,12 @@ import anyio
 from anyio.streams.buffered import BufferedByteReceiveStream
 from anyio.streams.tls import TLSStream
 
-from tactus.broker.protocol import read_message_anyio, write_message_anyio
+from tactus.broker.protocol import (
+    read_message,
+    read_message_anyio,
+    write_message,
+    write_message_anyio,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -446,6 +451,7 @@ class BrokerServer(_BaseBrokerServer):
             openai_backend=openai_backend, tool_registry=tool_registry, event_handler=event_handler
         )
         self.socket_path = Path(socket_path)
+        self._server: asyncio.AbstractServer | None = None
 
     async def start(self) -> None:
         # Most platforms enforce a short maximum length for AF_UNIX socket paths.
@@ -461,18 +467,285 @@ class BrokerServer(_BaseBrokerServer):
             self.socket_path.unlink()
 
         self._server = await asyncio.start_unix_server(
-            self._handle_connection, path=str(self.socket_path)
+            self._handle_connection_asyncio, path=str(self.socket_path)
         )
         logger.info(f"[BROKER] Listening on UDS: {self.socket_path}")
 
     async def aclose(self) -> None:
         await super().aclose()
 
+        if self._server is not None:
+            self._server.close()
+            try:
+                await self._server.wait_closed()
+            finally:
+                self._server = None
+
         try:
             if self.socket_path.exists():
                 self.socket_path.unlink()
         except Exception:
             logger.debug("[BROKER] Failed to unlink socket path", exc_info=True)
+
+    async def _handle_connection_asyncio(
+        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ) -> None:
+        try:
+            req = await read_message(reader)
+            req_id = req.get("id")
+            method = req.get("method")
+            params = req.get("params") or {}
+
+            async def write_event(event: dict[str, Any]) -> None:
+                await write_message(writer, event)
+
+            if not req_id or not method:
+                await write_event(
+                    {
+                        "id": req_id or "",
+                        "event": "error",
+                        "error": {"type": "BadRequest", "message": "Missing id/method"},
+                    }
+                )
+                return
+
+            if method == "events.emit":
+                await self._handle_events_emit_asyncio(req_id, params, write_event)
+                return
+
+            if method == "llm.chat":
+                await self._handle_llm_chat_asyncio(req_id, params, write_event)
+                return
+
+            if method == "tool.call":
+                await self._handle_tool_call_asyncio(req_id, params, write_event)
+                return
+
+            await write_event(
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {"type": "MethodNotFound", "message": f"Unknown method: {method}"},
+                }
+            )
+
+        except Exception as e:
+            logger.debug("[BROKER] Connection handler error", exc_info=True)
+            try:
+                await write_message(
+                    writer,
+                    {
+                        "id": "",
+                        "event": "error",
+                        "error": {"type": type(e).__name__, "message": str(e)},
+                    },
+                )
+            except Exception:
+                pass
+        finally:
+            try:
+                writer.close()
+                await writer.wait_closed()
+            except Exception:
+                pass
+
+    async def _handle_events_emit_asyncio(
+        self,
+        req_id: str,
+        params: dict[str, Any],
+        write_event: Callable[[dict[str, Any]], Awaitable[None]],
+    ) -> None:
+        event = params.get("event")
+        if not isinstance(event, dict):
+            await write_event(
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {"type": "BadRequest", "message": "params.event must be an object"},
+                }
+            )
+            return
+
+        try:
+            if self._event_handler is not None:
+                self._event_handler(event)
+        except Exception:
+            logger.debug("[BROKER] event_handler raised", exc_info=True)
+
+        await write_event({"id": req_id, "event": "done", "data": {"ok": True}})
+
+    async def _handle_tool_call_asyncio(
+        self,
+        req_id: str,
+        params: dict[str, Any],
+        write_event: Callable[[dict[str, Any]], Awaitable[None]],
+    ) -> None:
+        name = params.get("name")
+        args = params.get("args") or {}
+
+        if not isinstance(name, str) or not name:
+            await write_event(
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {"type": "BadRequest", "message": "params.name must be a string"},
+                }
+            )
+            return
+        if not isinstance(args, dict):
+            await write_event(
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {"type": "BadRequest", "message": "params.args must be an object"},
+                }
+            )
+            return
+
+        try:
+            result = self._tools.call(name, args)
+        except KeyError:
+            await write_event(
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {
+                        "type": "ToolNotAllowed",
+                        "message": f"Tool not allowlisted: {name}",
+                    },
+                }
+            )
+            return
+        except Exception as e:
+            logger.debug("[BROKER] tool.call error", exc_info=True)
+            await write_event(
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {"type": type(e).__name__, "message": str(e)},
+                }
+            )
+            return
+
+        await write_event({"id": req_id, "event": "done", "data": {"result": result}})
+
+    async def _handle_llm_chat_asyncio(
+        self,
+        req_id: str,
+        params: dict[str, Any],
+        write_event: Callable[[dict[str, Any]], Awaitable[None]],
+    ) -> None:
+        provider = params.get("provider") or "openai"
+        if provider != "openai":
+            await write_event(
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {
+                        "type": "UnsupportedProvider",
+                        "message": f"Unsupported provider: {provider}",
+                    },
+                }
+            )
+            return
+
+        model = params.get("model")
+        messages = params.get("messages")
+        stream = bool(params.get("stream", False))
+        temperature = params.get("temperature")
+        max_tokens = params.get("max_tokens")
+
+        if not isinstance(model, str) or not model:
+            await write_event(
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {"type": "BadRequest", "message": "params.model must be a string"},
+                }
+            )
+            return
+        if not isinstance(messages, list):
+            await write_event(
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {"type": "BadRequest", "message": "params.messages must be a list"},
+                }
+            )
+            return
+
+        try:
+            if stream:
+                stream_iter = await self._openai.chat(
+                    model=model,
+                    messages=messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    stream=True,
+                )
+
+                full_text = ""
+                async for chunk in stream_iter:
+                    try:
+                        delta = chunk.choices[0].delta
+                        text = getattr(delta, "content", None)
+                    except Exception:
+                        text = None
+
+                    if not text:
+                        continue
+
+                    full_text += text
+                    await write_event({"id": req_id, "event": "delta", "data": {"text": text}})
+
+                await write_event(
+                    {
+                        "id": req_id,
+                        "event": "done",
+                        "data": {
+                            "text": full_text,
+                            "usage": {
+                                "prompt_tokens": 0,
+                                "completion_tokens": 0,
+                                "total_tokens": 0,
+                            },
+                        },
+                    }
+                )
+                return
+
+            resp = await self._openai.chat(
+                model=model,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                stream=False,
+            )
+            text = ""
+            try:
+                text = resp.choices[0].message.content or ""
+            except Exception:
+                text = ""
+
+            await write_event(
+                {
+                    "id": req_id,
+                    "event": "done",
+                    "data": {
+                        "text": text,
+                        "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+                    },
+                }
+            )
+        except Exception as e:
+            logger.debug("[BROKER] llm.chat error", exc_info=True)
+            await write_event(
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {"type": type(e).__name__, "message": str(e)},
+                }
+            )
 
 
 class TcpBrokerServer(_BaseBrokerServer):
@@ -499,6 +772,7 @@ class TcpBrokerServer(_BaseBrokerServer):
         self.port = port
         self.ssl_context = ssl_context
         self.bound_port: int | None = None
+        self._serve_task: asyncio.Task[None] | None = None
 
     async def start(self) -> None:
         # Create AnyIO TCP listener (doesn't block, just binds to port)
@@ -515,3 +789,21 @@ class TcpBrokerServer(_BaseBrokerServer):
         logger.info(
             f"[BROKER] Listening on {scheme}: {self.host}:{self.bound_port if self.bound_port is not None else self.port}"
         )
+
+        # Unlike asyncio's start_server(), AnyIO listeners don't automatically start
+        # serving on enter; they require an explicit serve() loop. Run it in the
+        # background for the duration of the async context manager.
+        if self._serve_task is None or self._serve_task.done():
+            self._serve_task = asyncio.create_task(self.serve(), name="tactus-broker-tcp-serve")
+
+    async def aclose(self) -> None:
+        task = self._serve_task
+        self._serve_task = None
+        if task is not None and not task.done():
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+
+        await super().aclose()
