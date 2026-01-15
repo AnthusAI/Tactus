@@ -14,6 +14,7 @@ project_root = os.path.abspath(os.path.join(SPECPATH, '..', '..'))
 tactus_modules = collect_submodules('tactus')
 flask_modules = collect_submodules('flask')
 antlr_modules = collect_submodules('antlr4')
+litellm_modules = collect_submodules('litellm')
 
 # Collect data files
 tactus_datas = collect_data_files('tactus', include_py_files=True)
@@ -21,6 +22,7 @@ antlr_datas = collect_data_files('antlr4')
 lupa_datas = collect_data_files('lupa', include_py_files=True)
 behave_datas = collect_data_files('behave')
 gherkin_datas = collect_data_files('gherkin')
+litellm_datas = collect_data_files('litellm')
 
 # Manually collect lupa native libraries
 # collect_dynamic_libs doesn't find them, so we do it explicitly
@@ -38,6 +40,7 @@ a = Analysis(
         *lupa_datas,
         *behave_datas,
         *gherkin_datas,
+        *litellm_datas,
         *copy_metadata('genai_prices'),
         *copy_metadata('pydantic_ai_slim'),
         *copy_metadata('pydantic_ai'),
@@ -51,6 +54,8 @@ a = Analysis(
         *tactus_modules,
         *flask_modules,
         *antlr_modules,
+        *litellm_modules,
+        'litellm.litellm_core_utils.tokenizers',
         'lupa',
         'flask_cors',
         'pydantic',

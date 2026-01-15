@@ -1,6 +1,6 @@
 {
   "name": "tactus-desktop",
-  "version": "0.1.0",
+  "version": "0.28.0",
   "description": "Tactus IDE - Desktop Application",
   "type": "module",
   "main": "dist/src/main.js",
