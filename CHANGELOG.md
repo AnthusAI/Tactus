@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.29.4 (2026-01-15)
+
+### Bug Fixes
+
+- Sync desktop app version with semantic-release version in filenames
+  ([`212eec0`](https://github.com/AnthusAI/Tactus/commit/212eec0c179c6b1d3aa47b4d595be91db696f114))
+
+
 ## v0.29.3 (2026-01-15)
 
 ### Bug Fixes
