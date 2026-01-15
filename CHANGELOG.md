@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v0.31.0 (2026-01-15)
+
+### Chores
+
+- Merge origin/main
+  ([`dd8c4d4`](https://github.com/AnthusAI/Tactus/commit/dd8c4d4aa08cf4d7aaf8be69e76309a66be36ec8))
+
+### Documentation
+
+- Add workaround for macOS Gatekeeper damaged app error
+  ([`cbf9b38`](https://github.com/AnthusAI/Tactus/commit/cbf9b38a25a99d8f0ff8949e3a646ed69d276713))
+
+
 ## v0.30.0 (2026-01-15)
 
 
