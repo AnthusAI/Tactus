@@ -238,8 +238,7 @@ done = tactus.done
 text_processor = Agent {
     provider = "openai",
     system_prompt = "You process text",
-    tools = {
-        done,
+    inline_tools = {
         {
             name = "uppercase",
             description = "Convert to uppercase",
@@ -260,7 +259,8 @@ text_processor = Agent {
                 return string.lower(args.text)
             end
         }
-    }
+    },
+    tools = {done}
 }
 ```
 
@@ -656,8 +656,7 @@ done = tactus.done
 content_editor = Agent {
     provider = "openai",
     system_prompt = "You are a content editing assistant",
-    tools = {
-        done,
+    inline_tools = {
         {
             name = "word_count",
             description = "Count words in text",
@@ -698,7 +697,8 @@ content_editor = Agent {
                 return table.concat(sentences, "\n")
             end
         }
-    }
+    },
+    tools = {done}
 }
 ```
 
@@ -860,7 +860,8 @@ temperature_tools = Toolset {
 
 -- Agent-specific -> inline in Agent
 temp_converter = Agent {
-    tools = {done, {...}}
+    inline_tools = {...},
+    tools = {done}
 }
 ```
 

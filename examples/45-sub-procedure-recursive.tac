@@ -26,7 +26,7 @@ Procedure {
     end
 }
 
-Specifications([[
+Specification([[
 Feature: Factorial Calculation
   Scenario: Calculate factorial of 5
     Given the procedure has started

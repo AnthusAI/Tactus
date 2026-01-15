@@ -113,6 +113,9 @@ def step_impl(context):
     # Get tool_paths and mcp_servers from merged config
     tool_paths = merged_config.get("tool_paths")
     mcp_servers = merged_config.get("mcp_servers", {})
+    if not tool_paths:
+        project_root = Path(__file__).parent.parent.parent
+        tool_paths = [str(project_root / "examples" / "tools")]
 
     # Create runtime with config
     context.runtime = TactusRuntime(
@@ -128,6 +131,7 @@ def step_impl(context):
         source_file_path=str(context.example_file),
     )
     context.runtime.mock_manager = MockManager()
+    context.runtime.mock_all_agents = True
 
     # Read file content
     file_content = context.example_file.read_text()

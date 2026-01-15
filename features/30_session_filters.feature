@@ -13,7 +13,7 @@ Feature: Session Filters
   provider = "openai",
   system_prompt = "Work",
   tools = {},
-  session = {
+  message_history = {
   source = "own",
   filter = filters.last_n(10)
   }
@@ -35,7 +35,7 @@ Feature: Session Filters
   provider = "openai",
   system_prompt = "Work",
   tools = {},
-  session = {
+  message_history = {
   source = "own",
   filter = filters.token_budget(4000)
   }
@@ -57,7 +57,7 @@ Feature: Session Filters
   provider = "openai",
   system_prompt = "Work",
   tools = {},
-  session = {
+  message_history = {
   source = "own",
   filter = filters.by_role("user")
   }
@@ -79,7 +79,7 @@ Feature: Session Filters
   provider = "openai",
   system_prompt = "Work",
   tools = {},
-  session = {
+  message_history = {
   source = "own",
   filter = filters.compose(
   filters.by_role("user"),

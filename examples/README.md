@@ -167,6 +167,17 @@ Example with passing BDD tests:
 tactus test examples/21-bdd-passing.tac --mock
 ```
 
+#### 22-bdd-fuzzy-matching.tac
+
+Fuzzy matching for scalar outputs:
+- Thresholded fuzzy matches for output strings
+- Using mocks inside the specification scenarios
+
+**Run:**
+```bash
+tactus test examples/22-bdd-fuzzy-matching.tac --mock
+```
+
 ### Evaluations (30-39)
 
 #### 30-eval-simple.tac

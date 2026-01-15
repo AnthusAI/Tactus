@@ -211,7 +211,7 @@ Procedure {
     end
 }
 
-Specifications([[
+Specification([[
 Feature: Raw Text File IO
   Read and write various text file formats
 

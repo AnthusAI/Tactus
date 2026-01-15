@@ -46,6 +46,8 @@ class TactusTestRunner:
         procedure_file: Path,
         mock_tools: Optional[Dict] = None,
         params: Optional[Dict] = None,
+        mcp_servers: Optional[Dict] = None,
+        tool_paths: Optional[List[str]] = None,
         mocked: bool = False,
     ):
         if not BEHAVE_AVAILABLE:
@@ -54,6 +56,8 @@ class TactusTestRunner:
         self.procedure_file = procedure_file
         self.mock_tools = mock_tools or {}
         self.params = params or {}
+        self.mcp_servers = mcp_servers or {}
+        self.tool_paths = tool_paths or []
         self.mocked = mocked  # Whether to use mocked dependencies
         self.work_dir: Optional[Path] = None
         self.parsed_feature: Optional[ParsedFeature] = None
@@ -83,6 +87,8 @@ class TactusTestRunner:
             self.procedure_file,
             mock_tools=self.mock_tools,
             params=self.params,
+            mcp_servers=self.mcp_servers,
+            tool_paths=self.tool_paths,
             mocked=self.mocked,
         )
 

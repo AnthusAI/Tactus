@@ -28,6 +28,8 @@ Prerequisites:
 
 -- MCP Server Test Example
 
+local done = require("tactus.tools.done")
+
 -- Define agent with MCP tools
 calculator = Agent {
     provider = "openai",
@@ -42,20 +44,18 @@ Steps:
 1. Use add_numbers to add 5 + 3
 2. Use multiply to multiply the result by 2
 3. Call done with the final answer
-]],
+	]],
     initial_message = "Calculate (5 + 3) * 2 and call done when finished",
-    toolsets = {
-        "test_server_add_numbers",
-        "test_server_multiply",
-        "done"
-    }
+    tools = {"test_server", done},
 }
 
 -- Execute procedure
 
 Procedure {
     output = {
-            result = field.string{description = "Result"}
+            success = field.boolean{required = true},
+            message = field.string{required = false},
+            error = field.string{required = false},
     },
     function(input)
 
@@ -98,3 +98,17 @@ Procedure {
 
     end
 }
+
+Specification([[
+Feature: MCP server tools
+
+  Scenario: Uses MCP-prefixed tools and completes
+    Given the procedure has started
+    And the agent "calculator" responds with "Working..."
+    And the agent "calculator" calls tool "test_server_add_numbers" with args {"a": 5, "b": 3}
+    And the agent "calculator" calls tool "test_server_multiply" with args {"x": 8, "y": 2}
+    And the agent "calculator" calls tool "done" with args {"reason": "16"}
+    When the procedure runs
+    Then the output success should be true
+    And the output message should be "MCP tools worked correctly"
+]])

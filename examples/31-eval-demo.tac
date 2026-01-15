@@ -43,21 +43,13 @@ Procedure {
     end
 }
 
--- Agent Mocks for CI testing
-Mocks {
-    greeter = {
-        tool_calls = {
-            {tool = "done", args = {reason = "Hello! It's wonderful to meet you!"}}
-        },
-        message = "I've generated a warm greeting for you."
-    }
-}
-
-Specifications([[
+Specification([[
 Feature: Greeting Generation
   Scenario: Agent generates greeting
     Given the procedure has started
     And the input name is "Alice"
+    And the agent "greeter" responds with "I've generated a warm greeting for you."
+    And the agent "greeter" calls tool "done" with args {"reason": "Hello! It's wonderful to meet you!"}
     When the procedure runs
     Then the done tool should be called
     And the procedure should complete successfully
@@ -67,7 +59,7 @@ Feature: Greeting Generation
 -- Note: Evaluations framework is partially implemented.
 -- These evaluators are commented out until field.contains_any, etc. are available.
 --[[
-Evaluations({
+Evaluation({
     dataset = {
         {
             name = "greet_alice",

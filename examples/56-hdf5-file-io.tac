@@ -97,7 +97,7 @@ Procedure {
     end
 }
 
-Specifications([[
+Specification([[
 Feature: HDF5 File IO
   Scientific data storage with multiple datasets
 

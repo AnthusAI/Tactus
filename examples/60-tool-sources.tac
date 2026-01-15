@@ -60,7 +60,7 @@ When asked to demonstrate tools:
 3. Log the result
 4. Call done when finished]],
 
-    toolsets = {"log", "done"}
+    tools = {"log", "done"}
 }
 
 -- Main procedure
@@ -90,7 +90,7 @@ Procedure {
             end
 
             -- Run the agent
-            local response = tool_demo({initial_message = message})
+            local response = tool_demo({message = message})
 
             -- Wait for done to be called
             local max_turns = 5
@@ -122,23 +122,15 @@ Procedure {
     end
 }
 
--- Agent Mocks for CI testing
-Mocks {
-    tool_demo = {
-        tool_calls = {
-            {tool = "log", args = {level = "info", message = "Demonstrating tools"}},
-            {tool = "done", args = {reason = "Tool demonstration completed successfully."}}
-        },
-        message = "I've completed the tool demonstration."
-    }
-}
-
-Specifications([[
+Specification([[
 Feature: Tool Source Types
   Demonstrate loading tools from various sources
 
   Scenario: Tool demo completes successfully
     Given the procedure has started
+    And the agent "tool_demo" responds with "I've completed the tool demonstration."
+    And the agent "tool_demo" calls tool "log" with args {"level": "info", "message": "Demonstrating tools"}
+    And the agent "tool_demo" calls tool "done" with args {"reason": "Tool demonstration completed successfully."}
     When the procedure runs
     Then the done tool should be called
     And the output result should exist

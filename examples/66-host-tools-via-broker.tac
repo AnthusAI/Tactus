@@ -23,7 +23,7 @@ Procedure {
     end
 }
 
-Specifications([[
+Specification([[
 Feature: Host Tools via Broker
   Call a broker allowlisted host tool from the runtime container
 

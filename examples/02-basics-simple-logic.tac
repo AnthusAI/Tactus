@@ -39,7 +39,7 @@ Procedure {
 }
 
 -- BDD Specifications
-Specifications([[
+Specification([[
 Feature: Simple State Management
   Test basic state and stage functionality without agents
 

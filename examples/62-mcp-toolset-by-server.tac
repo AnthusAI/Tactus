@@ -27,7 +27,8 @@ Available MCP toolsets:
 Use these tools to help with research tasks.
 When done, call the done tool.]],
 
-    toolsets = {"filesystem_tools", "search_tools", "done"}
+    tools = {"filesystem_tools", "search_tools"},
+    tools = {"filesystem_tools", "search_tools", done},
 }
 
 -- Alternative: Direct reference to MCP server in agent
@@ -40,7 +41,8 @@ Use filesystem tools to manage files.
 When done, call the done tool.]],
 
     -- Directly reference MCP server (registered by server name)
-    toolsets = {"filesystem", "done"}
+    tools = {"filesystem"},
+    tools = {"filesystem", done},
 }
 
 -- Main procedure
@@ -142,27 +144,31 @@ Procedure {
     end
 }
 
-Specifications([[
+Specification([[
 Feature: MCP Server Toolset Identification
   Demonstrate proper identification of MCP toolsets by server name
 
   Scenario: Use filesystem MCP server by name
     Given the procedure has started
-    When the procedure runs with task "list files"
-    Then the output completed should be True
-    And at least one filesystem MCP tool should be called
+    And the input task is "list files"
+    And the message is "Please list the files in the current directory."
+    And the agent "file_manager" responds with "Here are the files."
+    And the agent "file_manager" calls tool "filesystem_list_directory" with args {"path": "."}
+    And the agent "file_manager" calls tool "done" with args {"reason": "Here are the files."}
+    When the procedure runs
+    Then the output completed should be true
+    And the filesystem_list_directory tool should be called
 
   Scenario: Use search MCP server by name
     Given the procedure has started
-    When the procedure runs with task "search web"
-    Then the output completed should be True
-    And at least one search MCP tool should be called
-
-  Scenario: MCP toolsets are properly namespaced
-    Given the procedure has started
+    And the input task is "search web"
+    And the message is "Please search for 'Lua programming language' and summarize what you find."
+    And the agent "researcher" responds with "Lua is a lightweight language."
+    And the agent "researcher" calls tool "brave-search_search" with args {"query": "Lua programming language"}
+    And the agent "researcher" calls tool "done" with args {"reason": "Lua is a lightweight language."}
     When the procedure runs
-    Then MCP tools should have server name prefixes
-    And different MCP servers should not conflict
+    Then the output completed should be true
+    And the brave-search_search tool should be called
 ]])
 
 -- Note: This example requires MCP servers to be configured in .tac.yml:

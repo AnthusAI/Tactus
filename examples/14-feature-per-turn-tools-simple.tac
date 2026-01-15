@@ -12,6 +12,21 @@ tester = Agent {
     tools = {done}  -- Default toolset
 }
 
+Specification([[
+Feature: Per-turn tools (simple)
+
+  Scenario: Tools can be restricted per turn
+    Given the procedure has started
+    And the agent "tester" responds with "Done"
+    And the agent "tester" calls tool "done" with args {"reason": "Completed per-turn tool control demo"}
+    And the agent "tester" responds with "No tools available"
+    And the agent "tester" responds with "Done"
+    And the agent "tester" calls tool "done" with args {"reason": "Completed per-turn tool control demo"}
+    When the procedure runs
+    Then the done tool should be called exactly 2 times
+    And the procedure should complete successfully
+]])
+
 Procedure {
     output = {
             result = field.string{description = "Result"}
@@ -29,8 +44,8 @@ Procedure {
 
         Log.info("Test 2: Agent without tools - should just respond")
         tester({
-            inject = "Respond with 'No tools available'",
-            toolsets = {}
+            message = "Respond with 'No tools available'",
+            tools = {}
         })
 
         -- Check that done was NOT called in the second turn
@@ -41,7 +56,7 @@ Procedure {
         end
 
         Log.info("Test 3: Agent with tools again - should call done")
-        tester({inject = "Call the done tool now"})
+        tester({message = "Call the done tool now"})
 
         if done.called() then
             Log.info("✓ Test 3 passed: Agent called done tool again")
@@ -50,13 +65,4 @@ Procedure {
         return {success = true}
 
     end
-}
-
-Mocks {
-    tester = {
-        tool_calls = {
-            {tool = "done", args = {reason = "Completed per-turn tool control demo"}}
-        },
-        message = "No tools available"
-    }
 }

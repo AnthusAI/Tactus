@@ -893,7 +893,7 @@ agent "researcher" {
         Provide 2-3 interesting findings.
     ]],
     tools = {"search", "done"},
-    session = {
+    message_history = {
         filter = filters.token_budget(50000)
     }
 }

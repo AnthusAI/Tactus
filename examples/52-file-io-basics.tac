@@ -81,7 +81,7 @@ Procedure {
     end
 }
 
-Specifications([[
+Specification([[
 Feature: File IO Operations
   Demonstrate reading and writing various file formats
 

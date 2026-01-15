@@ -6,7 +6,7 @@ worker = Agent {
     provider = "openai",
     system_prompt = "A simple worker agent",
     initial_message = "Starting state management example",
-    toolsets = {},
+    tools = {},
 }
 
 -- Procedure with outputs defined inline
@@ -44,7 +44,7 @@ Procedure {
     end
 }
 
-Specifications([[
+Specification([[
 Feature: State Management
   Demonstrate state operations in Tactus workflows
 

@@ -1,6 +1,17 @@
 -- Input Types Showcase
 -- Demonstrates all supported input types for GUI and CLI testing
 
+Specification([[
+Feature: Inputs showcase
+
+  Scenario: Uses defaults and greets user
+    Given the procedure has started
+    And the input user_name is "Ada"
+    When the procedure runs
+    Then the output message should be "Hello Ada!"
+    And the output settings should exist
+]])
+
 Procedure {
     input = {
             -- String input (required)

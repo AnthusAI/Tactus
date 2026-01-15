@@ -78,29 +78,17 @@ Procedure {
     end
 }
 
--- Agent Mocks for CI testing
-Mocks {
-    researcher = {
-        tool_calls = {
-            {tool = "search", args = {query = "Artificial Intelligence"}},
-            {tool = "done", args = {reason = "Research findings on AI topic."}}
-        },
-        message = "I've researched the topic and found relevant information."
-    },
-    reviewer = {
-        tool_calls = {
-            {tool = "done", args = {reason = "The research looks good."}}
-        },
-        message = "I've reviewed the research."
-    }
-}
-
-Specifications([[
+Specification([[
 Feature: Multi-Agent Research with Trace Inspection
 
   Scenario: Researcher searches and completes
     Given the procedure has started
     And the input topic is "Artificial Intelligence"
+    And the agent "researcher" responds with "I've researched the topic and found relevant information."
+    And the agent "researcher" calls tool "search" with args {"query": "Artificial Intelligence"}
+    And the agent "researcher" calls tool "done" with args {"reason": "Research findings on AI topic."}
+    And the agent "reviewer" responds with "I've reviewed the research."
+    And the agent "reviewer" calls tool "done" with args {"reason": "The research looks good."}
     When the procedure runs
     Then the search tool should be called
     And the done tool should be called at least 1 time
@@ -111,7 +99,7 @@ Feature: Multi-Agent Research with Trace Inspection
 -- Note: Evaluations framework is partially implemented.
 -- Commented out until field.tool_called, field.agent_turns, etc. are available.
 --[[
-Evaluations({
+Evaluation({
     runs = 3,
     parallel = true,
 

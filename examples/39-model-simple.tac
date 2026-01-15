@@ -31,7 +31,7 @@ Procedure {
     end
 }
 
-Specifications([[
+Specification([[
 Feature: Simple Classification
   Scenario: Classify greeting text
     Given the procedure has started

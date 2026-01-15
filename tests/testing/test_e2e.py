@@ -139,7 +139,7 @@ worker()
 Stage.set("end")
 return {success = true}
 
-Specifications([[
+Specification([[
 Feature: Test
   Scenario: Works
     Given the procedure has started

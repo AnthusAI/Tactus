@@ -71,12 +71,14 @@ Procedure {
     end
 }
 
-Specifications([[
+Specification([[
 Feature: Comprehensive Workflow Testing
   Demonstrate all BDD testing capabilities
 
   Scenario: Complete workflow execution
     Given the procedure has started
+    And the agent "processor" responds with "Processing complete."
+    And the agent "processor" calls tool "done" with args {"reason": "Processing complete"}
     When the procedure runs
     Then the done tool should be called
     And the stage should be complete
@@ -100,6 +102,8 @@ Feature: Comprehensive Workflow Testing
 
   Scenario: Tool usage
     Given the procedure has started
+    And the agent "processor" responds with "Processing complete."
+    And the agent "processor" calls tool "done" with args {"reason": "Processing complete"}
     When the processor agent takes turn
     Then the done tool should be called exactly 1 time
     And the procedure should complete successfully
@@ -109,16 +113,6 @@ Feature: Comprehensive Workflow Testing
     When the procedure runs
     Then the total iterations should be less than 20
 ]])
-
--- Agent mock for CI testing (used when mocks are enabled)
-Mocks {
-    processor = {
-        tool_calls = {
-            { tool = "done", args = { reason = "Processing complete" } }
-        },
-        message = "Processing complete."
-    }
-}
 
 -- Custom step for advanced validation
 Step("the processing was efficient", function(input)

@@ -1,6 +1,18 @@
 -- Calculator with Array Input
 -- Demonstrates array and enum input handling
 
+Specification([[
+Feature: Inputs calculator
+
+  Scenario: Sums numbers by default
+    Given the procedure has started
+    And the input numbers is [1, 2, 3]
+    When the procedure runs
+    Then the output result should be 6
+    And the output operation_used should be "sum"
+    And the output input_count should be 3
+]])
+
 Procedure {
     input = {
             numbers = field.array{required = true, description = "Array of numbers to calculate (e.g., [1, 2, 3, 4, 5])"},

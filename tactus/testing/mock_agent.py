@@ -145,16 +145,51 @@ class MockAgentPrimitive:
                 f"}}"
             )
 
+        temporal_turns = getattr(mock_config, "temporal", None) or []
+        if temporal_turns:
+            injected = opts.get("message")
+
+            selected_turn = None
+            if injected is not None:
+                for turn in temporal_turns:
+                    if isinstance(turn, dict) and turn.get("when_message") == injected:
+                        selected_turn = turn
+                        break
+
+            if selected_turn is None:
+                idx = self.turn_count - 1  # 1-indexed turns
+                if idx < 0:
+                    idx = 0
+                if idx >= len(temporal_turns):
+                    idx = len(temporal_turns) - 1
+                selected_turn = temporal_turns[idx]
+
+            turn = selected_turn
+            if isinstance(turn, dict):
+                message = turn.get("message", mock_config.message)
+                tool_calls = turn.get("tool_calls", mock_config.tool_calls)
+                data = turn.get("data", mock_config.data)
+                raw_usage = turn.get("usage", mock_config.usage)
+            else:
+                message = mock_config.message
+                tool_calls = mock_config.tool_calls
+                data = mock_config.data
+                raw_usage = mock_config.usage
+        else:
+            message = mock_config.message
+            tool_calls = mock_config.tool_calls
+            data = mock_config.data
+            raw_usage = mock_config.usage
+
         # Execute the configured tool calls
-        tool_calls_executed = self._execute_tool_calls(mock_config.tool_calls)
+        tool_calls_executed = self._execute_tool_calls(tool_calls)
 
         # Structured payload (optional) for result.data
-        data = getattr(mock_config, "data", None) or {}
+        data = data or {}
         if not data:
-            data = {"response": mock_config.message}
+            data = {"response": message}
 
         # Token usage payload (optional) for result.usage
-        raw_usage = getattr(mock_config, "usage", None) or {}
         usage = dict(raw_usage) if isinstance(raw_usage, dict) else {}
         prompt_tokens = int(usage.get("prompt_tokens", 0) or 0)
         completion_tokens = int(usage.get("completion_tokens", 0) or 0)
@@ -167,16 +202,16 @@ class MockAgentPrimitive:
         usage.setdefault("total_tokens", total_tokens)
 
         # Messages generated in this turn
-        user_message = opts.get("message") or opts.get("inject")
+        user_message = opts.get("message")
         new_messages = []
         if user_message:
             new_messages.append({"role": "user", "content": user_message})
-        if mock_config.message:
-            new_messages.append({"role": "assistant", "content": mock_config.message})
+        if message:
+            new_messages.append({"role": "assistant", "content": message})
 
         # Return the configured message
         return MockAgentResult(
-            message=mock_config.message,
+            message=message,
             tool_calls=tool_calls_executed,
             data=data,
             usage=usage,

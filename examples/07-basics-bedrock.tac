@@ -37,9 +37,9 @@ Procedure {
             turn_count = turn_count + 1
 
             -- Accumulate the response message from each turn
-            if response.value and response.value ~= "" then
-                -- Handle both string values and dict values with response field
-                local msg = response.value
+            if response.output and response.output ~= "" then
+                -- Handle both string outputs and table outputs with response field
+                local msg = response.output
                 if type(msg) == "table" and msg.response then
                     msg = msg.response
                 end
@@ -75,23 +75,15 @@ Procedure {
     end
 }
 
--- Agent Mocks for CI testing
-Mocks {
-    haiku_assistant = {
-        tool_calls = {
-            {tool = "done", args = {reason = "Key benefits include scalability, security, and ease of integration"}}
-        },
-        message = "AWS Bedrock provides managed access to foundation models with enterprise-grade security."
-    }
-}
-
 -- BDD Specifications
-Specifications([[
+Specification([[
 Feature: AWS Bedrock Integration
   Test Claude 4.5 Haiku via AWS Bedrock
 
   Scenario: Bedrock agent responds successfully
     Given the procedure has started
+    And the agent "haiku_assistant" responds with "AWS Bedrock provides managed access to foundation models with enterprise-grade security."
+    And the agent "haiku_assistant" calls tool "done" with args {"reason": "Key benefits include scalability, security, and ease of integration"}
     When the procedure runs
     Then the done tool should be called
     And the procedure should complete successfully

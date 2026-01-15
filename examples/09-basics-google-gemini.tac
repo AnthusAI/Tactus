@@ -56,8 +56,8 @@ Procedure {
             pro_turns = pro_turns + 1
 
             -- Accumulate the response text
-            if response.value and response.value ~= "" then
-                local msg = response.value
+            if response.output and response.output ~= "" then
+                local msg = response.output
                 if type(msg) == "table" and msg.response then
                     msg = msg.response
                 end
@@ -92,8 +92,8 @@ Procedure {
             flash_turns = flash_turns + 1
 
             -- Accumulate the response text
-            if response.value and response.value ~= "" then
-                local msg = response.value
+            if response.output and response.output ~= "" then
+                local msg = response.output
                 if type(msg) == "table" and msg.response then
                     msg = msg.response
                 end
@@ -138,28 +138,16 @@ Procedure {
     end
 }
 
--- Agent Mocks for CI testing
-Mocks {
-    gemini_pro = {
-        tool_calls = {
-            {tool = "done", args = {reason = "Gemini Pro offers advanced reasoning and multimodal capabilities"}}
-        },
-        message = "Google Gemini provides powerful AI capabilities for various applications."
-    },
-    gemini_flash = {
-        tool_calls = {
-            {tool = "done", args = {reason = "Flash offers fast responses with lower latency"}}
-        },
-        message = "Gemini Flash is optimized for speed and efficiency."
-    }
-}
-
-Specifications([[
+Specification([[
 Feature: Google Gemini Integration
   Test multiple Gemini models
 
   Scenario: Gemini models respond successfully
     Given the procedure has started
+    And the agent "gemini_pro" responds with "Google Gemini provides powerful AI capabilities for various applications."
+    And the agent "gemini_pro" calls tool "done" with args {"reason": "Gemini Pro offers advanced reasoning and multimodal capabilities"}
+    And the agent "gemini_flash" responds with "Gemini Flash is optimized for speed and efficiency."
+    And the agent "gemini_flash" calls tool "done" with args {"reason": "Flash offers fast responses with lower latency"}
     When the procedure runs
     Then the done tool should be called at least 1 time
     And the procedure should complete successfully

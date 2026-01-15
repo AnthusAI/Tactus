@@ -120,6 +120,11 @@ class AgentHandle:
         # Convert Lua table to Python dict if needed
         converted_inputs = _convert_lua_table(inputs) if inputs is not None else None
 
+        # Convenience: allow shorthand string calls in Lua:
+        #   World("Hello") == World({message = "Hello"})
+        if isinstance(converted_inputs, str):
+            converted_inputs = {"message": converted_inputs}
+
         # If we have an execution context, checkpoint the agent call
         logger.debug(
             f"[CHECKPOINT] AgentHandle '{self.name}' called, has_execution_context={self._execution_context is not None}"

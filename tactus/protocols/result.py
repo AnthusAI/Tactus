@@ -1,7 +1,7 @@
 """
 Result object returned by cost-incurring primitives (e.g., Agents).
 
-Standardizes on `result.value` for the returned data (string or structured).
+Standardizes on `result.output` for the returned data (string or structured).
 """
 
 from __future__ import annotations
@@ -17,12 +17,12 @@ class TactusResult(BaseModel):
     """
     Standard Result wrapper for Lua and Python consumption.
 
-    - `value`: The returned data (string or structured dict/list/etc.)
+    - `output`: The returned data (string or structured dict/list/etc.)
     - `usage`: Token usage stats for the call that produced this result
     - `cost_stats`: Cost stats for the call that produced this result
     """
 
-    value: Any = Field(..., description="Result value (string or structured data)")
+    output: Any = Field(..., description="Result output (string or structured data)")
     usage: UsageStats = Field(default_factory=UsageStats)
     cost_stats: CostStats = Field(default_factory=CostStats)
 

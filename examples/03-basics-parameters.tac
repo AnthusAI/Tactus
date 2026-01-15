@@ -6,7 +6,7 @@ worker = Agent {
     provider = "openai",
     system_prompt = "A worker agent",
     initial_message = "Processing task",
-    toolsets = {}
+    tools = {}
 }
 
 -- Procedure with input and output defined inline
@@ -41,7 +41,7 @@ Procedure {
 }
 
 -- BDD Specifications
-Specifications([[
+Specification([[
 Feature: Parameter Usage
   Demonstrate parameter access and usage in workflows
 

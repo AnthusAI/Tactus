@@ -16,6 +16,18 @@ When asked to write a story:
 - Do NOT offer to continue or write more]],
 }
 
+Specification([[
+Feature: Streaming
+
+  Scenario: Returns a story for the prompt
+    Given the procedure has started
+    And the message is "Write a short story about a robot learning to paint."
+    And the agent "storyteller" responds with "A curious robot dipped its brush into blue paint and discovered joy in every stroke."
+    When the procedure runs
+    Then the output story should be "A curious robot dipped its brush into blue paint and discovered joy in every stroke."
+    And the output success should be true
+]])
+
 -- Procedure with input (but no output block to avoid breaking streaming)
 Procedure {
     input = {
@@ -26,15 +38,8 @@ Procedure {
         local result = storyteller({message = input.prompt})
 
         return {
-            story = result.value,
+            story = result.output,
             success = true
         }
     end
-}
-
-Mocks {
-    storyteller = {
-        tool_calls = {},
-        message = "A curious robot dipped its brush into blue paint and discovered joy in every stroke."
-    }
 }

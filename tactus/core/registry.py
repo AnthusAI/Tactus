@@ -48,13 +48,8 @@ class AgentDeclaration(BaseModel):
     model: Union[str, dict[str, Any]] = "gpt-4o"
     system_prompt: Union[str, Any]  # String with {markers} or Lua function
     initial_message: Optional[str] = None
-    tools: list[Union[str, dict[str, Any]]] = Field(
-        default_factory=list
-    )  # Supports toolset expressions
-    inline_tool_defs: list[dict[str, Any]] = Field(
-        default_factory=list
-    )  # Inline tool definitions with Lua handlers
-    output: Optional[AgentOutputSchema] = None  # Legacy field
+    tools: list[Any] = Field(default_factory=list)  # Tool/toolset references and expressions
+    inline_tools: list[dict[str, Any]] = Field(default_factory=list)  # Inline tool definitions
     output: Optional[AgentOutputSchema] = None  # Aligned with pydantic-ai
     message_history: Optional[MessageHistoryConfiguration] = None
     max_turns: int = 50
@@ -126,6 +121,10 @@ class AgentMockConfig(BaseModel):
     usage: dict[str, Any] = Field(
         default_factory=dict,
         description="Optional token usage payload (exposed as result.usage in Lua)",
+    )
+    temporal: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="Optional temporal mock turns (1-indexed by agent turn).",
     )
 
 
@@ -240,19 +239,6 @@ class RegistryBuilder:
                 field_config_with_name["name"] = field_name
                 fields[field_name] = OutputFieldDeclaration(**field_config_with_name)
             config["output"] = AgentOutputSchema(fields=fields)
-
-        # Handle toolsets -> tools rename (backward compatibility)
-        # The Lua DSL uses "toolsets" for toolset references and "tools" for inline tool definitions
-        # AgentDeclaration expects "tools" for toolset references
-        if "toolsets" in config:
-            if "tools" in config:
-                # Both exist: tools = inline defs, toolsets = references
-                # Keep inline defs in a temp field, use toolsets as tools
-                config["inline_tool_defs"] = config.pop("tools")
-                config["tools"] = config.pop("toolsets")
-            else:
-                # Only toolsets exists: rename to tools
-                config["tools"] = config.pop("toolsets")
 
         # Apply defaults
         if "provider" not in config and self.registry.default_provider:
@@ -378,6 +364,13 @@ class RegistryBuilder:
             "output_schema": output_schema,
             "state_schema": state_schema,
         }
+
+        # If this is the main entry point, also populate the top-level schemas so
+        # runtime output validation and tooling use a single canonical `output`.
+        if name == "main":
+            self.registry.input_schema = input_schema
+            self.registry.output_schema = output_schema
+            self.registry.state_schema = state_schema
 
     def register_top_level_input(self, schema: dict) -> None:
         """Register top-level input schema for script mode."""

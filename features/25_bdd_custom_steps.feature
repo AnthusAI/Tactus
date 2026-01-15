@@ -28,7 +28,7 @@ Feature: BDD Custom Step Definitions
     assert(value == 42, "Expected 42, got " .. tostring(value))
   end)
 
-  Specifications([[
+  Specification([[
     Feature: Custom Steps
     Scenario: Custom step works
       Given the procedure has started
@@ -65,7 +65,7 @@ Feature: BDD Custom Step Definitions
     assert(State.get("y") == 20)
   end)
 
-  Specifications([[
+  Specification([[
     Feature: Multiple Steps
     Scenario: All values are correct
       Given the procedure has started
@@ -101,7 +101,7 @@ Feature: BDD Custom Step Definitions
     assert(items[1] == "a", "First item should be 'a'")
   end)
 
-  Specifications([[
+  Specification([[
     Feature: Complex Custom Steps
     Scenario: List validation works
       Given the procedure has started

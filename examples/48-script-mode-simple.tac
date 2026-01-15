@@ -3,6 +3,16 @@
 -- Demonstrates a simple procedure with input and output parameters.
 -- The procedure accepts a name and returns a greeting message.
 
+Specification([[
+Feature: Script mode simple
+
+  Scenario: Greets World
+    Given the procedure has started
+    And the input name is "World"
+    When the procedure runs
+    Then the output greeting should be "Hello, World!"
+]])
+
 Procedure {
     input = {
             name = field.string{required = true, description = "Name to greet"}

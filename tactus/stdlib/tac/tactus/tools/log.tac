@@ -6,7 +6,7 @@ Usage:
 
     -- In an agent's toolset
     agent = Agent {
-        toolsets = {"log"},
+        tools = {"log"},
         ...
     }
 

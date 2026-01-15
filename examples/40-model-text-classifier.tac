@@ -31,9 +31,9 @@ The customer's message sentiment is: {State.sentiment}
 - If sentiment is positive, be friendly and efficient
 - If sentiment is neutral, be professional
 
-Respond appropriately to the customer's message.
-Call done when you've provided a helpful response.
-]],
+	Respond appropriately to the customer's message.
+	Call done when you've provided a helpful response.
+	]],
     tools = {done}
 }
 
@@ -64,24 +64,14 @@ Procedure {
     end
 }
 
--- Agent Mocks for CI testing
-Mocks {
-    sentiment_classifier = {
-        returns = "positive"
-    },
-    support_agent = {
-        tool_calls = {
-            {tool = "done", args = {reason = "I'm happy to help! Thank you for your positive feedback."}}
-        },
-        message = "Thank you for your message! I'm glad to assist."
-    }
-}
-
-Specifications([[
+Specification([[
 Feature: Text Classification with Model Primitive
   Scenario: Sentiment classifier detects sentiment
     Given the procedure has started
     And the input customer_message is "I love this product!"
+    And the tool "sentiment_classifier" returns "positive"
+    And the agent "support_agent" responds with "Thank you for your message! I'm glad to assist."
+    And the agent "support_agent" calls tool "done" with args {"reason": "I'm happy to help! Thank you for your positive feedback."}
     When the procedure runs
     Then the done tool should be called
     And the output sentiment should exist

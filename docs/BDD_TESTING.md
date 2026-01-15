@@ -278,7 +278,7 @@ Procedure {
 }
 
 -- BDD Specifications
-Specifications([[
+Specification([[
 Feature: Weather Query with Mocking
 
   Scenario: Weather tool returns mocked data
@@ -381,7 +381,7 @@ Procedure {
 }
 
 -- BDD Specifications
-Specifications([[
+Specification([[
 Feature: Research Task
 
   Scenario: Agent completes research
@@ -404,6 +404,29 @@ tactus evaluate procedure.lua --runs 10
 ```
 
 ## Built-in Steps Reference
+
+### Inline mocking (recommended)
+
+In addition to `Mocks {}`, you can declare mocks directly inside Gherkin scenarios so the mocks live next to the behavior they support:
+
+```gherkin
+And the agent "researcher" responds with "Mocked response"
+And the tool "search" returns {"results": ["a", "b"]}
+```
+
+### Fuzzy Output Steps
+
+For scalar outputs (where `result.output` is a string), you can use deterministic fuzzy matching. This is useful for real-model runs where exact phrasing can vary.
+
+```gherkin
+Then the output should fuzzy match "Hello world" with threshold 0.9
+Then the output should fuzzy match any of ["hello", "hi", "hey"] with threshold 0.9
+```
+
+Defaults:
+- Case-insensitive (compares lowercased text)
+- Punctuation-insensitive (strips punctuation)
+- Collapses whitespace
 
 ### Tool Steps
 
@@ -782,9 +805,6 @@ See `examples/with-bdd-tests.lua` for a complete example demonstrating:
 ## API Reference
 
 See `tactus/testing/README.md` for complete API documentation.
-
-
-
 
 
 

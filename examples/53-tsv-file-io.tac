@@ -75,7 +75,7 @@ Procedure {
     end
 }
 
-Specifications([[
+Specification([[
 Feature: TSV File IO
   Handle tab-separated values with commas in data
 

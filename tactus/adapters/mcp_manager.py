@@ -8,6 +8,7 @@ Handles lifecycle, tool prefixing, and tool call tracking.
 import logging
 import os
 import re
+import asyncio
 from contextlib import AsyncExitStack
 from typing import Dict, Any, List
 
@@ -62,43 +63,69 @@ class MCPServerManager:
     async def __aenter__(self):
         """Connect to all configured MCP servers."""
         for name, config in self.configs.items():
-            try:
-                logger.info(f"Connecting to MCP server '{name}'...")
+            # Retry a few times for transient stdio startup issues.
+            last_error: Exception | None = None
+            for attempt in range(1, 4):
+                try:
+                    logger.info(f"Connecting to MCP server '{name}' (attempt {attempt}/3)...")
 
-                # Substitute environment variables in config
-                config = substitute_env_vars(config)
+                    # Substitute environment variables in config
+                    config = substitute_env_vars(config)
 
-                # Create base server
-                server = MCPServerStdio(
-                    command=config["command"],
-                    args=config.get("args", []),
-                    env=config.get("env"),
-                    process_tool_call=self._create_trace_callback(name),  # Tracking hook
-                )
-
-                # Wrap with prefix to namespace tools
-                prefixed_server = server.prefixed(name)
-
-                # Connect the prefixed server
-                await self._exit_stack.enter_async_context(prefixed_server)
-                self.servers.append(prefixed_server)
-                self.server_toolsets[name] = prefixed_server  # Store by name for lookup
-                logger.info(f"Successfully connected to MCP server '{name}' with prefix '{name}_'")
-            except Exception as e:
-                # Check if this is a fileno error (common in test environments)
-                import io
-
-                error_str = str(e)
-                if "fileno" in error_str or isinstance(e, io.UnsupportedOperation):
-                    logger.warning(
-                        f"Failed to connect to MCP server '{name}': {e} "
-                        f"(test environment with redirected streams)"
+                    # Create base server
+                    server = MCPServerStdio(
+                        command=config["command"],
+                        args=config.get("args", []),
+                        env=config.get("env"),
+                        cwd=config.get("cwd"),
+                        process_tool_call=self._create_trace_callback(name),  # Tracking hook
                     )
-                else:
+
+                    # Wrap with prefix to namespace tools
+                    prefixed_server = server.prefixed(name)
+
+                    # Connect the prefixed server
+                    await self._exit_stack.enter_async_context(prefixed_server)
+                    self.servers.append(prefixed_server)
+                    self.server_toolsets[name] = prefixed_server  # Store by name for lookup
+                    logger.info(
+                        f"Successfully connected to MCP server '{name}' with prefix '{name}_'"
+                    )
+                    last_error = None
+                    break
+                except Exception as e:
+                    last_error = e
+
+                    # Check if this is a fileno error (common in test environments)
+                    import io
+
+                    error_str = str(e)
+                    if "fileno" in error_str or isinstance(e, io.UnsupportedOperation):
+                        logger.warning(
+                            f"Failed to connect to MCP server '{name}': {e} "
+                            f"(test environment with redirected streams)"
+                        )
+                        # Allow procedures to continue without MCP in this environment.
+                        last_error = None
+                        break
+
+                    # Retry transient anyio TaskGroup/broken stream issues.
+                    if (
+                        "BrokenResourceError" in error_str
+                        or "unhandled errors in a TaskGroup" in error_str
+                    ):
+                        logger.warning(
+                            f"Transient MCP connection failure for '{name}': {e} (retrying)"
+                        )
+                        await asyncio.sleep(0.05 * attempt)
+                        continue
+
                     logger.error(f"Failed to connect to MCP server '{name}': {e}", exc_info=True)
-                # Don't raise - allow procedure to continue without this MCP server
-                logger.info(f"Continuing without MCP server '{name}'")
-                continue
+                    break
+
+            if last_error is not None:
+                # For non-transient failures, raise so callers can decide whether to ignore.
+                raise last_error
 
         return self
 

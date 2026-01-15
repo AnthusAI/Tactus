@@ -69,8 +69,7 @@ Available tools:
 When asked to process text, use the appropriate tool.
 After processing, call done with the result.]],
 
-    toolsets = {"text_tools"},
-    tools = {done}
+    tools = {"text_tools", done},
 }
 
 -- Main procedure
@@ -110,7 +109,7 @@ Procedure {
             local result
 
             repeat
-                result = text_processor({initial_message = message})
+                result = text_processor({message = message})
                 turn_count = turn_count + 1
                 message = nil  -- Only use initial message on first turn
             until done.called() or turn_count >= max_turns
@@ -129,7 +128,7 @@ Procedure {
                     end
                 end
             elseif result and result.message then
-                answer = result.message
+                answer = tostring(result.output)
             end
 
             Log.info("Task completed", {result = answer, completed = completed})
@@ -143,23 +142,16 @@ Procedure {
     end
 }
 
--- Agent Mocks for CI testing
-Mocks {
-    text_processor = {
-        tool_calls = {
-            {tool = "text_tools_uppercase", args = {text = "hello world"}},
-            {tool = "done", args = {reason = "HELLO WORLD"}}
-        },
-        message = "I've converted the text to uppercase."
-    }
-}
-
-Specifications([[
+Specification([[
 Feature: Inline Lua Tools in Toolset Declarations
   Demonstrate defining Lua function tools directly within a Toolset block
 
   Scenario: Convert text to uppercase
     Given the procedure has started
+    And the message is "Please uppercase the following text: 'Hello, World!'"
+    And the agent "text_processor" responds with "I've converted the text to uppercase."
+    And the agent "text_processor" calls tool "text_tools_uppercase" with args {"text": "Hello, World!"}
+    And the agent "text_processor" calls tool "done" with args {"reason": "HELLO, WORLD!"}
     When the procedure runs
     Then the done tool should be called
     And the output result should exist

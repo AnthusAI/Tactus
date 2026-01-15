@@ -52,7 +52,7 @@ claude_haiku = Agent {
     model = "us.anthropic.claude-haiku-4-5-20251001-v1:0",
     system_prompt = "You are a physics expert. Be concise and accurate.",
     initial_message = common_prompt,
-    toolsets = {},  -- No tools for this example
+    tools = {},  -- No tools for this example
     model_settings = {
         temperature = 0.7,
     }
@@ -64,7 +64,7 @@ llama_8b = Agent {
     model = "us.meta.llama3-1-8b-instruct-v1:0",
     system_prompt = "You are a physics expert. Be concise and accurate.",
     initial_message = common_prompt,
-    toolsets = {},  -- Explicitly no tools
+    tools = {},  -- Explicitly no tools
     disable_streaming = true,  -- Llama models error with tools in streaming mode
     model_settings = {
         temperature = 0.7,
@@ -79,7 +79,7 @@ llama_3b = Agent {
     model = "us.meta.llama3-2-3b-instruct-v1:0",
     system_prompt = "You are a physics expert. Be concise and accurate.",
     initial_message = common_prompt,
-    toolsets = {},  -- Explicitly no tools - this model doesn't support tool calling
+    tools = {},  -- Explicitly no tools - this model doesn't support tool calling
     disable_streaming = true,  -- Llama models error with tools in streaming mode
     model_settings = {
         temperature = 0.7,
@@ -91,7 +91,7 @@ nova_micro = Agent {
     model = "us.amazon.nova-micro-v1:0",
     system_prompt = "You are a physics expert. Be concise and accurate.",
     initial_message = common_prompt,
-    toolsets = {},  -- Explicitly no tools - using direct response mode
+    tools = {},  -- Explicitly no tools - using direct response mode
     disable_streaming = true,  -- Nova models may have issues with tools in streaming mode
     model_settings = {
         temperature = 0.7,
@@ -103,7 +103,7 @@ nova_lite = Agent {
     model = "us.amazon.nova-lite-v1:0",
     system_prompt = "You are a physics expert. Be concise and accurate.",
     initial_message = common_prompt,
-    toolsets = {},  -- Explicitly no tools - using direct response mode
+    tools = {},  -- Explicitly no tools - using direct response mode
     disable_streaming = true,  -- Nova models may have issues with tools in streaming mode
     model_settings = {
         temperature = 0.7,
@@ -137,8 +137,14 @@ Procedure {
                     local response = agent_ref()
                     turn_count = turn_count + 1
 
-                    if response.value and response.value ~= "" then
-                        response_text = response_text .. response.value
+                    if response.output and response.output ~= "" then
+                        local msg = response.output
+                        if type(msg) == "table" and msg.response then
+                            msg = msg.response
+                        end
+                        if type(msg) == "string" then
+                            response_text = response_text .. msg
+                        end
                     end
 
                     if turn_count >= max_turns then
@@ -175,7 +181,7 @@ Procedure {
             local success, result = pcall(function(input)
                 local response = agent_ref()
                 return {
-                    response = response.value or "",
+                    response = response.output or "",
                     turns = 1,
                     success = true,
                     error = nil
@@ -229,57 +235,23 @@ Procedure {
     end
 }
 
--- Agent Mocks for CI testing
--- OpenAI agents with tools call done; Bedrock agents without tools just return message
-Mocks {
-    -- OpenAI agents (have tools, call done)
-    gpt4o = {
-        tool_calls = {
-            {tool = "done", args = {reason = "Quantum entanglement explanation complete"}}
-        },
-        message = "Quantum entanglement is a phenomenon where particles become correlated."
-    },
-    gpt4o_mini = {
-        tool_calls = {
-            {tool = "done", args = {reason = "Quantum physics explained"}}
-        },
-        message = "Entangled particles share quantum states regardless of distance."
-    },
-    gpt35_turbo = {
-        tool_calls = {
-            {tool = "done", args = {reason = "Physics explanation provided"}}
-        },
-        message = "Quantum entanglement links particles in mysterious ways."
-    },
-    -- Bedrock agents (no tools, just message)
-    claude_haiku = {
-        tool_calls = {},
-        message = "Quantum entanglement connects particles across any distance instantly."
-    },
-    llama_8b = {
-        tool_calls = {},
-        message = "Entanglement is a key quantum mechanical phenomenon."
-    },
-    llama_3b = {
-        tool_calls = {},
-        message = "Particles can be entangled in their quantum states."
-    },
-    nova_micro = {
-        tool_calls = {},
-        message = "Quantum entanglement is fundamental to quantum computing."
-    },
-    nova_lite = {
-        tool_calls = {},
-        message = "Entangled particles maintain correlation regardless of separation."
-    }
-}
-
-Specifications([[
+Specification([[
 Feature: Multi-Model Comparison
   Test multiple LLM models with the same prompt
 
   Scenario: All models respond successfully
     Given the procedure has started
+    And the agent "gpt4o" responds with "Quantum entanglement is a phenomenon where particles become correlated."
+    And the agent "gpt4o" calls tool "done" with args {"reason": "Quantum entanglement explanation complete"}
+    And the agent "gpt4o_mini" responds with "Entangled particles share quantum states regardless of distance."
+    And the agent "gpt4o_mini" calls tool "done" with args {"reason": "Quantum physics explained"}
+    And the agent "gpt35_turbo" responds with "Quantum entanglement links particles in mysterious ways."
+    And the agent "gpt35_turbo" calls tool "done" with args {"reason": "Physics explanation provided"}
+    And the agent "claude_haiku" responds with "Quantum entanglement connects particles across any distance instantly."
+    And the agent "llama_8b" responds with "Entanglement is a key quantum mechanical phenomenon."
+    And the agent "llama_3b" responds with "Particles can be entangled in their quantum states."
+    And the agent "nova_micro" responds with "Quantum entanglement is fundamental to quantum computing."
+    And the agent "nova_lite" responds with "Entangled particles maintain correlation regardless of separation."
     When the procedure runs
     Then the procedure should complete successfully
 ]])

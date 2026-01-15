@@ -156,6 +156,15 @@ class LuaToolsAdapter:
             Async Python function suitable for FunctionToolset
         """
         lua_handler = tool_spec.get("handler")
+        if lua_handler is None:
+            # Tool/Toolset DSL blocks can specify the handler as an unnamed function value.
+            # `lua_table_to_dict()` preserves that as numeric key `1` for mixed tables.
+            try:
+                candidate = tool_spec.get(1)
+            except Exception:
+                candidate = None
+            if candidate is not None and callable(candidate):
+                lua_handler = candidate
         description = tool_spec.get("description", f"Tool: {tool_name}")
         # Only support 'input' field name (new DSL syntax only)
         input_schema = tool_spec.get("input", {})
@@ -226,7 +235,20 @@ class LuaToolsAdapter:
         # Build proper signature for Pydantic AI tool discovery
         sig_params = []
         logger.debug(f"Building signature for tool '{tool_name}' with schema: {input_schema}")
-        for param_name, param_spec in input_schema.items():
+
+        # Lua table iteration order is undefined, so ensure signature is always valid:
+        # required params (no defaults) must come before optional params (with defaults).
+        required_param_names: list[str] = []
+        optional_param_names: list[str] = []
+        for param_name in sorted(input_schema.keys()):
+            param_spec = input_schema.get(param_name, {}) or {}
+            if param_spec.get("required", True):
+                required_param_names.append(param_name)
+            else:
+                optional_param_names.append(param_name)
+
+        for param_name in required_param_names + optional_param_names:
+            param_spec = input_schema.get(param_name, {}) or {}
             param_type = self._map_lua_type(param_spec.get("type", "string"))
             required = param_spec.get("required", True)
 

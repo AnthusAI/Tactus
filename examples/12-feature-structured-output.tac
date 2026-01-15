@@ -1,6 +1,6 @@
 -- Structured Output Demo
 -- Demonstrates using output for structured data extraction
--- and accessing result.value, result.usage
+-- and accessing result.output, result.usage
 
 extractor = Agent {
     provider = "openai",
@@ -35,11 +35,11 @@ Procedure {
         -- Agent returns ResultPrimitive (not raw data)
         local result = extractor()
 
-        -- Access structured data via result.value
+        -- Access structured data via result.output
         Log.info("Extracted city information", {
-            city = result.value.city,
-            country = result.value.country,
-            population = result.value.population or "unknown"
+            city = result.output.city,
+            country = result.output.country,
+            population = result.output.population or "unknown"
         })
 
         -- Access token usage stats
@@ -53,27 +53,20 @@ Procedure {
         -- In real execution, conversation history is managed by the agent
 
         return {
-            city_data = result.value,
+            city_data = result.output,
             tokens_used = result.usage.total_tokens
         }
     end
 }
 
--- Agent Mocks for CI testing
-Mocks {
-    extractor = {
-        tool_calls = {},
-        message = '{"city": "Paris", "country": "France", "population": 2161000}'
-    }
-}
-
 -- BDD Specifications
-Specifications([[
+Specification([[
 Feature: Structured Output with Result Access
   Demonstrate structured output validation and result access
 
   Scenario: Extract structured city data
     Given the procedure has started
+    And the agent "extractor" returns data {"city": "Paris", "country": "France", "population": 2161000}
     When the procedure runs
     Then the procedure should complete successfully
     And the output city_data should exist

@@ -31,9 +31,9 @@ You are a helpful agent.
 
 For this test, just call done immediately.
 
-Available tools:
-- done: Mark task as complete
-]],
+	Available tools:
+	- done: Mark task as complete
+	]],
     tools = {done}
 }
 
@@ -56,7 +56,7 @@ output {
 
 -- BDD Specifications
 
-Specifications([[
+Specification([[
 Feature: Time Lookup with Dependencies
   Scenario: Dependency is initialized and procedure runs
     Given the procedure has started

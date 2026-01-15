@@ -472,12 +472,17 @@ class TactusDSLVisitor(LuaParserVisitor):
                 # Stages() can take multiple string arguments
                 self.builder.set_stages(args)
         elif func_name == "Specification":  # CamelCase
-            if args and len(args) >= 2:
+            # Either:
+            # - Specification([[ Gherkin text ]]) (alias for Specifications)
+            # - Specification("name", { ... })   (structured form)
+            if args and len(args) == 1:
+                self.builder.register_specifications(args[0])
+            elif args and len(args) >= 2:
                 self.builder.register_specification(
                     args[0], args[1] if isinstance(args[1], list) else []
                 )
         elif func_name == "Specifications":  # CamelCase
-            # Specifications([[ Gherkin text ]])
+            # Specifications([[ Gherkin text ]]) (plural form; singular is Specification([[...]]))
             if args and len(args) >= 1:
                 self.builder.register_specifications(args[0])
         elif func_name == "Step":  # CamelCase
@@ -485,11 +490,19 @@ class TactusDSLVisitor(LuaParserVisitor):
             if args and len(args) >= 2:
                 self.builder.register_custom_step(args[0], args[1])
         elif func_name == "Evaluation":  # CamelCase
-            # Evaluation({ runs = 10, parallel = true })
-            if args and len(args) >= 1:
-                self.builder.set_evaluation_config(args[0] if isinstance(args[0], dict) else {})
+            # Either:
+            # - Evaluation({ runs = 10, parallel = true })               (simple config)
+            # - Evaluation({ dataset = {...}, evaluators = {...}, ... }) (alias for Evaluations)
+            if args and len(args) >= 1 and isinstance(args[0], dict):
+                cfg = args[0]
+                if any(k in cfg for k in ("dataset", "dataset_file", "evaluators", "thresholds")):
+                    self.builder.register_evaluations(cfg)
+                else:
+                    self.builder.set_evaluation_config(cfg)
+            elif args and len(args) >= 1:
+                self.builder.set_evaluation_config({})
         elif func_name == "Evaluations":  # CamelCase
-            # Evaluations({ dataset = {...}, evaluators = {...} })
+            # Evaluation(s)({ dataset = {...}, evaluators = {...} })
             if args and len(args) >= 1:
                 self.builder.register_evaluations(args[0] if isinstance(args[0], dict) else {})
         elif func_name == "default_provider":

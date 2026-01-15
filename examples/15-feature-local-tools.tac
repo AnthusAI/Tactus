@@ -28,13 +28,10 @@ IMPORTANT WORKFLOW:
 
 You MUST call the 'done' tool after getting the calculation result.]],
     initial_message = "{input.task}",
-    toolsets = {
-        -- All local plugin tools (loaded from tool_paths in config)
-        "plugin"
-    },
     tools = {
-        -- Completion tool (defined above)
-        done
+        -- All local plugin tools (loaded from tool_paths in config)
+        "plugin",
+        done,
     }
 }
 
@@ -83,7 +80,13 @@ Procedure {
             end
         else
             -- Max turns reached - use last response
-            answer = result.message
+            if result and result.output then
+                answer = tostring(result.output)
+            elseif result and result.message then
+                answer = tostring(result.message)
+            else
+                answer = ""
+            end
         end
 
         return {
@@ -93,12 +96,16 @@ Procedure {
     end
 }
 
-Mocks {
-    assistant = {
-        tool_calls = {
-            {tool = "calculate_mortgage", args = {principal = 300000, annual_interest_rate = 0.065, years = 30}},
-            {tool = "done", args = {reason = "Monthly payment is $1,896.20 (mocked)."}}
-        },
-        message = "Monthly payment is $1,896.20 (mocked)."
-    }
-}
+Specification([[
+Feature: Local tools
+
+  Scenario: Uses local calculation tool and completes
+    Given the procedure has started
+    And the input task is "Calculate mortgage for $300,000 at 6.5% for 30 years"
+    And the agent "assistant" responds with "Monthly payment is $1,896.20 (mocked)."
+    And the agent "assistant" calls tool "calculate_mortgage" with args {"principal": 300000, "annual_interest_rate": 0.065, "years": 30}
+    And the agent "assistant" calls tool "done" with args {"reason": "Monthly payment is $1,896.20 (mocked)."}
+    When the procedure runs
+    Then the output answer should be "Monthly payment is $1,896.20 (mocked)."
+    And the output completed should be true
+]])

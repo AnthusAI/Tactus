@@ -14,12 +14,37 @@ Provides a comprehensive library of steps for testing:
 
 import logging
 import re
+import ast
 from typing import Any
 
 from .registry import StepRegistry
 
 
 logger = logging.getLogger(__name__)
+
+
+def _parse_step_string_literal(value: str) -> tuple[str, bool]:
+    """
+    Parse an optional quoted string literal from a step capture group.
+
+    Supports single-quoted or double-quoted Python-style escapes, e.g.:
+      "Hello! I'm World"
+      'He said: "hi"'
+      "Line 1\\nLine 2"
+
+    Returns:
+      (parsed_value, was_quoted)
+    """
+    stripped = value.strip()
+    if len(stripped) >= 2 and stripped[0] in {"'", '"'} and stripped[-1] == stripped[0]:
+        try:
+            parsed = ast.literal_eval(stripped)
+            if isinstance(parsed, str):
+                return parsed, True
+        except Exception:
+            # Fall back to raw string if the literal is malformed.
+            return stripped, True
+    return value, False
 
 
 def register_builtin_steps(registry: StepRegistry) -> None:
@@ -69,32 +94,38 @@ def register_builtin_steps(registry: StepRegistry) -> None:
 def register_tool_steps(registry: StepRegistry) -> None:
     """Register tool-related step definitions."""
 
-    registry.register(r"the (?P<tool>\w+) tool should be called", step_tool_called)
+    registry.register(r"the (?P<tool>[-\w]+) tool should be called", step_tool_called)
 
-    registry.register(r"the (?P<tool>\w+) tool should not be called", step_tool_not_called)
+    registry.register(r"the (?P<tool>[-\w]+) tool should not be called", step_tool_not_called)
 
     registry.register(
-        r"the (?P<tool>\w+) tool should be called at least (?P<n>\d+) time",
+        r"the (?P<tool>[-\w]+) tool should be called at least (?P<n>\d+) time",
         step_tool_called_at_least,
     )
 
     registry.register(
-        r"the (?P<tool>\w+) tool should be called at least (?P<n>\d+) times",
+        r"the (?P<tool>[-\w]+) tool should be called at least (?P<n>\d+) times",
         step_tool_called_at_least,
     )
 
     registry.register(
-        r"the (?P<tool>\w+) tool should be called exactly (?P<n>\d+) time", step_tool_called_exactly
-    )
-
-    registry.register(
-        r"the (?P<tool>\w+) tool should be called exactly (?P<n>\d+) times",
+        r"the (?P<tool>[-\w]+) tool should be called exactly (?P<n>\d+) time",
         step_tool_called_exactly,
     )
 
     registry.register(
-        r"the (?P<tool>\w+) tool should be called with (?P<param>\w+)=(?P<value>.+)",
+        r"the (?P<tool>[-\w]+) tool should be called exactly (?P<n>\d+) times",
+        step_tool_called_exactly,
+    )
+
+    registry.register(
+        r"the (?P<tool>[-\w]+) tool should be called with (?P<param>\w+)=(?P<value>.+)",
         step_tool_called_with_param,
+    )
+
+    registry.register(
+        r'the tool "(?P<tool>[-\w]+)" returns (?P<value>.+)',
+        step_mock_tool_returns,
     )
 
 
@@ -130,6 +161,22 @@ def step_tool_called_with_param(context: Any, tool: str, param: str, value: str)
     # Check if any call has the parameter with the expected value
     found = any(call.get("args", {}).get(param) == value for call in calls)
     assert found, f"Tool '{tool}' was not called with {param}={value}"
+
+
+def step_mock_tool_returns(context: Any, tool: str, value: str) -> None:
+    """Configure a runtime tool mock response for this scenario."""
+    parsed_value, was_quoted = _parse_step_string_literal(value)
+    if not was_quoted:
+        try:
+            parsed_value = ast.literal_eval(parsed_value)
+        except Exception:
+            # Treat unquoted values as plain strings (e.g., positive/neutral)
+            pass
+
+    if not hasattr(context, "mock_tool_returns"):
+        raise AssertionError("Context does not support tool mocking")
+
+    context.mock_tool_returns(tool, parsed_value)
 
 
 # Stage-related steps
@@ -201,8 +248,12 @@ def register_state_steps(registry: StepRegistry) -> None:
 def step_state_equals(context: Any, key: str, value: str) -> None:
     """Check if state value equals expected."""
     actual = context.state_get(key)
+    value, was_quoted = _parse_step_string_literal(value)
     # Convert to string for comparison
     actual_str = str(actual) if actual is not None else "None"
+    if was_quoted:
+        assert actual_str == value, f"State '{key}' is '{actual_str}', expected '{value}'"
+        return
     assert actual_str == value, f"State '{key}' is '{actual_str}', expected '{value}'"
 
 
@@ -224,6 +275,14 @@ def step_state_contains(context: Any, key: str) -> None:
 def register_output_steps(registry: StepRegistry) -> None:
     """Register output-related step definitions."""
 
+    registry.register(r"the output should exist", step_output_value_exists)
+    registry.register(r"the output should be (?P<value>.+)", step_output_value_equals)
+    registry.register(
+        r"the output should fuzzy match (?P<value>.+) with threshold (?P<threshold>[0-9]*\.?[0-9]+)",
+        step_output_value_fuzzy_match,
+    )
+    registry.register(r"the output should fuzzy match (?P<value>.+)", step_output_value_fuzzy_match)
+
     registry.register(r"the output (?P<key>\w+) should be (?P<value>.+)", step_output_equals)
 
     registry.register(
@@ -238,6 +297,11 @@ def register_output_steps(registry: StepRegistry) -> None:
 def step_output_equals(context: Any, key: str, value: str) -> None:
     """Check if output value equals expected."""
     actual = context.output_get(key)
+    value, was_quoted = _parse_step_string_literal(value)
+    if was_quoted:
+        actual_str = str(actual) if actual is not None else "None"
+        assert actual_str == value, f"Output '{key}' is '{actual_str}', expected '{value}'"
+        return
 
     # Handle boolean comparison specially
     if value.lower() in ("true", "false"):
@@ -266,9 +330,132 @@ def step_output_equals(context: Any, key: str, value: str) -> None:
             assert actual_str == value, f"Output '{key}' is '{actual_str}', expected '{value}'"
 
 
+def step_output_value_exists(context: Any) -> None:
+    """Check if scalar output exists (non-None)."""
+    actual = context.output_value()
+    assert actual is not None, "Output is missing"
+
+
+def step_output_value_equals(context: Any, value: str) -> None:
+    """Check if scalar output equals expected."""
+    actual = context.output_value()
+    value, was_quoted = _parse_step_string_literal(value)
+    if was_quoted:
+        actual_str = str(actual) if actual is not None else "None"
+        assert actual_str == value, f"Output is '{actual_str}', expected '{value}'"
+        return
+
+    # Handle boolean comparison specially
+    if value.lower() in ("true", "false"):
+        expected_bool = value.lower() == "true"
+        if isinstance(actual, bool):
+            assert actual == expected_bool, f"Output is {actual}, expected {expected_bool}"
+        else:
+            actual_str = str(actual).lower() if actual is not None else "none"
+            assert actual_str == value.lower(), f"Output is '{actual}', expected '{value}'"
+        return
+
+    # Try numeric comparison first
+    try:
+        expected_num = float(value)
+        if isinstance(actual, (int, float)):
+            assert actual == expected_num, f"Output is {actual}, expected {expected_num}"
+        else:
+            actual_num = float(actual)
+            assert actual_num == expected_num, f"Output is '{actual}', expected {expected_num}"
+        return
+    except (ValueError, TypeError):
+        pass
+
+    actual_str = str(actual) if actual is not None else "None"
+    assert actual_str == value, f"Output is '{actual_str}', expected '{value}'"
+
+
+def step_output_value_fuzzy_match(context: Any, value: str, threshold: str = "0.8") -> None:
+    """Check if scalar output is similar to expected value above a threshold.
+
+    This is a deterministic, non-LLM fuzzy match based on string similarity.
+
+    Default behavior:
+    - Case-insensitive (compares lowercased text)
+    - Punctuation-insensitive (strips punctuation)
+
+    Multi-match syntax (best-effort):
+      Then the output should fuzzy match any of ["Hello", "Hi", "Hey"] with threshold 0.9
+    """
+    import difflib
+
+    def _normalize_text(text: str) -> str:
+        # Lowercase + strip punctuation + collapse whitespace.
+        normalized = re.sub(r"[^\w\s]", "", text.lower())
+        normalized = re.sub(r"\s+", " ", normalized).strip()
+        return normalized
+
+    actual = context.output_value()
+    assert actual is not None, "Output is missing"
+
+    try:
+        threshold_f = float(threshold)
+    except ValueError:
+        raise AssertionError(f"Invalid threshold: {threshold}")
+
+    expected_raw, was_quoted = _parse_step_string_literal(value)
+    expected_raw = expected_raw.strip() if not was_quoted else expected_raw
+
+    expected_values: list[str]
+
+    if expected_raw.lower().startswith("any of "):
+        values_str = expected_raw[7:].strip()
+        try:
+            parsed = ast.literal_eval(values_str)
+        except Exception:
+            parsed = None
+
+        expected_values = []
+        if isinstance(parsed, (list, tuple)):
+            for item in parsed:
+                expected_values.append(item if isinstance(item, str) else str(item))
+        else:
+            parts = [p.strip() for p in values_str.split(",") if p.strip()]
+            for part in parts:
+                parsed_part, _ = _parse_step_string_literal(part)
+                expected_values.append(parsed_part)
+
+        if not expected_values:
+            raise AssertionError(f"No expected values provided: {value}")
+    else:
+        expected_values = [expected_raw]
+
+    actual_norm = _normalize_text(str(actual))
+    best_ratio = -1.0
+    best_expected = None
+
+    for expected in expected_values:
+        expected_norm = _normalize_text(expected)
+        if expected_norm and (expected_norm in actual_norm or actual_norm in expected_norm):
+            ratio = 1.0
+        else:
+            ratio = difflib.SequenceMatcher(None, actual_norm, expected_norm).ratio()
+
+        if ratio > best_ratio:
+            best_ratio = ratio
+            best_expected = expected
+
+    assert best_ratio >= threshold_f, (
+        f"Output similarity is {best_ratio:.3f} (threshold {threshold_f:.3f}). "
+        f"Output is '{actual}', best match was '{best_expected}'. "
+        f"Expected: {expected_values}"
+    )
+
+
 def step_output_not_equals(context: Any, key: str, value: str) -> None:
     """Check if output value does not equal the specified value."""
     actual = context.output_get(key)
+    value, was_quoted = _parse_step_string_literal(value)
+    if was_quoted:
+        actual_str = str(actual) if actual is not None else "None"
+        assert actual_str != value, f"Output '{key}' is '{actual_str}', should not be '{value}'"
+        return
 
     # Handle boolean comparison specially
     if value.lower() in ("true", "false"):
@@ -478,6 +665,23 @@ def register_agent_steps(registry: StepRegistry) -> None:
 
     registry.register(r"the (?P<agent>\w+) agent takes turns", step_agent_takes_turn)
 
+    registry.register(
+        r'the agent "(?P<agent>[^"]+)" responds with (?P<message>.+)',
+        step_mock_agent_responds_with,
+    )
+
+    registry.register(
+        r'the agent "(?P<agent>[^"]+)" calls tool "(?P<tool>[^"]+)" with args (?P<args>.+)',
+        step_mock_agent_calls_tool_with_args,
+    )
+
+    registry.register(
+        r'the agent "(?P<agent>[^"]+)" returns data (?P<data>.+)',
+        step_mock_agent_returns_data,
+    )
+
+    registry.register(r"the message is (?P<message>.+)", step_set_scenario_message)
+
     registry.register(r"the procedure run", step_procedure_runs)
 
     registry.register(r"the procedure runs", step_procedure_runs)
@@ -488,6 +692,61 @@ def step_agent_takes_turn(context: Any, agent: str) -> None:
     # This step actually executes the procedure
     # The agent parameter is informational - the procedure runs as defined
     context.run_procedure()
+
+
+def step_mock_agent_responds_with(
+    context: Any, agent: str, message: str, when_message: str | None = None
+) -> None:
+    """Configure a per-scenario mock agent response (temporal)."""
+    message, _ = _parse_step_string_literal(message)
+    when_message_parsed = None
+    if when_message is not None:
+        when_message_parsed, _ = _parse_step_string_literal(when_message)
+    if not hasattr(context, "mock_agent_response"):
+        raise AssertionError("Context does not support agent mocking")
+    context.mock_agent_response(agent, message, when_message=when_message_parsed)
+
+
+def step_set_scenario_message(context: Any, message: str) -> None:
+    """Set the scenario's primary message for coordinating mocks with expectations."""
+    message, _ = _parse_step_string_literal(message)
+    if not hasattr(context, "set_scenario_message"):
+        raise AssertionError("Context does not support scenario message")
+    context.set_scenario_message(message)
+
+
+def step_mock_agent_calls_tool_with_args(context: Any, agent: str, tool: str, args: str) -> None:
+    """Configure a per-scenario mocked agent tool call (recorded into Tool primitive)."""
+    args_str, _ = _parse_step_string_literal(args)
+    try:
+        parsed_args = ast.literal_eval(args_str)
+    except Exception:
+        raise AssertionError(f"Invalid tool args literal: {args}")
+
+    if not isinstance(parsed_args, dict):
+        raise AssertionError(f"Tool args must be an object/dict, got {type(parsed_args).__name__}")
+
+    if not hasattr(context, "mock_agent_tool_call"):
+        raise AssertionError("Context does not support agent tool call mocking")
+
+    context.mock_agent_tool_call(agent, tool, parsed_args)
+
+
+def step_mock_agent_returns_data(context: Any, agent: str, data: str) -> None:
+    """Configure structured output mock data for an agent's next mocked turn."""
+    data_str, _ = _parse_step_string_literal(data)
+    try:
+        parsed = ast.literal_eval(data_str)
+    except Exception:
+        raise AssertionError(f"Invalid data literal: {data}")
+
+    if not isinstance(parsed, dict):
+        raise AssertionError(f"Data must be an object/dict, got {type(parsed).__name__}")
+
+    if not hasattr(context, "mock_agent_data"):
+        raise AssertionError("Context does not support agent data mocking")
+
+    context.mock_agent_data(agent, parsed)
 
 
 def step_procedure_runs(context: Any) -> None:
@@ -532,7 +791,7 @@ def register_regex_steps(registry: StepRegistry) -> None:
 
     # Tool argument regex matching
     registry.register(
-        r'the (?P<tool>\w+) tool should be called with (?P<param>\w+) matching pattern "(?P<pattern>.+)"',
+        r'the (?P<tool>[-\w]+) tool should be called with (?P<param>\w+) matching pattern "(?P<pattern>.+)"',
         step_tool_arg_matches_pattern,
     )
 

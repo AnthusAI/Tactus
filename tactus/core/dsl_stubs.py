@@ -480,9 +480,21 @@ def create_dsl_stubs(
             stages_list = list(stage_names)
         builder.set_stages(stages_list)
 
-    def _specification(spec_name: str, scenarios) -> None:
-        """Register a BDD specification."""
-        builder.register_specification(spec_name, lua_table_to_dict(scenarios))
+    def _specification(*args) -> None:
+        """Register BDD specs.
+
+        Supported forms:
+          - Specification([[ Gherkin text ]])  (alias for Specifications)
+          - Specification("name", { ... })     (structured form; legacy)
+        """
+        if len(args) == 1:
+            builder.register_specifications(args[0])
+            return
+        if len(args) >= 2:
+            spec_name, scenarios = args[0], args[1]
+            builder.register_specification(spec_name, lua_table_to_dict(scenarios))
+            return
+        raise TypeError("Specification expects either (gherkin_text) or (name, scenarios)")
 
     def _specifications(gherkin_text: str) -> None:
         """Register Gherkin BDD specifications."""
@@ -493,8 +505,17 @@ def create_dsl_stubs(
         builder.register_custom_step(step_text, lua_function)
 
     def _evaluation(config) -> None:
-        """Set evaluation configuration."""
-        builder.set_evaluation_config(lua_table_to_dict(config or {}))
+        """Register evaluation configuration.
+
+        Supported forms:
+          - Evaluation({ runs=..., parallel=... })          (single-run config)
+          - Evaluation({ dataset=..., evaluators=..., ...}) (alias for Evaluations)
+        """
+        config_dict = lua_table_to_dict(config or {})
+        if any(k in config_dict for k in ("dataset", "dataset_file", "evaluators", "thresholds")):
+            builder.register_evaluations(config_dict)
+            return
+        builder.set_evaluation_config(config_dict)
 
     def _evaluations(config) -> None:
         """Register Pydantic Evals evaluation configuration."""
@@ -689,6 +710,28 @@ def create_dsl_stubs(
         "object": _field_builder("object"),
         "integer": _field_builder("integer"),
     }
+
+    def _evaluator_builder(evaluator_type: str):
+        """Create a simple evaluator config builder for Evaluation(s)({ evaluators = {...} })."""
+
+        def build_evaluator(options=None):
+            if options is None:
+                options = {}
+            if hasattr(options, "items"):
+                options = lua_table_to_dict(options)
+            if not isinstance(options, dict):
+                options = {}
+            cfg = {"type": evaluator_type}
+            cfg.update(options)
+            return cfg
+
+        return build_evaluator
+
+    # Evaluation(s)() helper constructors (Pydantic Evals integration).
+    # These are configuration builders, not runtime behavior.
+    field["equals_expected"] = _evaluator_builder("equals_expected")
+    field["min_length"] = _evaluator_builder("min_length")
+    field["contains"] = _evaluator_builder("contains")
 
     # Create lookup functions for uppercase names (Agent, Model)
     # These allow: Agent("greeter")(), Model("classifier")()  (callable syntax)
@@ -1256,6 +1299,12 @@ def create_dsl_stubs(
             if len(config_dict) == 0:
                 config_dict = {}
 
+        # Normalize empty schemas (lua {} -> python []) so tools treat empty schemas
+        # as empty objects, not arrays.
+        if isinstance(config_dict, dict):
+            config_dict["input"] = _normalize_schema(config_dict.get("input", {}))
+            config_dict["output"] = _normalize_schema(config_dict.get("output", {}))
+
         # Check for legacy handler field
         if handler_fn is None and isinstance(config_dict, dict):
             handler_fn = config_dict.pop("handler", None)
@@ -1429,6 +1478,12 @@ def create_dsl_stubs(
             if len(config_dict) == 0:
                 config_dict = {}
 
+        # Normalize empty schemas (lua {} -> python []) so tools treat empty schemas
+        # as empty objects, not arrays.
+        if isinstance(config_dict, dict):
+            config_dict["input"] = _normalize_schema(config_dict.get("input", {}))
+            config_dict["output"] = _normalize_schema(config_dict.get("output", {}))
+
         # Check for legacy handler field
         if handler_fn is None and isinstance(config_dict, dict):
             handler_fn = config_dict.pop("handler", None)
@@ -1573,19 +1628,44 @@ def create_dsl_stubs(
         """
         config_dict = lua_table_to_dict(config)
 
-        # Handle tools field - convert ToolHandles to their names
+        # No alias support: toolsets -> tools is not supported.
+        if "toolsets" in config_dict:
+            raise ValueError(
+                f"Agent '{agent_name}': 'toolsets' is not supported. Use 'tools' for tool/toolset references."
+            )
+
+        # inline_tools: inline tool definitions only (list of dicts with "handler")
+        if "inline_tools" in config_dict:
+            inline_tools = config_dict["inline_tools"]
+            if isinstance(inline_tools, (list, tuple)):
+                non_dict_items = [t for t in inline_tools if not isinstance(t, dict)]
+                if non_dict_items:
+                    raise ValueError(
+                        f"Agent '{agent_name}': 'inline_tools' must be a list of inline tool definitions."
+                    )
+            elif inline_tools is not None:
+                raise ValueError(
+                    f"Agent '{agent_name}': 'inline_tools' must be a list of inline tool definitions."
+                )
+
+        # tools: tool/toolset references and toolset expressions (filter dicts)
         if "tools" in config_dict:
             tools = config_dict["tools"]
             if isinstance(tools, (list, tuple)):
-                tool_names = []
+                normalized = []
                 for t in tools:
-                    if hasattr(t, "name"):  # ToolHandle
-                        tool_names.append(t.name)
-                    elif isinstance(t, str):
-                        tool_names.append(t)
-                # Store as toolsets for runtime compatibility
-                config_dict["toolsets"] = tool_names
-                del config_dict["tools"]
+                    if isinstance(t, dict):
+                        if "handler" in t:
+                            raise ValueError(
+                                f"Agent '{agent_name}': inline tool definitions must be in 'inline_tools', not 'tools'."
+                            )
+                        normalized.append(t)
+                        continue
+                    if hasattr(t, "name"):  # ToolHandle or ToolsetHandle
+                        normalized.append(t.name)
+                    else:
+                        normalized.append(t)
+                config_dict["tools"] = normalized
 
         # Extract input schema if present
         input_schema = None
@@ -1605,9 +1685,11 @@ def create_dsl_stubs(
                 config_dict["output_schema"] = output_schema
                 del config_dict["output"]
 
-        # Support 'session' as an alias for 'message_history'
-        if "session" in config_dict and "message_history" not in config_dict:
-            config_dict["message_history"] = config_dict["session"]
+        # No compatibility aliases: session -> message_history is not supported.
+        if "session" in config_dict:
+            raise ValueError(
+                f"Agent '{agent_name}': 'session' is not supported. Use 'message_history'."
+            )
 
         # Register agent with provided name
         builder.register_agent(agent_name, config_dict, output_schema)
@@ -1634,6 +1716,12 @@ def create_dsl_stubs(
                 # Note: builder.register_agent adds 'name' to config_dict, but create_dspy_agent
                 # expects name as a separate parameter. We need to pass config without 'name'.
                 agent_config = {k: v for k, v in config_dict.items() if k != "name"}
+
+                # Agent DSL uses `tools` for tool/toolset references; the DSPy agent config uses
+                # `toolsets` for the resolved toolsets list.
+                if "tools" in agent_config and "toolsets" not in agent_config:
+                    agent_config["toolsets"] = agent_config["tools"]
+                    del agent_config["tools"]
 
                 # Pre-process model format: combine provider and model into "provider:model"
                 # This matches what _setup_agents does
@@ -1729,19 +1817,40 @@ def create_dsl_stubs(
 
         config_dict = lua_table_to_dict(config)
 
-        # Handle tools field - convert ToolHandles to their names
+        # No alias support: toolsets -> tools is not supported.
+        if "toolsets" in config_dict:
+            raise ValueError("Agent: 'toolsets' is not supported. Use 'tools'.")
+
+        # inline_tools: inline tool definitions only (list of dicts with "handler")
+        if "inline_tools" in config_dict:
+            inline_tools = config_dict["inline_tools"]
+            if isinstance(inline_tools, (list, tuple)):
+                non_dict_items = [t for t in inline_tools if not isinstance(t, dict)]
+                if non_dict_items:
+                    raise ValueError(
+                        "Agent: 'inline_tools' must be a list of inline tool definitions."
+                    )
+            elif inline_tools is not None:
+                raise ValueError("Agent: 'inline_tools' must be a list of inline tool definitions.")
+
+        # tools: tool/toolset references and toolset expressions (filter dicts)
         if "tools" in config_dict:
             tools = config_dict["tools"]
             if isinstance(tools, (list, tuple)):
-                tool_names = []
+                normalized = []
                 for t in tools:
-                    if hasattr(t, "name"):  # ToolHandle
-                        tool_names.append(t.name)
-                    elif isinstance(t, str):
-                        tool_names.append(t)
-                # Store as toolsets for runtime compatibility
-                config_dict["toolsets"] = tool_names
-                del config_dict["tools"]
+                    if isinstance(t, dict):
+                        if "handler" in t:
+                            raise ValueError(
+                                "Agent: inline tool definitions must be in 'inline_tools', not 'tools'."
+                            )
+                        normalized.append(t)
+                        continue
+                    if hasattr(t, "name"):  # ToolHandle or ToolsetHandle
+                        normalized.append(t.name)
+                    else:
+                        normalized.append(t)
+                config_dict["tools"] = normalized
 
         # Extract input schema if present
         input_schema = None
@@ -1761,9 +1870,9 @@ def create_dsl_stubs(
                 config_dict["output_schema"] = output_schema
                 del config_dict["output"]
 
-        # Support 'session' as an alias for 'message_history'
-        if "session" in config_dict and "message_history" not in config_dict:
-            config_dict["message_history"] = config_dict["session"]
+        # No compatibility aliases: session -> message_history is not supported.
+        if "session" in config_dict:
+            raise ValueError("Agent: 'session' is not supported. Use 'message_history'.")
 
         # Generate a temporary name - will be replaced when assigned
         import uuid

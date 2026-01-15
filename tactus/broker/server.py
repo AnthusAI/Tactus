@@ -19,6 +19,7 @@ import anyio
 from anyio.streams.buffered import BufferedByteReceiveStream
 from anyio.streams.tls import TLSStream
 
+from tactus.broker.protocol import read_message, write_message
 from tactus.broker.protocol import read_message_anyio, write_message_anyio
 
 logger = logging.getLogger(__name__)
@@ -31,6 +32,21 @@ def _json_dumps(obj: Any) -> str:
 async def _write_event_anyio(stream: anyio.abc.ByteStream, event: dict[str, Any]) -> None:
     """Write an event using length-prefixed protocol."""
     await write_message_anyio(stream, event)
+
+
+async def _write_event_asyncio(writer: asyncio.StreamWriter, event: dict[str, Any]) -> None:
+    """Write an event using length-prefixed protocol."""
+    await write_message(writer, event)
+
+
+def _flatten_exceptions(exc: BaseException) -> list[BaseException]:
+    """Flatten BaseExceptionGroup into a list of leaf exceptions."""
+    if isinstance(exc, BaseExceptionGroup):
+        leaves: list[BaseException] = []
+        for child in exc.exceptions:
+            leaves.extend(_flatten_exceptions(child))
+        return leaves
+    return [exc]
 
 
 @dataclass(frozen=True)
@@ -122,6 +138,7 @@ class _BaseBrokerServer:
         event_handler: Optional[Callable[[dict[str, Any]], None]] = None,
     ):
         self._listener = None
+        self._serve_task: asyncio.Task[None] | None = None
         self._openai = openai_backend or OpenAIChatBackend()
         self._tools = tool_registry or HostToolRegistry.default()
         self._event_handler = event_handler
@@ -140,8 +157,27 @@ class _BaseBrokerServer:
             await self._listener.aclose()
             self._listener = None
 
+        task = self._serve_task
+        self._serve_task = None
+        if task is not None:
+            try:
+                await task
+            except BaseExceptionGroup as eg:
+                # AnyIO raises ClosedResourceError during normal listener shutdown.
+                leaves = _flatten_exceptions(eg)
+                if leaves and all(isinstance(e, anyio.ClosedResourceError) for e in leaves):
+                    return
+                raise
+            except asyncio.CancelledError:
+                pass
+
     async def __aenter__(self) -> "_BaseBrokerServer":
         await self.start()
+
+        # AnyIO listeners (TCP/TLS) require an explicit serve loop. Run it in the background
+        # so `async with TcpBrokerServer(...)` is sufficient to accept connections.
+        if self._listener is not None:
+            self._serve_task = asyncio.create_task(self.serve(), name="tactus-broker-serve")
         return self
 
     async def __aexit__(self, exc_type, exc, tb) -> None:
@@ -215,6 +251,275 @@ class _BaseBrokerServer:
                 await byte_stream.aclose()
             except Exception:
                 pass
+
+    async def _handle_connection_asyncio(
+        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ) -> None:
+        """
+        Handle a single broker request over asyncio streams.
+
+        UDS uses asyncio's StreamReader/StreamWriter APIs, while TCP uses AnyIO streams.
+        """
+        try:
+            req = await read_message(reader)
+            req_id = req.get("id")
+            method = req.get("method")
+            params = req.get("params") or {}
+
+            if not req_id or not method:
+                await _write_event_asyncio(
+                    writer,
+                    {
+                        "id": req_id or "",
+                        "event": "error",
+                        "error": {"type": "BadRequest", "message": "Missing id/method"},
+                    },
+                )
+                return
+
+            if method == "events.emit":
+                await self._handle_events_emit_asyncio(req_id, params, writer)
+                return
+
+            if method == "llm.chat":
+                await self._handle_llm_chat_asyncio(req_id, params, writer)
+                return
+
+            if method == "tool.call":
+                await self._handle_tool_call_asyncio(req_id, params, writer)
+                return
+
+            await _write_event_asyncio(
+                writer,
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {"type": "MethodNotFound", "message": f"Unknown method: {method}"},
+                },
+            )
+        except Exception as e:
+            logger.debug("[BROKER] asyncio connection handler error", exc_info=True)
+            try:
+                await _write_event_asyncio(
+                    writer,
+                    {
+                        "id": "",
+                        "event": "error",
+                        "error": {"type": type(e).__name__, "message": str(e)},
+                    },
+                )
+            except Exception:
+                pass
+        finally:
+            try:
+                writer.close()
+                await writer.wait_closed()
+            except Exception:
+                pass
+
+    async def _handle_events_emit_asyncio(
+        self, req_id: str, params: dict[str, Any], writer: asyncio.StreamWriter
+    ) -> None:
+        event = params.get("event")
+        if not isinstance(event, dict):
+            await _write_event_asyncio(
+                writer,
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {"type": "BadRequest", "message": "params.event must be an object"},
+                },
+            )
+            return
+
+        try:
+            if self._event_handler is not None:
+                self._event_handler(event)
+        except Exception:
+            logger.debug("[BROKER] event_handler raised", exc_info=True)
+
+        await _write_event_asyncio(writer, {"id": req_id, "event": "done", "data": {"ok": True}})
+
+    async def _handle_llm_chat_asyncio(
+        self, req_id: str, params: dict[str, Any], writer: asyncio.StreamWriter
+    ) -> None:
+        provider = params.get("provider") or "openai"
+        if provider != "openai":
+            await _write_event_asyncio(
+                writer,
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {
+                        "type": "UnsupportedProvider",
+                        "message": f"Unsupported provider: {provider}",
+                    },
+                },
+            )
+            return
+
+        model = params.get("model")
+        messages = params.get("messages")
+        stream = bool(params.get("stream", False))
+        temperature = params.get("temperature")
+        max_tokens = params.get("max_tokens")
+
+        if not isinstance(model, str) or not model:
+            await _write_event_asyncio(
+                writer,
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {"type": "BadRequest", "message": "params.model must be a string"},
+                },
+            )
+            return
+        if not isinstance(messages, list):
+            await _write_event_asyncio(
+                writer,
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {"type": "BadRequest", "message": "params.messages must be a list"},
+                },
+            )
+            return
+
+        try:
+            if stream:
+                stream_iter = await self._openai.chat(
+                    model=model,
+                    messages=messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    stream=True,
+                )
+
+                full_text = ""
+                async for chunk in stream_iter:
+                    try:
+                        delta = chunk.choices[0].delta
+                        text = getattr(delta, "content", None)
+                    except Exception:
+                        text = None
+
+                    if not text:
+                        continue
+
+                    full_text += text
+                    await _write_event_asyncio(
+                        writer, {"id": req_id, "event": "delta", "data": {"text": text}}
+                    )
+
+                await _write_event_asyncio(
+                    writer,
+                    {
+                        "id": req_id,
+                        "event": "done",
+                        "data": {
+                            "text": full_text,
+                            "usage": {
+                                "prompt_tokens": 0,
+                                "completion_tokens": 0,
+                                "total_tokens": 0,
+                            },
+                        },
+                    },
+                )
+                return
+
+            resp = await self._openai.chat(
+                model=model,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                stream=False,
+            )
+            text = ""
+            try:
+                text = resp.choices[0].message.content or ""
+            except Exception:
+                text = ""
+
+            await _write_event_asyncio(
+                writer,
+                {
+                    "id": req_id,
+                    "event": "done",
+                    "data": {
+                        "text": text,
+                        "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+                    },
+                },
+            )
+        except Exception as e:
+            logger.debug("[BROKER] llm.chat error", exc_info=True)
+            await _write_event_asyncio(
+                writer,
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {"type": type(e).__name__, "message": str(e)},
+                },
+            )
+
+    async def _handle_tool_call_asyncio(
+        self, req_id: str, params: dict[str, Any], writer: asyncio.StreamWriter
+    ) -> None:
+        name = params.get("name")
+        args = params.get("args") or {}
+
+        if not isinstance(name, str) or not name:
+            await _write_event_asyncio(
+                writer,
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {"type": "BadRequest", "message": "params.name must be a string"},
+                },
+            )
+            return
+        if not isinstance(args, dict):
+            await _write_event_asyncio(
+                writer,
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {"type": "BadRequest", "message": "params.args must be an object"},
+                },
+            )
+            return
+
+        try:
+            result = self._tools.call(name, args)
+        except KeyError:
+            await _write_event_asyncio(
+                writer,
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {
+                        "type": "ToolNotAllowed",
+                        "message": f"Tool not allowlisted: {name}",
+                    },
+                },
+            )
+            return
+        except Exception as e:
+            logger.debug("[BROKER] tool.call error", exc_info=True)
+            await _write_event_asyncio(
+                writer,
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {"type": type(e).__name__, "message": str(e)},
+                },
+            )
+            return
+
+        await _write_event_asyncio(
+            writer, {"id": req_id, "event": "done", "data": {"result": result}}
+        )
 
     async def _handle_events_emit(
         self, req_id: str, params: dict[str, Any], byte_stream: anyio.abc.ByteStream
@@ -461,11 +766,21 @@ class BrokerServer(_BaseBrokerServer):
             self.socket_path.unlink()
 
         self._server = await asyncio.start_unix_server(
-            self._handle_connection, path=str(self.socket_path)
+            self._handle_connection_asyncio, path=str(self.socket_path)
         )
         logger.info(f"[BROKER] Listening on UDS: {self.socket_path}")
 
     async def aclose(self) -> None:
+        server = getattr(self, "_server", None)
+        if server is not None:
+            try:
+                server.close()
+                await server.wait_closed()
+            except Exception:
+                logger.debug("[BROKER] Failed to close asyncio server", exc_info=True)
+            finally:
+                self._server = None
+
         await super().aclose()
 
         try:

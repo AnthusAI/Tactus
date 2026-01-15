@@ -52,21 +52,14 @@ Procedure {
     end
 }
 
--- Agent Mocks for CI testing
-Mocks {
-    chatbot = {
-        tool_calls = {},
-        message = "Hello! How can I help you today?"
-    }
-}
-
 -- BDD Specifications
-Specifications([[
+Specification([[
 Feature: Message History Management
   Demonstrate message history manipulation (aligned with pydantic-ai)
 
   Scenario: Message history tracks messages
     Given the procedure has started
+    And the agent "chatbot" responds with "Hello! How can I help you today?"
     When the procedure runs
     Then the procedure should complete successfully
     And the output history_length should exist

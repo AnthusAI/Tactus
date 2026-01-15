@@ -20,8 +20,19 @@ Procedure {
     end
 }
 
+Specification([[
+Feature: Simple eval procedure
+
+  Scenario: Greets Alice
+    Given the procedure has started
+    And the input name is "Alice"
+    When the procedure runs
+    Then the output greeting should be "Hello, Alice!"
+    And the output length should be 13
+]])
+
 -- Pydantic Evals (output quality)
-Evaluations({
+Evaluation({
     dataset = {
         {
             name = "greet_alice",
@@ -51,10 +62,10 @@ Evaluations({
         field.equals_expected{},
 
         -- Deterministic: Check minimum length
-        field.min_length{},
+        field.min_length{field = "greeting", value = 1},
 
         -- Deterministic: Check that greeting contains "Hello"
-        field.contains{}
+        field.contains{field = "greeting", value = "Hello"}
     },
 
     runs = 1,

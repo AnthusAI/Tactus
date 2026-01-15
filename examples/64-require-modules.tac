@@ -44,7 +44,7 @@ Procedure {
     end
 }
 
-Specifications([[
+Specification([[
 Feature: Require modules to organize code
   Demonstrate using require() to import functions from separate files
 

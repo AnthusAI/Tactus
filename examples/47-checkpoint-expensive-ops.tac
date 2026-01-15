@@ -34,7 +34,7 @@ Procedure {
     end
 }
 
-Specifications([[
+Specification([[
 Feature: Expensive Operations
   Scenario: Calculate sum and product
     Given the procedure has started

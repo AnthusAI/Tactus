@@ -22,7 +22,7 @@ Feature: BDD Specifications (Gherkin)
   end
   }
 
-  Specifications([[
+  Specification([[
   Feature: Basic Test
   Scenario: Worker completes task
   Given the procedure has started
@@ -54,7 +54,7 @@ Feature: BDD Specifications (Gherkin)
   end
   }
   
-  Specifications([[
+  Specification([[
   Feature: Stage Management
   
   Scenario: Stages transition correctly
@@ -89,7 +89,7 @@ Feature: BDD Specifications (Gherkin)
   end
   }
   
-  Specifications([[
+  Specification([[
   Feature: State Management
   
   Scenario: State is updated correctly
@@ -118,7 +118,7 @@ Feature: BDD Specifications (Gherkin)
   end
   }
 
-  Specifications([[
+  Specification([[
   Feature: Tool Usage
   
   Scenario: Required tools are called
@@ -148,9 +148,6 @@ Feature: BDD Specifications (Gherkin)
   When I validate the file
   Then validation should succeed
   And validation should have warnings
-
-
-
 
 
 

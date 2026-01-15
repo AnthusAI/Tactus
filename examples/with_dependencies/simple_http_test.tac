@@ -43,7 +43,7 @@ output {
         message = "Dependencies initialized successfully"
     }
 
-Specifications([[
+Specification([[
 Feature: HTTP Dependency Injection
   Scenario: Procedure with HTTP dependency runs successfully
     Given the procedure has started

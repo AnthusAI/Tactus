@@ -258,6 +258,42 @@ class ProcedureCallable:
         Raises:
             ValueError: If output is not a dict or missing required fields
         """
+        # If no output schema is declared, accept any return value.
+        if not self.output_schema:
+            return
+
+        # Scalar output schema support:
+        #   output = field.string{...}
+        if (
+            isinstance(self.output_schema, dict)
+            and "type" in self.output_schema
+            and isinstance(self.output_schema.get("type"), str)
+        ):
+            expected_type = self.output_schema.get("type")
+            if expected_type not in {"string", "number", "boolean", "object", "array"}:
+                # Not a scalar schema; treat as normal object schema.
+                expected_type = None
+
+        else:
+            expected_type = None
+
+        if expected_type is not None:
+            is_required = bool(self.output_schema.get("required", False))
+            if result is None and not is_required:
+                return
+
+            if expected_type == "string" and not isinstance(result, str):
+                raise ValueError(f"Procedure '{self.name}' must return string, got {type(result)}")
+            if expected_type == "number" and not isinstance(result, (int, float)):
+                raise ValueError(f"Procedure '{self.name}' must return number, got {type(result)}")
+            if expected_type == "boolean" and not isinstance(result, bool):
+                raise ValueError(f"Procedure '{self.name}' must return boolean, got {type(result)}")
+            if expected_type == "object" and not isinstance(result, dict):
+                raise ValueError(f"Procedure '{self.name}' must return object, got {type(result)}")
+            if expected_type == "array" and not isinstance(result, list):
+                raise ValueError(f"Procedure '{self.name}' must return array, got {type(result)}")
+            return
+
         if not isinstance(result, dict):
             raise ValueError(f"Procedure '{self.name}' must return dict, got {type(result)}")
 

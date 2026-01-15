@@ -42,7 +42,7 @@ Procedure {
     end
 }
 
-Specifications([[
+Specification([[
 Feature: Helper Module Composition
   Scenario: Calculate sum and product using helpers
     Given the procedure has started

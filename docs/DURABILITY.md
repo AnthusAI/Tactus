@@ -1090,9 +1090,9 @@ class AgentPrimitive:
     
     def _execute_turn(self, options: dict | None) -> dict:
         # Actual agent execution via Pydantic AI
-        inject = options.get("inject") if options else None
+        message = options.get("message") if options else ""
         result = self.pydantic_agent.run_sync(
-            inject or "",
+            message,
             message_history=self.messages
         )
         return {

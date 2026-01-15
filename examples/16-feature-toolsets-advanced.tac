@@ -23,11 +23,11 @@ analyst = Agent {
     system_prompt = [[You are a financial analyst with access to calculation tools.
 List the available tools and then call the done Tool.]],
     initial_message = "What tools do you have available?",
-    toolsets = {
-        "all_tools"  -- References combined toolset from config
-    },
-    tools = {done}
-}
+	tools = {
+	        "plugin",  -- Local Python tools (tests configure tool_paths for CI)
+	        done,
+	    }
+	}
 
 -- Agent 2: Uses filtering to include only specific tools
 calculator = Agent {
@@ -36,11 +36,11 @@ calculator = Agent {
     system_prompt = [[You are a calculator with access to mathematical functions.
 List your tools and call done when finished.]],
     initial_message = "What mathematical tools can you use?",
-    toolsets = {
+    tools = {
         -- Include only specific tools from plugin toolset
-        {name = "plugin", include = {"calculate_mortgage", "compound_interest"}}
-    },
-    tools = {done}
+        {name = "plugin", include = {"calculate_mortgage", "compound_interest"}},
+        done,
+    }
 }
 
 -- Agent 3: Uses prefixing for namespacing
@@ -49,11 +49,11 @@ prefixed_agent = Agent {
     model = "gpt-4o-mini",
     system_prompt = [[You have prefixed tools. List them and call done.]],
     initial_message = "Show me your prefixed tools",
-    toolsets = {
+    tools = {
         -- Add calc_ prefix to all tools from plugin
-        {name = "plugin", prefix = "calc_"}
-    },
-    tools = {done}
+        {name = "plugin", prefix = "calc_"},
+        done,
+    }
 }
 
 -- Agent 4: Uses exclusion to remove specific tools
@@ -62,11 +62,11 @@ restricted = Agent {
     model = "gpt-4o-mini",
     system_prompt = [[You have most tools except excluded ones. List them and call done.]],
     initial_message = "What tools do you have?",
-    toolsets = {
+    tools = {
         -- Exclude specific tools from plugin toolset
-        {name = "plugin", exclude = {"web_search", "wikipedia_lookup"}}
-    },
-    tools = {done}
+        {name = "plugin", exclude = {"web_search", "wikipedia_lookup"}},
+        done,
+    }
 }
 
 -- Agent 5: Explicitly no tools (for observation/analysis only)
@@ -75,7 +75,7 @@ observer = Agent {
     model = "gpt-4o-mini",
     system_prompt = [[You are an observer with no tools. Just respond with your observation.]],
     initial_message = "Observe that you have no tools available.",
-    toolsets = {}  -- Explicitly empty - NO tools at all
+    tools = {}  -- Explicitly empty - NO tools at all
 }
 
 -- Main procedure demonstrating each agent
@@ -103,7 +103,7 @@ Procedure {
                 turn_count = turn_count + 1
             until done.called() or turn_count >= max_turns
 
-            local response = result.value
+            local response = result.output
             Log.info(agent_name .. " response", {text = response})
             return response
         end
@@ -123,7 +123,7 @@ Procedure {
         -- Test Agent 5: No tools (explicitly empty) - only needs 1 turn
         Log.info("Testing Agent 5: No tools")
         local observer_result = observer()
-        local observer_response = observer_result.value
+        local observer_response = observer_result.output
         Log.info("Observer response", {text = observer_response})
 
         return {
@@ -138,44 +138,21 @@ Procedure {
     end
 }
 
--- Agent Mocks for CI testing
-Mocks {
-    analyst = {
-        tool_calls = {
-            {tool = "done", args = {reason = "Listed combined toolset tools"}}
-        },
-        message = "I have access to multiple tools from different sources."
-    },
-    calculator = {
-        tool_calls = {
-            {tool = "done", args = {reason = "Listed filtered tools"}}
-        },
-        message = "I have calculate_mortgage and compound_interest tools available."
-    },
-    prefixed_agent = {
-        tool_calls = {
-            {tool = "done", args = {reason = "Listed prefixed tools"}}
-        },
-        message = "All my tools start with calc_ prefix."
-    },
-    restricted = {
-        tool_calls = {
-            {tool = "done", args = {reason = "Listed restricted tools"}}
-        },
-        message = "I have most tools except web_search and wikipedia_lookup."
-    },
-    observer = {
-        tool_calls = {},
-        message = "I am an observer with no tools available."
-    }
-}
-
-Specifications([[
+Specification([[
 Feature: Advanced Toolset Management
   Demonstrate toolset filtering, prefixing, renaming, and composition
 
   Scenario: Advanced toolsets demo runs successfully
     Given the procedure has started
+    And the agent "analyst" responds with "I have access to multiple tools from different sources."
+    And the agent "analyst" calls tool "done" with args {"reason": "Listed combined toolset tools"}
+    And the agent "calculator" responds with "I have calculate_mortgage and compound_interest tools available."
+    And the agent "calculator" calls tool "done" with args {"reason": "Listed filtered tools"}
+    And the agent "prefixed_agent" responds with "All my tools start with calc_ prefix."
+    And the agent "prefixed_agent" calls tool "done" with args {"reason": "Listed prefixed tools"}
+    And the agent "restricted" responds with "I have most tools except web_search and wikipedia_lookup."
+    And the agent "restricted" calls tool "done" with args {"reason": "Listed restricted tools"}
+    And the agent "observer" responds with "I am an observer with no tools available."
     When the procedure runs
     Then the done tool should be called at least 1 time
     And the output analyst_tools should exist

@@ -27,10 +27,10 @@ Available tools:
 - count_words: Count words in text
 - repeat_text: Repeat text a specified number of times
 
-After calling the tool, call done with the tool's result.]],
+    After calling the tool, call done with the tool's result.]],
     initial_message = "{input.message}",
     -- Inline tool definitions specific to this agent
-    tools = {
+    inline_tools = {
         {
             name = "uppercase",
             description = "Convert text to uppercase",
@@ -91,9 +91,7 @@ After calling the tool, call done with the tool's result.]],
             end
         }
     },
-    toolsets = {
-        "done"  -- Can still use regular toolsets alongside inline tools
-    }
+    tools = {done}
 }
 
 -- Main workflow
@@ -140,7 +138,7 @@ Procedure {
         if done.called() then
             answer = done.last_result() or "Task completed"
         else
-            answer = result.message
+            answer = result and tostring(result.output) or ""
         end
 
         if #tools_used > 0 then
@@ -157,23 +155,15 @@ Procedure {
     end
 }
 
--- Agent Mocks for CI testing
-Mocks {
-    text_processor = {
-        tool_calls = {
-            {tool = "text_processor_uppercase", args = {text = "hello world"}},
-            {tool = "done", args = {reason = "HELLO WORLD"}}
-        },
-        message = "I've converted the text to uppercase."
-    }
-}
-
-Specifications([[
+Specification([[
 Feature: Inline Lua Function Tools
   Demonstrate inline tool definitions in agent configuration
 
   Scenario: Text processor converts 'hello world' to uppercase
     Given the procedure has started
+    And the agent "text_processor" responds with "I've converted the text to uppercase."
+    And the agent "text_processor" calls tool "text_processor_uppercase" with args {"text": "hello world"}
+    And the agent "text_processor" calls tool "done" with args {"reason": "HELLO WORLD"}
     When the procedure runs
     Then the procedure should complete successfully
     And the output completed should be True

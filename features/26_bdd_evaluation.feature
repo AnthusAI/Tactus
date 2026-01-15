@@ -22,7 +22,7 @@ Feature: BDD Evaluation Configuration
   end
   }
 
-  Specifications([[
+  Specification([[
   Feature: Basic Test
   Scenario: Works
   Given the procedure has started
@@ -54,7 +54,7 @@ Feature: BDD Evaluation Configuration
   end
   }
 
-  Specifications([[
+  Specification([[
   Feature: Test
   Scenario: Works
   Given the procedure has started
@@ -85,7 +85,7 @@ Feature: BDD Evaluation Configuration
   end
   }
 
-  Specifications([[
+  Specification([[
   Feature: Test
   Scenario: Works
   Given the procedure has started
@@ -117,7 +117,7 @@ Feature: BDD Evaluation Configuration
   end
   }
 
-  Specifications([[
+  Specification([[
   Feature: Test
   Scenario: Works
   Given the procedure has started

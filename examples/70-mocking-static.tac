@@ -65,7 +65,7 @@ You have access to these tools:
 - done: Signal completion
 
 When asked for information, use the appropriate tools and then call done with a summary.]],
-    toolsets = {"weather", "stock_price", "done"}
+    tools = {"weather", "stock_price", "done"}
 }
 
 -- Main procedure
@@ -94,7 +94,7 @@ Procedure {
             end
 
             -- Run agent
-            info_gatherer({initial_message = message})
+            info_gatherer({message = message})
 
             -- Wait for done
             local max_turns = 3

@@ -8,7 +8,7 @@ from parsed Gherkin and registered steps.
 import logging
 import tempfile
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 from .models import ParsedFeature, ParsedScenario
 from .steps.registry import StepRegistry
@@ -222,6 +222,8 @@ class BehaveEnvironmentGenerator:
         procedure_file: Path,
         mock_tools: Optional[Dict] = None,
         params: Optional[Dict] = None,
+        mcp_servers: Optional[Dict] = None,
+        tool_paths: Optional[List[str]] = None,
         mocked: bool = False,
     ) -> Path:
         """
@@ -244,6 +246,8 @@ class BehaveEnvironmentGenerator:
 
         mock_tools_json = json.dumps(mock_tools or {}).replace("'", "\\'")
         params_json = json.dumps(params or {}).replace("'", "\\'")
+        mcp_servers_json = json.dumps(mcp_servers or {}).replace("'", "\\'")
+        tool_paths_json = json.dumps(tool_paths or []).replace("'", "\\'")
 
         # Convert procedure_file to absolute path so it works from temp behave directory
         absolute_procedure_file = Path(procedure_file).resolve()
@@ -278,6 +282,8 @@ class BehaveEnvironmentGenerator:
             f.write(f"    context.procedure_file = Path(r'{absolute_procedure_file}')\n")
             f.write(f"    context.mock_tools = json.loads('{mock_tools_json}')\n")
             f.write(f"    context.params = json.loads('{params_json}')\n")
+            f.write(f"    context.mcp_servers = json.loads('{mcp_servers_json}')\n")
+            f.write(f"    context.tool_paths = json.loads('{tool_paths_json}')\n")
             f.write(f"    context.mocked = {mocked}\n\n")
 
             f.write("def before_scenario(context, scenario):\n")
@@ -291,6 +297,8 @@ class BehaveEnvironmentGenerator:
             f.write("        procedure_file=context.procedure_file,\n")
             f.write("        params=context.params,\n")
             f.write("        mock_tools=context.mock_tools,\n")
+            f.write("        mcp_servers=context.mcp_servers,\n")
+            f.write("        tool_paths=context.tool_paths,\n")
             f.write("        mocked=context.mocked,\n")
             f.write("    )\n")
             f.write("    \n")
@@ -330,6 +338,8 @@ def setup_behave_directory(
     work_dir: Optional[Path] = None,
     mock_tools: Optional[Dict] = None,
     params: Optional[Dict] = None,
+    mcp_servers: Optional[Dict] = None,
+    tool_paths: Optional[List[str]] = None,
     mocked: bool = False,
 ) -> Path:
     """
@@ -364,7 +374,7 @@ def setup_behave_directory(
 
     # Generate environment.py with mock tools, params, and mocked flag
     env_gen = BehaveEnvironmentGenerator()
-    env_gen.generate(work_dir, procedure_file, mock_tools, params, mocked)
+    env_gen.generate(work_dir, procedure_file, mock_tools, params, mcp_servers, tool_paths, mocked)
 
     logger.info(f"Behave directory setup complete: {work_dir}")
     return work_dir

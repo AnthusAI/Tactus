@@ -11,7 +11,7 @@ formatter = Agent {
 When given a task, complete it and call the 'done' tool with your result.
 Format your output according to the requirements.
 
-IMPORTANT: Always call the done tool immediately with your formatted result.]],
+    IMPORTANT: Always call the done tool immediately with your formatted result.]],
     initial_message = "{task}",
     tools = {done},
     request_limit = 5
@@ -50,29 +50,21 @@ Procedure {
     end
 }
 
--- Agent Mocks for CI testing
-Mocks {
-    formatter = {
-        tool_calls = {
-            {tool = "done", args = {reason = "test formatted result"}}
-        },
-        message = "I've formatted the data."
-    }
-}
-
-Specifications([[
+Specification([[
 Feature: Advanced Evaluator Types
 
   Scenario: Agent formats output correctly
     Given the procedure has started
     And the input task is "Return the word test"
+    And the agent "formatter" responds with "I've formatted the data."
+    And the agent "formatter" calls tool "done" with args {"reason": "test formatted result"}
     When the procedure runs
     Then the procedure should complete successfully
     And the output result should exist
 ]])
 
 -- Pydantic AI Evaluations with Advanced Evaluators
-Evaluations({
+Evaluation({
     runs = 2,
     parallel = true,
     

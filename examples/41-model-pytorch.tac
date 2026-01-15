@@ -23,9 +23,9 @@ You are a customer support agent.
 
 The detected sentiment is: {State.sentiment}
 
-Respond appropriately based on the sentiment.
-Call done when finished.
-]],
+	Respond appropriately based on the sentiment.
+	Call done when finished.
+	]],
     tools = {done}
 }
 
@@ -55,23 +55,13 @@ Procedure {
     end
 }
 
--- Agent Mocks for CI testing
-Mocks {
-    sentiment_classifier = {
-        returns = "positive"
-    },
-    support_agent = {
-        tool_calls = {
-            {tool = "done", args = {reason = "Based on the sentiment analysis, I've provided an appropriate response."}}
-        },
-        message = "I understand your message and I'm here to help."
-    }
-}
-
-Specifications([[
+Specification([[
 Feature: PyTorch Model Integration
   Scenario: PyTorch model performs inference
     Given the procedure has started
+    And the tool "sentiment_classifier" returns "positive"
+    And the agent "support_agent" responds with "I understand your message and I'm here to help."
+    And the agent "support_agent" calls tool "done" with args {"reason": "Based on the sentiment analysis, I've provided an appropriate response."}
     When the procedure runs
     Then the done tool should be called
     And the output sentiment should exist

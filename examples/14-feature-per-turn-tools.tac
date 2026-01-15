@@ -58,7 +58,7 @@ worker = Agent {
     system_prompt = [[You are a helpful assistant. Use the available tools to complete tasks.
 When you have completed your task, call the 'done' Tool.]],
     initial_message = "I'm ready to help. What would you like me to do?",
-    toolsets = {},  -- Empty - will control per-turn
+    tools = {},  -- Empty - will control per-turn
 }
 
 Procedure {
@@ -72,43 +72,42 @@ Procedure {
             -- Turn 1: Only search tool available
             Log.info("Turn 1: Only search tool")
             worker({
-                inject = "Search for information about Lua programming",
+                message = "Search for information about Lua programming",
                 tools = {"search"}  -- Only search tool
             })
 
             -- Turn 2: Math toolset available
             Log.info("Turn 2: Math toolset")
             worker({
-                inject = "Calculate: (5 + 3) * 2",
+                message = "Calculate: (5 + 3) * 2",
                 tools = {math_tools}  -- Math toolset
             })
 
             -- Turn 3: Multiple individual tools
             Log.info("Turn 3: Search and analyze tools")
             worker({
-                inject = "Search for 'weather' and analyze the results",
+                message = "Search for 'weather' and analyze the results",
                 tools = {"search", "analyze"}  -- Multiple tools
             })
 
             -- Turn 4: Combination of tools and toolsets
             Log.info("Turn 4: Combined tools and toolsets")
             worker({
-                inject = "Calculate 10 + 20, then search for the result, and signal completion",
-                tools = {"search", "done"},  -- Individual tools
-                tools = {math_tools}     -- Plus math toolset
+                message = "Calculate 10 + 20, then search for the result, and signal completion",
+                tools = {"search", "done", math_tools}  -- Individual tools plus math toolset
             })
 
             -- Turn 5: No tools at all
             Log.info("Turn 5: No tools")
             local result = worker({
-                inject = "Tell me a joke (no tools available)",
+                message = "Tell me a joke (no tools available)",
                 tools = {}  -- Explicitly no tools
             })
 
             -- Turn 6: Default tools (None means use agent's default)
             Log.info("Turn 6: Default tools")
             worker({
-                inject = "Use any available tools",
+                message = "Use any available tools",
                 tools = nil  -- Use agent's defaults
             })
 
@@ -120,21 +119,13 @@ Procedure {
     end
 }
 
--- Agent Mocks for CI testing
--- worker is called multiple times with different tool contexts
-Mocks {
-    worker = {
-        tool_calls = {},
-        message = "I'm ready to help with the task."
-    }
-}
-
-Specifications([[
+Specification([[
 Feature: Per-Turn Tool Control
   Demonstrate dynamic tool availability control
 
   Scenario: Control tools per turn
     Given the procedure has started
+    And the agent "worker" responds with "I'm ready to help with the task."
     When the procedure runs
     Then the procedure should complete successfully
 ]])

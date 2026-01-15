@@ -38,7 +38,7 @@ Procedure {
     end
 }
 
-Specifications([[
+Specification([[
 Feature: Math Operations
   Scenario: Calculate sum, product and average
     Given the procedure has started

@@ -115,8 +115,9 @@ Available tools:
 
 After calling the math tool, call done with the result.]],
     initial_message = "{input.operation}",
-    toolsets = {
-        "math_tools",  -- Reference the entire Toolset "done"
+    tools = {
+        "math_tools",
+        done,
     }
 }
 
@@ -158,7 +159,7 @@ Procedure {
         if done.called() then
             answer = done.last_result() or "Task completed"
         else
-            answer = result.message
+            answer = result and tostring(result.output) or ""
         end
 
         return {
@@ -170,23 +171,15 @@ Procedure {
     end
 }
 
--- Agent Mocks for CI testing
-Mocks {
-    mathematician = {
-        tool_calls = {
-            {tool = "add", args = {a = 5, b = 3}},
-            {tool = "done", args = {reason = "5 + 3 = 8"}}
-        },
-        message = "The calculation result is 8."
-    }
-}
-
-Specifications([[
+Specification([[
 Feature: Lua Toolset with Multiple Tools
   Demonstrate toolset() with type="lua" for grouped tools
 
   Scenario: Mathematician calculates 5 plus 3
     Given the procedure has started
+    And the agent "mathematician" responds with "The calculation result is 8."
+    And the agent "mathematician" calls tool "add" with args {"a": 5, "b": 3}
+    And the agent "mathematician" calls tool "done" with args {"reason": "5 + 3 = 8"}
     When the procedure runs
     Then the procedure should complete successfully
     And the output completed should be True

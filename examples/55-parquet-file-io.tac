@@ -117,7 +117,7 @@ Procedure {
     end
 }
 
-Specifications([[
+Specification([[
 Feature: Parquet File IO
   Efficient columnar storage for analytics data
 

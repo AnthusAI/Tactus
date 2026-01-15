@@ -130,24 +130,14 @@ Procedure {
     end
 }
 
--- Agent Mocks for CI testing
--- Note: calculate_tip and split_bill are called directly from Lua, not via agent
--- Only the summarizer agent needs a mock
-Mocks {
-    summarizer = {
-        tool_calls = {
-            {tool = "done", args = {reason = "For a $100 bill with 20% tip ($120 total), split among 4 people, each person pays $30."}}
-        },
-        message = "I've summarized the calculations for you."
-    }
-}
-
-Specifications([[
+Specification([[
 Feature: Direct Tool Calls
   Demonstrate calling tools directly from Lua without agent involvement
 
   Scenario: Calculate tip and split bill for a group
     Given the procedure has started
+    And the agent "summarizer" responds with "I've summarized the calculations for you."
+    And the agent "summarizer" calls tool "done" with args {"reason": "For a $100 bill with 20% tip ($120 total), split among 4 people, each person pays $30."}
     When the procedure runs
     Then the procedure should complete successfully
     And the output tip_result should exist

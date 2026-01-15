@@ -68,7 +68,7 @@ Your task:
 1. Call get_counter three times to see it increment
 2. Call check_status three times to see status progression
 3. Call done with a summary of what you observed]],
-    toolsets = {"get_counter", "check_status", "done"}
+    tools = {"get_counter", "check_status", "done"}
 }
 
 -- Main procedure

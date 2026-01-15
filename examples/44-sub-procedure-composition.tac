@@ -22,8 +22,8 @@ The processed data shows:
 - Average: {State.average}
 
 Provide a brief analysis of these statistics.
-Call done when finished.
-]],
+	Call done when finished.
+	]],
     tools = {done}
 }
 
@@ -68,17 +68,7 @@ Procedure {
     end
 }
 
--- Agent Mocks for CI testing
-Mocks {
-    analyst = {
-        tool_calls = {
-            {tool = "done", args = {reason = "The data shows a sum of 30, product of 750, and average of 10. This indicates a balanced distribution."}}
-        },
-        message = "I've analyzed the data statistics."
-    }
-}
-
-Specifications([[
+Specification([[
 Feature: Sub-Procedure Composition with Auto-Checkpointing
   As a workflow developer
   I want to compose multiple procedures together
@@ -87,6 +77,8 @@ Feature: Sub-Procedure Composition with Auto-Checkpointing
   Scenario: Multi-step data processing pipeline
     Given the procedure has started
     And the input numbers is [5, 10, 15]
+    And the agent "analyst" responds with "I've analyzed the data statistics."
+    And the agent "analyst" calls tool "done" with args {"reason": "The data shows a sum of 30, product of 750, and average of 10. This indicates a balanced distribution."}
     When the procedure runs
     Then the done tool should be called
     And the output sum should exist

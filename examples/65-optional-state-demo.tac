@@ -77,7 +77,7 @@ Procedure {
             input.demo_type, result
         )
 
-        assistant({initial_message = agent_message})
+        assistant({message = agent_message})
 
         -- Wait for done
         local max_turns = 3
@@ -94,22 +94,14 @@ Procedure {
     end
 }
 
--- Agent Mocks for CI testing
-Mocks {
-    assistant = {
-        tool_calls = {
-            {tool = "done", args = {reason = "Demonstrated that state declarations are now optional in Tactus procedures."}}
-        },
-        message = "State declarations are optional - you only need to declare state if you actually use it."
-    }
-}
-
-Specifications([[
+Specification([[
 Feature: Optional State Declaration
   Procedures no longer require empty state = {} declarations
 
   Scenario: Simple procedure without state works
     Given the procedure has started
+    And the agent "assistant" responds with "State declarations are optional - you only need to declare state if you actually use it."
+    And the agent "assistant" calls tool "done" with args {"reason": "Demonstrated that state declarations are now optional in Tactus procedures."}
     When the procedure runs
     Then the done tool should be called
     And the output result should exist

@@ -83,7 +83,7 @@ Procedure {
 }
 
 -- BDD Specifications (optional)
-Specifications([[
+Specification([[
 Feature: Task Processing
   Scenario: Task completes successfully
     Given the procedure has started
@@ -95,12 +95,12 @@ Feature: Task Processing
 
 **Key structure:**
 - **Tools** defined as `name = Tool {...}` or imported via `require()` like `local done = require("tactus.tools.done")`
-- **Agents** defined as `name = Agent {...}` with `tools = {var1, var2}` or `toolsets = {"tool_name"}`
+- **Agents** defined as `name = Agent {...}` with `tools = {...}`; `tools = {...}` is reserved for inline tool definitions only
 - **Procedure { }** unnamed, defaults to "main"
   - Config fields: `input`, `output`, `state` (state is optional)
   - Function as the last element containing the procedure logic
 - **Agent calls** use callable syntax: `worker()` or `worker({message = "..."})`
-- **Specifications()** at top level for BDD tests
+- **Specification()** / **Specifications()** at top level for BDD tests
 
 ---
 
@@ -292,7 +292,7 @@ researcher = Agent {
     provider = "openai",
     model = "gpt-4o",
     system_prompt = "Research the topic",
-    toolsets = {"brave_search", "done"},  -- MCP tools referenced by name
+    tools = {"brave_search", "done"},  -- MCP tools referenced by name
 
     message_history = {
         source = "shared",  -- Use shared history
@@ -1328,7 +1328,7 @@ The runtime detects script mode during execution and performs source transformat
 - `output {}`
 - `Mocks {}`
 - `Stages()`
-- `Specifications()`
+- `Specification()` / `Specifications()`
 - Agent definitions: `name = Agent {}`
 - Tool definitions: `name = Tool {}` or imported via `require()` like `local done = require("tactus.tools.done")`
 - Model definitions: `name = Model {}`
@@ -1460,7 +1460,7 @@ Context: {prepared.data}
 
     initial_message = "Begin working on the task.",
 
-    toolsets = {"brave_search_search", "done"},  -- MCP tools referenced by string name
+    tools = {"brave_search_search", "done"},  -- MCP tools referenced by string name
 
     filter = {
         class = "ComposedFilter",
@@ -1995,8 +1995,7 @@ local done = require("tactus.tools.done")
 text_processor = Agent {
     provider = "openai",
     system_prompt = "You process text",
-    tools = {
-        done,
+    inline_tools = {
         {
             name = "uppercase",
             description = "Convert text to uppercase",
@@ -2017,7 +2016,8 @@ text_processor = Agent {
                 return string.reverse(args.text)
             end
         }
-    }
+    },
+    tools = {done}
 }
 ```
 
@@ -2025,10 +2025,9 @@ Inline tools are automatically prefixed with the agent name (e.g., `text_process
 
 **Tools in Agent Config**
 
-In agent configuration, `tools` accepts:
-- **Variable references** to tools: `done`, `calculate_tip`
-- **Variable references** to toolsets: `math_tools`
-- **Inline tool definitions** (objects with `name`, `handler`, `input`)
+In agent configuration:
+- `tools` accepts **tool/toolset references** and toolset expressions.
+- `inline_tools` is reserved for **inline tool definitions** (objects with `name`, `handler`, `input`).
 
 ```lua
 local done = require("tactus.tools.done")
@@ -2036,11 +2035,13 @@ calculate_tip = Tool {...}
 math_tools = Toolset {...}
 
 example = Agent {
-    tools = {
-        done,           -- Variable reference to tool
-        calculate_tip,  -- Variable reference to tool
-        math_tools,     -- Variable reference to toolset
+    inline_tools = {
         {name = "my_tool", handler = function(args) ... end, ...}  -- Inline
+    },
+    tools = {
+        done,           -- Tool reference
+        calculate_tip,  -- Tool reference
+        math_tools,     -- Toolset reference
     }
 }
 ```
@@ -2298,15 +2299,15 @@ response.tool_calls
 The callable agent accepts an optional table to override behavior for a single call:
 
 **Available overrides:**
-- `message` (string) - Message to send to the agent (mapped to inject internally)
+- `message` (string) - Message to send to the agent
 - `context` (table) - Key-value pairs to pass as context to the agent (formatted as structured input)
-- `tools` (list of variables) - Tool and toolset variables available for this call (empty list = no tools)
+- `tools` (list of toolset expressions) - Tools/toolsets available for this call (empty list = no tools)
 - `temperature` (number) - Override temperature for this call
 - `max_tokens` (number) - Override max_tokens for this call
 - `top_p` (number) - Override top_p for this call
 
 **Tool Override Behavior:**
-- `tools` - List of tool/toolset variables to enable: `{search, done, math_tools}`
+- `tools` - List of tool/toolset references to enable: `{search, done, math_tools}`
 - Empty list `{}`: No tools available for this call
 - `nil`/omitted: Use agent's default configuration
 
@@ -2534,7 +2535,7 @@ end
 Matchers are primarily used in BDD specifications for testing:
 
 ```lua
-Specifications([[
+Specification([[
 Feature: Data Processing
   Scenario: Process valid data
     Given the procedure has started
@@ -2556,9 +2557,9 @@ local error_matcher = contains("error")
 
 -- Use in conditional logic
 local result = worker()
-if tostring(result.value):find("success") then
+if tostring(result.output):find("success") then
     -- Contains success
-elseif tostring(result.value):find("error") then
+elseif tostring(result.output):find("error") then
     -- Contains error
 end
 ```
@@ -2837,7 +2838,7 @@ Score ID: {input.score_id}
 Champion metrics: {state.champion_metrics}
 Error patterns: {state.error_analysis}
     ]],
-    toolsets = {"plexus_get_score", "plexus_get_evaluation_metrics", "plexus_analyze_errors", "done"},
+    tools = {"plexus_get_score", "plexus_get_evaluation_metrics", "plexus_analyze_errors", "done"},
     max_turns = 20
 }
 
@@ -2851,7 +2852,7 @@ Human feedback (if any): {state.human_feedback}
 
 Be conservative - small targeted improvements are better than sweeping changes.
     ]],
-    toolsets = {"plexus_draft_score_config", "plexus_validate_config", "done"},
+    tools = {"plexus_draft_score_config", "plexus_validate_config", "done"},
     max_turns = 15
 }
 
@@ -3228,7 +3229,7 @@ Tactus includes first-class support for behavior-driven testing using Gherkin sy
 Write Gherkin specifications directly in procedure files:
 
 ```lua
-Specifications([[
+Specification([[
 Feature: Research Task Completion
   As a user
   I want the agent to research topics effectively

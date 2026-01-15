@@ -24,7 +24,7 @@ You have access to imported text processing tools:
 When asked to process text, use the appropriate tool.
 After processing, call done with the result.]],
 
-    toolsets = {"imported_text_tools", "done"}
+    tools = {"imported_text_tools", done},
 }
 
 -- Alternative: Import specific tools and combine with others
@@ -32,7 +32,7 @@ Toolset "combined_tools" {
     -- In a full implementation, this would combine:
     -- 1. Tools from the imported file
     -- 2. Other toolsets or individual tools
-    tools = {"uppercase", "lowercase", "done"}
+    tools = {"uppercase", "lowercase"}
 }
 
 -- Main procedure
@@ -85,7 +85,7 @@ Procedure {
 
             repeat
                 if turn_count == 0 then
-                    result = text_processor({initial_message = message})
+                    result = text_processor({message = message})
                 else
                     result = text_processor()
                 end
@@ -106,8 +106,8 @@ Procedure {
                         answer = reason
                     end
                 end
-            elseif result and result.message then
-                answer = result.message
+            elseif result and result.output ~= nil then
+                answer = tostring(result.output)
             end
 
             Log.info("Import result", {
@@ -126,22 +126,14 @@ Procedure {
     end
 }
 
--- Agent Mocks for CI testing
-Mocks {
-    text_processor = {
-        tool_calls = {
-            {tool = "done", args = {reason = "HELLO - processed with imported tools"}}
-        },
-        message = "I've processed the text using imported tools."
-    }
-}
-
-Specifications([[
+Specification([[
 Feature: Import Toolsets from Local .tac Files
   Demonstrate importing tools and toolsets from other .tac files
 
   Scenario: Import toolset demo runs
     Given the procedure has started
+    And the agent "text_processor" responds with "I've processed the text using imported tools."
+    And the agent "text_processor" calls tool "done" with args {"reason": "HELLO - processed with imported tools"}
     When the procedure runs
     Then the done tool should be called
     And the output result should exist

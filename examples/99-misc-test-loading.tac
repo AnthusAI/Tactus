@@ -5,15 +5,25 @@ test_agent = Agent {
   system_prompt = "You are a helpful assistant. Respond briefly.",
 }
 
+Specification([[
+Feature: Loading indicator test
+
+  Scenario: Procedure completes
+    Given the procedure has started
+    And the agent "test_agent" responds with "OK"
+    When the procedure runs
+    Then the output success should be true
+]])
+
 Procedure {
     output = {
       success = field.boolean{required = true}
     },
     function(input)
 
-    log("Starting test...")
+    Log.info("Starting test...")
       local result = test_agent()
-      log("Agent responded: " .. result.data)
+      Log.info("Agent responded: " .. tostring(result.output))
       return {success = true}
 
     end

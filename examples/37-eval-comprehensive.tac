@@ -29,7 +29,7 @@ Given raw contact information, format it properly:
 3. Assign a quality score (0-100)
 4. Call 'done' with the formatted data
 
-Return JSON with: {phone, email, score}]],
+	Return JSON with: {phone, email, score}]],
     initial_message = "Format this contact: {raw_contact}",
     tools = {validate, done}
 }
@@ -73,23 +73,15 @@ Procedure {
     end
 }
 
--- Agent Mocks for CI testing
-Mocks {
-    contact_formatter = {
-        tool_calls = {
-            {tool = "validate", args = {data = "John Doe contact"}},
-            {tool = "done", args = {reason = "{phone: '(555) 123-4567', email: 'john@example.com', score: 85}"}}
-        },
-        message = "I've formatted the contact information."
-    }
-}
-
-Specifications([[
+Specification([[
 Feature: Contact Formatting with Comprehensive Evaluation
 
   Scenario: Agent formats contact information
     Given the procedure has started
     And the input raw_contact is "John Doe, 555-123-4567"
+    And the agent "contact_formatter" responds with "I've formatted the contact information."
+    And the agent "contact_formatter" calls tool "validate" with args {"data": "John Doe contact"}
+    And the agent "contact_formatter" calls tool "done" with args {"reason": "{phone: '(555) 123-4567', email: 'john@example.com', score: 85}"}
     When the procedure runs
     Then the done tool should be called
     And the output formatted should be True
@@ -100,7 +92,7 @@ Feature: Contact Formatting with Comprehensive Evaluation
 -- Note: Evaluations framework is partially implemented.
 -- Commented out for now.
 --[[
-Evaluations({
+Evaluation({
     runs = 3,
     parallel = true,
 

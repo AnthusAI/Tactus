@@ -42,7 +42,7 @@ IMPORTANT: To calculate 15% of 200, use the percentage tool with these exact par
 - value: 200 (the number to calculate percentage of)
 - percent: 15 (the percentage amount)
 
-CRITICAL: After getting the calculation result, you MUST immediately call the 'done' tool with the answer in the 'reason' parameter. Do not just respond with text - you must call the done tool to signal completion.]],
+	CRITICAL: After getting the calculation result, you MUST immediately call the 'done' tool with the answer in the 'reason' parameter. Do not just respond with text - you must call the done tool to signal completion.]],
     initial_message = "Calculate 15% of 200 and tell me the result",
     tools = {multiply, percentage, done}
 }
@@ -94,7 +94,7 @@ Procedure {
         else
             Log.warn("Agent did not call done within max turns")
             return {
-                calculation_result = result.message or "Agent did not complete",
+                calculation_result = result and tostring(result.output) or "Agent did not complete",
                 completed = false
             }
         end
@@ -103,24 +103,15 @@ Procedure {
     end
 }
 
--- Agent mock for CI testing (used when mocks are enabled)
--- Simulates the calculator agent calling percentage tool then done tool
-Mocks {
-    calculator = {
-        tool_calls = {
-            { tool = "percentage", args = { value = 200, percent = 15 } },
-            { tool = "done", args = { reason = "15% of 200 is 30" } }
-        },
-        message = "The calculation result is 30."
-    }
-}
-
-Specifications([[
+Specification([[
 Feature: DSL Toolset Integration
   Demonstrate defining and using toolsets via the DSL
 
   Scenario: Agent uses DSL-defined toolsets
     Given the procedure has started
+    And the agent "calculator" responds with "The calculation result is 30."
+    And the agent "calculator" calls tool "percentage" with args {"value": 200, "percent": 15}
+    And the agent "calculator" calls tool "done" with args {"reason": "15% of 200 is 30"}
     When the procedure runs
     Then the done tool should be called
     And the procedure should complete successfully

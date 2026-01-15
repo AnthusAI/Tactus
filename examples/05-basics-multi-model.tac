@@ -45,7 +45,11 @@ Procedure {
         if done.called() then
             research = done.last_result() or "Task completed"
         else
-            research = result.message or "Research not completed"
+            if result and result.output ~= nil then
+                research = tostring(result.output)
+            else
+                research = "Research not completed"
+            end
             Log.warn("Researcher did not call done within max turns")
         end
         state.research = research
@@ -66,7 +70,11 @@ Procedure {
         if done.called() then
             summary = done.last_result() or "Task completed"
         else
-            summary = result.message or "Summary not completed"
+            if result and result.output ~= nil then
+                summary = tostring(result.output)
+            else
+                summary = "Summary not completed"
+            end
             Log.warn("Summarizer did not call done within max turns")
         end
 
@@ -78,29 +86,17 @@ Procedure {
     end
 }
 
--- Agent Mocks for CI testing
-Mocks {
-    researcher = {
-        tool_calls = {
-            {tool = "done", args = {reason = "Research findings on artificial intelligence"}}
-        },
-        message = "I have researched the topic and found key insights about artificial intelligence."
-    },
-    summarizer = {
-        tool_calls = {
-            {tool = "done", args = {reason = "Summary of AI research"}}
-        },
-        message = "Here is a concise summary of the research findings."
-    }
-}
-
 -- BDD Specifications
-Specifications([[
+Specification([[
 Feature: Multi-Model Workflow
   Demonstrate using multiple OpenAI models in one procedure
 
   Scenario: Research and summarization workflow
     Given the procedure has started
+    And the agent "researcher" responds with "I have researched the topic and found key insights about artificial intelligence."
+    And the agent "researcher" calls tool "done" with args {"reason": "Research findings on artificial intelligence"}
+    And the agent "summarizer" responds with "Here is a concise summary of the research findings."
+    And the agent "summarizer" calls tool "done" with args {"reason": "Summary of AI research"}
     When the procedure runs
     Then the done tool should be called at least 1 time
     And the procedure should complete successfully

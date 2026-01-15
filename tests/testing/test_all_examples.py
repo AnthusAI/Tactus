@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import List, Dict, Any
 import os
 import re
+import sys
 
 from tactus.testing.test_runner import TactusTestRunner
 from tactus.validation import TactusValidator
@@ -25,17 +26,6 @@ def should_skip_example(file_path: Path) -> bool:
     if "helpers" in str(file_path):
         return True
 
-    # Skip 71-mocking-temporal due to bug in temporal mocking toolset registration
-    # TODO: Fix temporal mocking to properly register tools before agent initialization
-    if "71-mocking-temporal" in str(file_path):
-        return True
-
-    # Skip 60-tool-sources due to test isolation issue with toolset registration
-    # The test passes when run alone but fails in full suite due to state pollution
-    # TODO: Fix test isolation so toolsets are properly cleaned up between tests
-    if "60-tool-sources" in str(file_path):
-        return True
-
     return False
 
 
@@ -43,8 +33,8 @@ def check_for_specifications(file_path: Path) -> bool:
     """Check if a .tac file contains BDD specifications."""
     try:
         content = file_path.read_text()
-        # Look for Specifications( block
-        return "Specifications(" in content or "Specifications(" in content
+        # Look for Specification( / Specifications( block
+        return "Specifications(" in content or "Specification(" in content
     except Exception:
         return False
 
@@ -152,6 +142,43 @@ def collect_example_test_cases() -> List[Dict[str, Any]]:
 
 # Collect test cases once at module load
 TEST_CASES = collect_example_test_cases()
+
+
+def get_mcp_servers_for_example(example: Dict[str, Any]) -> Dict[str, Any]:
+    """Return MCP server configs for examples that need MCP toolsets.
+
+    In CI we run local stdio MCP servers implemented in `tests/fixtures/`.
+    """
+    if not example.get("requires_mcp"):
+        return {}
+
+    example_id = example.get("id", "")
+    project_root = Path(__file__).resolve().parents[2]
+
+    if example_id in {"40-mcp-test", "41-mcp-simple"}:
+        return {
+            "test_server": {
+                "command": sys.executable,
+                "args": ["-m", "tests.fixtures.test_mcp_server"],
+                "cwd": str(project_root),
+            }
+        }
+
+    if example_id == "62-mcp-toolset-by-server":
+        return {
+            "filesystem": {
+                "command": sys.executable,
+                "args": ["-m", "tests.fixtures.filesystem_mcp_server"],
+                "cwd": str(project_root),
+            },
+            "brave-search": {
+                "command": sys.executable,
+                "args": ["-m", "tests.fixtures.brave_search_mcp_server"],
+                "cwd": str(project_root),
+            },
+        }
+
+    return {}
 
 
 def get_mock_tools_for_example(example: Dict[str, Any]) -> Dict[str, Any]:
@@ -274,10 +301,6 @@ class TestAllExamples:
             if not os.getenv("AWS_ACCESS_KEY_ID") and "bedrock" in example["id"].lower():
                 pytest.skip(f"AWS credentials not configured for {example['id']}")
 
-        # Skip MCP examples if MCP not available
-        if example["requires_mcp"]:
-            pytest.skip(f"MCP testing not yet implemented for {example['id']}")
-
         # Validate first
         validator = TactusValidator()
         result = validator.validate_file(str(example["file"]))
@@ -289,10 +312,14 @@ class TestAllExamples:
         # Setup test runner with appropriate mocking
         mock_tools = get_mock_tools_for_example(example)
 
+        mcp_servers = get_mcp_servers_for_example(example)
+
         try:
             runner = TactusTestRunner(
                 example["file"],
                 mock_tools=mock_tools,
+                mcp_servers=mcp_servers,
+                tool_paths=[str(Path("examples/tools").resolve())],
                 mocked=True,  # Use mock mode for all examples in CI
             )
             runner.setup(result.registry.gherkin_specifications)
@@ -316,7 +343,12 @@ class TestAllExamples:
     @pytest.mark.parametrize("example", TEST_CASES, ids=lambda x: x["id"])
     @pytest.mark.execution
     def test_example_basic_execution(self, example):
-        """Test basic execution of examples without BDD specs."""
+        """Track technical debt: examples without BDD specs should be SKIPPED.
+
+        We still validate these examples so we don't silently accumulate invalid examples,
+        but we deliberately mark them as skipped so it's obvious which examples still
+        need `Specification([[ ... ]])` / `Specifications([[ ... ]])` coverage.
+        """
         if example["has_specs"]:
             pytest.skip(f"Example {example['id']} has BDD specs, tested separately")
 
@@ -330,15 +362,16 @@ class TestAllExamples:
         if example["requires_mcp"]:
             pytest.skip(f"Example {example['id']} requires MCP servers")
 
-        # For now, just validate these examples
-        # Full execution testing would require running the procedure
+        # Validate first so invalid examples fail loudly, but then mark as skipped
+        # to maintain a visible roadmap of missing specifications.
         validator = TactusValidator()
         result = validator.validate_file(str(example["file"]))
 
         assert result.valid, f"Validation failed for {example['id']}: {result.errors}"
 
-        # Could add actual execution here with mocked runtime
-        # For now, validation is sufficient for examples without specs
+        pytest.skip(
+            f"Example {example['id']} has no Specification(s); add BDD specs to remove this skip"
+        )
 
 
 # Additional test to ensure we're testing a reasonable number of examples

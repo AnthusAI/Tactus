@@ -67,7 +67,7 @@ You have access to:
 - calculate: Perform math operations (add, multiply, divide, subtract)
 - done: Signal completion
 
-Follow the user's instructions and use the appropriate tools.]],
+	Follow the user's instructions and use the appropriate tools.]],
     tools = {translate, calculate, done}
 }
 
@@ -117,7 +117,7 @@ Procedure {
             end
 
             -- Run agent
-            assistant({initial_message = message})
+            assistant({message = message})
 
             -- Wait for completion
             local max_turns = 3

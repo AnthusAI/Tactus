@@ -68,21 +68,13 @@ Procedure {
     end
 }
 
--- Agent Mocks for CI testing
-Mocks {
-    completer = {
-        tool_calls = {
-            {tool = "done", args = {reason = "TASK_COMPLETE: Hello Alice! It's wonderful to meet you!"}}
-        },
-        message = "I've completed the task."
-    }
-}
-
-Specifications([[
+Specification([[
 Feature: Task Completion
   Scenario: Agent completes simple task
     Given the procedure has started
     And the input task is "Say hello to the user"
+    And the agent "completer" responds with "I've completed the task."
+    And the agent "completer" calls tool "done" with args {"reason": "TASK_COMPLETE: Hello Alice! It's wonderful to meet you!"}
     When the procedure runs
     Then the done tool should be called
     And the procedure should complete successfully
@@ -92,7 +84,7 @@ Feature: Task Completion
 -- Note: Evaluations framework is partially implemented.
 -- Commented out until field.contains, field.llm_judge are available.
 --[[
-Evaluations({
+Evaluation({
     -- Run each test case 3 times to measure success rate (reduced for testing)
     runs = 3,
     parallel = true,

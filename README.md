@@ -119,7 +119,7 @@ Procedure {
   end
 }
 
-Specifications([[
+Specification([[
 Feature: Research
   Scenario: Completes research
     When the researcher agent takes turns
@@ -370,12 +370,12 @@ calculator = Agent {
 done = tactus.done
 
 text_processor = Agent {
-  tools = {
-    done,
+  inline_tools = {
     {name = "uppercase", input = {...}, handler = function(args)
       return string.upper(args.text)
     end}
-  }
+  },
+  tools = {done}
 }
 ```
 
@@ -482,7 +482,7 @@ Procedure {
   end
 }
 
-Specifications([[
+Specification([[
 Feature: Greeting
   Scenario: Agent greets and completes
     When the greeter agent takes turns
@@ -565,7 +565,7 @@ This creates a rhythm: **tool call → summarization → tool call → summariza
 
 **Why this matters:**
 
-Without per-call control, an agent might call another tool when you just want it to explain the previous result. By temporarily restricting tools to an empty set (`tools = {}`), you ensure the agent focuses on summarization.
+Without per-call control, an agent might call another tool when you just want it to explain the previous result. By temporarily restricting toolsets to an empty set (`tools = {}`), you ensure the agent focuses on summarization.
 
 **Other per-call overrides:**
 

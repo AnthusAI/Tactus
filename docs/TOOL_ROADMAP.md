@@ -28,12 +28,12 @@ tool("done", {
 end)
 
 agent("worker", {
-    toolsets = {"done"}  -- References the explicitly defined tool above
+    tools = {"done"}  -- References the explicitly defined tool above
 })
 
 -- Or explicitly control toolsets
 agent("analyst", {
-    toolsets = {}  -- Explicitly no tools
+    tools = {}  -- Explicitly no tools
 })
 ```
 
@@ -48,8 +48,8 @@ agent("analyst", {
 ### Migration Guide
 
 - **Define tools explicitly**: Use `tool("done", {...}, handler)` to define a completion tool
-- **Reference in toolsets**: Use `toolsets = {"done"}` to give agents access to the tool
-- **For no tools**: Use `toolsets = {}` for explicitly no tools (e.g., models without tool support)
+- **Reference in toolsets**: Use `tools = {"done"}` to give agents access to the tool
+- **For no tools**: Use `tools = {}` for explicitly no tools (e.g., models without tool support)
 - **No built-in done tool**: You must explicitly define any completion/done tool you need
 - All example files have been migrated
 - Tests passing with new architecture
@@ -121,7 +121,7 @@ Compose and transform toolsets in agent definitions:
 agent("analyst", {
     provider = "openai",
     model = "gpt-4o",
-    toolsets = {
+    tools = {
         -- Simple reference
         "financial",
 
@@ -431,7 +431,7 @@ agent("worker", {
     provider = "openai",
     model = "gpt-4o",
     system_prompt = "You are a helpful assistant",
-    toolsets = {"search", "analyze", "done"}  -- All must be explicitly defined
+    tools = {"search", "analyze", "done"}  -- All must be explicitly defined
 })
 ```
 

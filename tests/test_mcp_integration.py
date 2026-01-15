@@ -71,7 +71,7 @@ agents:
         model: "gpt-4o-mini"
         system_prompt: "You are a test agent. Call the add_numbers tool with a=5 and b=3."
         initial_message: "Start"
-        toolsets:
+        tools:
             - test_server
 """
 

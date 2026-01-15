@@ -56,7 +56,6 @@ Procedure {
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="Agent name assignment interception not yet working for DSPy agents")
 async def test_script_mode_with_mock_agent(tmp_path):
     """Test script mode with mocked agent calls."""
     source = """
@@ -64,7 +63,12 @@ input { task = field.string{required = true} }
 output { result = field.string{required = true} }
 
 Mocks {
-    worker = { returns = { response = "Task completed!" } }
+    worker = {
+        tool_calls = {
+            { tool = "done", args = { reason = "Task completed!" } }
+        },
+        message = "Task completed!"
+    }
 }
 
 local done = require("tactus.tools.done")

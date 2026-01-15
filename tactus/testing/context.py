@@ -27,11 +27,15 @@ class TactusTestContext:
         procedure_file: Path,
         params: Optional[Dict] = None,
         mock_tools: Optional[Dict] = None,
+        mcp_servers: Optional[Dict] = None,
+        tool_paths: Optional[List[str]] = None,
         mocked: bool = False,
     ):
         self.procedure_file = procedure_file
         self.params = params or {}
         self.mock_tools = mock_tools  # tool_name -> mock_response
+        self.mcp_servers = mcp_servers or {}
+        self.tool_paths = tool_paths or []
         self.mocked = mocked  # Whether to use mocked dependencies
         self.mock_registry = None  # Unified mock registry for dependencies + HITL
         self.runtime = None
@@ -41,6 +45,123 @@ class TactusTestContext:
         self.total_cost: float = 0.0  # Track total cost
         self.total_tokens: int = 0  # Track total tokens
         self.cost_breakdown: List[Any] = []  # Track per-call costs
+        self._agent_mock_turns: Dict[str, List[Dict[str, Any]]] = {}
+        self._scenario_message: str | None = None
+
+    def set_scenario_message(self, message: str) -> None:
+        """Set the scenario's primary injected message (for in-spec mocking coordination)."""
+        self._scenario_message = message
+
+    def get_scenario_message(self) -> str | None:
+        """Get the scenario's primary injected message, if set."""
+        return self._scenario_message
+
+    def mock_agent_response(
+        self, agent: str, message: str, when_message: str | None = None
+    ) -> None:
+        """Add a mocked agent response for this scenario (temporal; 1 per agent turn).
+
+        If `when_message` is provided, the mock is selected when the agent is called
+        with that exact injected message.
+        """
+        turn: Dict[str, Any] = {"message": message}
+        effective_when = when_message if when_message is not None else self._scenario_message
+        if effective_when is not None:
+            turn["when_message"] = effective_when
+        self._agent_mock_turns.setdefault(agent, []).append(turn)
+
+        # Ensure runtime exists and sees the same dict reference for this scenario.
+        if self.runtime is None:
+            self.setup_runtime()
+        if self.runtime is not None:
+            self.runtime.external_agent_mocks = self._agent_mock_turns
+
+    def mock_agent_tool_call(
+        self,
+        agent: str,
+        tool: str,
+        args: Dict[str, Any] | None = None,
+        when_message: str | None = None,
+    ) -> None:
+        """Add a mocked tool call to an agent's next mocked turn for this scenario."""
+        args = args or {}
+
+        effective_when = when_message if when_message is not None else self._scenario_message
+        if (
+            agent in self._agent_mock_turns
+            and self._agent_mock_turns[agent]
+            and (
+                effective_when is None
+                or self._agent_mock_turns[agent][-1].get("when_message") == effective_when
+            )
+        ):
+            turn = self._agent_mock_turns[agent][-1]
+        else:
+            turn = {}
+            if effective_when is not None:
+                turn["when_message"] = effective_when
+            self._agent_mock_turns.setdefault(agent, []).append(turn)
+
+        tool_calls = turn.get("tool_calls")
+        if not isinstance(tool_calls, list):
+            tool_calls = []
+            turn["tool_calls"] = tool_calls
+
+        tool_calls.append({"tool": tool, "args": args})
+
+        if self.runtime is None:
+            self.setup_runtime()
+        if self.runtime is not None:
+            self.runtime.external_agent_mocks = self._agent_mock_turns
+
+    def mock_agent_data(
+        self, agent: str, data: Dict[str, Any], when_message: str | None = None
+    ) -> None:
+        """Set structured output mock data for an agent's next mocked turn.
+
+        This is only used when an agent has an output schema; the DSPy agent mock
+        logic will apply `data` as the structured `result.output`.
+        """
+        if not isinstance(data, dict):
+            raise TypeError("mock_agent_data expects a dict")
+
+        effective_when = when_message if when_message is not None else self._scenario_message
+        if (
+            agent in self._agent_mock_turns
+            and self._agent_mock_turns[agent]
+            and (
+                effective_when is None
+                or self._agent_mock_turns[agent][-1].get("when_message") == effective_when
+            )
+        ):
+            turn = self._agent_mock_turns[agent][-1]
+        else:
+            turn = {}
+            if effective_when is not None:
+                turn["when_message"] = effective_when
+            self._agent_mock_turns.setdefault(agent, []).append(turn)
+
+        turn["data"] = data
+
+        if self.runtime is None:
+            self.setup_runtime()
+        if self.runtime is not None:
+            self.runtime.external_agent_mocks = self._agent_mock_turns
+
+    def mock_tool_returns(self, tool: str, output: Any) -> None:
+        """Configure a runtime tool mock (Mocks { tool = { returns = ... } } equivalent)."""
+        if self.runtime is None:
+            self.setup_runtime()
+        if self.runtime is None:
+            raise AssertionError("Runtime not initialized")
+
+        if self.runtime.mock_manager is None:
+            from tactus.core.mocking import MockManager
+
+            self.runtime.mock_manager = MockManager()
+
+        self.runtime.mock_manager.register_mock(tool, {"output": output})
+        self.runtime.mock_manager.enable_mock(tool)
 
     def setup_runtime(self) -> None:
         """Initialize TactusRuntime with storage and handlers."""
@@ -80,6 +201,8 @@ class TactusTestContext:
             openai_api_key=os.environ.get("OPENAI_API_KEY"),  # Pass API key for real LLM calls
             log_handler=log_handler,  # Enable cost tracking
             source_file_path=str(self.procedure_file.resolve()),  # For require() path resolution
+            mcp_servers=self.mcp_servers,
+            tool_paths=self.tool_paths,
         )
 
         # Create MockManager for handling Mocks {} blocks when in mocked mode
@@ -88,6 +211,8 @@ class TactusTestContext:
 
             self.runtime.mock_manager = MockManager()
             logger.info("Created MockManager for Mocks {} block support")
+            # Mocked-mode tests should never call real LLMs by default.
+            self.runtime.mock_all_agents = True
 
         logger.debug(f"Setup runtime for test: {self.procedure_file.stem}")
 
@@ -296,12 +421,16 @@ class TactusTestContext:
         if self.execution_result:
             # Check if outputs are in a dedicated field
             if "output" in self.execution_result:
-                return self.execution_result["output"].get(key)
+                output = self.execution_result["output"]
+                if isinstance(output, dict):
+                    return output.get(key)
+                return None
             # Otherwise check in the result dict (procedure return value)
-            if "result" in self.execution_result and isinstance(
-                self.execution_result["result"], dict
-            ):
-                return self.execution_result["result"].get(key)
+            if "result" in self.execution_result:
+                result = self.execution_result["result"]
+                if isinstance(result, dict):
+                    return result.get(key)
+
         return None
 
     def output_exists(self, key: str) -> bool:
@@ -309,13 +438,30 @@ class TactusTestContext:
         if self.execution_result:
             # Check if outputs are in a dedicated field
             if "output" in self.execution_result:
-                return key in self.execution_result["output"]
+                output = self.execution_result["output"]
+                return isinstance(output, dict) and key in output
             # Otherwise check in the result dict (procedure return value)
-            if "result" in self.execution_result and isinstance(
-                self.execution_result["result"], dict
-            ):
-                return key in self.execution_result["result"]
+            if "result" in self.execution_result:
+                result = self.execution_result["result"]
+                if isinstance(result, dict):
+                    return key in result
         return False
+
+    def output_value(self) -> Any:
+        """Get the full (possibly scalar) output value for the procedure."""
+        if not self.execution_result:
+            return None
+        if "output" in self.execution_result:
+            return self.execution_result["output"]
+        result = self.execution_result.get("result")
+        try:
+            from tactus.protocols.result import TactusResult
+
+            if isinstance(result, TactusResult):
+                return result.output
+        except Exception:
+            pass
+        return result
 
     # Completion methods
 

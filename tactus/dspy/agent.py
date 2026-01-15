@@ -231,7 +231,7 @@ class DSPyAgentHandle:
 
     def _prediction_to_value(self, prediction: TactusPrediction) -> Any:
         """
-        Convert a Prediction into a stable `result.value`.
+        Convert a Prediction into a stable `result.output`.
 
         Default behavior:
         - Prefer the `response` field when present (string)
@@ -275,7 +275,7 @@ class DSPyAgentHandle:
     ) -> TactusResult:
         """Wrap a Prediction into the standard TactusResult."""
         return TactusResult(
-            value=self._prediction_to_value(prediction),
+            output=self._prediction_to_value(prediction),
             usage=usage_stats,
             cost_stats=cost_stats,
         )
@@ -610,7 +610,7 @@ class DSPyAgentHandle:
         new_messages = []
 
         # Determine user message
-        user_message = opts.get("inject")
+        user_message = opts.get("message")
         if self._turn_count == 1 and not user_message and self.initial_message:
             user_message = self.initial_message
 
@@ -692,7 +692,7 @@ class DSPyAgentHandle:
         new_messages = []
 
         # Determine user message
-        user_message = opts.get("inject")
+        user_message = opts.get("message")
         if self._turn_count == 1 and not user_message and self.initial_message:
             user_message = self.initial_message
 
@@ -753,7 +753,7 @@ class DSPyAgentHandle:
                    Default field 'message' is used as the user message.
                    Additional fields are passed as context.
                    Can also include per-turn overrides like:
-                   - tools: List[str] - Tool names to use
+                   - tools: List[Any] - Tool/toolset references and toolset expressions to use
                    - temperature: float - Override temperature
                    - max_tokens: int - Override max_tokens
 
@@ -765,6 +765,11 @@ class DSPyAgentHandle:
             print(result.response)
         """
         logger.debug(f"Agent '{self.name}' invoked via __call__()")
+        # Convenience: allow shorthand string calls in Lua:
+        #   worker("Hello") == worker({message = "Hello"})
+        if isinstance(inputs, str):
+            inputs = {"message": inputs}
+
         inputs = inputs or {}
 
         # Convert Lua table to dict if needed
@@ -780,10 +785,10 @@ class DSPyAgentHandle:
         # Build turn options (keeping per-turn overrides like tools, temperature, etc.)
         opts = {}
         if message:
-            opts["inject"] = message
+            opts["message"] = message
 
         # Pass remaining fields - some are per-turn overrides, others are context
-        override_keys = {"tools", "toolsets", "temperature", "max_tokens"}
+        override_keys = {"tools", "temperature", "max_tokens"}
         for key in override_keys:
             if key in inputs:
                 opts[key] = inputs[key]
@@ -826,7 +831,7 @@ class DSPyAgentHandle:
             configure_lm(model_for_litellm, **config_kwargs)
 
         # Extract options
-        user_message = opts.get("inject")
+        user_message = opts.get("message")
 
         # Use initial_message on first turn if no inject provided
         if self._turn_count == 1 and not user_message and self.initial_message:
@@ -896,15 +901,51 @@ class DSPyAgentHandle:
         # Get agent mock config from registry.agent_mocks
         mock_config = self.registry.agent_mocks[agent_name]
 
-        # Convert AgentMockConfig to format expected by _wrap_mock_response
-        # _wrap_mock_response expects: response (or message), tool_calls, data, usage
-        # We convert message -> response here for clarity
+        temporal_turns = getattr(mock_config, "temporal", None) or []
+        if temporal_turns:
+            injected = opts.get("message")
+
+            selected_turn = None
+            if injected is not None:
+                for turn in temporal_turns:
+                    if isinstance(turn, dict) and turn.get("when_message") == injected:
+                        selected_turn = turn
+                        break
+
+            if selected_turn is None:
+                idx = self._turn_count - 1  # 1-indexed turns
+                if idx < 0:
+                    idx = 0
+                if idx >= len(temporal_turns):
+                    idx = len(temporal_turns) - 1
+                selected_turn = temporal_turns[idx]
+
+            turn = selected_turn
+            if isinstance(turn, dict):
+                message = turn.get("message", mock_config.message)
+                tool_calls = turn.get("tool_calls", mock_config.tool_calls)
+                data = turn.get("data", mock_config.data)
+            else:
+                message = mock_config.message
+                tool_calls = mock_config.tool_calls
+                data = mock_config.data
+        else:
+            message = mock_config.message
+            tool_calls = mock_config.tool_calls
+            data = mock_config.data
+
+        # Convert AgentMockConfig to format expected by _wrap_mock_response.
+        # Important: we do NOT embed `data`/`usage` inside the prediction output by default.
+        # The canonical agent payload is `result.output`:
+        # - If the agent has an explicit output schema, we allow structured output via `data`.
+        # - Otherwise, `result.output` is the plain response string.
         mock_data = {
-            "response": mock_config.message,
-            "tool_calls": mock_config.tool_calls,
-            "data": mock_config.data,
-            "usage": mock_config.usage,
+            "response": message,
+            "tool_calls": tool_calls,
         }
+
+        if self.output_schema and data:
+            mock_data["data"] = data
 
         try:
             return self._wrap_mock_response(mock_data, opts)
@@ -930,17 +971,19 @@ class DSPyAgentHandle:
         """
         from tactus.dspy.prediction import create_prediction
 
-        # Normalize mock data to match agent's output signature
-        # Mock data uses "message" field, but agent signature uses "response" field
-        normalized_data = dict(mock_data)
-        if "message" in normalized_data and "response" not in normalized_data:
-            normalized_data["response"] = normalized_data["message"]
+        response_text = None
+        if "response" in mock_data and isinstance(mock_data.get("response"), str):
+            response_text = mock_data["response"]
+        elif "message" in mock_data and isinstance(mock_data.get("message"), str):
+            response_text = mock_data["message"]
+        else:
+            response_text = ""
 
         # Track new messages for this turn
         new_messages = []
 
         # Determine user message
-        user_message = opts.get("inject")
+        user_message = opts.get("message")
         if self._turn_count == 1 and not user_message and self.initial_message:
             user_message = self.initial_message
 
@@ -951,24 +994,37 @@ class DSPyAgentHandle:
             self._history.add(user_msg)
 
         # Add assistant response to new_messages
-        if "response" in normalized_data:
-            assistant_msg = {"role": "assistant", "content": normalized_data["response"]}
+        if response_text:
+            assistant_msg = {"role": "assistant", "content": response_text}
             new_messages.append(assistant_msg)
             self._history.add(assistant_msg)
 
-        # Add message tracking to normalized data
-        normalized_data["__new_messages__"] = new_messages
-        normalized_data["__all_messages__"] = self._history.get()
+        prediction_fields: Dict[str, Any] = {}
+
+        tool_calls_list = mock_data.get("tool_calls", [])
+        if tool_calls_list:
+            prediction_fields["tool_calls"] = tool_calls_list
+
+        # If the agent has an explicit output schema, allow structured output via mock `data`.
+        # Otherwise default to plain string output.
+        data = mock_data.get("data")
+        if self.output_schema and isinstance(data, dict) and data:
+            prediction_fields.update(data)
+        else:
+            prediction_fields["response"] = response_text
+
+        # Add message tracking to prediction
+        prediction_fields["__new_messages__"] = new_messages
+        prediction_fields["__all_messages__"] = self._history.get()
 
         # Create prediction from normalized mock data
-        result = create_prediction(**normalized_data)
+        result = create_prediction(**prediction_fields)
 
         # Record all tool calls from the mock
         # This allows mocks to trigger Tool.called(...) behavior
         # Use getattr since _tool_primitive is set externally by runtime
         tool_primitive = getattr(self, "_tool_primitive", None)
-        if "tool_calls" in normalized_data and tool_primitive:
-            tool_calls_list = normalized_data.get("tool_calls", [])
+        if tool_calls_list and tool_primitive:
             if isinstance(tool_calls_list, list):
                 for tool_call in tool_calls_list:
                     if isinstance(tool_call, dict) and "tool" in tool_call:
@@ -978,7 +1034,8 @@ class DSPyAgentHandle:
                         # For done tool, extract reason for result
                         if tool_name == "done":
                             reason = tool_args.get(
-                                "reason", normalized_data.get("response", "Task completed (mocked)")
+                                "reason",
+                                response_text or "Task completed (mocked)",
                             )
                             tool_result = {"status": "completed", "reason": reason, "tool": "done"}
                         else:

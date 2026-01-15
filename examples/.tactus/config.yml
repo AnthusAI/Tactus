@@ -5,17 +5,17 @@
 # in example procedures. The "done" toolset is built-in to the runtime and
 # doesn't need to be defined here - we just reference it in default_toolsets.
 
-# Default toolsets applied to all agents that don't specify toolsets
-# Agents can override this by specifying their own toolsets list
+# Default toolsets applied to all agents that don't specify tools
+# Agents can override this by specifying their own tools list
 default_toolsets:
   - done  # References the built-in "done" toolset from the runtime
 
 # Configuration notes:
-# 1. Agents with no toolsets key will get default_toolsets
-# 2. Agents with toolsets = [] will get NO tools (explicitly empty)
-# 3. Agents with toolsets = ["done"] will get only the done tool
+# 1. Agents with no tools key will get default_toolsets
+# 2. Agents with tools = [] will get NO tools (explicitly empty)
+# 3. Agents with tools = ["done"] will get only the done tool
 # 4. Agents can use toolset expressions for filtering/transformation:
-#    toolsets:
+#    tools:
 #      - "done"                                    # Include entire toolset
 #      - {name: "mcp_server", include: ["tool1"]} # Filter to specific tools
 #      - {name: "plugins", prefix: "local_"}      # Add prefix to all tools

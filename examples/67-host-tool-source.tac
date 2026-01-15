@@ -28,7 +28,7 @@ Procedure {
     end
 }
 
-Specifications([[
+Specification([[
 Feature: Brokered Host Tool Source
   Wrap and call an allowlisted broker tool from Lua
 

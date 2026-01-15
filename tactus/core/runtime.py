@@ -160,6 +160,8 @@ class TactusRuntime:
 
         # Mock manager for testing
         self.mock_manager: Optional[Any] = None  # MockManager instance
+        self.external_agent_mocks: Optional[dict[str, list[dict[str, Any]]]] = None
+        self.mock_all_agents: bool = False
 
         logger.info(f"TactusRuntime initialized for procedure {procedure_id}")
 
@@ -308,6 +310,10 @@ class TactusRuntime:
             if format == "lua":
                 logger.info("Step 1: Parsing Lua DSL configuration")
 
+                # Script mode: wrap top-level executable code in an implicit main Procedure
+                # so agents/tools aren't executed during parsing.
+                source = self._maybe_transform_script_mode_source(source)
+
                 # Pass placeholder_tool so tool() can return callable ToolHandles
                 self.registry = self._parse_declarations(source, placeholder_tool)
                 logger.info("Loaded procedure from Lua DSL")
@@ -324,6 +330,31 @@ class TactusRuntime:
                         self.mock_manager.register_mock(tool_name, mock_config)
                         self.mock_manager.enable_mock(tool_name)
                         logger.debug(f"Registered and enabled mock for tool '{tool_name}'")
+
+                # Apply external, per-scenario agent mocks (from BDD steps).
+                # These should take precedence over any `Mocks { ... }` declared in the .tac file.
+                if self.external_agent_mocks and self.registry:
+                    from tactus.core.registry import AgentMockConfig
+
+                    for agent_name, temporal_turns in self.external_agent_mocks.items():
+                        if not isinstance(temporal_turns, list):
+                            raise TactusRuntimeError(
+                                f"External agent mocks for '{agent_name}' must be a list of turns"
+                            )
+                        self.registry.agent_mocks[agent_name] = AgentMockConfig(
+                            temporal=temporal_turns
+                        )
+
+                # If we're in mocked mode, ensure agents are mocked deterministically even if
+                # the .tac file doesn't declare `Mocks { ... }` for them.
+                if self.mock_all_agents and self.registry:
+                    from tactus.core.registry import AgentMockConfig
+
+                    for agent_name in self.registry.agents.keys():
+                        if agent_name not in self.registry.agent_mocks:
+                            self.registry.agent_mocks[agent_name] = AgentMockConfig(
+                                message=f"Mocked response from {agent_name}"
+                            )
 
                 # Merge external config (from .tac.yml) into self.config
                 # External config provides toolsets, default_toolsets, etc.
@@ -1419,11 +1450,13 @@ class TactusRuntime:
                 # Handle tools list (can be tool names or inline definitions)
                 tools_list = definition["tools"]
 
-                # Check if we have inline tool definitions (dicts with 'name' and 'handler')
+                # Check if we have inline tool definitions (dicts with a Lua handler)
                 has_inline_tools = False
                 if isinstance(tools_list, list):
                     for item in tools_list:
-                        if isinstance(item, dict) and "handler" in item:
+                        if isinstance(item, dict) and (
+                            "handler" in item or (1 in item and callable(item.get(1)))
+                        ):
                             has_inline_tools = True
                             break
 
@@ -1714,14 +1747,17 @@ class TactusRuntime:
                 f"Agent '{agent_name}' using provider '{provider_name}' with model '{model_id}'"
             )
 
-            # Handle inline Lua function tools
+            # Handle inline Lua function tools (agent.inline_tools)
             inline_tools_toolset = None
-            if "inline_tool_defs" in agent_config and agent_config["inline_tool_defs"]:
-                tools_spec = agent_config["inline_tool_defs"]
+            if "inline_tools" in agent_config and agent_config["inline_tools"]:
+                tools_spec = agent_config["inline_tools"]
                 # These are inline tool definitions (dicts with 'handler' key)
                 if isinstance(tools_spec, list):
                     inline_tool_specs = [
-                        t for t in tools_spec if isinstance(t, dict) and "handler" in t
+                        t
+                        for t in tools_spec
+                        if isinstance(t, dict)
+                        and ("handler" in t or (1 in t and callable(t.get(1))))
                     ]
                     if inline_tool_specs:
                         # These are inline Lua function tools
@@ -1742,38 +1778,36 @@ class TactusRuntime:
                                 f"Could not import LuaToolsAdapter for agent '{agent_name}': {e}"
                             )
 
-            # Get toolsets for this agent
+            # Get tools (tool/toolset references) for this agent
             # Use a sentinel value to distinguish "not present" from "present but None/empty"
             _MISSING = object()
-            agent_toolsets_config = agent_config.get("toolsets", _MISSING)
+            agent_tools_config = agent_config.get("tools", _MISSING)
 
             # Debug log
             logger.debug(
-                f"Agent '{agent_name}' raw toolsets config: {agent_toolsets_config}, type: {type(agent_toolsets_config)}"
+                f"Agent '{agent_name}' raw tools config: {agent_tools_config}, type: {type(agent_tools_config)}"
             )
 
             # Convert Lua table to Python list if needed
             if (
-                agent_toolsets_config is not _MISSING
-                and agent_toolsets_config is not None
-                and hasattr(agent_toolsets_config, "__len__")
+                agent_tools_config is not _MISSING
+                and agent_tools_config is not None
+                and hasattr(agent_tools_config, "__len__")
             ):
                 try:
                     # Try to convert Lua table to list
-                    agent_toolsets_config = (
-                        list(agent_toolsets_config.values())
-                        if hasattr(agent_toolsets_config, "values")
-                        else list(agent_toolsets_config)
+                    agent_tools_config = (
+                        list(agent_tools_config.values())
+                        if hasattr(agent_tools_config, "values")
+                        else list(agent_tools_config)
                     )
-                    logger.debug(
-                        f"Agent '{agent_name}' converted toolsets to: {agent_toolsets_config}"
-                    )
+                    logger.debug(f"Agent '{agent_name}' converted tools to: {agent_tools_config}")
                 except (TypeError, AttributeError):
                     # If conversion fails, leave as-is
                     pass
 
-            if agent_toolsets_config is _MISSING:
-                # No toolsets key present - use default toolsets if configured, otherwise all
+            if agent_tools_config is _MISSING:
+                # No tools key present - use default toolsets if configured, otherwise all
                 if default_toolset_names:
                     filtered_toolsets = self._parse_toolset_expressions(default_toolset_names)
                     logger.info(
@@ -1785,17 +1819,15 @@ class TactusRuntime:
                     logger.info(
                         f"Agent '{agent_name}' using all available toolsets (no defaults configured)"
                     )
-            elif isinstance(agent_toolsets_config, list) and len(agent_toolsets_config) == 0:
-                # Explicitly empty list - no toolsets
+            elif isinstance(agent_tools_config, list) and len(agent_tools_config) == 0:
+                # Explicitly empty list - no tools
                 # Use None instead of [] to completely disable tool calling for Bedrock models
                 filtered_toolsets = None
-                logger.info(
-                    f"Agent '{agent_name}' has NO toolsets (explicitly empty - passing None)"
-                )
+                logger.info(f"Agent '{agent_name}' has NO tools (explicitly empty - passing None)")
             else:
                 # Parse toolset expressions
-                logger.info(f"Agent '{agent_name}' raw toolsets config: {agent_toolsets_config}")
-                filtered_toolsets = self._parse_toolset_expressions(agent_toolsets_config)
+                logger.info(f"Agent '{agent_name}' raw tools config: {agent_tools_config}")
+                filtered_toolsets = self._parse_toolset_expressions(agent_tools_config)
                 logger.info(f"Agent '{agent_name}' parsed toolsets: {filtered_toolsets}")
 
             # Append inline tools toolset if present
@@ -1834,13 +1866,21 @@ class TactusRuntime:
                 except Exception as e:
                     logger.warning(f"Failed to create output model for agent '{agent_name}': {e}")
             elif self.config.get("output"):
-                # Use procedure-level output schema
-                output_schema = self.config["output"]
-                try:
-                    self._create_output_model_from_schema(output_schema, f"{agent_name}Output")
-                    logger.info(f"Using procedure-level output schema for agent '{agent_name}'")
-                except Exception as e:
-                    logger.warning(f"Failed to create output model from procedure schema: {e}")
+                # Procedure-level output schemas apply to procedures, not agents.
+                # Only use them as a fallback for agent structured output when they are
+                # object-shaped (i.e., a dict of fields). Scalar procedure outputs
+                # (e.g., `output = field.string{...}`) are not agent output schemas.
+                procedure_output_schema = self.config["output"]
+                if (
+                    isinstance(procedure_output_schema, dict)
+                    and "type" not in procedure_output_schema
+                ):
+                    output_schema = procedure_output_schema
+                    try:
+                        self._create_output_model_from_schema(output_schema, f"{agent_name}Output")
+                        logger.info(f"Using procedure-level output schema for agent '{agent_name}'")
+                    except Exception as e:
+                        logger.warning(f"Failed to create output model from procedure schema: {e}")
 
             # Extract message history filter if configured
             message_history_filter = None
@@ -2391,6 +2431,135 @@ class TactusRuntime:
             logger.error(f"Legacy procedure execution failed: {e}")
             raise
 
+    def _maybe_transform_script_mode_source(self, source: str) -> str:
+        """
+        Transform "script mode" source into an implicit Procedure wrapper.
+
+        Script mode allows:
+          input { ... }
+          output { ... }
+          -- declarations (Agent/Tool/Mocks/etc.)
+          -- executable code
+          return {...}
+
+        During parsing, the Lua chunk is executed to collect declarations, but agents
+        are not yet wired to toolsets/LLMs. Without transformation, top-level code
+        would execute too early. We split declaration blocks from executable code and
+        wrap the executable portion into an implicit `Procedure { function(input) ... end }`.
+        """
+        import re
+
+        # If an explicit Procedure exists (any syntax), do not transform.
+        # Examples:
+        #   Procedure { ... }
+        #   main = Procedure { ... }
+        #   Procedure "main" { ... }
+        #   main = Procedure "main" { ... }
+        if re.search(r"(?m)^\s*(?:[A-Za-z_][A-Za-z0-9_]*\s*=\s*)?Procedure\b", source):
+            return source
+
+        # Detect script mode by top-level input/output declarations OR a top-level `return`.
+        # We intentionally treat simple "hello world" scripts as script-mode so agent/tool
+        # calls don't execute during the parse/declaration phase.
+        if not re.search(r"(?m)^\s*(input|output)\s*\{", source) and not re.search(
+            r"(?m)^\s*return\b", source
+        ):
+            return source
+
+        # Split into declaration prefix vs executable body.
+        decl_lines: list[str] = []
+        body_lines: list[str] = []
+
+        # Once we enter executable code, everything stays in the body.
+        in_body = False
+        brace_depth = 0
+        long_string_eq: str | None = None
+
+        decl_start = re.compile(
+            r"^\s*(?:"
+            r"input|output|Mocks|Agent|Toolset|Tool|Model|Module|Signature|LM|Dependency|Prompt|"
+            r"Specifications|Evaluation|Evaluations|"
+            r"default_provider|default_model|return_prompt|error_prompt|status_prompt|async|"
+            r"max_depth|max_turns"
+            r")\b"
+        )
+        require_stmt = re.compile(r"^\s*(?:local\s+)?[A-Za-z_][A-Za-z0-9_]*\s*=\s*require\(")
+        assignment_decl = re.compile(
+            r"^\s*[A-Za-z_][A-Za-z0-9_]*\s*=\s*(?:"
+            r"Agent|Toolset|Tool|Model|Module|Signature|LM|Dependency|Prompt"
+            r")\b"
+        )
+
+        long_string_open = re.compile(r"\[(=*)\[")
+
+        for line in source.splitlines():
+            if in_body:
+                body_lines.append(line)
+                continue
+
+            stripped = line.strip()
+
+            # If we're inside a Lua long-bracket string (e.g., Specification([[ ... ]]) / Specifications([[ ... ]]))
+            # keep consuming lines as declarations until we see the closing delimiter.
+            if long_string_eq is not None:
+                decl_lines.append(line)
+                if f"]{long_string_eq}]" in line:
+                    long_string_eq = None
+                continue
+
+            # If we're inside a declaration block, keep consuming until braces balance.
+            added_to_decl = False
+            if brace_depth > 0:
+                decl_lines.append(line)
+                added_to_decl = True
+            elif stripped == "" or stripped.startswith("--"):
+                decl_lines.append(line)
+                added_to_decl = True
+            elif decl_start.match(line) or assignment_decl.match(line) or require_stmt.match(line):
+                decl_lines.append(line)
+                added_to_decl = True
+            else:
+                in_body = True
+                body_lines.append(line)
+
+            # Track Lua long-bracket strings opened in the declaration prefix (e.g. Specification([[...]])).
+            # We only need a lightweight heuristic here; spec/eval blocks should be simple and well-formed.
+            if added_to_decl:
+                m = long_string_open.search(line)
+                if m:
+                    eq = m.group(1)
+                    # If the opening and closing are on the same line, don't enter long-string mode.
+                    if f"]{eq}]" not in line[m.end() :]:
+                        long_string_eq = eq
+
+            # Update brace depth based on a lightweight heuristic (sufficient for DSL blocks).
+            # This intentionally ignores Lua string/comment edge cases; declarations should be simple.
+            brace_depth += line.count("{") - line.count("}")
+            if brace_depth < 0:
+                brace_depth = 0
+
+        # If there is no executable code, nothing to wrap.
+        if not any(line.strip() for line in body_lines):
+            return source
+
+        # Indent executable code inside the implicit procedure function.
+        indented_body = "\n".join(("    " + line) if line != "" else "" for line in body_lines)
+
+        transformed = "\n".join(
+            [
+                *decl_lines,
+                "",
+                "Procedure {",
+                "    function(input)",
+                indented_body,
+                "    end",
+                "}",
+                "",
+            ]
+        )
+
+        return transformed
+
     def _process_template(self, template: str, context: Dict[str, Any]) -> str:
         """
         Process a template string with variable substitution.
@@ -2620,9 +2789,9 @@ class TactusRuntime:
                     "provider": agent.provider,
                     "model": agent.model,
                     "system_prompt": agent.system_prompt,
-                    # Use toolsets instead of tools (breaking change)
+                    # Tools control tool calling availability (tool/toolset references + expressions)
                     # Keep empty list as [] (not None) to preserve "explicitly no tools" intent
-                    "toolsets": agent.tools,
+                    "tools": agent.tools,
                     "max_turns": agent.max_turns,
                     "disable_streaming": agent.disable_streaming,
                 }
@@ -2634,8 +2803,8 @@ class TactusRuntime:
                 if agent.model_type is not None:
                     config["agents"][name]["model_type"] = agent.model_type
                 # Include inline tool definitions if present
-                if hasattr(agent, "inline_tool_defs") and agent.inline_tool_defs:
-                    config["agents"][name]["inline_tool_defs"] = agent.inline_tool_defs
+                if agent.inline_tools:
+                    config["agents"][name]["inline_tools"] = agent.inline_tools
                 if agent.initial_message:
                     config["agents"][name]["initial_message"] = agent.initial_message
                 if agent.output:

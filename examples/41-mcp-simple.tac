@@ -13,25 +13,26 @@ mcp_servers:
 ]]
 
 -- Define agent with one MCP tool
+local done = require("tactus.tools.done")
+
 greeter = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
     system_prompt = [[
 You are a friendly greeter.
 Call the greet tool with the name "Alice" and then call done.
-]],
+	]],
     initial_message = "Greet Alice",
-    toolsets = {
-        "test_server_greet",
-        "done"
-    }
+    tools = {"test_server", done},
 }
 
 -- Execute procedure
 
 Procedure {
     output = {
-            result = field.string{description = "Result"}
+            success = field.boolean{required = true},
+            message = field.string{required = false},
+            error = field.string{required = false},
     },
     function(input)
 
@@ -59,3 +60,16 @@ Procedure {
 
     end
 }
+
+Specification([[
+Feature: MCP tool usage
+
+  Scenario: Greets via MCP tool and completes
+    Given the procedure has started
+    And the agent "greeter" responds with "Hello, Alice!"
+    And the agent "greeter" calls tool "test_server_greet" with args {"name": "Alice"}
+    And the agent "greeter" calls tool "done" with args {"reason": "Hello, Alice!"}
+    When the procedure runs
+    Then the output success should be true
+    And the output message should be "MCP tool test successful"
+]])

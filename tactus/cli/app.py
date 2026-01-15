@@ -721,6 +721,7 @@ def run(
         # Handle global flags
         if mock_all:
             mock_manager.enable_mock()
+            runtime.mock_all_agents = True
             console.print("[yellow]Mocking enabled for all tools[/yellow]")
         elif real_all:
             mock_manager.disable_mock()
@@ -806,7 +807,16 @@ def run(
             # Display results
             if result.get("result"):
                 console.print("\n[green]Result:[/green]")
-                console.print(f"  {result['result']}")
+                display_result = result["result"]
+                try:
+                    from tactus.protocols.result import TactusResult
+
+                    if isinstance(display_result, TactusResult):
+                        display_result = display_result.output
+                except Exception:
+                    pass
+
+                console.print(f"  {display_result}")
 
             # Display state
             if result.get("state"):

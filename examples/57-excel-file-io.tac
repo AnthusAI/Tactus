@@ -141,7 +141,7 @@ Procedure {
     end
 }
 
-Specifications([[
+Specification([[
 Feature: Excel File IO
   Business data processing with spreadsheets
 

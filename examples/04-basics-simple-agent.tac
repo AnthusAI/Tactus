@@ -45,22 +45,14 @@ Procedure {
     end
 }
 
--- Agent mock for CI testing (used when mocks are enabled)
-Mocks {
-    greeter = {
-        tool_calls = {
-            { tool = "done", args = { reason = "Hello! Welcome! I hope you have a wonderful day." } }
-        },
-        message = "Hello! Welcome! I hope you have a wonderful day."
-    }
-}
-
-Specifications([[
+Specification([[
 Feature: Simple Agent Interaction
   Demonstrate basic LLM agent interaction with done tool
 
   Scenario: Agent generates greeting using real LLM
     Given the procedure has started
+    And the agent "greeter" responds with "Hello! Welcome! I hope you have a wonderful day."
+    And the agent "greeter" calls tool "done" with args {"reason": "Hello! Welcome! I hope you have a wonderful day."}
     When the procedure runs
     Then the done tool should be called
     And the procedure should complete successfully

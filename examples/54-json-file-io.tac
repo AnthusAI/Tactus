@@ -128,7 +128,7 @@ Procedure {
     end
 }
 
-Specifications([[
+Specification([[
 Feature: JSON File IO
   Read and write complex JSON structures
 

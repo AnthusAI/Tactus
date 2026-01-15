@@ -11,7 +11,7 @@ completer = Agent {
     system_prompt = [[You are a helpful assistant that completes tasks.
 
 When you complete a task, call the 'done' tool with your result.
-Always start your response with "TASK_COMPLETE: " followed by your actual work.]],
+    Always start your response with "TASK_COMPLETE: " followed by your actual work.]],
     initial_message = "{task}\n\nPlease complete this task now.",
     tools = {done}
 }
@@ -47,22 +47,14 @@ Procedure {
     end
 }
 
--- Agent Mocks for CI testing
-Mocks {
-    completer = {
-        tool_calls = {
-            {tool = "done", args = {reason = "TASK_COMPLETE: Task completed successfully."}}
-        },
-        message = "I've completed the task."
-    }
-}
-
-Specifications([[
+Specification([[
 Feature: Task Completion with External Dataset
 
   Scenario: Agent completes task from external dataset
     Given the procedure has started
     And the input task is "Say hello to the world"
+    And the agent "completer" responds with "I've completed the task."
+    And the agent "completer" calls tool "done" with args {"reason": "TASK_COMPLETE: Task completed successfully."}
     When the procedure runs
     Then the done tool should be called
     And the procedure should complete successfully
@@ -72,7 +64,7 @@ Feature: Task Completion with External Dataset
 -- Note: Evaluations framework is partially implemented.
 -- Commented out until field.contains, field.llm_judge are available.
 --[[
-Evaluations({
+Evaluation({
     runs = 2,
     parallel = true,
 

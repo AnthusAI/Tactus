@@ -6,7 +6,7 @@ Enables type safety and composability for sub-agent workflows.
 """
 
 import logging
-from typing import Dict, Any, Optional, List
+from typing import Any, Optional, List
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,16 @@ class OutputValidator:
         "array": list,
     }
 
-    def __init__(self, output_schema: Optional[Dict[str, Any]] = None):
+    @classmethod
+    def _is_scalar_schema(cls, schema: Any) -> bool:
+        return (
+            isinstance(schema, dict)
+            and "type" in schema
+            and isinstance(schema.get("type"), str)
+            and schema.get("type") in cls.TYPE_MAP
+        )
+
+    def __init__(self, output_schema: Optional[Any] = None):
         """
         Initialize validator with output schema.
 
@@ -57,9 +66,17 @@ class OutputValidator:
                 }
         """
         self.schema = output_schema or {}
-        logger.debug(f"OutputValidator initialized with {len(self.schema)} output fields")
 
-    def validate(self, output: Any) -> Dict[str, Any]:
+        if self._is_scalar_schema(self.schema):
+            logger.debug("OutputValidator initialized with scalar output schema")
+        else:
+            try:
+                field_count = len(self.schema)
+            except TypeError:
+                field_count = 0
+            logger.debug(f"OutputValidator initialized with {field_count} output fields")
+
+    def validate(self, output: Any) -> Any:
         """
         Validate workflow output against schema.
 
@@ -72,16 +89,56 @@ class OutputValidator:
         Raises:
             OutputValidationError: If validation fails
         """
+        # If a procedure returns a Result wrapper, validate its `.output` payload
+        # while preserving the wrapper (so callers can still access usage/cost/etc.).
+        from tactus.protocols.result import TactusResult
+
+        wrapped_result: TactusResult | None = output if isinstance(output, TactusResult) else None
+        if wrapped_result is not None:
+            output = wrapped_result.output
+
         # If no schema defined, accept any output
         if not self.schema:
             logger.debug("No output schema defined, skipping validation")
             if isinstance(output, dict):
-                return output
+                validated_payload = output
             elif hasattr(output, "items"):
                 # Lua table - convert to dict
-                return dict(output.items())
+                validated_payload = dict(output.items())
             else:
-                return {"result": output}
+                validated_payload = output
+
+            if wrapped_result is not None:
+                return wrapped_result.model_copy(update={"output": validated_payload})
+            return validated_payload
+
+        # Scalar output schema: `output = field.string{...}` etc.
+        if self._is_scalar_schema(self.schema):
+            # Lua tables are not valid scalar outputs.
+            if hasattr(output, "items") and not isinstance(output, dict):
+                output = dict(output.items())
+
+            is_required = self.schema.get("required", False)
+            if output is None and not is_required:
+                return None
+
+            expected_type = self.schema.get("type")
+            if expected_type and not self._check_type(output, expected_type):
+                raise OutputValidationError(
+                    f"Output should be {expected_type}, got {type(output).__name__}"
+                )
+
+            if "enum" in self.schema and self.schema["enum"]:
+                allowed_values = self.schema["enum"]
+                if output not in allowed_values:
+                    raise OutputValidationError(
+                        f"Output has invalid value '{output}'. Allowed values: {allowed_values}"
+                    )
+
+            validated_payload = output
+            if wrapped_result is not None:
+                return wrapped_result.model_copy(update={"output": validated_payload})
+            return validated_payload
 
         # Convert Lua tables to dicts recursively
         if hasattr(output, "items") or isinstance(output, dict):
@@ -99,16 +156,13 @@ class OutputValidator:
 
         # Check required fields and validate types
         for field_name, field_def in self.schema.items():
-            # Check if it's the new syntax
-            from tactus.core.dsl_stubs import FieldDefinition
-
-            if not isinstance(field_def, FieldDefinition):
+            if not isinstance(field_def, dict) or "type" not in field_def:
                 errors.append(
                     f"Field '{field_name}' uses old type syntax. "
                     f"Use field.{field_def.get('type', 'string')}{{}} instead."
                 )
                 continue
-            is_required = field_def.get("required", False)
+            is_required = bool(field_def.get("required", False))
 
             if is_required and field_name not in output:
                 errors.append(f"Required field '{field_name}' is missing")
@@ -151,6 +205,8 @@ class OutputValidator:
             raise OutputValidationError(error_msg)
 
         logger.info(f"Output validation passed for {len(validated_output)} fields")
+        if wrapped_result is not None:
+            return wrapped_result.model_copy(update={"output": validated_output})
         return validated_output
 
     def _check_type(self, value: Any, expected_type: str) -> bool:
@@ -209,10 +265,8 @@ class OutputValidator:
     def get_field_description(self, field_name: str) -> Optional[str]:
         """Get description for an output field."""
         if field_name in self.schema:
-            from tactus.core.dsl_stubs import FieldDefinition
-
             field_def = self.schema[field_name]
-            if isinstance(field_def, FieldDefinition):
+            if isinstance(field_def, dict):
                 return field_def.get("description")
         return None
 

@@ -65,13 +65,13 @@ IMPORTANT: You MUST call the appropriate tool for EVERY calculation. Never calcu
 
 After calling the calculation tool, call done with the result.]],
     initial_message = "{input.task}",
-    toolsets = {
+    tools = {
         -- Reference individual tools by name
         "calculate_tip",
         "split_bill",
         "calculate_discount",
-        "done"
-    }
+        done,
+    },
 }
 
 -- Main workflow
@@ -110,7 +110,7 @@ Procedure {
         if done.called() then
             answer = done.last_result() or "Task completed"
         else
-            answer = result.message
+            answer = result and tostring(result.output) or ""
         end
 
         return {
@@ -120,24 +120,16 @@ Procedure {
     end
 }
 
--- Agent Mocks for CI testing
-Mocks {
-    calculator = {
-        tool_calls = {
-            {tool = "calculate_tip", args = {bill_amount = 50, tip_percentage = 20}},
-            {tool = "done", args = {reason = "Bill: $50.00, Tip (20%): $10.00, Total: $60.00"}}
-        },
-        message = "I've calculated the tip for you."
-    }
-}
-
 -- BDD Specifications
-Specifications([[
+Specification([[
 Feature: Individual Lua Function Tools
   Demonstrate tool() function for defining individual tools
 
   Scenario: Calculator calculates 20% tip on $50
     Given the procedure has started
+    And the agent "calculator" responds with "I've calculated the tip for you."
+    And the agent "calculator" calls tool "calculate_tip" with args {"bill_amount": 50, "tip_percentage": 20}
+    And the agent "calculator" calls tool "done" with args {"reason": "Bill: $50.00, Tip (20%): $10.00, Total: $60.00"}
     When the procedure runs
     Then the procedure should complete successfully
     And the output completed should be True
