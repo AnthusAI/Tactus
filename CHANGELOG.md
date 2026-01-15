@@ -2,6 +2,38 @@
 
 <!-- version list -->
 
+## v0.29.4 (2026-01-15)
+
+### Bug Fixes
+
+- Sync desktop app version with semantic-release version in filenames
+  ([`212eec0`](https://github.com/AnthusAI/Tactus/commit/212eec0c179c6b1d3aa47b4d595be91db696f114))
+
+
+## v0.29.3 (2026-01-15)
+
+### Bug Fixes
+
+- Ensure desktop builds fetch tags and attach to correct semantic-release version
+  ([`679f132`](https://github.com/AnthusAI/Tactus/commit/679f1321a46809facfa0e0146907076f071478af))
+
+
+## v0.29.2 (2026-01-15)
+
+### Bug Fixes
+
+- Upgrade Node.js to version 20 for desktop builds
+  ([`f08380d`](https://github.com/AnthusAI/Tactus/commit/f08380da9f326667943e793f7aa73902d15d4d49))
+
+
+## v0.29.1 (2026-01-15)
+
+### Bug Fixes
+
+- Add type module to tactus-desktop package.json for ES module support
+  ([`7b0bdaa`](https://github.com/AnthusAI/Tactus/commit/7b0bdaa8272f010be73137ed1f727b0bfad48827))
+
+
 ## v0.29.0 (2026-01-15)
 
 ### Code Style
