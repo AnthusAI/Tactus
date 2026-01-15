@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.29.3 (2026-01-15)
+
+### Bug Fixes
+
+- Ensure desktop builds fetch tags and attach to correct semantic-release version
+  ([`679f132`](https://github.com/AnthusAI/Tactus/commit/679f1321a46809facfa0e0146907076f071478af))
+
+
 ## v0.29.2 (2026-01-15)
 
 ### Bug Fixes
