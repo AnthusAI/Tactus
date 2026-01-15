@@ -123,6 +123,21 @@ jobs:
           pip install pyinstaller
           pip install -e .
 
+      - name: Get release version and update package.json
+        id: get_version
+        run: |
+          # Get the latest tag created by semantic-release
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          VERSION=${LATEST_TAG#v}  # Remove 'v' prefix
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+          echo "Found release version: $VERSION"
+
+          # Update package.json version
+          cd tactus-desktop
+          npm version $VERSION --no-git-tag-version --allow-same-version
+        shell: bash
+
       - name: Install Node dependencies (Desktop)
         working-directory: ./tactus-desktop
         run: npm install
@@ -154,15 +169,6 @@ jobs:
         working-directory: ./tactus-desktop
         run: npm run package:linux
 
-      - name: Get latest release tag
-        id: version
-        run: |
-          # Get the latest tag created by semantic-release
-          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-          echo "tag=$LATEST_TAG" >> $GITHUB_OUTPUT
-          echo "Found release tag: $LATEST_TAG"
-        shell: bash
-
       - name: Upload Desktop Artifacts to GitHub Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -173,7 +179,7 @@ jobs:
         if: success()
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ steps.version.outputs.tag }}
+          tag_name: ${{ steps.get_version.outputs.tag }}
           files: tactus-desktop/dist-electron/*
           fail_on_unmatched_files: false
         env:
