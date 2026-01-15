@@ -28,6 +28,7 @@ from rich.table import Table
 from tactus.core import TactusRuntime
 from tactus.core.yaml_parser import ProcedureYAMLParser, ProcedureConfigError
 from tactus.validation import TactusValidator, ValidationMode
+from tactus.formatting import TactusFormatter, FormattingError
 from tactus.adapters.memory import MemoryStorage
 from tactus.adapters.file_storage import FileStorage
 from tactus.adapters.cli_hitl import CLIHITLHandler
@@ -1114,6 +1115,56 @@ def validate(
         if verbose:
             console.print_exception()
         raise typer.Exit(1)
+
+
+@app.command("format")
+def format_(
+    workflow_file: Path = typer.Argument(..., help="Path to workflow file (.tac or .lua)"),
+    check: bool = typer.Option(
+        False,
+        "--check",
+        help="Don't write files back; exit 1 if changes are needed",
+    ),
+    stdout: bool = typer.Option(False, "--stdout", help="Write formatted code to stdout"),
+):
+    """
+    Format a Tactus Lua DSL file.
+
+    Currently enforces semantic indentation using 2-space soft tabs.
+    """
+    if not workflow_file.exists():
+        console.print(f"[red]Error:[/red] Workflow file not found: {workflow_file}")
+        raise typer.Exit(1)
+
+    if workflow_file.suffix not in [".tac", ".lua"]:
+        console.print("[red]Error:[/red] Formatting is only supported for .tac/.lua files")
+        raise typer.Exit(1)
+
+    formatter = TactusFormatter(indent_width=2)
+    source_content = workflow_file.read_text()
+
+    try:
+        result = formatter.format_source(source_content)
+    except FormattingError as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(1)
+
+    if stdout:
+        sys.stdout.write(result.formatted)
+        return
+
+    if check:
+        if result.changed:
+            console.print(f"[red]✗ Would reformat:[/red] {workflow_file}")
+            raise typer.Exit(1)
+        console.print(f"[green]✓ Already formatted:[/green] {workflow_file}")
+        return
+
+    if result.changed:
+        workflow_file.write_text(result.formatted)
+        console.print(f"[green]✓ Formatted:[/green] {workflow_file}")
+    else:
+        console.print(f"[green]✓ No changes:[/green] {workflow_file}")
 
 
 @app.command()

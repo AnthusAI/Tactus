@@ -376,6 +376,10 @@ Tactus has two distinct testing mechanisms that serve different purposes:
 
 The Tactus CLI provides powerful tools for developing and debugging agents.
 
+### Formatting `.tac` Files
+
+Use `tactus format` to automatically reindent and normalize whitespace in `.tac` files.
+
 ### Running and Debugging Procedures
 
 When you run a procedure with `tactus run`, you get real-time visibility into what's happening:

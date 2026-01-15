@@ -6,36 +6,36 @@ Stages({"start", "middle", "end"})
 
 -- Procedure with input, output, and state defined inline
 Procedure {
-    input = {
-        target_count = field.number{required = false, description = "Target counter value", default = 5},
-    },
-    output = {
-        final_count = field.number{required = true, description = "Final counter value"},
-        message = field.string{required = true, description = "Status message"},
-    },
-    function(input)
-        -- Initialize
-        Stage.set("start")
+  input = {
+    target_count = field.number{required = false, description = "Target counter value", default = 5},
+  },
+  output = {
+    final_count = field.number{required = true, description = "Final counter value"},
+    message = field.string{required = true, description = "Status message"},
+  },
+  function(input)
+    -- Initialize
+    Stage.set("start")
 
-        -- Do work
-        local target = input.target_count or 5
-        for i = 1, target do
-            state.counter = i
-        end
-
-        -- Transition to middle
-        Stage.set("middle")
-        state.message = "halfway"
-
-        -- Complete
-        Stage.set("end")
-        state.message = "complete"
-
-        return {
-            final_count = state.counter,
-            message = state.message
-        }
+    -- Do work
+    local target = input.target_count or 5
+    for i = 1, target do
+      state.counter = i
     end
+
+    -- Transition to middle
+    Stage.set("middle")
+    state.message = "halfway"
+
+    -- Complete
+    Stage.set("end")
+    state.message = "complete"
+
+    return {
+      final_count = state.counter,
+      message = state.message
+    }
+  end
 }
 
 -- BDD Specifications
