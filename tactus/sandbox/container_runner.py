@@ -193,6 +193,7 @@ class ContainerRunner:
         # Option 2: Find via the tactus module location
         try:
             import tactus
+
             tactus_module_path = Path(tactus.__file__).resolve()
             # Go up from tactus/__init__.py to the repo root
             repo_root = tactus_module_path.parent.parent
@@ -266,7 +267,9 @@ class ContainerRunner:
                 logger.info(f"[DEV MODE] Mounting live Tactus source from: {tactus_src_dir}")
                 cmd.extend(["-v", f"{tactus_src_dir}/tactus:/app/tactus:ro"])
             else:
-                logger.warning("[DEV MODE] Could not locate Tactus source directory, using baked-in version")
+                logger.warning(
+                    "[DEV MODE] Could not locate Tactus source directory, using baked-in version"
+                )
 
         # Additional user-configured volumes
         for volume in self.config.volumes:
