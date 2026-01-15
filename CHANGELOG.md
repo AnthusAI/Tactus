@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.31.1 (2026-01-15)
+
+### Bug Fixes
+
+- Only upload installer files (dmg/exe/AppImage) to release, not entire dist-electron directory
+  ([`424e9e2`](https://github.com/AnthusAI/Tactus/commit/424e9e267be1972e1a2eed5d8c06961cc74e4c26))
+
+
 ## v0.31.0 (2026-01-15)
 
 ### Chores
