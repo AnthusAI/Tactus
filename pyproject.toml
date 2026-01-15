@@ -59,6 +59,20 @@ dev = [
     "antlr4-tools>=0.2.1",
     "fastmcp>=2.3.5",
 ]
+# Notification channel optional dependencies
+slack = [
+    "slack-sdk>=3.0",
+]
+discord = [
+    "discord.py>=2.0",
+]
+email = [
+    "aiosmtplib>=3.0",
+]
+# Install all notification channels
+notifications = [
+    "tactus[slack,discord,email]",
+]
 
 [project.scripts]
 tactus = "tactus.cli.app:main"
