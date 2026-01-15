@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.29.1 (2026-01-15)
+
+### Bug Fixes
+
+- Add type module to tactus-desktop package.json for ES module support
+  ([`7b0bdaa`](https://github.com/AnthusAI/Tactus/commit/7b0bdaa8272f010be73137ed1f727b0bfad48827))
+
+
 ## v0.29.0 (2026-01-15)
 
 ### Code Style
