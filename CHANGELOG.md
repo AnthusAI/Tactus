@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v0.29.0 (2026-01-15)
+
+### Code Style
+
+- Run black formatter on container_runner.py
+  ([`9338945`](https://github.com/AnthusAI/Tactus/commit/93389452b4a059607e4d50535b8bac348c085ab1))
+
+### Features
+
+- **desktop**: Integrate Electron desktop builds into semantic-release workflow
+  ([`77a1fbe`](https://github.com/AnthusAI/Tactus/commit/77a1fbe2e9807c1e6a6ad12c574cdae6f1687f73))
+
+
 ## v0.28.0 (2026-01-14)
 
 ### Bug Fixes
