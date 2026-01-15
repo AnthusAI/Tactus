@@ -4,7 +4,11 @@
 -- Procedure with input, output, and state defined inline
 Procedure {
     input = {
-        target_count = field.number{required = false, description = "Target counter value", default = 5},
+        target_count = field.number{
+            required = false,
+            description = "Target counter value",
+            default = 5,
+        },
     },
     output = {
         final_count = field.number{required = true, description = "Final counter value"},
@@ -15,12 +19,9 @@ Procedure {
         for i = 1, target do
             state.counter = i
         end
-        state.message = "complete"
 
-        return {
-            final_count = state.counter,
-            message = state.message
-        }
+        state.message = "complete"
+        return {final_count = state.counter, message = state.message}
     end
 }
 

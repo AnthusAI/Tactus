@@ -90,3 +90,97 @@ jobs:
         run: |
           pip install twine
           twine upload --skip-existing dist/*
+
+  desktop-builds:
+    name: Build Desktop Apps
+    runs-on: ${{ matrix.os }}
+    needs: release
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+          pip install -e .
+
+      - name: Get release version and update package.json
+        id: get_version
+        run: |
+          # Get the latest tag created by semantic-release
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          VERSION=${LATEST_TAG#v}  # Remove 'v' prefix
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+          echo "Found release version: $VERSION"
+
+          # Update package.json version
+          cd tactus-desktop
+          npm version $VERSION --no-git-tag-version --allow-same-version
+        shell: bash
+
+      - name: Install Node dependencies (Desktop)
+        working-directory: ./tactus-desktop
+        run: npm install
+
+      - name: Build Frontend
+        working-directory: ./tactus-desktop
+        run: npm run build:frontend
+
+      - name: Build Backend
+        working-directory: ./tactus-desktop
+        run: npm run build:backend
+
+      - name: Build Electron
+        working-directory: ./tactus-desktop
+        run: npm run build
+
+      - name: Package Application (macOS)
+        if: matrix.os == 'macos-latest'
+        working-directory: ./tactus-desktop
+        run: npm run package:mac
+
+      - name: Package Application (Windows)
+        if: matrix.os == 'windows-latest'
+        working-directory: ./tactus-desktop
+        run: npm run package:win
+
+      - name: Package Application (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: ./tactus-desktop
+        run: npm run package:linux
+
+      - name: Upload Desktop Artifacts to GitHub Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.os }}
+          path: tactus-desktop/dist-electron/*
+
+      - name: Attach Desktop Builds to Release
+        if: success()
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.get_version.outputs.tag }}
+          files: tactus-desktop/dist-electron/*
+          fail_on_unmatched_files: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}

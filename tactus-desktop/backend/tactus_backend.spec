@@ -19,6 +19,8 @@ antlr_modules = collect_submodules('antlr4')
 tactus_datas = collect_data_files('tactus', include_py_files=True)
 antlr_datas = collect_data_files('antlr4')
 lupa_datas = collect_data_files('lupa', include_py_files=True)
+behave_datas = collect_data_files('behave')
+gherkin_datas = collect_data_files('gherkin')
 
 # Manually collect lupa native libraries
 # collect_dynamic_libs doesn't find them, so we do it explicitly
@@ -34,6 +36,8 @@ a = Analysis(
         *tactus_datas,
         *antlr_datas,
         *lupa_datas,
+        *behave_datas,
+        *gherkin_datas,
         *copy_metadata('genai_prices'),
         *copy_metadata('pydantic_ai_slim'),
         *copy_metadata('pydantic_ai'),
@@ -58,6 +62,8 @@ a = Analysis(
         'rich',
         'dotyaml',
         'genai_prices',
+        'behave',
+        'gherkin',
     ],
     hookspath=[os.path.join(SPECPATH)],  # Use custom hooks from this directory
     hooksconfig={},

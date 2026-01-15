@@ -1612,6 +1612,12 @@ Agents:
 # Validate syntax and structure
 tactus validate workflow.tac
 
+# Format a workflow file (2-space indentation + normalized spacing)
+tactus format workflow.tac
+
+# Check formatting without rewriting (exit 1 if changes needed)
+tactus format workflow.tac --check
+
 # Run BDD specifications
 tactus test workflow.tac
 
@@ -1621,6 +1627,8 @@ tactus test workflow.tac --runs 10
 # Evaluate with Pydantic AI Evals
 tactus eval workflow.tac --runs 10
 ```
+
+The `format` command uses Tactus's Lua parser to reindent and normalize whitespace while preserving the structure of the code.
 
 ### Understanding Output
 

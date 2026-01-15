@@ -2,6 +2,7 @@
   "name": "tactus-desktop",
   "version": "0.1.0",
   "description": "Tactus IDE - Desktop Application",
+  "type": "module",
   "main": "dist/src/main.js",
   "author": "Anthus <info@anthus.ai>",
   "license": "MIT",
