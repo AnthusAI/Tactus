@@ -47,9 +47,6 @@ worker = Agent {
     tools = {done}  -- Variable references, not strings
 }
 
--- Stages (optional)
-Stages({"planning", "executing", "complete"})
-
 -- Procedure (unnamed, defaults to "main")
 Procedure {
     -- Input (using field builder syntax)
@@ -1122,34 +1119,6 @@ local result = Human.approve({
 -- If on_timeout = "error", throws exception on timeout
 ```
 
-### HITL Stage Integration
-
-When a procedure is waiting for human interaction, its stage reflects this:
-
-```lua
-Stage.set("processing")
-do_work()
-
--- Procedure status becomes "waiting_for_human" during this call
-local approved = Human.approve({message = "Continue?"})
-
-Stage.set("finalizing")
-```
-
-Parent procedures can detect this:
-
-```lua
-local handle = Procedure.spawn("deployment", params)
-
-local status = Procedure.status(handle)
-if status.waiting_for_human then
-  -- Maybe notify via Slack
-  notify_channel("Deployment waiting for approval")
-end
-```
-
----
-
 ## Human-AI Chat (Non-Procedural)
 
 The same `ChatSession` and `ChatMessage` infrastructure supports regular conversational AI assistants that aren't running procedure workflows.
@@ -1327,7 +1296,6 @@ The runtime detects script mode during execution and performs source transformat
 - `input {}`
 - `output {}`
 - `Mocks {}`
-- `Stages()`
 - `Specification()` / `Specifications()`
 - Agent definitions: `name = Agent {}`
 - Tool definitions: `name = Tool {}` or imported via `require()` like `local done = require("tactus.tools.done")`
@@ -2157,35 +2125,6 @@ local status = handle.status()
 local result = handle.wait()
 ```
 
----
-
-## Stages
-
-Stages integrate with TaskStages monitoring:
-
-```lua
--- Define stages at top level
-Stages({"planning", "executing", "awaiting_human", "complete"})
-
--- Use in procedure
-Procedure {
-    function(input)
-        Stage.set("planning")
-        -- Do planning work...
-
-        Stage.advance("executing")
-        -- Execute tasks...
-
-        Stage.is("planning")  -- false
-        Stage.current()       -- "executing"
-
-        -- Continue with rest of procedure...
-    end
-}
-```
-
----
-
 ## Exception Handling
 
 ```lua
@@ -2407,16 +2346,6 @@ State.append("list", item)       -- Append to a list
 State.all()                      -- Get all state as table
 ```
 
-### Stage Primitives
-
-```lua
-Stage.current()
-Stage.set(name)
-Stage.advance(name)
-Stage.is(name)
-Stage.history()
-```
-
 ### Control Primitives
 
 ```lua
@@ -2587,9 +2516,6 @@ end
 ## Example: HITL Workflow
 
 ```lua
--- Define stages at top level
-Stages({"researching", "writing", "review", "publishing", "complete"})
-
 -- Define tools
 local done = require("tactus.tools.done")
 research = Tool {
@@ -2655,14 +2581,12 @@ Procedure {
     },
 
     function(input)
-        Stage.set("researching")
         Human.notify({
             message = "Starting content generation",
             level = "info",
             context = {topic = input.topic, target = input.target}
         })
 
-        Stage.set("writing")
         repeat
             writer()
         until done.called() or Iterations.exceeded(20)
@@ -2672,7 +2596,6 @@ Procedure {
         end
 
         -- Human review
-        Stage.set("review")
         local review = Human.review("review_content", {
             artifact = state.draft,
             artifact_type = "document"
@@ -2694,7 +2617,6 @@ Procedure {
         local final_content = review.edited_artifact or state.draft
 
         -- Approval to publish
-        Stage.set("publishing")
         local approved = Human.approve("confirm_publish")
 
         if not approved then
@@ -2711,7 +2633,6 @@ Procedure {
             context = {url = url}
         })
 
-        Stage.set("complete")
         return {published = true, url = url}
     end
 }
@@ -2722,9 +2643,6 @@ Procedure {
 ## Example: System Monitoring with Alerts
 
 ```lua
--- Define stages at top level
-Stages({"processing", "complete"})
-
 -- Main procedure
 Procedure {
     input = {
@@ -2741,8 +2659,6 @@ Procedure {
         local processed = 0
         local failed = 0
         local total = #input.items
-
-        Stage.set("processing")
 
         for i, item in ipairs(input.items) do
             local ok, result = pcall(process_item, item)
@@ -2790,8 +2706,6 @@ Procedure {
             end
         end
 
-        Stage.set("complete")
-
         -- Final status
         local level = failed > 0 and "warning" or "info"
         Human.notify({
@@ -2822,8 +2736,6 @@ A comprehensive example showing HITL with checkpointed tool calls, evaluation, a
 -- Note: This is a complex example showing multiple advanced features
 
 -- Define stages
-Stages({"analyzing", "drafting", "evaluating", "awaiting_approval", "promoting", "complete"})
-
 -- Import completion tool from standard library
 local done = require("tactus.tools.done")
 
@@ -2890,7 +2802,6 @@ Procedure {
         local attempt = 1
 
         -- Evaluate champion FIRST (checkpointed, runs once)
-        Stage.set("analyzing")
 
         state.champion_config = Step.checkpoint(function()
             return plexus_get_score.run({score_id = input.score_id})
@@ -2923,7 +2834,6 @@ Procedure {
             state.analysis_findings = done.last_result()
 
             -- Draft improved configuration
-            Stage.set("drafting")
 
             repeat
                 drafter()
@@ -2937,7 +2847,6 @@ Procedure {
             state.candidate_config = candidate_config
 
             -- Evaluate candidate (checkpointed per attempt)
-            Stage.set("evaluating")
 
             local eval_result = Step.checkpoint(function()
                 return plexus_run_evaluation.run({
@@ -2973,7 +2882,6 @@ Procedure {
                 end
             else
                 -- Request human approval
-                Stage.set("awaiting_approval")
 
                 local review = Human.review("approval_to_promote", {
                     artifact = {
@@ -2986,8 +2894,6 @@ Procedure {
                 })
 
                 if review.decision == "Approve" then
-                    Stage.set("promoting")
-
                     local result = Step.checkpoint(function()
                         return plexus_promote_score_version.run({
                             score_id = input.score_id,
@@ -3001,7 +2907,6 @@ Procedure {
                         context = {version_id = result.version_id}
                     })
 
-                    Stage.set("complete")
                     return {
                         promoted = true,
                         new_version_id = result.version_id,
@@ -3016,7 +2921,6 @@ Procedure {
                     attempt = attempt + 1
 
                 else  -- "Reject"
-                    Stage.set("complete")
                     return {
                         promoted = false,
                         improvement = improvement,
@@ -3026,7 +2930,6 @@ Procedure {
             end
         end
 
-        Stage.set("complete")
         return {promoted = false, rejection_reason = "max_attempts_exhausted"}
     end
 }
@@ -3241,11 +3144,6 @@ Feature: Research Task Completion
     Then the search tool should be called at least once
     And the done tool should be called exactly once
     And the procedure should complete successfully
-
-  Scenario: Agent progresses through stages correctly
-    Given the procedure has started
-    When the procedure runs
-    Then the stage should transition from researching to complete
     And the total iterations should be less than 20
 ]])
 ```
@@ -3259,16 +3157,12 @@ The framework provides comprehensive built-in steps for Tactus primitives:
 - `the {tool} tool should be called at least {n} times`
 - `the {tool} tool should be called with {param}={value}`
 
-**Stage steps:**
-- `the procedure has started`
-- `the stage should be {stage}`
-- `the stage should transition from {stage1} to {stage2}`
-
 **State steps:**
 - `the state {key} should be {value}`
 - `the state {key} should exist`
 
 **Completion steps:**
+- `the procedure has started`
 - `the procedure should complete successfully`
 - `the stop reason should contain {text}`
 

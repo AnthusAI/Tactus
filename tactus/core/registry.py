@@ -145,7 +145,6 @@ class ProcedureRegistry(BaseModel):
     toolsets: dict[str, dict[str, Any]] = Field(default_factory=dict)
     lua_tools: dict[str, dict[str, Any]] = Field(default_factory=dict)  # Lua function tools
     hitl_points: dict[str, HITLDeclaration] = Field(default_factory=dict)
-    stages: list[str] = Field(default_factory=list)
     specifications: list[SpecificationDeclaration] = Field(default_factory=list)
     dependencies: dict[str, DependencyDeclaration] = Field(default_factory=dict)
     mocks: dict[str, dict[str, Any]] = Field(default_factory=dict)  # Mock configurations
@@ -325,10 +324,6 @@ class RegistryBuilder:
             self.registry.agent_mocks[agent_name] = AgentMockConfig(**config)
         except Exception as e:
             self._add_error(f"Invalid agent mock config for '{agent_name}': {e}")
-
-    def set_stages(self, stage_names: list[str]) -> None:
-        """Set stage names."""
-        self.registry.stages = stage_names
 
     def register_specification(self, name: str, scenarios: list) -> None:
         """Register a BDD specification."""

@@ -12,9 +12,6 @@ processor = Agent {
   tools = {done},
 }
 
--- Stages
-Stages({"setup", "processing", "validation", "complete"})
-
 -- Procedure with input and output defined inline
 
 Procedure {
@@ -25,20 +22,17 @@ Procedure {
     output = {
             status = field.string{required = true, description = "Final status"},
             count = field.number{required = true, description = "Items processed"},
-    },
-    function(input)
+	    },
+	    function(input)
 
-    -- Setup phase
-      Stage.set("setup")
-      state.items_processed = 0
-      state.errors = 0
+	    -- Setup phase
+	      state.items_processed = 0
+	      state.errors = 0
 
-      -- Processing phase
-      Stage.set("processing")
-
-      local target = input.iterations or 3
-      for i = 1, target do
-        state.items_processed = i
+	      -- Processing phase
+	      local target = input.iterations or 3
+	      for i = 1, target do
+	        state.items_processed = i
 
         -- Simulate some work
         if i % 2 == 0 then
@@ -46,26 +40,22 @@ Procedure {
         end
       end
 
-      -- Agent processes result
-      processor()
+	      -- Agent processes result
+	      processor()
 
-      -- Validation phase
-      Stage.set("validation")
-      local processed = state.items_processed
-      if processed >= target then
-        state.validation_passed = true
+	      -- Validation phase
+	      local processed = state.items_processed
+	      if processed >= target then
+	        state.validation_passed = true
       else
         state.validation_passed = false
-        state.errors = 1
-      end
+	        state.errors = 1
+	      end
 
-      -- Complete
-      Stage.set("complete")
-
-      return {
-        status = "success",
-        count = state.items_processed
-      }
+	      return {
+	        status = "success",
+	        count = state.items_processed
+	      }
 
     -- BDD Specifications
     end
@@ -75,23 +65,15 @@ Specification([[
 Feature: Comprehensive Workflow Testing
   Demonstrate all BDD testing capabilities
 
-  Scenario: Complete workflow execution
-    Given the procedure has started
-    And the agent "processor" responds with "Processing complete."
-    And the agent "processor" calls tool "done" with args {"reason": "Processing complete"}
-    When the procedure runs
-    Then the done tool should be called
-    And the stage should be complete
-    And the state items_processed should be 3
-    And the state validation_passed should be True
-    And the procedure should complete successfully
-
-  Scenario: Stage progression
-    Given the procedure has started
-    When the procedure runs
-    Then the stage should transition from setup to processing
-    And the stage should transition from processing to validation
-    And the stage should transition from validation to complete
+	  Scenario: Complete workflow execution
+	    Given the procedure has started
+	    And the agent "processor" responds with "Processing complete."
+	    And the agent "processor" calls tool "done" with args {"reason": "Processing complete"}
+	    When the procedure runs
+	    Then the done tool should be called
+	    And the state items_processed should be 3
+	    And the state validation_passed should be True
+	    And the procedure should complete successfully
 
   Scenario: State management
     Given the procedure has started

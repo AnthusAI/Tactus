@@ -434,15 +434,6 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                     "scenario_count": len(scenarios),
                 }
 
-            # Extract stages (flatten if nested)
-            stages_list = []
-            if registry.stages:
-                for stage in registry.stages:
-                    if isinstance(stage, list):
-                        stages_list.extend(stage)
-                    else:
-                        stages_list.append(stage)
-
             # Extract evaluations summary
             evaluations_data = None
             if registry.pydantic_evaluations:
@@ -488,7 +479,6 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                 "toolsets": {name: toolset for name, toolset in registry.toolsets.items()},
                 "tools": sorted(list(all_tools)),
                 "specifications": specifications_data,
-                "stages": stages_list,
                 "evaluations": evaluations_data,
             }
 

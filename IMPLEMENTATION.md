@@ -993,24 +993,6 @@ On replay, completed sub-procedure calls return cached results without re-execut
 - DSL Stub: `tactus/core/dsl_stubs.py` (`_procedure` function)
 - Registry: `tactus/core/registry.py`
 
-### Stages
-
-#### StagePrimitive (`tactus/primitives/stage.py`)
-
-**Status**: ✅ **Fully Implemented**
-
-**Features:**
-- ✅ `Stage.set(name)` - Set current stage
-- ✅ `Stage.current()` - Get current stage
-- ✅ `Stage.advance()` - Move to next stage in sequence
-- ✅ `Stage.is(name)` - Check if in specific stage (mapped from Lua `is` keyword)
-- ✅ `Stage.history()` - Get transition history
-
-**Implementation:**
-- Validates stage names against `stages:` declaration in YAML
-- Tracks stage transitions with timestamps
-- Returns history as Lua table
-
 ### Exception Handling
 
 **Specification**: Supports `pcall()` for protected calls.
@@ -1299,10 +1281,6 @@ procedure "order_fulfillment" {
 - State persisted via `ExecutionContext` after each checkpoint
 
 **Location**: `tactus/primitives/state.py`
-
-#### Stage Primitives
-
-**Status**: ✅ **Fully Implemented** (see Stages section above)
 
 #### Control Primitives
 
@@ -1669,7 +1647,6 @@ Defines interface for persistence.
 
 **Built-in Steps:**
 - Tool steps: `the {tool} tool should be called`, `at least {n} times`, `with {param}={value}`
-- Stage steps: `the stage should be {stage}`, `transition from {s1} to {s2}`
 - State steps: `the state {key} should be {value}`, `should exist`
 - Completion steps: `should complete successfully`, `stop reason should contain {text}`
 - Iteration steps: `iterations should be less than {n}`, `between {min} and {max}`
@@ -1816,7 +1793,6 @@ tactus/
 │   ├── tool.py                 # ToolPrimitive
 │   ├── human.py                # HumanPrimitive (HITL)
 │   ├── step.py                 # StepPrimitive, checkpoint() function
-│   ├── stage.py                # StagePrimitive
 │   ├── control.py              # IterationsPrimitive, StopPrimitive
 │   ├── log.py                  # LogPrimitive
 │   ├── json.py                 # JsonPrimitive

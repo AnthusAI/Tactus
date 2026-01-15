@@ -469,17 +469,6 @@ def create_dsl_stubs(
 
         return accept_config
 
-    def _stages(*stage_names) -> None:
-        """Register stage names."""
-        # Handle both stages("a", "b", "c") and stages({"a", "b", "c"})
-        if len(stage_names) == 1 and hasattr(stage_names[0], "items"):
-            # Single Lua table argument - convert it
-            stages_list = lua_table_to_dict(stage_names[0])
-        else:
-            # Multiple string arguments
-            stages_list = list(stage_names)
-        builder.set_stages(stages_list)
-
     def _specification(*args) -> None:
         """Register BDD specs.
 
@@ -1972,7 +1961,6 @@ def create_dsl_stubs(
         "Toolset": _toolset,
         "Tool": _new_tool,  # NEW syntax - assignment based
         "Hitl": _hitl,
-        "Stages": _stages,
         "Specification": _specification,
         # BDD Testing
         "Specifications": _specifications,

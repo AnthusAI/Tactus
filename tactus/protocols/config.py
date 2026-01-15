@@ -89,11 +89,6 @@ class ProcedureConfig(BaseModel):
     # HITL declarations
     hitl: Dict[str, Any] = Field(default_factory=dict, description="Pre-defined HITL interactions")
 
-    # Stages (optional)
-    stages: List[str] = Field(
-        default_factory=list, description="Optional stage names for workflow progression"
-    )
-
     # Sub-procedures (future)
     procedures: Dict[str, Any] = Field(
         default_factory=dict, description="Inline sub-procedure definitions (future feature)"

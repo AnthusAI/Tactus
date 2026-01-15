@@ -14,7 +14,7 @@ Agent workflows are inherently non-deterministic. Unlike traditional code, the s
 
 **BDD testing in Tactus addresses this by:**
 1. **Natural language specs** - Describe expected behavior in plain English
-2. **Built-in steps** - Test Tactus primitives (tools, stages, state) without writing code
+2. **Built-in steps** - Test Tactus primitives (tools, state) without writing code
 3. **Consistency evaluation** - Run tests multiple times to measure reliability
 4. **Flakiness detection** - Identify unreliable scenarios automatically
 5. **Hybrid execution** - Support both real LLM execution and mocked tools
@@ -103,14 +103,13 @@ When you run `tactus test --mock`:
 4. **During execution:**
    - Tool calls return mocked responses from registry
    - Agent turns use `MockAgentPrimitive` (calls done tool automatically)
-   - State and Stage primitives work normally
+   - State primitives work normally
    - No LLM calls are made
 5. **After execution:**
    - Primitives are captured from runtime
    - Test steps access captured primitive states
 6. **Assertions:**
    - `tool_called()` checks MockedToolPrimitive
-   - `current_stage()` checks StagePrimitive
    - `state_get()` checks StatePrimitive
 
 This allows testing workflow logic without LLM calls, making tests:
@@ -440,17 +439,6 @@ Then the search tool should be called exactly 2 times
 Then the search tool should be called with query=test
 ```
 
-### Stage Steps
-
-Test stage transitions:
-
-```gherkin
-Given the procedure has started
-Then the stage should be processing
-Then the stage should transition from planning to executing
-Given we are in stage complete
-```
-
 ### State Steps
 
 Test state management:
@@ -710,19 +698,7 @@ Scenario: Agent completes task successfully
   And the procedure should complete successfully
 ```
 
-### 2. Test Stage Transitions
-
-Verify your procedure progresses through stages correctly:
-
-```gherkin
-Scenario: Proper stage progression
-  Given the procedure has started
-  When the procedure runs
-  Then the stage should transition from planning to executing
-  And the stage should transition from executing to complete
-```
-
-### 3. Test Tool Usage
+### 2. Test Tool Usage
 
 Ensure tools are called appropriately:
 
@@ -805,7 +781,6 @@ See `examples/with-bdd-tests.lua` for a complete example demonstrating:
 ## API Reference
 
 See `tactus/testing/README.md` for complete API documentation.
-
 
 
 

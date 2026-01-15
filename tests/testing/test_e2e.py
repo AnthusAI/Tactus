@@ -125,28 +125,24 @@ def test_cli_test_command_mock_mode(tmp_path):
         """
 local done = require("tactus.tools.done")
 
-worker = Agent {
-  provider = "openai",
-  model = "gpt-4o-mini",
-  system_prompt = "Test",
-  tools = {done}
-}
+	worker = Agent {
+	  provider = "openai",
+	  model = "gpt-4o-mini",
+	  system_prompt = "Test",
+	  tools = {done}
+	}
 
-Stages({"start", "end"})
-
-Stage.set("start")
-worker()
-Stage.set("end")
-return {success = true}
-
-Specification([[
-Feature: Test
-  Scenario: Works
-    Given the procedure has started
-    When the procedure runs
-    Then the stage should be end
-]])
-"""
+	worker()
+	return {success = true}
+	
+	Specification([[
+	Feature: Test
+	  Scenario: Works
+	    Given the procedure has started
+	    When the procedure runs
+	    Then the procedure should complete successfully
+	]])
+	"""
     )
 
     runner = CliRunner()

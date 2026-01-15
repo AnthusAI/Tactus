@@ -143,7 +143,6 @@ class ProcedureRegistry(BaseModel):
     outputs: dict[str, OutputFieldDeclaration] = Field(default_factory=dict)
     agents: dict[str, AgentDeclaration] = Field(default_factory=dict)
     hitl_points: dict[str, HITLDeclaration] = Field(default_factory=dict)
-    stages: list[str] = Field(default_factory=list)
     specifications: list[SpecificationDeclaration] = Field(default_factory=list)
     
     # Prompts
@@ -299,8 +298,6 @@ def create_dsl_stubs(builder: RegistryBuilder) -> dict[str, Callable]:
         "hitl": lambda hitl_name, config:
             builder.register_hitl(hitl_name, lua_table_to_dict(config)),
         
-        "stages": lambda *stage_names:
-            builder.set_stages(list(stage_names)),
         
         "specification": lambda spec_name, scenarios:
             builder.register_specification(spec_name, lua_table_to_dict(scenarios)),
@@ -693,7 +690,7 @@ class TactusValidator(LuaParserVisitor):
     DSL_FUNCTIONS = {
         "name", "version", "description",
         "parameter", "output", "agent", "procedure",
-        "prompt", "hitl", "stages", "specification",
+        "prompt", "hitl", "specification",
         "default_provider", "default_model"
     }
     
@@ -872,7 +869,6 @@ output "research_findings" {
 }
 
 -- Stages
-stages { "greeting", "researching", "complete" }
 
 -- Agents
 agent "greeter" {
@@ -900,8 +896,6 @@ agent "researcher" {
 
 -- Procedure
 procedure(function()
-    Stage.set("greeting")
-
     repeat
         Greeter()
     until done.called()
@@ -911,16 +905,12 @@ procedure(function()
 
     local findings = nil
     if params.include_research then
-        Stage.set("researching")
-
         repeat
             Researcher()
         until done.called() or Iterations.exceeded(10)
 
         findings = done.last_result()
     end
-
-    Stage.set("complete")
 
     return {
         greeting = greeting,

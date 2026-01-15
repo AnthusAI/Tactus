@@ -31,7 +31,6 @@ class TactusDSLVisitor(LuaParserVisitor):
         "Procedure",  # CamelCase
         "Prompt",  # CamelCase
         "Hitl",  # CamelCase
-        "Stages",  # CamelCase
         "Specification",  # CamelCase
         "Specifications",  # CamelCase - Gherkin BDD specs
         "Step",  # CamelCase - Custom step definitions
@@ -467,10 +466,6 @@ class TactusDSLVisitor(LuaParserVisitor):
         elif func_name == "Hitl":  # CamelCase
             if args and len(args) >= 2:
                 self.builder.register_hitl(args[0], args[1] if isinstance(args[1], dict) else {})
-        elif func_name == "Stages":  # CamelCase
-            if args:
-                # Stages() can take multiple string arguments
-                self.builder.set_stages(args)
         elif func_name == "Specification":  # CamelCase
             # Either:
             # - Specification([[ Gherkin text ]]) (alias for Specifications)

@@ -42,25 +42,20 @@ Feature: BDD Specifications (Gherkin)
   tools = {"done"}
   }
   
-  Stages {"start", "working", "done"}
-  
   main = Procedure "main" {
     function(input)
-  Stage.set("start")
-  Stage.set("working")
   Worker()
-  Stage.set("done")
   return { result = "done" }
   end
   }
   
   Specification([[
-  Feature: Stage Management
+  Feature: Multi Scenario
   
-  Scenario: Stages transition correctly
+  Scenario: Procedure completes
   Given the procedure has started
   When the procedure runs
-  Then the stage should be done
+  Then the procedure should complete successfully
   
   Scenario: Worker is called
   Given the procedure has started
@@ -148,7 +143,6 @@ Feature: BDD Specifications (Gherkin)
   When I validate the file
   Then validation should succeed
   And validation should have warnings
-
 
 
 

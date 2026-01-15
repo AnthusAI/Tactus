@@ -42,7 +42,6 @@ from tactus.primitives.human import HumanPrimitive
 from tactus.primitives.step import StepPrimitive, CheckpointPrimitive
 from tactus.primitives.log import LogPrimitive
 from tactus.primitives.message_history import MessageHistoryPrimitive
-from tactus.primitives.stage import StagePrimitive
 from tactus.primitives.json import JsonPrimitive
 from tactus.primitives.retry import RetryPrimitive
 from tactus.primitives.file import FilePrimitive
@@ -137,7 +136,6 @@ class TactusRuntime:
         self.step_primitive: Optional[StepPrimitive] = None
         self.checkpoint_primitive: Optional[CheckpointPrimitive] = None
         self.log_primitive: Optional[LogPrimitive] = None
-        self.stage_primitive: Optional[StagePrimitive] = None
         self.json_primitive: Optional[JsonPrimitive] = None
         self.retry_primitive: Optional[RetryPrimitive] = None
         self.file_primitive: Optional[FilePrimitive] = None
@@ -428,10 +426,6 @@ class TactusRuntime:
             )
             self.message_history_primitive = MessageHistoryPrimitive(
                 message_history_manager=self.message_history_manager
-            )
-            declared_stages = self.config.get("stages", [])
-            self.stage_primitive = StagePrimitive(
-                declared_stages=declared_stages, lua_sandbox=self.lua_sandbox
             )
             self.json_primitive = JsonPrimitive(lua_sandbox=self.lua_sandbox)
             self.retry_primitive = RetryPrimitive()
@@ -2279,22 +2273,6 @@ class TactusRuntime:
             logger.info(f"Injecting MessageHistory primitive: {self.message_history_primitive}")
             self.lua_sandbox.inject_primitive("MessageHistory", self.message_history_primitive)
 
-        if self.stage_primitive:
-            logger.info(f"Injecting Stage primitive: {self.stage_primitive}")
-
-            # Create wrapper to map 'is' (reserved keyword in Python) to 'is_current'
-            class StageWrapper:
-                def __init__(self, stage_primitive):
-                    self._stage = stage_primitive
-
-                def __getattr__(self, name):
-                    if name == "is":
-                        return self._stage.is_current
-                    return getattr(self._stage, name)
-
-            stage_wrapper = StageWrapper(self.stage_primitive)
-            self.lua_sandbox.inject_primitive("Stage", stage_wrapper)
-
         if self.json_primitive:
             logger.info(f"Injecting Json primitive: {self.json_primitive}")
             self.lua_sandbox.inject_primitive("Json", self.json_primitive)
@@ -2839,14 +2817,6 @@ class TactusRuntime:
                     config["hitl"][name]["default"] = hitl.default
                 if hitl.options:
                     config["hitl"][name]["options"] = hitl.options
-
-        # Convert stages
-        if registry.stages:
-            # Handle case where stages is [[list]] instead of [list]
-            if len(registry.stages) == 1 and isinstance(registry.stages[0], list):
-                config["stages"] = registry.stages[0]
-            else:
-                config["stages"] = registry.stages
 
         # Convert prompts
         if registry.prompts:

@@ -680,10 +680,9 @@ Then the search tool should be called exactly 2 times
 Then the search tool should be called with query=test
 ```
 
-**State & Stage Steps:**
+**State Steps:**
 ```gherkin
 Given the procedure has started
-Then the stage should be processing
 Then the state count should be 5
 Then the state error should exist
 ```
@@ -815,10 +814,9 @@ Then the search tool should be called exactly 2 times
 Then the search tool should be called with query=test
 ```
 
-**State & Stage Steps:**
+**State Steps:**
 ```gherkin
 Given the procedure has started
-Then the stage should be processing
 Then the state count should be 5
 Then the state error should exist
 ```

@@ -3,7 +3,6 @@ Built-in step definitions for Tactus primitives.
 
 Provides a comprehensive library of steps for testing:
 - Tool calls
-- Stage transitions
 - State management
 - Procedure completion
 - Iterations and timing
@@ -56,9 +55,6 @@ def register_builtin_steps(registry: StepRegistry) -> None:
     """
     # Tool-related steps
     register_tool_steps(registry)
-
-    # Stage-related steps
-    register_stage_steps(registry)
 
     # State-related steps
     register_state_steps(registry)
@@ -179,57 +175,11 @@ def step_mock_tool_returns(context: Any, tool: str, value: str) -> None:
     context.mock_tool_returns(tool, parsed_value)
 
 
-# Stage-related steps
-
-
-def register_stage_steps(registry: StepRegistry) -> None:
-    """Register stage-related step definitions."""
-
-    registry.register(r"the procedure has started", step_procedure_started)
-
-    registry.register(r"the stage is (?P<stage>\w+)", step_stage_is)
-
-    registry.register(r"the stage should be (?P<stage>\w+)", step_stage_is)
-
-    registry.register(
-        r"the stage should transition from (?P<from_stage>\w+) to (?P<to_stage>\w+)",
-        step_stage_transition,
-    )
-
-    registry.register(r"we are in stage (?P<stage>\w+)", step_in_stage)
-
-
 def step_procedure_started(context: Any) -> None:
     """Mark that procedure context is ready (setup step)."""
     # This is a setup step - just verify context is ready
     # The actual execution happens in "When" steps
     assert context is not None, "Test context not initialized"
-
-
-def step_stage_is(context: Any, stage: str) -> None:
-    """Check if current stage matches expected."""
-    current = context.current_stage()
-    assert current == stage, f"Expected stage '{stage}', but current stage is '{current}'"
-
-
-def step_stage_transition(context: Any, from_stage: str, to_stage: str) -> None:
-    """Check if stage transition occurred."""
-    history = context.stage_history()
-
-    # Build list of transitions
-    transitions = [(history[i], history[i + 1]) for i in range(len(history) - 1)]
-
-    expected_transition = (from_stage, to_stage)
-    assert expected_transition in transitions, (
-        f"Stage transition from '{from_stage}' to '{to_stage}' did not occur. "
-        f"Actual transitions: {transitions}"
-    )
-
-
-def step_in_stage(context: Any, stage: str) -> None:
-    """Check if currently in specified stage."""
-    current = context.current_stage()
-    assert current == stage, f"Not in stage '{stage}', current stage is '{current}'"
 
 
 # State-related steps
@@ -506,6 +456,7 @@ def step_output_contains(context: Any, key: str) -> None:
 def register_completion_steps(registry: StepRegistry) -> None:
     """Register completion-related step definitions."""
 
+    registry.register(r"the procedure has started", step_procedure_started)
     registry.register(r"the procedure should complete successfully", step_procedure_completes)
 
     registry.register(r"the procedure should fail", step_procedure_fails)

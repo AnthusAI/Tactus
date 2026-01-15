@@ -162,27 +162,23 @@ async def test_context_primitive_capture():
     procedure_code = """
 local done = require("tactus.tools.done")
 
-worker = Agent {
-  provider = "openai",
-  model = "gpt-4o-mini",
-  system_prompt = "Test",
-  tools = {done}
-}
+	worker = Agent {
+	  provider = "openai",
+	  model = "gpt-4o-mini",
+	  system_prompt = "Test",
+	  tools = {done}
+	}
 
-Stages({"start", "end"})
-
-Procedure {
-    output = {
-        success = field.boolean{required = true}
-    },
-    function(input)
-        Stage.set("start")
-        state.test_key = "test_value"
-        Stage.set("end")
-        return {success = true}
-    end
-}
-"""
+	Procedure {
+	    output = {
+	        success = field.boolean{required = true}
+	    },
+	    function(input)
+	        state.test_key = "test_value"
+	        return {success = true}
+	    end
+	}
+	"""
 
     with tempfile.NamedTemporaryFile(mode="w", suffix=".tac", delete=False) as f:
         f.write(procedure_code)
@@ -199,12 +195,10 @@ Procedure {
 
         # Check that primitives were captured
         assert "state" in context._primitives
-        assert "stage" in context._primitives
 
         # Check that methods work
         assert context.state_exists("test_key")
         assert context.state_get("test_key") == "test_value"
-        assert context.current_stage() == "end"
 
     finally:
         procedure_file.unlink()

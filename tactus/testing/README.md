@@ -7,7 +7,7 @@ First-class Gherkin-style BDD testing integrated into the Tactus DSL.
 The Tactus BDD Testing Framework allows you to write behavior-driven tests directly in your procedure files using Gherkin syntax. Tests are executed using Behave under the hood, with full support for:
 
 - **Natural language specifications** - Write tests in plain English using Gherkin
-- **Built-in step library** - Comprehensive steps for Tactus primitives (tools, stages, state, etc.)
+- **Built-in step library** - Comprehensive steps for Tactus primitives (tools, state, etc.)
 - **Custom steps** - Define your own steps in Lua for advanced assertions
 - **Parallel execution** - Run scenarios in parallel for fast feedback
 - **Consistency evaluation** - Run tests multiple times to measure reliability
@@ -86,15 +86,6 @@ Then the search tool should not be called
 Then the search tool should be called at least 3 times
 Then the search tool should be called exactly 2 times
 Then the search tool should be called with query=test
-```
-
-### Stage Steps
-
-```gherkin
-Given the procedure has started
-Then the stage should be processing
-Then the stage should transition from planning to executing
-Given we are in stage complete
 ```
 
 ### State Steps
@@ -274,7 +265,6 @@ See `examples/with-bdd-tests.tac` for a complete example with:
 - Custom steps
 - Evaluation configuration
 - All major step types
-
 
 
 

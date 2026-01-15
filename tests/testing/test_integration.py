@@ -82,10 +82,9 @@ def test_step_registry_with_builtin_steps():
     assert func is not None
     assert match_dict.get("tool") == "search"
 
-    # Test stage step matching
-    func, match_dict = registry.match("the stage should be processing")
+    # Test completion step matching
+    func, match_dict = registry.match("the procedure should complete successfully")
     assert func is not None
-    assert match_dict.get("stage") == "processing"
 
     # Test iteration step matching
     func, match_dict = registry.match("the total iterations should be less than 10")

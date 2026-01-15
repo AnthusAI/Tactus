@@ -11,9 +11,6 @@ worker = Agent {
   tools = {done},
 }
 
--- Stages
-Stages({"initializing", "working", "complete"})
-
 -- Procedure with input, output, and state defined inline
 
 Procedure {
@@ -22,32 +19,24 @@ Procedure {
     },
     output = {
             result = field.string{required = true, description = "Final result message"},
-    },
-    function(input)
+	    },
+	    function(input)
 
-    -- Initialize
-      Stage.set("initializing")
-
-      -- Do work
-      Stage.set("working")
-
-      local target = input.count or 3
-      for i = 1, target do
-        state.counter = i
+	    -- Initialize
+	      local target = input.count or 3
+	      for i = 1, target do
+	        state.counter = i
         local items = state.items or {}
         table.insert(items, "item_" .. i)
         state.items = items
       end
 
-      -- Simulate agent turn (will call done tool)
-      worker()
+	      -- Simulate agent turn (will call done tool)
+	      worker()
 
-      -- Complete
-      Stage.set("complete")
-
-      return {
-        result = "Processed " .. state.counter .. " items"
-      }
+	      return {
+	        result = "Processed " .. state.counter .. " items"
+	      }
 
     -- BDD Specifications
     end
@@ -59,16 +48,14 @@ Feature: Simple Workflow Execution
   I want to test workflow behavior
   So that I can ensure reliability
 
-  Scenario: Workflow completes successfully
-    Given the procedure has started
-    And the agent "worker" responds with "I have completed the work."
-    And the agent "worker" calls tool "done" with args {"reason": "Work completed"}
-    When the procedure runs
-    Then the done tool should be called
-    And the stage should transition from initializing to working
-    And the stage should transition from working to complete
-    And the state counter should be 3
-    And the procedure should complete successfully
+	  Scenario: Workflow completes successfully
+	    Given the procedure has started
+	    And the agent "worker" responds with "I have completed the work."
+	    And the agent "worker" calls tool "done" with args {"reason": "Work completed"}
+	    When the procedure runs
+	    Then the done tool should be called
+	    And the state counter should be 3
+	    And the procedure should complete successfully
 
   Scenario: Workflow processes correct number of items
     Given the procedure has started
@@ -76,10 +63,6 @@ Feature: Simple Workflow Execution
     Then the state counter should be 3
     And the total iterations should be less than 10
 
-  Scenario: Workflow uses correct stages
-    Given the procedure has started
-    When the procedure runs
-    Then the stage should be complete
 ]])
 
 -- Custom step for validating items

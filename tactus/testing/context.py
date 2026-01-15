@@ -309,12 +309,6 @@ class TactusTestContext:
         except Exception as e:
             logger.debug(f"Could not capture Tool primitive: {e}")
 
-        # Capture Stage primitive
-        try:
-            self._primitives["stage"] = self.runtime.stage_primitive
-        except Exception as e:
-            logger.debug(f"Could not capture Stage primitive: {e}")
-
         # Capture State primitive
         try:
             self._primitives["state"] = self.runtime.state_primitive
@@ -366,36 +360,6 @@ class TactusTestContext:
                 for call in tool_prim._tool_calls
                 if call.name == tool_name
             ]
-        return []
-
-    # Stage-related methods
-
-    def current_stage(self) -> Optional[str]:
-        """Get current stage."""
-        stage_prim = self._primitives.get("stage")
-        if stage_prim:
-            return stage_prim.current()
-        return None
-
-    def stage_history(self) -> List[str]:
-        """Get stage transition history as list of stage names."""
-        stage_prim = self._primitives.get("stage")
-        if stage_prim and hasattr(stage_prim, "_history"):
-            # Extract just the stage names from history
-            stages = []
-            for transition in stage_prim._history:
-                if transition.get("from_stage"):
-                    stages.append(transition["from_stage"])
-                if transition.get("to_stage"):
-                    stages.append(transition["to_stage"])
-            # Remove duplicates while preserving order
-            seen = set()
-            result = []
-            for stage in stages:
-                if stage not in seen:
-                    seen.add(stage)
-                    result.append(stage)
-            return result
         return []
 
     # State-related methods

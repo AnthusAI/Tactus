@@ -10,7 +10,6 @@ from tactus.primitives.control import IterationsPrimitive, StopPrimitive
 from tactus.primitives.tool import ToolPrimitive
 from tactus.primitives.log import LogPrimitive
 from tactus.primitives.step import StepPrimitive, CheckpointPrimitive
-from tactus.primitives.stage import StagePrimitive
 from tactus.primitives.json import JsonPrimitive
 from tactus.primitives.retry import RetryPrimitive
 from tactus.primitives.file import FilePrimitive
@@ -40,7 +39,6 @@ __all__ = [
     "StepPrimitive",
     "CheckpointPrimitive",
     "MessageHistoryPrimitive",
-    "StagePrimitive",
     "JsonPrimitive",
     "RetryPrimitive",
     "FilePrimitive",
