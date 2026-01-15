@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.29.2 (2026-01-15)
+
+### Bug Fixes
+
+- Upgrade Node.js to version 20 for desktop builds
+  ([`f08380d`](https://github.com/AnthusAI/Tactus/commit/f08380da9f326667943e793f7aa73902d15d4d49))
+
+
 ## v0.29.1 (2026-01-15)
 
 ### Bug Fixes
