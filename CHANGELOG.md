@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.31.2 (2026-01-16)
+
+### Bug Fixes
+
+- Include litellm tokenizers and data files in PyInstaller bundle
+  ([`b770f35`](https://github.com/AnthusAI/Tactus/commit/b770f35d79d097505b3022c53eb54e92383e037c))
+
+
 ## v0.31.1 (2026-01-15)
 
 ### Bug Fixes
