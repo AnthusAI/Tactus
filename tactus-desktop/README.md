@@ -56,13 +56,41 @@ python3 --version  # Should show 3.11 or higher
 - Windows: `dist-electron/Tactus-IDE-Setup-{version}.exe`
 - Linux: `dist-electron/Tactus-IDE-{version}-{arch}.AppImage`
 
-## Unsigned Builds
+## Installing Unsigned Builds
 
-This MVP does not include code signing. Users will see security warnings:
+This application is not code-signed (requires $99/year Apple Developer Program). Users need to remove macOS quarantine attributes after downloading.
 
-- **macOS**: Right-click > Open (bypass "unidentified developer")
-- **Windows**: "More info" > "Run anyway" (SmartScreen warning)
-- **Linux**: No issues with unsigned binaries
+### macOS Installation (REQUIRED)
+
+When you download the DMG from GitHub Releases, macOS quarantines it. You **must** run this command before opening:
+
+```bash
+# After downloading, remove quarantine from the DMG
+xattr -cr ~/Downloads/Tactus*.dmg
+
+# Open the DMG
+open ~/Downloads/Tactus*.dmg
+
+# Drag app to Applications, then remove quarantine from the app
+xattr -cr "/Applications/Tactus IDE.app"
+```
+
+**Why this is needed:** macOS Gatekeeper blocks downloaded apps that aren't code-signed. The `xattr -cr` command removes the quarantine flag that GitHub adds to downloaded files.
+
+**Alternative (if above doesn't work):**
+1. Right-click the DMG > Open
+2. If you see "damaged" error, run: `xattr -d com.apple.provenance ~/Downloads/Tactus*.dmg`
+3. Mount the DMG again and remove quarantine from the app inside
+
+### Windows Installation
+
+- Click "More info" > "Run anyway" when SmartScreen warning appears
+- No additional steps needed after that
+
+### Linux Installation
+
+- No issues with unsigned binaries
+- Make AppImage executable: `chmod +x Tactus*.AppImage`
 
 ## Project Structure
 
