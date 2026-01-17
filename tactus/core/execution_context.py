@@ -21,6 +21,7 @@ from tactus.protocols.models import (
     SourceLocation,
     ExecutionRun,
 )
+from tactus.core.exceptions import ProcedureWaitingForHuman
 
 logger = logging.getLogger(__name__)
 
@@ -156,6 +157,11 @@ class BaseExecutionContext(ExecutionContext):
         # Load procedure metadata (contains execution_log and replay_index)
         self.metadata = self.storage.load_procedure_metadata(procedure_id)
 
+        # CRITICAL: Reset replay_index to 0 when starting a new execution
+        # The replay_index tracks our position when replaying the execution_log
+        # It must start at 0 for each new run, even though it was incremented during the previous run
+        self.metadata.replay_index = 0
+
     def set_run_id(self, run_id: str) -> None:
         """Set the run_id for subsequent checkpoints in this execution."""
         self.current_run_id = run_id
@@ -194,10 +200,24 @@ class BaseExecutionContext(ExecutionContext):
 
         # Check if we're in replay mode (checkpoint exists at this position)
         if current_position < len(self.metadata.execution_log):
-            # Replay mode: return cached result
             entry = self.metadata.execution_log[current_position]
-            self.metadata.replay_index += 1
-            return entry.result
+
+            # Special case: HITL checkpoints may have result=None if saved before response arrived
+            # In this case, re-execute to check for cached response from control loop
+            if entry.result is None and checkpoint_type.startswith("hitl_"):
+                logger.debug(
+                    f"[CHECKPOINT] HITL checkpoint at position {current_position} has no result, "
+                    f"re-executing to check for cached response"
+                )
+                # Fall through to execute mode - will check for cached response
+            else:
+                # Normal replay: return cached result
+                self.metadata.replay_index += 1
+                logger.debug(
+                    f"[CHECKPOINT] Replaying checkpoint at position {current_position}, "
+                    f"type={entry.type}, returning cached result"
+                )
+                return entry.result
 
         # Execute mode: run function with checkpoint scope tracking
         old_checkpoint_flag = self._inside_checkpoint
@@ -239,12 +259,56 @@ class BaseExecutionContext(ExecutionContext):
                     self.metadata.state.copy() if hasattr(self.metadata, "state") else None
                 ),
             )
+        except ProcedureWaitingForHuman:
+            # CRITICAL: For HITL checkpoints, we need to save the checkpoint BEFORE exiting
+            # This enables transparent resume - on restart, we'll have a checkpoint at this position
+            # with result=None, and the control loop will check for cached responses
+            duration_ms = (time.time() - start_time) * 1000
+            entry = CheckpointEntry(
+                position=current_position,
+                type=checkpoint_type,
+                result=None,  # Will be filled in when response arrives
+                timestamp=datetime.now(timezone.utc),
+                duration_ms=duration_ms,
+                run_id=self.current_run_id,
+                source_location=source_location,
+                captured_vars=(
+                    self.metadata.state.copy() if hasattr(self.metadata, "state") else None
+                ),
+            )
+            # Only append if checkpoint doesn't already exist (from previous failed attempt)
+            if current_position < len(self.metadata.execution_log):
+                # Checkpoint already exists - update it
+                logger.debug(
+                    f"[CHECKPOINT] Updating existing HITL checkpoint at position {current_position} before exit"
+                )
+                self.metadata.execution_log[current_position] = entry
+            else:
+                # New checkpoint - append and increment
+                logger.debug(
+                    f"[CHECKPOINT] Creating new HITL checkpoint at position {current_position} before exit"
+                )
+                self.metadata.execution_log.append(entry)
+                self.metadata.replay_index += 1
+
+            self.storage.save_procedure_metadata(self.procedure_id, self.metadata)
+            # Restore checkpoint flag and re-raise
+            self._inside_checkpoint = old_checkpoint_flag
+            raise
         finally:
             # Always restore checkpoint flag, even if fn() raises
             self._inside_checkpoint = old_checkpoint_flag
 
-        # Add to execution log
-        self.metadata.execution_log.append(entry)
+        # Add to execution log (or update if checkpoint already exists from HITL exit)
+        if current_position < len(self.metadata.execution_log):
+            # Checkpoint already exists (saved during HITL exit) - update it with the result
+            logger.debug(
+                f"[CHECKPOINT] Updating existing HITL checkpoint at position {current_position} with result"
+            )
+            self.metadata.execution_log[current_position] = entry
+        else:
+            # New checkpoint - append to log
+            self.metadata.execution_log.append(entry)
         self.metadata.replay_index += 1
 
         # Emit checkpoint created event if we have a log handler
@@ -298,8 +362,10 @@ class BaseExecutionContext(ExecutionContext):
 
         Delegates to the HITLHandler protocol implementation.
         """
+        logger.debug(f"[HITL] wait_for_human called: type={request_type}, message={message[:50] if message else 'None'}, hitl_handler={self.hitl}")
         if not self.hitl:
             # No HITL handler - return default immediately
+            logger.warning(f"[HITL] No HITL handler configured - returning default value: {default_value}")
             return HITLResponse(
                 value=default_value, responded_at=datetime.now(timezone.utc), timed_out=True
             )
@@ -315,7 +381,8 @@ class BaseExecutionContext(ExecutionContext):
         )
 
         # Delegate to HITL handler (may raise ProcedureWaitingForHuman)
-        return self.hitl.request_interaction(self.procedure_id, request)
+        # Pass self (execution_context) for deterministic request ID generation
+        return self.hitl.request_interaction(self.procedure_id, request, execution_context=self)
 
     def sleep(self, seconds: int) -> None:
         """

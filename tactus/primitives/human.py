@@ -102,15 +102,21 @@ class HumanPrimitive:
 
         logger.info(f"Human approval requested: {message[:50]}...")
 
-        # Delegate to execution context's wait_for_human
-        response = self.execution_context.wait_for_human(
-            request_type="approval",
-            message=message,
-            timeout_seconds=timeout,
-            default_value=default,
-            options=None,
-            metadata=context,
-        )
+        # CRITICAL: Wrap HITL call in checkpoint for transparent durability
+        # This allows kill/resume to work - procedure can be restarted and will resume from this point
+        logger.debug(f"[CHECKPOINT] Creating checkpoint for Human.approve(), type=hitl_approval")
+        def checkpoint_fn():
+            return self.execution_context.wait_for_human(
+                request_type="approval",
+                message=message,
+                timeout_seconds=timeout,
+                default_value=default,
+                options=None,
+                metadata=context,
+            )
+
+        response = self.execution_context.checkpoint(checkpoint_fn, "hitl_approval")
+        logger.debug(f"[CHECKPOINT] Human.approve() checkpoint completed, response={response}")
 
         return response.value
 
@@ -157,15 +163,18 @@ class HumanPrimitive:
 
         logger.info(f"Human input requested: {message[:50]}...")
 
-        # Delegate to execution context
-        response = self.execution_context.wait_for_human(
-            request_type="input",
-            message=message,
-            timeout_seconds=timeout,
-            default_value=default,
-            options=None,
-            metadata={"placeholder": placeholder},
-        )
+        # CRITICAL: Wrap HITL call in checkpoint for transparent durability
+        def checkpoint_fn():
+            return self.execution_context.wait_for_human(
+                request_type="input",
+                message=message,
+                timeout_seconds=timeout,
+                default_value=default,
+                options=None,
+                metadata={"placeholder": placeholder},
+            )
+
+        response = self.execution_context.checkpoint(checkpoint_fn, "hitl_input")
 
         return response.value
 
@@ -231,19 +240,22 @@ class HumanPrimitive:
             else:
                 formatted_options.append({"label": str(opt).title(), "type": "action"})
 
-        # Delegate to execution context
-        response = self.execution_context.wait_for_human(
-            request_type="review",
-            message=message,
-            timeout_seconds=timeout,
-            default_value={
-                "decision": "reject",
-                "edited_artifact": artifact_python,
-                "feedback": "",
-            },
-            options=formatted_options,
-            metadata={"artifact": artifact_python, "artifact_type": artifact_type},
-        )
+        # CRITICAL: Wrap HITL call in checkpoint for transparent durability
+        def checkpoint_fn():
+            return self.execution_context.wait_for_human(
+                request_type="review",
+                message=message,
+                timeout_seconds=timeout,
+                default_value={
+                    "decision": "reject",
+                    "edited_artifact": artifact_python,
+                    "feedback": "",
+                },
+                options=formatted_options,
+                metadata={"artifact": artifact_python, "artifact_type": artifact_type},
+            )
+
+        response = self.execution_context.checkpoint(checkpoint_fn, "hitl_review")
 
         return response.value
 
@@ -325,16 +337,18 @@ class HumanPrimitive:
         # Prepare metadata with severity and context
         metadata = {"severity": severity, "context": context}
 
-        # Delegate to execution context
-        # No timeout, no default - blocks until human resolves
-        self.execution_context.wait_for_human(
-            request_type="escalation",
-            message=message,
-            timeout_seconds=None,  # No timeout - wait indefinitely
-            default_value=None,  # No default - human must resolve
-            options=None,
-            metadata=metadata,
-        )
+        # CRITICAL: Wrap HITL call in checkpoint for transparent durability
+        def checkpoint_fn():
+            return self.execution_context.wait_for_human(
+                request_type="escalation",
+                message=message,
+                timeout_seconds=None,  # No timeout - wait indefinitely
+                default_value=None,  # No default - human must resolve
+                options=None,
+                metadata=metadata,
+            )
+
+        self.execution_context.checkpoint(checkpoint_fn, "hitl_escalation")
 
         logger.info("Human escalation resolved - resuming workflow")
 
