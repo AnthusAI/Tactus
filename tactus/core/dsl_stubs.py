@@ -1179,7 +1179,11 @@ def create_dsl_stubs(
             # Generate a unique name if not provided
             agent_name = config_dict.pop("name", "dspy_agent")
             return create_dspy_agent(
-                agent_name, config_dict, registry=builder.registry, mock_manager=mock_manager
+                agent_name,
+                config_dict,
+                registry=builder.registry,
+                mock_manager=mock_manager,
+                execution_context=_runtime_context.get("execution_context") if _runtime_context else None,
             )
 
         # Curried form - return function that accepts config
@@ -1188,7 +1192,11 @@ def create_dsl_stubs(
             config_dict = lua_table_to_dict(cfg)
             agent_name = config_dict.pop("name", "dspy_agent")
             return create_dspy_agent(
-                agent_name, config_dict, registry=builder.registry, mock_manager=mock_manager
+                agent_name,
+                config_dict,
+                registry=builder.registry,
+                mock_manager=mock_manager,
+                execution_context=_runtime_context.get("execution_context") if _runtime_context else None,
             )
 
         return accept_config
@@ -1728,6 +1736,7 @@ def create_dsl_stubs(
                     agent_config,
                     registry=builder.registry,
                     mock_manager=_runtime_context.get("mock_manager"),
+                    execution_context=_runtime_context.get("execution_context"),
                 )
 
                 # Set tool_primitive for mock tool call recording
@@ -1913,6 +1922,7 @@ def create_dsl_stubs(
                     agent_config,
                     registry=builder.registry,
                     mock_manager=_runtime_context.get("mock_manager"),
+                    execution_context=_runtime_context.get("execution_context"),
                 )
 
                 # Set tool_primitive for mock tool call recording

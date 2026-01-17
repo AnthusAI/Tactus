@@ -102,7 +102,29 @@ class TactusRuntime:
         """
         self.procedure_id = procedure_id
         self.storage_backend = storage_backend
-        self.hitl_handler = hitl_handler
+
+        # Initialize HITL handler - use new ControlLoopHandler by default
+        if hitl_handler is None:
+            # Auto-configure control loop with channels
+            from tactus.adapters.channels import load_default_channels
+            from tactus.adapters.control_loop import ControlLoopHandler, ControlLoopHITLAdapter
+
+            channels = load_default_channels(procedure_id=procedure_id)
+            if channels:
+                control_handler = ControlLoopHandler(
+                    channels=channels,
+                    storage=storage_backend,
+                )
+                # Wrap in adapter for HITLHandler compatibility
+                self.hitl_handler = ControlLoopHITLAdapter(control_handler)
+                logger.info(f"Auto-configured ControlLoopHandler with {len(channels)} channel(s)")
+            else:
+                # No channels available, leave hitl_handler as None
+                self.hitl_handler = None
+                logger.warning("No control channels available - HITL interactions will use defaults")
+        else:
+            self.hitl_handler = hitl_handler
+
         self.chat_recorder = chat_recorder
         self.mcp_server = mcp_server  # Keep for backward compatibility
         self.mcp_servers = mcp_servers or {}
@@ -474,7 +496,9 @@ class TactusRuntime:
 
             # 10. Execute workflow (may raise ProcedureWaitingForHuman)
             logger.info("Step 10: Executing Lua workflow")
+            print(f"[DEBUG] About to call _execute_workflow()")  # Temporary debug
             workflow_result = self._execute_workflow()
+            print(f"[DEBUG] _execute_workflow() returned: {workflow_result}")  # Temporary debug
 
             # 10.5. Apply return_prompt if specified (future: inject to agent for summary)
             if self.config.get("return_prompt"):
@@ -691,6 +715,11 @@ class TactusRuntime:
                 "procedure_id": self.procedure_id,
                 "error": f"Lua execution error: {e}",
             }
+
+        except ProcedureWaitingForHuman:
+            # Re-raise this exception to trigger exit-and-resume pattern
+            # Don't treat this as an error - it's expected behavior
+            raise
 
         except Exception as e:
             logger.error(f"Unexpected error: {e}", exc_info=True)
@@ -1914,12 +1943,13 @@ class TactusRuntime:
                 "log_handler": self.log_handler,
             }
 
-            # Create DSPy agent with registry and mock_manager for mock support
+            # Create DSPy agent with registry, mock_manager, and execution_context
             agent_primitive = create_dspy_agent(
                 agent_name,
                 dspy_config,
                 registry=self.registry,
                 mock_manager=self.mock_manager,
+                execution_context=context,
             )
 
             # Store additional context for compatibility
@@ -2343,7 +2373,6 @@ class TactusRuntime:
 
                     # Create callable wrapper for main
                     from tactus.primitives.procedure_callable import ProcedureCallable
-
                     main_callable = ProcedureCallable(
                         name="main",
                         procedure_function=main_proc["function"],
@@ -2367,7 +2396,6 @@ class TactusRuntime:
                             # We can't check FieldDefinition type here as it's lost during storage
                             input_params[key] = field_def["default"]
                         # If required and not in context, it will fail validation in ProcedureCallable
-
                     logger.debug(f"Calling main with input_params: {input_params}")
 
                     # Execute main procedure
@@ -2384,6 +2412,9 @@ class TactusRuntime:
 
                     logger.info("Named 'main' procedure execution completed successfully")
                     return result
+                except ProcedureWaitingForHuman:
+                    # Re-raise without wrapping - this is expected behavior
+                    raise
                 except Exception as e:
                     logger.error(f"Named 'main' procedure execution failed: {e}")
                     raise LuaSandboxError(f"Named 'main' procedure execution failed: {e}")
@@ -2436,6 +2467,11 @@ class TactusRuntime:
         if re.search(r"(?m)^\s*(?:[A-Za-z_][A-Za-z0-9_]*\s*=\s*)?Procedure\b", source):
             return source
 
+        # If there are named function definitions (function name()), don't transform.
+        # These are procedure definitions that will be explicitly called.
+        if re.search(r"(?m)^\s*(?:local\s+)?function\s+[A-Za-z_][A-Za-z0-9_]*\s*\(", source):
+            return source
+
         # Detect script mode by top-level input/output declarations OR a top-level `return`.
         # We intentionally treat simple "hello world" scripts as script-mode so agent/tool
         # calls don't execute during the parse/declaration phase.
@@ -2451,6 +2487,7 @@ class TactusRuntime:
         # Once we enter executable code, everything stays in the body.
         in_body = False
         brace_depth = 0
+        function_depth = 0  # Track function...end blocks
         long_string_eq: str | None = None
 
         decl_start = re.compile(
@@ -2467,6 +2504,8 @@ class TactusRuntime:
             r"Agent|Toolset|Tool|Model|Module|Signature|LM|Dependency|Prompt"
             r")\b"
         )
+        # Match function definitions: function name() or local function name()
+        function_def = re.compile(r"^\s*(?:local\s+)?function\s+[A-Za-z_][A-Za-z0-9_]*\s*\(")
 
         long_string_open = re.compile(r"\[(=*)\[")
 
@@ -2485,15 +2524,15 @@ class TactusRuntime:
                     long_string_eq = None
                 continue
 
-            # If we're inside a declaration block, keep consuming until braces balance.
+            # If we're inside a declaration block, keep consuming until braces/functions balance.
             added_to_decl = False
-            if brace_depth > 0:
+            if brace_depth > 0 or function_depth > 0:
                 decl_lines.append(line)
                 added_to_decl = True
             elif stripped == "" or stripped.startswith("--"):
                 decl_lines.append(line)
                 added_to_decl = True
-            elif decl_start.match(line) or assignment_decl.match(line) or require_stmt.match(line):
+            elif decl_start.match(line) or assignment_decl.match(line) or require_stmt.match(line) or function_def.match(line):
                 decl_lines.append(line)
                 added_to_decl = True
             else:
@@ -2515,6 +2554,17 @@ class TactusRuntime:
             brace_depth += line.count("{") - line.count("}")
             if brace_depth < 0:
                 brace_depth = 0
+
+            # Track function...end blocks for named function definitions
+            # Count 'function' keywords (both named and anonymous)
+            # Note: This is a simple heuristic that counts keywords in comments/strings too,
+            # but that's acceptable for well-formed DSL code
+            import re as re_module
+            function_count = len(re_module.findall(r'\bfunction\b', line))
+            end_count = len(re_module.findall(r'\bend\b', line))
+            function_depth += function_count - end_count
+            if function_depth < 0:
+                function_depth = 0
 
         # If there is no executable code, nothing to wrap.
         if not any(line.strip() for line in body_lines):
@@ -2719,6 +2769,35 @@ class TactusRuntime:
             self._top_level_result = execution_result
         except LuaSandboxError as e:
             raise TactusRuntimeError(f"Failed to parse DSL: {e}")
+
+        # Auto-register plain function main() if it exists
+        #
+        # Some .tac files use plain Lua syntax: `function main() ... end`
+        # instead of the Procedure DSL syntax: `Procedure { function(input) ... end }`
+        #
+        # For these files, we need to explicitly check lua.globals() after execution
+        # and register any function named "main" as the main procedure.
+        #
+        # This allows both syntax styles to work:
+        # 1. DSL style (self-registering): Procedure { function(input) ... end }
+        # 2. Plain Lua style (auto-registered): function main() ... end
+        #
+        # The script mode transformation (in _maybe_transform_script_mode_source)
+        # is designed to skip files with named function definitions to avoid wrapping
+        # them incorrectly.
+        lua_globals = sandbox.lua.globals()
+        if "main" in lua_globals:
+            main_func = lua_globals["main"]
+            # Check if it's a function and not already registered
+            if callable(main_func) and "main" not in builder.registry.named_procedures:
+                logger.info("[AUTO_REGISTER] Found plain function main(), auto-registering as main procedure")
+                builder.register_named_procedure(
+                    name="main",
+                    lua_function=main_func,
+                    input_schema={},
+                    output_schema={},
+                    state_schema={},
+                )
 
         # Validate and return registry
         result = builder.validate()

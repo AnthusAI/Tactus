@@ -61,6 +61,7 @@ class DSPyAgentHandle:
         mock_manager: Any = None,
         log_handler: Any = None,
         disable_streaming: bool = False,
+        execution_context: Any = None,
         **kwargs: Any,
     ):
         """
@@ -87,6 +88,7 @@ class DSPyAgentHandle:
             mock_manager: Optional MockManager instance for checking mocks
             log_handler: Optional log handler for emitting streaming events
             disable_streaming: If True, disable streaming even when log_handler is present
+            execution_context: Optional ExecutionContext for checkpointing agent calls
             **kwargs: Additional configuration
         """
         self.name = name
@@ -95,6 +97,7 @@ class DSPyAgentHandle:
         self.provider = provider
         self.tools = tools or []
         self.toolsets = toolsets or []
+        self.execution_context = execution_context
         # Default input schema: {message: string}
         self.input_schema = input_schema or {"message": {"type": "string", "required": False}}
         # Default output schema: {response: string}
@@ -798,6 +801,31 @@ class DSPyAgentHandle:
         if context:
             opts["context"] = context
 
+        # If execution_context is available, wrap in checkpoint for transparent durability
+        if self.execution_context:
+            def checkpoint_fn():
+                return self._execute_turn(opts)
+
+            return self.execution_context.checkpoint(
+                checkpoint_fn,
+                f"agent_{self.name}_turn"
+            )
+        else:
+            # No checkpointing - execute directly
+            return self._execute_turn(opts)
+
+    def _execute_turn(self, opts: Dict[str, Any]) -> Any:
+        """
+        Execute a single agent turn (internal method for checkpointing).
+
+        This method contains the core agent execution logic that gets checkpointed.
+
+        Args:
+            opts: Turn options with message, context, and per-turn overrides
+
+        Returns:
+            Result object with response and other fields
+        """
         # Execute the turn (inlined from old turn() method)
         self._turn_count += 1
         logger.debug(f"Agent '{self.name}' turn {self._turn_count}")
@@ -1073,6 +1101,7 @@ def create_dspy_agent(
     config: Dict[str, Any],
     registry: Any = None,
     mock_manager: Any = None,
+    execution_context: Any = None,
 ) -> DSPyAgentHandle:
     """
     Create a DSPy-based Agent from configuration.
@@ -1090,6 +1119,7 @@ def create_dspy_agent(
             - Other optional configuration
         registry: Optional Registry instance for accessing mocks
         mock_manager: Optional MockManager instance for checking mocks
+        execution_context: Optional ExecutionContext for checkpointing agent calls
 
     Returns:
         A DSPyAgentHandle instance
@@ -1120,6 +1150,7 @@ def create_dspy_agent(
         mock_manager=mock_manager,
         log_handler=config.get("log_handler"),
         disable_streaming=config.get("disable_streaming", False),
+        execution_context=execution_context,
         **{
             k: v
             for k, v in config.items()
