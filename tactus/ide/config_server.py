@@ -155,26 +155,41 @@ def get_config():
             # Check if API keys are configured
             # Support both old flat format (openai_api_key) and new nested format (openai.api_key)
             openai_key = None
-            if 'openai' in project_config and isinstance(project_config['openai'], dict):
-                openai_key = project_config['openai'].get('api_key')
+            if "openai" in project_config and isinstance(project_config["openai"], dict):
+                openai_key = project_config["openai"].get("api_key")
             else:
-                openai_key = project_config.get('openai_api_key')
+                openai_key = project_config.get("openai_api_key")
 
             aws_key = None
-            if 'aws' in project_config and isinstance(project_config['aws'], dict):
-                aws_key = project_config['aws'].get('profile') or project_config['aws'].get('access_key_id')
+            if "aws" in project_config and isinstance(project_config["aws"], dict):
+                aws_key = project_config["aws"].get("profile") or project_config["aws"].get(
+                    "access_key_id"
+                )
             else:
-                aws_key = project_config.get('aws_access_key_id')
+                aws_key = project_config.get("aws_access_key_id")
 
             google_key = None
-            if 'google' in project_config and isinstance(project_config['google'], dict):
-                google_key = project_config['google'].get('api_key')
+            if "google" in project_config and isinstance(project_config["google"], dict):
+                google_key = project_config["google"].get("api_key")
 
             # Check if keys are present and not placeholder values
             # Empty strings or None mean not configured
-            has_openai_key = openai_key and str(openai_key).strip() != '' and not str(openai_key).startswith('your-')
-            has_aws_keys = aws_key and str(aws_key).strip() != '' and str(aws_key) != 'default' and not str(aws_key).startswith('your-')
-            has_google_key = google_key and str(google_key).strip() != '' and not str(google_key).startswith('your-')
+            has_openai_key = (
+                openai_key
+                and str(openai_key).strip() != ""
+                and not str(openai_key).startswith("your-")
+            )
+            has_aws_keys = (
+                aws_key
+                and str(aws_key).strip() != ""
+                and str(aws_key) != "default"
+                and not str(aws_key).startswith("your-")
+            )
+            has_google_key = (
+                google_key
+                and str(google_key).strip() != ""
+                and not str(google_key).startswith("your-")
+            )
 
             # If no API keys are configured, initialize from example
             if not has_openai_key and not has_aws_keys and not has_google_key:
@@ -196,7 +211,9 @@ def get_config():
                 # Save the merged config
                 try:
                     save_yaml_file(project_config_path, project_config, create_backup=True)
-                    logger.info(f"Initialized/merged config with example template: {example_config_path}")
+                    logger.info(
+                        f"Initialized/merged config with example template: {example_config_path}"
+                    )
                 except Exception as e:
                     logger.warning(f"Failed to save merged config: {e}")
             elif not project_config:
@@ -288,6 +305,7 @@ def save_config():
         # This ensures the new config is picked up without requiring a restart
         try:
             from tactus.ide.server import clear_runtime_caches
+
             clear_runtime_caches()
             logger.info("Cleared runtime caches after config save")
         except (ImportError, AttributeError):

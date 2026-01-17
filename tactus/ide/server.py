@@ -28,6 +28,7 @@ WORKSPACE_ROOT = None
 # Global cache clearing function - set by create_app()
 _clear_runtime_caches_fn = None
 
+
 def clear_runtime_caches():
     """Clear cached runtime instances. Must be called after create_app() initializes."""
     if _clear_runtime_caches_fn:
@@ -755,6 +756,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
 
                     # Load configuration cascade for this procedure
                     from tactus.core.config_manager import ConfigManager
+
                     config_manager = ConfigManager()
                     merged_config = config_manager.load_cascade(path)
 
@@ -2188,6 +2190,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
     # Register config API routes
     try:
         from tactus.ide.config_server import register_config_routes
+
         register_config_routes(app)
     except ImportError as e:
         logger.warning(f"Could not register config routes: {e}")

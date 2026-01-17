@@ -603,9 +603,9 @@ class DSPyAgentHandle:
 
             # Unwrap ExceptionGroup to find the real error
             original_error = error
-            if hasattr(error, '__class__') and error.__class__.__name__ == 'ExceptionGroup':
+            if hasattr(error, "__class__") and error.__class__.__name__ == "ExceptionGroup":
                 # Python 3.11+ ExceptionGroup
-                if hasattr(error, 'exceptions') and error.exceptions:
+                if hasattr(error, "exceptions") and error.exceptions:
                     original_error = error.exceptions[0]
 
             # Check if it's an authentication error (in original or wrapped)
@@ -614,6 +614,7 @@ class DSPyAgentHandle:
 
             if "authenticationerror" in error_type.lower() or "api_key" in error_str:
                 from tactus.core.exceptions import TactusRuntimeError
+
                 raise TactusRuntimeError(
                     f"API authentication failed for agent '{self.name}': "
                     f"Missing or invalid API key. Please configure your API key in Settings (Cmd+,)."
