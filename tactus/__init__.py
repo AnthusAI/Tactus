@@ -5,7 +5,7 @@ Tactus provides a declarative workflow engine for AI agents with pluggable
 backends for storage, HITL, and chat recording.
 """
 
-__version__ = "0.31.2"
+__version__ = "0.32.0"
 
 # Core exports
 from tactus.core.runtime import TactusRuntime

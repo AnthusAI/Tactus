@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v0.32.0 (2026-01-17)
+
+### Code Style
+
+- Apply Black formatting to IDE server and config files
+  ([`65641cc`](https://github.com/AnthusAI/Tactus/commit/65641cc4b806230c086dff071853d1527f82781d))
+
+### Features
+
+- Add authentication error dialog and automatic config reload
+  ([`5f3dd95`](https://github.com/AnthusAI/Tactus/commit/5f3dd9572e545cfeb94c26af656ad1d36723cc43))
+
+
 ## v0.31.2 (2026-01-16)
 
 ### Bug Fixes
