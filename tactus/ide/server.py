@@ -25,6 +25,16 @@ logger = logging.getLogger(__name__)
 # Workspace state
 WORKSPACE_ROOT = None
 
+# Global cache clearing function - set by create_app()
+_clear_runtime_caches_fn = None
+
+def clear_runtime_caches():
+    """Clear cached runtime instances. Must be called after create_app() initializes."""
+    if _clear_runtime_caches_fn:
+        _clear_runtime_caches_fn()
+    else:
+        logger.warning("clear_runtime_caches called but no implementation set")
+
 
 class TactusLSPHandler:
     """LSP handler for Tactus DSL."""
@@ -743,7 +753,22 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                     )
                     storage_backend = FileStorage(storage_dir=storage_dir)
 
-                    # Create runtime with log handler and run_id
+                    # Load configuration cascade for this procedure
+                    from tactus.core.config_manager import ConfigManager
+                    config_manager = ConfigManager()
+                    merged_config = config_manager.load_cascade(path)
+
+                    # Extract API keys and other config values
+                    openai_api_key = (
+                        merged_config.get("openai", {}).get("api_key")
+                        if isinstance(merged_config.get("openai"), dict)
+                        else merged_config.get("openai_api_key")
+                    ) or os.environ.get("OPENAI_API_KEY")
+
+                    tool_paths = merged_config.get("tool_paths")
+                    mcp_servers = merged_config.get("mcp_servers", {})
+
+                    # Create runtime with log handler, run_id, and loaded config
                     runtime = TactusRuntime(
                         procedure_id=procedure_id,
                         storage_backend=storage_backend,
@@ -751,6 +776,10 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                         log_handler=log_handler,
                         run_id=run_id,
                         source_file_path=str(path),
+                        openai_api_key=openai_api_key,
+                        tool_paths=tool_paths,
+                        mcp_servers=mcp_servers,
+                        external_config=merged_config,
                     )
 
                     # Read procedure source
@@ -1940,6 +1969,17 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                 raise
         return coding_assistant
 
+    def _clear_caches_impl():
+        """Clear cached runtime instances (e.g., after config changes)."""
+        nonlocal coding_assistant
+        if coding_assistant is not None:
+            logger.info("Clearing coding assistant cache")
+            coding_assistant = None
+
+    # Set the global cache clearing function
+    global _clear_runtime_caches_fn
+    _clear_runtime_caches_fn = _clear_caches_impl
+
     @app.route("/api/chat", methods=["POST"])
     def chat_message():
         """Handle chat messages from the user."""
@@ -2147,18 +2187,8 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
 
     # Register config API routes
     try:
-        import sys
-
-        # Add tactus-ide/backend to path for imports
-        # Path from tactus/ide/server.py -> project root -> tactus-ide/backend
-        backend_dir = Path(__file__).parent.parent.parent / "tactus-ide" / "backend"
-        if backend_dir.exists():
-            sys.path.insert(0, str(backend_dir))
-            from config_server import register_config_routes
-
-            register_config_routes(app)
-        else:
-            logger.warning(f"Config server backend directory not found: {backend_dir}")
+        from tactus.ide.config_server import register_config_routes
+        register_config_routes(app)
     except ImportError as e:
         logger.warning(f"Could not register config routes: {e}")
 

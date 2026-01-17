@@ -50,6 +50,7 @@ import { ProcedureInputsModal } from './components/ProcedureInputsModal';
 import { TestOptionsModal, TestOptions } from './components/TestOptionsModal';
 import { AboutDialog } from './components/AboutDialog';
 import { PreferencesView } from './components/PreferencesView';
+import { AuthErrorDialog } from './components/AuthErrorDialog';
 
 // Detect if running in Electron (moved inside component for runtime evaluation)
 
@@ -93,18 +94,23 @@ interface ValidationResult {
 const AppContent: React.FC = () => {
   const API_BASE = import.meta.env.VITE_BACKEND_URL || '';
   const apiUrl = (path: string) => (API_BASE ? `${API_BASE}${path}` : path);
-  
+
   // Detect if running in Electron at runtime
   const isElectron = !!(window as any).electronAPI;
-  
+
+  // Check if this is a preferences-only window (for Electron)
+  const urlParams = new URLSearchParams(window.location.search);
+  const isPreferencesOnly = urlParams.get('preferencesOnly') === 'true';
+
   // Debug logging
   useEffect(() => {
     console.log('Electron detection:', {
       isElectron,
       hasElectronAPI: !!(window as any).electronAPI,
-      electronAPI: (window as any).electronAPI
+      electronAPI: (window as any).electronAPI,
+      isPreferencesOnly
     });
-  }, []);
+  }, [isPreferencesOnly]);
 
   // Workspace state
   const [workspaceRoot, setWorkspaceRoot] = useState<string | null>(null);
@@ -134,6 +140,10 @@ const AppContent: React.FC = () => {
   // Streaming state
   const [streamUrl, setStreamUrl] = useState<string | null>(null);
   const { events, isRunning: isStreaming, error: streamError } = useEventStream(streamUrl);
+
+  // Auth error dialog state
+  const [authErrorDialogOpen, setAuthErrorDialogOpen] = useState(false);
+  const [authErrorMessage, setAuthErrorMessage] = useState<string>('');
 
   // Results history and metadata state
   const [resultsHistory, setResultsHistory] = useState<ResultsHistoryState>({});
@@ -608,6 +618,36 @@ const AppContent: React.FC = () => {
     }
   }, []);
 
+  // Function to detect authentication errors
+  const isAuthenticationError = useCallback((errorMessage: string, errorType?: string): boolean => {
+    if (!errorMessage) return false;
+
+    const lowercaseError = errorMessage.toLowerCase();
+    const lowercaseType = (errorType || '').toLowerCase();
+
+    return (
+      lowercaseError.includes('api authentication failed') ||
+      lowercaseError.includes('missing or invalid api key') ||
+      lowercaseError.includes('authenticationerror') ||
+      lowercaseError.includes('unauthorized') ||
+      lowercaseType.includes('authenticationerror') ||
+      lowercaseType.includes('tactusruntimeerror')
+    );
+  }, []);
+
+  // Function to open settings (handles both Electron and web)
+  const handleOpenSettings = useCallback(() => {
+    if (isElectron) {
+      // In Electron, use the electronAPI to open settings window
+      if ((window as any).electronAPI?.openPreferences) {
+        (window as any).electronAPI.openPreferences();
+      }
+    } else {
+      // In web app, show inline preferences
+      setShowPreferences(true);
+    }
+  }, [isElectron]);
+
   // Keyboard shortcut for toggling sidebar (Ctrl+B / Cmd+B)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -786,6 +826,38 @@ const AppContent: React.FC = () => {
     }
   }, [events, isStreaming, currentFile, currentRunId]);
 
+  // Detect authentication errors in execution events
+  useEffect(() => {
+    if (!events || events.length === 0) return;
+
+    // Check the most recent events for authentication errors
+    const recentEvents = events.slice(-5); // Check last 5 events
+
+    for (const event of recentEvents) {
+      if (event.event_type === 'execution' && event.lifecycle_stage === 'error') {
+        const errorMsg = event.details?.error || '';
+        const errorType = event.details?.error_type || '';
+
+        if (isAuthenticationError(errorMsg, errorType)) {
+          setAuthErrorMessage(errorMsg);
+          setAuthErrorDialogOpen(true);
+          break;
+        }
+      }
+
+      if (event.event_type === 'execution_summary' && event.error_message) {
+        const errorMsg = event.error_message || '';
+        const errorType = event.error_type || '';
+
+        if (isAuthenticationError(errorMsg, errorType)) {
+          setAuthErrorMessage(errorMsg);
+          setAuthErrorDialogOpen(true);
+          break;
+        }
+      }
+    }
+  }, [events, isAuthenticationError]);
+
   // Handler to toggle run expansion
   const handleToggleRunExpansion = useCallback((runId: string) => {
     if (!currentFile) return;
@@ -808,6 +880,21 @@ const AppContent: React.FC = () => {
     });
   }, [currentFile]);
 
+  // If this is a preferences-only window, render only the preferences UI
+  if (isPreferencesOnly) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-background text-foreground p-4">
+        <PreferencesView
+          onClose={() => window.close()}
+          onSave={() => {
+            // Config saved successfully - could close window or show message
+            console.log('Preferences saved');
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-screen bg-background text-foreground">
       {/* Top bar - only show in browser mode */}
@@ -822,7 +909,7 @@ const AppContent: React.FC = () => {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
                 <DropdownMenuItem onClick={() => executeCommand('tactus.preferences')}>
-                  Preferences...
+                  Settings...
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => executeCommand('tactus.about')}>
                   About Tactus
@@ -1039,6 +1126,14 @@ const AppContent: React.FC = () => {
       <AboutDialog
         open={aboutDialogOpen}
         onOpenChange={setAboutDialogOpen}
+      />
+
+      {/* Auth Error Dialog */}
+      <AuthErrorDialog
+        open={authErrorDialogOpen}
+        onOpenChange={setAuthErrorDialogOpen}
+        errorMessage={authErrorMessage}
+        onOpenSettings={handleOpenSettings}
       />
 
       {/* Preferences View */}

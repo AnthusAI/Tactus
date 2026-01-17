@@ -23,6 +23,7 @@ lupa_datas = collect_data_files('lupa', include_py_files=True)
 behave_datas = collect_data_files('behave')
 gherkin_datas = collect_data_files('gherkin')
 litellm_datas = collect_data_files('litellm')
+rfc3987_syntax_datas = collect_data_files('rfc3987_syntax')
 
 # Manually collect lupa native libraries
 # collect_dynamic_libs doesn't find them, so we do it explicitly
@@ -41,6 +42,7 @@ a = Analysis(
         *behave_datas,
         *gherkin_datas,
         *litellm_datas,
+        *rfc3987_syntax_datas,
         *copy_metadata('genai_prices'),
         *copy_metadata('pydantic_ai_slim'),
         *copy_metadata('pydantic_ai'),

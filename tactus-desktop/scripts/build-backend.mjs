@@ -31,12 +31,14 @@ async function buildBackend() {
   console.log('Building Python backend with PyInstaller');
   console.log('========================================\n');
 
-  // Detect Python command (prefer python for conda environments)
-  let pythonCmd = 'python';
-  try {
-    await execPromise('python --version');
-  } catch {
-    pythonCmd = 'python3';
+  // Detect Python command (prefer environment variable, then python for conda environments)
+  let pythonCmd = process.env.PYTHON_CMD || 'python';
+  if (!process.env.PYTHON_CMD) {
+    try {
+      await execPromise('python --version');
+    } catch {
+      pythonCmd = 'python3';
+    }
   }
 
   // Check Python version
@@ -51,13 +53,25 @@ async function buildBackend() {
     console.log('PyInstaller is already installed');
   } catch (error) {
     console.log('PyInstaller not found, installing...');
-    await execPromise(`${pythonCmd} -m pip install pyinstaller`);
+    try {
+      await execPromise(`${pythonCmd} -m pip install pyinstaller`);
+    } catch (installError) {
+      // Try with --break-system-packages for externally-managed environments
+      console.log('Retrying with --break-system-packages flag...');
+      await execPromise(`${pythonCmd} -m pip install --break-system-packages pyinstaller`);
+    }
     console.log('PyInstaller installed successfully');
   }
 
   // Install Tactus package in development mode
   console.log('\nInstalling Tactus package...');
-  await execPromise(`${pythonCmd} -m pip install -e .`, { cwd: PROJECT_ROOT });
+  try {
+    await execPromise(`${pythonCmd} -m pip install -e .`, { cwd: PROJECT_ROOT });
+  } catch (error) {
+    // Try with --break-system-packages for externally-managed environments
+    console.log('Retrying with --break-system-packages flag...');
+    await execPromise(`${pythonCmd} -m pip install --break-system-packages -e .`, { cwd: PROJECT_ROOT });
+  }
 
   // Build frontend first (needed for PyInstaller bundle)
   console.log('\nBuilding frontend for bundling...');

@@ -143,22 +143,65 @@ def get_config():
         project_config_path = Path.cwd() / ".tactus" / "config.yml"
         project_config = load_yaml_file(project_config_path)
 
-        # If project config doesn't exist, create it from example template
+        # Check if we should initialize from example template
+        # This happens when:
+        # 1. No config.yml exists, OR
+        # 2. Config exists but has no API keys configured (openai_api_key is empty/missing)
+        should_initialize_from_example = False
+
         if project_config is None:
+            should_initialize_from_example = True
+        elif isinstance(project_config, dict):
+            # Check if API keys are configured
+            # Support both old flat format (openai_api_key) and new nested format (openai.api_key)
+            openai_key = None
+            if 'openai' in project_config and isinstance(project_config['openai'], dict):
+                openai_key = project_config['openai'].get('api_key')
+            else:
+                openai_key = project_config.get('openai_api_key')
+
+            aws_key = None
+            if 'aws' in project_config and isinstance(project_config['aws'], dict):
+                aws_key = project_config['aws'].get('profile') or project_config['aws'].get('access_key_id')
+            else:
+                aws_key = project_config.get('aws_access_key_id')
+
+            google_key = None
+            if 'google' in project_config and isinstance(project_config['google'], dict):
+                google_key = project_config['google'].get('api_key')
+
+            # Check if keys are present and not placeholder values
+            # Empty strings or None mean not configured
+            has_openai_key = openai_key and str(openai_key).strip() != '' and not str(openai_key).startswith('your-')
+            has_aws_keys = aws_key and str(aws_key).strip() != '' and str(aws_key) != 'default' and not str(aws_key).startswith('your-')
+            has_google_key = google_key and str(google_key).strip() != '' and not str(google_key).startswith('your-')
+
+            # If no API keys are configured, initialize from example
+            if not has_openai_key and not has_aws_keys and not has_google_key:
+                should_initialize_from_example = True
+        else:
+            project_config = {}
+
+        if should_initialize_from_example:
             example_config_path = Path.cwd() / ".tactus" / "config.yml.example"
             if example_config_path.exists():
-                project_config = load_yaml_file(example_config_path) or {}
-                # Save the example as the actual config so user can edit it
+                example_config = load_yaml_file(example_config_path) or {}
+                # Merge with existing config (keeps existing values, adds missing fields from example)
+                if project_config and isinstance(project_config, dict):
+                    # Deep merge: example provides defaults, existing values are kept
+                    merged_config = {**example_config, **project_config}
+                else:
+                    merged_config = example_config
+                project_config = merged_config
+                # Save the merged config
                 try:
-                    save_yaml_file(project_config_path, project_config, create_backup=False)
-                    logger.info(f"Initialized config from example: {example_config_path}")
+                    save_yaml_file(project_config_path, project_config, create_backup=True)
+                    logger.info(f"Initialized/merged config with example template: {example_config_path}")
                 except Exception as e:
-                    logger.warning(f"Failed to initialize config from example: {e}")
-            else:
-                # No example found, use empty config
+                    logger.warning(f"Failed to save merged config: {e}")
+            elif not project_config:
+                # No example found and no existing config, use empty
                 project_config = {}
-        elif not isinstance(project_config, dict):
-            project_config = {}
 
         user_config_path = Path.home() / ".tactus" / "config.yml"
         user_config = load_yaml_file(user_config_path) or {}
@@ -240,6 +283,16 @@ def save_config():
 
         # Save config
         save_yaml_file(config_path, config, create_backup)
+
+        # Trigger a runtime reload by emitting an event or clearing caches
+        # This ensures the new config is picked up without requiring a restart
+        try:
+            from tactus.ide.server import clear_runtime_caches
+            clear_runtime_caches()
+            logger.info("Cleared runtime caches after config save")
+        except (ImportError, AttributeError):
+            # If function doesn't exist yet, that's okay - just log it
+            logger.debug("Runtime cache clearing not available")
 
         return jsonify({"success": True, "path": str(config_path)})
 
