@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.32.1 (2026-01-17)
+
+### Bug Fixes
+
+- Add Flask and Flask-CORS to package dependencies for IDE server
+  ([`a7ccb69`](https://github.com/AnthusAI/Tactus/commit/a7ccb6957c77628601407f53b8a41d074c6d5568))
+
+
 ## v0.32.0 (2026-01-17)
 
 ### Code Style
