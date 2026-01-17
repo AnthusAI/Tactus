@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.32.2 (2026-01-17)
+
+### Bug Fixes
+
+- Use Python 3.13 in CI to match local working build
+  ([`e2d2768`](https://github.com/AnthusAI/Tactus/commit/e2d276819759b7c8feb724f42145ab8553025b78))
+
+
 ## v0.32.1 (2026-01-17)
 
 ### Bug Fixes
