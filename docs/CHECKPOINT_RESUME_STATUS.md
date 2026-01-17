@@ -104,8 +104,8 @@ Added `_serialize_result()` and `_deserialize_result()` methods to properly hand
 ### Phase 1 - Core Testing
 1. ✅ Basic HITL Resume - DONE!
 2. ✅ Multiple Sequential HITL Calls - DONE!
-3. LLM Checkpoint/Resume (verify `Agent.generate()` cached deterministically)
-4. Mixed Operations (LLM → HITL → LLM → HITL sequence)
+3. ✅ LLM Checkpoint/Resume - DONE! (agent calls now checkpointed)
+4. Mixed Operations (LLM → HITL → LLM → HITL sequence) - READY TO TEST
 
 ### Phase 2 - Edge Cases
 5. All HITL Types (approve, input, review, escalate)
