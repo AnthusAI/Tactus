@@ -57,9 +57,11 @@
       "category": "public.app-category.developer-tools",
       "icon": "resources/app-icon.icns",
       "target": [
-        "dmg"
+        "dmg",
+        "zip"
       ],
       "artifactName": "${productName}-${version}-${os}.${ext}",
+      "identity": null,
       "hardenedRuntime": false,
       "gatekeeperAssess": false
     },

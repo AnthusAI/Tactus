@@ -60,27 +60,35 @@ python3 --version  # Should show 3.11 or higher
 
 This application is not code-signed (requires $99/year Apple Developer Program). Users need to remove macOS quarantine attributes after downloading.
 
-### macOS Installation (REQUIRED)
+### macOS Installation
 
-When you download the DMG from GitHub Releases, macOS quarantines it. You **must** run this command before opening:
-
+**Option 1: Install via Homebrew (Recommended)**
 ```bash
-# After downloading, remove quarantine from the DMG
+# Coming soon - Homebrew Cask handles quarantine automatically
+brew install --cask tactus-ide
+```
+
+**Option 2: System Settings Method (Easiest for Direct Downloads)**
+
+If you see "app is damaged" error after downloading:
+
+1. Try to open the app (it will be blocked)
+2. Go to **System Settings → Privacy & Security**
+3. Scroll down and click **"Open Anyway"** button
+4. Click **"Open"** when the confirmation appears
+
+This is Apple's official method for opening unsigned apps. More info: https://support.apple.com/en-us/102445
+
+**Option 3: Terminal Command (Advanced Users)**
+```bash
+# Remove quarantine from the DMG first
 xattr -cr ~/Downloads/Tactus*.dmg
 
-# Open the DMG
-open ~/Downloads/Tactus*.dmg
-
-# Drag app to Applications, then remove quarantine from the app
+# Open DMG, drag to Applications, then remove quarantine from app
 xattr -cr "/Applications/Tactus IDE.app"
 ```
 
-**Why this is needed:** macOS Gatekeeper blocks downloaded apps that aren't code-signed. The `xattr -cr` command removes the quarantine flag that GitHub adds to downloaded files.
-
-**Alternative (if above doesn't work):**
-1. Right-click the DMG > Open
-2. If you see "damaged" error, run: `xattr -d com.apple.provenance ~/Downloads/Tactus*.dmg`
-3. Mount the DMG again and remove quarantine from the app inside
+**Why this is needed:** macOS Gatekeeper blocks downloaded apps that aren't code-signed with an Apple Developer certificate ($99/year). Despite the "damaged" message, the app is fine - it's a security warning, not actual corruption.
 
 ### Windows Installation
 

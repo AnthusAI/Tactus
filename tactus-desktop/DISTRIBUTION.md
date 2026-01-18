@@ -25,13 +25,40 @@ When users download the DMG from GitHub Releases:
 
 Local builds don't have quarantine attributes because they weren't downloaded from the internet. That's why testing locally always worked but CI builds appeared broken.
 
-## Alternative Distribution Methods to Research
+## Alternative Distribution Methods (RESEARCHED)
 
-### 1. **ZIP Instead of DMG**
-Some developers report that distributing as ZIP files instead of DMG reduces Gatekeeper friction:
-- ZIP files may trigger less aggressive security checks
-- Still requires `xattr -cr` but might be easier for users
-- electron-builder supports ZIP: change target from `dmg` to `zip`
+### 1. **Homebrew Cask - BEST SOLUTION**
+**Most popular method for unsigned Electron apps. Homebrew handles quarantine automatically.**
+
+Used by: VSCodium, Motrix, MarkText, Kap, FreeTube, PicGo, YesPlayMusic, and many others.
+
+**Advantages:**
+- ✅ No manual quarantine removal needed
+- ✅ Automatic updates through Homebrew
+- ✅ Trusted by developer community
+- ✅ No code signing required
+- ✅ Users already familiar with `brew install`
+
+**How to Submit:**
+1. Create a Cask formula in homebrew/homebrew-cask repository
+2. Formula references the DMG from GitHub Releases
+3. Homebrew team reviews and merges
+4. Users install with: `brew install --cask tactus-ide`
+
+**Example Apps Successfully Using This:**
+- VSCodium (VSCode fork): https://github.com/VSCodium/vscodium
+- Motrix (download manager): https://github.com/agalwood/Motrix
+- MarkText (markdown editor): https://github.com/marktext/marktext
+
+### 2. **Provide Both DMG and ZIP**
+Research shows successful apps offer both formats:
+- **DMG**: More professional, better UX, drag-to-install
+- **ZIP**: Simpler, some users report fewer issues
+- Both still trigger quarantine, but choice is good UX
+
+**Examples:**
+- draw.io desktop offers both
+- VSCodium provides both formats
 
 ### 2. **Self-Hosted Downloads with Instructions**
 Host the DMG on your own server with clear installation instructions:
@@ -39,14 +66,23 @@ Host the DMG on your own server with clear installation instructions:
 - More control over download experience
 - Can show installation instructions before download
 
-### 3. **Ad-Hoc Code Signing (Free)**
-macOS allows ad-hoc signing without Apple Developer account:
-```bash
-codesign --force --deep --sign - "Tactus IDE.app"
-```
-- Won't pass Gatekeeper, but might reduce "damaged" errors
-- Still requires `xattr -cr` for downloaded apps
-- Worth testing if it improves UX
+### 3. **Real-World Examples of Unsigned Distribution**
+
+**massCode** (most transparent example):
+- Repository: https://github.com/massCodeIO/massCode
+- Explicitly ships unsigned starting v3.8.0 (dev couldn't afford Apple cert)
+- Documents three workarounds in README
+- Discussion: https://github.com/massCodeIO/massCode/discussions/413
+
+**YouTube Music (th-ch/youtube-music)**:
+- electron-builder config uses `identity: null` to explicitly disable signing
+- Ships DMG for both x64 and arm64
+- Config: https://github.com/th-ch/youtube-music/blob/master/electron-builder.yml
+
+**MarkText**:
+- Repository: https://github.com/marktext/marktext
+- Multiple issues (#3889, #3004, #2983) document user workarounds
+- Users share solution: `xattr -dr com.apple.quarantine /Applications/MarkText.app/`
 
 ### 4. **Notarization Service Alternatives**
 Some third-party services offer notarization for a fee (cheaper than $99/year):
@@ -107,3 +143,63 @@ Look at how these unsigned/indie Electron apps handle distribution:
 - ✅ Fine for developer/power user audience
 
 For an IDE targeting developers, the current solution may be acceptable since the target audience is comfortable with terminal commands.
+
+## Recommended Configuration
+
+Based on research of successful unsigned Electron apps, here's the optimal electron-builder configuration:
+
+```json
+{
+  "mac": {
+    "target": [
+      {
+        "target": "dmg",
+        "arch": ["x64", "arm64"]
+      },
+      {
+        "target": "zip",
+        "arch": ["x64", "arm64"]
+      }
+    ],
+    "identity": null,
+    "hardenedRuntime": false,
+    "gatekeeperAssess": false,
+    "category": "public.app-category.developer-tools"
+  }
+}
+```
+
+**Key settings for unsigned builds:**
+- `identity: null` - Explicitly disables code signing (recommended by electron-builder maintainers)
+- `hardenedRuntime: false` - Not needed without signing
+- `gatekeeperAssess: false` - Already set in our config
+- Provide both DMG and ZIP - Users can choose which works better
+
+## Immediate Action Items
+
+1. **Update electron-builder config** to add `identity: null` and ZIP target
+2. **Submit to Homebrew Cask** - This is the PRIMARY recommended distribution method
+3. **Update README** with System Settings method (Option 1) as the easiest solution
+4. **Test both DMG and ZIP** to see if either has fewer issues
+
+## Homebrew Cask Submission
+
+Priority: HIGH - This solves the distribution problem for macOS users.
+
+**Steps:**
+1. Ensure releases have stable URLs (already done via GitHub Releases)
+2. Create Cask formula in homebrew/homebrew-cask
+3. Formula example:
+```ruby
+cask "tactus-ide" do
+  version "0.32.2"
+  sha256 "..." # calculate with: shasum -a 256 Tactus*.dmg
+
+  url "https://github.com/AnthusAI/Tactus/releases/download/v#{version}/Tactus.IDE-#{version}-mac.dmg"
+  name "Tactus IDE"
+  desc "IDE for Tactus workflow automation"
+  homepage "https://github.com/AnthusAI/Tactus"
+
+  app "Tactus IDE.app"
+end
+```
