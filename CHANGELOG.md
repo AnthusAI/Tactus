@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v0.33.0 (2026-01-18)
+
+### Documentation
+
+- Add installation instructions for unsigned macOS builds
+  ([`bb34f44`](https://github.com/AnthusAI/Tactus/commit/bb34f44b389b0154801d79a9d23255068328945d))
+
+### Features
+
+- Improve unsigned app distribution based on research
+  ([`34bc90e`](https://github.com/AnthusAI/Tactus/commit/34bc90ed6e25f4e58a4fefccbbc3c4220869dd3b))
+
+
 ## v0.32.2 (2026-01-17)
 
 ### Bug Fixes
