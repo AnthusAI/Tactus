@@ -246,6 +246,94 @@ export interface ContainerStatusEvent extends BaseEvent {
   spinup_duration_ms?: number;
 }
 
+/**
+ * HITL event types for omnichannel human-in-the-loop notifications
+ */
+
+export type HITLRequestType =
+  | 'approval'
+  | 'input'
+  | 'review'
+  | 'escalation'
+  | 'select'
+  | 'upload'
+  | 'inputs';
+
+export interface HITLOption {
+  label: string;
+  value: any;
+  style?: 'primary' | 'danger' | 'secondary' | 'default';
+  description?: string;
+}
+
+export interface HITLRequestItem {
+  item_id: string;
+  label: string;
+  request_type: HITLRequestType;
+  message: string;
+  options?: HITLOption[];
+  default_value?: any;
+  required?: boolean;
+  metadata?: Record<string, any>;
+}
+
+export interface ConversationMessage {
+  role: 'agent' | 'user' | 'tool' | 'system';
+  content: string;
+  timestamp: string;
+  tool_name?: string;
+  tool_input?: Record<string, any>;
+  tool_output?: any;
+}
+
+export interface ControlInteraction {
+  request_type: HITLRequestType;
+  message: string;
+  response_value: any;
+  responded_by?: string;
+  responded_at: string;
+  channel_id: string;
+}
+
+export interface HITLRequestEvent extends BaseEvent {
+  event_type: 'hitl.request';
+  request_id: string;
+
+  // Identity
+  procedure_name: string;
+  invocation_id?: string;
+
+  // Context
+  subject?: string;
+  started_at?: string;
+  input_summary?: Record<string, any>;
+
+  // The question
+  request_type: HITLRequestType;
+  message: string;
+  default_value?: any;
+  timeout_seconds?: number;
+
+  // Options
+  options?: HITLOption[];
+
+  // Batched inputs
+  items?: HITLRequestItem[];
+
+  // Rich context
+  conversation?: ConversationMessage[];
+  prior_interactions?: ControlInteraction[];
+
+  // Metadata
+  metadata?: Record<string, any>;
+}
+
+export interface HITLCancelEvent extends BaseEvent {
+  event_type: 'hitl.cancel';
+  request_id: string;
+  reason: string;
+}
+
 export type AnyEvent =
   | LogEvent
   | CostEvent
@@ -265,7 +353,9 @@ export type AnyEvent =
   | AgentTurnEvent
   | ToolCallEvent
   | CheckpointCreatedEvent
-  | ContainerStatusEvent;
+  | ContainerStatusEvent
+  | HITLRequestEvent
+  | HITLCancelEvent;
 
 
 

@@ -212,31 +212,50 @@ class BaseExecutionContext(ExecutionContext):
         On replay, returns cached result from execution log.
         On first execution, runs fn(), records in log, and returns result.
         """
-        logger.debug(
-            f"[CHECKPOINT] checkpoint() called, type={checkpoint_type}, has_log_handler={self.log_handler is not None}"
+        logger.info(
+            f"[CHECKPOINT] checkpoint() called, type={checkpoint_type}, position={self.metadata.replay_index}, "
+            f"current_run_id={self.current_run_id}, has_log_handler={self.log_handler is not None}"
         )
         current_position = self.metadata.replay_index
 
         # Check if we're in replay mode (checkpoint exists at this position)
         if current_position < len(self.metadata.execution_log):
             entry = self.metadata.execution_log[current_position]
+            logger.info(
+                f"[CHECKPOINT] Found existing checkpoint at position {current_position}: "
+                f"type={entry.type}, run_id={entry.run_id}, result_type={type(entry.result).__name__}"
+            )
 
+            # CRITICAL: Only replay checkpoints from the CURRENT run
+            # Each new run should execute fresh, not use cached results from previous runs
+            if entry.run_id != self.current_run_id:
+                logger.info(
+                    f"[CHECKPOINT] Checkpoint is from DIFFERENT run "
+                    f"(checkpoint run_id={entry.run_id}, current run_id={self.current_run_id}), "
+                    f"executing fresh (NOT replaying)"
+                )
+                # Fall through to execute mode - this is a new run
             # Special case: HITL checkpoints may have result=None if saved before response arrived
             # In this case, re-execute to check for cached response from control loop
-            if entry.result is None and checkpoint_type.startswith("hitl_"):
-                logger.debug(
+            elif entry.result is None and checkpoint_type.startswith("hitl_"):
+                logger.info(
                     f"[CHECKPOINT] HITL checkpoint at position {current_position} has no result, "
                     f"re-executing to check for cached response"
                 )
                 # Fall through to execute mode - will check for cached response
             else:
-                # Normal replay: return cached result
+                # Normal replay: return cached result from CURRENT run
                 self.metadata.replay_index += 1
-                logger.debug(
-                    f"[CHECKPOINT] Replaying checkpoint at position {current_position}, "
-                    f"type={entry.type}, returning cached result"
+                logger.info(
+                    f"[CHECKPOINT] REPLAYING checkpoint at position {current_position}, "
+                    f"type={entry.type}, run_id={entry.run_id}, returning cached result"
                 )
                 return entry.result
+        else:
+            logger.info(
+                f"[CHECKPOINT] No checkpoint at position {current_position} "
+                f"(only {len(self.metadata.execution_log)} checkpoints exist), executing fresh"
+            )
 
         # Execute mode: run function with checkpoint scope tracking
         old_checkpoint_flag = self._inside_checkpoint

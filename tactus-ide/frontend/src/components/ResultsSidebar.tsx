@@ -22,6 +22,7 @@ interface ResultsSidebarProps {
   isRunning: boolean;
   onToggleRunExpansion: (runId: string) => void;
   onJumpToSource?: (filePath: string, lineNumber: number) => void;
+  onHITLRespond?: (requestId: string, value: any) => void;
   containerStatus: {
     status: 'idle' | 'starting' | 'ready' | 'disabled' | 'error';
     spinupMs?: number;
@@ -41,6 +42,7 @@ export const ResultsSidebar: React.FC<ResultsSidebarProps> = ({
   isRunning,
   onToggleRunExpansion,
   onJumpToSource,
+  onHITLRespond,
   containerStatus,
   workspaceRoot,
 }) => {
@@ -280,6 +282,7 @@ export const ResultsSidebar: React.FC<ResultsSidebarProps> = ({
                     isExpanded={run.isExpanded}
                     onToggle={() => onToggleRunExpansion(run.id)}
                     onJumpToSource={onJumpToSource}
+                    onHITLRespond={onHITLRespond}
                   />
                 ))}
               </div>

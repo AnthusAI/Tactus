@@ -8,6 +8,7 @@ interface MessageFeedProps {
   clustered?: boolean;
   showFullLogs?: boolean;
   onJumpToSource?: (filePath: string, lineNumber: number) => void;
+  onHITLRespond?: (requestId: string, value: any) => void;
 }
 
 /**
@@ -85,7 +86,8 @@ export const MessageFeed: React.FC<MessageFeedProps> = ({
   events,
   clustered = false,
   showFullLogs = false,
-  onJumpToSource
+  onJumpToSource,
+  onHITLRespond
 }) => {
   const displayItems = useMemo(() => {
     // Filter out loading spinners when we have actual content
@@ -123,6 +125,7 @@ export const MessageFeed: React.FC<MessageFeedProps> = ({
               event={item}
               isAlternate={isAlternate}
               onJumpToSource={onJumpToSource}
+              onHITLRespond={onHITLRespond}
             />
           );
         }

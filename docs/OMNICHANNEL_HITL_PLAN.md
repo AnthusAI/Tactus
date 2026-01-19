@@ -35,13 +35,13 @@ All goals achieved (2026-01-19):
 - ✅ Human.inputs() batched HITL feature with tabbed UI
 - See [CONTROL_LOOP_INTEGRATION.md](CONTROL_LOOP_INTEGRATION.md)
 
-### ⏳ Phase 3 NEXT - IDE/SSE Channel
-Ready to build IDE-based HITL interactions:
-- Implement SSEControlChannel for IDE notifications
-- Extend Flask /stream endpoint with hitl.request events
-- Add POST /hitl/response/<request_id> endpoint
-- Build VSCode extension UI for HITL panels
-- Test multi-channel racing (CLI + IDE)
+### ⏳ Phase 3 IN PROGRESS - IDE/SSE Channel
+Backend complete, frontend integration needed:
+- ✅ SSEControlChannel implemented for IDE notifications
+- ✅ Flask GET /api/hitl/stream endpoint for SSE events
+- ✅ Flask POST /api/hitl/response/<request_id> endpoint for responses
+- ⏳ Build web IDE UI for HITL panels
+- ⏳ Test multi-channel racing (CLI + IDE)
 - See "IDE/SSE Channel - Detailed Design" section below
 
 ---

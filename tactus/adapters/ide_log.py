@@ -21,6 +21,8 @@ class IDELogHandler:
     for retrieval and streaming to the IDE frontend.
     """
 
+    supports_streaming = True
+
     def __init__(self):
         """Initialize IDE log handler."""
         self.events = queue.Queue()
@@ -34,6 +36,9 @@ class IDELogHandler:
         Args:
             event: Structured log event
         """
+        # CRITICAL DEBUG: Log every call to this method
+        logger.info(f"[IDE_LOG] log() called with event type: {type(event).__name__}")
+
         # Track cost events for aggregation
         from tactus.protocols.models import CostEvent, AgentStreamChunkEvent
 
@@ -47,7 +52,8 @@ class IDELogHandler:
             )
 
         self.events.put(event)
-        logger.debug(
+        # Use INFO level to ensure we see this in logs
+        logger.info(
             f"[IDE_LOG] Event queued: type={type(event).__name__}, queue_size={self.events.qsize()}"
         )
 

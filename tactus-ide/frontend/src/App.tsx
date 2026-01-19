@@ -481,6 +481,27 @@ const AppContent: React.FC = () => {
     }
   }, [currentFile, fileContent, createNewRun]);
 
+  // Handle HITL response submission
+  const handleHITLRespond = useCallback(async (requestId: string, value: any) => {
+    try {
+      const url = apiUrl(`/api/hitl/response/${requestId}`);
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      console.log(`HITL response sent for ${requestId}:`, value);
+    } catch (error) {
+      console.error('Error sending HITL response:', error);
+      alert('Failed to send response. Please try again.');
+    }
+  }, []);
+
   // Run current file with streaming
   const handleRun = useCallback(async () => {
     if (!currentFile) {
@@ -1064,6 +1085,7 @@ const AppContent: React.FC = () => {
                 containerStatus={containerStatus}
                 onToggleRunExpansion={handleToggleRunExpansion}
                 onJumpToSource={handleJumpToSource}
+                onHITLRespond={handleHITLRespond}
                 workspaceRoot={workspaceRoot}
               />
             </div>

@@ -113,6 +113,13 @@ class DSPyAgentHandle:
         self.disable_streaming = disable_streaming
         self.kwargs = kwargs
 
+        # CRITICAL DEBUG: Log handler state at initialization
+        logger.info(
+            f"[AGENT_INIT] Agent '{self.name}' initialized with log_handler={log_handler is not None}, "
+            f"disable_streaming={disable_streaming}, "
+            f"log_handler_type={type(log_handler).__name__ if log_handler else 'None'}"
+        )
+
         # Initialize conversation history
         self._history = create_history()
 
@@ -343,22 +350,27 @@ class DSPyAgentHandle:
         Returns:
             True if streaming should be enabled
         """
+        # CRITICAL DEBUG: Always log entry
+        logger.info(f"[STREAMING] Agent '{self.name}': _should_stream() called")
+
         # Must have log_handler to emit streaming events
         if self.log_handler is None:
-            logger.debug(f"[STREAMING] Agent '{self.name}': no log_handler, streaming disabled")
+            logger.info(f"[STREAMING] Agent '{self.name}': no log_handler, streaming disabled")
             return False
 
         # Allow log handlers to opt out of streaming (e.g., cost-only collectors)
         supports_streaming = getattr(self.log_handler, "supports_streaming", True)
+        logger.info(f"[STREAMING] Agent '{self.name}': log_handler.supports_streaming={supports_streaming}")
         if not supports_streaming:
-            logger.debug(
+            logger.info(
                 f"[STREAMING] Agent '{self.name}': log_handler supports_streaming=False, streaming disabled"
             )
             return False
 
         # Respect explicit disable flag
+        logger.info(f"[STREAMING] Agent '{self.name}': disable_streaming={self.disable_streaming}")
         if self.disable_streaming:
-            logger.debug(
+            logger.info(
                 f"[STREAMING] Agent '{self.name}': disable_streaming=True, streaming disabled"
             )
             return False

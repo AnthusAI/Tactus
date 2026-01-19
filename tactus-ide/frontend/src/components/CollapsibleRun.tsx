@@ -21,9 +21,10 @@ interface CollapsibleRunProps {
   isExpanded: boolean;
   onToggle: () => void;
   onJumpToSource?: (filePath: string, lineNumber: number) => void;
+  onHITLRespond?: (requestId: string, value: any) => void;
 }
 
-export const CollapsibleRun: React.FC<CollapsibleRunProps> = ({ run, isExpanded, onToggle, onJumpToSource }) => {
+export const CollapsibleRun: React.FC<CollapsibleRunProps> = ({ run, isExpanded, onToggle, onJumpToSource, onHITLRespond }) => {
   // Operation type icons
   const operationIcon = {
     run: <IterationCw className="h-4 w-4" />,
@@ -112,7 +113,7 @@ export const CollapsibleRun: React.FC<CollapsibleRunProps> = ({ run, isExpanded,
 
       {isExpanded && run.events.length > 0 && (
         <div className="border-t border-border/30">
-          <MessageFeed events={run.events} clustered={false} showFullLogs={false} onJumpToSource={onJumpToSource} />
+          <MessageFeed events={run.events} clustered={false} showFullLogs={false} onJumpToSource={onJumpToSource} onHITLRespond={onHITLRespond} />
         </div>
       )}
 

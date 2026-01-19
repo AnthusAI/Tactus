@@ -770,11 +770,31 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                     tool_paths = merged_config.get("tool_paths")
                     mcp_servers = merged_config.get("mcp_servers", {})
 
+                    # Create HITL handler with SSE channel for IDE integration
+                    from tactus.adapters.control_loop import ControlLoopHandler, ControlLoopHITLAdapter
+                    from tactus.adapters.channels import load_default_channels
+
+                    # Load default channels (CLI + IPC) and add SSE channel
+                    channels = load_default_channels(procedure_id=procedure_id)
+                    sse_channel = get_sse_channel()
+
+                    # Add SSE channel to the list
+                    channels.append(sse_channel)
+
+                    # Create control loop handler with all channels
+                    control_handler = ControlLoopHandler(
+                        channels=channels,
+                        storage=storage_backend,
+                    )
+
+                    # Wrap in adapter for backward compatibility
+                    hitl_handler = ControlLoopHITLAdapter(control_handler)
+
                     # Create runtime with log handler, run_id, and loaded config
                     runtime = TactusRuntime(
                         procedure_id=procedure_id,
                         storage_backend=storage_backend,
-                        hitl_handler=None,  # No HITL in IDE streaming mode
+                        hitl_handler=hitl_handler,  # Now includes SSE channel!
                         log_handler=log_handler,
                         run_id=run_id,
                         source_file_path=str(path),
@@ -888,19 +908,24 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                         yield f"data: {json.dumps(container_running_event)}\n\n"
 
                     # Stream events based on execution mode
+                    # Poll aggressively to stream events in real-time
                     while not result_container["done"]:
+                        events_sent = False
+
                         if use_sandbox and sandbox_event_queue:
                             # Stream from sandbox callback queue
                             try:
-                                event_dict = sandbox_event_queue.get(timeout=0.1)
+                                event_dict = sandbox_event_queue.get(timeout=0.01)
                                 all_events.append(event_dict)
                                 yield f"data: {json.dumps(event_dict)}\n\n"
+                                events_sent = True
                             except queue.Empty:
                                 pass
                         else:
                             # Stream from IDELogHandler (direct execution)
-                            events = log_handler.get_events(timeout=0.1)
-                            for event in events:
+                            # Get one event at a time to stream immediately
+                            try:
+                                event = log_handler.events.get(timeout=0.001)
                                 try:
                                     # Serialize with ISO format for datetime
                                     event_dict = event.model_dump(mode="json")
@@ -915,11 +940,16 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                                     event_dict["timestamp"] = iso_string
                                     all_events.append(event_dict)
                                     yield f"data: {json.dumps(event_dict)}\n\n"
+                                    events_sent = True
                                 except Exception as e:
                                     logger.error(f"Error serializing event: {e}", exc_info=True)
                                     logger.error(f"Event type: {type(event)}, Event: {event}")
+                            except queue.Empty:
+                                pass
 
-                        time.sleep(0.05)
+                        # Only sleep if no events were sent to maintain responsiveness
+                        if not events_sent:
+                            time.sleep(0.01)
 
                     # Get any remaining events
                     if use_sandbox and sandbox_event_queue:
@@ -1863,6 +1893,28 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             logger.error(f"Error getting checkpoint {run_id}@{position}: {e}", exc_info=True)
             return jsonify({"error": str(e)}), 500
 
+    @app.route("/api/procedures/<procedure_id>/checkpoints", methods=["DELETE"])
+    def clear_checkpoints(procedure_id: str):
+        """Clear all checkpoints for a procedure to force fresh execution."""
+        try:
+            from pathlib import Path as PathLib
+            import os
+
+            # Build the checkpoint file path
+            storage_dir = PathLib(WORKSPACE_ROOT) / ".tac" / "storage" if WORKSPACE_ROOT else PathLib.home() / ".tactus" / "storage"
+            checkpoint_file = storage_dir / f"{procedure_id}.json"
+
+            if checkpoint_file.exists():
+                os.remove(checkpoint_file)
+                logger.info(f"Cleared checkpoints for procedure: {procedure_id}")
+                return jsonify({"success": True, "message": f"Checkpoints cleared for {procedure_id}"})
+            else:
+                return jsonify({"success": True, "message": "No checkpoints found"}), 200
+
+        except Exception as e:
+            logger.error(f"Error clearing checkpoints for {procedure_id}: {e}", exc_info=True)
+            return jsonify({"error": str(e)}), 500
+
     @app.route("/api/traces/runs/<run_id>/statistics", methods=["GET"])
     def get_run_statistics(run_id: str):
         """Get statistics for a run by filtering checkpoints by run_id."""
@@ -2196,6 +2248,112 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
         logger.warning(f"Could not register config routes: {e}")
 
     # Serve frontend if dist directory is provided
+    # =========================================================================
+    # HITL (Human-in-the-Loop) Control Channel Endpoints
+    # =========================================================================
+
+    # Global SSE channel instance (shared across requests)
+    _sse_channel = None
+
+    def get_sse_channel():
+        """Get or create the global SSE channel instance."""
+        nonlocal _sse_channel
+        if _sse_channel is None:
+            from tactus.adapters.channels.sse import SSEControlChannel
+            _sse_channel = SSEControlChannel()
+        return _sse_channel
+
+    @app.route("/api/hitl/response/<request_id>", methods=["POST"])
+    def hitl_response(request_id: str):
+        """
+        Handle HITL response from IDE.
+
+        Called when user responds to a HITL request in the IDE UI.
+        Pushes response to SSEControlChannel which forwards to control loop.
+
+        Request body:
+        - value: The response value (boolean, string, dict, etc.)
+        """
+        try:
+            data = request.json or {}
+            value = data.get("value")
+
+            logger.info(f"Received HITL response for {request_id}: {value}")
+
+            # Push to SSE channel's response queue
+            channel = get_sse_channel()
+            channel.handle_ide_response(request_id, value)
+
+            return jsonify({"status": "ok", "request_id": request_id})
+
+        except Exception as e:
+            logger.exception(f"Error handling HITL response for {request_id}")
+            return jsonify({"status": "error", "message": str(e)}), 400
+
+    @app.route("/api/hitl/stream", methods=["GET"])
+    def hitl_stream():
+        """
+        SSE stream for HITL requests.
+
+        Clients connect to this endpoint to receive hitl.request events
+        in real-time. Events include:
+        - hitl.request: New HITL request with full context
+        - hitl.cancel: Request cancelled (another channel responded)
+        """
+        def generate():
+            """Generator that yields SSE events from the channel."""
+            import asyncio
+            import json
+
+            channel = get_sse_channel()
+
+            # Create event loop for this thread
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+            try:
+                # Send initial connection event
+                connection_event = {
+                    "type": "connection",
+                    "status": "connected",
+                    "timestamp": datetime.utcnow().isoformat() + "Z",
+                }
+                yield f"data: {json.dumps(connection_event)}\n\n"
+
+                # Stream events from channel
+                while True:
+                    # Get next event from channel (non-blocking with timeout)
+                    event = loop.run_until_complete(channel.get_next_event())
+
+                    if event:
+                        yield f"data: {json.dumps(event)}\n\n"
+                    else:
+                        # Send keepalive comment every second if no events
+                        yield ": keepalive\n\n"
+                        import time
+                        time.sleep(1)
+
+            except GeneratorExit:
+                logger.info("HITL SSE client disconnected")
+            except Exception as e:
+                logger.error(f"Error in HITL SSE stream: {e}", exc_info=True)
+            finally:
+                loop.close()
+
+        return Response(
+            stream_with_context(generate()),
+            mimetype="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no",
+                "Connection": "keep-alive",
+            },
+        )
+
+    # =========================================================================
+    # Frontend Serving (if enabled)
+    # =========================================================================
+
     if frontend_dist_dir:
 
         @app.route("/")
