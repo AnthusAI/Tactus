@@ -2,6 +2,77 @@
 
 <!-- version list -->
 
+## v0.33.0 (2026-01-18)
+
+### Documentation
+
+- Add installation instructions for unsigned macOS builds
+  ([`bb34f44`](https://github.com/AnthusAI/Tactus/commit/bb34f44b389b0154801d79a9d23255068328945d))
+
+### Features
+
+- Improve unsigned app distribution based on research
+  ([`34bc90e`](https://github.com/AnthusAI/Tactus/commit/34bc90ed6e25f4e58a4fefccbbc3c4220869dd3b))
+
+
+## v0.32.2 (2026-01-17)
+
+### Bug Fixes
+
+- Use Python 3.13 in CI to match local working build
+  ([`e2d2768`](https://github.com/AnthusAI/Tactus/commit/e2d276819759b7c8feb724f42145ab8553025b78))
+
+
+## v0.32.1 (2026-01-17)
+
+### Bug Fixes
+
+- Add Flask and Flask-CORS to package dependencies for IDE server
+  ([`a7ccb69`](https://github.com/AnthusAI/Tactus/commit/a7ccb6957c77628601407f53b8a41d074c6d5568))
+
+
+## v0.32.0 (2026-01-17)
+
+### Code Style
+
+- Apply Black formatting to IDE server and config files
+  ([`65641cc`](https://github.com/AnthusAI/Tactus/commit/65641cc4b806230c086dff071853d1527f82781d))
+
+### Features
+
+- Add authentication error dialog and automatic config reload
+  ([`5f3dd95`](https://github.com/AnthusAI/Tactus/commit/5f3dd9572e545cfeb94c26af656ad1d36723cc43))
+
+
+## v0.31.2 (2026-01-16)
+
+### Bug Fixes
+
+- Include litellm tokenizers and data files in PyInstaller bundle
+  ([`b770f35`](https://github.com/AnthusAI/Tactus/commit/b770f35d79d097505b3022c53eb54e92383e037c))
+
+
+## v0.31.1 (2026-01-15)
+
+### Bug Fixes
+
+- Only upload installer files (dmg/exe/AppImage) to release, not entire dist-electron directory
+  ([`424e9e2`](https://github.com/AnthusAI/Tactus/commit/424e9e267be1972e1a2eed5d8c06961cc74e4c26))
+
+
+## v0.31.0 (2026-01-15)
+
+### Chores
+
+- Merge origin/main
+  ([`dd8c4d4`](https://github.com/AnthusAI/Tactus/commit/dd8c4d4aa08cf4d7aaf8be69e76309a66be36ec8))
+
+### Documentation
+
+- Add workaround for macOS Gatekeeper damaged app error
+  ([`cbf9b38`](https://github.com/AnthusAI/Tactus/commit/cbf9b38a25a99d8f0ff8949e3a646ed69d276713))
+
+
 ## v0.30.0 (2026-01-15)
 
 

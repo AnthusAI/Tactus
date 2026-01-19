@@ -9,10 +9,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
       callback(data.id);
     });
   },
-  
+
   // Native folder selection dialog
   selectWorkspaceFolder: async (): Promise<string | null> => {
     return await ipcRenderer.invoke('select-workspace-folder');
+  },
+
+  // Open preferences window
+  openPreferences: async (): Promise<void> => {
+    return await ipcRenderer.invoke('open-preferences');
   },
 });
 

@@ -25,7 +25,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.13'
           cache: 'pip'
 
       - name: Install dependencies
@@ -64,7 +64,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.13'
           cache: 'pip'
 
       - name: Install python-semantic-release
@@ -115,7 +115,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.13'
 
       - name: Install Python dependencies
         run: |
@@ -157,30 +157,36 @@ jobs:
       - name: Package Application (macOS)
         if: matrix.os == 'macos-latest'
         working-directory: ./tactus-desktop
-        run: npm run package:mac
+        run: npx electron-builder --mac
 
       - name: Package Application (Windows)
         if: matrix.os == 'windows-latest'
         working-directory: ./tactus-desktop
-        run: npm run package:win
+        run: npx electron-builder --win
 
       - name: Package Application (Linux)
         if: matrix.os == 'ubuntu-latest'
         working-directory: ./tactus-desktop
-        run: npm run package:linux
+        run: npx electron-builder --linux
 
       - name: Upload Desktop Artifacts to GitHub Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: desktop-${{ matrix.os }}
-          path: tactus-desktop/dist-electron/*
+          path: |
+            tactus-desktop/dist-electron/*.dmg
+            tactus-desktop/dist-electron/*.exe
+            tactus-desktop/dist-electron/*.AppImage
 
       - name: Attach Desktop Builds to Release
         if: success()
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.get_version.outputs.tag }}
-          files: tactus-desktop/dist-electron/*
+          files: |
+            tactus-desktop/dist-electron/*.dmg
+            tactus-desktop/dist-electron/*.exe
+            tactus-desktop/dist-electron/*.AppImage
           fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}

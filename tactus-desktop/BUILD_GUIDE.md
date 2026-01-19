@@ -170,7 +170,16 @@ dist-electron/
 ### macOS
 ```bash
 open dist-electron/Tactus\ IDE-0.1.0-mac.dmg
-# Drag to Applications, right-click → Open
+# Drag to Applications, then remove quarantine flag:
+xattr -cr "/Applications/Tactus IDE.app"
+# Now you can open normally or via right-click → Open
+```
+
+**Troubleshooting "damaged" error:** Downloaded DMGs from GitHub Releases may show this error due to macOS Gatekeeper on unsigned apps. Remove the quarantine flag:
+```bash
+# After downloading from GitHub Releases:
+xattr -cr ~/Downloads/Tactus.IDE-*.dmg
+open ~/Downloads/Tactus.IDE-*.dmg
 ```
 
 ### Linux

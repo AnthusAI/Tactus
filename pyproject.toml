@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "tactus"
-version = "0.30.0"
+version = "0.33.0"
 description = "Tactus: Lua-based DSL for agentic workflows"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -45,6 +45,9 @@ dependencies = [
     "openpyxl>=3.1",
     # DSPy for prompt optimization and LLM abstraction
     "dspy>=2.5",
+    # IDE server dependencies
+    "flask>=3.0.0",
+    "flask-cors>=4.0.0",
 ]
 
 [project.optional-dependencies]

@@ -2,9 +2,13 @@ import type { BrowserWindow } from 'electron';
 
 export function setupMenu(mainWindow: BrowserWindow): void {
   const { app, Menu } = require('electron');
+  const { openPreferencesWindow } = require('./main');
 
   const sendCommand = (cmdId: string) => {
-    mainWindow.webContents.send('tactus:command', { id: cmdId });
+    // Check if window still exists before sending command
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('tactus:command', { id: cmdId });
+    }
   };
 
   const template: Electron.MenuItemConstructorOptions[] = [
@@ -14,6 +18,16 @@ export function setupMenu(mainWindow: BrowserWindow): void {
         {
           label: 'About Tactus',
           click: () => sendCommand('tactus.about'),
+        },
+        { type: 'separator' },
+        {
+          label: 'Settings...',
+          accelerator: 'CmdOrCtrl+,',
+          click: () => {
+            // For now, always open in separate window
+            // This ensures it works even when main window is closed
+            openPreferencesWindow();
+          },
         },
         { type: 'separator' },
         { role: 'quit' },
