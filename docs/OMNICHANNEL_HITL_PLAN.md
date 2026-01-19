@@ -25,14 +25,24 @@ Old `CLIHITLHandler` (blocking, single-channel):
 - No checkpoint/resume on HITL waits
 - Process blocks waiting for stdin
 
-### ⏳ Phase 2 NEXT - Runtime Integration
-Ready to integrate omnichannel + checkpointing:
-- Replace CLIHITLHandler with ControlLoopHandler in runtime
-- Update ExecutionContext.wait_for_human() to use new control loop
-- Implement exit-and-resume pattern (ProcedureWaitingForHuman exception)
-- Add storage methods for pending HITL requests
-- Rich context metadata (procedure_name, subject, conversation history)
+### ✅ Phase 2 COMPLETE - Runtime Integration
+All goals achieved (2026-01-19):
+- ✅ ControlLoopHandler replaces CLIHITLHandler in runtime (via ControlLoopHITLAdapter)
+- ✅ ExecutionContext.wait_for_human() uses new control loop
+- ✅ Exit-and-resume pattern with ProcedureWaitingForHuman exception
+- ✅ Storage methods for pending HITL requests with deterministic IDs
+- ✅ Rich context metadata (procedure_name, invocation_id, subject, started_at, input_summary, conversation_history, prior_control_interactions)
+- ✅ Human.inputs() batched HITL feature with tabbed UI
 - See [CONTROL_LOOP_INTEGRATION.md](CONTROL_LOOP_INTEGRATION.md)
+
+### ⏳ Phase 3 NEXT - IDE/SSE Channel
+Ready to build IDE-based HITL interactions:
+- Implement SSEControlChannel for IDE notifications
+- Extend Flask /stream endpoint with hitl.request events
+- Add POST /hitl/response/<request_id> endpoint
+- Build VSCode extension UI for HITL panels
+- Test multi-channel racing (CLI + IDE)
+- See "IDE/SSE Channel - Detailed Design" section below
 
 ---
 
