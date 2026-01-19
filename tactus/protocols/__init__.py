@@ -13,6 +13,20 @@ from tactus.protocols.models import (
     ChatMessage,
 )
 
+# Control loop protocol and models
+from tactus.protocols.control import (
+    ControlChannel,
+    ControlRequest,
+    ControlResponse,
+    ControlRequestType,
+    ControlOption,
+    ControlInteraction,
+    ConversationMessage,
+    ChannelCapabilities,
+    DeliveryResult,
+    ControlLoopConfig,
+)
+
 # Protocols
 from tactus.protocols.storage import StorageBackend
 from tactus.protocols.hitl import HITLHandler
@@ -28,6 +42,17 @@ __all__ = [
     "HITLRequest",
     "HITLResponse",
     "ChatMessage",
+    # Control loop
+    "ControlChannel",
+    "ControlRequest",
+    "ControlResponse",
+    "ControlRequestType",
+    "ControlOption",
+    "ControlInteraction",
+    "ConversationMessage",
+    "ChannelCapabilities",
+    "DeliveryResult",
+    "ControlLoopConfig",
     # Protocols
     "StorageBackend",
     "HITLHandler",

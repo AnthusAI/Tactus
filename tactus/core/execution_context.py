@@ -154,6 +154,12 @@ class BaseExecutionContext(ExecutionContext):
         # Lua sandbox reference for debug.getinfo access
         self.lua_sandbox: Optional[Any] = None
 
+        # Rich metadata for HITL notifications
+        self.procedure_name: str = procedure_id  # Use procedure_id as default name
+        self.invocation_id: str = str(uuid.uuid4())
+        self._started_at: datetime = datetime.now(timezone.utc)
+        self._input_data: Any = None
+
         # Load procedure metadata (contains execution_log and replay_index)
         self.metadata = self.storage.load_procedure_metadata(procedure_id)
 
@@ -180,6 +186,19 @@ class BaseExecutionContext(ExecutionContext):
     def set_lua_sandbox(self, lua_sandbox: Any) -> None:
         """Store reference to Lua sandbox for debug.getinfo access."""
         self.lua_sandbox = lua_sandbox
+
+    def set_procedure_metadata(self, procedure_name: Optional[str] = None, input_data: Any = None) -> None:
+        """
+        Set rich metadata for HITL notifications.
+
+        Args:
+            procedure_name: Human-readable name for the procedure
+            input_data: Input data passed to the procedure
+        """
+        if procedure_name is not None:
+            self.procedure_name = procedure_name
+        if input_data is not None:
+            self._input_data = input_data
 
     def checkpoint(
         self,
@@ -523,6 +542,83 @@ class BaseExecutionContext(ExecutionContext):
         self.storage.save_run(run)
 
         return run_id
+
+    def get_subject(self) -> Optional[str]:
+        """
+        Return a human-readable subject line for this execution.
+
+        Returns:
+            Subject line combining procedure name and current checkpoint position
+        """
+        checkpoint_pos = self.next_position()
+        if self.procedure_name:
+            return f"{self.procedure_name} (checkpoint {checkpoint_pos})"
+        return f"Procedure {self.procedure_id} (checkpoint {checkpoint_pos})"
+
+    def get_started_at(self) -> Optional[datetime]:
+        """
+        Return when this execution started.
+
+        Returns:
+            Timestamp when execution context was created
+        """
+        return self._started_at
+
+    def get_input_summary(self) -> Optional[str]:
+        """
+        Return a summary of the initial input to this procedure.
+
+        Returns:
+            JSON-formatted string of input data, or None if no input
+        """
+        if self._input_data is None:
+            return None
+
+        try:
+            import json
+            # Try to serialize input data as JSON
+            if isinstance(self._input_data, (dict, list, str, int, float, bool, type(None))):
+                return json.dumps(self._input_data, indent=2, default=str)
+            else:
+                # For other types, use string representation
+                return str(self._input_data)
+        except Exception:
+            return str(self._input_data)
+
+    def get_conversation_history(self) -> Optional[List[Dict]]:
+        """
+        Return conversation history if available.
+
+        Returns:
+            List of conversation messages, or None if not tracked
+        """
+        # For now, return None - could be extended to track agent conversations
+        # in future implementations
+        return None
+
+    def get_prior_control_interactions(self) -> Optional[List[Dict]]:
+        """
+        Return list of prior HITL interactions in this execution.
+
+        Returns:
+            List of HITL checkpoint entries from execution log
+        """
+        if not self.metadata or not self.metadata.execution_log:
+            return None
+
+        # Filter execution log for HITL checkpoints
+        hitl_checkpoints = [
+            {
+                "position": entry.position,
+                "type": entry.type,
+                "timestamp": entry.timestamp.isoformat() if entry.timestamp else None,
+                "duration_ms": entry.duration_ms,
+            }
+            for entry in self.metadata.execution_log
+            if entry.type.startswith("hitl_")
+        ]
+
+        return hitl_checkpoints if hitl_checkpoints else None
 
 
 class InMemoryExecutionContext(BaseExecutionContext):

@@ -269,10 +269,22 @@ class ConfigManager:
             "DISCORD_BOT_TOKEN": ("notifications", "channels", "discord", "token"),
             # Teams notification channel
             "TEAMS_WEBHOOK_URL": ("notifications", "channels", "teams", "webhook_url"),
+            # Control loop configuration
+            "TACTUS_CONTROL_ENABLED": ("control", "enabled"),
+            "TACTUS_CONTROL_CLI_ENABLED": ("control", "channels", "cli", "enabled"),
+            # Tactus Cloud control channel
+            "TACTUS_CLOUD_API_URL": ("control", "channels", "tactus_cloud", "api_url"),
+            "TACTUS_CLOUD_TOKEN": ("control", "channels", "tactus_cloud", "token"),
+            "TACTUS_CLOUD_WORKSPACE_ID": ("control", "channels", "tactus_cloud", "workspace_id"),
         }
 
         # Boolean env vars that need special parsing
-        boolean_env_keys = {"TACTUS_SANDBOX_ENABLED", "TACTUS_NOTIFICATIONS_ENABLED"}
+        boolean_env_keys = {
+            "TACTUS_SANDBOX_ENABLED",
+            "TACTUS_NOTIFICATIONS_ENABLED",
+            "TACTUS_CONTROL_ENABLED",
+            "TACTUS_CONTROL_CLI_ENABLED",
+        }
 
         for env_key, config_key in env_mappings.items():
             value = os.environ.get(env_key)
