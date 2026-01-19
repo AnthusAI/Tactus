@@ -23,6 +23,29 @@ def test_host_call_falls_back_to_inproc_registry(monkeypatch: pytest.MonkeyPatch
     assert result == {"ok": True, "echo": {"x": 1}}
 
 
+def test_host_capabilities_lists_allowlisted_tools(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.delenv("TACTUS_BROKER_SOCKET", raising=False)
+
+    host = HostPrimitive()
+    result = host.call("host.capabilities", {})
+
+    assert result["tools"] == sorted(result["tools"])
+    assert "host.ping" in result["tools"]
+    assert "host.echo" in result["tools"]
+    assert "host.capabilities" in result["tools"]
+    assert "host.version" in result["tools"]
+
+
+def test_host_version_returns_version_string(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.delenv("TACTUS_BROKER_SOCKET", raising=False)
+
+    host = HostPrimitive()
+    result = host.call("host.version", {})
+
+    assert isinstance(result.get("version"), str)
+    assert result["version"]
+
+
 def test_host_call_raises_on_disallowed_tool(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.delenv("TACTUS_BROKER_SOCKET", raising=False)
 

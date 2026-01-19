@@ -27,6 +27,17 @@ class MockAgentResult:
         self.response = message
         self.tool_calls = tool_calls or []
         self.data = data or {}
+        # Match the real agent result contract: `result.output` is the canonical payload.
+        # - If structured `data` is provided (and it's not just `{"response": ...}`),
+        #   treat it as structured output.
+        # - Otherwise, treat the message/response as the output string.
+        if isinstance(self.data, dict) and self.data:
+            if set(self.data.keys()) == {"response"} and isinstance(self.data.get("response"), str):
+                self.output = self.data["response"]
+            else:
+                self.output = self.data
+        else:
+            self.output = message
         self.usage = usage or {}
         self.cost = 0.0
         try:
@@ -132,17 +143,22 @@ class MockAgentPrimitive:
         mock_config = self._get_agent_mock_config()
 
         if mock_config is None:
-            raise ValueError(
-                f"Agent '{self.name}' requires mock config in Mocks {{}}. "
-                f"Add a mock configuration like:\n"
-                f"Mocks {{\n"
-                f"    {self.name} = {{\n"
-                f"        tool_calls = {{\n"
-                f'            {{tool = "done", args = {{reason = "completed"}}}}\n'
-                f"        }},\n"
-                f'        message = "Task completed."\n'
-                f"    }}\n"
-                f"}}"
+            user_message = opts.get("message") or opts.get("inject") or ""
+            assistant_message = (
+                f"Mock response: {user_message}" if user_message else "Mock response"
+            )
+            new_messages = []
+            if user_message:
+                new_messages.append({"role": "user", "content": user_message})
+            new_messages.append({"role": "assistant", "content": assistant_message})
+
+            return MockAgentResult(
+                message=assistant_message,
+                tool_calls=[],
+                data={"response": assistant_message},
+                usage={"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+                new_messages=new_messages,
+                lua_table_from=self._lua_table_from,
             )
 
         temporal_turns = getattr(mock_config, "temporal", None) or []

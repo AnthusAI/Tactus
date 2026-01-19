@@ -1730,10 +1730,10 @@ def create_dsl_stubs(
                     mock_manager=_runtime_context.get("mock_manager"),
                 )
 
-                # Set tool_primitive for mock tool call recording
-                tool_primitive = _runtime_context.get("tool_primitive")
-                if tool_primitive:
-                    agent_primitive._tool_primitive = tool_primitive
+                # Set tool primitive for mock tool call recording
+                runtime_tool_primitive = _runtime_context.get("tool_primitive")
+                if runtime_tool_primitive:
+                    agent_primitive._tool_primitive = runtime_tool_primitive
 
                 # Connect handle to primitive immediately
                 handle._set_primitive(
@@ -1883,7 +1883,25 @@ def create_dsl_stubs(
             f"[AGENT_CREATION] Agent '{temp_name}': runtime_context={bool(_runtime_context)}, has_log_handler={('log_handler' in _runtime_context) if _runtime_context else False}"
         )
 
-        if _runtime_context:
+        if _runtime_context and _runtime_context.get("mock_all_agents", False):
+            from tactus.testing.mock_agent import MockAgentPrimitive
+
+            mock_agent = MockAgentPrimitive(
+                temp_name,
+                tool_primitive,
+                registry=builder.registry,
+                mock_manager=_runtime_context.get("mock_manager"),
+                lua_runtime=_runtime_context.get("lua_runtime"),
+            )
+            handle._set_primitive(
+                mock_agent, execution_context=_runtime_context.get("execution_context")
+            )
+
+            if "_created_agents" not in _runtime_context:
+                _runtime_context["_created_agents"] = {}
+            _runtime_context["_created_agents"][temp_name] = mock_agent
+
+        elif _runtime_context:
             from tactus.dspy.agent import create_dspy_agent
 
             logger.debug(f"[AGENT_CREATION] Attempting immediate creation for agent '{temp_name}'")
@@ -1915,10 +1933,10 @@ def create_dsl_stubs(
                     mock_manager=_runtime_context.get("mock_manager"),
                 )
 
-                # Set tool_primitive for mock tool call recording
-                tool_primitive = _runtime_context.get("tool_primitive")
-                if tool_primitive:
-                    agent_primitive._tool_primitive = tool_primitive
+                # Set tool primitive for mock tool call recording
+                runtime_tool_primitive = _runtime_context.get("tool_primitive")
+                if runtime_tool_primitive:
+                    agent_primitive._tool_primitive = runtime_tool_primitive
 
                 # Connect handle to primitive immediately
                 handle._set_primitive(

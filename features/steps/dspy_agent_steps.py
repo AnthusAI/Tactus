@@ -396,6 +396,8 @@ def step_try_create_agent(context):
 
     try:
         context.agent = create_dspy_agent("test_agent", {"system_prompt": "Test"})
+        # Agent creation can be deferred; ensure we fail clearly on turn execution.
+        context.agent({"message": "Hello"})
         context.error = None
     except Exception as e:
         context.error = e

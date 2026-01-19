@@ -5,8 +5,8 @@ This module provides an Agent implementation built on top of DSPy primitives
 (Module, Signature, History, Prediction). It maintains the same external API
 as the original pydantic_ai-based Agent while using DSPy for LLM interactions.
 
-The Agent uses:
-- Configurable DSPy module (default: Predict for simple pass-through, or ChainOfThought for reasoning)
+    The Agent uses:
+    - Configurable DSPy module (default: Raw for minimal formatting/token overhead)
 - History for conversation management
 - Tool handling similar to DSPy's ReAct pattern
 - Unified mocking via Mocks {} primitive
@@ -79,9 +79,9 @@ class DSPyAgentHandle:
             max_tokens: Maximum tokens for response
             model_type: Model type for DSPy (e.g., "chat", "responses" for reasoning models)
             module: DSPy module type to use (default: "Raw", case-insensitive). Options:
-                - "Raw": Minimal formatting, direct LM calls (lowest token overhead)
                 - "Predict": Simple pass-through prediction (no reasoning traces)
                 - "ChainOfThought": Adds step-by-step reasoning before response
+                - "Raw": Minimal formatting, direct LM calls (lowest token overhead)
             initial_message: Initial message to send on first turn if no inject
             registry: Optional Registry instance for accessing mocks
             mock_manager: Optional MockManager instance for checking mocks
@@ -274,10 +274,19 @@ class DSPyAgentHandle:
         self, prediction: TactusPrediction, usage_stats: UsageStats, cost_stats: CostStats
     ) -> TactusResult:
         """Wrap a Prediction into the standard TactusResult."""
-        return TactusResult(
+        result = TactusResult(
             output=self._prediction_to_value(prediction),
             usage=usage_stats,
             cost_stats=cost_stats,
+        )
+
+        raw_prediction = prediction.to_dspy() if hasattr(prediction, "to_dspy") else None
+        new_messages = prediction.new_messages() if hasattr(prediction, "new_messages") else None
+        all_messages = prediction.all_messages() if hasattr(prediction, "all_messages") else None
+
+        return result._set_prediction(raw_prediction)._set_messages(
+            new_messages=new_messages,
+            all_messages=all_messages,
         )
 
     def _module_to_strategy(self, module: str) -> str:
@@ -851,6 +860,12 @@ class DSPyAgentHandle:
 
             configure_lm(model_for_litellm, **config_kwargs)
 
+        # If the agent is being invoked and we still don't have an LM, fail clearly.
+        if get_current_lm() is None:
+            raise ValueError(
+                "LM not configured. Please configure an LM before executing an agent turn."
+            )
+
         # Extract options
         user_message = opts.get("message")
 
@@ -1107,7 +1122,7 @@ def create_dspy_agent(
             - model: Model name (LiteLLM format)
             - tools: List of tools
             - toolsets: List of toolset names
-            - module: DSPy module type (default: "Predict"). Options: "Predict", "ChainOfThought"
+            - module: DSPy module type (default: "Raw"). Options: "Raw", "Predict", "ChainOfThought"
             - Other optional configuration
         registry: Optional Registry instance for accessing mocks
         mock_manager: Optional MockManager instance for checking mocks
@@ -1118,11 +1133,10 @@ def create_dspy_agent(
     Raises:
         ValueError: If no LM is configured (either via config or globally)
     """
-    # Check if LM is configured either in config or globally
-    from tactus.dspy.config import get_current_lm
-
-    if not config.get("model") and not get_current_lm():
-        raise ValueError("LM not configured. Please configure an LM before creating an agent.")
+    # Note: We intentionally allow creating agents without an LM configured.
+    # This supports validation-only workflows and procedures that declare agents
+    # but never execute them. If an LM is required at runtime, agent turns will
+    # raise a clear error when invoked.
 
     return DSPyAgentHandle(
         name=name,

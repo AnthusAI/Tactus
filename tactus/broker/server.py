@@ -119,13 +119,34 @@ class HostToolRegistry:
 
     @classmethod
     def default(cls) -> "HostToolRegistry":
+        registry = cls({})
+
         def host_ping(args: dict[str, Any]) -> dict[str, Any]:
             return {"ok": True, "echo": args}
 
         def host_echo(args: dict[str, Any]) -> dict[str, Any]:
             return {"echo": args}
 
-        return cls({"host.ping": host_ping, "host.echo": host_echo})
+        def host_capabilities(_: dict[str, Any]) -> dict[str, Any]:
+            return {"tools": registry.list_tools()}
+
+        def host_version(_: dict[str, Any]) -> dict[str, Any]:
+            try:
+                from tactus import __version__
+            except Exception:
+                __version__ = "dev"
+            return {"version": __version__}
+
+        registry._tools = {
+            "host.ping": host_ping,
+            "host.echo": host_echo,
+            "host.capabilities": host_capabilities,
+            "host.version": host_version,
+        }
+        return registry
+
+    def list_tools(self) -> list[str]:
+        return sorted(self._tools.keys())
 
     def call(self, name: str, args: dict[str, Any]) -> Any:
         if name not in self._tools:

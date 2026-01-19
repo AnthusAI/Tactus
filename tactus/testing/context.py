@@ -394,6 +394,14 @@ class TactusTestContext:
                 result = self.execution_result["result"]
                 if isinstance(result, dict):
                     return result.get(key)
+                # Support result objects that expose a canonical `.output` payload
+                # (e.g., TactusResult or test doubles like MockAgentResult).
+                try:
+                    output = getattr(result, "output", None)
+                except Exception:
+                    output = None
+                if isinstance(output, dict):
+                    return output.get(key)
 
         return None
 
@@ -409,6 +417,11 @@ class TactusTestContext:
                 result = self.execution_result["result"]
                 if isinstance(result, dict):
                     return key in result
+                try:
+                    output = getattr(result, "output", None)
+                except Exception:
+                    output = None
+                return isinstance(output, dict) and key in output
         return False
 
     def output_value(self) -> Any:
@@ -423,6 +436,11 @@ class TactusTestContext:
 
             if isinstance(result, TactusResult):
                 return result.output
+        except Exception:
+            pass
+        try:
+            if result is not None and hasattr(result, "output"):
+                return getattr(result, "output")
         except Exception:
             pass
         return result

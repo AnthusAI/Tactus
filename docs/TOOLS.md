@@ -95,6 +95,8 @@ The default broker allowlist intentionally starts small:
 
 - `host.ping`
 - `host.echo`
+- `host.capabilities`
+- `host.version`
 
 To add real host tools, extend the broker’s allowlist (see `tactus/broker/server.py:HostToolRegistry`).
 

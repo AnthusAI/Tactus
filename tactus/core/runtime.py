@@ -2677,7 +2677,9 @@ class TactusRuntime:
             "registry": builder.registry,
             "mock_manager": self.mock_manager,
             "execution_context": self.execution_context,
+            "mock_all_agents": self.mock_all_agents,
             "log_handler": self.log_handler,
+            "lua_runtime": sandbox.lua if sandbox is not None else None,
             "_created_agents": {},  # Will be populated during parsing
         }
 

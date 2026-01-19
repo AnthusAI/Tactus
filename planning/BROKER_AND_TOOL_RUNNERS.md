@@ -1,6 +1,6 @@
 # Brokered Capabilities & Tool Runners (Planning)
 
-Status: Phase 1A complete • Phase 1B (Host Tools) in progress • Phase 2 spike complete (as of Jan 2026)
+Status: Phase 1A complete • Phase 1B (Host Tools) in progress (introspection milestone landed) • Phase 2 spike complete (as of Jan 2026)
 
 This document proposes an architecture that:
 
@@ -30,7 +30,7 @@ To get to a working milestone quickly, we are explicitly deferring:
 What works today:
 
 - **Local Docker MVP (Phase 1A)**: runtime container uses **brokered LLM calls + event streaming over stdio** with `--network none`.
-- **Host tools (Phase 1B, WIP)**: runtime container can call a tiny allowlisted set of **brokered host tools** via `Host.call(...)` / `tool.call` (stdio or TCP broker transport).
+- **Host tools (Phase 1B, WIP)**: runtime container can call a tiny allowlisted set of **brokered host tools** via `Host.call(...)` / `tool.call` (stdio or TCP broker transport), including introspection (`host.capabilities`, `host.version`).
 - **Remote-mode spike (Phase 2)**: runtime container can connect to broker via **TCP** (and optional TLS) for cloud/K8s-style deployments where Docker stdio attach doesn’t apply.
 
 What is still deferred (intentional):
@@ -540,6 +540,13 @@ Deliverables (minimum viable):
 Implementation note (current WIP):
 
 - The broker protocol includes `tool.call` and the runtime container exposes a `Host` primitive (`Host.call(name, args)`) that routes via the broker. The initial allowlist is intentionally tiny and deny-by-default.
+
+Current default allowlist (intentionally tiny):
+
+- `host.ping` (connectivity check)
+- `host.echo` (payload round-trip)
+- `host.capabilities` (introspection: list allowlisted tools)
+- `host.version` (introspection: broker/Tactus version)
 
 Recommended next step (implementation order):
 
