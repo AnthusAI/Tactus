@@ -73,7 +73,7 @@ class HumanPrimitive:
         Request yes/no approval from human (BLOCKING).
 
         Args:
-            options: Dict with:
+            options: Dict with options OR string message for convenience
                 - message: str - Message to show human
                 - context: Dict - Additional context
                 - timeout: int - Timeout in seconds (None = no timeout)
@@ -84,6 +84,10 @@ class HumanPrimitive:
             bool - True if approved, False if rejected/timeout
 
         Example (Lua):
+            -- Simple form (just message string)
+            local approved = Human.approve("Deploy to production?")
+
+            -- Full form (with options)
             local approved = Human.approve({
                 message = "Deploy to production?",
                 context = {environment = "prod"},
@@ -97,6 +101,10 @@ class HumanPrimitive:
         """
         # Convert Lua tables to Python dicts recursively
         opts = self._convert_lua_to_python(options) or {}
+
+        # Support string message shorthand: Human.approve("message")
+        if isinstance(opts, str):
+            opts = {"message": opts}
 
         # Check for config reference
         config_key = opts.get("config_key")

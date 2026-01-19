@@ -947,6 +947,13 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                             except queue.Empty:
                                 pass
 
+                            # Also check for HITL events from SSE channel
+                            hitl_event = sse_channel.get_next_event(timeout=0.001)
+                            if hitl_event:
+                                all_events.append(hitl_event)
+                                yield f"data: {json.dumps(hitl_event)}\n\n"
+                                events_sent = True
+
                         # Only sleep if no events were sent to maintain responsiveness
                         if not events_sent:
                             time.sleep(0.01)

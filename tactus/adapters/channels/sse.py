@@ -7,6 +7,7 @@ and receives responses via HTTP POST callbacks.
 
 import asyncio
 import logging
+import queue
 from typing import Optional, Any
 from datetime import datetime, timezone
 
@@ -44,7 +45,8 @@ class SSEControlChannel(InProcessChannel):
         """
         super().__init__()
         self._event_emitter = event_emitter
-        self._event_queue: asyncio.Queue[dict] = asyncio.Queue()
+        # Use thread-safe queue.Queue for sync access from Flask SSE stream
+        self._event_queue: queue.Queue[dict] = queue.Queue()
 
     @property
     def channel_id(self) -> str:
@@ -86,8 +88,8 @@ class SSEControlChannel(InProcessChannel):
             if self._event_emitter:
                 await self._event_emitter(event)
             else:
-                # Queue for external consumption if no emitter
-                await self._event_queue.put(event)
+                # Queue for external consumption if no emitter (thread-safe)
+                self._event_queue.put(event)
 
             return DeliveryResult(
                 channel_id=self.channel_id,
@@ -113,7 +115,7 @@ class SSEControlChannel(InProcessChannel):
         Returns dict that will be serialized to JSON and sent as SSE event.
         """
         event = {
-            "type": "hitl.request",
+            "event_type": "hitl.request",  # Frontend expects event_type, not type
             "request_id": request.request_id,
 
             # Identity
@@ -197,24 +199,39 @@ class SSEControlChannel(InProcessChannel):
             channel_id=self.channel_id,
         )
 
-        # Push to queue (thread-safe)
-        # Use asyncio.run_coroutine_threadsafe if called from sync context
+        # Push to queue from sync context (Flask thread)
+        # Get the running event loop and schedule the put operation
         try:
-            self._response_queue.put_nowait(response)
-        except asyncio.QueueFull:
-            logger.error(f"{self.channel_id}: response queue full for {request_id}")
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # Schedule the coroutine in the running loop
+                asyncio.run_coroutine_threadsafe(
+                    self._response_queue.put(response),
+                    loop
+                )
+            else:
+                # If no loop is running, use put_nowait (shouldn't happen)
+                self._response_queue.put_nowait(response)
+        except Exception as e:
+            logger.error(f"{self.channel_id}: failed to queue response for {request_id}: {e}")
 
-    async def get_next_event(self) -> Optional[dict]:
+    def get_next_event(self, timeout: float = 0.001) -> Optional[dict]:
         """
         Get next SSE event from queue (for external consumption).
 
         Used when no event_emitter is provided - allows Flask endpoint
         to consume events from this channel.
+
+        Args:
+            timeout: Timeout in seconds
+
+        Returns:
+            Event dict or None if queue is empty
         """
         try:
-            event = await asyncio.wait_for(self._event_queue.get(), timeout=0.1)
+            event = self._event_queue.get(timeout=timeout)
             return event
-        except asyncio.TimeoutError:
+        except queue.Empty:
             return None
 
     async def cancel(self, external_message_id: str, reason: str) -> None:
@@ -226,7 +243,7 @@ class SSEControlChannel(InProcessChannel):
         logger.debug(f"{self.channel_id}: cancelling {external_message_id}: {reason}")
 
         cancel_event = {
-            "type": "hitl.cancel",
+            "event_type": "hitl.cancel",  # Frontend expects event_type, not type
             "request_id": external_message_id,
             "reason": reason,
         }
@@ -234,7 +251,7 @@ class SSEControlChannel(InProcessChannel):
         if self._event_emitter:
             await self._event_emitter(cancel_event)
         else:
-            await self._event_queue.put(cancel_event)
+            self._event_queue.put(cancel_event)
 
     async def shutdown(self) -> None:
         """Shutdown SSE channel."""

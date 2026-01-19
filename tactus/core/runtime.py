@@ -496,9 +496,7 @@ class TactusRuntime:
 
             # 10. Execute workflow (may raise ProcedureWaitingForHuman)
             logger.info("Step 10: Executing Lua workflow")
-            print(f"[DEBUG] About to call _execute_workflow()")  # Temporary debug
             workflow_result = self._execute_workflow()
-            print(f"[DEBUG] _execute_workflow() returned: {workflow_result}")  # Temporary debug
 
             # 10.5. Apply return_prompt if specified (future: inject to agent for summary)
             if self.config.get("return_prompt"):

@@ -1,38 +1,27 @@
 --[[
-Simple test of Human.inputs() - Just one batch
+Simple test of Human.approve() - Single approval request
 
 Run with: tactus run examples/92-test-inputs-simple.tac
 --]]
 
 Procedure {
     function(input)
-        print("Testing Human.inputs() - Simple Test")
+        print("Testing Human.approve() - Simple Test")
 
-        -- Collect just 2 inputs
-        print("\n=== SIMPLE TEST ===")
-        local result = Human.inputs({
-            {
-                id = "name",
-                label = "Name",
-                type = "input",
-                message = "What is your name?",
-                metadata = {placeholder = "Enter your name"}
-            },
-            {
-                id = "confirmed",
-                label = "Confirm",
-                type = "approval",
-                message = "Is this correct?"
-            }
-        })
+        print("\n=== APPROVAL TEST ===")
+        local approved = Human.approve("Do you approve this action?")
 
-        print("\nResult collected:")
-        print("  Name: " .. tostring(result.name))
-        print("  Confirmed: " .. tostring(result.confirmed))
+        print("\nResult: " .. tostring(approved))
+
+        if approved then
+            print("✓ User approved!")
+        else
+            print("✗ User rejected.")
+        end
 
         return {
             completed = true,
-            result = result
+            approved = approved
         }
     end
 }

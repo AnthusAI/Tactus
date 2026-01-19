@@ -91,18 +91,39 @@ export const HITLEventComponent: React.FC<HITLEventComponentProps> = ({
           ) : (
             <div className="space-y-2">
               {/* Simple approval buttons */}
-              {event.request_type === 'approval' && event.options && (
+              {event.request_type === 'approval' && (
                 <div className="flex gap-2">
-                  {event.options.map((option) => (
-                    <Button
-                      key={option.label}
-                      onClick={() => handleResponse(option.value)}
-                      variant={option.style === 'danger' ? 'destructive' : option.style === 'primary' ? 'default' : 'secondary'}
-                      size="sm"
-                    >
-                      {option.label}
-                    </Button>
-                  ))}
+                  {event.options && event.options.length > 0 ? (
+                    // Custom options provided
+                    event.options.map((option) => (
+                      <Button
+                        key={option.label}
+                        onClick={() => handleResponse(option.value)}
+                        variant={option.style === 'danger' ? 'destructive' : option.style === 'primary' ? 'default' : 'secondary'}
+                        size="sm"
+                      >
+                        {option.label}
+                      </Button>
+                    ))
+                  ) : (
+                    // Default Yes/No buttons
+                    <>
+                      <Button
+                        onClick={() => handleResponse(true)}
+                        variant="default"
+                        size="sm"
+                      >
+                        Approve
+                      </Button>
+                      <Button
+                        onClick={() => handleResponse(false)}
+                        variant="secondary"
+                        size="sm"
+                      >
+                        Reject
+                      </Button>
+                    </>
+                  )}
                 </div>
               )}
 
