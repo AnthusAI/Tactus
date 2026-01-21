@@ -110,6 +110,26 @@ export function useEventStream(url: string | null): StreamState {
 
         // Streaming chunks are now handled with flushSync above, this should never be reached
 
+        // Clear pending HITL requests when a new execution starts
+        // This prevents stale HITL events from previous runs from being clickable
+        if (event.event_type === 'execution') {
+          const execEvent = event as any;
+          if (execEvent.lifecycle_stage === 'start') {
+            console.log('[SSE] New execution started, clearing pending HITL events');
+            // Filter out unanswered HITL requests (those without a "responded" marker)
+            const filtered = prev.filter(e => {
+              if (e.event_type === 'hitl.request') {
+                // Keep HITL events that have been responded to (marked by HITLEventComponent)
+                // This check relies on the component's internal state, but we can't access it here
+                // Instead, we'll just clear ALL HITL requests on new execution start
+                return false;
+              }
+              return true;
+            });
+            return [...filtered, event];
+          }
+        }
+
         // If this is a cost event, update loading events to completed state (but KEEP streaming chunks visible)
         if (event.event_type === 'cost') {
           const costEvent = event as any;

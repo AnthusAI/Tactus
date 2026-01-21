@@ -499,18 +499,26 @@ class ControlLoopHandler:
         prior_interactions: Optional[List[Dict[str, Any]]] = None,
     ) -> ControlRequest:
         """Build a ControlRequest from the provided parameters."""
-        # CRITICAL: Generate deterministic request_id based on checkpoint position
-        # This allows resume flow to find cached responses after kill/restart
+        # CRITICAL: Generate deterministic request_id based on checkpoint position AND run_id
+        # Including run_id ensures different runs don't collide in the response cache
+        # This allows resume flow to find cached responses within the same run, but not across runs
         checkpoint_position = None
         if self.execution_context and hasattr(self.execution_context, 'next_position'):
             checkpoint_position = self.execution_context.next_position()
 
+        # Get run_id from execution context to ensure cache isolation between runs
+        run_id_part = "unknown"
+        if self.execution_context and hasattr(self.execution_context, 'current_run_id'):
+            if self.execution_context.current_run_id:
+                # Use first 8 chars of run_id for brevity
+                run_id_part = self.execution_context.current_run_id[:8]
+
         if checkpoint_position is not None:
-            # Deterministic ID: procedure_id:position
-            request_id = f"{procedure_id}:pos{checkpoint_position}"
+            # Deterministic ID: procedure_id:run_id:position
+            request_id = f"{procedure_id}:{run_id_part}:pos{checkpoint_position}"
         else:
             # Fallback to random ID (backward compatibility for contexts without position tracking)
-            request_id = f"{procedure_id}:{uuid.uuid4().hex[:12]}"
+            request_id = f"{procedure_id}:{run_id_part}:{uuid.uuid4().hex[:12]}"
 
         # Convert options to ControlOption objects
         control_options = []

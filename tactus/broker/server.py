@@ -62,11 +62,12 @@ class OpenAIChatBackend:
     """
     Minimal OpenAI chat-completions backend used by the broker.
 
-    Credentials are read from the broker process environment.
+    Credentials can be provided directly or read from the broker process environment.
     """
 
-    def __init__(self, config: Optional[OpenAIChatConfig] = None):
+    def __init__(self, config: Optional[OpenAIChatConfig] = None, api_key: Optional[str] = None):
         self._config = config or OpenAIChatConfig()
+        self._api_key = api_key  # Direct API key (bypasses environment)
 
         # Lazy-init the client so unit tests can run without OpenAI installed/configured.
         self._client = None
@@ -77,7 +78,8 @@ class OpenAIChatBackend:
 
         from openai import AsyncOpenAI
 
-        api_key = os.environ.get(self._config.api_key_env)
+        # Use direct API key if provided, otherwise read from environment
+        api_key = self._api_key or os.environ.get(self._config.api_key_env)
         if not api_key:
             raise RuntimeError(f"Missing OpenAI API key in environment: {self._config.api_key_env}")
 
@@ -140,12 +142,14 @@ class _BaseBrokerServer:
         openai_backend: Optional[OpenAIChatBackend] = None,
         tool_registry: Optional[HostToolRegistry] = None,
         event_handler: Optional[Callable[[dict[str, Any]], None]] = None,
+        control_handler: Optional[Callable[[dict], Awaitable[dict]]] = None,
     ):
         self._listener = None
         self._serve_task: asyncio.Task[None] | None = None
         self._openai = openai_backend or OpenAIChatBackend()
         self._tools = tool_registry or HostToolRegistry.default()
         self._event_handler = event_handler
+        self._control_handler = control_handler
 
     async def start(self) -> None:
         raise NotImplementedError
@@ -218,6 +222,10 @@ class _BaseBrokerServer:
 
             if method == "events.emit":
                 await self._handle_events_emit(req_id, params, byte_stream)
+                return
+
+            if method == "control.request":
+                await self._handle_control_request(req_id, params, byte_stream)
                 return
 
             if method == "llm.chat":
@@ -547,6 +555,55 @@ class _BaseBrokerServer:
             logger.debug("[BROKER] event_handler raised", exc_info=True)
 
         await _write_event_anyio(byte_stream, {"id": req_id, "event": "done", "data": {"ok": True}})
+
+    async def _handle_control_request(
+        self, req_id: str, params: dict[str, Any], byte_stream: anyio.abc.ByteStream
+    ) -> None:
+        """Handle control.request method for HITL requests from container."""
+        request_data = params.get("request")
+        if not isinstance(request_data, dict):
+            await _write_event_anyio(
+                byte_stream,
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {"type": "BadRequest", "message": "params.request must be an object"},
+                },
+            )
+            return
+
+        if self._control_handler is None:
+            await _write_event_anyio(
+                byte_stream,
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {"type": "NoControlHandler", "message": "No control handler configured"},
+                },
+            )
+            return
+
+        try:
+            # Send delivered event
+            await _write_event_anyio(byte_stream, {"id": req_id, "event": "delivered"})
+
+            # Call control handler and await response
+            response_data = await self._control_handler(request_data)
+
+            # Send response event
+            await _write_event_anyio(
+                byte_stream, {"id": req_id, "event": "response", "data": response_data}
+            )
+        except asyncio.TimeoutError:
+            await _write_event_anyio(
+                byte_stream, {"id": req_id, "event": "timeout", "data": {"timed_out": True}}
+            )
+        except Exception as e:
+            logger.debug("[BROKER] control.request handler raised", exc_info=True)
+            await _write_event_anyio(
+                byte_stream,
+                {"id": req_id, "event": "error", "error": {"type": type(e).__name__, "message": str(e)}},
+            )
 
     async def _handle_llm_chat(
         self, req_id: str, params: dict[str, Any], byte_stream: anyio.abc.ByteStream
@@ -1078,9 +1135,13 @@ class TcpBrokerServer(_BaseBrokerServer):
         openai_backend: Optional[OpenAIChatBackend] = None,
         tool_registry: Optional[HostToolRegistry] = None,
         event_handler: Optional[Callable[[dict[str, Any]], None]] = None,
+        control_handler: Optional[Callable[[dict], Awaitable[dict]]] = None,
     ):
         super().__init__(
-            openai_backend=openai_backend, tool_registry=tool_registry, event_handler=event_handler
+            openai_backend=openai_backend,
+            tool_registry=tool_registry,
+            event_handler=event_handler,
+            control_handler=control_handler,
         )
         self.host = host
         self.port = port

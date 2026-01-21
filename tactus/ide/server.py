@@ -850,6 +850,74 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                     # Capture inputs in closure scope for the thread
                     procedure_inputs = inputs
 
+                    async def handle_container_control_request(request_data: dict) -> dict:
+                        """
+                        Bridge container HITL requests to host's SSE channel.
+
+                        This handler is called by the broker when the container sends
+                        a control.request. It forwards the request to the SSE channel,
+                        waits for the user response in the IDE, and returns the response
+                        data back to the container.
+                        """
+                        import threading
+                        from tactus.protocols.control import ControlRequest
+
+                        # Parse the request
+                        request = ControlRequest.model_validate(request_data)
+                        logger.info(
+                            f"[HITL] Container control request {request.request_id} "
+                            f"for procedure {request.procedure_id}"
+                        )
+
+                        # Get SSE channel
+                        sse_channel = get_sse_channel()
+
+                        # Create a threading event to wait for response
+                        response_event = threading.Event()
+                        response_data = {}
+
+                        # Register pending request
+                        _pending_hitl_requests[request.request_id] = {
+                            "event": response_event,
+                            "response": response_data,
+                        }
+
+                        try:
+                            # Send to SSE channel (delivers to IDE UI)
+                            delivery = await sse_channel.send(request)
+                            if not delivery.success:
+                                raise RuntimeError(
+                                    f"Failed to deliver HITL request to IDE: {delivery.error_message}"
+                                )
+
+                            logger.info(f"[HITL] Request {request.request_id} delivered to IDE, waiting for response...")
+
+                            # Wait for response (with timeout) - run blocking wait in thread pool
+                            timeout_seconds = request.timeout_seconds or 300  # 5 min default
+                            logger.info(f"[HITL] Starting wait for response (timeout={timeout_seconds}s)...")
+                            result = await asyncio.to_thread(
+                                response_event.wait, timeout=timeout_seconds
+                            )
+                            logger.info(f"[HITL] Wait completed, result={result}")
+
+                            if result:
+                                logger.info(
+                                    f"[HITL] Received response for {request.request_id}: "
+                                    f"{response_data.get('value')}"
+                                )
+                                return response_data
+                            else:
+                                # Timeout
+                                logger.warning(f"[HITL] Timeout for {request.request_id}")
+                                return {
+                                    "value": request.default_value,
+                                    "timed_out": True,
+                                    "channel_id": "sse",
+                                }
+                        finally:
+                            # Clean up pending request
+                            _pending_hitl_requests.pop(request.request_id, None)
+
                     def run_procedure():
                         try:
                             # Create new event loop for this thread
@@ -859,6 +927,13 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                             if use_sandbox:
                                 # Use sandbox execution (events streamed via broker over UDS)
                                 runner = ContainerRunner(sandbox_config)
+
+                                # Pass async control handler directly (broker calls it in async context)
+                                # Build LLM backend config (provider-agnostic)
+                                llm_backend_config = {}
+                                if openai_api_key:
+                                    llm_backend_config["openai_api_key"] = openai_api_key
+
                                 exec_result = loop.run_until_complete(
                                     runner.run(
                                         source=source,
@@ -868,6 +943,9 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                                         event_handler=(
                                             sandbox_event_queue.put if sandbox_event_queue else None
                                         ),
+                                        run_id=run_id,
+                                        control_handler=handle_container_control_request,
+                                        llm_backend_config=llm_backend_config,
                                     )
                                 )
 
@@ -921,6 +999,13 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                                 events_sent = True
                             except queue.Empty:
                                 pass
+
+                            # Also check for HITL events from SSE channel (container HITL)
+                            hitl_event = sse_channel.get_next_event(timeout=0.001)
+                            if hitl_event:
+                                all_events.append(hitl_event)
+                                yield f"data: {json.dumps(hitl_event)}\n\n"
+                                events_sent = True
                         else:
                             # Stream from IDELogHandler (direct execution)
                             # Get one event at a time to stream immediately
@@ -960,14 +1045,23 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
 
                     # Get any remaining events
                     if use_sandbox and sandbox_event_queue:
-                        # Drain sandbox event queue
-                        while True:
+                        # Drain sandbox event queue with retries to catch late-arriving events
+                        # Agent streaming events and ExecutionSummaryEvent may still be in flight
+                        max_wait = 2.0  # Wait up to 2 seconds for final events
+                        poll_interval = 0.05  # Poll every 50ms
+                        elapsed = 0.0
+                        consecutive_empty = 0
+                        max_consecutive_empty = 4  # Stop after 4 empty polls (200ms of no events)
+
+                        while elapsed < max_wait and consecutive_empty < max_consecutive_empty:
                             try:
-                                event_dict = sandbox_event_queue.get_nowait()
+                                event_dict = sandbox_event_queue.get(timeout=poll_interval)
                                 all_events.append(event_dict)
                                 yield f"data: {json.dumps(event_dict)}\n\n"
+                                consecutive_empty = 0  # Reset counter when we get an event
                             except queue.Empty:
-                                break
+                                consecutive_empty += 1
+                                elapsed += poll_interval
 
                         # Emit container stopped event
                         container_stopped_event = {
@@ -2261,6 +2355,8 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
 
     # Global SSE channel instance (shared across requests)
     _sse_channel = None
+    # Pending HITL requests (for container control handler)
+    _pending_hitl_requests: dict[str, dict] = {}
 
     def get_sse_channel():
         """Get or create the global SSE channel instance."""
@@ -2287,9 +2383,18 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
 
             logger.info(f"Received HITL response for {request_id}: {value}")
 
-            # Push to SSE channel's response queue
-            channel = get_sse_channel()
-            channel.handle_ide_response(request_id, value)
+            # Check if this is a container HITL request (pending in our dict)
+            if request_id in _pending_hitl_requests:
+                pending = _pending_hitl_requests[request_id]
+                pending["response"]["value"] = value
+                pending["response"]["timed_out"] = False
+                pending["response"]["channel_id"] = "sse"
+                pending["event"].set()  # Signal the waiting thread
+                logger.info(f"[HITL] Signaled container handler for {request_id}")
+            else:
+                # Push to SSE channel's response queue (for non-container HITL)
+                channel = get_sse_channel()
+                channel.handle_ide_response(request_id, value)
 
             return jsonify({"status": "ok", "request_id": request_id})
 
@@ -2307,6 +2412,8 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
         - hitl.request: New HITL request with full context
         - hitl.cancel: Request cancelled (another channel responded)
         """
+        logger.info("[HITL-SSE] Client connected to /api/hitl/stream")
+
         def generate():
             """Generator that yields SSE events from the channel."""
             import asyncio
@@ -2325,6 +2432,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                     "status": "connected",
                     "timestamp": datetime.utcnow().isoformat() + "Z",
                 }
+                logger.info("[HITL-SSE] Sending connection event to client")
                 yield f"data: {json.dumps(connection_event)}\n\n"
 
                 # Stream events from channel
@@ -2333,6 +2441,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                     event = loop.run_until_complete(channel.get_next_event())
 
                     if event:
+                        logger.info(f"[HITL-SSE] Sending event to client: {event.get('type', 'unknown')}")
                         yield f"data: {json.dumps(event)}\n\n"
                     else:
                         # Send keepalive comment every second if no events
