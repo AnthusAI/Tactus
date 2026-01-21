@@ -1,6 +1,6 @@
 # Omnichannel HITL Notification Architecture - Planning Document
 
-## Status Update (2026-01-16)
+## Status Update (2026-01-21)
 
 ### ✅ Phase 1 COMPLETE
 Core control loop architecture implemented:
@@ -35,14 +35,31 @@ All goals achieved (2026-01-19):
 - ✅ Human.inputs() batched HITL feature with tabbed UI
 - See [CONTROL_LOOP_INTEGRATION.md](CONTROL_LOOP_INTEGRATION.md)
 
-### ⏳ Phase 3 IN PROGRESS - IDE/SSE Channel
-Backend complete, frontend integration needed:
+### ✅ Phase 3 COMPLETE - IDE/SSE Channel with Container Support
+All goals achieved (2026-01-21):
 - ✅ SSEControlChannel implemented for IDE notifications
 - ✅ Flask GET /api/hitl/stream endpoint for SSE events
 - ✅ Flask POST /api/hitl/response/<request_id> endpoint for responses
-- ⏳ Build web IDE UI for HITL panels
-- ⏳ Test multi-channel racing (CLI + IDE)
-- See "IDE/SSE Channel - Detailed Design" section below
+- ✅ Web IDE UI for HITL panels with approval/reject buttons
+- ✅ Multi-channel racing (CLI + IDE) working
+- ✅ BrokerControlChannel for container → host HITL bridging
+- ✅ Real-time event streaming from containers via background thread worker
+- ✅ Generalized LLM backend config (provider-agnostic infrastructure)
+- ✅ Agent responses stream in real-time to IDE frontend
+- See commit a6e49ff "feat: enable real-time container HITL and event streaming"
+
+### 🧪 Phase 4 CURRENT - Comprehensive Testing
+Testing all HITL request types and edge cases:
+- ⏳ Test Human.approve() in containers and direct execution
+- ⏳ Test Human.input() for text collection
+- ⏳ Test Human.select() for single choice
+- ⏳ Test Human.inputs() for batched multi-field forms
+- ⏳ Test Human.review() for document/data review
+- ⏳ Test Human.escalate() for exception handling
+- ⏳ Test multi-channel racing (CLI vs IDE)
+- ⏳ Test timeout behavior and default values
+- ⏳ Test checkpoint/resume across HITL waits
+- See "Testing Plan" section below
 
 ---
 
@@ -1556,3 +1573,170 @@ notifications:
 - Daemon architecture documented for future reference if needed
 - Exit-and-resume pattern integrates cleanly with existing Tactus runtime
 - Broker protocol at `tactus/broker/` provides reference for future daemon IPC
+
+---
+
+## Phase 4: Comprehensive Testing Plan
+
+### Testing Goals
+
+Thoroughly test all HITL request types across execution modes (direct and container) to ensure:
+1. All control request types work correctly
+2. Multi-channel racing behaves properly
+3. Timeout and default values are handled
+4. Checkpoint/resume works across HITL waits
+5. Real-time streaming works for all event types
+6. Edge cases are handled gracefully
+
+### HITL Request Types to Test
+
+| Request Type | Method | Purpose | Required Fields |
+|-------------|---------|---------|-----------------|
+| **approval** | `Human.approve(message)` | Binary yes/no decision | `message` |
+| **input** | `Human.input(message, [default])` | Text input collection | `message`, optional `default_value` |
+| **select** | `Human.select(message, options)` | Single choice from list | `message`, `options` array |
+| **inputs** | `Human.inputs({field1, field2, ...})` | Batched multi-field form | Array of input definitions |
+| **review** | `Human.review(content, [context])` | Document/data review | `content`, optional `context` |
+| **escalation** | `Human.escalate(reason, [severity])` | Exception handling | `reason`, optional `severity` |
+
+### Test Matrix
+
+For each request type, test the following scenarios:
+
+#### Execution Modes
+- [ ] Direct execution (no container)
+- [ ] Container execution with broker
+
+#### Channels
+- [ ] CLI only (ControlLoopHandler with CLIControlChannel)
+- [ ] IDE only (ControlLoopHandler with SSEControlChannel)
+- [ ] Both channels (multi-channel racing - first to respond wins)
+
+#### Response Scenarios
+- [ ] Normal response (user provides valid input)
+- [ ] Timeout (no response within timeout period)
+- [ ] Default value (when provided and timeout occurs)
+- [ ] Invalid input (validation errors)
+- [ ] Channel failure (channel send fails)
+
+#### Event Streaming
+- [ ] HITL request appears in IDE
+- [ ] Agent responses stream in real-time
+- [ ] Log events appear during execution
+- [ ] Procedure completion shows final result
+
+### Test Examples to Create
+
+#### 1. Human.approve() - Binary Decision
+File: `examples/93-test-approve.tac`
+- Ask for deployment approval
+- Branch on result (approved vs rejected)
+- Test with timeout and default value
+
+#### 2. Human.input() - Text Collection
+File: `examples/94-test-input.tac`
+- Collect user's name
+- Collect configuration value with default
+- Use input in subsequent logic
+
+#### 3. Human.select() - Single Choice
+File: `examples/95-test-select.tac`
+- Choose deployment environment (dev/staging/prod)
+- Choose log level (debug/info/warn/error)
+- Use selection to configure behavior
+
+#### 4. Human.inputs() - Batched Form
+File: `examples/96-test-inputs.tac`
+- Multi-field form (name, email, role, preferences)
+- Mix of text inputs, selects, and checkboxes
+- Validate form-wide constraints
+
+#### 5. Human.review() - Document Review
+File: `examples/97-test-review.tac`
+- Review generated code
+- Review configuration changes
+- Approve/reject with feedback
+
+#### 6. Human.escalate() - Exception Handling
+File: `examples/98-test-escalate.tac`
+- Detect error condition
+- Escalate to on-call
+- Wait for resolution or timeout
+
+#### 7. Multi-Channel Racing
+File: `examples/99-test-racing.tac`
+- Send HITL request to both CLI and IDE
+- Verify first response wins
+- Verify other channels are cancelled
+
+#### 8. Timeout Behavior
+File: `examples/100-test-timeout.tac`
+- Request with short timeout (5 seconds)
+- Request with default value on timeout
+- Request without default (should fail on timeout)
+
+### Testing Checklist
+
+#### Basic Functionality
+- [ ] Remove emojis from examples (no emojis in code)
+- [ ] Human.approve() works in containers
+- [ ] Human.approve() works in direct execution
+- [ ] IDE displays approval UI correctly
+- [ ] CLI displays approval prompt correctly
+- [ ] Agent responses stream in real-time
+- [ ] Log events appear during execution
+- [ ] Final result displays in IDE
+
+#### All Request Types
+- [ ] Human.input() collects text
+- [ ] Human.select() shows options
+- [ ] Human.inputs() renders multi-field form
+- [ ] Human.review() displays content
+- [ ] Human.escalate() triggers notification
+
+#### Channel Behavior
+- [ ] SSEControlChannel delivers to IDE
+- [ ] CLIControlChannel delivers to terminal
+- [ ] Both channels race properly
+- [ ] Winner's response is used
+- [ ] Loser's channel is cancelled
+
+#### Error Handling
+- [ ] Timeout triggers default value if provided
+- [ ] Timeout fails gracefully if no default
+- [ ] Invalid responses are rejected
+- [ ] Channel failures don't crash procedure
+- [ ] Network issues are handled
+
+#### Event Streaming
+- [ ] AgentTurnEvent chunks stream in real-time
+- [ ] LogEvents appear as they're emitted
+- [ ] CostEvents are tracked
+- [ ] ExecutionSummaryEvent shows final result
+- [ ] Container events flow through broker correctly
+
+#### Container-Specific
+- [ ] BrokerControlChannel bridges to host
+- [ ] BrokerLogHandler streams events
+- [ ] Background thread worker doesn't block
+- [ ] Flush ensures all events delivered
+- [ ] LLM backend config passed correctly
+
+### Success Criteria
+
+Phase 4 testing is complete when:
+1. All HITL request types work in both execution modes
+2. Multi-channel racing behaves correctly
+3. Timeout behavior is predictable and documented
+4. All events stream in real-time without blocking
+5. Edge cases are handled gracefully
+6. Test examples demonstrate each feature
+7. No emojis in code or examples
+
+### Next Steps After Testing
+
+1. Document any issues found during testing
+2. Fix any bugs discovered
+3. Create comprehensive test examples
+4. Update user documentation
+5. Consider Phase 5: External channels (Slack, Discord, etc.)

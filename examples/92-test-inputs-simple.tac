@@ -11,13 +11,13 @@ Run with: tactus run examples/92-test-inputs-simple.tac
 
 -- Define a mock deployment tool
 local function deploy_to_production()
-    Log.info("🚀 Deploying application to production...")
+    Log.info("Deploying application to production...")
     -- Simulate deployment steps
-    Log.info("  → Building Docker image...")
-    Log.info("  → Pushing to registry...")
-    Log.info("  → Updating Kubernetes deployment...")
-    Log.info("  → Running health checks...")
-    Log.info("✅ Deployment completed successfully!")
+    Log.info("  - Building Docker image...")
+    Log.info("  - Pushing to registry...")
+    Log.info("  - Updating Kubernetes deployment...")
+    Log.info("  - Running health checks...")
+    Log.info("Deployment completed successfully!")
 
     return {
         success = true,
@@ -59,7 +59,7 @@ Procedure {
                 "Provide a brief confirmation message and mention that deployment is starting."
             )
 
-            print("\n🤖 Agent: " .. tostring(agent_response))
+            print("\nAgent: " .. tostring(agent_response))
 
             -- Step 3: Execute deployment tool if approved
             print("\nStep 3: Executing deployment...")
@@ -73,7 +73,7 @@ Procedure {
                 ". Provide a brief success summary for the user."
             )
 
-            print("\n🤖 Agent: " .. tostring(summary))
+            print("\nAgent: " .. tostring(summary))
 
             return {
                 completed = true,
@@ -87,7 +87,7 @@ Procedure {
                 "Provide a brief acknowledgment and mention that no changes were made."
             )
 
-            print("\n🤖 Agent: " .. tostring(agent_response))
+            print("\nAgent: " .. tostring(agent_response))
 
             return {
                 completed = true,
