@@ -89,7 +89,15 @@ Procedure {
     print("\nUser registration:")
     print("  Name: " .. user_info.name)
     print("  Role: " .. user_info.role)
-    print("  Features: " .. table.concat(user_info.features or {}, ", "))
+
+    -- Features can be a table or string depending on selection
+    local features_str = ""
+    if type(user_info.features) == "table" then
+        features_str = table.concat(user_info.features, ", ")
+    else
+        features_str = tostring(user_info.features or "none")
+    end
+    print("  Features: " .. features_str)
     print("  Agreed to terms: " .. tostring(user_info.agree_terms))
 
         return {

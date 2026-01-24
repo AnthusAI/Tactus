@@ -257,7 +257,8 @@ export type HITLRequestType =
   | 'escalation'
   | 'select'
   | 'upload'
-  | 'inputs';
+  | 'inputs'
+  | 'custom';  // Custom component type (uses metadata.component_type for routing)
 
 export interface HITLOption {
   label: string;
@@ -295,6 +296,41 @@ export interface ControlInteraction {
   channel_id: string;
 }
 
+/**
+ * Entry in the execution backtrace showing how we got to this point
+ */
+export interface BacktraceEntry {
+  checkpoint_type: string;
+  line?: number;
+  function_name?: string;
+  duration_ms?: number;
+}
+
+/**
+ * Context automatically captured from the Tactus runtime.
+ * Includes source location, execution position, and backtrace.
+ */
+export interface RuntimeContext {
+  source_line?: number;
+  source_file?: string;
+  checkpoint_position: number;
+  procedure_name: string;
+  invocation_id: string;
+  started_at?: string;
+  elapsed_seconds: number;
+  backtrace: BacktraceEntry[];
+}
+
+/**
+ * Application-provided context reference.
+ * Allows host apps to inject domain-specific context with optional deep links.
+ */
+export interface ContextLink {
+  name: string;
+  value: string;
+  url?: string;
+}
+
 export interface HITLRequestEvent extends BaseEvent {
   event_type: 'hitl.request';
   request_id: string;
@@ -303,7 +339,7 @@ export interface HITLRequestEvent extends BaseEvent {
   procedure_name: string;
   invocation_id?: string;
 
-  // Context
+  // Context (legacy - to be replaced by runtime_context)
   subject?: string;
   started_at?: string;
   input_summary?: Record<string, any>;
@@ -323,6 +359,10 @@ export interface HITLRequestEvent extends BaseEvent {
   // Rich context
   conversation?: ConversationMessage[];
   prior_interactions?: ControlInteraction[];
+
+  // New context architecture
+  runtime_context?: RuntimeContext;
+  application_context?: ContextLink[];
 
   // Metadata
   metadata?: Record<string, any>;
