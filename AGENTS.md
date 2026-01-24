@@ -2,6 +2,33 @@
 
 This document provides guidelines for AI coding agents working on the Tactus project.
 
+## Brand Theme & Visual Design Policies
+
+*   **Flat Design Only**:
+    *   No gradients.
+    *   No drop-shadows (unless totally flat/hard).
+    *   No borders/outlines on containers or regions.
+*   **Contrast & Separation**:
+    *   Avoid thin lines (hrules, borders) for separating regions.
+    *   Use **varying background colors** on flat rectangles with rounded corners to indicate regions and groupings.
+    *   Use contrast carefully; avoid high contrast.
+        *   Background black should not be fully black (e.g., use dark gray).
+        *   Foreground white should not be fully white.
+        *   Use a limited set of official colors: "not-black", "not-white", and 2-3 "muted" colors.
+*   **Color System**:
+    *   Themes use **Radix Colors** (Cool, Neutral, Warm).
+    *   Support both Light and Dark modes.
+*   **Typography & Layout**:
+    *   Refined elegance, modern Bauhaus-inspired, Apple's modern minimalist Art Deco.
+*   **Animations**:
+    *   Subtle animation effects are encouraged.
+    *   **NO CSS animations** (like Framer Motion) for components that feature in Babulus videos.
+    *   Use **frame-parameterized animations**: Animations must be driven by a `frame` parameter so they can be rendered deterministically in videos.
+*   **Development Workflow**:
+    *   Refer to **Shadcn UI** for default UX design patterns.
+    *   Provide examples of basic visual elements in **Storybook stories**.
+    *   Do research into best practices for specific tasks.
+
 ## Pre-Commit Checklist
 
 **CRITICAL**: Before committing any changes, you MUST:
