@@ -43,23 +43,59 @@ All goals achieved (2026-01-21):
 - ✅ Frontend emoji cleanup (replaced with icon components)
 - See commit a6e49ff "feat: enable real-time container HITL and event streaming"
 
-### 🧪 Phase 4 IN PROGRESS - Comprehensive Testing
-**Implementation Status: ~90% Complete**
+### ✅ Phase 4 COMPLETE - Unified HITL Component Architecture
+**Completion Date: 2026-01-24**
 
-Core functionality verified:
-- ✅ Human.approve() works in both containers and direct execution
-- ✅ Human.input() works in CLI and IDE
-- ✅ Human.select() works in CLI and IDE
+All goals achieved:
+- ✅ Human.approve(), input(), select() work in both containers and direct execution
 - ✅ Multi-channel racing (CLI + IDE) working
 - ✅ Checkpoint/resume across HITL waits working
 - ✅ Real-time event streaming validated
+- ✅ **Unified component registry architecture** implemented
+- ✅ **Batched inputs (Human.inputs())** with inline and modal modes
+- ✅ **Config-driven UI behavior** (inline as default, modal as optional)
+- ✅ **Component registry** with three-tier system (Built-in < Standard Library < Application)
+- ✅ **Modal cancellation handling** with reopen capability
+- ✅ **Visual feedback** for multi-select, selected states
+- ✅ **Form validation** for boolean, array, string, null/undefined
+- ✅ **Response display** showing submitted values with labels
 
+See commits:
+- a6e49ff "feat: enable real-time container HITL and event streaming"
+- 392660c "feat: add modal cancellation handling with reopen capability"
+
+### 🔨 Phase 4.1 IN PROGRESS - Complete Registry Migration
+**Goal:** Eliminate remaining hard-coded rendering in modal mode
+
+**Status: 95% Complete**
+
+What works:
+- ✅ Registry infrastructure (`registry.ts`, `types.ts`)
+- ✅ Built-in components extracted (`ApprovalComponent`, `InputComponent`, `SelectComponent`)
+- ✅ Standard library components (`ImageSelectorComponent`)
+- ✅ Public API (`hitlRegistry.register()`, `override()`, `listAvailable()`)
+- ✅ Single-item requests use registry
+- ✅ Batched inputs inline mode uses registry via `renderFormItem()`
+- ✅ Batched inputs modal mode **PARTIALLY** uses registry
+
+What needs fixing:
+- ❌ **Modal TabsContent still has 63 lines of hard-coded rendering** (lines 332-399)
+  - Hard-coded approval buttons
+  - Hard-coded input fields
+  - Hard-coded select logic
+  - Should use `renderFormItem()` helper like inline mode
+
+**Impact:** Once fixed, modal and inline modes will use identical rendering logic, custom components will work in modal mode, and changes to components only need to happen once.
+
+See "Phase 1.1: Complete Registry Migration" in the implementation plan below
+
+### ⏳ Phase 5 FUTURE - Additional Testing & Components
 Remaining work:
-- ⚠️ Human.inputs() batched forms - CLI complete, IDE needs full modal UI
-- ⏳ Human.review() - Implemented but needs comprehensive testing
-- ⏳ Human.escalate() - Implemented but needs comprehensive testing
-- ⏳ Timeout behavior - Logic exists but needs thorough testing
-- ⏳ Test suite - Need comprehensive test examples (93-test-*.tac series)
+- Human.review() - Implemented but needs comprehensive testing
+- Human.escalate() - Implemented but needs comprehensive testing
+- Timeout behavior - Logic exists but needs thorough testing
+- Standard library components (TextOptionsSelectorComponent, MultiChoiceApprovalComponent, etc.)
+- Test suite expansion (93-test-*.tac series)
 
 See "Testing Plan" section below for detailed checklist
 
@@ -1578,7 +1614,115 @@ notifications:
 
 ---
 
-## Phase 4: Comprehensive Testing Plan
+## Phase 4.1: Complete Registry Migration - Implementation Plan
+
+### Goal
+Eliminate the last remaining hard-coded rendering in modal mode and achieve 100% unified component architecture.
+
+### Current State
+- ✅ Registry infrastructure exists ([tactus-ide/frontend/src/components/hitl/registry.ts](../tactus-ide/frontend/src/components/hitl/registry.ts))
+- ✅ Built-in components extracted (ApprovalComponent, InputComponent, SelectComponent)
+- ✅ Inline mode uses registry via `renderFormItem()` helper
+- ❌ Modal mode has 63 lines of hard-coded rendering (lines 332-399)
+
+### The Problem
+File: [tactus-ide/frontend/src/components/events/HITLEventComponent.tsx](../tactus-ide/frontend/src/components/events/HITLEventComponent.tsx)
+
+**Lines 332-399:** Modal TabsContent has hard-coded conditionals:
+```typescript
+{item.request_type === 'approval' && (
+  /* 20 lines of approval buttons */
+)}
+{item.request_type === 'input' && (
+  /* 8 lines of input field */
+)}
+{item.request_type === 'select' && (
+  /* 35 lines of select buttons */
+)}
+```
+
+This creates:
+1. **Code duplication** - Same logic exists in inline mode
+2. **Inconsistent behavior** - Changes need to be made twice
+3. **Limited extensibility** - Custom components can't be used in modal mode
+
+### The Fix
+Replace hard-coded conditionals with `renderFormItem()` helper (same as inline mode):
+
+```typescript
+// BEFORE (lines 324-400) - 77 lines total
+<TabsContent key={item.item_id} value={item.item_id} className="space-y-4">
+  <div>
+    <Label className="text-base font-semibold">{item.message}</Label>
+    {item.required && <span className="text-destructive ml-1">*</span>}
+  </div>
+
+  {/* Render input based on type */}
+  {item.request_type === 'approval' && (
+    <div className="space-y-2">
+      <Button onClick={...}>Approve</Button>
+      <Button onClick={...}>Reject</Button>
+    </div>
+  )}
+
+  {item.request_type === 'input' && (
+    <input type="text" onChange={...} />
+  )}
+
+  {item.request_type === 'select' && (
+    <div className="grid grid-cols-2 gap-2">
+      {item.options.map(option => (
+        <Button onClick={...}>{option.label}</Button>
+      ))}
+    </div>
+  )}
+</TabsContent>
+
+// AFTER - 14 lines (63 lines removed!)
+<TabsContent key={item.item_id} value={item.item_id} className="space-y-4">
+  <div>
+    <Label className="text-base font-semibold">{item.message}</Label>
+    {item.required && <span className="text-destructive ml-1">*</span>}
+  </div>
+
+  {renderFormItem(item)}
+</TabsContent>
+```
+
+### Benefits
+1. ✅ **Eliminates 63 lines** of duplicate code
+2. ✅ **Unified rendering** - Modal and inline use identical logic
+3. ✅ **Custom components work in modal** - ImageSelector, etc. will render
+4. ✅ **Single source of truth** - Changes happen once, apply everywhere
+5. ✅ **Easier maintenance** - One component to update, not two
+6. ✅ **Fully extensible** - Applications can override any component type
+
+### Verification Steps
+1. **Switch config** to `batched_inputs_mode: modal`
+2. **Run test** - `tactus run examples/92-test-inputs.tac`
+3. **Verify all types** render correctly in modal:
+   - Approval buttons (Approve/Reject)
+   - Input fields (text, placeholder)
+   - Select buttons (single-select and multi-select)
+4. **Test custom components** in modal (future test with ImageSelectorComponent)
+5. **Visual regression** - Modal should look identical to before
+
+### Files Modified
+- [tactus-ide/frontend/src/components/events/HITLEventComponent.tsx](../tactus-ide/frontend/src/components/events/HITLEventComponent.tsx) - Lines 332-399
+
+### Success Criteria
+- [ ] Modal mode uses `renderFormItem()` instead of hard-coded conditionals
+- [ ] All input types render correctly in modal (approval, input, select)
+- [ ] Multi-select shows visual feedback (check marks, selected state)
+- [ ] Form validation works (required fields, Submit All button state)
+- [ ] Custom components render in modal (ImageSelectorComponent test)
+- [ ] No visual regressions (modal looks identical to before)
+- [ ] Frontend builds without errors
+- [ ] Test example passes in modal mode
+
+---
+
+## Phase 5: Comprehensive Testing Plan
 
 ### Testing Goals
 

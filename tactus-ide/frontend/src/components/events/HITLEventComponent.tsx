@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bell, CheckCircle2, Check, X, FileCode, Clock, ExternalLink, RotateCw } from 'lucide-react';
+import { Bell, CheckCircle2, FileCode, Clock, ExternalLink, RotateCw } from 'lucide-react';
 import { BaseEventComponent } from './BaseEventComponent';
 import { HITLRequestEvent } from '@/types/events';
 import { Button } from '../ui/button';
@@ -328,75 +328,8 @@ export const HITLEventComponent: React.FC<HITLEventComponentProps> = ({
                                     {item.required && <span className="text-destructive ml-1">*</span>}
                                   </div>
 
-                                  {/* Render input based on type */}
-                                  {item.request_type === 'approval' && (
-                                    <div className="space-y-2">
-                                      <Button
-                                        onClick={() => setFormValues(prev => ({ ...prev, [item.item_id]: true }))}
-                                        variant={formValues[item.item_id] === true ? 'default' : 'outline'}
-                                        className="w-full"
-                                      >
-                                        <Check className="h-4 w-4 mr-2" />
-                                        Approve
-                                      </Button>
-                                      <Button
-                                        onClick={() => setFormValues(prev => ({ ...prev, [item.item_id]: false }))}
-                                        variant={formValues[item.item_id] === false ? 'default' : 'outline'}
-                                        className="w-full"
-                                      >
-                                        <X className="h-4 w-4 mr-2" />
-                                        Reject
-                                      </Button>
-                                    </div>
-                                  )}
-
-                                  {item.request_type === 'input' && (
-                                    <input
-                                      type="text"
-                                      placeholder={item.metadata?.placeholder || 'Enter your response...'}
-                                      className="w-full px-3 py-2 text-sm border rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                                      defaultValue={item.default_value || ''}
-                                      onChange={(e) => setFormValues(prev => ({ ...prev, [item.item_id]: e.target.value }))}
-                                    />
-                                  )}
-
-                                  {item.request_type === 'select' && item.options && (
-                                    <div className="grid grid-cols-2 gap-2">
-                                      {item.options.map((option) => {
-                                        const isMultiple = item.metadata?.mode === 'multiple';
-                                        const currentValue = formValues[item.item_id];
-                                        const isSelected = isMultiple
-                                          ? Array.isArray(currentValue) && currentValue.includes(option.value)
-                                          : currentValue === option.value;
-
-                                        return (
-                                          <Button
-                                            key={option.value}
-                                            onClick={() => {
-                                              if (isMultiple) {
-                                                // Multi-select: toggle value in array
-                                                setFormValues(prev => {
-                                                  const current = Array.isArray(prev[item.item_id]) ? prev[item.item_id] : [];
-                                                  const newValue = current.includes(option.value)
-                                                    ? current.filter((v: string) => v !== option.value)
-                                                    : [...current, option.value];
-                                                  return { ...prev, [item.item_id]: newValue };
-                                                });
-                                              } else {
-                                                // Single select: set value
-                                                setFormValues(prev => ({ ...prev, [item.item_id]: option.value }));
-                                              }
-                                            }}
-                                            variant={isSelected ? 'default' : 'outline'}
-                                            className="w-full"
-                                          >
-                                            {isMultiple && isSelected && <Check className="h-4 w-4 mr-2" />}
-                                            {option.label}
-                                          </Button>
-                                        );
-                                      })}
-                                    </div>
-                                  )}
+                                  {/* Use registry-based rendering (same as inline mode) */}
+                                  {renderFormItem(item)}
                                 </TabsContent>
                               ))}
                             </div>
