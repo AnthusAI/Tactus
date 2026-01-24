@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}{{ module.full_name }} - Tactus Documentation{% endblock %}
+
+{% block header %}{{ module.full_name }}{% endblock %}
+
+{% block content %}
+
+{% if module.index_content %}
+<div class="overview">
+    {{ module.index_content|markdown|safe }}
+</div>
+{% elif module.overview %}
+<div class="overview">
+    {{ module.overview|markdown|safe }}
+</div>
+{% endif %}
+
+{% if module.examples %}
+<h2>Examples</h2>
+{% for example in module.examples %}
+    {% if example.source == "doc_block" %}
+    <div class="scenario">
+        <h3>{{ example.title }}</h3>
+        {% if example.description %}
+        <p style="color: var(--text-secondary);">{{ example.description }}</p>
+        {% endif %}
+        <pre><code class="language-lua">{{ example.code }}</code></pre>
+    </div>
+    {% endif %}
+{% endfor %}
+{% endif %}
+
+{% if module.parameters %}
+<h2>Parameters</h2>
+{% for param in module.parameters %}
+<div class="parameter">
+    <div>
+        <span class="parameter-name">{{ param.name }}</span>
+        {% if param.type_hint %}
+        <code>{{ param.type_hint }}</code>
+        {% endif %}
+        {% if param.required %}
+        <span class="badge badge-required">required</span>
+        {% else %}
+        <span class="badge badge-optional">optional</span>
+        {% endif %}
+    </div>
+    <p style="margin-top: 0.5rem; color: var(--text-secondary);">
+        {{ param.description }}
+    </p>
+    {% if param.default %}
+    <p style="margin-top: 0.5rem; font-size: 0.875rem;">
+        <strong>Default:</strong> <code>{{ param.default }}</code>
+    </p>
+    {% endif %}
+</div>
+{% endfor %}
+{% endif %}
+
+{% if module.features %}
+<h2>Specifications</h2>
+{% for feature in module.features %}
+    <h3>{{ feature.name }}</h3>
+    {% if feature.description %}
+    <p style="color: var(--text-secondary); font-style: italic;">{{ feature.description }}</p>
+    {% endif %}
+
+    {% for scenario in feature.scenarios %}
+    <div class="scenario">
+        <h4>{{ scenario.name }}</h4>
+        {% for step in scenario.steps %}
+        <div class="step">
+            <strong>{{ step.keyword }}</strong> {{ step.text }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endfor %}
+{% endfor %}
+{% endif %}
+
+{% if module.doc_blocks|length > 1 %}
+<h2>Additional Documentation</h2>
+{% for doc_block in module.doc_blocks[1:] %}
+<div style="margin: 2rem 0;">
+    {{ doc_block.content|markdown|safe }}
+</div>
+{% endfor %}
+{% endif %}
+
+<div style="margin-top: 3rem; padding-top: 2rem; border-top: 1px solid var(--border); color: var(--text-secondary); font-size: 0.875rem;">
+    <p><strong>Source:</strong> <code>{{ module.file_path }}</code></p>
+    <p style="margin-top: 0.5rem;"><strong>Lines:</strong> {{ module.line_count }}</p>
+</div>
+
+{% endblock %}

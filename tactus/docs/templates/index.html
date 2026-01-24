@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Tactus Standard Library Documentation{% endblock %}
+
+{% block header %}Tactus Standard Library{% endblock %}
+
+{% block content %}
+<div class="overview">
+    <p>
+        The Tactus standard library provides reusable primitives for building AI agents
+        and classification workflows. All modules are written in Tactus with BDD specifications
+        serving as tests, documentation, and contracts.
+    </p>
+</div>
+
+<h2>Available Modules</h2>
+
+{% if tree.modules %}
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; margin-top: 2rem;">
+    {% for module in tree.modules %}
+    <div class="scenario">
+        <h3>
+            <a href="{{ module.name }}.html">{{ module.full_name }}</a>
+        </h3>
+        <p style="color: var(--text-secondary); margin-top: 0.5rem;">
+            {{ module.overview|truncate(150) if module.overview else "No description available" }}
+        </p>
+        <div style="margin-top: 1rem; font-size: 0.875rem; color: var(--text-secondary);">
+            {% if module.has_specs %}
+            <span>✓ {{ module.features|length }} feature(s)</span>
+            <span style="margin-left: 1rem;">{{ module.line_count }} lines</span>
+            {% else %}
+            <span>{{ module.line_count }} lines</span>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<p style="color: var(--text-secondary);">No modules found.</p>
+{% endif %}
+
+<h2>Quick Start</h2>
+
+<pre><code class="language-lua">-- Load a module
+local classify = require("tactus.classify")
+
+-- Use it
+local classifier = classify.LLMClassifier:new {
+    classes = {"Yes", "No"},
+    prompt = "Is this a question?"
+}
+
+local result = classifier:classify("How are you?")
+print(result.value)  -- "Yes"
+</code></pre>
+
+{% endblock %}

@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Tactus Documentation{% endblock %}</title>
+    <style>
+        :root {
+            --bg: #0a0a0a;
+            --bg-secondary: #1a1a1a;
+            --border: #2a2a2a;
+            --text: #e4e4e7;
+            --text-secondary: #a1a1aa;
+            --accent: #3b82f6;
+            --accent-hover: #60a5fa;
+            --code-bg: #18181b;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        header {
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            margin-top: 1.5em;
+            margin-bottom: 0.5em;
+            font-weight: 600;
+        }
+
+        h1 { font-size: 2.5rem; margin-top: 0; }
+        h2 { font-size: 1.875rem; border-bottom: 1px solid var(--border); padding-bottom: 0.3em; }
+        h3 { font-size: 1.5rem; }
+        h4 { font-size: 1.25rem; }
+
+        a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        a:hover {
+            color: var(--accent-hover);
+            text-decoration: underline;
+        }
+
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+
+        code {
+            background: var(--code-bg);
+            padding: 0.2em 0.4em;
+            border-radius: 0.25rem;
+            font-family: "SF Mono", Monaco, Consolas, monospace;
+            font-size: 0.875em;
+        }
+
+        pre code {
+            background: none;
+            padding: 0;
+        }
+
+        .scenario {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin: 1rem 0;
+        }
+
+        .scenario h3 {
+            margin-top: 0;
+            color: var(--accent);
+        }
+
+        .step {
+            padding: 0.5rem 0;
+            color: var(--text-secondary);
+        }
+
+        .step strong {
+            color: var(--accent);
+        }
+
+        .parameter {
+            background: var(--bg-secondary);
+            border-left: 3px solid var(--accent);
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+
+        .parameter-name {
+            font-family: "SF Mono", Monaco, Consolas, monospace;
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
+        }
+
+        .badge-required {
+            background: #ef4444;
+            color: white;
+        }
+
+        .badge-optional {
+            background: #64748b;
+            color: white;
+        }
+
+        .nav-links {
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 1px solid var(--border);
+        }
+
+        ul, ol {
+            margin-left: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        blockquote {
+            border-left: 3px solid var(--accent);
+            padding-left: 1rem;
+            color: var(--text-secondary);
+            margin: 1rem 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+
+        th, td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            background: var(--bg-secondary);
+            font-weight: 600;
+        }
+
+        .overview {
+            background: var(--bg-secondary);
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin: 2rem 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>{% block header %}Tactus Documentation{% endblock %}</h1>
+            <div class="nav-links">
+                <a href="index.html">← Back to Index</a>
+            </div>
+        </header>
+
+        <main>
+            {% block content %}{% endblock %}
+        </main>
+
+        <footer class="nav-links">
+            <p style="color: var(--text-secondary);">
+                Generated with <a href="https://github.com/AnthusAI/Tactus">Tactus</a>
+            </p>
+        </footer>
+    </div>
+</body>
+</html>
