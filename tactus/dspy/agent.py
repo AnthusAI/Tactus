@@ -12,6 +12,7 @@ The Agent uses:
 - Unified mocking via Mocks {} primitive
 """
 
+import asyncio
 import logging
 from typing import Any, Dict, List, Optional
 
@@ -98,6 +99,7 @@ class DSPyAgentHandle:
         self.tools = tools or []
         self.toolsets = toolsets or []
         self.execution_context = execution_context
+        self._dspy_tools_cache = None  # Cache for converted DSPy tools
         # Default input schema: {message: string}
         self.input_schema = input_schema or {"message": {"type": "string", "required": False}}
         # Default output schema: {response: string}
@@ -316,15 +318,72 @@ class DSPyAgentHandle:
             raise ValueError(f"Unknown module '{module}'. Supported: {list(mapping.keys())}")
         return strategy
 
+    def _convert_toolsets_to_dspy_tools_sync(self) -> list:
+        """
+        Convert Pydantic AI toolsets to DSPy Tool objects (synchronous version).
+
+        DSPy uses dspy.adapters.types.tool.Tool for native function calling.
+        Pydantic AI toolsets expose tools via .get_tools(ctx) method.
+
+        Returns:
+            List of DSPy Tool objects
+        """
+        try:
+            from dspy.adapters.types.tool import Tool as DSPyTool
+        except ImportError:
+            logger.error("Cannot import DSPyTool - DSPy installation may be incomplete")
+            return []
+
+        logger.info(f"Agent '{self.name}' has {len(self.toolsets)} toolsets to convert")
+
+        dspy_tools = []
+
+        # Convert toolsets to DSPy Tools
+        for idx, toolset in enumerate(self.toolsets):
+            logger.info(f"Agent '{self.name}' processing toolset {idx}: {type(toolset).__name__}")
+            try:
+                # Pydantic AI FunctionToolset has a .tools dict attribute that's directly accessible
+                # This avoids the need for async get_tools() call and RunContext
+                if hasattr(toolset, 'tools') and isinstance(toolset.tools, dict):
+                    pydantic_tools = list(toolset.tools.values())
+                    logger.info(f"Agent '{self.name}' toolset {idx} has {len(pydantic_tools)} tools (from .tools attribute)")
+                else:
+                    logger.warning(f"Toolset {toolset} doesn't have accessible .tools dict, skipping")
+                    continue
+
+                for pydantic_tool in pydantic_tools:
+                    # Pydantic AI Tool has: name, description, parameters_json_schema, function
+                    logger.info(f"Agent '{self.name}' converting tool: name={pydantic_tool.name}, desc={pydantic_tool.description[:50] if pydantic_tool.description else 'N/A'}...")
+                    dspy_tool = DSPyTool(
+                        func=pydantic_tool.function,
+                        name=pydantic_tool.name,
+                        desc=pydantic_tool.description,
+                        # DSPy Tool will auto-generate schema from function signature,
+                        # but we can pass Pydantic's schema if needed
+                    )
+                    dspy_tools.append(dspy_tool)
+                    logger.info(f"Converted tool '{pydantic_tool.name}' to DSPy Tool")
+
+            except Exception as e:
+                import traceback
+                logger.error(f"Failed to convert toolset {toolset} to DSPy Tools: {e}")
+                logger.error(f"Traceback: {traceback.format_exc()}")
+
+        logger.info(f"Agent '{self.name}' converted {len(dspy_tools)} tools to DSPy format")
+        return dspy_tools
+
     def _build_module(self) -> TactusModule:
         """Build the internal DSPy module for this agent."""
         # Create a signature for agent turns
-        # Input: system_prompt, history, user_message, available_tools
+        # Input: system_prompt, history, user_message
+        # If tools available: also include tools as structured list[dspy.Tool]
         # Output: response and tool_calls (if tools are needed)
-        # Include tools in the signature if they're available
+
+        # Use DSPy's native function calling with structured tool input
+        # See: dspy/adapters/base.py - adapter preprocesses tools field
         if self.tools or self.toolsets:
             signature = (
-                "system_prompt, history, user_message, available_tools -> response, tool_calls"
+                "system_prompt, history, user_message, tools: list[dspy.Tool] -> response, tool_calls: dspy.ToolCalls"
             )
         else:
             signature = "system_prompt, history, user_message -> response"
@@ -907,20 +966,12 @@ class DSPyAgentHandle:
             "user_message": user_message or "",
         }
 
-        # Add available tools if agent has them
+        # Add tools as structured DSPy Tool objects if agent has them
+        # DSPy's adapter will convert these to OpenAI function call format
         if self.tools or self.toolsets:
-            # Format tools for the prompt
-            tool_descriptions = []
-            if self.toolsets:
-                # Convert toolsets to strings if they're not already
-                toolset_names = [str(ts) if not isinstance(ts, str) else ts for ts in self.toolsets]
-                tool_descriptions.append(f"Available toolsets: {', '.join(toolset_names)}")
-                tool_descriptions.append(
-                    "Use the 'done' tool with a 'reason' parameter to complete the task."
-                )
-            prompt_context["available_tools"] = (
-                "\n".join(tool_descriptions) if tool_descriptions else "No tools available"
-            )
+            dspy_tools = self._convert_toolsets_to_dspy_tools_sync()
+            prompt_context["tools"] = dspy_tools
+            logger.info(f"Agent '{self.name}' passing {len(dspy_tools)} DSPy tools to module")
 
         # Add any injected context (user_message is already in prompt_context)
         if context:
