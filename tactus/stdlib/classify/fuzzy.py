@@ -17,9 +17,11 @@ from typing import Any, Dict, List, Optional
 
 try:
     from rapidfuzz import fuzz
+
     HAS_RAPIDFUZZ = True
 except ImportError:
     from difflib import SequenceMatcher
+
     HAS_RAPIDFUZZ = False
 
 from ..core.base import BaseClassifier

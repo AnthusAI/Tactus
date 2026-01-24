@@ -1,7 +1,6 @@
 """Tests for the Extract primitive with mocked agents."""
 
 import pytest
-from unittest.mock import MagicMock
 
 from tactus.stdlib.extract.primitive import ExtractPrimitive, ExtractHandle
 from tactus.stdlib.extract.llm import LLMExtractor
@@ -29,8 +28,10 @@ class MockAgentHandle:
 
 def create_mock_agent_factory(responses):
     """Create a mock agent factory that returns agents with predefined responses."""
+
     def factory(config):
         return MockAgentHandle(responses)
+
     return factory
 
 
@@ -58,11 +59,13 @@ class TestExtractPrimitive:
         factory = create_mock_agent_factory(['{"name": "John", "age": 30}'])
         primitive = ExtractPrimitive(agent_factory=factory)
 
-        result = primitive({
-            "fields": {"name": "string", "age": "number"},
-            "prompt": "Extract info",
-            "input": "John is 30 years old"
-        })
+        result = primitive(
+            {
+                "fields": {"name": "string", "age": "number"},
+                "prompt": "Extract info",
+                "input": "John is 30 years old",
+            }
+        )
 
         assert isinstance(result, dict)
         assert result["name"] == "John"
@@ -73,10 +76,7 @@ class TestExtractPrimitive:
         factory = create_mock_agent_factory(['{"name": "John"}'])
         primitive = ExtractPrimitive(agent_factory=factory)
 
-        result = primitive({
-            "fields": {"name": "string"},
-            "prompt": "Extract name"
-        })
+        result = primitive({"fields": {"name": "string"}, "prompt": "Extract name"})
 
         assert isinstance(result, ExtractHandle)
 
@@ -86,10 +86,7 @@ class TestExtractPrimitive:
         factory = create_mock_agent_factory(responses)
         primitive = ExtractPrimitive(agent_factory=factory)
 
-        handle = primitive({
-            "fields": {"name": "string"},
-            "prompt": "Extract name"
-        })
+        handle = primitive({"fields": {"name": "string"}, "prompt": "Extract name"})
 
         result1 = handle("John Doe")
         assert result1.fields["name"] == "John"
@@ -217,10 +214,7 @@ class TestLLMExtractor:
 
     def test_invalid_json_triggers_retry(self):
         """Invalid JSON should trigger retry."""
-        mock_agent = MockAgentHandle([
-            "This is not JSON",
-            '{"name": "John"}'
-        ])
+        mock_agent = MockAgentHandle(["This is not JSON", '{"name": "John"}'])
 
         extractor = LLMExtractor(
             fields={"name": "string"},
@@ -236,9 +230,7 @@ class TestLLMExtractor:
 
     def test_max_retries_exceeded(self):
         """Should return error when max retries exceeded."""
-        mock_agent = MockAgentHandle([
-            "Invalid", "Still invalid", "More invalid", "Nope"
-        ])
+        mock_agent = MockAgentHandle(["Invalid", "Still invalid", "More invalid", "Nope"])
 
         extractor = LLMExtractor(
             fields={"name": "string"},
@@ -256,9 +248,9 @@ class TestLLMExtractor:
 
     def test_json_embedded_in_text(self):
         """Should extract JSON embedded in text."""
-        mock_agent = MockAgentHandle([
-            'Here is the extracted data: {"name": "John", "age": 30} as requested.'
-        ])
+        mock_agent = MockAgentHandle(
+            ['Here is the extracted data: {"name": "John", "age": 30} as requested.']
+        )
 
         extractor = LLMExtractor(
             fields={"name": "string", "age": "number"},
@@ -345,15 +337,11 @@ class TestExtractorResult:
         assert valid.is_valid is True
 
         with_errors = ExtractorResult(
-            fields={"name": "John"},
-            validation_errors=["Missing field: age"]
+            fields={"name": "John"}, validation_errors=["Missing field: age"]
         )
         assert with_errors.is_valid is False
 
-        with_error = ExtractorResult(
-            fields={},
-            error="Something went wrong"
-        )
+        with_error = ExtractorResult(fields={}, error="Something went wrong")
         assert with_error.is_valid is False
 
 

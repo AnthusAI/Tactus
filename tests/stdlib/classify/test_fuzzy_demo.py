@@ -15,7 +15,7 @@ SCHOOLS = [
     "Abilene Christian University",
     "Arizona School of Integrative Studies",
     "California Institute of Arts and Technology",
-    "Florida Technical College"
+    "Florida Technical College",
 ]
 
 
@@ -24,11 +24,7 @@ class TestFuzzyMatchingDemo:
 
     def test_ratio_algorithm_exact_match(self):
         """ratio algorithm should match exact school names."""
-        classifier = FuzzyMatchClassifier(
-            classes=SCHOOLS,
-            threshold=0.75,
-            algorithm="ratio"
-        )
+        classifier = FuzzyMatchClassifier(classes=SCHOOLS, threshold=0.75, algorithm="ratio")
 
         result = classifier.classify("United Education Institute")
         assert result.value == "United Education Institute"
@@ -38,9 +34,7 @@ class TestFuzzyMatchingDemo:
     def test_token_set_ratio_reordered_tokens(self):
         """token_set_ratio should handle reordered tokens."""
         classifier = FuzzyMatchClassifier(
-            classes=SCHOOLS,
-            threshold=0.65,
-            algorithm="token_set_ratio"
+            classes=SCHOOLS, threshold=0.65, algorithm="token_set_ratio"
         )
 
         # Reordered: "Institute Education United" matches "United Education Institute"
@@ -52,9 +46,7 @@ class TestFuzzyMatchingDemo:
     def test_token_set_ratio_with_extra_words(self):
         """token_set_ratio should handle extra words."""
         classifier = FuzzyMatchClassifier(
-            classes=SCHOOLS,
-            threshold=0.65,
-            algorithm="token_set_ratio"
+            classes=SCHOOLS, threshold=0.65, algorithm="token_set_ratio"
         )
 
         # Extra words: "United Education Institute - Dallas"
@@ -66,9 +58,7 @@ class TestFuzzyMatchingDemo:
     def test_token_sort_ratio_reordered(self):
         """token_sort_ratio should handle reordered words."""
         classifier = FuzzyMatchClassifier(
-            classes=SCHOOLS,
-            threshold=0.65,
-            algorithm="token_sort_ratio"
+            classes=SCHOOLS, threshold=0.65, algorithm="token_sort_ratio"
         )
 
         result = classifier.classify("Institute Education United")
@@ -79,9 +69,7 @@ class TestFuzzyMatchingDemo:
     def test_partial_ratio_shortened_names(self):
         """partial_ratio should match shortened names."""
         classifier = FuzzyMatchClassifier(
-            classes=SCHOOLS,
-            threshold=0.70,
-            algorithm="partial_ratio"
+            classes=SCHOOLS, threshold=0.70, algorithm="partial_ratio"
         )
 
         result = classifier.classify("Florida Tech College")
@@ -92,9 +80,7 @@ class TestFuzzyMatchingDemo:
     def test_binary_mode_exact_match(self):
         """Binary mode should return Yes for exact matches."""
         classifier = FuzzyMatchClassifier(
-            expected="United Education Institute",
-            threshold=0.70,
-            algorithm="token_set_ratio"
+            expected="United Education Institute", threshold=0.70, algorithm="token_set_ratio"
         )
 
         result = classifier.classify("United Education Institute")
@@ -105,9 +91,7 @@ class TestFuzzyMatchingDemo:
     def test_binary_mode_reordered_with_extra(self):
         """Binary mode should return Yes for reordered with extra words."""
         classifier = FuzzyMatchClassifier(
-            expected="United Education Institute",
-            threshold=0.70,
-            algorithm="token_set_ratio"
+            expected="United Education Institute", threshold=0.70, algorithm="token_set_ratio"
         )
 
         result = classifier.classify("Institute Education United Dallas")
@@ -118,9 +102,7 @@ class TestFuzzyMatchingDemo:
     def test_binary_mode_no_match(self):
         """Binary mode should return No for different schools."""
         classifier = FuzzyMatchClassifier(
-            expected="United Education Institute",
-            threshold=0.70,
-            algorithm="token_set_ratio"
+            expected="United Education Institute", threshold=0.70, algorithm="token_set_ratio"
         )
 
         result = classifier.classify("Florida Technical College")
@@ -133,7 +115,7 @@ class TestFuzzyMatchingDemo:
         classifier = FuzzyMatchClassifier(
             expected="United Education Institute",
             threshold=0.50,  # Even with low threshold
-            algorithm="token_set_ratio"
+            algorithm="token_set_ratio",
         )
 
         result = classifier.classify("UEI")
@@ -151,11 +133,7 @@ class TestFuzzyMatchingDemo:
         results = []
 
         for algo, threshold in zip(algorithms, thresholds):
-            classifier = FuzzyMatchClassifier(
-                classes=SCHOOLS,
-                threshold=threshold,
-                algorithm=algo
-            )
+            classifier = FuzzyMatchClassifier(classes=SCHOOLS, threshold=threshold, algorithm=algo)
             result = classifier.classify(test_input)
             results.append((algo, result.value, result.confidence))
 
@@ -167,9 +145,7 @@ class TestFuzzyMatchingDemo:
     def test_school_name_validation_use_case(self):
         """Practical use case: validate school names from metadata."""
         validator = FuzzyMatchClassifier(
-            classes=SCHOOLS,
-            threshold=0.65,
-            algorithm="token_set_ratio"
+            classes=SCHOOLS, threshold=0.65, algorithm="token_set_ratio"
         )
 
         # Test case 1: Extra campus info
@@ -190,19 +166,13 @@ class TestFuzzyMatchingDemo:
     def test_matched_text_always_populated_on_match(self):
         """matched_text should ALWAYS be populated when there's a match."""
         # Binary mode
-        binary_classifier = FuzzyMatchClassifier(
-            expected="test",
-            threshold=0.8
-        )
+        binary_classifier = FuzzyMatchClassifier(expected="test", threshold=0.8)
         result = binary_classifier.classify("test")
         assert result.value == "Yes"
         assert result.matched_text == "test"
 
         # Multi-class mode
-        multi_classifier = FuzzyMatchClassifier(
-            classes=["option1", "option2"],
-            threshold=0.8
-        )
+        multi_classifier = FuzzyMatchClassifier(classes=["option1", "option2"], threshold=0.8)
         result = multi_classifier.classify("option1")
         assert result.value == "option1"
         assert result.matched_text == "option1"
@@ -210,19 +180,13 @@ class TestFuzzyMatchingDemo:
     def test_matched_text_none_on_no_match(self):
         """matched_text should be None when there's no match."""
         # Binary mode
-        binary_classifier = FuzzyMatchClassifier(
-            expected="test",
-            threshold=0.9
-        )
+        binary_classifier = FuzzyMatchClassifier(expected="test", threshold=0.9)
         result = binary_classifier.classify("completely different")
         assert result.value == "No"
         assert result.matched_text is None
 
         # Multi-class mode
-        multi_classifier = FuzzyMatchClassifier(
-            classes=["option1", "option2"],
-            threshold=0.9
-        )
+        multi_classifier = FuzzyMatchClassifier(classes=["option1", "option2"], threshold=0.9)
         result = multi_classifier.classify("option99")
         assert result.value == "NO_MATCH"
         assert result.matched_text is None
@@ -233,11 +197,7 @@ class TestAlgorithmCharacteristics:
 
     def test_ratio_good_for_typos(self):
         """ratio should handle typos well."""
-        classifier = FuzzyMatchClassifier(
-            expected="hello world",
-            threshold=0.75,
-            algorithm="ratio"
-        )
+        classifier = FuzzyMatchClassifier(expected="hello world", threshold=0.75, algorithm="ratio")
 
         result = classifier.classify("helo wrld")  # Missing letters
         assert result.value == "Yes"
@@ -246,9 +206,7 @@ class TestAlgorithmCharacteristics:
     def test_token_set_ratio_ignores_order(self):
         """token_set_ratio should completely ignore word order."""
         classifier = FuzzyMatchClassifier(
-            expected="Customer Service Department",
-            threshold=0.9,
-            algorithm="token_set_ratio"
+            expected="Customer Service Department", threshold=0.9, algorithm="token_set_ratio"
         )
 
         result = classifier.classify("Department Service Customer")
@@ -260,7 +218,7 @@ class TestAlgorithmCharacteristics:
         classifier = FuzzyMatchClassifier(
             expected="United Education Institute of Technology",
             threshold=0.70,
-            algorithm="partial_ratio"
+            algorithm="partial_ratio",
         )
 
         result = classifier.classify("United Education Institute")

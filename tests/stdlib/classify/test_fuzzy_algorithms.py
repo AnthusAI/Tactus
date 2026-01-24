@@ -21,9 +21,7 @@ class TestCalculateSimilarityAlgorithms:
         """token_set_ratio should match regardless of token order."""
         # Same tokens, different order
         sim = calculate_similarity(
-            "United Education Institute",
-            "Institute Education United",
-            "token_set_ratio"
+            "United Education Institute", "Institute Education United", "token_set_ratio"
         )
         assert sim == 1.0  # Perfect match because same unique tokens
 
@@ -33,7 +31,7 @@ class TestCalculateSimilarityAlgorithms:
         sim = calculate_similarity(
             "United Education Institute",
             "United Education Institute - Dallas Campus",
-            "token_set_ratio"
+            "token_set_ratio",
         )
         # Should still have high similarity (shared tokens)
         assert sim > 0.7
@@ -41,20 +39,14 @@ class TestCalculateSimilarityAlgorithms:
     def test_token_sort_ratio_handles_reordering(self):
         """token_sort_ratio should handle reordered tokens."""
         sim = calculate_similarity(
-            "Customer Service Department",
-            "Department Service Customer",
-            "token_sort_ratio"
+            "Customer Service Department", "Department Service Customer", "token_sort_ratio"
         )
         assert sim == 1.0  # Same tokens sorted
 
     def test_partial_ratio_finds_substrings(self):
         """partial_ratio should find best substring match."""
         # "UEI" is a substring of "United Education Institute"
-        sim = calculate_similarity(
-            "United Education Institute",
-            "UEI",
-            "partial_ratio"
-        )
+        sim = calculate_similarity("United Education Institute", "UEI", "partial_ratio")
         # Note: partial_ratio may not match abbreviations well
         # but it should find some substring match
         assert sim > 0.0
@@ -71,9 +63,7 @@ class TestFuzzyMatchClassifierWithAlgorithms:
     def test_binary_with_token_set_ratio(self):
         """Binary classifier should work with token_set_ratio."""
         classifier = FuzzyMatchClassifier(
-            expected="United Education Institute",
-            threshold=0.7,
-            algorithm="token_set_ratio"
+            expected="United Education Institute", threshold=0.7, algorithm="token_set_ratio"
         )
 
         result = classifier.classify("Institute Education United")
@@ -86,10 +76,10 @@ class TestFuzzyMatchClassifierWithAlgorithms:
             classes=[
                 "Abilene Christian University",
                 "Arizona School of Integrative Studies",
-                "United Education Institute"
+                "United Education Institute",
             ],
             threshold=0.6,
-            algorithm="token_set_ratio"
+            algorithm="token_set_ratio",
         )
 
         # Test with reordered tokens
@@ -100,9 +90,7 @@ class TestFuzzyMatchClassifierWithAlgorithms:
     def test_binary_with_partial_ratio(self):
         """Binary classifier should work with partial_ratio."""
         classifier = FuzzyMatchClassifier(
-            expected="Customer Service Department",
-            threshold=0.6,
-            algorithm="partial_ratio"
+            expected="Customer Service Department", threshold=0.6, algorithm="partial_ratio"
         )
 
         result = classifier.classify("Customer Service")
@@ -111,20 +99,14 @@ class TestFuzzyMatchClassifierWithAlgorithms:
 
     def test_explanation_includes_algorithm(self):
         """Explanation should mention the algorithm used."""
-        classifier = FuzzyMatchClassifier(
-            expected="test",
-            algorithm="token_set_ratio"
-        )
+        classifier = FuzzyMatchClassifier(expected="test", algorithm="token_set_ratio")
 
         result = classifier.classify("test")
         assert "token_set_ratio" in result.explanation
 
     def test_repr_includes_algorithm(self):
         """String representation should include algorithm."""
-        classifier = FuzzyMatchClassifier(
-            expected="test",
-            algorithm="token_set_ratio"
-        )
+        classifier = FuzzyMatchClassifier(expected="test", algorithm="token_set_ratio")
 
         assert "token_set_ratio" in repr(classifier)
 
@@ -138,10 +120,10 @@ class TestRealWorldSchoolNames:
             classes=[
                 "United Education Institute",
                 "Abilene Christian University",
-                "Arizona School of Integrative Studies"
+                "Arizona School of Integrative Studies",
             ],
             threshold=0.65,
-            algorithm="token_set_ratio"
+            algorithm="token_set_ratio",
         )
 
         # Test various formats
@@ -160,9 +142,7 @@ class TestRealWorldSchoolNames:
     def test_acronym_matching_limitation(self):
         """Demonstrate that pure acronyms don't match well (expected limitation)."""
         classifier = FuzzyMatchClassifier(
-            expected="United Education Institute",
-            threshold=0.5,
-            algorithm="token_set_ratio"
+            expected="United Education Institute", threshold=0.5, algorithm="token_set_ratio"
         )
 
         result = classifier.classify("UEI")

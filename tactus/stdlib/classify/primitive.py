@@ -13,7 +13,7 @@ The primitive supports multiple classification methods:
 """
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
 from ..core.base import BaseClassifier, ClassifierFactory
 from ..core.models import ClassifierResult
@@ -176,6 +176,7 @@ class ClassifyPrimitive:
 
         # Debug: log the config
         import logging
+
         logger = logging.getLogger(__name__)
         logger.info(f"[Classify] Received config: {config}")
 

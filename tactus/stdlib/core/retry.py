@@ -129,6 +129,7 @@ def create_classification_validator(valid_classes: List[str]) -> Callable[[str],
 
         # Remove common formatting
         import re
+
         cleaned = re.sub(r"[\*\"\'\`\:\.]", "", first_line).strip()
 
         # Check for exact match

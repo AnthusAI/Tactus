@@ -1,7 +1,6 @@
 """Tests for the Classify primitive with mocked agents."""
 
 import pytest
-from unittest.mock import MagicMock, patch
 
 from tactus.stdlib.classify.primitive import ClassifyPrimitive, ClassifyHandle
 from tactus.stdlib.classify.llm import LLMClassifier
@@ -29,8 +28,10 @@ class MockAgentHandle:
 
 def create_mock_agent_factory(responses):
     """Create a mock agent factory that returns agents with predefined responses."""
+
     def factory(config):
         return MockAgentHandle(responses)
+
     return factory
 
 
@@ -58,11 +59,9 @@ class TestClassifyPrimitive:
         factory = create_mock_agent_factory(["Yes"])
         primitive = ClassifyPrimitive(agent_factory=factory)
 
-        result = primitive({
-            "classes": ["Yes", "No"],
-            "prompt": "Is this positive?",
-            "input": "Great product!"
-        })
+        result = primitive(
+            {"classes": ["Yes", "No"], "prompt": "Is this positive?", "input": "Great product!"}
+        )
 
         assert isinstance(result, dict)
         assert result["value"] == "Yes"
@@ -72,10 +71,7 @@ class TestClassifyPrimitive:
         factory = create_mock_agent_factory(["Yes"])
         primitive = ClassifyPrimitive(agent_factory=factory)
 
-        result = primitive({
-            "classes": ["Yes", "No"],
-            "prompt": "Is this positive?"
-        })
+        result = primitive({"classes": ["Yes", "No"], "prompt": "Is this positive?"})
 
         assert isinstance(result, ClassifyHandle)
 
@@ -85,10 +81,7 @@ class TestClassifyPrimitive:
         factory = create_mock_agent_factory(responses)
         primitive = ClassifyPrimitive(agent_factory=factory)
 
-        handle = primitive({
-            "classes": ["Yes", "No"],
-            "prompt": "Is this positive?"
-        })
+        handle = primitive({"classes": ["Yes", "No"], "prompt": "Is this positive?"})
 
         result1 = handle("Great!")
         assert result1.value == "Yes"

@@ -9,7 +9,7 @@ This primitive wraps the extraction infrastructure to provide:
 """
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
 from ..core.base import BaseExtractor, ExtractorFactory
 from ..core.models import ExtractorResult

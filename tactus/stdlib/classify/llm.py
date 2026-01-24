@@ -113,6 +113,11 @@ The text clearly indicates agreement because...
             "system_prompt": self._system_prompt,
             "temperature": self.temperature,
         }
+        # Optional stable name for mocking/traceability. When set, the DSL wrapper
+        # renames the internal _temp_agent_* handle so it can be mocked via:
+        #   Mocks { <name> = { message = "...", tool_calls = {...} } }
+        if self.name:
+            agent_config["name"] = self.name
         if self.model:
             agent_config["model"] = self.model
 
@@ -244,7 +249,9 @@ Start your response with the classification on its own line."""
 
         # Check for the classification anywhere in first line
         for cls in self.classes:
-            if cls.lower() in cleaned.lower():
+            # Only match whole tokens/phrases so we don't accept accidental
+            # substrings (e.g., "Unknown" containing "No").
+            if re.search(rf"(?i)(?<![A-Za-z0-9_]){re.escape(cls)}(?![A-Za-z0-9_])", cleaned):
                 # Make sure it's not a partial match of another class
                 is_partial = False
                 for other_cls in self.classes:
@@ -268,7 +275,15 @@ Start your response with the classification on its own line."""
         response_lower = response.lower()
 
         # High confidence indicators
-        high_indicators = ["definitely", "certainly", "clearly", "obviously", "absolutely", "100%", "very confident"]
+        high_indicators = [
+            "definitely",
+            "certainly",
+            "clearly",
+            "obviously",
+            "absolutely",
+            "100%",
+            "very confident",
+        ]
         for indicator in high_indicators:
             if indicator in response_lower:
                 return 0.95
@@ -280,7 +295,14 @@ Start your response with the classification on its own line."""
                 return 0.80
 
         # Low confidence indicators
-        low_indicators = ["possibly", "might be", "could be", "not sure", "uncertain", "difficult to tell"]
+        low_indicators = [
+            "possibly",
+            "might be",
+            "could be",
+            "not sure",
+            "uncertain",
+            "difficult to tell",
+        ]
         for indicator in low_indicators:
             if indicator in response_lower:
                 return 0.50
