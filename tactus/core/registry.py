@@ -155,6 +155,7 @@ class ProcedureRegistry(BaseModel):
 
     # Gherkin BDD Testing
     gherkin_specifications: Optional[str] = None  # Raw Gherkin text
+    specs_from_references: list[str] = Field(default_factory=list)  # External spec file paths
     custom_steps: dict[str, Any] = Field(default_factory=dict)  # step_text -> lua_function
     evaluation_config: dict[str, Any] = Field(default_factory=dict)  # runs, parallel, etc.
 
@@ -413,6 +414,17 @@ class RegistryBuilder:
         """Register Gherkin BDD specifications."""
         self.registry.gherkin_specifications = gherkin_text
 
+    def register_specs_from(self, file_path: str) -> None:
+        """Register a reference to external specifications.
+
+        Stores the path for lazy loading. Actual spec content
+        is loaded during test execution, not parse time.
+
+        Args:
+            file_path: Path to .spec.tac file or module name
+        """
+        self.registry.specs_from_references.append(file_path)
+
     def register_custom_step(self, step_text: str, lua_function: Any) -> None:
         """Register a custom step definition."""
         self.registry.custom_steps[step_text] = lua_function
@@ -479,11 +491,16 @@ class RegistryBuilder:
                 )
 
         # Warnings for missing specifications
-        if not self.registry.specifications and not self.registry.gherkin_specifications:
+        has_specs = (
+            self.registry.specifications
+            or self.registry.gherkin_specifications
+            or self.registry.specs_from_references
+        )
+        if not has_specs:
             warnings.append(
                 ValidationMessage(
                     level="warning",
-                    message="No specifications defined - consider adding BDD tests using specifications([[...]])",
+                    message="No specifications defined - consider adding BDD tests using Specification([[...]]) or Specification { from = \"path\" }",
                 )
             )
 

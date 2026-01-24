@@ -1423,7 +1423,10 @@ def test(
             evaluator = TactusEvaluationRunner(
                 procedure_file, mock_tools=mock_tools, params=test_params
             )
-            evaluator.setup(result.registry.gherkin_specifications)
+            evaluator.setup(
+                result.registry.gherkin_specifications,
+                custom_steps_dict=result.registry.custom_steps
+            )
 
             if scenario:
                 eval_results = [evaluator.evaluate_scenario(scenario, runs, parallel)]
@@ -1436,7 +1439,10 @@ def test(
         else:
             # Run standard test
             runner = TactusTestRunner(procedure_file, mock_tools=mock_tools, params=test_params)
-            runner.setup(result.registry.gherkin_specifications)
+            runner.setup(
+                result.registry.gherkin_specifications,
+                custom_steps_dict=result.registry.custom_steps
+            )
 
             test_result = runner.run_tests(parallel=parallel, scenario_filter=scenario)
 
@@ -2211,6 +2217,125 @@ def trace_export(
         raise typer.Exit(1)
 
 
+# =============================================================================
+# Stdlib Commands
+# =============================================================================
+
+stdlib_app = typer.Typer(help="Manage Tactus standard library")
+app.add_typer(stdlib_app, name="stdlib")
+
+
+@stdlib_app.command("test")
+def stdlib_test(
+    module: Optional[str] = typer.Argument(
+        None, help="Specific module to test (e.g., 'classify', 'extract')"
+    ),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
+    parallel: bool = typer.Option(True, "--parallel/--no-parallel", help="Run in parallel"),
+):
+    """
+    Run BDD tests for standard library modules.
+
+    Examples:
+        tactus stdlib test              # Run all stdlib tests
+        tactus stdlib test classify     # Run only classify tests
+        tactus stdlib test extract      # Run only extract tests
+    """
+    import tactus
+    from tactus.validation import TactusValidator
+    from tactus.testing.test_runner import TactusTestRunner
+
+    # Find stdlib spec files
+    package_root = Path(tactus.__file__).parent
+    stdlib_tac_path = package_root / "stdlib" / "tac" / "tactus"
+
+    # Find all .spec.tac files
+    if module:
+        # Test specific module
+        spec_file = stdlib_tac_path / f"{module}.spec.tac"
+        if not spec_file.exists():
+            console.print(f"[red]Module spec not found: {spec_file}[/red]")
+            raise typer.Exit(1)
+        spec_files = [spec_file]
+    else:
+        # Test all modules
+        spec_files = list(stdlib_tac_path.glob("*.spec.tac"))
+
+    if not spec_files:
+        console.print("[yellow]No spec files found in stdlib[/yellow]")
+        raise typer.Exit(0)
+
+    console.print(f"[cyan]Found {len(spec_files)} spec file(s) to test[/cyan]")
+
+    total_passed = 0
+    total_failed = 0
+    failed_modules = []
+
+    validator = TactusValidator()
+
+    for spec_file in sorted(spec_files):
+        module_name = spec_file.stem.replace(".spec", "")
+        console.print(f"\n[bold]Testing: {module_name}[/bold]")
+
+        # Validate and load specs
+        result = validator.validate_file(str(spec_file))
+
+        if not result.valid:
+            console.print(f"  [red]✗ Validation failed[/red]")
+            for error in result.errors:
+                console.print(f"    {error.message}")
+            total_failed += 1
+            failed_modules.append(module_name)
+            continue
+
+        if not result.registry or not result.registry.gherkin_specifications:
+            console.print(f"  [yellow]⚠ No specifications found[/yellow]")
+            continue
+
+        # Run tests
+        try:
+            runner = TactusTestRunner(spec_file, mock_tools={}, params={})
+            runner.setup(
+                result.registry.gherkin_specifications,
+                custom_steps_dict=result.registry.custom_steps
+            )
+
+            test_result = runner.run_tests(parallel=parallel, scenario_filter=None)
+
+            # Display results
+            passed = test_result.passed_scenarios
+            failed = test_result.failed_scenarios
+            total_passed += passed
+            total_failed += failed
+
+            if failed > 0:
+                console.print(f"  [red]✗ {passed} passed, {failed} failed[/red]")
+                failed_modules.append(module_name)
+            else:
+                console.print(f"  [green]✓ {passed} scenarios passed[/green]")
+
+            runner.cleanup()
+
+        except Exception as e:
+            console.print(f"  [red]✗ Error: {e}[/red]")
+            if verbose:
+                console.print_exception()
+            total_failed += 1
+            failed_modules.append(module_name)
+
+    # Summary
+    console.print("\n" + "=" * 50)
+    console.print(f"[bold]Stdlib Test Summary[/bold]")
+    console.print(f"  Passed: [green]{total_passed}[/green]")
+    console.print(f"  Failed: [red]{total_failed}[/red]")
+
+    if failed_modules:
+        console.print(f"\n[red]Failed modules: {', '.join(failed_modules)}[/red]")
+        raise typer.Exit(1)
+
+    console.print("\n[green]All stdlib tests passed![/green]")
+
+
 def main():
     """Main entry point for the CLI."""
     # Load configuration before processing any commands
@@ -2228,6 +2353,7 @@ def main():
             "eval",
             "version",
             "ide",
+            "stdlib",
             "trace-list",
             "trace-show",
             "trace-export",

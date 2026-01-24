@@ -35,6 +35,7 @@ from typing import Any, Callable, Dict
 
 from .registry import RegistryBuilder
 from tactus.primitives.handles import AgentHandle, ModelHandle, AgentLookup, ModelLookup
+from tactus.stdlib.classify import ClassifyPrimitive
 
 
 # NEW Builder pattern for field types - moved outside function for import
@@ -473,17 +474,26 @@ def create_dsl_stubs(
         """Register BDD specs.
 
         Supported forms:
-          - Specification([[ Gherkin text ]])  (alias for Specifications)
-          - Specification("name", { ... })     (structured form; legacy)
+          - Specification([[ Gherkin text ]])    (inline Gherkin)
+          - Specification("name", { ... })       (structured form; legacy)
+          - Specification { from = "path" }      (external file reference)
         """
         if len(args) == 1:
-            builder.register_specifications(args[0])
+            arg = args[0]
+            # Check if it's a table with 'from' parameter
+            if isinstance(arg, dict) or (hasattr(arg, 'keys') and callable(arg.keys)):
+                config = lua_table_to_dict(arg) if not isinstance(arg, dict) else arg
+                if 'from' in config:
+                    builder.register_specs_from(config['from'])
+                    return
+            # Otherwise treat as inline Gherkin text
+            builder.register_specifications(arg)
             return
         if len(args) >= 2:
             spec_name, scenarios = args[0], args[1]
             builder.register_specification(spec_name, lua_table_to_dict(scenarios))
             return
-        raise TypeError("Specification expects either (gherkin_text) or (name, scenarios)")
+        raise TypeError("Specification expects gherkin_text, {from='path'}, or (name, scenarios)")
 
     def _specifications(gherkin_text: str) -> None:
         """Register Gherkin BDD specifications."""
@@ -1949,6 +1959,59 @@ def create_dsl_stubs(
 
         return handle
 
+    def _new_classify(config=None):
+        """
+        Classify factory for smart classification with retry logic.
+
+        Syntax:
+            -- One-shot classification
+            result = Classify {
+                classes = {"Yes", "No"},
+                prompt = "Did the agent greet the customer?",
+                input = transcript
+            }
+
+            -- Reusable classifier
+            classifier = Classify {
+                classes = {"positive", "negative", "neutral"},
+                prompt = "What is the sentiment?"
+            }
+            result = classifier(text)
+
+        Config options:
+            - classes: List of valid classification values (required)
+            - prompt: Classification instruction (required)
+            - input: Optional input for one-shot classification
+            - max_retries: Maximum retry attempts (default: 3)
+            - temperature: Model temperature (default: 0.3)
+            - model: Model to use (optional)
+            - confidence_mode: "heuristic" or "none" (default: "heuristic")
+
+        Returns:
+            ClassifyHandle if no input (reusable)
+            ClassifyResult dict if input provided (one-shot)
+        """
+        if config is None:
+            raise TypeError("Classify requires a configuration table")
+
+        # Create a wrapper function that creates agents using _new_agent
+        def agent_factory(agent_config):
+            """Factory function to create Agent instances for Classify."""
+            # Use _new_agent to create an agent handle
+            handle = _new_agent(agent_config)
+            return handle
+
+        # Create the classify primitive with the agent factory
+        classify_primitive = ClassifyPrimitive(
+            agent_factory=agent_factory,
+            lua_table_from=None,  # Will be handled by result conversion
+            registry=builder.registry if hasattr(builder, 'registry') else None,
+            mock_manager=mock_manager,
+        )
+
+        # Call the primitive with the config
+        return classify_primitive(lua_table_to_dict(config))
+
     return {
         # NEW SYNTAX (Phase B+)
         # Note: stdlib tools are accessed via require("tactus.tools.done") etc.
@@ -1960,6 +2023,7 @@ def create_dsl_stubs(
         "Prompt": _prompt,
         "Toolset": _toolset,
         "Tool": _new_tool,  # NEW syntax - assignment based
+        "Classify": _new_classify,  # NEW stdlib: smart classification with retry
         "Hitl": _hitl,
         "Specification": _specification,
         # BDD Testing

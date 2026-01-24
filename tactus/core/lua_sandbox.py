@@ -158,11 +158,14 @@ class LuaSandbox:
         # Build search paths:
         # 1. User's project directory (existing behavior)
         # 2. Tactus stdlib .tac files
+        # Both single-file modules (?.tac) and directory modules (?/init.tac) are supported
         user_path = os.path.join(self.base_path, "?.tac")
+        user_init_path = os.path.join(self.base_path, "?", "init.tac")
         stdlib_path = os.path.join(stdlib_tac_path, "?.tac")
+        stdlib_init_path = os.path.join(stdlib_tac_path, "?", "init.tac")
 
         # Normalize backslashes for cross-platform compatibility
-        paths = [user_path, stdlib_path]
+        paths = [user_path, user_init_path, stdlib_path, stdlib_init_path]
         paths = [p.replace("\\", "/") for p in paths]
 
         # Join with Lua's path separator (semicolon)

@@ -467,11 +467,18 @@ class TactusDSLVisitor(LuaParserVisitor):
             if args and len(args) >= 2:
                 self.builder.register_hitl(args[0], args[1] if isinstance(args[1], dict) else {})
         elif func_name == "Specification":  # CamelCase
-            # Either:
-            # - Specification([[ Gherkin text ]]) (alias for Specifications)
-            # - Specification("name", { ... })   (structured form)
+            # Three supported forms:
+            # - Specification([[ Gherkin text ]]) (inline Gherkin)
+            # - Specification("name", { ... })   (structured form; legacy)
+            # - Specification { from = "path" }  (external file reference)
             if args and len(args) == 1:
-                self.builder.register_specifications(args[0])
+                arg = args[0]
+                if isinstance(arg, dict) and 'from' in arg:
+                    # External file reference
+                    self.builder.register_specs_from(arg['from'])
+                else:
+                    # Inline Gherkin text
+                    self.builder.register_specifications(arg)
             elif args and len(args) >= 2:
                 self.builder.register_specification(
                     args[0], args[1] if isinstance(args[1], list) else []

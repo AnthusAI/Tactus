@@ -253,8 +253,8 @@ class ContainerRunner:
         if self.config.limits.cpus:
             cmd.extend(["--cpus", self.config.limits.cpus])
 
-        # Mount working directory
-        cmd.extend(["-v", f"{working_dir}:/workspace:rw"])
+        # NOTE: Working directory mount is handled by config.volumes via add_default_volumes()
+        # No need to add it here - would cause duplicate mount error
 
         # Mount MCP servers if available
         if mcp_servers_path and mcp_servers_path.exists():

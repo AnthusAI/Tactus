@@ -8,7 +8,7 @@ from parsed Gherkin and registered steps.
 import logging
 import tempfile
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from .models import ParsedFeature, ParsedScenario
 from .steps.registry import StepRegistry
@@ -16,6 +16,121 @@ from .steps.custom import CustomStepManager
 
 
 logger = logging.getLogger(__name__)
+
+
+def load_custom_steps_from_lua(procedure_file: Path) -> Dict[str, Any]:
+    """
+    Load custom step definitions from a procedure file using the Lua runtime.
+
+    This function executes the Lua code to capture actual Lua function references,
+    unlike the validator which does static analysis and returns None for functions.
+
+    Args:
+        procedure_file: Path to the .tac procedure file
+
+    Returns:
+        Dict mapping step patterns to Lua function references
+    """
+    from tactus.core.lua_sandbox import LuaSandbox
+    from tactus.core.registry import RegistryBuilder
+    from tactus.core.dsl_stubs import create_dsl_stubs
+
+    # Create a minimal sandbox and builder
+    sandbox = LuaSandbox()
+    builder = RegistryBuilder()
+
+    # Create DSL stubs that capture the Lua functions
+    stubs = create_dsl_stubs(builder, tool_primitive=None, mock_manager=None)
+
+    # Remove internal items
+    stubs.pop("_registries", None)
+    stubs.pop("_tactus_register_binding", None)
+
+    # Inject stubs into sandbox
+    for name, stub in stubs.items():
+        sandbox.set_global(name, stub)
+
+    # Execute the procedure file
+    source = procedure_file.read_text()
+    try:
+        sandbox.execute(source)
+    except Exception as e:
+        logger.warning(f"Error executing procedure for custom steps: {e}")
+        return {}
+
+    # Return the custom steps with actual Lua function references
+    result = builder.validate()
+    if result.registry and result.registry.custom_steps:
+        return result.registry.custom_steps
+    return {}
+
+
+def load_custom_steps_in_context(test_context: Any) -> Dict[str, Any]:
+    """
+    Load custom step definitions using the test context's runtime.
+
+    This ensures the Lua functions have access to a proper runtime for
+    executing agents, Classify primitives, etc.
+
+    Args:
+        test_context: TactusTestContext with an initialized runtime
+
+    Returns:
+        Dict mapping step patterns to Lua function references
+    """
+    from tactus.core.registry import RegistryBuilder
+    from tactus.core.dsl_stubs import create_dsl_stubs
+
+    # Ensure runtime is set up
+    if not test_context.runtime:
+        test_context.setup_runtime()
+
+    # Get the runtime's sandbox
+    runtime = test_context.runtime
+
+    # Create a new builder to capture custom steps
+    builder = RegistryBuilder()
+
+    # Create DSL stubs connected to the runtime
+    # We pass the runtime's existing components including execution_context
+    stubs = create_dsl_stubs(
+        builder,
+        tool_primitive=runtime.tool_primitive if hasattr(runtime, 'tool_primitive') else None,
+        mock_manager=runtime.mock_manager if hasattr(runtime, 'mock_manager') else None,
+        runtime_context={
+            "runtime": runtime,
+            "execution_context": runtime.execution_context if hasattr(runtime, 'execution_context') else None,
+            "registry": runtime.registry if hasattr(runtime, 'registry') else None,
+            "log_handler": runtime.log_handler if hasattr(runtime, 'log_handler') else None,
+            "_created_agents": {},
+        }
+    )
+
+    # Remove internal items
+    stubs.pop("_registries", None)
+    stubs.pop("_tactus_register_binding", None)
+
+    # Create a fresh sandbox for loading custom steps
+    from tactus.core.lua_sandbox import LuaSandbox
+    sandbox = LuaSandbox()
+
+    # Inject stubs into sandbox
+    for name, stub in stubs.items():
+        sandbox.set_global(name, stub)
+
+    # Execute the procedure file to capture step definitions
+    source = test_context.procedure_file.read_text()
+    try:
+        sandbox.execute(source)
+    except Exception as e:
+        logger.warning(f"Error loading custom steps in context: {e}")
+        return {}
+
+    # Return the custom steps
+    result = builder.validate()
+    if result.registry and result.registry.custom_steps:
+        return result.registry.custom_steps
+    return {}
 
 
 class BehaveFeatureGenerator:
@@ -173,6 +288,30 @@ class BehaveStepsGenerator:
                 f.write("    # Call the actual step function from builtin module\n")
                 f.write(f"    builtin.{func_name}(context.tac, **kwargs)\n\n")
 
+            # Generate custom step patterns using regex matcher
+            custom_patterns = custom_steps.get_all_patterns() if custom_steps else []
+            if custom_patterns:
+                f.write("# Custom step definitions from procedure file\n")
+                f.write("use_step_matcher('re')\n\n")
+
+                for i, pattern in enumerate(custom_patterns):
+                    wrapper_name = f"custom_step_{i}"
+                    # Escape the pattern for Python string (use raw string)
+                    escaped_pattern = pattern.replace("\\", "\\\\").replace("'", "\\'")
+                    # For the pattern argument, just escape single quotes since we use single-quoted raw string
+                    pattern_arg = pattern.replace("'", "\\'")
+                    # Escape docstring (remove quotes for safety)
+                    docstring_pattern = pattern[:50].replace('"', "'").replace("\\", "")
+
+                    f.write(f"@step(r'{escaped_pattern}')\n")
+                    f.write(f"def {wrapper_name}(context, *args):\n")
+                    f.write(f'    """Custom step: {docstring_pattern}"""\n')
+                    f.write("    # Execute via custom step manager with captured groups\n")
+                    f.write(f"    context.custom_steps.execute_by_pattern(r'{pattern_arg}', context.tac, *args)\n\n")
+
+                # Switch back to parse matcher for any remaining steps
+                f.write("use_step_matcher('parse')\n\n")
+
         logger.info(f"Generated steps file: {steps_file}")
         return steps_file
 
@@ -267,16 +406,14 @@ class BehaveEnvironmentGenerator:
             f.write("from tactus.testing.context import TactusTestContext\n")
             f.write("from tactus.testing.steps.registry import StepRegistry\n")
             f.write("from tactus.testing.steps.builtin import register_builtin_steps\n")
-            f.write("from tactus.testing.steps.custom import CustomStepManager\n\n")
+            f.write("from tactus.testing.steps.custom import CustomStepManager\n")
+            f.write("from tactus.testing.behave_integration import load_custom_steps_in_context\n\n")
 
             f.write("def before_all(context):\n")
             f.write('    """Setup before all tests."""\n')
             f.write("    # Initialize step registry\n")
             f.write("    context.step_registry = StepRegistry()\n")
             f.write("    register_builtin_steps(context.step_registry)\n")
-            f.write("    \n")
-            f.write("    # Initialize custom step manager\n")
-            f.write("    context.custom_steps = CustomStepManager()\n")
             f.write("    \n")
             f.write("    # Store test configuration (using absolute path)\n")
             f.write(f"    context.procedure_file = Path(r'{absolute_procedure_file}')\n")
@@ -308,7 +445,14 @@ class BehaveEnvironmentGenerator:
                 "        context.mock_registry = UnifiedMockRegistry(hitl_handler=MockHITLHandler())\n"
             )
             f.write("        # Share mock registry with TactusTestContext\n")
-            f.write("        context.tac.mock_registry = context.mock_registry\n\n")
+            f.write("        context.tac.mock_registry = context.mock_registry\n")
+            f.write("    \n")
+            f.write("    # Load custom steps with runtime context for this scenario\n")
+            f.write("    # (This ensures Lua functions have access to the runtime for agents, etc.)\n")
+            f.write("    context.custom_steps = CustomStepManager()\n")
+            f.write("    custom_steps_dict = load_custom_steps_in_context(context.tac)\n")
+            f.write("    for pattern, lua_func in custom_steps_dict.items():\n")
+            f.write("        context.custom_steps.register_from_lua(pattern, lua_func)\n\n")
 
             f.write("def after_scenario(context, scenario):\n")
             f.write('    """Cleanup after each scenario."""\n')

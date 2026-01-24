@@ -68,13 +68,19 @@ class TactusTestRunner:
         # Register built-in steps
         register_builtin_steps(self.step_registry)
 
-    def setup(self, gherkin_text: str) -> None:
+    def setup(self, gherkin_text: str, custom_steps_dict: Optional[dict] = None) -> None:
         """
         Setup test environment from Gherkin text.
 
         Args:
             gherkin_text: Raw Gherkin feature text
+            custom_steps_dict: Optional dict of step patterns to Lua functions from registry
         """
+        # Register custom steps from registry if provided
+        if custom_steps_dict:
+            for pattern, lua_func in custom_steps_dict.items():
+                self.custom_steps.register_from_lua(pattern, lua_func)
+
         # Parse Gherkin
         parser = GherkinParser()
         self.parsed_feature = parser.parse(gherkin_text)

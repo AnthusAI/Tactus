@@ -45,6 +45,9 @@ jobs:
       - name: Run behave BDD tests
         run: behave
 
+      - name: Run stdlib BDD tests
+        run: tactus stdlib test
+
   release:
     name: Semantic Release
     runs-on: ubuntu-latest

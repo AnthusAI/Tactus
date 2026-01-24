@@ -322,7 +322,10 @@ class TestAllExamples:
                 tool_paths=[str(Path("examples/tools").resolve())],
                 mocked=True,  # Use mock mode for all examples in CI
             )
-            runner.setup(result.registry.gherkin_specifications)
+            runner.setup(
+                result.registry.gherkin_specifications,
+                custom_steps_dict=result.registry.custom_steps,
+            )
 
             # Run tests (not in parallel within test to avoid conflicts)
             test_result = runner.run_tests(parallel=False)

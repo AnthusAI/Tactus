@@ -104,7 +104,7 @@ def test_custom_step_manager():
 
     # Check it's registered
     assert manager.has_step("my custom step")
-    assert "my custom step" in manager.get_all_steps()
+    assert "my custom step" in manager.get_all_patterns()
 
     # Execute it
     class MockContext:
