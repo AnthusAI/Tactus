@@ -95,15 +95,17 @@ def load_custom_steps_in_context(test_context: Any) -> Dict[str, Any]:
     # We pass the runtime's existing components including execution_context
     stubs = create_dsl_stubs(
         builder,
-        tool_primitive=runtime.tool_primitive if hasattr(runtime, 'tool_primitive') else None,
-        mock_manager=runtime.mock_manager if hasattr(runtime, 'mock_manager') else None,
+        tool_primitive=runtime.tool_primitive if hasattr(runtime, "tool_primitive") else None,
+        mock_manager=runtime.mock_manager if hasattr(runtime, "mock_manager") else None,
         runtime_context={
             "runtime": runtime,
-            "execution_context": runtime.execution_context if hasattr(runtime, 'execution_context') else None,
-            "registry": runtime.registry if hasattr(runtime, 'registry') else None,
-            "log_handler": runtime.log_handler if hasattr(runtime, 'log_handler') else None,
+            "execution_context": (
+                runtime.execution_context if hasattr(runtime, "execution_context") else None
+            ),
+            "registry": runtime.registry if hasattr(runtime, "registry") else None,
+            "log_handler": runtime.log_handler if hasattr(runtime, "log_handler") else None,
             "_created_agents": {},
-        }
+        },
     )
 
     # Remove internal items
@@ -112,6 +114,7 @@ def load_custom_steps_in_context(test_context: Any) -> Dict[str, Any]:
 
     # Create a fresh sandbox for loading custom steps
     from tactus.core.lua_sandbox import LuaSandbox
+
     sandbox = LuaSandbox()
 
     # Inject stubs into sandbox
@@ -307,7 +310,9 @@ class BehaveStepsGenerator:
                     f.write(f"def {wrapper_name}(context, *args):\n")
                     f.write(f'    """Custom step: {docstring_pattern}"""\n')
                     f.write("    # Execute via custom step manager with captured groups\n")
-                    f.write(f"    context.custom_steps.execute_by_pattern(r'{pattern_arg}', context.tac, *args)\n\n")
+                    f.write(
+                        f"    context.custom_steps.execute_by_pattern(r'{pattern_arg}', context.tac, *args)\n\n"
+                    )
 
                 # Switch back to parse matcher for any remaining steps
                 f.write("use_step_matcher('parse')\n\n")
@@ -407,7 +412,9 @@ class BehaveEnvironmentGenerator:
             f.write("from tactus.testing.steps.registry import StepRegistry\n")
             f.write("from tactus.testing.steps.builtin import register_builtin_steps\n")
             f.write("from tactus.testing.steps.custom import CustomStepManager\n")
-            f.write("from tactus.testing.behave_integration import load_custom_steps_in_context\n\n")
+            f.write(
+                "from tactus.testing.behave_integration import load_custom_steps_in_context\n\n"
+            )
 
             f.write("def before_all(context):\n")
             f.write('    """Setup before all tests."""\n')
@@ -448,7 +455,9 @@ class BehaveEnvironmentGenerator:
             f.write("        context.tac.mock_registry = context.mock_registry\n")
             f.write("    \n")
             f.write("    # Load custom steps with runtime context for this scenario\n")
-            f.write("    # (This ensures Lua functions have access to the runtime for agents, etc.)\n")
+            f.write(
+                "    # (This ensures Lua functions have access to the runtime for agents, etc.)\n"
+            )
             f.write("    context.custom_steps = CustomStepManager()\n")
             f.write("    custom_steps_dict = load_custom_steps_in_context(context.tac)\n")
             f.write("    for pattern, lua_func in custom_steps_dict.items():\n")

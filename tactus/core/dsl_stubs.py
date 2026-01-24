@@ -481,10 +481,10 @@ def create_dsl_stubs(
         if len(args) == 1:
             arg = args[0]
             # Check if it's a table with 'from' parameter
-            if isinstance(arg, dict) or (hasattr(arg, 'keys') and callable(arg.keys)):
+            if isinstance(arg, dict) or (hasattr(arg, "keys") and callable(arg.keys)):
                 config = lua_table_to_dict(arg) if not isinstance(arg, dict) else arg
-                if 'from' in config:
-                    builder.register_specs_from(config['from'])
+                if "from" in config:
+                    builder.register_specs_from(config["from"])
                     return
             # Otherwise treat as inline Gherkin text
             builder.register_specifications(arg)
@@ -1994,23 +1994,44 @@ def create_dsl_stubs(
         if config is None:
             raise TypeError("Classify requires a configuration table")
 
-        # Create a wrapper function that creates agents using _new_agent
+        # Create a wrapper function that creates agents using _new_agent.
+        #
+        # Important: Classify creates internal agents that are not assigned to a Lua global,
+        # so they normally keep a random _temp_agent_* name. If the stdlib passes a stable
+        # `name` in the agent config, we rename the handle here so it can be mocked via
+        # `Mocks { <name> = { ... } }` in BDD specs.
         def agent_factory(agent_config):
             """Factory function to create Agent instances for Classify."""
+            desired_name = None
+            if isinstance(agent_config, dict):
+                desired_name = agent_config.get("name")
+
             # Use _new_agent to create an agent handle
             handle = _new_agent(agent_config)
+
+            # Apply stable naming for internal agents when requested.
+            if desired_name:
+                try:
+                    binding_callback(desired_name, handle)
+                except Exception:
+                    # Best-effort: naming is for mocking/traceability; do not break runtime
+                    pass
             return handle
 
         # Create the classify primitive with the agent factory
         classify_primitive = ClassifyPrimitive(
             agent_factory=agent_factory,
             lua_table_from=None,  # Will be handled by result conversion
-            registry=builder.registry if hasattr(builder, 'registry') else None,
+            registry=builder.registry if hasattr(builder, "registry") else None,
             mock_manager=mock_manager,
         )
 
         # Call the primitive with the config
         return classify_primitive(lua_table_to_dict(config))
+
+    binding_callback = _make_binding_callback(
+        builder, _tool_registry, _agent_registry, _runtime_context
+    )
 
     return {
         # NEW SYNTAX (Phase B+)
@@ -2076,9 +2097,7 @@ def create_dsl_stubs(
             "model": _model_registry,
         },
         # Assignment interception callback
-        "_tactus_register_binding": _make_binding_callback(
-            builder, _tool_registry, _agent_registry, _runtime_context
-        ),
+        "_tactus_register_binding": binding_callback,
     }
 
 

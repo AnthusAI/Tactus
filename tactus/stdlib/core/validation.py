@@ -5,7 +5,7 @@ Utilities for validating LLM outputs against expected schemas and values.
 """
 
 import re
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 
 def validate_output(
@@ -249,6 +249,7 @@ def _validate_schema(output: str, schema: Dict[str, Any]) -> Dict[str, Any]:
     # Validate against schema
     try:
         import jsonschema
+
         jsonschema.validate(instance=data, schema=schema)
         return {
             "valid": True,

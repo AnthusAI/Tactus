@@ -500,7 +500,7 @@ class RegistryBuilder:
             warnings.append(
                 ValidationMessage(
                     level="warning",
-                    message="No specifications defined - consider adding BDD tests using Specification([[...]]) or Specification { from = \"path\" }",
+                    message='No specifications defined - consider adding BDD tests using Specification([[...]]) or Specification { from = "path" }',
                 )
             )
 

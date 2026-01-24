@@ -31,15 +31,9 @@ class ClassifierResult(BaseModel):
     matched_text: Optional[str] = Field(
         None, description="The actual text that was matched (for fuzzy matching)"
     )
-    retry_count: int = Field(
-        0, ge=0, description="Number of retries needed to get valid result"
-    )
-    raw_response: Optional[str] = Field(
-        None, description="Raw response from LLM (if applicable)"
-    )
-    error: Optional[str] = Field(
-        None, description="Error message if classification failed"
-    )
+    retry_count: int = Field(0, ge=0, description="Number of retries needed to get valid result")
+    raw_response: Optional[str] = Field(None, description="Raw response from LLM (if applicable)")
+    error: Optional[str] = Field(None, description="Error message if classification failed")
 
     def to_lua_dict(self) -> Dict[str, Any]:
         """Convert to dict suitable for Lua interop."""
@@ -70,21 +64,13 @@ class ExtractorResult(BaseModel):
     Contains extracted fields plus validation information.
     """
 
-    fields: Dict[str, Any] = Field(
-        default_factory=dict, description="Extracted field values"
-    )
+    fields: Dict[str, Any] = Field(default_factory=dict, description="Extracted field values")
     validation_errors: List[str] = Field(
         default_factory=list, description="Validation errors for extracted fields"
     )
-    retry_count: int = Field(
-        0, ge=0, description="Number of retries needed to get valid result"
-    )
-    raw_response: Optional[str] = Field(
-        None, description="Raw response from LLM (if applicable)"
-    )
-    error: Optional[str] = Field(
-        None, description="Error message if extraction failed"
-    )
+    retry_count: int = Field(0, ge=0, description="Number of retries needed to get valid result")
+    raw_response: Optional[str] = Field(None, description="Raw response from LLM (if applicable)")
+    error: Optional[str] = Field(None, description="Error message if extraction failed")
 
     def to_lua_dict(self) -> Dict[str, Any]:
         """Convert to dict suitable for Lua interop."""
@@ -128,14 +114,10 @@ class ClassifierConfig(BaseModel):
         "start",
         description="Where to look for classification: 'start', 'end', or 'any'",
     )
-    method: str = Field(
-        "llm", description="Classification method: 'llm' or 'fuzzy'"
-    )
+    method: str = Field("llm", description="Classification method: 'llm' or 'fuzzy'")
 
     # Fuzzy match specific
-    expected: Optional[str] = Field(
-        None, description="Expected value for fuzzy matching"
-    )
+    expected: Optional[str] = Field(None, description="Expected value for fuzzy matching")
     threshold: float = Field(
         0.8, ge=0.0, le=1.0, description="Similarity threshold for fuzzy matching"
     )
@@ -158,9 +140,7 @@ class ExtractorConfig(BaseModel):
     strict: bool = Field(
         True, description="Whether to require all fields (strict) or allow missing"
     )
-    method: str = Field(
-        "llm", description="Extraction method: 'llm' or 'schema'"
-    )
+    method: str = Field("llm", description="Extraction method: 'llm' or 'schema'")
 
 
 class EvaluationResult(BaseModel):

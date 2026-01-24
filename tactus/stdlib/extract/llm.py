@@ -180,7 +180,7 @@ RESPONSE FORMAT:
         # All retries exhausted
         logger.warning(f"Extraction failed after {self.max_retries} retries")
         return ExtractorResult(
-            fields=parsed if 'parsed' in dir() else {},
+            fields=parsed if "parsed" in dir() else {},
             validation_errors=validation_errors,
             error=f"Max retries ({self.max_retries}) exceeded. Validation errors: {validation_errors}",
             retry_count=retry_count,
@@ -232,10 +232,10 @@ Do NOT include any explanation or text outside the JSON object."""
             return {}, ["Empty response"]
 
         # Try to extract JSON from response
-        json_match = re.search(r'\{[^{}]*\}', response, re.DOTALL)
+        json_match = re.search(r"\{[^{}]*\}", response, re.DOTALL)
         if not json_match:
             # Try to find JSON with nested braces
-            json_match = re.search(r'\{.*\}', response, re.DOTALL)
+            json_match = re.search(r"\{.*\}", response, re.DOTALL)
 
         if not json_match:
             return {}, ["No JSON object found in response"]

@@ -473,9 +473,9 @@ class TactusDSLVisitor(LuaParserVisitor):
             # - Specification { from = "path" }  (external file reference)
             if args and len(args) == 1:
                 arg = args[0]
-                if isinstance(arg, dict) and 'from' in arg:
+                if isinstance(arg, dict) and "from" in arg:
                     # External file reference
-                    self.builder.register_specs_from(arg['from'])
+                    self.builder.register_specs_from(arg["from"])
                 else:
                     # Inline Gherkin text
                     self.builder.register_specifications(arg)

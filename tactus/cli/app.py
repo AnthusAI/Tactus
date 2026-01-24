@@ -1468,7 +1468,7 @@ def test(
             )
             evaluator.setup(
                 result.registry.gherkin_specifications,
-                custom_steps_dict=result.registry.custom_steps
+                custom_steps_dict=result.registry.custom_steps,
             )
 
             if scenario:
@@ -1484,7 +1484,7 @@ def test(
             runner = TactusTestRunner(procedure_file, mock_tools=mock_tools, params=test_params)
             runner.setup(
                 result.registry.gherkin_specifications,
-                custom_steps_dict=result.registry.custom_steps
+                custom_steps_dict=result.registry.custom_steps,
             )
 
             test_result = runner.run_tests(parallel=parallel, scenario_filter=scenario)
@@ -2324,7 +2324,7 @@ def stdlib_test(
         result = validator.validate_file(str(spec_file))
 
         if not result.valid:
-            console.print(f"  [red]✗ Validation failed[/red]")
+            console.print("  [red]✗ Validation failed[/red]")
             for error in result.errors:
                 console.print(f"    {error.message}")
             total_failed += 1
@@ -2332,7 +2332,7 @@ def stdlib_test(
             continue
 
         if not result.registry or not result.registry.gherkin_specifications:
-            console.print(f"  [yellow]⚠ No specifications found[/yellow]")
+            console.print("  [yellow]⚠ No specifications found[/yellow]")
             continue
 
         # Run tests
@@ -2340,7 +2340,7 @@ def stdlib_test(
             runner = TactusTestRunner(spec_file, mock_tools={}, params={})
             runner.setup(
                 result.registry.gherkin_specifications,
-                custom_steps_dict=result.registry.custom_steps
+                custom_steps_dict=result.registry.custom_steps,
             )
 
             test_result = runner.run_tests(parallel=parallel, scenario_filter=None)
@@ -2368,7 +2368,7 @@ def stdlib_test(
 
     # Summary
     console.print("\n" + "=" * 50)
-    console.print(f"[bold]Stdlib Test Summary[/bold]")
+    console.print("[bold]Stdlib Test Summary[/bold]")
     console.print(f"  Passed: [green]{total_passed}[/green]")
     console.print(f"  Failed: [red]{total_failed}[/red]")
 

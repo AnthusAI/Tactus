@@ -106,9 +106,7 @@ class TestFuzzyMatchClassifierMultiClassMode:
 
     def test_exact_match_returns_class(self):
         """Exact match should return the matching class."""
-        classifier = FuzzyMatchClassifier(
-            classes=["Technical Support", "Billing", "Sales"]
-        )
+        classifier = FuzzyMatchClassifier(classes=["Technical Support", "Billing", "Sales"])
         result = classifier.classify("Technical Support")
 
         assert result.value == "Technical Support"

@@ -5,7 +5,7 @@ These models represent the extracted documentation from .tac files,
 including doc blocks, BDD specifications, and code examples.
 """
 
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 from pydantic import BaseModel, Field
 
 
@@ -15,6 +15,7 @@ class DocBlock(BaseModel):
 
     Contains markdown-formatted documentation text.
     """
+
     content: str = Field(..., description="Markdown content of the doc block")
     line_number: int = Field(..., description="Starting line number in source file")
 
@@ -23,6 +24,7 @@ class ParameterDoc(BaseModel):
     """
     Documentation for a single parameter extracted from --[[doc:parameter name]] blocks.
     """
+
     name: str = Field(..., description="Parameter name")
     description: str = Field(..., description="Parameter description")
     type_hint: Optional[str] = Field(None, description="Type hint if specified")
@@ -34,6 +36,7 @@ class BDDStep(BaseModel):
     """
     A single Given/When/Then step in a BDD scenario.
     """
+
     keyword: str = Field(..., description="Given, When, Then, And, But")
     text: str = Field(..., description="Step text")
 
@@ -42,6 +45,7 @@ class BDDScenario(BaseModel):
     """
     A BDD scenario from a Specification block.
     """
+
     name: str = Field(..., description="Scenario name")
     steps: List[BDDStep] = Field(default_factory=list, description="Scenario steps")
     line_number: int = Field(..., description="Starting line number")
@@ -51,6 +55,7 @@ class BDDFeature(BaseModel):
     """
     A BDD feature containing multiple scenarios.
     """
+
     name: str = Field(..., description="Feature name")
     description: Optional[str] = Field(None, description="Feature description")
     scenarios: List[BDDScenario] = Field(default_factory=list, description="Scenarios")
@@ -61,6 +66,7 @@ class CodeExample(BaseModel):
     """
     A code example extracted from doc blocks or generated from BDD scenarios.
     """
+
     title: str = Field(..., description="Example title")
     code: str = Field(..., description="Lua code")
     description: Optional[str] = Field(None, description="Example description")
@@ -71,6 +77,7 @@ class ModuleDoc(BaseModel):
     """
     Complete documentation for a Tactus module (e.g., tactus.classify).
     """
+
     name: str = Field(..., description="Module name (e.g., 'classify')")
     full_name: str = Field(..., description="Full module path (e.g., 'tactus.classify')")
     file_path: str = Field(..., description="Path to source .tac file")
@@ -98,6 +105,7 @@ class DocumentationTree(BaseModel):
     """
     Tree structure representing all documentation in a directory.
     """
+
     root_path: str = Field(..., description="Root directory path")
     modules: List[ModuleDoc] = Field(default_factory=list, description="All documented modules")
 

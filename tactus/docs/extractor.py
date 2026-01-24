@@ -9,7 +9,7 @@ This module parses .tac files to extract:
 
 import re
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Optional
 from tactus.docs.models import (
     DocBlock,
     ParameterDoc,
@@ -86,7 +86,9 @@ class TacFileExtractor:
             required_match = re.search(r"Required:\s*(true|false)", content, re.IGNORECASE)
             if required_match:
                 required = required_match.group(1).lower() == "true"
-                content = re.sub(r"Required:\s*(?:true|false)\s*\n?", "", content, flags=re.IGNORECASE)
+                content = re.sub(
+                    r"Required:\s*(?:true|false)\s*\n?", "", content, flags=re.IGNORECASE
+                )
 
             # Extract default if present
             default_match = re.search(r"Default:\s*(.+)", content)
@@ -243,7 +245,9 @@ class TacFileExtractor:
 
         return examples
 
-    def extract_module_doc(self, module_name: str, full_module_name: str, module_dir: Optional[Path] = None) -> ModuleDoc:
+    def extract_module_doc(
+        self, module_name: str, full_module_name: str, module_dir: Optional[Path] = None
+    ) -> ModuleDoc:
         """Extract complete documentation for this module."""
         doc_blocks = self.extract_doc_blocks()
         parameter_docs = self.extract_parameter_docs()

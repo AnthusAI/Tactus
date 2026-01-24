@@ -119,7 +119,7 @@ class BaseClassifier(ABC):
                 labels.append(expected)
 
         # Calculate accuracy
-        correct = sum(p == l for p, l in zip(predictions, labels))
+        correct = sum(pred == label for pred, label in zip(predictions, labels))
         accuracy = correct / len(test_data) if test_data else 0.0
 
         # Calculate confusion matrix
@@ -136,29 +136,25 @@ class BaseClassifier(ABC):
             # True positives: predicted target AND was target
             tp = sum(
                 1
-                for p, l in zip(predictions, labels)
-                if p in classifier.target_classes and l in classifier.target_classes
+                for pred, label in zip(predictions, labels)
+                if pred in classifier.target_classes and label in classifier.target_classes
             )
             # False positives: predicted target BUT was NOT target
             fp = sum(
                 1
-                for p, l in zip(predictions, labels)
-                if p in classifier.target_classes and l not in classifier.target_classes
+                for pred, label in zip(predictions, labels)
+                if pred in classifier.target_classes and label not in classifier.target_classes
             )
             # False negatives: did NOT predict target BUT was target
             fn = sum(
                 1
-                for p, l in zip(predictions, labels)
-                if p not in classifier.target_classes and l in classifier.target_classes
+                for pred, label in zip(predictions, labels)
+                if pred not in classifier.target_classes and label in classifier.target_classes
             )
 
             precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
             recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
-            f1 = (
-                2 * precision * recall / (precision + recall)
-                if (precision + recall) > 0
-                else 0.0
-            )
+            f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
 
         return EvaluationResult(
             accuracy=accuracy,
@@ -269,9 +265,7 @@ class ClassifierFactory:
 
         if method not in cls._registry:
             available = ", ".join(cls._registry.keys())
-            raise ValueError(
-                f"Unknown classifier method: '{method}'. Available: {available}"
-            )
+            raise ValueError(f"Unknown classifier method: '{method}'. Available: {available}")
 
         classifier_class = cls._registry[method]
         return classifier_class(config=config, **kwargs)
@@ -315,9 +309,7 @@ class ExtractorFactory:
 
         if method not in cls._registry:
             available = ", ".join(cls._registry.keys())
-            raise ValueError(
-                f"Unknown extractor method: '{method}'. Available: {available}"
-            )
+            raise ValueError(f"Unknown extractor method: '{method}'. Available: {available}")
 
         extractor_class = cls._registry[method]
         return extractor_class(config=config, **kwargs)
