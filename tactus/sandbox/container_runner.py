@@ -321,7 +321,7 @@ class ContainerRunner:
         container = parts[1]
         mode = parts[2] if len(parts) > 2 else None
 
-        host_is_path = host.startswith(("/", "./", "../", "~"))
+        host_is_path = host.startswith(("/", "./", "../", "~")) or host == "." or host == ".."
         if not host_is_path:
             # Named volume (or other special form) - leave unchanged
             return volume

@@ -2396,6 +2396,13 @@ class TactusRuntime:
                         # If required and not in context, it will fail validation in ProcedureCallable
                     logger.debug(f"Calling main with input_params: {input_params}")
 
+                    # Set procedure metadata for HITL context display
+                    if hasattr(self, 'execution_context') and self.execution_context:
+                        self.execution_context.set_procedure_metadata(
+                            procedure_name=main_proc.get("name", "main"),
+                            input_data=input_params
+                        )
+
                     # Execute main procedure
                     result = main_callable(input_params)
 

@@ -583,26 +583,22 @@ class BaseExecutionContext(ExecutionContext):
         """
         return self._started_at
 
-    def get_input_summary(self) -> Optional[str]:
+    def get_input_summary(self) -> Optional[Dict[str, Any]]:
         """
         Return a summary of the initial input to this procedure.
 
         Returns:
-            JSON-formatted string of input data, or None if no input
+            Dict of input data, or None if no input
         """
         if self._input_data is None:
             return None
 
-        try:
-            import json
-            # Try to serialize input data as JSON
-            if isinstance(self._input_data, (dict, list, str, int, float, bool, type(None))):
-                return json.dumps(self._input_data, indent=2, default=str)
-            else:
-                # For other types, use string representation
-                return str(self._input_data)
-        except Exception:
-            return str(self._input_data)
+        # If input_data is already a dict, return it
+        if isinstance(self._input_data, dict):
+            return self._input_data
+
+        # Otherwise wrap it in a dict
+        return {"value": self._input_data}
 
     def get_conversation_history(self) -> Optional[List[Dict]]:
         """
@@ -638,6 +634,79 @@ class BaseExecutionContext(ExecutionContext):
         ]
 
         return hitl_checkpoints if hitl_checkpoints else None
+
+    def get_lua_source_line(self) -> Optional[int]:
+        """
+        Get the current source line from Lua debug.getinfo.
+
+        Returns:
+            Line number or None if unavailable
+        """
+        if not self.lua_sandbox:
+            return None
+
+        try:
+            # Access Lua debug module to get current line
+            debug_mod = self.lua_sandbox.globals().debug
+            if debug_mod and hasattr(debug_mod, "getinfo"):
+                # getinfo(2) gets info about the calling function
+                # We need to go up the stack to find the user's code
+                for level in range(2, 10):
+                    try:
+                        info = debug_mod.getinfo(level, "Sl")
+                        if info:
+                            line = info.get("currentline")
+                            source = info.get("source", "")
+                            # Skip internal sources (start with @)
+                            if line and line > 0 and not source.startswith("@"):
+                                return int(line)
+                    except Exception:
+                        break
+        except Exception as e:
+            logger.debug(f"Could not get Lua source line: {e}")
+
+        return None
+
+    def get_runtime_context(self) -> Dict[str, Any]:
+        """
+        Build RuntimeContext dict for HITL requests.
+
+        Captures source location, execution position, elapsed time, and backtrace.
+
+        Returns:
+            Dict with runtime context fields
+        """
+        # Calculate elapsed time
+        elapsed = 0.0
+        if self._started_at:
+            elapsed = (datetime.now(timezone.utc) - self._started_at).total_seconds()
+
+        # Get current source location
+        source_line = self.get_lua_source_line()
+
+        # Build backtrace from execution log
+        backtrace = []
+        if self.metadata and self.metadata.execution_log:
+            for entry in self.metadata.execution_log:
+                bt_entry = {
+                    "checkpoint_type": entry.type,
+                    "duration_ms": entry.duration_ms,
+                }
+                if entry.source_location:
+                    bt_entry["line"] = entry.source_location.line
+                    bt_entry["function_name"] = entry.source_location.function
+                backtrace.append(bt_entry)
+
+        return {
+            "source_line": source_line,
+            "source_file": self.current_tac_file,
+            "checkpoint_position": self.next_position(),
+            "procedure_name": self.procedure_name,
+            "invocation_id": self.invocation_id,
+            "started_at": self._started_at.isoformat() if self._started_at else None,
+            "elapsed_seconds": elapsed,
+            "backtrace": backtrace,
+        }
 
 
 class InMemoryExecutionContext(BaseExecutionContext):

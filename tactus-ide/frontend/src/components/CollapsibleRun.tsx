@@ -10,7 +10,8 @@ import {
   IterationCw,
   TestTube,
   BarChart2,
-  ArrowUpRight
+  ArrowUpRight,
+  Copy
 } from 'lucide-react';
 import { MessageFeed } from './MessageFeed';
 import { CheckpointSummary } from './CheckpointSummary';
@@ -20,11 +21,12 @@ interface CollapsibleRunProps {
   run: RunHistory;
   isExpanded: boolean;
   onToggle: () => void;
+  onCopyRun?: (run: RunHistory) => void;
   onJumpToSource?: (filePath: string, lineNumber: number) => void;
   onHITLRespond?: (requestId: string, value: any) => void;
 }
 
-export const CollapsibleRun: React.FC<CollapsibleRunProps> = ({ run, isExpanded, onToggle, onJumpToSource, onHITLRespond }) => {
+export const CollapsibleRun: React.FC<CollapsibleRunProps> = ({ run, isExpanded, onToggle, onCopyRun, onJumpToSource, onHITLRespond }) => {
   // Operation type icons
   const operationIcon = {
     run: <IterationCw className="h-4 w-4" />,
@@ -73,6 +75,18 @@ export const CollapsibleRun: React.FC<CollapsibleRunProps> = ({ run, isExpanded,
             <span className="text-sm font-medium capitalize">{run.operationType}</span>
             <span className="text-xs text-muted-foreground">{formatTimestamp(run.timestamp)}</span>
             <span className="text-muted-foreground">{operationIcon}</span>
+            {onCopyRun && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCopyRun(run);
+                }}
+                className="px-1.5 py-1 rounded hover:bg-muted/60 transition-colors"
+                title="Copy run log"
+              >
+                <Copy className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+              </button>
+            )}
             {!isExpanded && run.checkpoints && run.checkpoints.length > 0 && (
               <>
                 <span className="text-xs text-muted-foreground">•</span>

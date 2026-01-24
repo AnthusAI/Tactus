@@ -73,7 +73,11 @@ export const HITLEventComponent: React.FC<HITLEventComponentProps> = ({
     setFormValues({});
     setResponded(false);
     setResponseValue(null);
-  }, [event.request_id]);
+    // Auto-open modal for batched inputs in modal mode
+    if (event.request_type === 'inputs' && event.items && batchedInputsMode === 'modal') {
+      setModalOpen(true);
+    }
+  }, [event.request_id, event.request_type, event.items, batchedInputsMode]);
 
   // Load preference for batched inputs mode
   React.useEffect(() => {
@@ -279,18 +283,21 @@ export const HITLEventComponent: React.FC<HITLEventComponentProps> = ({
                       </Button>
                     </>
                   ) : (
-                    // MODAL MODE - Show button to open modal dialog
+                    // MODAL MODE - Modal opens automatically
                     <>
-                      <div className="text-sm text-muted-foreground">
-                        Multiple inputs required ({event.items?.length || 0} items)
-                        <Button
-                          onClick={() => setModalOpen(true)}
-                          variant="outline"
-                          size="sm"
-                          className="ml-2"
-                        >
-                          Open Form
-                        </Button>
+                      <div className="flex items-center gap-2">
+                        <div className="text-sm text-muted-foreground">
+                          Multiple inputs requested ({event.items?.length || 0} items)
+                        </div>
+                        {!modalOpen && (
+                          <Button
+                            onClick={() => setModalOpen(true)}
+                            variant="outline"
+                            size="sm"
+                          >
+                            Reopen Form
+                          </Button>
+                        )}
                       </div>
 
                       {/* Batched Inputs Modal */}

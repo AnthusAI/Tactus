@@ -26,9 +26,12 @@ class ControlRequestType(str, Enum):
 
     APPROVAL = "approval"
     INPUT = "input"
+    SELECT = "select"  # Single or multiple choice selection
     REVIEW = "review"
     ESCALATION = "escalation"
+    UPLOAD = "upload"  # File upload
     INPUTS = "inputs"  # Batched inputs (multiple requests in one)
+    CUSTOM = "custom"  # Custom component type (uses metadata.component_type for routing)
 
 
 class ControlOption(BaseModel):
@@ -64,6 +67,55 @@ class ControlInteraction(BaseModel):
     responded_by: Optional[str] = Field(default=None, description="Who responded (user ID or channel)")
     responded_at: datetime = Field(..., description="When the response was received")
     channel_id: str = Field(..., description="Channel that provided the response")
+
+    model_config = {"arbitrary_types_allowed": True}
+
+
+class BacktraceEntry(BaseModel):
+    """Single entry in the execution backtrace."""
+
+    checkpoint_type: str = Field(..., description="Type of checkpoint (e.g., 'hitl', 'llm', 'tool')")
+    line: Optional[int] = Field(default=None, description="Source line number")
+    function_name: Optional[str] = Field(default=None, description="Function/procedure name")
+    duration_ms: Optional[float] = Field(default=None, description="Duration at this checkpoint")
+
+    model_config = {"arbitrary_types_allowed": True}
+
+
+class RuntimeContext(BaseModel):
+    """
+    Context automatically captured from the Tactus runtime.
+
+    Includes source location, execution position, and backtrace.
+    This context is universally available regardless of how procedures are stored.
+    """
+
+    source_line: Optional[int] = Field(default=None, description="Line number where request originated")
+    source_file: Optional[str] = Field(default=None, description="Source file path (if available)")
+    checkpoint_position: int = Field(default=0, description="Position in execution log")
+    procedure_name: str = Field(default="", description="Name of the running procedure")
+    invocation_id: str = Field(default="", description="Unique identifier for this execution")
+    started_at: Optional[datetime] = Field(default=None, description="When execution began")
+    elapsed_seconds: float = Field(default=0.0, description="Time since execution started")
+    backtrace: List[BacktraceEntry] = Field(
+        default_factory=list,
+        description="Execution path to reach this point",
+    )
+
+    model_config = {"arbitrary_types_allowed": True}
+
+
+class ContextLink(BaseModel):
+    """
+    Application-provided context reference.
+
+    Allows host applications to inject domain-specific context
+    with optional deep links back to the source system.
+    """
+
+    name: str = Field(..., description="Display label (e.g., 'Evaluation', 'Customer')")
+    value: str = Field(..., description="Display value (e.g., 'Monthly QA Review')")
+    url: Optional[str] = Field(default=None, description="Optional deep link URL")
 
     model_config = {"arbitrary_types_allowed": True}
 
@@ -161,6 +213,16 @@ class ControlRequest(BaseModel):
         description="Previous control interactions in this invocation",
     )
 
+    # New context architecture (Phase 5)
+    runtime_context: Optional[RuntimeContext] = Field(
+        default=None,
+        description="Automatically captured runtime context (source location, backtrace)",
+    )
+    application_context: List[ContextLink] = Field(
+        default_factory=list,
+        description="Host application-provided context links",
+    )
+
     # Additional metadata
     metadata: Dict[str, Any] = Field(
         default_factory=dict,
@@ -191,6 +253,9 @@ class ChannelCapabilities(BaseModel):
     supports_input: bool = Field(default=True, description="Can handle input requests")
     supports_review: bool = Field(default=True, description="Can handle review requests")
     supports_escalation: bool = Field(default=True, description="Can handle escalation alerts")
+    supports_select: bool = Field(default=True, description="Can handle select/choice requests")
+    supports_inputs: bool = Field(default=True, description="Can handle batched input requests")
+    supports_upload: bool = Field(default=False, description="Can handle file upload requests")
     supports_interactive_buttons: bool = Field(
         default=False,
         description="Can render interactive buttons for responses",

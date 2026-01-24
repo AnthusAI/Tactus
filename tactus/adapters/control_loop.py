@@ -23,6 +23,9 @@ from tactus.protocols.control import (
     ControlOption,
     ChannelCapabilities,
     DeliveryResult,
+    RuntimeContext,
+    BacktraceEntry,
+    ContextLink,
 )
 from tactus.protocols.storage import StorageBackend
 
@@ -131,6 +134,9 @@ class ControlLoopHandler:
         input_summary: Optional[Dict[str, Any]] = None,
         conversation: Optional[List[Dict[str, Any]]] = None,
         prior_interactions: Optional[List[Dict[str, Any]]] = None,
+        # New context architecture
+        runtime_context: Optional[Dict[str, Any]] = None,
+        application_context: Optional[List[Dict[str, Any]]] = None,
     ) -> ControlResponse:
         """
         Request controller interaction by sending to all channels.
@@ -181,6 +187,8 @@ class ControlLoopHandler:
             input_summary=input_summary,
             conversation=conversation,
             prior_interactions=prior_interactions,
+            runtime_context=runtime_context,
+            application_context=application_context,
         )
 
         logger.info(
@@ -497,6 +505,8 @@ class ControlLoopHandler:
         input_summary: Optional[Dict[str, Any]] = None,
         conversation: Optional[List[Dict[str, Any]]] = None,
         prior_interactions: Optional[List[Dict[str, Any]]] = None,
+        runtime_context: Optional[Dict[str, Any]] = None,
+        application_context: Optional[List[Dict[str, Any]]] = None,
     ) -> ControlRequest:
         """Build a ControlRequest from the provided parameters."""
         # CRITICAL: Generate deterministic request_id based on checkpoint position AND run_id
@@ -544,6 +554,50 @@ class ControlLoopHandler:
                     # Convert dict to ControlRequestItem
                     items.append(ControlRequestItem(**item_dict))
 
+        # Convert runtime_context dict to RuntimeContext object
+        runtime_ctx_obj = None
+        if runtime_context:
+            # Convert backtrace entries
+            backtrace_entries = []
+            for bt in runtime_context.get("backtrace", []):
+                backtrace_entries.append(BacktraceEntry(
+                    checkpoint_type=bt.get("checkpoint_type", "unknown"),
+                    line=bt.get("line"),
+                    function_name=bt.get("function_name"),
+                    duration_ms=bt.get("duration_ms"),
+                ))
+
+            # Parse started_at if it's a string
+            started_at_dt = None
+            if runtime_context.get("started_at"):
+                started_at_str = runtime_context["started_at"]
+                if isinstance(started_at_str, str):
+                    from dateutil.parser import parse
+                    started_at_dt = parse(started_at_str)
+                else:
+                    started_at_dt = started_at_str
+
+            runtime_ctx_obj = RuntimeContext(
+                source_line=runtime_context.get("source_line"),
+                source_file=runtime_context.get("source_file"),
+                checkpoint_position=runtime_context.get("checkpoint_position", 0),
+                procedure_name=runtime_context.get("procedure_name", ""),
+                invocation_id=runtime_context.get("invocation_id", ""),
+                started_at=started_at_dt,
+                elapsed_seconds=runtime_context.get("elapsed_seconds", 0.0),
+                backtrace=backtrace_entries,
+            )
+
+        # Convert application_context dicts to ContextLink objects
+        app_ctx_objs = []
+        if application_context:
+            for link in application_context:
+                app_ctx_objs.append(ContextLink(
+                    name=link.get("name", ""),
+                    value=link.get("value", ""),
+                    url=link.get("url"),
+                ))
+
         return ControlRequest(
             request_id=request_id,
             procedure_id=procedure_id,
@@ -562,6 +616,8 @@ class ControlLoopHandler:
             input_summary=input_summary or {},
             conversation=[],  # TODO: Convert conversation dicts
             prior_interactions=[],  # TODO: Convert prior_interactions dicts
+            runtime_context=runtime_ctx_obj,
+            application_context=app_ctx_objs,
             metadata=metadata or {},
         )
 
@@ -743,6 +799,15 @@ class ControlLoopHITLAdapter:
             if hasattr(ctx, 'get_prior_control_interactions'):
                 prior_interactions = ctx.get_prior_control_interactions()
 
+        # Get runtime context for HITL display (new context architecture)
+        runtime_context = None
+        if ctx and hasattr(ctx, 'get_runtime_context'):
+            runtime_context = ctx.get_runtime_context()
+
+        # Application context would be passed from the host application
+        # For now, we don't have a way to pass it through, but the protocol supports it
+        application_context = None
+
         try:
             # Call ControlLoopHandler with expanded parameters
             control_response = self.control_handler.request_interaction(
@@ -762,6 +827,9 @@ class ControlLoopHITLAdapter:
                 input_summary=input_summary,
                 conversation=conversation,
                 prior_interactions=prior_interactions,
+                # New context architecture
+                runtime_context=runtime_context,
+                application_context=application_context,
             )
 
             # Convert ControlResponse to HITLResponse

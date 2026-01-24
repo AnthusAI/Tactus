@@ -726,7 +726,108 @@ class HumanPrimitive:
         response = self.execution_context.checkpoint(checkpoint_fn, "hitl_inputs")
 
         # Response value should be a dict keyed by item ID
-        return response.value if isinstance(response.value, dict) else {}
+        result = response.value if isinstance(response.value, dict) else {}
+
+        # Convert Python lists to Lua tables for nested values
+        # This is needed when frontend returns arrays (e.g., multi-select results)
+        lua_runtime = self.execution_context.lua_sandbox.lua
+        converted_result = {}
+        for key, value in result.items():
+            if isinstance(value, list):
+                # Convert Python list to Lua table
+                converted_result[key] = lua_runtime.table_from(value)
+            else:
+                converted_result[key] = value
+
+        return lua_runtime.table_from(converted_result)
+
+    def custom(self, options: Optional[Dict[str, Any]] = None) -> Any:
+        """
+        Request custom component interaction from human (BLOCKING).
+
+        Renders a custom UI component specified by metadata.component_type.
+        The component receives all metadata and can return arbitrary values.
+
+        Args:
+            options: Dict with:
+                - component_type: str - Which custom component to render (required)
+                - message: str - Message to display (required)
+                - data: Dict - Component-specific data (images, options, etc.)
+                - actions: List[Dict] - Optional action buttons
+                - timeout: int - Timeout in seconds
+                - default: Any - Default value if timeout
+                - config_key: str - Reference to hitl: declaration
+
+        Returns:
+            Any - Value returned by the custom component
+                  Could be a simple value (string, dict) or complex object
+                  depending on the component implementation
+
+        Example (Lua):
+            local result = Human.custom({
+                component_type = "image-selector",
+                message = "Select your favorite image",
+                data = {
+                    images = {
+                        {url = "https://...", label = "Option 1"},
+                        {url = "https://...", label = "Option 2"}
+                    }
+                },
+                actions = {
+                    {id = "regenerate", label = "Regenerate", style = "secondary"}
+                }
+            })
+
+            if result.action == "regenerate" then
+                -- User clicked regenerate
+                return {regenerate = true}
+            else
+                -- User selected an image
+                return {selected_url = result}
+            end
+        """
+        if not isinstance(options, dict):
+            raise TypeError("custom() requires a dict argument with component_type and message")
+
+        component_type = options.get("component_type")
+        if not component_type:
+            raise ValueError("custom() requires 'component_type' field in options")
+
+        message = options.get("message")
+        if not message:
+            raise ValueError("custom() requires 'message' field in options")
+
+        # Extract parameters
+        data = options.get("data", {})
+        actions = options.get("actions", [])
+        timeout = options.get("timeout")
+        default = options.get("default")
+        config_key = options.get("config_key")
+
+        # Build metadata with custom component info
+        metadata = {
+            "component_type": component_type,
+            "data": data,
+            "actions": actions,
+        }
+
+        logger.info(f"Human custom component requested: {component_type}")
+
+        # CRITICAL: Wrap HITL call in checkpoint for transparent durability
+        def checkpoint_fn():
+            return self.execution_context.wait_for_human(
+                request_type="custom",
+                message=message,
+                timeout_seconds=timeout,
+                default_value=default,
+                options=None,
+                metadata=metadata,
+                config_key=config_key,
+            )
+
+        response = self.execution_context.checkpoint(checkpoint_fn, "hitl_custom")
+
+        return response.value
 
     def __repr__(self) -> str:
         return f"HumanPrimitive(config_keys={list(self.hitl_config.keys())})"

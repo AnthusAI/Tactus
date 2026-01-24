@@ -293,6 +293,9 @@ The IDE is designed to run as a desktop application:
 When working on the Tactus IDE frontend:
 
 - **UI Framework**: Use [Shadcn UI](https://ui.shadcn.com/) components for all UI elements
+- **AI Components**: Use [AI SDK Elements](https://ai-sdk.dev/elements) components by default for AI-related UI patterns
+  - Confirmation dialogs: Use the [Confirmation component](https://ai-sdk.dev/elements/components/confirmation) pattern
+  - Follow AI SDK Elements patterns for conversational interfaces, prompts, and responses
 - **Icons**: Always use [Lucide React](https://lucide.dev/) icons - **NEVER use emojis**
 - **Styling**: Use Tailwind CSS with the existing design system
 - **Theme**: Support both light and dark modes (colors are defined in CSS variables)

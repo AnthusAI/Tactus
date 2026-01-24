@@ -172,11 +172,46 @@ class SSEControlChannel(InProcessChannel):
             "conversation": request.conversation,
             "prior_interactions": request.prior_interactions,
 
+            # New context architecture (Phase 5)
+            "runtime_context": self._serialize_runtime_context(request.runtime_context),
+            "application_context": [
+                {
+                    "name": link.name,
+                    "value": link.value,
+                    "url": link.url,
+                }
+                for link in request.application_context
+            ] if request.application_context else [],
+
             # Additional metadata
             "metadata": request.metadata,
         }
 
         return event
+
+    def _serialize_runtime_context(self, runtime_context) -> Optional[dict]:
+        """Serialize RuntimeContext to dict for SSE payload."""
+        if not runtime_context:
+            return None
+
+        return {
+            "source_line": runtime_context.source_line,
+            "source_file": runtime_context.source_file,
+            "checkpoint_position": runtime_context.checkpoint_position,
+            "procedure_name": runtime_context.procedure_name,
+            "invocation_id": runtime_context.invocation_id,
+            "started_at": runtime_context.started_at.isoformat() if runtime_context.started_at else None,
+            "elapsed_seconds": runtime_context.elapsed_seconds,
+            "backtrace": [
+                {
+                    "checkpoint_type": bt.checkpoint_type,
+                    "line": bt.line,
+                    "function_name": bt.function_name,
+                    "duration_ms": bt.duration_ms,
+                }
+                for bt in runtime_context.backtrace
+            ] if runtime_context.backtrace else [],
+        }
 
     def handle_ide_response(self, request_id: str, value: Any) -> None:
         """

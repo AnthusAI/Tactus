@@ -35,6 +35,7 @@ from typing import Any, Callable, Dict
 
 from .registry import RegistryBuilder
 from tactus.primitives.handles import AgentHandle, ModelHandle, AgentLookup, ModelLookup
+from tactus.stdlib.classify import ClassifyPrimitive
 
 
 # NEW Builder pattern for field types - moved outside function for import
@@ -1179,11 +1180,7 @@ def create_dsl_stubs(
             # Generate a unique name if not provided
             agent_name = config_dict.pop("name", "dspy_agent")
             return create_dspy_agent(
-                agent_name,
-                config_dict,
-                registry=builder.registry,
-                mock_manager=mock_manager,
-                execution_context=_runtime_context.get("execution_context") if _runtime_context else None,
+                agent_name, config_dict, registry=builder.registry, mock_manager=mock_manager
             )
 
         # Curried form - return function that accepts config
@@ -1192,11 +1189,7 @@ def create_dsl_stubs(
             config_dict = lua_table_to_dict(cfg)
             agent_name = config_dict.pop("name", "dspy_agent")
             return create_dspy_agent(
-                agent_name,
-                config_dict,
-                registry=builder.registry,
-                mock_manager=mock_manager,
-                execution_context=_runtime_context.get("execution_context") if _runtime_context else None,
+                agent_name, config_dict, registry=builder.registry, mock_manager=mock_manager
             )
 
         return accept_config
@@ -1736,7 +1729,6 @@ def create_dsl_stubs(
                     agent_config,
                     registry=builder.registry,
                     mock_manager=_runtime_context.get("mock_manager"),
-                    execution_context=_runtime_context.get("execution_context"),
                 )
 
                 # Set tool_primitive for mock tool call recording
@@ -1922,7 +1914,6 @@ def create_dsl_stubs(
                     agent_config,
                     registry=builder.registry,
                     mock_manager=_runtime_context.get("mock_manager"),
-                    execution_context=_runtime_context.get("execution_context"),
                 )
 
                 # Set tool_primitive for mock tool call recording
@@ -1959,6 +1950,59 @@ def create_dsl_stubs(
 
         return handle
 
+    def _new_classify(config=None):
+        """
+        Classify factory for smart classification with retry logic.
+
+        Syntax:
+            -- One-shot classification
+            result = Classify {
+                classes = {"Yes", "No"},
+                prompt = "Did the agent greet the customer?",
+                input = transcript
+            }
+
+            -- Reusable classifier
+            classifier = Classify {
+                classes = {"positive", "negative", "neutral"},
+                prompt = "What is the sentiment?"
+            }
+            result = classifier(text)
+
+        Config options:
+            - classes: List of valid classification values (required)
+            - prompt: Classification instruction (required)
+            - input: Optional input for one-shot classification
+            - max_retries: Maximum retry attempts (default: 3)
+            - temperature: Model temperature (default: 0.3)
+            - model: Model to use (optional)
+            - confidence_mode: "heuristic" or "none" (default: "heuristic")
+
+        Returns:
+            ClassifyHandle if no input (reusable)
+            ClassifyResult dict if input provided (one-shot)
+        """
+        if config is None:
+            raise TypeError("Classify requires a configuration table")
+
+        # Create a wrapper function that creates agents using _new_agent
+        def agent_factory(agent_config):
+            """Factory function to create Agent instances for Classify."""
+            # Use _new_agent to create an agent handle
+            handle = _new_agent(agent_config)
+            return handle
+
+        # Create the classify primitive with the agent factory
+        classify_primitive = ClassifyPrimitive(
+            agent_factory=agent_factory,
+            lua_table_from=None,  # Will be handled by result conversion
+            registry=builder.registry if hasattr(builder, 'registry') else None,
+            mock_manager=mock_manager,
+        )
+
+        # Call the primitive with the config
+        return classify_primitive(lua_table_to_dict(config))
+
     return {
         # NEW SYNTAX (Phase B+)
         # Note: stdlib tools are accessed via require("tactus.tools.done") etc.
@@ -1970,6 +2014,7 @@ def create_dsl_stubs(
         "Prompt": _prompt,
         "Toolset": _toolset,
         "Tool": _new_tool,  # NEW syntax - assignment based
+        "Classify": _new_classify,  # NEW stdlib: smart classification with retry
         "Hitl": _hitl,
         "Specification": _specification,
         # BDD Testing

@@ -1,6 +1,6 @@
 # Omnichannel HITL Notification Architecture - Planning Document
 
-## Status Update (2026-01-21)
+## Status Update (2026-01-22)
 
 ### ✅ Phase 1 COMPLETE
 Core control loop architecture implemented:
@@ -9,21 +9,14 @@ Core control loop architecture implemented:
 - CLIControlChannel with Rich formatting
 - ControlLoopHandler with racing pattern (all channels race, first wins)
 - Configuration support and channel auto-detection
-- See [CONTROL_LOOP_PHASE1_COMPLETE.md](CONTROL_LOOP_PHASE1_COMPLETE.md)
+- See [archive/CONTROL_LOOP_PHASE1_COMPLETE.md](archive/CONTROL_LOOP_PHASE1_COMPLETE.md) (archived)
 
 ### ✅ Plain Function Support COMPLETE
 Fixed runtime to support both DSL and plain Lua syntax:
 - Auto-registration of `function main()` definitions
 - Script mode transformation skips files with named functions
 - HITL examples (90-hitl-simple.tac) now work correctly
-- See [../HITL_FIX_SUMMARY.md](../HITL_FIX_SUMMARY.md)
-
-### 🔄 Currently Running
-Old `CLIHITLHandler` (blocking, single-channel):
-- `Human.approve()` works but only via CLI
-- No omnichannel racing
-- No checkpoint/resume on HITL waits
-- Process blocks waiting for stdin
+- See [archive/HITL_FIX_SUMMARY.md](archive/HITL_FIX_SUMMARY.md) (archived)
 
 ### ✅ Phase 2 COMPLETE - Runtime Integration
 All goals achieved (2026-01-19):
@@ -32,8 +25,8 @@ All goals achieved (2026-01-19):
 - ✅ Exit-and-resume pattern with ProcedureWaitingForHuman exception
 - ✅ Storage methods for pending HITL requests with deterministic IDs
 - ✅ Rich context metadata (procedure_name, invocation_id, subject, started_at, input_summary, conversation_history, prior_control_interactions)
-- ✅ Human.inputs() batched HITL feature with tabbed UI
-- See [CONTROL_LOOP_INTEGRATION.md](CONTROL_LOOP_INTEGRATION.md)
+- ✅ Human.inputs() batched HITL feature with CLI support
+- See [archive/CONTROL_LOOP_INTEGRATION.md](archive/CONTROL_LOOP_INTEGRATION.md) (archived)
 
 ### ✅ Phase 3 COMPLETE - IDE/SSE Channel with Container Support
 All goals achieved (2026-01-21):
@@ -46,20 +39,29 @@ All goals achieved (2026-01-21):
 - ✅ Real-time event streaming from containers via background thread worker
 - ✅ Generalized LLM backend config (provider-agnostic infrastructure)
 - ✅ Agent responses stream in real-time to IDE frontend
+- ✅ Protocol capabilities extended (supports_select, supports_inputs, supports_upload)
+- ✅ Frontend emoji cleanup (replaced with icon components)
 - See commit a6e49ff "feat: enable real-time container HITL and event streaming"
 
-### 🧪 Phase 4 CURRENT - Comprehensive Testing
-Testing all HITL request types and edge cases:
-- ⏳ Test Human.approve() in containers and direct execution
-- ⏳ Test Human.input() for text collection
-- ⏳ Test Human.select() for single choice
-- ⏳ Test Human.inputs() for batched multi-field forms
-- ⏳ Test Human.review() for document/data review
-- ⏳ Test Human.escalate() for exception handling
-- ⏳ Test multi-channel racing (CLI vs IDE)
-- ⏳ Test timeout behavior and default values
-- ⏳ Test checkpoint/resume across HITL waits
-- See "Testing Plan" section below
+### 🧪 Phase 4 IN PROGRESS - Comprehensive Testing
+**Implementation Status: ~90% Complete**
+
+Core functionality verified:
+- ✅ Human.approve() works in both containers and direct execution
+- ✅ Human.input() works in CLI and IDE
+- ✅ Human.select() works in CLI and IDE
+- ✅ Multi-channel racing (CLI + IDE) working
+- ✅ Checkpoint/resume across HITL waits working
+- ✅ Real-time event streaming validated
+
+Remaining work:
+- ⚠️ Human.inputs() batched forms - CLI complete, IDE needs full modal UI
+- ⏳ Human.review() - Implemented but needs comprehensive testing
+- ⏳ Human.escalate() - Implemented but needs comprehensive testing
+- ⏳ Timeout behavior - Logic exists but needs thorough testing
+- ⏳ Test suite - Need comprehensive test examples (93-test-*.tac series)
+
+See "Testing Plan" section below for detailed checklist
 
 ---
 
@@ -1740,3 +1742,210 @@ Phase 4 testing is complete when:
 3. Create comprehensive test examples
 4. Update user documentation
 5. Consider Phase 5: External channels (Slack, Discord, etc.)
+
+---
+
+## Phase 5: HITL Context Architecture
+
+### Problem Statement
+
+When HITL requests are displayed in a unified inbox or notification center (out-of-context), humans need rich context to understand what they're being asked and why. Procedure inputs alone are insufficient:
+
+1. **Procedure inputs** = what the procedure needs to do its job
+2. **Context** = what humans need to understand *why* this is happening and trace back to the source
+
+### Two Layers of Context
+
+#### 1. Runtime Context (Tactus-Provided, Automatic)
+
+Information the Tactus runtime automatically captures regardless of how the procedure is invoked:
+
+| Field | Description | Universality |
+|-------|-------------|--------------|
+| `source_line` | Line number where HITL request originated | Universal - code always has structure |
+| `source_file` | File path (if code stored as file) | Optional - depends on storage format |
+| `checkpoint_position` | Position in execution log | Universal |
+| `procedure_name` | Name of the running procedure | Universal |
+| `invocation_id` | Unique identifier for this execution | Universal |
+| `started_at` | When execution began | Universal |
+| `elapsed_seconds` | Time since execution started | Universal |
+| `backtrace` | Execution path to reach this point | Universal (from checkpoint log) |
+
+**Key insight:** Line number is more universal than file name. The code exists in some form (string, file, database record) and always has line structure, even if the storage mechanism varies.
+
+#### 2. Application Context (Host-Provided, Manual)
+
+Domain-specific context that only the embedding application knows:
+
+```typescript
+interface ContextLink {
+  name: string;      // Display label (e.g., "Evaluation", "Customer")
+  value: string;     // Display value (e.g., "Monthly QA Review")
+  url?: string;      // Optional deep link to the source in the host application
+}
+```
+
+**Examples:**
+```typescript
+[
+  { name: "Evaluation", value: "Monthly QA Review", url: "/evaluations/123" },
+  { name: "Scorecard", value: "Customer Support Quality", url: "/scorecards/456" },
+  { name: "Agent", value: "Support Triage Bot", url: "/agents/789" },
+  { name: "Customer", value: "Acme Corp", url: "/customers/acme" }
+]
+```
+
+**Why this matters:** When you have multiple agents running independently, each generating HITL requests, a unified inbox needs to show where each request came from. The procedure doesn't need to know it's running as part of "Evaluation 123" to do its job, but the human operator absolutely needs this context to make informed decisions.
+
+### Display Modes: In-Context vs Out-of-Context
+
+HITL components support two display modes:
+
+#### In-Context Mode (`displayMode: 'inline'`)
+- Component is displayed within the procedure's execution stream
+- **Shows** runtime context (source line, elapsed time, checkpoint position)
+- **Hides** application context (domain-specific links only make sense in unified inbox)
+- Runtime context is useful even when surrounded by logs
+
+#### Out-of-Context Mode (`displayMode: 'standalone'`)
+- Component is displayed in a unified inbox, notification center, or external app
+- User has no surrounding context
+- **Shows** both runtime context and application context
+- Context displayed **above** the question (establishes "what is this about?" before "what are you being asked?")
+
+### Protocol Types
+
+#### Python Backend ([tactus/protocols/control.py](../tactus/protocols/control.py))
+
+```python
+@dataclass
+class BacktraceEntry:
+    """Single entry in the execution backtrace."""
+    checkpoint_type: str
+    line: Optional[int] = None
+    function_name: Optional[str] = None
+    duration_ms: Optional[float] = None
+
+@dataclass
+class RuntimeContext:
+    """Context automatically captured from the Tactus runtime."""
+    source_line: Optional[int] = None
+    source_file: Optional[str] = None
+    checkpoint_position: int = 0
+    procedure_name: str = ""
+    invocation_id: str = ""
+    started_at: Optional[datetime] = None
+    elapsed_seconds: float = 0.0
+    backtrace: List[BacktraceEntry] = field(default_factory=list)
+
+@dataclass
+class ContextLink:
+    """Application-provided context reference."""
+    name: str
+    value: str
+    url: Optional[str] = None
+```
+
+#### TypeScript Frontend ([tactus-ide/frontend/src/types/events.ts](../tactus-ide/frontend/src/types/events.ts))
+
+```typescript
+interface BacktraceEntry {
+  checkpoint_type: string;
+  line?: number;
+  function_name?: string;
+  duration_ms?: number;
+}
+
+interface RuntimeContext {
+  source_line?: number;
+  source_file?: string;
+  checkpoint_position: number;
+  procedure_name: string;
+  invocation_id: string;
+  started_at?: string;
+  elapsed_seconds: number;
+  backtrace: BacktraceEntry[];
+}
+
+interface ContextLink {
+  name: string;
+  value: string;
+  url?: string;
+}
+```
+
+### Frontend Component Layout (Standalone Mode)
+
+```
++-------------------------------------------------------------------+
+| Awaiting Human Input                          procedure_name      |
++-------------------------------------------------------------------+
+|                                                                   |
+| +--- Context (standalone mode only) ----------------------------+ |
+| |  Line 42 in examples/93-test.tac                              | |
+| |  Running for 2m 30s (checkpoint 5)                            | |
+| |                                                                | |
+| |  Evaluation: Monthly QA Review        [link]                   | |
+| |  Scorecard: Customer Support Quality  [link]                   | |
+| |  Customer: Acme Corp                  [link]                   | |
+| +----------------------------------------------------------------+ |
+|                                                                   |
+| +--- Question ----------------------------------------------------+ |
+| |  Deploy v1.0.0 to production?                                   | |
+| |                                                                  | |
+| |  [Reject]  [Approve]                                             | |
+| +------------------------------------------------------------------+ |
++-------------------------------------------------------------------+
+```
+
+### Implementation Files
+
+**Backend (Python):**
+- [tactus/protocols/control.py](../tactus/protocols/control.py) - Protocol types
+- [tactus/core/execution_context.py](../tactus/core/execution_context.py) - `get_runtime_context()`, `get_lua_source_line()`
+- [tactus/adapters/control_loop.py](../tactus/adapters/control_loop.py) - Context passing
+- [tactus/adapters/channels/sse.py](../tactus/adapters/channels/sse.py) - SSE serialization
+
+**Frontend (TypeScript/React):**
+- [tactus-ide/frontend/src/types/events.ts](../tactus-ide/frontend/src/types/events.ts) - Type definitions
+- [tactus-ide/frontend/src/components/events/HITLEventComponent.tsx](../tactus-ide/frontend/src/components/events/HITLEventComponent.tsx) - Display component
+- [tactus-ide/frontend/src/components/events/HITLEventComponent.stories.tsx](../tactus-ide/frontend/src/components/events/HITLEventComponent.stories.tsx) - Storybook stories
+
+### Use Cases
+
+| Scenario | Display Mode | Context Shown |
+|----------|--------------|---------------|
+| IDE Event Stream | `inline` | Runtime context (source line, elapsed time) |
+| Unified Inbox | `standalone` | Runtime context + application context |
+| Mobile Notification | `standalone` | Runtime context + application context |
+| Slack/Discord Integration | `standalone` | Runtime context + application context |
+
+### Setting Application Context
+
+Host applications set context when invoking procedures:
+
+```python
+# Option 1: At procedure invocation time
+result = await runtime.execute(
+    source=procedure_source,
+    context={
+        "user_id": user_id,
+        # ... other inputs
+    },
+    application_context=[
+        {"name": "Evaluation", "value": "Monthly QA", "url": "/evals/123"},
+        {"name": "Scorecard", "value": "Support Quality", "url": "/scorecards/456"},
+    ]
+)
+```
+
+### Success Criteria
+
+- [x] RuntimeContext captured automatically by runtime
+- [x] RuntimeContext and ContextLink types in protocol
+- [x] HITLEventComponent supports `displayMode` prop
+- [x] Inline mode hides context (current default behavior)
+- [x] Standalone mode shows context above question
+- [x] Context links are clickable
+- [x] Storybook stories document both modes
+- [ ] Application context can be passed at invocation time (future enhancement)
