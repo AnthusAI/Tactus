@@ -39,8 +39,12 @@ class ControlOption(BaseModel):
 
     label: str = Field(..., description="Display label for the option")
     value: Any = Field(..., description="Value to return if selected")
-    style: str = Field(default="default", description="Style hint: primary, danger, secondary, default")
-    description: Optional[str] = Field(default=None, description="Optional description for the option")
+    style: str = Field(
+        default="default", description="Style hint: primary, danger, secondary, default"
+    )
+    description: Optional[str] = Field(
+        default=None, description="Optional description for the option"
+    )
 
     model_config = {"arbitrary_types_allowed": True}
 
@@ -64,7 +68,9 @@ class ControlInteraction(BaseModel):
     request_type: str = Field(..., description="Type of the original request")
     message: str = Field(..., description="The original request message")
     response_value: Any = Field(..., description="The response value")
-    responded_by: Optional[str] = Field(default=None, description="Who responded (user ID or channel)")
+    responded_by: Optional[str] = Field(
+        default=None, description="Who responded (user ID or channel)"
+    )
     responded_at: datetime = Field(..., description="When the response was received")
     channel_id: str = Field(..., description="Channel that provided the response")
 
@@ -74,7 +80,9 @@ class ControlInteraction(BaseModel):
 class BacktraceEntry(BaseModel):
     """Single entry in the execution backtrace."""
 
-    checkpoint_type: str = Field(..., description="Type of checkpoint (e.g., 'hitl', 'llm', 'tool')")
+    checkpoint_type: str = Field(
+        ..., description="Type of checkpoint (e.g., 'hitl', 'llm', 'tool')"
+    )
     line: Optional[int] = Field(default=None, description="Source line number")
     function_name: Optional[str] = Field(default=None, description="Function/procedure name")
     duration_ms: Optional[float] = Field(default=None, description="Duration at this checkpoint")
@@ -90,7 +98,9 @@ class RuntimeContext(BaseModel):
     This context is universally available regardless of how procedures are stored.
     """
 
-    source_line: Optional[int] = Field(default=None, description="Line number where request originated")
+    source_line: Optional[int] = Field(
+        default=None, description="Line number where request originated"
+    )
     source_file: Optional[str] = Field(default=None, description="Source file path (if available)")
     checkpoint_position: int = Field(default=0, description="Position in execution log")
     procedure_name: str = Field(default="", description="Name of the running procedure")
@@ -130,7 +140,9 @@ class ControlRequestItem(BaseModel):
 
     item_id: str = Field(..., description="Unique ID within batch (used as response key)")
     label: str = Field(..., description="Short semantic label for tabs/UI")
-    request_type: ControlRequestType = Field(..., description="Type of input (approval, input, select, etc.)")
+    request_type: ControlRequestType = Field(
+        ..., description="Type of input (approval, input, select, etc.)"
+    )
     message: str = Field(..., description="Message to display")
     options: List[ControlOption] = Field(
         default_factory=list,
@@ -237,10 +249,16 @@ class ControlResponse(BaseModel):
 
     request_id: str = Field(..., description="Request ID this responds to")
     value: Any = Field(..., description="The response value from the controller")
-    responded_at: datetime = Field(default_factory=utc_now, description="When the response was received")
+    responded_at: datetime = Field(
+        default_factory=utc_now, description="When the response was received"
+    )
     timed_out: bool = Field(default=False, description="Whether the response timed out")
-    channel_id: Optional[str] = Field(default=None, description="Channel that provided the response")
-    responder_id: Optional[str] = Field(default=None, description="Controller identifier (user ID, model ID)")
+    channel_id: Optional[str] = Field(
+        default=None, description="Channel that provided the response"
+    )
+    responder_id: Optional[str] = Field(
+        default=None, description="Controller identifier (user ID, model ID)"
+    )
     responder_name: Optional[str] = Field(default=None, description="Display name of the responder")
 
     model_config = {"arbitrary_types_allowed": True}

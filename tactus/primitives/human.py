@@ -130,6 +130,7 @@ class HumanPrimitive:
         # CRITICAL: Wrap HITL call in checkpoint for transparent durability
         # This allows kill/resume to work - procedure can be restarted and will resume from this point
         logger.debug("[CHECKPOINT] Creating checkpoint for Human.approve(), type=hitl_approval")
+
         def checkpoint_fn():
             return self.execution_context.wait_for_human(
                 request_type="approval",
@@ -586,7 +587,7 @@ class HumanPrimitive:
         for suffix, multiplier in multipliers.items():
             if size_str.endswith(suffix):
                 try:
-                    return int(float(size_str[:-len(suffix)].strip()) * multiplier)
+                    return int(float(size_str[: -len(suffix)].strip()) * multiplier)
                 except ValueError:
                     pass
         # Try parsing as raw number
@@ -663,7 +664,9 @@ class HumanPrimitive:
         # Convert Lua tables to Python dicts recursively
         logger.debug(f"Human.inputs() called with items type: {type(items)}")
         items_list = self._convert_lua_to_python(items) or []
-        logger.debug(f"Converted to items_list, length: {len(items_list)}, type: {type(items_list)}")
+        logger.debug(
+            f"Converted to items_list, length: {len(items_list)}, type: {type(items_list)}"
+        )
 
         if not items_list:
             raise ValueError("Human.inputs() requires at least one item")
@@ -671,11 +674,15 @@ class HumanPrimitive:
         # Validate items
         seen_ids = set()
         for idx, item in enumerate(items_list):
-            logger.debug(f"Validating item {idx}: type={type(item)}, keys={list(item.keys()) if isinstance(item, dict) else 'NOT A DICT'}")
+            logger.debug(
+                f"Validating item {idx}: type={type(item)}, keys={list(item.keys()) if isinstance(item, dict) else 'NOT A DICT'}"
+            )
 
             # Ensure item is a dict
             if not isinstance(item, dict):
-                raise ValueError(f"Item {idx} is not a dictionary (got {type(item).__name__}): {item}")
+                raise ValueError(
+                    f"Item {idx} is not a dictionary (got {type(item).__name__}): {item}"
+                )
 
             # Validate required fields
             if "id" not in item:

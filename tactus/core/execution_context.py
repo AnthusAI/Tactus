@@ -187,7 +187,9 @@ class BaseExecutionContext(ExecutionContext):
         """Store reference to Lua sandbox for debug.getinfo access."""
         self.lua_sandbox = lua_sandbox
 
-    def set_procedure_metadata(self, procedure_name: Optional[str] = None, input_data: Any = None) -> None:
+    def set_procedure_metadata(
+        self, procedure_name: Optional[str] = None, input_data: Any = None
+    ) -> None:
         """
         Set rich metadata for HITL notifications.
 
@@ -400,10 +402,14 @@ class BaseExecutionContext(ExecutionContext):
 
         Delegates to the HITLHandler protocol implementation.
         """
-        logger.debug(f"[HITL] wait_for_human called: type={request_type}, message={message[:50] if message else 'None'}, hitl_handler={self.hitl}")
+        logger.debug(
+            f"[HITL] wait_for_human called: type={request_type}, message={message[:50] if message else 'None'}, hitl_handler={self.hitl}"
+        )
         if not self.hitl:
             # No HITL handler - return default immediately
-            logger.warning(f"[HITL] No HITL handler configured - returning default value: {default_value}")
+            logger.warning(
+                f"[HITL] No HITL handler configured - returning default value: {default_value}"
+            )
             return HITLResponse(
                 value=default_value, responded_at=datetime.now(timezone.utc), timed_out=True
             )

@@ -20,16 +20,10 @@ def utc_now() -> datetime:
 class ChannelCapabilities(BaseModel):
     """Advertised capabilities of a notification channel."""
 
-    supports_approval: bool = Field(
-        default=True, description="Can handle approval requests"
-    )
+    supports_approval: bool = Field(default=True, description="Can handle approval requests")
     supports_input: bool = Field(default=True, description="Can handle input requests")
-    supports_review: bool = Field(
-        default=True, description="Can handle review requests"
-    )
-    supports_escalation: bool = Field(
-        default=True, description="Can handle escalation alerts"
-    )
+    supports_review: bool = Field(default=True, description="Can handle review requests")
+    supports_escalation: bool = Field(default=True, description="Can handle escalation alerts")
     supports_interactive_buttons: bool = Field(
         default=False, description="Can render interactive buttons for responses"
     )
@@ -71,13 +65,9 @@ class PendingNotification(BaseModel):
     created_at: datetime = Field(
         default_factory=utc_now, description="When the notification was created"
     )
-    callback_url: str = Field(
-        ..., description="URL where channels should POST responses"
-    )
+    callback_url: str = Field(..., description="URL where channels should POST responses")
     responded: bool = Field(default=False, description="Whether a response was received")
-    response: Optional[HITLResponse] = Field(
-        default=None, description="The response if received"
-    )
+    response: Optional[HITLResponse] = Field(default=None, description="The response if received")
     response_channel: Optional[str] = Field(
         default=None, description="Which channel provided the response"
     )
@@ -93,9 +83,7 @@ class HITLResponsePayload(BaseModel):
     responder_id: Optional[str] = Field(
         default=None, description="Channel-specific user identifier"
     )
-    responder_name: Optional[str] = Field(
-        default=None, description="Display name of the responder"
-    )
+    responder_name: Optional[str] = Field(default=None, description="Display name of the responder")
     metadata: Dict[str, Any] = Field(
         default_factory=dict, description="Additional channel-specific metadata"
     )

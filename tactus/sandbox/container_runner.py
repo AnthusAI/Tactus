@@ -645,14 +645,29 @@ class ContainerRunner:
                             response_data = await control_handler(request_data)
 
                             # Send response event
-                            await send_event(writer, {"id": req_id, "event": "response", "data": response_data})
+                            await send_event(
+                                writer, {"id": req_id, "event": "response", "data": response_data}
+                            )
                         except asyncio.TimeoutError:
-                            await send_event(writer, {"id": req_id, "event": "timeout", "data": {"timed_out": True}})
+                            await send_event(
+                                writer,
+                                {"id": req_id, "event": "timeout", "data": {"timed_out": True}},
+                            )
                         except Exception as e:
                             logger.debug("[BROKER] control.request handler raised", exc_info=True)
-                            await send_event(writer, {"id": req_id, "event": "error", "error": {"message": str(e)}})
+                            await send_event(
+                                writer,
+                                {"id": req_id, "event": "error", "error": {"message": str(e)}},
+                            )
                     else:
-                        await send_event(writer, {"id": req_id, "event": "error", "error": {"message": "No control handler configured"}})
+                        await send_event(
+                            writer,
+                            {
+                                "id": req_id,
+                                "event": "error",
+                                "error": {"message": "No control handler configured"},
+                            },
+                        )
                     return
 
                 if method == "tool.call":

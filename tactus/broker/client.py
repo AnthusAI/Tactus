@@ -165,7 +165,9 @@ class BrokerClient:
                     ssl_ctx.verify_mode = ssl.CERT_NONE
 
             reader, writer = await asyncio.open_connection(host, port, ssl=ssl_ctx)
-            logger.info(f"[BROKER_CLIENT] Writing message to broker, params keys: {list(params.keys())}")
+            logger.info(
+                f"[BROKER_CLIENT] Writing message to broker, params keys: {list(params.keys())}"
+            )
             try:
                 await write_message(writer, {"id": req_id, "method": method, "params": params})
             except TypeError as e:
@@ -232,15 +234,18 @@ class BrokerClient:
         if tools is not None:
             params["tools"] = tools
             import logging
+
             logger = logging.getLogger(__name__)
             logger.info(f"[BROKER_CLIENT] Adding {len(tools)} tools to params")
         else:
             import logging
+
             logger = logging.getLogger(__name__)
             logger.warning("[BROKER_CLIENT] No tools to add to params")
         if tool_choice is not None:
             params["tool_choice"] = tool_choice
             import logging
+
             logger = logging.getLogger(__name__)
             logger.info(f"[BROKER_CLIENT] Adding tool_choice={tool_choice} to params")
         return self._request("llm.chat", params)

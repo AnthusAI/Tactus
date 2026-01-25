@@ -117,72 +117,80 @@ class SSEControlChannel(InProcessChannel):
         event = {
             "event_type": "hitl.request",  # Frontend expects event_type, not type
             "request_id": request.request_id,
-
             # Identity
             "procedure_id": request.procedure_id,
             "procedure_name": request.procedure_name,
             "invocation_id": request.invocation_id,
-
             # Context
             "subject": request.subject,
             "started_at": request.started_at.isoformat() if request.started_at else None,
             "input_summary": request.input_summary,
-
             # The question
             "request_type": request.request_type,
             "message": request.message,
             "default_value": request.default_value,
             "timeout_seconds": request.timeout_seconds,
-
             # Options
-            "options": [
-                {
-                    "label": opt.label,
-                    "value": opt.value,
-                    "style": opt.style,
-                    "description": opt.description,
-                }
-                for opt in request.options
-            ] if request.options else [],
-
+            "options": (
+                [
+                    {
+                        "label": opt.label,
+                        "value": opt.value,
+                        "style": opt.style,
+                        "description": opt.description,
+                    }
+                    for opt in request.options
+                ]
+                if request.options
+                else []
+            ),
             # For batched inputs requests
-            "items": [
-                {
-                    "item_id": item.item_id,
-                    "label": item.label,
-                    "request_type": item.request_type,
-                    "message": item.message,
-                    "options": [
-                        {
-                            "label": opt.label,
-                            "value": opt.value,
-                            "style": opt.style,
-                            "description": opt.description,
-                        }
-                        for opt in item.options
-                    ] if item.options else [],
-                    "default_value": item.default_value,
-                    "required": item.required,
-                    "metadata": item.metadata,
-                }
-                for item in request.items
-            ] if request.items else [],
-
+            "items": (
+                [
+                    {
+                        "item_id": item.item_id,
+                        "label": item.label,
+                        "request_type": item.request_type,
+                        "message": item.message,
+                        "options": (
+                            [
+                                {
+                                    "label": opt.label,
+                                    "value": opt.value,
+                                    "style": opt.style,
+                                    "description": opt.description,
+                                }
+                                for opt in item.options
+                            ]
+                            if item.options
+                            else []
+                        ),
+                        "default_value": item.default_value,
+                        "required": item.required,
+                        "metadata": item.metadata,
+                    }
+                    for item in request.items
+                ]
+                if request.items
+                else []
+            ),
             # Rich context for decision-making
             "conversation": request.conversation,
             "prior_interactions": request.prior_interactions,
-
             # New context architecture (Phase 5)
             "runtime_context": self._serialize_runtime_context(request.runtime_context),
-            "application_context": [
-                {
-                    "name": link.name,
-                    "value": link.value,
-                    "url": link.url,
-                }
-                for link in request.application_context
-            ] if request.application_context else [],
-
+            "application_context": (
+                [
+                    {
+                        "name": link.name,
+                        "value": link.value,
+                        "url": link.url,
+                    }
+                    for link in request.application_context
+                ]
+                if request.application_context
+                else []
+            ),
             # Additional metadata
             "metadata": request.metadata,
         }
@@ -200,17 +208,23 @@ class SSEControlChannel(InProcessChannel):
             "checkpoint_position": runtime_context.checkpoint_position,
             "procedure_name": runtime_context.procedure_name,
             "invocation_id": runtime_context.invocation_id,
-            "started_at": runtime_context.started_at.isoformat() if runtime_context.started_at else None,
+            "started_at": (
+                runtime_context.started_at.isoformat() if runtime_context.started_at else None
+            ),
             "elapsed_seconds": runtime_context.elapsed_seconds,
-            "backtrace": [
-                {
-                    "checkpoint_type": bt.checkpoint_type,
-                    "line": bt.line,
-                    "function_name": bt.function_name,
-                    "duration_ms": bt.duration_ms,
-                }
-                for bt in runtime_context.backtrace
-            ] if runtime_context.backtrace else [],
+            "backtrace": (
+                [
+                    {
+                        "checkpoint_type": bt.checkpoint_type,
+                        "line": bt.line,
+                        "function_name": bt.function_name,
+                        "duration_ms": bt.duration_ms,
+                    }
+                    for bt in runtime_context.backtrace
+                ]
+                if runtime_context.backtrace
+                else []
+            ),
         }
 
     def handle_ide_response(self, request_id: str, value: Any) -> None:
@@ -240,10 +254,7 @@ class SSEControlChannel(InProcessChannel):
             loop = asyncio.get_event_loop()
             if loop.is_running():
                 # Schedule the coroutine in the running loop
-                asyncio.run_coroutine_threadsafe(
-                    self._response_queue.put(response),
-                    loop
-                )
+                asyncio.run_coroutine_threadsafe(self._response_queue.put(response), loop)
             else:
                 # If no loop is running, use put_nowait (shouldn't happen)
                 self._response_queue.put_nowait(response)

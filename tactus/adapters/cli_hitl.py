@@ -234,25 +234,37 @@ class CLIHITLHandler:
 
                 if mode == "multiple":
                     # Multiple selection
-                    self.console.print("\n[bold]Select multiple options (comma-separated numbers):[/bold]")
+                    self.console.print(
+                        "\n[bold]Select multiple options (comma-separated numbers):[/bold]"
+                    )
                     for i, option in enumerate(options, 1):
-                        label_text = option.get("label", f"Option {i}") if isinstance(option, dict) else option
+                        label_text = (
+                            option.get("label", f"Option {i}")
+                            if isinstance(option, dict)
+                            else option
+                        )
                         self.console.print(f"  {i}. [cyan]{label_text}[/cyan]")
 
                     min_selections = metadata.get("min", 0)
                     max_selections = metadata.get("max", len(options))
 
                     while True:
-                        choice_str = Prompt.ask("Select options (e.g., 1,3,4)", console=self.console)
+                        choice_str = Prompt.ask(
+                            "Select options (e.g., 1,3,4)", console=self.console
+                        )
 
                         try:
                             choices = [int(c.strip()) for c in choice_str.split(",")]
                             if all(1 <= c <= len(options) for c in choices):
                                 if len(choices) < min_selections:
-                                    self.console.print(f"[red]Select at least {min_selections} options[/red]")
+                                    self.console.print(
+                                        f"[red]Select at least {min_selections} options[/red]"
+                                    )
                                     continue
                                 if len(choices) > max_selections:
-                                    self.console.print(f"[red]Select at most {max_selections} options[/red]")
+                                    self.console.print(
+                                        f"[red]Select at most {max_selections} options[/red]"
+                                    )
                                     continue
 
                                 # Get values for selected options
@@ -266,9 +278,13 @@ class CLIHITLHandler:
                                 value = selected_values
                                 break
                             else:
-                                self.console.print(f"[red]Invalid choice. Enter 1-{len(options)}[/red]")
+                                self.console.print(
+                                    f"[red]Invalid choice. Enter 1-{len(options)}[/red]"
+                                )
                         except ValueError:
-                            self.console.print("[red]Invalid input. Enter comma-separated numbers[/red]")
+                            self.console.print(
+                                "[red]Invalid input. Enter comma-separated numbers[/red]"
+                            )
                 else:
                     # Single selection
                     self.console.print("\n[bold]Options:[/bold]")
@@ -295,7 +311,9 @@ class CLIHITLHandler:
                                     value = selected
                                 break
                             else:
-                                self.console.print(f"[red]Invalid choice. Enter 1-{len(options)}[/red]")
+                                self.console.print(
+                                    f"[red]Invalid choice. Enter 1-{len(options)}[/red]"
+                                )
                         except ValueError:
                             self.console.print("[red]Invalid input. Enter a number[/red]")
 
@@ -361,13 +379,20 @@ class CLIHITLHandler:
         self.console.print("\n[bold]Summary:[/bold]")
         for item_id, value in responses.items():
             # Find the label for this item_id
-            item_label = next((item.get("label", item_id) for item in items if item.get("item_id") == item_id), item_id)
-            value_str = str(value) if not isinstance(value, list) else ", ".join(str(v) for v in value)
+            item_label = next(
+                (item.get("label", item_id) for item in items if item.get("item_id") == item_id),
+                item_id,
+            )
+            value_str = (
+                str(value) if not isinstance(value, list) else ", ".join(str(v) for v in value)
+            )
             if len(value_str) > 60:
                 value_str = value_str[:57] + "..."
             self.console.print(f"  [cyan]{item_label}:[/cyan] {value_str}")
 
-        return HITLResponse(value=responses, responded_at=datetime.now(timezone.utc), timed_out=False)
+        return HITLResponse(
+            value=responses, responded_at=datetime.now(timezone.utc), timed_out=False
+        )
 
     def check_pending_response(self, procedure_id: str, message_id: str) -> Optional[HITLResponse]:
         """

@@ -28,7 +28,9 @@ logger = logging.getLogger(__name__)
 class ControlCLI:
     """CLI app for responding to control requests via IPC."""
 
-    def __init__(self, socket_path: str = "/tmp/tactus-control.sock", auto_respond: Optional[str] = None):
+    def __init__(
+        self, socket_path: str = "/tmp/tactus-control.sock", auto_respond: Optional[str] = None
+    ):
         """
         Initialize control CLI.
 
@@ -51,9 +53,7 @@ class ControlCLI:
             True if connected successfully
         """
         try:
-            self._reader, self._writer = await asyncio.open_unix_connection(
-                self.socket_path
-            )
+            self._reader, self._writer = await asyncio.open_unix_connection(self.socket_path)
             return True
         except FileNotFoundError:
             self.console.print(f"[red]✗ Socket not found: {self.socket_path}[/red]")
@@ -87,12 +87,14 @@ class ControlCLI:
             return
 
         self.console.print()
-        self.console.print(Panel(
-            f"[green]Connected to: {self.socket_path}[/green]\n"
-            "[dim]Waiting for control requests...[/dim]",
-            title="Control Session",
-            border_style="green"
-        ))
+        self.console.print(
+            Panel(
+                f"[green]Connected to: {self.socket_path}[/green]\n"
+                "[dim]Waiting for control requests...[/dim]",
+                title="Control Session",
+                border_style="green",
+            )
+        )
         self.console.print()
 
         self._running = True
@@ -167,20 +169,23 @@ class ControlCLI:
 
         # Display request panel
         self.console.print()
-        self.console.print(Panel(
-            f"[bold]{procedure_name}[/bold]\n"
-            f"Started: {elapsed_str}",
-            title="Control Request",
-            border_style="blue"
-        ))
+        self.console.print(
+            Panel(
+                f"[bold]{procedure_name}[/bold]\n" f"Started: {elapsed_str}",
+                title="Control Request",
+                border_style="blue",
+            )
+        )
         self.console.print()
 
-        self.console.print(Panel(
-            f"[bold]{message}[/bold]\n\n"
-            f"Type: {request_type}\n"
-            f"ID: [dim]{request_id}[/dim]",
-            border_style="cyan"
-        ))
+        self.console.print(
+            Panel(
+                f"[bold]{message}[/bold]\n\n"
+                f"Type: {request_type}\n"
+                f"ID: [dim]{request_id}[/dim]",
+                border_style="cyan",
+            )
+        )
         self.console.print()
 
         # Handle based on request type
@@ -196,7 +201,9 @@ class ControlCLI:
         else:
             self.console.print(f"[yellow]⚠ Unknown request type: {request_type}[/yellow]")
 
-    async def _handle_approval_request(self, request: Dict, options: List[Dict], default_value: Optional[bool]) -> None:
+    async def _handle_approval_request(
+        self, request: Dict, options: List[Dict], default_value: Optional[bool]
+    ) -> None:
         """Handle an approval request."""
         request_id = request["request_id"]
 
@@ -212,10 +219,14 @@ class ControlCLI:
         else:
             prompt_str = "Approve? [y/n]: "
 
-        response = Confirm.ask(prompt_str, default=default_value if default_value is not None else None)
+        response = Confirm.ask(
+            prompt_str, default=default_value if default_value is not None else None
+        )
         await self._send_response(request_id, response)
 
-    async def _handle_choice_request(self, request: Dict, options: List[Dict], default_value: Optional[any]) -> None:
+    async def _handle_choice_request(
+        self, request: Dict, options: List[Dict], default_value: Optional[any]
+    ) -> None:
         """Handle a choice request."""
         request_id = request["request_id"]
 
@@ -244,7 +255,21 @@ class ControlCLI:
 
         # Prompt for selection
         while True:
-            selection = Prompt.ask("Choose an option", default=str(options.index(next((o for o in options if o.get("value") == default_value), options[0])) + 1) if default_value else "1")
+            selection = Prompt.ask(
+                "Choose an option",
+                default=(
+                    str(
+                        options.index(
+                            next(
+                                (o for o in options if o.get("value") == default_value), options[0]
+                            )
+                        )
+                        + 1
+                    )
+                    if default_value
+                    else "1"
+                ),
+            )
             try:
                 index = int(selection) - 1
                 if 0 <= index < len(options):
@@ -282,7 +307,7 @@ class ControlCLI:
             "request_id": request_id,
             "value": value,
             "responder_id": "control-cli",
-            "responded_at": datetime.now().isoformat()
+            "responded_at": datetime.now().isoformat(),
         }
 
         try:
@@ -320,7 +345,7 @@ class ControlCLI:
                 request["request_id"][:8],
                 request.get("procedure_name", "Unknown"),
                 request["request_type"],
-                request["message"][:50] + ("..." if len(request["message"]) > 50 else "")
+                request["message"][:50] + ("..." if len(request["message"]) > 50 else ""),
             )
 
         self.console.print(table)

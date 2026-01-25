@@ -166,7 +166,7 @@ async def execute_procedure(
     # CRITICAL: Flush pending log events before returning
     # This ensures all streaming events reach the broker before container exits.
     # Without this, fire-and-forget async tasks may be discarded.
-    if hasattr(log_handler, 'flush'):
+    if hasattr(log_handler, "flush"):
         logger.info("[SANDBOX] Flushing pending log events...")
         await log_handler.flush()
         logger.info("[SANDBOX] Log events flushed")

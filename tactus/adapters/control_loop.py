@@ -201,6 +201,7 @@ class ControlLoopHandler:
             # Already in async context - create task and run it
             # This shouldn't normally happen since request_interaction is sync
             import nest_asyncio
+
             nest_asyncio.apply()
             return loop.run_until_complete(self._request_interaction_async(request))
         except RuntimeError:
@@ -217,10 +218,7 @@ class ControlLoopHandler:
         """
         # RESUME FLOW: Check if we already have a cached response from previous run
         if self.storage:
-            cached_response = self.check_pending_response(
-                request.procedure_id,
-                request.request_id
-            )
+            cached_response = self.check_pending_response(request.procedure_id, request.request_id)
             if cached_response:
                 logger.info(f"RESUME: Using cached response for {request.request_id}")
                 return cached_response
@@ -297,10 +295,7 @@ class ControlLoopHandler:
         Returns:
             List of delivery results
         """
-        tasks = [
-            self._send_with_error_handling(channel, request)
-            for channel in channels
-        ]
+        tasks = [self._send_with_error_handling(channel, request) for channel in channels]
         results = await asyncio.gather(*tasks)
         return list(results)
 
@@ -511,12 +506,12 @@ class ControlLoopHandler:
         # Including run_id ensures different runs don't collide in the response cache
         # This allows resume flow to find cached responses within the same run, but not across runs
         checkpoint_position = None
-        if self.execution_context and hasattr(self.execution_context, 'next_position'):
+        if self.execution_context and hasattr(self.execution_context, "next_position"):
             checkpoint_position = self.execution_context.next_position()
 
         # Get run_id from execution context to ensure cache isolation between runs
         run_id_part = "unknown"
-        if self.execution_context and hasattr(self.execution_context, 'current_run_id'):
+        if self.execution_context and hasattr(self.execution_context, "current_run_id"):
             if self.execution_context.current_run_id:
                 # Use first 8 chars of run_id for brevity
                 run_id_part = self.execution_context.current_run_id[:8]
@@ -532,17 +527,21 @@ class ControlLoopHandler:
         control_options = []
         if options:
             for opt in options:
-                control_options.append(ControlOption(
-                    label=opt.get("label", ""),
-                    value=opt.get("value", opt.get("label", "")),
-                    style=opt.get("style", "default"),
-                    description=opt.get("description"),
-                ))
+                control_options.append(
+                    ControlOption(
+                        label=opt.get("label", ""),
+                        value=opt.get("value", opt.get("label", "")),
+                        style=opt.get("style", "default"),
+                        description=opt.get("description"),
+                    )
+                )
 
         # Extract items from metadata if this is an 'inputs' request
         items = []
         if request_type == "inputs":
-            logger.debug(f"Processing inputs request, metadata type: {type(metadata)}, value: {metadata}")
+            logger.debug(
+                f"Processing inputs request, metadata type: {type(metadata)}, value: {metadata}"
+            )
             if metadata and isinstance(metadata, dict) and "items" in metadata:
                 from tactus.protocols.control import ControlRequestItem
 
@@ -558,12 +557,14 @@ class ControlLoopHandler:
             # Convert backtrace entries
             backtrace_entries = []
             for bt in runtime_context.get("backtrace", []):
-                backtrace_entries.append(BacktraceEntry(
-                    checkpoint_type=bt.get("checkpoint_type", "unknown"),
-                    line=bt.get("line"),
-                    function_name=bt.get("function_name"),
-                    duration_ms=bt.get("duration_ms"),
-                ))
+                backtrace_entries.append(
+                    BacktraceEntry(
+                        checkpoint_type=bt.get("checkpoint_type", "unknown"),
+                        line=bt.get("line"),
+                        function_name=bt.get("function_name"),
+                        duration_ms=bt.get("duration_ms"),
+                    )
+                )
 
             # Parse started_at if it's a string
             started_at_dt = None
@@ -571,6 +572,7 @@ class ControlLoopHandler:
                 started_at_str = runtime_context["started_at"]
                 if isinstance(started_at_str, str):
                     from dateutil.parser import parse
+
                     started_at_dt = parse(started_at_str)
                 else:
                     started_at_dt = started_at_str
@@ -590,11 +592,13 @@ class ControlLoopHandler:
         app_ctx_objs = []
         if application_context:
             for link in application_context:
-                app_ctx_objs.append(ContextLink(
-                    name=link.get("name", ""),
-                    value=link.get("value", ""),
-                    url=link.get("url"),
-                ))
+                app_ctx_objs.append(
+                    ContextLink(
+                        name=link.get("name", ""),
+                        value=link.get("value", ""),
+                        url=link.get("url"),
+                    )
+                )
 
         return ControlRequest(
             request_id=request_id,
@@ -604,7 +608,15 @@ class ControlLoopHandler:
             namespace=namespace,
             subject=subject,
             started_at=started_at or datetime.now(timezone.utc),
-            elapsed_seconds=int((datetime.now(timezone.utc) - (started_at or datetime.now(timezone.utc))).total_seconds()) if started_at else 0,
+            elapsed_seconds=(
+                int(
+                    (
+                        datetime.now(timezone.utc) - (started_at or datetime.now(timezone.utc))
+                    ).total_seconds()
+                )
+                if started_at
+                else 0
+            ),
             request_type=ControlRequestType(request_type),
             message=message,
             options=control_options,
@@ -748,7 +760,7 @@ class ControlLoopHITLAdapter:
         from tactus.protocols.models import HITLResponse
 
         # Extract request fields (handle both HITLRequest objects and dicts)
-        if hasattr(request, 'request_type'):
+        if hasattr(request, "request_type"):
             request_type = request.request_type
             message = request.message
             options = request.options
@@ -756,12 +768,12 @@ class ControlLoopHITLAdapter:
             default_value = request.default_value
             metadata = request.metadata or {}
         else:
-            request_type = request.get('request_type')
-            message = request.get('message')
-            options = request.get('options')
-            timeout_seconds = request.get('timeout_seconds')
-            default_value = request.get('default_value')
-            metadata = request.get('metadata', {})
+            request_type = request.get("request_type")
+            message = request.get("message")
+            options = request.get("options")
+            timeout_seconds = request.get("timeout_seconds")
+            default_value = request.get("default_value")
+            metadata = request.get("metadata", {})
 
         # Use provided execution_context or fall back to instance one
         ctx = execution_context or self.execution_context
@@ -782,24 +794,24 @@ class ControlLoopHITLAdapter:
         prior_interactions = None
 
         if ctx:
-            procedure_name = getattr(ctx, 'procedure_name', procedure_name)
-            invocation_id = getattr(ctx, 'invocation_id', invocation_id)
+            procedure_name = getattr(ctx, "procedure_name", procedure_name)
+            invocation_id = getattr(ctx, "invocation_id", invocation_id)
 
             # Try to get additional context if methods exist
-            if hasattr(ctx, 'get_subject'):
+            if hasattr(ctx, "get_subject"):
                 subject = ctx.get_subject()
-            if hasattr(ctx, 'get_started_at'):
+            if hasattr(ctx, "get_started_at"):
                 started_at = ctx.get_started_at()
-            if hasattr(ctx, 'get_input_summary'):
+            if hasattr(ctx, "get_input_summary"):
                 input_summary = ctx.get_input_summary()
-            if hasattr(ctx, 'get_conversation_history'):
+            if hasattr(ctx, "get_conversation_history"):
                 conversation = ctx.get_conversation_history()
-            if hasattr(ctx, 'get_prior_control_interactions'):
+            if hasattr(ctx, "get_prior_control_interactions"):
                 prior_interactions = ctx.get_prior_control_interactions()
 
         # Get runtime context for HITL display (new context architecture)
         runtime_context = None
-        if ctx and hasattr(ctx, 'get_runtime_context'):
+        if ctx and hasattr(ctx, "get_runtime_context"):
             runtime_context = ctx.get_runtime_context()
 
         # Application context would be passed from the host application
@@ -819,7 +831,7 @@ class ControlLoopHITLAdapter:
                 # Rich context
                 procedure_name=procedure_name,
                 invocation_id=invocation_id,
-                namespace=metadata.get('namespace', ''),
+                namespace=metadata.get("namespace", ""),
                 subject=subject,
                 started_at=started_at,
                 input_summary=input_summary,

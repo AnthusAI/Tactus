@@ -89,6 +89,7 @@ class FileStorage:
         # Check if result is a serialized Pydantic model
         if isinstance(result, dict) and result.get("__pydantic__"):
             from tactus.protocols.models import HITLResponse
+
             model_name = result.get("__model__")
             # Remove metadata fields
             data = {k: v for k, v in result.items() if not k.startswith("__")}
@@ -147,7 +148,11 @@ class FileStorage:
             return None
         # Check if result is a Pydantic model (has model_dump method)
         if hasattr(result, "model_dump"):
-            return {"__pydantic__": True, "__model__": result.__class__.__name__, **result.model_dump()}
+            return {
+                "__pydantic__": True,
+                "__model__": result.__class__.__name__,
+                **result.model_dump(),
+            }
         return result
 
     def save_procedure_metadata(self, procedure_id: str, metadata: ProcedureMetadata) -> None:

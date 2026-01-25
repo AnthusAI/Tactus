@@ -13,7 +13,12 @@ from datetime import datetime
 from typing import Dict, Optional
 
 from tactus.broker.protocol import read_message, write_message
-from tactus.protocols.control import ControlRequest, ControlResponse, ChannelCapabilities, DeliveryResult
+from tactus.protocols.control import (
+    ControlRequest,
+    ControlResponse,
+    ChannelCapabilities,
+    DeliveryResult,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -73,10 +78,7 @@ class IPCControlChannel:
         os.makedirs(socket_dir, exist_ok=True)
 
         # Start Unix socket server
-        self._server = await asyncio.start_unix_server(
-            self._handle_client,
-            path=self.socket_path
-        )
+        self._server = await asyncio.start_unix_server(self._handle_client, path=self.socket_path)
 
         # Set socket permissions
         os.chmod(self.socket_path, 0o600)
@@ -143,7 +145,7 @@ class IPCControlChannel:
             external_message_id=request.request_id,
             delivered_at=datetime.now(),
             success=successful > 0,
-            error_message=None if successful > 0 else "No clients connected"
+            error_message=None if successful > 0 else "No clients connected",
         )
 
     async def receive(self):
@@ -172,11 +174,7 @@ class IPCControlChannel:
         self._pending_requests.pop(request_id, None)
 
         # Send cancellation to all clients
-        cancel_message = {
-            "type": "control.cancelled",
-            "request_id": request_id,
-            "reason": reason
-        }
+        cancel_message = {"type": "control.cancelled", "request_id": request_id, "reason": reason}
 
         for client_id, writer in list(self._clients.items()):
             try:
@@ -212,7 +210,9 @@ class IPCControlChannel:
 
         self._initialized = False
 
-    async def _handle_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+    async def _handle_client(
+        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ) -> None:
         """
         Handle a connected client.
 
@@ -233,7 +233,9 @@ class IPCControlChannel:
                 try:
                     await write_message(writer, request_data)
                 except Exception as e:
-                    logger.error(f"{self.channel_id}: failed to send pending request to {client_id}: {e}")
+                    logger.error(
+                        f"{self.channel_id}: failed to send pending request to {client_id}: {e}"
+                    )
 
             # Read messages from client
             while True:
@@ -253,9 +255,13 @@ class IPCControlChannel:
                         request_id=message["request_id"],
                         value=message["value"],
                         responder_id=message.get("responder_id", client_id),
-                        responded_at=datetime.fromisoformat(message["responded_at"]) if message.get("responded_at") else datetime.now(),
+                        responded_at=(
+                            datetime.fromisoformat(message["responded_at"])
+                            if message.get("responded_at")
+                            else datetime.now()
+                        ),
                         timed_out=message.get("timed_out", False),
-                        channel_id=self.channel_id
+                        channel_id=self.channel_id,
                     )
                     await self._response_queue.put(response)
                     logger.info(f"{self.channel_id}: received response for {response.request_id}")
@@ -267,12 +273,14 @@ class IPCControlChannel:
                     # Client requesting list of pending requests
                     list_response = {
                         "type": "control.list_response",
-                        "requests": list(self._pending_requests.values())
+                        "requests": list(self._pending_requests.values()),
                     }
                     await write_message(writer, list_response)
 
                 else:
-                    logger.warning(f"{self.channel_id}: unknown message type from {client_id}: {msg_type}")
+                    logger.warning(
+                        f"{self.channel_id}: unknown message type from {client_id}: {msg_type}"
+                    )
 
         except Exception as e:
             logger.error(f"{self.channel_id}: error handling client {client_id}: {e}")

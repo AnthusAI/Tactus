@@ -34,7 +34,10 @@ class _FakeOpenAIBackend:
         messages: list[dict],
         temperature: float | None = None,
         max_tokens: int | None = None,
+        tools: list[dict] | None = None,
+        tool_choice: dict | str | None = None,
         stream: bool,
+        **kwargs,
     ):
         if stream:
 

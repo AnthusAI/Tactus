@@ -206,7 +206,9 @@ class CLIControlChannel(HostControlChannel):
         except (EOFError, KeyboardInterrupt):
             return None
 
-    def _handle_options(self, options: list[ControlOption], default: Optional[str]) -> Optional[Any]:
+    def _handle_options(
+        self, options: list[ControlOption], default: Optional[str]
+    ) -> Optional[Any]:
         """Handle options selection."""
         # Display options
         self.console.print("\n[bold]Options:[/bold]")
@@ -229,9 +231,7 @@ class CLIControlChannel(HostControlChannel):
                     if 1 <= choice <= len(options):
                         return options[choice - 1].value
                     else:
-                        self.console.print(
-                            f"[red]Invalid choice. Enter 1-{len(options)}[/red]"
-                        )
+                        self.console.print(f"[red]Invalid choice. Enter 1-{len(options)}[/red]")
                 except ValueError:
                     self.console.print("[red]Invalid input. Enter a number[/red]")
             except (EOFError, KeyboardInterrupt):
@@ -354,7 +354,9 @@ class CLIControlChannel(HostControlChannel):
                         prompt_text = "Enter value"
                         if placeholder:
                             prompt_text = f"{prompt_text} ({placeholder})"
-                        default_str = str(item.default_value) if item.default_value is not None else None
+                        default_str = (
+                            str(item.default_value) if item.default_value is not None else None
+                        )
                         value = Prompt.ask(prompt_text, default=default_str, console=self.console)
 
                 elif item.request_type == ControlRequestType.SELECT:
@@ -408,8 +410,12 @@ class CLIControlChannel(HostControlChannel):
             self.console.print("[bold green]✓ All inputs collected[/bold green]")
             self.console.print("\n[bold]Summary:[/bold]")
             for item_id, value in responses.items():
-                item_label = next((item.label for item in items if item.item_id == item_id), item_id)
-                value_str = str(value) if not isinstance(value, list) else ", ".join(str(v) for v in value)
+                item_label = next(
+                    (item.label for item in items if item.item_id == item_id), item_id
+                )
+                value_str = (
+                    str(value) if not isinstance(value, list) else ", ".join(str(v) for v in value)
+                )
                 if len(value_str) > 60:
                     value_str = value_str[:57] + "..."
                 self.console.print(f"  [cyan]{item_label}:[/cyan] {value_str}")

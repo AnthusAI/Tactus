@@ -133,11 +133,13 @@ def load_default_channels(procedure_id: Optional[str] = None) -> List[ControlCha
     # CLI channel - auto-detect based on tty
     if sys.stdin.isatty():
         from tactus.adapters.channels.cli import CLIControlChannel
+
         channels.append(CLIControlChannel())
         logger.info("Loaded CLI control channel (auto-detected tty)")
 
     # IPC channel - always enabled for control CLI connectivity
     from tactus.adapters.channels.ipc import IPCControlChannel
+
     channels.append(IPCControlChannel(procedure_id=procedure_id))
     logger.info("Loaded IPC control channel")
 

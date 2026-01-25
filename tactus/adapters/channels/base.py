@@ -159,7 +159,9 @@ class InProcessChannel(ABC):
         except Exception as e:
             logger.error(f"{self.channel_id}: failed to queue response: {e}")
 
-    def push_response_threadsafe(self, response: ControlResponse, loop: asyncio.AbstractEventLoop) -> None:
+    def push_response_threadsafe(
+        self, response: ControlResponse, loop: asyncio.AbstractEventLoop
+    ) -> None:
         """
         Push a response to the queue from another thread.
 

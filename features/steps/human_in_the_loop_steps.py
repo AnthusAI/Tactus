@@ -24,7 +24,9 @@ class MockHITLHandler:
         """Set the response that will be returned."""
         self.next_response = response_value
 
-    def request_interaction(self, procedure_id: str, request: HITLRequest, execution_context=None) -> HITLResponse:
+    def request_interaction(
+        self, procedure_id: str, request: HITLRequest, execution_context=None
+    ) -> HITLResponse:
         """Handle interaction request with pre-configured response."""
         self.last_request = request
         self.pending_requests[procedure_id] = request

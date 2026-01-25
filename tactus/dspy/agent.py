@@ -1139,10 +1139,35 @@ class DSPyAgentHandle:
             def checkpoint_fn():
                 return self._execute_turn(opts)
 
-            return self.execution_context.checkpoint(checkpoint_fn, f"agent_{self.name}_turn")
+            result = self.execution_context.checkpoint(checkpoint_fn, f"agent_{self.name}_turn")
         else:
             # No checkpointing - execute directly
-            return self._execute_turn(opts)
+            result = self._execute_turn(opts)
+
+        # Mirror AgentHandle convenience for Lua patterns like `agent(); return agent.output`.
+        output_text = None
+        if result is not None:
+            for attr in ("response", "message"):
+                try:
+                    value = getattr(result, attr, None)
+                except Exception:
+                    value = None
+                if isinstance(value, str):
+                    output_text = value
+                    break
+
+            if output_text is None and isinstance(result, dict):
+                for key in ("response", "message"):
+                    value = result.get(key)
+                    if isinstance(value, str):
+                        output_text = value
+                        break
+
+            if output_text is None:
+                output_text = str(result)
+
+        self.output = output_text
+        return result
 
     def _execute_turn(self, opts: Dict[str, Any]) -> Any:
         """

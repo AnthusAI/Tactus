@@ -771,7 +771,10 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                     mcp_servers = merged_config.get("mcp_servers", {})
 
                     # Create HITL handler with SSE channel for IDE integration
-                    from tactus.adapters.control_loop import ControlLoopHandler, ControlLoopHITLAdapter
+                    from tactus.adapters.control_loop import (
+                        ControlLoopHandler,
+                        ControlLoopHITLAdapter,
+                    )
                     from tactus.adapters.channels import load_default_channels
 
                     # Load default channels (CLI + IPC) and add SSE channel
@@ -890,11 +893,15 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                                     f"Failed to deliver HITL request to IDE: {delivery.error_message}"
                                 )
 
-                            logger.info(f"[HITL] Request {request.request_id} delivered to IDE, waiting for response...")
+                            logger.info(
+                                f"[HITL] Request {request.request_id} delivered to IDE, waiting for response..."
+                            )
 
                             # Wait for response (with timeout) - run blocking wait in thread pool
                             timeout_seconds = request.timeout_seconds or 300  # 5 min default
-                            logger.info(f"[HITL] Starting wait for response (timeout={timeout_seconds}s)...")
+                            logger.info(
+                                f"[HITL] Starting wait for response (timeout={timeout_seconds}s)..."
+                            )
                             result = await asyncio.to_thread(
                                 response_event.wait, timeout=timeout_seconds
                             )
@@ -2002,13 +2009,19 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             import os
 
             # Build the checkpoint file path
-            storage_dir = PathLib(WORKSPACE_ROOT) / ".tac" / "storage" if WORKSPACE_ROOT else PathLib.home() / ".tactus" / "storage"
+            storage_dir = (
+                PathLib(WORKSPACE_ROOT) / ".tac" / "storage"
+                if WORKSPACE_ROOT
+                else PathLib.home() / ".tactus" / "storage"
+            )
             checkpoint_file = storage_dir / f"{procedure_id}.json"
 
             if checkpoint_file.exists():
                 os.remove(checkpoint_file)
                 logger.info(f"Cleared checkpoints for procedure: {procedure_id}")
-                return jsonify({"success": True, "message": f"Checkpoints cleared for {procedure_id}"})
+                return jsonify(
+                    {"success": True, "message": f"Checkpoints cleared for {procedure_id}"}
+                )
             else:
                 return jsonify({"success": True, "message": "No checkpoints found"}), 200
 
@@ -2363,6 +2376,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
         nonlocal _sse_channel
         if _sse_channel is None:
             from tactus.adapters.channels.sse import SSEControlChannel
+
             _sse_channel = SSEControlChannel()
         return _sse_channel
 
@@ -2441,12 +2455,15 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                     event = loop.run_until_complete(channel.get_next_event())
 
                     if event:
-                        logger.info(f"[HITL-SSE] Sending event to client: {event.get('type', 'unknown')}")
+                        logger.info(
+                            f"[HITL-SSE] Sending event to client: {event.get('type', 'unknown')}"
+                        )
                         yield f"data: {json.dumps(event)}\n\n"
                     else:
                         # Send keepalive comment every second if no events
                         yield ": keepalive\n\n"
                         import time
+
                         time.sleep(1)
 
             except GeneratorExit:

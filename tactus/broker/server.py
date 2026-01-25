@@ -114,9 +114,17 @@ class OpenAIChatBackend:
         if stream:
             logger.info("[LITELLM_BACKEND] LiteLLM streaming response started")
         else:
-            logger.info(f"[LITELLM_BACKEND] LiteLLM response: finish_reason={result.choices[0].finish_reason if result.choices else 'NO_CHOICES'}")
-            if result.choices and hasattr(result.choices[0].message, 'tool_calls') and result.choices[0].message.tool_calls:
-                logger.info(f"[LITELLM_BACKEND] LiteLLM returned {len(result.choices[0].message.tool_calls)} tool calls")
+            logger.info(
+                f"[LITELLM_BACKEND] LiteLLM response: finish_reason={result.choices[0].finish_reason if result.choices else 'NO_CHOICES'}"
+            )
+            if (
+                result.choices
+                and hasattr(result.choices[0].message, "tool_calls")
+                and result.choices[0].message.tool_calls
+            ):
+                logger.info(
+                    f"[LITELLM_BACKEND] LiteLLM returned {len(result.choices[0].message.tool_calls)} tool calls"
+                )
             else:
                 logger.info("[LITELLM_BACKEND] LiteLLM returned NO tool calls")
 
@@ -444,12 +452,20 @@ class _BaseBrokerServer:
 
                     # Accumulate tool calls from deltas
                     if delta_tool_calls:
-                        logger.info(f"[LITELLM_BACKEND] Received delta_tool_calls: {delta_tool_calls}")
+                        logger.info(
+                            f"[LITELLM_BACKEND] Received delta_tool_calls: {delta_tool_calls}"
+                        )
                         for tc_delta in delta_tool_calls:
                             idx = tc_delta.index
                             # Extend tool_calls_data list if needed
                             while len(tool_calls_data) <= idx:
-                                tool_calls_data.append({"id": "", "type": "function", "function": {"name": "", "arguments": ""}})
+                                tool_calls_data.append(
+                                    {
+                                        "id": "",
+                                        "type": "function",
+                                        "function": {"name": "", "arguments": ""},
+                                    }
+                                )
 
                             # Merge delta into accumulated tool call
                             if tc_delta.id:
@@ -458,12 +474,18 @@ class _BaseBrokerServer:
                                 tool_calls_data[idx]["type"] = tc_delta.type
                             if hasattr(tc_delta, "function") and tc_delta.function:
                                 if tc_delta.function.name:
-                                    tool_calls_data[idx]["function"]["name"] += tc_delta.function.name
+                                    tool_calls_data[idx]["function"][
+                                        "name"
+                                    ] += tc_delta.function.name
                                 if tc_delta.function.arguments:
-                                    tool_calls_data[idx]["function"]["arguments"] += tc_delta.function.arguments
+                                    tool_calls_data[idx]["function"][
+                                        "arguments"
+                                    ] += tc_delta.function.arguments
 
                 # Build final response data
-                logger.info(f"[LITELLM_BACKEND] Streaming complete. tool_calls_data={tool_calls_data}, full_text length={len(full_text)}")
+                logger.info(
+                    f"[LITELLM_BACKEND] Streaming complete. tool_calls_data={tool_calls_data}, full_text length={len(full_text)}"
+                )
                 done_data = {
                     "text": full_text,
                     "usage": {
@@ -504,14 +526,16 @@ class _BaseBrokerServer:
                 if hasattr(message, "tool_calls") and message.tool_calls:
                     tool_calls_data = []
                     for tc in message.tool_calls:
-                        tool_calls_data.append({
-                            "id": tc.id,
-                            "type": tc.type,
-                            "function": {
-                                "name": tc.function.name,
-                                "arguments": tc.function.arguments,
+                        tool_calls_data.append(
+                            {
+                                "id": tc.id,
+                                "type": tc.type,
+                                "function": {
+                                    "name": tc.function.name,
+                                    "arguments": tc.function.arguments,
+                                },
                             }
-                        })
+                        )
             except Exception:
                 text = ""
                 tool_calls_data = None
@@ -646,7 +670,10 @@ class _BaseBrokerServer:
                 {
                     "id": req_id,
                     "event": "error",
-                    "error": {"type": "NoControlHandler", "message": "No control handler configured"},
+                    "error": {
+                        "type": "NoControlHandler",
+                        "message": "No control handler configured",
+                    },
                 },
             )
             return
@@ -670,7 +697,11 @@ class _BaseBrokerServer:
             logger.debug("[BROKER] control.request handler raised", exc_info=True)
             await _write_event_anyio(
                 byte_stream,
-                {"id": req_id, "event": "error", "error": {"type": type(e).__name__, "message": str(e)}},
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {"type": type(e).__name__, "message": str(e)},
+                },
             )
 
     async def _handle_llm_chat(
@@ -751,12 +782,20 @@ class _BaseBrokerServer:
 
                     # Accumulate tool calls from deltas
                     if delta_tool_calls:
-                        logger.info(f"[LITELLM_BACKEND] Received delta_tool_calls: {delta_tool_calls}")
+                        logger.info(
+                            f"[LITELLM_BACKEND] Received delta_tool_calls: {delta_tool_calls}"
+                        )
                         for tc_delta in delta_tool_calls:
                             idx = tc_delta.index
                             # Extend tool_calls_data list if needed
                             while len(tool_calls_data) <= idx:
-                                tool_calls_data.append({"id": "", "type": "function", "function": {"name": "", "arguments": ""}})
+                                tool_calls_data.append(
+                                    {
+                                        "id": "",
+                                        "type": "function",
+                                        "function": {"name": "", "arguments": ""},
+                                    }
+                                )
 
                             # Merge delta into accumulated tool call
                             if tc_delta.id:
@@ -765,12 +804,18 @@ class _BaseBrokerServer:
                                 tool_calls_data[idx]["type"] = tc_delta.type
                             if hasattr(tc_delta, "function") and tc_delta.function:
                                 if tc_delta.function.name:
-                                    tool_calls_data[idx]["function"]["name"] += tc_delta.function.name
+                                    tool_calls_data[idx]["function"][
+                                        "name"
+                                    ] += tc_delta.function.name
                                 if tc_delta.function.arguments:
-                                    tool_calls_data[idx]["function"]["arguments"] += tc_delta.function.arguments
+                                    tool_calls_data[idx]["function"][
+                                        "arguments"
+                                    ] += tc_delta.function.arguments
 
                 # Build final response data
-                logger.info(f"[LITELLM_BACKEND] Streaming complete. tool_calls_data={tool_calls_data}, full_text length={len(full_text)}")
+                logger.info(
+                    f"[LITELLM_BACKEND] Streaming complete. tool_calls_data={tool_calls_data}, full_text length={len(full_text)}"
+                )
                 done_data = {
                     "text": full_text,
                     "usage": {
@@ -811,14 +856,16 @@ class _BaseBrokerServer:
                 if hasattr(message, "tool_calls") and message.tool_calls:
                     tool_calls_data = []
                     for tc in message.tool_calls:
-                        tool_calls_data.append({
-                            "id": tc.id,
-                            "type": tc.type,
-                            "function": {
-                                "name": tc.function.name,
-                                "arguments": tc.function.arguments,
+                        tool_calls_data.append(
+                            {
+                                "id": tc.id,
+                                "type": tc.type,
+                                "function": {
+                                    "name": tc.function.name,
+                                    "arguments": tc.function.arguments,
+                                },
                             }
-                        })
+                        )
             except Exception:
                 text = ""
                 tool_calls_data = None
@@ -1192,7 +1239,9 @@ class BrokerServer(_BaseBrokerServer):
                 else:
                     logger.warning("[BROKER_SERVER] No tool_choice to add")
 
-                logger.info(f"[BROKER_SERVER] Calling backend.chat() with {len(chat_kwargs)} kwargs: {list(chat_kwargs.keys())}")
+                logger.info(
+                    f"[BROKER_SERVER] Calling backend.chat() with {len(chat_kwargs)} kwargs: {list(chat_kwargs.keys())}"
+                )
                 stream_iter = await self._openai.chat(**chat_kwargs)
 
                 full_text = ""
@@ -1212,12 +1261,20 @@ class BrokerServer(_BaseBrokerServer):
 
                     # Accumulate tool calls from deltas
                     if delta_tool_calls:
-                        logger.info(f"[LITELLM_BACKEND] Received delta_tool_calls: {delta_tool_calls}")
+                        logger.info(
+                            f"[LITELLM_BACKEND] Received delta_tool_calls: {delta_tool_calls}"
+                        )
                         for tc_delta in delta_tool_calls:
                             idx = tc_delta.index
                             # Extend tool_calls_data list if needed
                             while len(tool_calls_data) <= idx:
-                                tool_calls_data.append({"id": "", "type": "function", "function": {"name": "", "arguments": ""}})
+                                tool_calls_data.append(
+                                    {
+                                        "id": "",
+                                        "type": "function",
+                                        "function": {"name": "", "arguments": ""},
+                                    }
+                                )
 
                             # Merge delta into accumulated tool call
                             if tc_delta.id:
@@ -1226,12 +1283,18 @@ class BrokerServer(_BaseBrokerServer):
                                 tool_calls_data[idx]["type"] = tc_delta.type
                             if hasattr(tc_delta, "function") and tc_delta.function:
                                 if tc_delta.function.name:
-                                    tool_calls_data[idx]["function"]["name"] += tc_delta.function.name
+                                    tool_calls_data[idx]["function"][
+                                        "name"
+                                    ] += tc_delta.function.name
                                 if tc_delta.function.arguments:
-                                    tool_calls_data[idx]["function"]["arguments"] += tc_delta.function.arguments
+                                    tool_calls_data[idx]["function"][
+                                        "arguments"
+                                    ] += tc_delta.function.arguments
 
                 # Build final response data
-                logger.info(f"[LITELLM_BACKEND] Streaming complete. tool_calls_data={tool_calls_data}, full_text length={len(full_text)}")
+                logger.info(
+                    f"[LITELLM_BACKEND] Streaming complete. tool_calls_data={tool_calls_data}, full_text length={len(full_text)}"
+                )
                 done_data = {
                     "text": full_text,
                     "usage": {
@@ -1279,14 +1342,16 @@ class BrokerServer(_BaseBrokerServer):
                 if hasattr(message, "tool_calls") and message.tool_calls:
                     tool_calls_data = []
                     for tc in message.tool_calls:
-                        tool_calls_data.append({
-                            "id": tc.id,
-                            "type": tc.type,
-                            "function": {
-                                "name": tc.function.name,
-                                "arguments": tc.function.arguments,
+                        tool_calls_data.append(
+                            {
+                                "id": tc.id,
+                                "type": tc.type,
+                                "function": {
+                                    "name": tc.function.name,
+                                    "arguments": tc.function.arguments,
+                                },
                             }
-                        })
+                        )
             except Exception:
                 text = ""
                 tool_calls_data = None

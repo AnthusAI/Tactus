@@ -824,25 +824,40 @@ def run(
                 result = asyncio.run(runtime.execute(source_content, context, format=file_format))
             except Exception as e:
                 from tactus.core.exceptions import ProcedureWaitingForHuman
+
                 # Check both the exception itself and its __cause__
                 console.print(f"[dim]DEBUG: Caught exception type: {type(e).__name__}[/dim]")
-                console.print(f"[dim]DEBUG: Exception __cause__ type: {type(e.__cause__).__name__ if e.__cause__ else 'None'}[/dim]")
-                console.print(f"[dim]DEBUG: Is ProcedureWaitingForHuman: {isinstance(e, ProcedureWaitingForHuman)}[/dim]")
-                console.print(f"[dim]DEBUG: __cause__ is ProcedureWaitingForHuman: {isinstance(e.__cause__, ProcedureWaitingForHuman) if e.__cause__ else False}[/dim]")
+                console.print(
+                    f"[dim]DEBUG: Exception __cause__ type: {type(e.__cause__).__name__ if e.__cause__ else 'None'}[/dim]"
+                )
+                console.print(
+                    f"[dim]DEBUG: Is ProcedureWaitingForHuman: {isinstance(e, ProcedureWaitingForHuman)}[/dim]"
+                )
+                console.print(
+                    f"[dim]DEBUG: __cause__ is ProcedureWaitingForHuman: {isinstance(e.__cause__, ProcedureWaitingForHuman) if e.__cause__ else False}[/dim]"
+                )
 
                 if isinstance(e, ProcedureWaitingForHuman):
                     # Direct exception
-                    console.print("\n[yellow]⏸ Procedure paused - waiting for human response[/yellow]")
+                    console.print(
+                        "\n[yellow]⏸ Procedure paused - waiting for human response[/yellow]"
+                    )
                     console.print(f"[dim]Message ID: {e.pending_message_id}[/dim]")
                     console.print("\n[cyan]The procedure has been paused and is waiting for input.")
-                    console.print("To resume, run the procedure again or provide a response via another channel.[/cyan]\n")
+                    console.print(
+                        "To resume, run the procedure again or provide a response via another channel.[/cyan]\n"
+                    )
                     return
                 elif e.__cause__ and isinstance(e.__cause__, ProcedureWaitingForHuman):
                     # Wrapped exception
-                    console.print("\n[yellow]⏸ Procedure paused - waiting for human response[/yellow]")
+                    console.print(
+                        "\n[yellow]⏸ Procedure paused - waiting for human response[/yellow]"
+                    )
                     console.print(f"[dim]Message ID: {e.__cause__.pending_message_id}[/dim]")
                     console.print("\n[cyan]The procedure has been paused and is waiting for input.")
-                    console.print("To resume, run the procedure again or provide a response via another channel.[/cyan]\n")
+                    console.print(
+                        "To resume, run the procedure again or provide a response via another channel.[/cyan]\n"
+                    )
                     return
                 else:
                     # Re-raise other exceptions
@@ -2391,19 +2406,17 @@ def stdlib_test(
 # Control Command
 # =============================================================================
 
+
 @app.command()
 def control(
     socket_path: Optional[str] = typer.Option(
         None,
         "--socket",
         "-s",
-        help="Path to runtime's Unix socket (default: auto-detect from /tmp/tactus-control-*.sock)"
+        help="Path to runtime's Unix socket (default: auto-detect from /tmp/tactus-control-*.sock)",
     ),
     auto_respond: Optional[str] = typer.Option(
-        None,
-        "--respond",
-        "-r",
-        help="Auto-respond with this value (for testing)"
+        None, "--respond", "-r", help="Auto-respond with this value (for testing)"
     ),
 ):
     """
@@ -2436,7 +2449,11 @@ def control(
             for i, path in enumerate(socket_files, 1):
                 console.print(f"  [{i}] {path}")
             console.print()
-            selection = Prompt.ask("Select socket", choices=[str(i) for i in range(1, len(socket_files) + 1)], default="1")
+            selection = Prompt.ask(
+                "Select socket",
+                choices=[str(i) for i in range(1, len(socket_files) + 1)],
+                default="1",
+            )
             socket_path = socket_files[int(selection) - 1]
 
     # Run control CLI
