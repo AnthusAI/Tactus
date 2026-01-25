@@ -102,13 +102,22 @@ Tactus runs procedures in Docker containers by default for security isolation. Y
 ```yaml
 # ~/.tactus/config.yml or .tactus/config.yml
 sandbox:
-  enabled: true                    # Default: true (if Docker available)
+  enabled: true                    # Default (CLI): require Docker sandbox
   image: "tactus-sandbox:local"    # Docker image name (auto-built on first use)
   timeout: 3600                    # Max execution time in seconds (default: 1 hour)
   mcp_servers_path: "~/.tactus/mcp-servers"  # Path to MCP servers
 ```
 
-**Note**: If Docker is unavailable and `enabled: true`, execution will fail with an error. Use `--no-sandbox` flag or `enabled: false` to explicitly run without isolation.
+**Note**: If Docker is unavailable and `enabled: true`, execution will fail with an error. Use `--no-sandbox` or set `enabled: false` to explicitly run without isolation.
+
+### Sandbox Image Build Modes
+
+Tactus auto-builds the sandbox image the first time you run a procedure with Docker:
+
+- **Source tree available**: the image bakes in the local Tactus source.
+- **PyPI install only**: the image installs the same published Tactus version from PyPI.
+
+This means `pip install tactus` plus `Tactus-examples` works without needing a full Tactus repo checkout.
 
 ### Resource Limits
 

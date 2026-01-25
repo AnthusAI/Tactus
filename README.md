@@ -449,6 +449,8 @@ See [docs/TOOLS.md](docs/TOOLS.md) for the complete tools reference.
 pip install tactus
 ```
 
+**Docker required by default:** `tactus run` uses a Docker sandbox for isolation and will error if Docker is not available. Use `--no-sandbox` (or set `sandbox.enabled: false` in config) to opt out when your architecture does not require container isolation.
+
 ### Your First Procedure
 
 Create `hello.tac`:

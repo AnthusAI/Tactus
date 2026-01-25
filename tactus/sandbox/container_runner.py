@@ -20,7 +20,11 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 from .config import SandboxConfig
-from .docker_manager import DockerManager, calculate_source_hash
+from .docker_manager import (
+    DockerManager,
+    calculate_source_hash,
+    resolve_dockerfile_path,
+)
 from .protocol import (
     ExecutionRequest,
     ExecutionResult,
@@ -146,14 +150,16 @@ class ContainerRunner:
         # container_runner.py is in tactus/sandbox/, so root is 2 levels up
         tactus_root = Path(__file__).parent.parent.parent
 
-        current_hash = calculate_source_hash(tactus_root)
+        dockerfile_path, build_mode = resolve_dockerfile_path(tactus_root)
+        current_hash = None
+        if build_mode == "source":
+            current_hash = calculate_source_hash(tactus_root)
+        else:
+            logger.info("[SANDBOX] No source tree detected, using PyPI-based sandbox image build")
 
         # Check if rebuild is needed
         if self.docker_manager.needs_rebuild(__version__, current_hash):
-            logger.info("Code changes detected, rebuilding sandbox...")
-
-            # Get paths
-            dockerfile_path = tactus_root / "tactus" / "docker" / "Dockerfile"
+            logger.info("Sandbox image missing or outdated, rebuilding...")
 
             # Build with source hash
             success, msg = self.docker_manager.build_image(

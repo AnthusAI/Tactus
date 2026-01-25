@@ -18,6 +18,26 @@ DEFAULT_IMAGE_NAME = "tactus-sandbox"
 DEFAULT_IMAGE_TAG = "local"
 
 
+def resolve_dockerfile_path(tactus_root: Path) -> Tuple[Path, str]:
+    """
+    Choose the appropriate Dockerfile for the sandbox build.
+
+    Returns:
+        Tuple of (dockerfile_path, build_mode) where build_mode is "source" or "pypi".
+    """
+    docker_dir = tactus_root / "tactus" / "docker"
+    source_dockerfile = docker_dir / "Dockerfile"
+    pypi_dockerfile = docker_dir / "Dockerfile.pypi"
+    has_source_tree = (tactus_root / "pyproject.toml").exists() and (
+        tactus_root / "README.md"
+    ).exists()
+
+    if has_source_tree or not pypi_dockerfile.exists():
+        return source_dockerfile, "source"
+
+    return pypi_dockerfile, "pypi"
+
+
 def calculate_source_hash(tactus_root: Path) -> str:
     """
     Calculate hash of Tactus source files for change detection.
@@ -284,6 +304,8 @@ class DockerManager:
             self.full_image_name,
             "-f",
             str(dockerfile_path),
+            "--build-arg",
+            f"TACTUS_VERSION={version}",
             "--label",
             f"tactus.version={version}",
         ]

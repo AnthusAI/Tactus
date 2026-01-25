@@ -90,7 +90,7 @@ Docker sandboxing provides **OS-level isolation** for Tactus agent execution. Th
 ## Quick Start
 
 \`\`\`bash
-# Runs in Docker by default (if Docker available)
+# Runs in Docker by default (errors if Docker is unavailable)
 tactus run my-agent.tac
 
 # Check sandbox status
@@ -99,6 +99,8 @@ tactus sandbox status
 # Rebuild sandbox image
 tactus sandbox rebuild
 \`\`\`
+
+**When installed from PyPI:** the sandbox image is built by installing the same Tactus version from PyPI inside the container. When a local source tree is available, the image bakes in that source instead.
 
 ## What It Protects Against
 - Agents reading/modifying files on your host system

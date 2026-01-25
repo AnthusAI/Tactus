@@ -269,6 +269,12 @@ Only rebuild when:
 
 See [docs/development-mode.md](docs/development-mode.md) for complete details.
 
+### Docker Sandbox Defaults (CLI)
+
+- The CLI requires Docker sandboxing by default. If Docker is unavailable, `tactus run` should error rather than silently running without isolation.
+- Easy opt-out is explicit: `--no-sandbox` or `sandbox.enabled: false`.
+- For PyPI installs without a local source tree, the sandbox image builds by installing the matching Tactus version from PyPI inside the container.
+
 ## Tactus IDE Development
 
 When working on the Tactus IDE:

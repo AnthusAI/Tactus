@@ -627,6 +627,10 @@ def run(
     if sandbox is not None:
         # CLI flag overrides config
         sandbox_config_dict["enabled"] = sandbox
+    else:
+        # CLI default: require sandbox unless explicitly disabled
+        if sandbox_config_dict.get("enabled") is None:
+            sandbox_config_dict["enabled"] = True
     if sandbox_network is not None:
         sandbox_config_dict["network"] = sandbox_network
     if sandbox_broker_host is not None:
@@ -942,6 +946,7 @@ def sandbox_rebuild(
     """
     from pathlib import Path
     from tactus.sandbox import is_docker_available, DockerManager
+    from tactus.sandbox.docker_manager import resolve_dockerfile_path
     import tactus
 
     # Check Docker availability
@@ -952,7 +957,7 @@ def sandbox_rebuild(
 
     # Get Tactus package path for build context
     tactus_path = Path(tactus.__file__).parent.parent
-    dockerfile_path = tactus_path / "tactus" / "docker" / "Dockerfile"
+    dockerfile_path, build_mode = resolve_dockerfile_path(tactus_path)
 
     if not dockerfile_path.exists():
         console.print(f"[red]Error:[/red] Dockerfile not found: {dockerfile_path}")
@@ -976,6 +981,10 @@ def sandbox_rebuild(
     console.print(f"[blue]Building sandbox image:[/blue] {manager.full_image_name}")
     console.print(f"[dim]Version: {version}[/dim]")
     console.print(f"[dim]Context: {tactus_path}[/dim]\n")
+    if build_mode == "pypi":
+        console.print(
+            "[yellow]No source tree detected; building image by installing tactus from PyPI.[/yellow]"
+        )
 
     success, message = manager.build_image(
         dockerfile_path=dockerfile_path,
