@@ -103,6 +103,10 @@ def load_custom_steps_in_context(test_context: Any) -> Dict[str, Any]:
             ),
             "registry": runtime.registry if hasattr(runtime, "registry") else None,
             "log_handler": runtime.log_handler if hasattr(runtime, "log_handler") else None,
+            "mock_manager": runtime.mock_manager if hasattr(runtime, "mock_manager") else None,
+            "tool_primitive": (
+                runtime.tool_primitive if hasattr(runtime, "tool_primitive") else None
+            ),
             "_created_agents": {},
         },
     )
