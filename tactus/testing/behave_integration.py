@@ -90,12 +90,20 @@ def load_custom_steps_in_context(test_context: Any) -> Dict[str, Any]:
     # Create a new builder to capture custom steps
     builder = RegistryBuilder()
 
+    # Ensure a mock manager exists so Mocks {} in spec files can be applied
+    # during custom step execution, even when tests are not in mocked mode.
+    mock_manager = runtime.mock_manager if hasattr(runtime, "mock_manager") else None
+    if mock_manager is None:
+        from tactus.core.mocking import MockManager
+
+        mock_manager = MockManager()
+
     # Create DSL stubs connected to the runtime
     # We pass the runtime's existing components including execution_context
     stubs = create_dsl_stubs(
         builder,
         tool_primitive=runtime.tool_primitive if hasattr(runtime, "tool_primitive") else None,
-        mock_manager=runtime.mock_manager if hasattr(runtime, "mock_manager") else None,
+        mock_manager=mock_manager,
         runtime_context={
             "runtime": runtime,
             "execution_context": (
@@ -103,7 +111,7 @@ def load_custom_steps_in_context(test_context: Any) -> Dict[str, Any]:
             ),
             "registry": runtime.registry if hasattr(runtime, "registry") else None,
             "log_handler": runtime.log_handler if hasattr(runtime, "log_handler") else None,
-            "mock_manager": runtime.mock_manager if hasattr(runtime, "mock_manager") else None,
+            "mock_manager": mock_manager,
             "tool_primitive": (
                 runtime.tool_primitive if hasattr(runtime, "tool_primitive") else None
             ),
