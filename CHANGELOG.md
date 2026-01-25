@@ -2,6 +2,126 @@
 
 <!-- version list -->
 
+## v0.34.0 (2026-01-25)
+
+### Bug Fixes
+
+- Address ruff warnings
+  ([`8523ff0`](https://github.com/AnthusAI/Tactus/commit/8523ff0fb54a3cc961869cb243c27efca84fcd9b))
+
+- Clarify sandbox defaults and CLI failures
+  ([`1bdc1d9`](https://github.com/AnthusAI/Tactus/commit/1bdc1d9a5d9552a1972845646248746f2dfa35e6))
+
+- Enable agent tool calling with DSPy native function calling
+  ([`a76ea99`](https://github.com/AnthusAI/Tactus/commit/a76ea99d79732f6e39e242e733c3918cf7aca76c))
+
+- Enable mocks for custom steps
+  ([`b777f6b`](https://github.com/AnthusAI/Tactus/commit/b777f6b033f297ef6dc5ceae262a41b56d11b680))
+
+- Enable real-time streaming for IDE agent responses
+  ([`55266d7`](https://github.com/AnthusAI/Tactus/commit/55266d7b840bfa52121ec76a8353dd8d074f9760))
+
+- Enforce sandbox defaults and PyPI image build
+  ([`af17c15`](https://github.com/AnthusAI/Tactus/commit/af17c15d384cc475cb5128fcf0776eba522880ba))
+
+- Make Classify primitive deterministic in BDD
+  ([`0c58e55`](https://github.com/AnthusAI/Tactus/commit/0c58e554b46653abfa834d1a536ac964290428f4))
+
+- Mock LLM classify examples in BDD
+  ([`8277d3e`](https://github.com/AnthusAI/Tactus/commit/8277d3e99f8612bf3d65447ebe451f75337da715))
+
+- Pass mock manager into BDD runtime context
+  ([`76fd440`](https://github.com/AnthusAI/Tactus/commit/76fd4408e9afc58bf9c3116b25605f7ac0d30d89))
+
+- Register generate agent mocks
+  ([`6faf28c`](https://github.com/AnthusAI/Tactus/commit/6faf28c9f289eb45b633ae11d8a0e02311023c74))
+
+- Stabilize stdlib generate specs
+  ([`e6a00cb`](https://github.com/AnthusAI/Tactus/commit/e6a00cb494756ff5eeb07f3b55ec1a8e875a06ba))
+
+- Update dependencies and improve CI configuration
+  ([`a063fa5`](https://github.com/AnthusAI/Tactus/commit/a063fa59272e2192305c8a7806185f8fcb0bcafd))
+
+- Update MockHITLHandler to accept execution_context parameter
+  ([`14cd888`](https://github.com/AnthusAI/Tactus/commit/14cd888a4a6cdd05457158cb904a07cb14df4bb8))
+
+### Chores
+
+- Report stdlib scenario failures
+  ([`7aa5093`](https://github.com/AnthusAI/Tactus/commit/7aa5093a7e98c217e32c3483d39e7d44820c24da))
+
+### Code Style
+
+- Apply black 26.1.0 formatting
+  ([`d189f41`](https://github.com/AnthusAI/Tactus/commit/d189f4121ead45b4bb44599a9def9c40ef7c1983))
+
+### Documentation
+
+- Add brand theme and visual design policies
+  ([`ca2ea2d`](https://github.com/AnthusAI/Tactus/commit/ca2ea2d388179b5bea4d4a4650b896d20fa7f974))
+
+- Comprehensive checkpoint/resume testing summary
+  ([`54b9ec9`](https://github.com/AnthusAI/Tactus/commit/54b9ec998492ab31e6065a4ae3777b7d5f1ece59))
+
+- Document LLM checkpointing implementation
+  ([`3906604`](https://github.com/AnthusAI/Tactus/commit/3906604e7f887a4cfe2e4e6557162527b61382d0))
+
+- Mark Phase 2 complete, ready for Phase 3 IDE/SSE channel
+  ([`8db044e`](https://github.com/AnthusAI/Tactus/commit/8db044e111f1a5d348179c54fe3b24be515ea7d9))
+
+- Mark Test 3 (LLM Checkpoint/Resume) complete
+  ([`6eb0043`](https://github.com/AnthusAI/Tactus/commit/6eb00435039a2d37107579eb5ab4c3a07374a46c))
+
+- Update checkpoint testing status - Test 2 complete
+  ([`b5b4bd8`](https://github.com/AnthusAI/Tactus/commit/b5b4bd818aaeb84a766c58ce9b0403e70b2899b5))
+
+- Update status to Phase 4 testing, remove emojis
+  ([`1392959`](https://github.com/AnthusAI/Tactus/commit/139295971b2575f26e4ee41ac2e243f7d65a5c24))
+
+### Features
+
+- Add modal cancellation handling with reopen capability
+  ([`392660c`](https://github.com/AnthusAI/Tactus/commit/392660ca4a693975bbc463e38e3323ed9e53113a))
+
+- Complete IDE HITL integration with SSE channel
+  ([`5bf5e41`](https://github.com/AnthusAI/Tactus/commit/5bf5e4106a90b291cf6d331cd43e6f6c0fd1c9d8))
+
+- Complete Phase 2 runtime integration with rich metadata
+  ([`b265eb9`](https://github.com/AnthusAI/Tactus/commit/b265eb9b2bbb9f9e79b990b1c7664b6e0a547407))
+
+- Complete unified HITL component registry architecture
+  ([`4005ae7`](https://github.com/AnthusAI/Tactus/commit/4005ae7baa70c6bba18c9b14fc57dfc05f0d4f4a))
+
+- Enable real-time container HITL and event streaming
+  ([`a6e49ff`](https://github.com/AnthusAI/Tactus/commit/a6e49ff2bac5cae149bd4595c632e6b0b4863250))
+
+- Implement DSPy native tool calling with Pydantic AI toolsets
+  ([`f061f37`](https://github.com/AnthusAI/Tactus/commit/f061f374babbb15aaa2ba145ebffd536f2c02f55))
+
+- Implement inline rendering for batched HITL inputs with registry architecture
+  ([`9b520ba`](https://github.com/AnthusAI/Tactus/commit/9b520ba242afd15f26f452c0d41a59e864cb7bbe))
+
+- Implement LLM checkpointing for transparent durability
+  ([`15c0139`](https://github.com/AnthusAI/Tactus/commit/15c0139028f1c9da7eb7900450113ccf37871e93))
+
+- Transparent durability for HITL with checkpoint/resume
+  ([`46a3791`](https://github.com/AnthusAI/Tactus/commit/46a3791d6e8c130eb29e156ef029de2bb9ad3ced))
+
+- **stdlib**: Implement standard library with classify, extract, and generate modules
+  ([`a274a1e`](https://github.com/AnthusAI/Tactus/commit/a274a1e4407ff07eb51ca16f60403b1b4757b522))
+
+### Testing
+
+- Add LLM checkpoint/resume test procedure
+  ([`88e06e5`](https://github.com/AnthusAI/Tactus/commit/88e06e56f21cbefe8f03491a74f545514eb88796))
+
+- Add Test 4 and Test 5 procedures
+  ([`d181355`](https://github.com/AnthusAI/Tactus/commit/d181355b9e4233fb54e9894b3f109f8dcfdefb6b))
+
+- Add Tests 6-8 procedures and manual testing guide
+  ([`9c27030`](https://github.com/AnthusAI/Tactus/commit/9c270305fc73036e4bb180ddccaf5f6f8291da7a))
+
+
 ## v0.33.0 (2026-01-18)
 
 ### Documentation
