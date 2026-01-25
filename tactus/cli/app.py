@@ -31,7 +31,6 @@ from tactus.validation import TactusValidator, ValidationMode
 from tactus.formatting import TactusFormatter, FormattingError
 from tactus.adapters.memory import MemoryStorage
 from tactus.adapters.file_storage import FileStorage
-from tactus.adapters.cli_hitl import CLIHITLHandler
 
 # Setup rich console for pretty output
 console = Console()

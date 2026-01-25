@@ -9,11 +9,9 @@ requiring separate processes (e.g., Discord WebSocket gateway).
 import asyncio
 import logging
 from abc import ABC, abstractmethod
-from typing import AsyncIterator, Optional
-from datetime import datetime, timezone
+from typing import AsyncIterator
 
 from tactus.protocols.control import (
-    ControlChannel,
     ControlRequest,
     ControlResponse,
     ChannelCapabilities,

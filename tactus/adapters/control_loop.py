@@ -10,7 +10,6 @@ Supports both human-in-the-loop (HITL) and model-in-the-loop (MITL) controllers.
 import asyncio
 import logging
 import uuid
-import sys
 from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
 
@@ -21,7 +20,6 @@ from tactus.protocols.control import (
     ControlResponse,
     ControlRequestType,
     ControlOption,
-    ChannelCapabilities,
     DeliveryResult,
     RuntimeContext,
     BacktraceEntry,

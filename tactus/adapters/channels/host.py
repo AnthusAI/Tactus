@@ -15,13 +15,12 @@ import asyncio
 import logging
 import threading
 from abc import abstractmethod
-from typing import Optional, List
+from typing import Optional
 from datetime import datetime, timezone
 
 from tactus.protocols.control import (
     ControlRequest,
     ControlResponse,
-    ControlOption,
     ChannelCapabilities,
     DeliveryResult,
 )

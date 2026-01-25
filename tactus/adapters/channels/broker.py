@@ -5,7 +5,6 @@ Used inside Docker containers to forward control requests through the broker
 to the host's SSE channel (or other host-side control channels).
 """
 
-import asyncio
 import logging
 import os
 from datetime import datetime, timezone

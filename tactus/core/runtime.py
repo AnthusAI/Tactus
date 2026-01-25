@@ -963,7 +963,7 @@ class TactusRuntime:
         sys.stderr.write("\n\n===  DSL TOOLSET REGISTRATION START ===\n")
         sys.stderr.write(f"Has registry: {hasattr(self, 'registry')}\n")
         if hasattr(self, 'registry') and self.registry:
-            sys.stderr.write(f"Registry is not None: True\n")
+            sys.stderr.write("Registry is not None: True\n")
             sys.stderr.write(f"Registry has toolsets attr: {hasattr(self.registry, 'toolsets')}\n")
             if hasattr(self.registry, "toolsets"):
                 sys.stderr.write(f"Registry toolsets: {list(self.registry.toolsets.keys())}\n")

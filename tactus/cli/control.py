@@ -13,15 +13,12 @@ import asyncio
 import logging
 import sys
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Dict, List, Optional
 
 from rich.console import Console
-from rich.live import Live
 from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
 from rich.table import Table
-from rich.text import Text
 
 from tactus.broker.protocol import read_message, write_message
 

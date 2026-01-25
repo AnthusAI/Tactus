@@ -10,8 +10,7 @@ import logging
 import os
 import uuid
 from datetime import datetime
-from pathlib import Path
-from typing import Dict, List, Optional, Set
+from typing import Dict, Optional
 
 from tactus.broker.protocol import read_message, write_message
 from tactus.protocols.control import ControlRequest, ControlResponse, ChannelCapabilities, DeliveryResult
@@ -222,7 +221,6 @@ class IPCControlChannel:
             writer: asyncio StreamWriter
         """
         client_id = str(uuid.uuid4())[:8]
-        addr = writer.get_extra_info('peername', 'unknown')
 
         logger.info(f"{self.channel_id}: client connected ({client_id})")
 

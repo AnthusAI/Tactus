@@ -508,6 +508,7 @@ class ContainerRunner:
                         timeout=self.config.timeout,
                         event_handler=event_handler,
                         control_handler=control_handler,
+                        llm_backend_config=llm_backend_config,
                     )
                 finally:
                     # Cancel broker task when container finishes
@@ -523,6 +524,7 @@ class ContainerRunner:
                     timeout=self.config.timeout,
                     event_handler=event_handler,
                     control_handler=control_handler,
+                    llm_backend_config=llm_backend_config,
                 )
 
             result.duration_seconds = time.time() - start_time
@@ -560,6 +562,7 @@ class ContainerRunner:
         timeout: int,
         event_handler: Optional[Callable[[Dict[str, Any]], None]] = None,
         control_handler: Optional[Callable[[dict], Any]] = None,
+        llm_backend_config: Optional[Dict[str, Any]] = None,
     ) -> ExecutionResult:
         """
         Run the container and communicate via stdio.

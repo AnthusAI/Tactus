@@ -6,7 +6,6 @@ Uses Rich for formatting and the host channel pattern for interruptibility.
 """
 
 import sys
-import select
 import logging
 from typing import Optional, Any
 from datetime import datetime, timezone

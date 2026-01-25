@@ -129,7 +129,7 @@ class HumanPrimitive:
 
         # CRITICAL: Wrap HITL call in checkpoint for transparent durability
         # This allows kill/resume to work - procedure can be restarted and will resume from this point
-        logger.debug(f"[CHECKPOINT] Creating checkpoint for Human.approve(), type=hitl_approval")
+        logger.debug("[CHECKPOINT] Creating checkpoint for Human.approve(), type=hitl_approval")
         def checkpoint_fn():
             return self.execution_context.wait_for_human(
                 request_type="approval",

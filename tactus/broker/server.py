@@ -112,13 +112,13 @@ class OpenAIChatBackend:
         result = await litellm.acompletion(**kwargs)
 
         if stream:
-            logger.info(f"[LITELLM_BACKEND] LiteLLM streaming response started")
+            logger.info("[LITELLM_BACKEND] LiteLLM streaming response started")
         else:
             logger.info(f"[LITELLM_BACKEND] LiteLLM response: finish_reason={result.choices[0].finish_reason if result.choices else 'NO_CHOICES'}")
             if result.choices and hasattr(result.choices[0].message, 'tool_calls') and result.choices[0].message.tool_calls:
                 logger.info(f"[LITELLM_BACKEND] LiteLLM returned {len(result.choices[0].message.tool_calls)} tool calls")
             else:
-                logger.info(f"[LITELLM_BACKEND] LiteLLM returned NO tool calls")
+                logger.info("[LITELLM_BACKEND] LiteLLM returned NO tool calls")
 
         return result
 
