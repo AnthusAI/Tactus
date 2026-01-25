@@ -1,0 +1,9 @@
+{
+  "name": "@anthus/tactus-hitl-components",
+  "version": "0.1.0",
+  "description": "Local fallback for Tactus HITL components",
+  "main": "src/index.tsx",
+  "types": "src/index.tsx",
+  "style": "src/styles.css",
+  "private": true
+}

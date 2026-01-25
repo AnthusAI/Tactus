@@ -18,8 +18,14 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@anthus/tactus-hitl-components": ["../../../Tactus-HITL-components/src/index.ts"],
-      "@anthus/tactus-hitl-components/*": ["../../../Tactus-HITL-components/src/*"]
+      "@anthus/tactus-hitl-components": [
+        "../../../Tactus-HITL-components/src/index.ts",
+        "./vendor/tactus-hitl-components/src/index.ts"
+      ],
+      "@anthus/tactus-hitl-components/*": [
+        "../../../Tactus-HITL-components/src/*",
+        "./vendor/tactus-hitl-components/src/*"
+      ]
     },
 
     /* Linting */
@@ -31,7 +37,6 @@
   "include": ["src"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
-
 
 
 

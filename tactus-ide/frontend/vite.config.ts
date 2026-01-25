@@ -1,7 +1,20 @@
 /// <reference types="vitest/config" />
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import fs from 'fs';
 import path from 'path';
+
+const hitlComponentsRoot = path.resolve(
+  __dirname,
+  '../../../Tactus-HITL-components/src'
+);
+const hitlComponentsFallback = path.resolve(
+  __dirname,
+  './vendor/tactus-hitl-components/src'
+);
+const hitlComponentsPath = fs.existsSync(hitlComponentsRoot)
+  ? hitlComponentsRoot
+  : hitlComponentsFallback;
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -9,10 +22,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-      '@anthus/tactus-hitl-components': path.resolve(
-        __dirname,
-        '../../../Tactus-HITL-components/src'
-      ),
+      '@anthus/tactus-hitl-components': hitlComponentsPath,
     }
   },
   server: {
@@ -25,4 +35,3 @@ export default defineConfig({
     }
   }
 });
-
