@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.34.1 (2026-01-25)
+
+### Bug Fixes
+
+- Add local HITL components fallback
+  ([`ddda4cd`](https://github.com/AnthusAI/Tactus/commit/ddda4cdb304a0e1d52007bc98e60fb45d00cc166))
+
+
 ## v0.34.0 (2026-01-25)
 
 ### Bug Fixes
