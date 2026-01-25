@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import { AnyEvent } from '@/types/events';
 
 interface StreamState {
@@ -18,6 +19,44 @@ interface PostStreamConfig {
   url: string;
   method: 'POST';
   body: any;
+}
+
+/**
+ * Helper to update events with a new streaming chunk.
+ * Extracts the logic for handling agent_stream_chunk events.
+ */
+function updateEventsWithStreamChunk(prev: AnyEvent[], event: AnyEvent): AnyEvent[] {
+  const chunkEvent = event as any;
+
+  // Convert loading event to "completed" state on first chunk
+  const updated = prev.map(e => {
+    if (e.event_type === 'loading') {
+      const loadingMsg = (e as any).message;
+      if (loadingMsg === `Waiting for ${chunkEvent.agent_name} response...`) {
+        const loadingTime = new Date(e.timestamp).getTime();
+        const chunkTime = new Date(chunkEvent.timestamp).getTime();
+        const durationMs = chunkTime - loadingTime;
+        return {
+          ...e,
+          message: `${chunkEvent.agent_name} response received`,
+          completed: true,
+          duration_ms: durationMs,
+        };
+      }
+    }
+    return e;
+  });
+
+  // Remove previous stream chunks for this agent
+  const filtered = updated.filter(e => {
+    if (e.event_type === 'agent_stream_chunk') {
+      const prevChunk = e as any;
+      return prevChunk.agent_name !== chunkEvent.agent_name;
+    }
+    return true;
+  });
+
+  return [...filtered, event];
 }
 
 export function useEventStream(url: string | null): StreamState {
@@ -55,44 +94,42 @@ export function useEventStream(url: string | null): StreamState {
       console.log('[SSE] Event parsed:', {event_type: event.event_type, lifecycle_stage: event.lifecycle_stage, has_response_data: event.event_type === 'cost' ? !!(event as any).response_data : undefined, agent_name: (event as any).agent_name});
       // #endregion
 
+      // Use flushSync for streaming chunks to force immediate rendering
+      // This prevents React from batching updates and displaying all chunks at once
+      if (event.event_type === 'agent_stream_chunk') {
+        flushSync(() => {
+          setEvents((prev) => updateEventsWithStreamChunk(prev, event));
+        });
+        return;
+      }
+
       setEvents((prev) => {
         // #region agent log
         console.log('[SSE] Adding event to state, prev count:', prev.length);
         // #endregion
-        
-        // If this is a streaming chunk event, update loading event and replace previous chunks
-        if (event.event_type === 'agent_stream_chunk') {
-          const chunkEvent = event as any;
-          const updated = prev.map(e => {
-            // Convert loading event to "completed" state on first chunk
-            if (e.event_type === 'loading') {
-              const loadingMsg = (e as any).message;
-              if (loadingMsg === `Waiting for ${chunkEvent.agent_name} response...`) {
-                // Calculate duration from loading event timestamp to now
-                const loadingTime = new Date(e.timestamp).getTime();
-                const chunkTime = new Date(chunkEvent.timestamp).getTime();
-                const durationMs = chunkTime - loadingTime;
-                return {
-                  ...e,
-                  message: `${chunkEvent.agent_name} response received`,
-                  completed: true,
-                  duration_ms: durationMs,
-                };
+
+        // Streaming chunks are now handled with flushSync above, this should never be reached
+
+        // Clear pending HITL requests when a new execution starts
+        // This prevents stale HITL events from previous runs from being clickable
+        if (event.event_type === 'execution') {
+          const execEvent = event as any;
+          if (execEvent.lifecycle_stage === 'start') {
+            console.log('[SSE] New execution started, clearing pending HITL events');
+            // Filter out unanswered HITL requests (those without a "responded" marker)
+            const filtered = prev.filter(e => {
+              if (e.event_type === 'hitl.request') {
+                // Keep HITL events that have been responded to (marked by HITLEventComponent)
+                // This check relies on the component's internal state, but we can't access it here
+                // Instead, we'll just clear ALL HITL requests on new execution start
+                return false;
               }
-            }
-            return e;
-          });
-          // Remove previous stream chunks for this agent
-          const filtered = updated.filter(e => {
-            if (e.event_type === 'agent_stream_chunk') {
-              const prevChunk = e as any;
-              return prevChunk.agent_name !== chunkEvent.agent_name;
-            }
-            return true;
-          });
-          return [...filtered, event];
+              return true;
+            });
+            return [...filtered, event];
+          }
         }
-        
+
         // If this is a cost event, update loading events to completed state (but KEEP streaming chunks visible)
         if (event.event_type === 'cost') {
           const costEvent = event as any;

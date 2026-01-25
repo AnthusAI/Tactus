@@ -35,6 +35,7 @@ def calculate_source_hash(tactus_root: Path) -> str:
     paths_to_hash = [
         tactus_root / "tactus" / "dspy",
         tactus_root / "tactus" / "adapters",
+        tactus_root / "tactus" / "broker",  # Broker client used by sandbox
         tactus_root / "tactus" / "core",
         tactus_root / "tactus" / "primitives",
         tactus_root / "tactus" / "sandbox",

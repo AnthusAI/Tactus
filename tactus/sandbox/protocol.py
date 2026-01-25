@@ -51,6 +51,9 @@ class ExecutionRequest:
     # Unique execution ID for tracking
     execution_id: Optional[str] = None
 
+    # Run ID for checkpoint isolation across multiple executions
+    run_id: Optional[str] = None
+
     # Source file path (for error messages)
     source_file_path: Optional[str] = None
 

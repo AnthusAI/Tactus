@@ -29,7 +29,7 @@ dependencies = [
     "pyyaml",
     "pydantic>=2.0",
     "pydantic-ai[bedrock]",
-    "openai>=1.35.10",
+    # NOTE: We use LiteLLM (via DSPy) for all LLM calls - do not add provider-specific SDKs
     "boto3>=1.28.0",
     "rich>=13.9.4",
     "typer",
@@ -39,6 +39,7 @@ dependencies = [
     "gherkin-official>=28.0.0",
     "rapidfuzz>=3.0.0",
     "nanoid>=2.0.0",
+    "nest-asyncio>=1.5.0",
     # File I/O support
     "pyarrow>=14.0",
     "h5py>=3.10",
@@ -61,6 +62,20 @@ dev = [
     "python-semantic-release>=9.0.0",
     "antlr4-tools>=0.2.1",
     "fastmcp>=2.3.5",
+]
+# Notification channel optional dependencies
+slack = [
+    "slack-sdk>=3.0",
+]
+discord = [
+    "discord.py>=2.0",
+]
+email = [
+    "aiosmtplib>=3.0",
+]
+# Install all notification channels
+notifications = [
+    "tactus[slack,discord,email]",
 ]
 
 [project.scripts]

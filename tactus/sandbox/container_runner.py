@@ -253,8 +253,8 @@ class ContainerRunner:
         if self.config.limits.cpus:
             cmd.extend(["--cpus", self.config.limits.cpus])
 
-        # NOTE: Working directory mount is handled by config.volumes via add_default_volumes()
-        # No need to add it here - would cause duplicate mount error
+        # Working directory mount is handled by SandboxConfig.add_default_volumes()
+        # which adds ".:/workspace:rw" to config.volumes (unless mount_current_dir=False)
 
         # Mount MCP servers if available
         if mcp_servers_path and mcp_servers_path.exists():
@@ -321,7 +321,7 @@ class ContainerRunner:
         container = parts[1]
         mode = parts[2] if len(parts) > 2 else None
 
-        host_is_path = host.startswith(("/", "./", "../", "~"))
+        host_is_path = host.startswith(("/", "./", "../", "~")) or host == "." or host == ".."
         if not host_is_path:
             # Named volume (or other special form) - leave unchanged
             return volume
@@ -344,6 +344,9 @@ class ContainerRunner:
         format: str = "lua",
         event_handler: Optional[Callable[[Dict[str, Any]], None]] = None,
         callback_url: Optional[str] = None,
+        run_id: Optional[str] = None,
+        control_handler: Optional[Callable[[dict], Any]] = None,
+        llm_backend_config: Optional[Dict[str, Any]] = None,
     ) -> ExecutionResult:
         """
         Execute a procedure in a sandboxed container.
@@ -355,6 +358,10 @@ class ContainerRunner:
             working_dir: Working directory to use (default: temp directory)
             format: Source format ("lua" for .tac files, "yaml" for legacy)
             event_handler: Optional host callback for streaming events from the container
+            callback_url: Optional HTTP callback URL for streaming events
+            run_id: Optional run ID for checkpoint isolation across executions
+            control_handler: Optional callback for handling container HITL requests
+            llm_backend_config: Optional config for broker's LLM backend (provider-agnostic)
 
         Returns:
             ExecutionResult with status, result/error, and metadata.
@@ -427,12 +434,18 @@ class ContainerRunner:
                         keyfile=self.config.broker_tls_key_file,
                     )
 
+                # Extract OpenAI-specific config if provided
+                openai_key = None
+                if llm_backend_config:
+                    openai_key = llm_backend_config.get("openai_api_key")
+
                 broker_server = TcpBrokerServer(
                     host=self.config.broker_bind_host,
                     port=self.config.broker_port,
                     ssl_context=ssl_context,
-                    openai_backend=OpenAIChatBackend(),
+                    openai_backend=OpenAIChatBackend(api_key=openai_key),
                     event_handler=event_handler,
+                    control_handler=control_handler,
                 )
                 await broker_server.start()
                 if broker_server.bound_port is None:
@@ -463,6 +476,7 @@ class ContainerRunner:
                 working_dir="/workspace",
                 params=params or {},
                 execution_id=execution_id,
+                run_id=run_id,
                 source_file_path=source_file_path,
                 format=format,
             )
@@ -487,6 +501,7 @@ class ContainerRunner:
                         request,
                         timeout=self.config.timeout,
                         event_handler=event_handler,
+                        control_handler=control_handler,
                     )
                 finally:
                     # Cancel broker task when container finishes
@@ -501,6 +516,7 @@ class ContainerRunner:
                     request,
                     timeout=self.config.timeout,
                     event_handler=event_handler,
+                    control_handler=control_handler,
                 )
 
             result.duration_seconds = time.time() - start_time
@@ -537,6 +553,7 @@ class ContainerRunner:
         request: ExecutionRequest,
         timeout: int,
         event_handler: Optional[Callable[[Dict[str, Any]], None]] = None,
+        control_handler: Optional[Callable[[dict], Any]] = None,
     ) -> ExecutionResult:
         """
         Run the container and communicate via stdio.
@@ -558,7 +575,13 @@ class ContainerRunner:
             from tactus.broker.stdio import STDIO_REQUEST_PREFIX
 
             stdio_request_prefix = STDIO_REQUEST_PREFIX
-            openai_backend = OpenAIChatBackend()
+
+            # Extract OpenAI-specific config if provided
+            openai_key = None
+            if llm_backend_config:
+                openai_key = llm_backend_config.get("openai_api_key")
+
+            openai_backend = OpenAIChatBackend(api_key=openai_key)
             tool_registry = HostToolRegistry.default()
 
             async def send_event(writer: asyncio.StreamWriter, event: dict[str, Any]) -> None:
@@ -600,6 +623,27 @@ class ContainerRunner:
                         except Exception:
                             logger.debug("[BROKER] event_handler raised", exc_info=True)
                     await send_event(writer, {"id": req_id, "event": "done", "data": {"ok": True}})
+                    return
+
+                if method == "control.request":
+                    request_data = params.get("request") if isinstance(params, dict) else None
+                    if control_handler is not None:
+                        try:
+                            # Send delivered event
+                            await send_event(writer, {"id": req_id, "event": "delivered"})
+
+                            # Call control handler and await response
+                            response_data = await control_handler(request_data)
+
+                            # Send response event
+                            await send_event(writer, {"id": req_id, "event": "response", "data": response_data})
+                        except asyncio.TimeoutError:
+                            await send_event(writer, {"id": req_id, "event": "timeout", "data": {"timed_out": True}})
+                        except Exception as e:
+                            logger.debug("[BROKER] control.request handler raised", exc_info=True)
+                            await send_event(writer, {"id": req_id, "event": "error", "error": {"message": str(e)}})
+                    else:
+                        await send_event(writer, {"id": req_id, "event": "error", "error": {"message": "No control handler configured"}})
                     return
 
                 if method == "tool.call":

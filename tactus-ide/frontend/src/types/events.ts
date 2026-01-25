@@ -246,6 +246,134 @@ export interface ContainerStatusEvent extends BaseEvent {
   spinup_duration_ms?: number;
 }
 
+/**
+ * HITL event types for omnichannel human-in-the-loop notifications
+ */
+
+export type HITLRequestType =
+  | 'approval'
+  | 'input'
+  | 'review'
+  | 'escalation'
+  | 'select'
+  | 'upload'
+  | 'inputs'
+  | 'custom';  // Custom component type (uses metadata.component_type for routing)
+
+export interface HITLOption {
+  label: string;
+  value: any;
+  style?: 'primary' | 'danger' | 'secondary' | 'default';
+  description?: string;
+}
+
+export interface HITLRequestItem {
+  item_id: string;
+  label: string;
+  request_type: HITLRequestType;
+  message: string;
+  options?: HITLOption[];
+  default_value?: any;
+  required?: boolean;
+  metadata?: Record<string, any>;
+}
+
+export interface ConversationMessage {
+  role: 'agent' | 'user' | 'tool' | 'system';
+  content: string;
+  timestamp: string;
+  tool_name?: string;
+  tool_input?: Record<string, any>;
+  tool_output?: any;
+}
+
+export interface ControlInteraction {
+  request_type: HITLRequestType;
+  message: string;
+  response_value: any;
+  responded_by?: string;
+  responded_at: string;
+  channel_id: string;
+}
+
+/**
+ * Entry in the execution backtrace showing how we got to this point
+ */
+export interface BacktraceEntry {
+  checkpoint_type: string;
+  line?: number;
+  function_name?: string;
+  duration_ms?: number;
+}
+
+/**
+ * Context automatically captured from the Tactus runtime.
+ * Includes source location, execution position, and backtrace.
+ */
+export interface RuntimeContext {
+  source_line?: number;
+  source_file?: string;
+  checkpoint_position: number;
+  procedure_name: string;
+  invocation_id: string;
+  started_at?: string;
+  elapsed_seconds: number;
+  backtrace: BacktraceEntry[];
+}
+
+/**
+ * Application-provided context reference.
+ * Allows host apps to inject domain-specific context with optional deep links.
+ */
+export interface ContextLink {
+  name: string;
+  value: string;
+  url?: string;
+}
+
+export interface HITLRequestEvent extends BaseEvent {
+  event_type: 'hitl.request';
+  request_id: string;
+
+  // Identity
+  procedure_name: string;
+  invocation_id?: string;
+
+  // Context (legacy - to be replaced by runtime_context)
+  subject?: string;
+  started_at?: string;
+  input_summary?: Record<string, any>;
+
+  // The question
+  request_type: HITLRequestType;
+  message: string;
+  default_value?: any;
+  timeout_seconds?: number;
+
+  // Options
+  options?: HITLOption[];
+
+  // Batched inputs
+  items?: HITLRequestItem[];
+
+  // Rich context
+  conversation?: ConversationMessage[];
+  prior_interactions?: ControlInteraction[];
+
+  // New context architecture
+  runtime_context?: RuntimeContext;
+  application_context?: ContextLink[];
+
+  // Metadata
+  metadata?: Record<string, any>;
+}
+
+export interface HITLCancelEvent extends BaseEvent {
+  event_type: 'hitl.cancel';
+  request_id: string;
+  reason: string;
+}
+
 export type AnyEvent =
   | LogEvent
   | CostEvent
@@ -265,7 +393,9 @@ export type AnyEvent =
   | AgentTurnEvent
   | ToolCallEvent
   | CheckpointCreatedEvent
-  | ContainerStatusEvent;
+  | ContainerStatusEvent
+  | HITLRequestEvent
+  | HITLCancelEvent;
 
 
 

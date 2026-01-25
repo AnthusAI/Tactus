@@ -5,6 +5,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { App } from './App';
 import './index.css';
+import '@anthus/tactus-hitl-components/styles.css';
 
 // Configure Monaco Editor environment for web workers
 // Use getWorker instead of getWorkerUrl for Vite compatibility
@@ -48,7 +49,6 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <App />
   </React.StrictMode>
 );
-
 
 
 

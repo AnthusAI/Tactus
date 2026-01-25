@@ -82,6 +82,25 @@ class FileStorage:
         except (IOError, OSError) as e:
             raise RuntimeError(f"Failed to write procedure file {file_path}: {e}")
 
+    def _deserialize_result(self, result: Any) -> Any:
+        """Deserialize checkpoint result, reconstructing Pydantic models."""
+        if result is None:
+            return None
+        # Check if result is a serialized Pydantic model
+        if isinstance(result, dict) and result.get("__pydantic__"):
+            from tactus.protocols.models import HITLResponse
+            model_name = result.get("__model__")
+            # Remove metadata fields
+            data = {k: v for k, v in result.items() if not k.startswith("__")}
+            # Reconstruct based on model name
+            if model_name == "HITLResponse":
+                # Need to parse datetime string back to datetime
+                if "responded_at" in data and isinstance(data["responded_at"], str):
+                    data["responded_at"] = datetime.fromisoformat(data["responded_at"])
+                return HITLResponse(**data)
+            # Add other model types as needed
+        return result
+
     def load_procedure_metadata(self, procedure_id: str) -> ProcedureMetadata:
         """Load procedure metadata from file."""
         data = self._read_file(procedure_id)
@@ -102,7 +121,7 @@ class FileStorage:
                 CheckpointEntry(
                     position=entry_data["position"],
                     type=entry_data["type"],
-                    result=entry_data["result"],
+                    result=self._deserialize_result(entry_data["result"]),
                     timestamp=datetime.fromisoformat(entry_data["timestamp"]),
                     duration_ms=entry_data.get("duration_ms"),
                     input_hash=entry_data.get("input_hash"),
@@ -122,6 +141,15 @@ class FileStorage:
             waiting_on_message_id=data.get("waiting_on_message_id"),
         )
 
+    def _serialize_result(self, result: Any) -> Any:
+        """Serialize checkpoint result, handling Pydantic models."""
+        if result is None:
+            return None
+        # Check if result is a Pydantic model (has model_dump method)
+        if hasattr(result, "model_dump"):
+            return {"__pydantic__": True, "__model__": result.__class__.__name__, **result.model_dump()}
+        return result
+
     def save_procedure_metadata(self, procedure_id: str, metadata: ProcedureMetadata) -> None:
         """Save procedure metadata to file."""
         # Convert to serializable dict
@@ -131,7 +159,7 @@ class FileStorage:
                 {
                     "position": entry.position,
                     "type": entry.type,
-                    "result": entry.result,
+                    "result": self._serialize_result(entry.result),
                     "timestamp": entry.timestamp.isoformat(),
                     "duration_ms": entry.duration_ms,
                     "input_hash": entry.input_hash,

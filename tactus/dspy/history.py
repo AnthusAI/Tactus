@@ -79,7 +79,8 @@ class TactusHistory:
             raise ValueError("Message must include 'content' key")
 
         # Validate role
-        valid_roles = ["system", "user", "assistant"]
+        # Note: "tool" role is required for OpenAI function calling responses
+        valid_roles = ["system", "user", "assistant", "tool"]
         if message["role"] not in valid_roles:
             raise ValueError(f"Invalid role. Must be one of {valid_roles}")
 

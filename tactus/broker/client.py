@@ -9,6 +9,7 @@ Uses a broker transport selected at runtime:
 
 import asyncio
 import json
+import logging
 import os
 import ssl
 import sys
@@ -19,6 +20,8 @@ from typing import Any, AsyncIterator, Optional
 
 from tactus.broker.protocol import read_message, write_message
 from tactus.broker.stdio import STDIO_REQUEST_PREFIX, STDIO_TRANSPORT_VALUE
+
+logger = logging.getLogger(__name__)
 
 
 def _json_dumps(obj: Any) -> str:
@@ -162,7 +165,13 @@ class BrokerClient:
                     ssl_ctx.verify_mode = ssl.CERT_NONE
 
             reader, writer = await asyncio.open_connection(host, port, ssl=ssl_ctx)
-            await write_message(writer, {"id": req_id, "method": method, "params": params})
+            logger.info(f"[BROKER_CLIENT] Writing message to broker, params keys: {list(params.keys())}")
+            try:
+                await write_message(writer, {"id": req_id, "method": method, "params": params})
+            except TypeError as e:
+                logger.error(f"[BROKER_CLIENT] JSON serialization error: {e}")
+                logger.error(f"[BROKER_CLIENT] Params: {params}")
+                raise
 
             try:
                 while True:
@@ -207,6 +216,8 @@ class BrokerClient:
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
         stream: bool,
+        tools: Optional[list[dict[str, Any]]] = None,
+        tool_choice: Optional[str] = None,
     ) -> AsyncIterator[dict[str, Any]]:
         params: dict[str, Any] = {
             "provider": provider,
@@ -218,6 +229,20 @@ class BrokerClient:
             params["temperature"] = temperature
         if max_tokens is not None:
             params["max_tokens"] = max_tokens
+        if tools is not None:
+            params["tools"] = tools
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"[BROKER_CLIENT] Adding {len(tools)} tools to params")
+        else:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning("[BROKER_CLIENT] No tools to add to params")
+        if tool_choice is not None:
+            params["tool_choice"] = tool_choice
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"[BROKER_CLIENT] Adding tool_choice={tool_choice} to params")
         return self._request("llm.chat", params)
 
     async def call_tool(self, *, name: str, args: dict[str, Any]) -> Any:

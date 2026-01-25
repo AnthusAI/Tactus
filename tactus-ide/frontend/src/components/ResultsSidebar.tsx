@@ -1,12 +1,14 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Loader2, Monitor, AlertTriangle, MessageSquare } from 'lucide-react';
-import { FileResultsHistory } from '@/types/results';
+import { FileResultsHistory, RunHistory } from '@/types/results';
 import { ProcedureMetadata } from '@/types/metadata';
 import { CheckpointEntry } from '@/types/tracing';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ProcedureTab } from './ProcedureTab';
 import { CollapsibleRun } from './CollapsibleRun';
 import { ChatSidebar } from './ChatSidebar';
+import { serializeRunToYaml } from '@/utils/runExport';
+import { copyTextToClipboard } from '@/utils/clipboard';
 
 interface ResultsSidebarProps {
   currentFile: string | null;
@@ -22,6 +24,7 @@ interface ResultsSidebarProps {
   isRunning: boolean;
   onToggleRunExpansion: (runId: string) => void;
   onJumpToSource?: (filePath: string, lineNumber: number) => void;
+  onHITLRespond?: (requestId: string, value: any) => void;
   containerStatus: {
     status: 'idle' | 'starting' | 'ready' | 'disabled' | 'error';
     spinupMs?: number;
@@ -41,6 +44,7 @@ export const ResultsSidebar: React.FC<ResultsSidebarProps> = ({
   isRunning,
   onToggleRunExpansion,
   onJumpToSource,
+  onHITLRespond,
   containerStatus,
   workspaceRoot,
 }) => {
@@ -106,6 +110,27 @@ export const ResultsSidebar: React.FC<ResultsSidebarProps> = ({
       return [];
     }
   }, [procedureName, failedRuns]);
+
+  const handleCopyRun = useCallback(async (run: RunHistory) => {
+    let checkpoints = run.checkpoints;
+
+    if (!checkpoints && checkpointCache.has(run.id)) {
+      checkpoints = checkpointCache.get(run.id);
+    }
+
+    if (!checkpoints && !fetchingRuns.has(run.id) && !failedRuns.has(run.id)) {
+      setFetchingRuns(prev => new Set(prev).add(run.id));
+      checkpoints = await fetchCheckpointsForRun(run.id);
+    }
+
+    const runWithCheckpoints: RunHistory = {
+      ...run,
+      checkpoints,
+    };
+
+    const yamlOutput = serializeRunToYaml(runWithCheckpoints);
+    await copyTextToClipboard(yamlOutput);
+  }, [checkpointCache, failedRuns, fetchingRuns, fetchCheckpointsForRun]);
 
   // Merge checkpoint data from cache into results history
   const resultsWithCheckpoints = React.useMemo(() => {
@@ -279,7 +304,9 @@ export const ResultsSidebar: React.FC<ResultsSidebarProps> = ({
                     run={run}
                     isExpanded={run.isExpanded}
                     onToggle={() => onToggleRunExpansion(run.id)}
+                    onCopyRun={handleCopyRun}
                     onJumpToSource={onJumpToSource}
+                    onHITLRespond={onHITLRespond}
                   />
                 ))}
               </div>

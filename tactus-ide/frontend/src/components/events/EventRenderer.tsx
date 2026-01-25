@@ -21,15 +21,17 @@ import {
 import { ToolCallEventComponent } from './ToolCallEventComponent';
 import { CheckpointEventComponent } from './CheckpointEventComponent';
 import { ContainerStatusEventComponent } from './ContainerStatusEventComponent';
+import { HITLEventComponent } from './HITLEventComponent';
 import { BaseEventComponent } from './BaseEventComponent';
 
 interface EventRendererProps {
   event: AnyEvent;
   isAlternate?: boolean;
   onJumpToSource?: (filePath: string, lineNumber: number) => void;
+  onHITLRespond?: (requestId: string, value: any) => void;
 }
 
-export const EventRenderer: React.FC<EventRendererProps> = ({ event, isAlternate, onJumpToSource }) => {
+export const EventRenderer: React.FC<EventRendererProps> = ({ event, isAlternate, onJumpToSource, onHITLRespond }) => {
   // Agent turn events are now converted to loading events in useEventStream
   // so they won't reach here anymore
 
@@ -74,6 +76,15 @@ export const EventRenderer: React.FC<EventRendererProps> = ({ event, isAlternate
       return <CheckpointEventComponent event={event} isAlternate={isAlternate} onJumpToSource={onJumpToSource} />;
     case 'container_status':
       return <ContainerStatusEventComponent event={event as any} isAlternate={isAlternate} />;
+    case 'hitl.request':
+      return <HITLEventComponent event={event} isAlternate={isAlternate} onRespond={onHITLRespond} />;
+    case 'hitl.cancel':
+      // Cancel events are informational only - the UI clears the pending request
+      return (
+        <BaseEventComponent isAlternate={isAlternate} className="py-2 px-3 text-sm text-muted-foreground">
+          HITL request {(event as any).request_id} cancelled: {(event as any).reason}
+        </BaseEventComponent>
+      );
     default:
       return (
         <BaseEventComponent isAlternate={isAlternate} className="py-2 px-3 text-sm text-muted-foreground">

@@ -85,6 +85,7 @@ async def execute_procedure(
     params: Dict[str, Any],
     source_file_path: Optional[str] = None,
     format: str = "lua",
+    run_id: Optional[str] = None,
 ) -> Any:
     """
     Execute a procedure using TactusRuntime.
@@ -96,6 +97,7 @@ async def execute_procedure(
         mcp_servers: MCP server configurations
         source_file_path: Original source file path
         format: Source format ("lua" or "yaml")
+        run_id: Run ID for checkpoint isolation
 
     Returns:
         Procedure execution result
@@ -105,6 +107,7 @@ async def execute_procedure(
     from tactus.adapters.broker_log import BrokerLogHandler
     from tactus.adapters.http_callback_log import HTTPCallbackLogHandler
     from tactus.adapters.cost_collector_log import CostCollectorLogHandler
+    from tactus.adapters.channels.broker import BrokerControlChannel
 
     # Create a unique procedure ID
     import uuid
@@ -129,6 +132,18 @@ async def execute_procedure(
             log_handler = CostCollectorLogHandler()
             logger.info("[SANDBOX] No callback configured; using CostCollectorLogHandler")
 
+    # Set up HITL control channel (broker-based in container mode)
+    broker_channel = BrokerControlChannel.from_environment()
+    hitl_handler = None
+    if broker_channel:
+        from tactus.adapters.control_loop import ControlLoopHandler, ControlLoopHITLAdapter
+
+        control_handler = ControlLoopHandler(channels=[broker_channel])
+        hitl_handler = ControlLoopHITLAdapter(control_handler)
+        logger.info("[SANDBOX] Using broker control channel for HITL")
+    else:
+        logger.debug("[SANDBOX] No broker control channel available, HITL disabled")
+
     # Create runtime with log handler for event streaming
     runtime = TactusRuntime(
         procedure_id=procedure_id,
@@ -137,6 +152,8 @@ async def execute_procedure(
         external_config={},
         source_file_path=source_file_path,
         log_handler=log_handler,  # Enable event streaming to IDE
+        hitl_handler=hitl_handler,  # Enable HITL control channel
+        run_id=run_id,  # Pass run_id for checkpoint isolation
     )
 
     # Execute procedure
@@ -145,6 +162,14 @@ async def execute_procedure(
         context=params,
         format=format,
     )
+
+    # CRITICAL: Flush pending log events before returning
+    # This ensures all streaming events reach the broker before container exits.
+    # Without this, fire-and-forget async tasks may be discarded.
+    if hasattr(log_handler, 'flush'):
+        logger.info("[SANDBOX] Flushing pending log events...")
+        await log_handler.flush()
+        logger.info("[SANDBOX] Log events flushed")
 
     return result
 
@@ -179,6 +204,7 @@ async def main_async() -> int:
             params=request.params,
             source_file_path=request.source_file_path,
             format=request.format,
+            run_id=request.run_id,
         )
 
         # Create success result

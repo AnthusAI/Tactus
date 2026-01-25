@@ -1,6 +1,8 @@
 import React from 'react';
 import { Bot, User, Loader2, Wrench } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Message, MessageContent } from '@/components/ui/ai/message';
+import { Badge } from '@/components/ui/badge';
 import type { ChatMessage } from './ChatInterface';
 
 interface MessageListProps {
@@ -45,81 +47,51 @@ const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
   const isUser = message.type === 'user';
   const isThinking = message.content.startsWith('_thinking_');
   const isStatus = message.content.startsWith('_status_');
-  
+
   let displayContent = message.content;
   let statusText = '';
-  
+
   if (isStatus) {
     statusText = message.content.replace(/^_status_/, '');
-    displayContent = '';
   } else if (isThinking) {
     displayContent = '...';
   }
 
-  if (isThinking) {
-    return (
-      <div className="flex gap-3 items-start">
-        <div className="flex-shrink-0 mt-1">
-          <div className="rounded-full bg-primary/10 p-2">
-            <Loader2 className="h-4 w-4 text-primary animate-spin" />
-          </div>
-        </div>
-        <div className="flex-1 space-y-2 pt-1">
-          <div className="text-sm text-muted-foreground italic">
-            Thinking...
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (isStatus) {
-    return (
-      <div className="flex gap-3 items-start">
-        <div className="flex-shrink-0 mt-1">
-          <div className="rounded-full bg-blue-500/10 p-2">
-            <Wrench className="h-4 w-4 text-blue-500" />
-          </div>
-        </div>
-        <div className="flex-1 space-y-2 pt-1">
-          <div className="text-xs font-mono text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30 px-2 py-1 rounded">
-            {statusText}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
+  // All messages use the same Message + MessageContent structure
+  // with consistent theme-based styling - NO hardcoded colors
   return (
-    <div className={cn("flex gap-3 items-start", isUser && "flex-row-reverse")}>
-      {/* Avatar */}
-      <div className="flex-shrink-0 mt-1">
-        <div className={cn(
-          "rounded-full p-2",
-          isUser ? "bg-primary text-primary-foreground" : "bg-primary/10"
-        )}>
-          {isUser ? (
-            <User className="h-4 w-4" />
-          ) : (
-            <Bot className="h-4 w-4 text-primary" />
-          )}
-        </div>
+    <Message from={isUser ? 'user' : 'assistant'}>
+      {/* Avatar - consistent theme-based styling for all message types */}
+      <div className={cn(
+        "rounded-full h-8 w-8 flex items-center justify-center flex-shrink-0",
+        isUser ? "bg-primary text-primary-foreground" : "bg-primary/10"
+      )}>
+        {isThinking ? (
+          <Loader2 className="h-4 w-4 text-primary animate-spin" />
+        ) : isStatus ? (
+          <Wrench className="h-4 w-4 text-muted-foreground" />
+        ) : isUser ? (
+          <User className="h-4 w-4" />
+        ) : (
+          <Bot className="h-4 w-4 text-primary" />
+        )}
       </div>
 
-      {/* Message Content */}
-      <div className={cn(
-        "flex-1 space-y-2 overflow-hidden",
-        isUser && "flex flex-col items-end"
-      )}>
-        <div className={cn(
-          "inline-block rounded-lg px-4 py-2.5 text-sm",
-          "bg-muted/50 text-foreground"
-        )}>
-          <div className="whitespace-pre-wrap break-words">
+      {/* Message content - let MessageContent handle bg-muted styling */}
+      <MessageContent>
+        {isThinking ? (
+          <span className="text-sm text-muted-foreground italic">Thinking...</span>
+        ) : isStatus ? (
+          <Badge variant="secondary" className="text-xs font-mono">
+            <Wrench className="mr-1 h-3 w-3" />
+            {statusText}
+          </Badge>
+        ) : (
+          <div className="whitespace-pre-wrap break-words text-sm">
             {displayContent}
           </div>
-        </div>
-      </div>
-    </div>
+        )}
+      </MessageContent>
+    </Message>
   );
 };

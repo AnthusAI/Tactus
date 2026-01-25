@@ -8,7 +8,11 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src')
+      '@': path.resolve(__dirname, './src'),
+      '@anthus/tactus-hitl-components': path.resolve(
+        __dirname,
+        '../../../Tactus-HITL-components/src'
+      ),
     }
   },
   server: {
@@ -21,6 +25,4 @@ export default defineConfig({
     }
   }
 });
-
-
 

@@ -12,6 +12,8 @@ The Agent uses:
 - Unified mocking via Mocks {} primitive
 """
 
+import asyncio
+import json
 import logging
 from typing import Any, Dict, List, Optional
 
@@ -61,6 +63,7 @@ class DSPyAgentHandle:
         mock_manager: Any = None,
         log_handler: Any = None,
         disable_streaming: bool = False,
+        execution_context: Any = None,
         **kwargs: Any,
     ):
         """
@@ -87,6 +90,7 @@ class DSPyAgentHandle:
             mock_manager: Optional MockManager instance for checking mocks
             log_handler: Optional log handler for emitting streaming events
             disable_streaming: If True, disable streaming even when log_handler is present
+            execution_context: Optional ExecutionContext for checkpointing agent calls
             **kwargs: Additional configuration
         """
         self.name = name
@@ -95,6 +99,8 @@ class DSPyAgentHandle:
         self.provider = provider
         self.tools = tools or []
         self.toolsets = toolsets or []
+        self.execution_context = execution_context
+        self._dspy_tools_cache = None  # Cache for converted DSPy tools
         # Default input schema: {message: string}
         self.input_schema = input_schema or {"message": {"type": "string", "required": False}}
         # Default output schema: {response: string}
@@ -108,7 +114,17 @@ class DSPyAgentHandle:
         self.mock_manager = mock_manager
         self.log_handler = log_handler
         self.disable_streaming = disable_streaming
+        self.tool_choice = kwargs.get("tool_choice")  # Extract tool_choice from kwargs
         self.kwargs = kwargs
+
+        # CRITICAL DEBUG: Log handler state at initialization
+        logger.info(
+            f"[AGENT_INIT] Agent '{self.name}' initialized with log_handler={log_handler is not None}, "
+            f"disable_streaming={disable_streaming}, "
+            f"log_handler_type={type(log_handler).__name__ if log_handler else 'None'}, "
+            f"tool_choice={self.tool_choice}, "
+            f"kwargs_keys={list(kwargs.keys())}"
+        )
 
         # Initialize conversation history
         self._history = create_history()
@@ -306,16 +322,173 @@ class DSPyAgentHandle:
             raise ValueError(f"Unknown module '{module}'. Supported: {list(mapping.keys())}")
         return strategy
 
+    def _convert_toolsets_to_dspy_tools_sync(self) -> list:
+        """
+        Convert Pydantic AI toolsets to DSPy Tool objects (synchronous version).
+
+        DSPy uses dspy.adapters.types.tool.Tool for native function calling.
+        Pydantic AI toolsets expose tools via .get_tools(ctx) method.
+
+        Returns:
+            List of DSPy Tool objects
+        """
+        try:
+            from dspy.adapters.types.tool import Tool as DSPyTool
+        except ImportError:
+            logger.error("Cannot import DSPyTool - DSPy installation may be incomplete")
+            return []
+
+        logger.info(f"Agent '{self.name}' has {len(self.toolsets)} toolsets to convert")
+
+        dspy_tools = []
+
+        # Convert toolsets to DSPy Tools
+        for idx, toolset in enumerate(self.toolsets):
+            logger.info(f"Agent '{self.name}' processing toolset {idx}: {type(toolset).__name__}")
+            try:
+                # Pydantic AI FunctionToolset has a .tools dict attribute that's directly accessible
+                # This avoids the need for async get_tools() call and RunContext
+                if hasattr(toolset, "tools") and isinstance(toolset.tools, dict):
+                    pydantic_tools = list(toolset.tools.values())
+                    logger.info(
+                        f"Agent '{self.name}' toolset {idx} has {len(pydantic_tools)} tools (from .tools attribute)"
+                    )
+                else:
+                    logger.warning(
+                        f"Toolset {toolset} doesn't have accessible .tools dict, skipping"
+                    )
+                    continue
+
+                for pydantic_tool in pydantic_tools:
+                    # Pydantic AI Tool has: name, description, function_schema.json_schema, function
+                    logger.info(
+                        f"Agent '{self.name}' converting tool: name={pydantic_tool.name}, desc={pydantic_tool.description[:50] if pydantic_tool.description else 'N/A'}..."
+                    )
+
+                    # Extract parameter schema from Pydantic AI tool
+                    tool_args = None
+                    if hasattr(pydantic_tool, "function_schema") and hasattr(
+                        pydantic_tool.function_schema, "json_schema"
+                    ):
+                        json_schema = pydantic_tool.function_schema.json_schema
+                        if "properties" in json_schema:
+                            # Convert JSON schema properties to DSPy's expected format
+                            tool_args = json_schema["properties"]
+                            logger.info(
+                                f"Extracted parameter schema for '{pydantic_tool.name}': {tool_args}"
+                            )
+
+                    dspy_tool = DSPyTool(
+                        func=pydantic_tool.function,
+                        name=pydantic_tool.name,
+                        desc=pydantic_tool.description,
+                        args=tool_args,  # Pass the parameter schema
+                    )
+                    dspy_tools.append(dspy_tool)
+                    logger.info(
+                        f"Converted tool '{pydantic_tool.name}' to DSPy Tool with args={tool_args}"
+                    )
+
+            except Exception as e:
+                import traceback
+
+                logger.error(f"Failed to convert toolset {toolset} to DSPy Tools: {e}")
+                logger.error(f"Traceback: {traceback.format_exc()}")
+
+        logger.info(f"Agent '{self.name}' converted {len(dspy_tools)} tools to DSPy format")
+        return dspy_tools
+
+    def _execute_tool(self, tool_name: str, tool_args: Dict[str, Any]) -> Any:
+        """
+        Execute a tool call using the available toolsets.
+
+        Args:
+            tool_name: Name of the tool to execute
+            tool_args: Arguments to pass to the tool
+
+        Returns:
+            Tool execution result
+        """
+        logger.info(f"[TOOL_EXEC] Executing tool '{tool_name}' with args: {tool_args}")
+
+        # Find the tool in our toolsets
+        for toolset in self.toolsets:
+            if hasattr(toolset, "tools") and isinstance(toolset.tools, dict):
+                for pydantic_tool in toolset.tools.values():
+                    if pydantic_tool.name == tool_name:
+                        logger.info(f"[TOOL_EXEC] Found tool '{tool_name}' in toolset")
+                        try:
+                            # Call the Pydantic AI tool function
+                            # The tool function might be async (wrapped Lua tools are)
+                            import asyncio
+                            import inspect
+
+                            # Check if the function is async before calling it
+                            if inspect.iscoroutinefunction(pydantic_tool.function):
+                                logger.info(
+                                    f"[TOOL_EXEC] Tool '{tool_name}' is async, running with nest_asyncio"
+                                )
+                                # Use nest_asyncio to allow running async code from sync context
+                                # even when there's already an event loop running
+                                try:
+                                    import nest_asyncio
+
+                                    nest_asyncio.apply()
+                                except ImportError:
+                                    logger.warning(
+                                        "[TOOL_EXEC] nest_asyncio not available, trying asyncio.run()"
+                                    )
+
+                                # Get the current event loop or create new one
+                                try:
+                                    loop = asyncio.get_event_loop()
+                                    if loop.is_running():
+                                        logger.info(
+                                            "[TOOL_EXEC] Loop is running, using run_until_complete with nest_asyncio"
+                                        )
+                                        # nest_asyncio allows this even though loop is running
+                                        coro = pydantic_tool.function(**tool_args)
+                                        result = loop.run_until_complete(coro)
+                                    else:
+                                        logger.info(
+                                            "[TOOL_EXEC] Loop not running, using run_until_complete"
+                                        )
+                                        coro = pydantic_tool.function(**tool_args)
+                                        result = loop.run_until_complete(coro)
+                                except RuntimeError:
+                                    # No loop at all
+                                    logger.info("[TOOL_EXEC] No event loop, using asyncio.run()")
+                                    result = asyncio.run(pydantic_tool.function(**tool_args))
+                            else:
+                                # Function is sync - just call it
+                                logger.info(
+                                    f"[TOOL_EXEC] Tool '{tool_name}' is sync, calling directly"
+                                )
+                                result = pydantic_tool.function(**tool_args)
+
+                            logger.info(f"[TOOL_EXEC] Tool '{tool_name}' returned: {result}")
+                            return result
+                        except Exception as e:
+                            logger.error(
+                                f"[TOOL_EXEC] Tool '{tool_name}' execution failed: {e}",
+                                exc_info=True,
+                            )
+                            return {"error": str(e)}
+
+        logger.warning(f"[TOOL_EXEC] Tool '{tool_name}' not found in any toolset")
+        return {"error": f"Tool '{tool_name}' not found"}
+
     def _build_module(self) -> TactusModule:
         """Build the internal DSPy module for this agent."""
         # Create a signature for agent turns
-        # Input: system_prompt, history, user_message, available_tools
+        # Input: system_prompt, history, user_message
+        # If tools available: also include tools as structured list[dspy.Tool]
         # Output: response and tool_calls (if tools are needed)
-        # Include tools in the signature if they're available
+
+        # Use DSPy's native function calling with structured tool input
+        # See: dspy/adapters/base.py - adapter preprocesses tools field
         if self.tools or self.toolsets:
-            signature = (
-                "system_prompt, history, user_message, available_tools -> response, tool_calls"
-            )
+            signature = "system_prompt, history, user_message, tools: list[dspy.Tool] -> response, tool_calls: dspy.ToolCalls"
         else:
             signature = "system_prompt, history, user_message -> response"
 
@@ -340,22 +513,29 @@ class DSPyAgentHandle:
         Returns:
             True if streaming should be enabled
         """
+        # CRITICAL DEBUG: Always log entry
+        logger.info(f"[STREAMING] Agent '{self.name}': _should_stream() called")
+
         # Must have log_handler to emit streaming events
         if self.log_handler is None:
-            logger.debug(f"[STREAMING] Agent '{self.name}': no log_handler, streaming disabled")
+            logger.info(f"[STREAMING] Agent '{self.name}': no log_handler, streaming disabled")
             return False
 
         # Allow log handlers to opt out of streaming (e.g., cost-only collectors)
         supports_streaming = getattr(self.log_handler, "supports_streaming", True)
+        logger.info(
+            f"[STREAMING] Agent '{self.name}': log_handler.supports_streaming={supports_streaming}"
+        )
         if not supports_streaming:
-            logger.debug(
+            logger.info(
                 f"[STREAMING] Agent '{self.name}': log_handler supports_streaming=False, streaming disabled"
             )
             return False
 
         # Respect explicit disable flag
+        logger.info(f"[STREAMING] Agent '{self.name}': disable_streaming={self.disable_streaming}")
         if self.disable_streaming:
-            logger.debug(
+            logger.info(
                 f"[STREAMING] Agent '{self.name}': disable_streaming=True, streaming disabled"
             )
             return False
@@ -480,7 +660,6 @@ class DSPyAgentHandle:
         Returns:
             TactusResult with value, usage, and cost_stats
         """
-        import asyncio
         import threading
         import queue
         from tactus.protocols.models import AgentTurnEvent, AgentStreamChunkEvent
@@ -644,8 +823,111 @@ class DSPyAgentHandle:
         # Add assistant response to new_messages
         if hasattr(result_holder["result"], "response"):
             assistant_msg = {"role": "assistant", "content": result_holder["result"].response}
+
+            # Include tool calls in the message if present (before wrapping)
+            has_tc = hasattr(result_holder["result"], "tool_calls")
+            tc_value = getattr(result_holder["result"], "tool_calls", None)
+            logger.info(
+                f"[ASYNC_STREAMING] Agent '{self.name}' result: has_tool_calls={has_tc}, tool_calls={tc_value}"
+            )
+            if (
+                hasattr(result_holder["result"], "tool_calls")
+                and result_holder["result"].tool_calls
+            ):
+                # Convert tool calls to JSON-serializable format
+                logger.info("[ASYNC_STREAMING] Converting tool_calls to dict format")
+                tool_calls_list = []
+                tc_obj = result_holder["result"].tool_calls
+                has_tc_attr = hasattr(tc_obj, "tool_calls")
+                logger.info(
+                    f"[ASYNC_STREAMING] tool_calls object: type={type(tc_obj)}, has_tool_calls_attr={has_tc_attr}"
+                )
+                for tc in (
+                    result_holder["result"].tool_calls.tool_calls
+                    if hasattr(result_holder["result"].tool_calls, "tool_calls")
+                    else []
+                ):
+                    logger.info(
+                        f"[ASYNC_STREAMING] Processing tool call: name={tc.name} args={tc.args}"
+                    )
+                    tool_calls_list.append(
+                        {
+                            "id": f"call_{tc.name}",  # Generate a simple ID
+                            "type": "function",
+                            "function": {
+                                "name": tc.name,
+                                "arguments": (
+                                    json.dumps(tc.args) if isinstance(tc.args, dict) else tc.args
+                                ),
+                            },
+                        }
+                    )
+                logger.info(
+                    f"[ASYNC_STREAMING] Built tool_calls_list with {len(tool_calls_list)} items"
+                )
+                if tool_calls_list:
+                    assistant_msg["tool_calls"] = tool_calls_list
+                    logger.info("[ASYNC_STREAMING] Added tool_calls to assistant_msg")
+
             new_messages.append(assistant_msg)
             self._history.add(assistant_msg)
+
+            # Execute tool calls and add tool result messages to history
+            if assistant_msg.get("tool_calls"):
+                logger.info(
+                    f"[ASYNC_STREAMING] Agent '{self.name}' executing {len(assistant_msg['tool_calls'])} tool calls"
+                )
+                for tc in assistant_msg["tool_calls"]:
+                    tool_name = tc["function"]["name"]
+                    tool_args_str = tc["function"]["arguments"]
+                    tool_args = (
+                        json.loads(tool_args_str)
+                        if isinstance(tool_args_str, str)
+                        else tool_args_str
+                    )
+                    tool_id = tc["id"]
+
+                    logger.info(
+                        f"[ASYNC_STREAMING] Executing tool: {tool_name} with args: {tool_args}"
+                    )
+
+                    # Execute the tool using toolsets
+                    tool_result = self._execute_tool(tool_name, tool_args)
+                    logger.info(f"[ASYNC_STREAMING] Tool executed successfully: {tool_result}")
+
+                    # Record the tool call so Lua can check if it was called
+                    tool_primitive = getattr(self, "_tool_primitive", None)
+                    if tool_primitive:
+                        # Remove agent name prefix from tool name if present
+                        # Tool names are stored as "agent_name_tool_name" in the primitive
+                        clean_tool_name = tool_name.replace(f"{self.name}_", "")
+                        tool_primitive.record_call(
+                            clean_tool_name, tool_args, tool_result, agent_name=self.name
+                        )
+                        logger.info(f"[ASYNC_STREAMING] Recorded tool call: {clean_tool_name}")
+
+                    # Add tool result to history in OpenAI's expected format
+                    # OpenAI requires: role="tool", tool_call_id=<id>, content=<result>
+                    tool_result_str = (
+                        json.dumps(tool_result)
+                        if isinstance(tool_result, dict)
+                        else str(tool_result)
+                    )
+                    tool_result_msg = {
+                        "role": "tool",
+                        "tool_call_id": tool_id,
+                        "name": tool_name,
+                        "content": tool_result_str,
+                    }
+                    logger.info(f"[ASYNC_STREAMING] Created tool result message: {tool_result_msg}")
+                    new_messages.append(tool_result_msg)
+                    logger.info(
+                        f"[ASYNC_STREAMING] Added tool result to new_messages, count={len(new_messages)}"
+                    )
+                    self._history.add(tool_result_msg)
+                    logger.info(
+                        f"[ASYNC_STREAMING] Added tool result to history for tool_call_id={tool_id}, history size={len(self._history)}"
+                    )
 
         # Wrap the result with message tracking
         wrapped_result = wrap_prediction(
@@ -726,6 +1008,38 @@ class DSPyAgentHandle:
         # Add assistant response to new_messages
         if hasattr(dspy_result, "response"):
             assistant_msg = {"role": "assistant", "content": dspy_result.response}
+
+            # Include tool calls in the message if present (before wrapping)
+            has_tc = hasattr(dspy_result, "tool_calls")
+            tc_value = getattr(dspy_result, "tool_calls", None)
+            logger.info(
+                f"Agent '{self.name}' dspy_result: has_tool_calls={has_tc}, tool_calls={tc_value}"
+            )
+            if hasattr(dspy_result, "tool_calls") and dspy_result.tool_calls:
+                # Convert tool calls to JSON-serializable format
+                tool_calls_list = []
+                for tc in (
+                    dspy_result.tool_calls.tool_calls
+                    if hasattr(dspy_result.tool_calls, "tool_calls")
+                    else []
+                ):
+                    tool_calls_list.append(
+                        {
+                            "id": f"call_{tc['name']}",  # Generate a simple ID
+                            "type": "function",
+                            "function": {
+                                "name": tc["name"],
+                                "arguments": (
+                                    json.dumps(tc["args"])
+                                    if isinstance(tc["args"], dict)
+                                    else tc["args"]
+                                ),
+                            },
+                        }
+                    )
+                if tool_calls_list:
+                    assistant_msg["tool_calls"] = tool_calls_list
+
             new_messages.append(assistant_msg)
             self._history.add(assistant_msg)
 
@@ -819,6 +1133,29 @@ class DSPyAgentHandle:
         if context:
             opts["context"] = context
 
+        # If execution_context is available, wrap in checkpoint for transparent durability
+        if self.execution_context:
+
+            def checkpoint_fn():
+                return self._execute_turn(opts)
+
+            return self.execution_context.checkpoint(checkpoint_fn, f"agent_{self.name}_turn")
+        else:
+            # No checkpointing - execute directly
+            return self._execute_turn(opts)
+
+    def _execute_turn(self, opts: Dict[str, Any]) -> Any:
+        """
+        Execute a single agent turn (internal method for checkpointing).
+
+        This method contains the core agent execution logic that gets checkpointed.
+
+        Args:
+            opts: Turn options with message, context, and per-turn overrides
+
+        Returns:
+            Result object with response and other fields
+        """
         # Execute the turn (inlined from old turn() method)
         self._turn_count += 1
         logger.debug(f"Agent '{self.name}' turn {self._turn_count}")
@@ -848,6 +1185,9 @@ class DSPyAgentHandle:
                 config_kwargs["max_tokens"] = self.max_tokens
             if self.model_type is not None:
                 config_kwargs["model_type"] = self.model_type
+            if self.tool_choice is not None and (self.tools or self.toolsets):
+                config_kwargs["tool_choice"] = self.tool_choice
+                logger.info(f"Configuring LM with tool_choice={self.tool_choice}")
 
             configure_lm(model_for_litellm, **config_kwargs)
 
@@ -867,20 +1207,12 @@ class DSPyAgentHandle:
             "user_message": user_message or "",
         }
 
-        # Add available tools if agent has them
+        # Add tools as structured DSPy Tool objects if agent has them
+        # DSPy's adapter will convert these to OpenAI function call format
         if self.tools or self.toolsets:
-            # Format tools for the prompt
-            tool_descriptions = []
-            if self.toolsets:
-                # Convert toolsets to strings if they're not already
-                toolset_names = [str(ts) if not isinstance(ts, str) else ts for ts in self.toolsets]
-                tool_descriptions.append(f"Available toolsets: {', '.join(toolset_names)}")
-                tool_descriptions.append(
-                    "Use the 'done' tool with a 'reason' parameter to complete the task."
-                )
-            prompt_context["available_tools"] = (
-                "\n".join(tool_descriptions) if tool_descriptions else "No tools available"
-            )
+            dspy_tools = self._convert_toolsets_to_dspy_tools_sync()
+            prompt_context["tools"] = dspy_tools
+            logger.info(f"Agent '{self.name}' passing {len(dspy_tools)} DSPy tools to module")
 
         # Add any injected context (user_message is already in prompt_context)
         if context:
@@ -1094,6 +1426,7 @@ def create_dspy_agent(
     config: Dict[str, Any],
     registry: Any = None,
     mock_manager: Any = None,
+    execution_context: Any = None,
 ) -> DSPyAgentHandle:
     """
     Create a DSPy-based Agent from configuration.
@@ -1111,6 +1444,7 @@ def create_dspy_agent(
             - Other optional configuration
         registry: Optional Registry instance for accessing mocks
         mock_manager: Optional MockManager instance for checking mocks
+        execution_context: Optional ExecutionContext for checkpointing agent calls
 
     Returns:
         A DSPyAgentHandle instance
@@ -1141,6 +1475,7 @@ def create_dspy_agent(
         mock_manager=mock_manager,
         log_handler=config.get("log_handler"),
         disable_streaming=config.get("disable_streaming", False),
+        execution_context=execution_context,
         **{
             k: v
             for k, v in config.items()

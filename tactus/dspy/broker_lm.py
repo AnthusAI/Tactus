@@ -10,6 +10,7 @@ while still supporting streaming via DSPy's `streamify()` mechanism.
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import dspy
@@ -18,6 +19,8 @@ from asyncer import syncify
 from litellm import ModelResponse, ModelResponseStream
 
 from tactus.broker.client import BrokerClient
+
+logger = logging.getLogger(__name__)
 
 
 def _split_provider_model(model: str) -> tuple[str, str]:
@@ -99,8 +102,16 @@ class BrokeredLM(dspy.BaseLM):
         caller_predict = dspy.settings.caller_predict
         caller_predict_id = id(caller_predict) if caller_predict else None
 
+        # Extract tools and tool_choice from kwargs
+        tools = merged_kwargs.get("tools")
+        tool_choice = merged_kwargs.get("tool_choice")
+
+        logger.debug(
+            f"[BROKER_LM] Calling LM with streaming={send_stream is not None}, tools={len(tools) if tools else 0}"
+        )
         if send_stream is not None:
             chunks: list[ModelResponseStream] = []
+            tool_calls_data = None
             async for event in self._client.llm_chat(
                 provider="openai",
                 model=model_id,
@@ -108,6 +119,8 @@ class BrokeredLM(dspy.BaseLM):
                 temperature=temperature,
                 max_tokens=max_tokens,
                 stream=True,
+                tools=tools,
+                tool_choice=tool_choice,
             ):
                 event_type = event.get("event")
                 if event_type == "delta":
@@ -125,23 +138,51 @@ class BrokeredLM(dspy.BaseLM):
                     continue
 
                 if event_type == "done":
+                    # Capture tool calls from done event
+                    data = event.get("data") or {}
+                    tool_calls_data = data.get("tool_calls")
+                    logger.debug(
+                        f"[BROKER_LM] Stream complete with {len(tool_calls_data) if tool_calls_data else 0} tool calls"
+                    )
                     break
 
                 if event_type == "error":
                     err = event.get("error") or {}
                     raise RuntimeError(err.get("message") or "Broker LLM error")
 
+            # Build response manually to ensure tool_calls stay as plain dicts
+            # (stream_chunk_builder might convert them to typed objects)
+            full_text = ""
             if chunks:
-                return litellm.stream_chunk_builder(chunks)
+                final_response = litellm.stream_chunk_builder(chunks)
+                if final_response.choices:
+                    message = (
+                        final_response.choices[0].get("message")
+                        if isinstance(final_response.choices[0], dict)
+                        else getattr(final_response.choices[0], "message", None)
+                    )
+                    if message:
+                        full_text = (
+                            message.get("content")
+                            if isinstance(message, dict)
+                            else getattr(message, "content", "") or ""
+                        )
 
-            # No streamed chunks; return an empty completion.
+            message_data = {"role": "assistant", "content": full_text}
+            finish_reason = "stop"
+
+            if tool_calls_data:
+                # Keep tool calls as plain dictionaries (already in OpenAI format from broker)
+                message_data["tool_calls"] = tool_calls_data
+                finish_reason = "tool_calls"
+
             return ModelResponse(
                 model=model_id,
                 choices=[
                     {
                         "index": 0,
-                        "finish_reason": "stop",
-                        "message": {"role": "assistant", "content": ""},
+                        "finish_reason": finish_reason,
+                        "message": message_data,
                     }
                 ],
                 usage={"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
@@ -149,6 +190,7 @@ class BrokeredLM(dspy.BaseLM):
 
         # Non-streaming path
         final_text = ""
+        tool_calls_data = None
         usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
         async for event in self._client.llm_chat(
             provider="openai",
@@ -157,24 +199,33 @@ class BrokeredLM(dspy.BaseLM):
             temperature=temperature,
             max_tokens=max_tokens,
             stream=False,
+            tools=tools,
+            tool_choice=tool_choice,
         ):
             event_type = event.get("event")
             if event_type == "done":
                 data = event.get("data") or {}
                 final_text = data.get("text") or ""
+                tool_calls_data = data.get("tool_calls")
                 usage = data.get("usage") or usage
                 break
             if event_type == "error":
                 err = event.get("error") or {}
                 raise RuntimeError(err.get("message") or "Broker LLM error")
 
+        # Build message response with tool calls if present
+        message_data = {"role": "assistant", "content": final_text}
+        if tool_calls_data:
+            # Keep tool calls as plain dictionaries (already in OpenAI format from broker)
+            message_data["tool_calls"] = tool_calls_data
+
         return ModelResponse(
             model=model_id,
             choices=[
                 {
                     "index": 0,
-                    "finish_reason": "stop",
-                    "message": {"role": "assistant", "content": final_text},
+                    "finish_reason": "tool_calls" if tool_calls_data else "stop",
+                    "message": message_data,
                 }
             ],
             usage=usage,

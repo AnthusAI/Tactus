@@ -1,4 +1,5 @@
 import type { StorybookConfig } from '@storybook/react-vite';
+import path from 'path';
 
 const config: StorybookConfig = {
   "stories": [
@@ -11,6 +12,18 @@ const config: StorybookConfig = {
     "@storybook/addon-docs",
     "@storybook/addon-onboarding"
   ],
-  "framework": "@storybook/react-vite"
+  "framework": "@storybook/react-vite",
+  async viteFinal(config) {
+    config.resolve = config.resolve || {};
+    config.resolve.alias = {
+      ...(config.resolve.alias || {}),
+      '@': path.resolve(__dirname, '../src'),
+      '@anthus/tactus-hitl-components': path.resolve(
+        __dirname,
+        '../../../Tactus-HITL-components/src'
+      ),
+    };
+    return config;
+  }
 };
 export default config;

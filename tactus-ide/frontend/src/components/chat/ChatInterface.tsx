@@ -3,6 +3,7 @@ import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
 import { useChatSSE } from '@/hooks/useChatSSE';
 import { Loader2 } from 'lucide-react';
+import { Conversation, ConversationContent, ConversationScrollButton } from '@/components/ui/ai/conversation';
 
 interface ChatInterfaceProps {
   workspaceRoot: string;
@@ -76,10 +77,13 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ workspaceRoot }) =
 
   return (
     <div className="flex flex-col h-full bg-background">
-      {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto">
-        <MessageList messages={messages} />
-      </div>
+      {/* Messages Area with Conversation wrapper for auto-scroll */}
+      <Conversation className="flex-1">
+        <ConversationContent>
+          <MessageList messages={messages} />
+        </ConversationContent>
+        <ConversationScrollButton />
+      </Conversation>
 
       {/* Input Area */}
       <div className="border-t bg-background p-4">

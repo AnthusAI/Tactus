@@ -594,8 +594,8 @@ def run(
         console.print(f"[red]Error:[/red] Unknown storage backend: {storage}")
         raise typer.Exit(1)
 
-    # Setup HITL handler
-    hitl_handler = CLIHITLHandler(console=console)
+    # HITL handler will be set up later after procedure_id is known
+    hitl_handler = None
 
     # Load configuration cascade
     from tactus.core.config_manager import ConfigManager
@@ -698,6 +698,23 @@ def run(
 
     # Create runtime
     procedure_id = f"cli-{workflow_file.stem}"
+
+    # Setup HITL handler - use new ControlLoopHandler with default channels
+    from tactus.adapters.channels import load_default_channels
+    from tactus.adapters.channels.cli import CLIControlChannel
+    from tactus.adapters.control_loop import ControlLoopHandler, ControlLoopHITLAdapter
+
+    # Load default channels (CLI if tty, IPC always)
+    # Then add CLI with custom console if not already present
+    channels = load_default_channels(procedure_id=procedure_id)
+
+    # If CLI channel not already loaded (because not tty), add it with custom console
+    if not any(c.channel_id == "cli" for c in channels):
+        channels.insert(0, CLIControlChannel(console=console))
+
+    control_handler = ControlLoopHandler(channels=channels, storage=storage_backend)
+    hitl_handler = ControlLoopHITLAdapter(control_handler)
+
     runtime = TactusRuntime(
         procedure_id=procedure_id,
         storage_backend=storage_backend,
@@ -800,7 +817,33 @@ def run(
                     console.print(f"[dim]{sandbox_result.traceback}[/dim]")
         else:
             # Execute directly (non-sandboxed)
-            result = asyncio.run(runtime.execute(source_content, context, format=file_format))
+            try:
+                result = asyncio.run(runtime.execute(source_content, context, format=file_format))
+            except Exception as e:
+                from tactus.core.exceptions import ProcedureWaitingForHuman
+                # Check both the exception itself and its __cause__
+                console.print(f"[dim]DEBUG: Caught exception type: {type(e).__name__}[/dim]")
+                console.print(f"[dim]DEBUG: Exception __cause__ type: {type(e.__cause__).__name__ if e.__cause__ else 'None'}[/dim]")
+                console.print(f"[dim]DEBUG: Is ProcedureWaitingForHuman: {isinstance(e, ProcedureWaitingForHuman)}[/dim]")
+                console.print(f"[dim]DEBUG: __cause__ is ProcedureWaitingForHuman: {isinstance(e.__cause__, ProcedureWaitingForHuman) if e.__cause__ else False}[/dim]")
+
+                if isinstance(e, ProcedureWaitingForHuman):
+                    # Direct exception
+                    console.print("\n[yellow]⏸ Procedure paused - waiting for human response[/yellow]")
+                    console.print(f"[dim]Message ID: {e.pending_message_id}[/dim]")
+                    console.print("\n[cyan]The procedure has been paused and is waiting for input.")
+                    console.print("To resume, run the procedure again or provide a response via another channel.[/cyan]\n")
+                    return
+                elif e.__cause__ and isinstance(e.__cause__, ProcedureWaitingForHuman):
+                    # Wrapped exception
+                    console.print("\n[yellow]⏸ Procedure paused - waiting for human response[/yellow]")
+                    console.print(f"[dim]Message ID: {e.__cause__.pending_message_id}[/dim]")
+                    console.print("\n[cyan]The procedure has been paused and is waiting for input.")
+                    console.print("To resume, run the procedure again or provide a response via another channel.[/cyan]\n")
+                    return
+                else:
+                    # Re-raise other exceptions
+                    raise
 
         if result["success"]:
             console.print("\n[green]✓ Procedure completed successfully[/green]\n")
@@ -2336,6 +2379,62 @@ def stdlib_test(
     console.print("\n[green]All stdlib tests passed![/green]")
 
 
+# =============================================================================
+# Control Command
+# =============================================================================
+
+@app.command()
+def control(
+    socket_path: Optional[str] = typer.Option(
+        None,
+        "--socket",
+        "-s",
+        help="Path to runtime's Unix socket (default: auto-detect from /tmp/tactus-control-*.sock)"
+    ),
+    auto_respond: Optional[str] = typer.Option(
+        None,
+        "--respond",
+        "-r",
+        help="Auto-respond with this value (for testing)"
+    ),
+):
+    """
+    Connect to running procedure and respond to control requests.
+
+    Opens an interactive session that connects to a running Tactus procedure
+    via Unix socket IPC. Control requests from Human.approve() and similar
+    calls will appear here, and you can respond to them.
+
+    This allows running the procedure in one terminal and responding to
+    control requests from another terminal.
+    """
+    from tactus.cli.control import main as control_main
+    import glob
+
+    # Auto-detect socket path if not provided
+    if socket_path is None:
+        # Look for sockets in /tmp/tactus-control-*.sock
+        socket_files = glob.glob("/tmp/tactus-control-*.sock")
+        if not socket_files:
+            console.print("[red]✗ No Tactus runtime sockets found[/red]")
+            console.print("\n[yellow]Make sure a Tactus procedure is running:[/yellow]")
+            console.print("  [dim]tactus run examples/90-hitl-simple.tac[/dim]")
+            raise typer.Exit(1)
+        elif len(socket_files) == 1:
+            socket_path = socket_files[0]
+            console.print(f"[dim]Auto-detected socket: {socket_path}[/dim]")
+        else:
+            console.print("[yellow]Multiple runtime sockets found:[/yellow]")
+            for i, path in enumerate(socket_files, 1):
+                console.print(f"  [{i}] {path}")
+            console.print()
+            selection = Prompt.ask("Select socket", choices=[str(i) for i in range(1, len(socket_files) + 1)], default="1")
+            socket_path = socket_files[int(selection) - 1]
+
+    # Run control CLI
+    asyncio.run(control_main(socket_path, auto_respond))
+
+
 def main():
     """Main entry point for the CLI."""
     # Load configuration before processing any commands
@@ -2354,6 +2453,7 @@ def main():
             "version",
             "ide",
             "stdlib",
+            "control",
             "trace-list",
             "trace-show",
             "trace-export",

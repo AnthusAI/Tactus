@@ -102,7 +102,29 @@ class TactusRuntime:
         """
         self.procedure_id = procedure_id
         self.storage_backend = storage_backend
-        self.hitl_handler = hitl_handler
+
+        # Initialize HITL handler - use new ControlLoopHandler by default
+        if hitl_handler is None:
+            # Auto-configure control loop with channels
+            from tactus.adapters.channels import load_default_channels
+            from tactus.adapters.control_loop import ControlLoopHandler, ControlLoopHITLAdapter
+
+            channels = load_default_channels(procedure_id=procedure_id)
+            if channels:
+                control_handler = ControlLoopHandler(
+                    channels=channels,
+                    storage=storage_backend,
+                )
+                # Wrap in adapter for HITLHandler compatibility
+                self.hitl_handler = ControlLoopHITLAdapter(control_handler)
+                logger.info(f"Auto-configured ControlLoopHandler with {len(channels)} channel(s)")
+            else:
+                # No channels available, leave hitl_handler as None
+                self.hitl_handler = None
+                logger.warning("No control channels available - HITL interactions will use defaults")
+        else:
+            self.hitl_handler = hitl_handler
+
         self.chat_recorder = chat_recorder
         self.mcp_server = mcp_server  # Keep for backward compatibility
         self.mcp_servers = mcp_servers or {}
@@ -692,6 +714,11 @@ class TactusRuntime:
                 "error": f"Lua execution error: {e}",
             }
 
+        except ProcedureWaitingForHuman:
+            # Re-raise this exception to trigger exit-and-resume pattern
+            # Don't treat this as an error - it's expected behavior
+            raise
+
         except Exception as e:
             logger.error(f"Unexpected error: {e}", exc_info=True)
 
@@ -931,15 +958,59 @@ class TactusRuntime:
                 )
 
         # 6. Register DSL-defined toolsets from registry (after individual tools are registered)
+        # DEBUG: Write to stderr which should show up in logs
+        import sys
+        sys.stderr.write("\n\n===  DSL TOOLSET REGISTRATION START ===\n")
+        sys.stderr.write(f"Has registry: {hasattr(self, 'registry')}\n")
+        if hasattr(self, 'registry') and self.registry:
+            sys.stderr.write(f"Registry is not None: True\n")
+            sys.stderr.write(f"Registry has toolsets attr: {hasattr(self.registry, 'toolsets')}\n")
+            if hasattr(self.registry, "toolsets"):
+                sys.stderr.write(f"Registry toolsets: {list(self.registry.toolsets.keys())}\n")
+                sys.stderr.write(f"Registry toolsets count: {len(self.registry.toolsets)}\n")
+        else:
+            sys.stderr.write("Registry is None or doesn't exist\n")
+        sys.stderr.flush()
+
+        logger.info("=== DSL TOOLSET REGISTRATION START ===")
+        logger.info(f"Has registry: {hasattr(self, 'registry')}")
+        logger.info(f"Registry is not None: {self.registry is not None if hasattr(self, 'registry') else False}")
+        if hasattr(self, "registry") and self.registry:
+            logger.info(f"Registry has toolsets attr: {hasattr(self.registry, 'toolsets')}")
+            if hasattr(self.registry, "toolsets"):
+                logger.info(f"Registry toolsets: {list(self.registry.toolsets.keys())}")
+                logger.info(f"Registry toolsets count: {len(self.registry.toolsets)}")
+
         if hasattr(self, "registry") and self.registry and hasattr(self.registry, "toolsets"):
+            sys.stderr.write(f"Processing {len(self.registry.toolsets)} DSL toolsets\n")
+            sys.stderr.flush()
+            logger.info(f"Processing {len(self.registry.toolsets)} DSL toolsets")
             for name, definition in self.registry.toolsets.items():
+                sys.stderr.write(f"Creating DSL toolset '{name}' with config keys: {list(definition.keys())}\n")
+                sys.stderr.flush()
+                logger.info(f"Creating DSL toolset '{name}' with config keys: {list(definition.keys())}")
                 try:
                     toolset = await self._create_toolset_from_config(name, definition)
                     if toolset:
                         self.toolset_registry[name] = toolset
-                        logger.info(f"Registered DSL-defined toolset '{name}'")
+                        sys.stderr.write(f"✓ Registered DSL-defined toolset '{name}'\n")
+                        sys.stderr.flush()
+                        logger.info(f"✓ Registered DSL-defined toolset '{name}'")
+                    else:
+                        sys.stderr.write(f"✗ Toolset '{name}' creation returned None\n")
+                        sys.stderr.flush()
+                        logger.error(f"✗ Toolset '{name}' creation returned None")
                 except Exception as e:
-                    logger.error(f"Failed to create DSL toolset '{name}': {e}", exc_info=True)
+                    sys.stderr.write(f"✗ Failed to create DSL toolset '{name}': {e}\n")
+                    sys.stderr.flush()
+                    logger.error(f"✗ Failed to create DSL toolset '{name}': {e}", exc_info=True)
+        else:
+            sys.stderr.write("No DSL toolsets to register (registry.toolsets not available)\n")
+            sys.stderr.flush()
+            logger.warning("No DSL toolsets to register (registry.toolsets not available)")
+        sys.stderr.write("=== DSL TOOLSET REGISTRATION END ===\n")
+        sys.stderr.flush()
+        logger.info("=== DSL TOOLSET REGISTRATION END ===")
 
         logger.info(
             f"Toolset registry initialized with {len(self.toolset_registry)} toolset(s): {list(self.toolset_registry.keys())}"
@@ -1439,23 +1510,32 @@ class TactusRuntime:
             # DSL toolsets can have:
             # - "tools" field with list of tool names or inline tool definitions
             # - "use" field to import from a file or other source
+            logger.info(f"[TOOLSET_CREATE] '{name}' has no explicit type, checking for tools/use")
 
             if "tools" in definition:
                 # Handle tools list (can be tool names or inline definitions)
                 tools_list = definition["tools"]
+                logger.info(f"[TOOLSET_CREATE] '{name}' has tools field with {len(tools_list) if isinstance(tools_list, list) else '?'} items")
 
                 # Check if we have inline tool definitions (dicts with a Lua handler)
                 has_inline_tools = False
                 if isinstance(tools_list, list):
-                    for item in tools_list:
-                        if isinstance(item, dict) and (
-                            "handler" in item or (1 in item and callable(item.get(1)))
-                        ):
-                            has_inline_tools = True
-                            break
+                    for idx, item in enumerate(tools_list):
+                        logger.info(f"[TOOLSET_CREATE] Tool {idx}: type={type(item).__name__}, is_dict={isinstance(item, dict)}")
+                        if isinstance(item, dict):
+                            logger.info(f"[TOOLSET_CREATE] Tool {idx} keys: {list(item.keys())}")
+                            has_handler = "handler" in item
+                            has_callable_1 = 1 in item and callable(item.get(1))
+                            logger.info(f"[TOOLSET_CREATE] Tool {idx}: has_handler={has_handler}, has_callable_1={has_callable_1}")
+                            if has_handler or has_callable_1:
+                                has_inline_tools = True
+                                break
+
+                logger.info(f"[TOOLSET_CREATE] '{name}' has_inline_tools={has_inline_tools}")
 
                 if has_inline_tools:
                     # Create toolset from inline Lua tools
+                    logger.info(f"[TOOLSET_CREATE] Creating inline toolset for '{name}'")
                     try:
                         from tactus.adapters.lua_tools import LuaToolsAdapter
 
@@ -1464,10 +1544,12 @@ class TactusRuntime:
                         )
 
                         # Create a toolset from inline tool definitions
-                        return lua_adapter.create_inline_toolset(name, tools_list)
+                        toolset = lua_adapter.create_inline_toolset(name, tools_list)
+                        logger.info(f"[TOOLSET_CREATE] ✓ Created inline toolset '{name}': {toolset}")
+                        return toolset
                     except Exception as e:
                         logger.error(
-                            f"Failed to create inline toolset '{name}': {e}", exc_info=True
+                            f"[TOOLSET_CREATE] ✗ Failed to create inline toolset '{name}': {e}", exc_info=True
                         )
                         return None
                 else:
@@ -1657,6 +1739,7 @@ class TactusRuntime:
         Args:
             context: Procedure context with pre-loaded data
         """
+        import sys  # For debug output
         logger.info(
             f"_setup_agents called. Toolset registry has {len(self.toolset_registry)} toolsets: {list(self.toolset_registry.keys())}"
         )
@@ -1664,8 +1747,13 @@ class TactusRuntime:
         # Initialize user dependencies first (needed by agents)
         await self._initialize_dependencies()
 
-        # Get agent configurations
-        agents_config = self.config.get("agents", {})
+        # Get agent configurations from registry (Lua-parsed) if available, otherwise from YAML config
+        if hasattr(self, "registry") and self.registry and hasattr(self.registry, "agents"):
+            agents_config = self.registry.agents
+            logger.info(f"Using {len(agents_config)} agent(s) from registry: {list(agents_config.keys())}")
+        else:
+            agents_config = self.config.get("agents", {})
+            logger.info(f"Using {len(agents_config)} agent(s) from YAML config")
 
         if not agents_config:
             logger.info("No agents defined in configuration - skipping agent setup")
@@ -1682,7 +1770,18 @@ class TactusRuntime:
             logger.info(f"Default toolsets configured: {default_toolset_names}")
 
         # Setup each agent
-        for agent_name, agent_config in agents_config.items():
+        for agent_name, agent_config_raw in agents_config.items():
+            # Convert AgentDeclaration to dict if needed
+            if hasattr(agent_config_raw, "model_dump"):
+                # Pydantic v2
+                agent_config = agent_config_raw.model_dump()
+            elif hasattr(agent_config_raw, "dict"):
+                # Pydantic v1
+                agent_config = agent_config_raw.dict()
+            else:
+                # Already a dict
+                agent_config = agent_config_raw
+
             # Skip if agent was already created during immediate initialization
             if agent_name in self.agents:
                 logger.debug(
@@ -1820,8 +1919,13 @@ class TactusRuntime:
                 logger.info(f"Agent '{agent_name}' has NO tools (explicitly empty - passing None)")
             else:
                 # Parse toolset expressions
+                sys.stderr.write(f"\n[AGENT_SETUP] Agent '{agent_name}' raw tools config: {agent_tools_config}\n")
+                sys.stderr.write(f"[AGENT_SETUP] toolset_registry has: {list(self.toolset_registry.keys())}\n")
+                sys.stderr.flush()
                 logger.info(f"Agent '{agent_name}' raw tools config: {agent_tools_config}")
                 filtered_toolsets = self._parse_toolset_expressions(agent_tools_config)
+                sys.stderr.write(f"[AGENT_SETUP] Agent '{agent_name}' parsed toolsets: {filtered_toolsets}\n")
+                sys.stderr.flush()
                 logger.info(f"Agent '{agent_name}' parsed toolsets: {filtered_toolsets}")
 
             # Append inline tools toolset if present
@@ -1887,6 +1991,9 @@ class TactusRuntime:
                     )
 
             # Create DSPy-based agent
+            tool_choice = agent_config.get("tool_choice")
+            logger.info(f"Agent '{agent_name}' config has tool_choice={tool_choice}")
+
             dspy_config = {
                 "system_prompt": system_prompt_template,
                 "model": model_name,
@@ -1912,14 +2019,17 @@ class TactusRuntime:
                 "disable_streaming": agent_config.get("disable_streaming", False),
                 "initial_message": initial_message,
                 "log_handler": self.log_handler,
+                "tool_choice": tool_choice,  # Pass through tool_choice
             }
+            logger.info(f"Agent '{agent_name}' dspy_config has tool_choice={dspy_config.get('tool_choice')}")
 
-            # Create DSPy agent with registry and mock_manager for mock support
+            # Create DSPy agent with registry, mock_manager, and execution_context
             agent_primitive = create_dspy_agent(
                 agent_name,
                 dspy_config,
                 registry=self.registry,
                 mock_manager=self.mock_manager,
+                execution_context=self.execution_context,
             )
 
             # Store additional context for compatibility
@@ -1928,6 +2038,13 @@ class TactusRuntime:
             agent_primitive._context = context
 
             self.agents[agent_name] = agent_primitive
+
+            # CRITICAL FIX: Update the Lua global to point to the new agent with toolsets
+            # The agent was created during parsing WITHOUT toolsets, now we update it
+            # to the new agent that HAS toolsets
+            self.lua_sandbox.lua.globals()[agent_name] = agent_primitive
+            sys.stderr.write(f"[AGENT_FIX] Updated Lua global '{agent_name}' to new agent with toolsets\n")
+            sys.stderr.flush()
 
             logger.info(f"Agent '{agent_name}' configured successfully with model '{model_name}'")
 
@@ -2343,7 +2460,6 @@ class TactusRuntime:
 
                     # Create callable wrapper for main
                     from tactus.primitives.procedure_callable import ProcedureCallable
-
                     main_callable = ProcedureCallable(
                         name="main",
                         procedure_function=main_proc["function"],
@@ -2367,8 +2483,14 @@ class TactusRuntime:
                             # We can't check FieldDefinition type here as it's lost during storage
                             input_params[key] = field_def["default"]
                         # If required and not in context, it will fail validation in ProcedureCallable
-
                     logger.debug(f"Calling main with input_params: {input_params}")
+
+                    # Set procedure metadata for HITL context display
+                    if hasattr(self, 'execution_context') and self.execution_context:
+                        self.execution_context.set_procedure_metadata(
+                            procedure_name=main_proc.get("name", "main"),
+                            input_data=input_params
+                        )
 
                     # Execute main procedure
                     result = main_callable(input_params)
@@ -2384,6 +2506,9 @@ class TactusRuntime:
 
                     logger.info("Named 'main' procedure execution completed successfully")
                     return result
+                except ProcedureWaitingForHuman:
+                    # Re-raise without wrapping - this is expected behavior
+                    raise
                 except Exception as e:
                     logger.error(f"Named 'main' procedure execution failed: {e}")
                     raise LuaSandboxError(f"Named 'main' procedure execution failed: {e}")
@@ -2436,6 +2561,11 @@ class TactusRuntime:
         if re.search(r"(?m)^\s*(?:[A-Za-z_][A-Za-z0-9_]*\s*=\s*)?Procedure\b", source):
             return source
 
+        # If there are named function definitions (function name()), don't transform.
+        # These are procedure definitions that will be explicitly called.
+        if re.search(r"(?m)^\s*(?:local\s+)?function\s+[A-Za-z_][A-Za-z0-9_]*\s*\(", source):
+            return source
+
         # Detect script mode by top-level input/output declarations OR a top-level `return`.
         # We intentionally treat simple "hello world" scripts as script-mode so agent/tool
         # calls don't execute during the parse/declaration phase.
@@ -2451,6 +2581,7 @@ class TactusRuntime:
         # Once we enter executable code, everything stays in the body.
         in_body = False
         brace_depth = 0
+        function_depth = 0  # Track function...end blocks
         long_string_eq: str | None = None
 
         decl_start = re.compile(
@@ -2467,6 +2598,8 @@ class TactusRuntime:
             r"Agent|Toolset|Tool|Model|Module|Signature|LM|Dependency|Prompt"
             r")\b"
         )
+        # Match function definitions: function name() or local function name()
+        function_def = re.compile(r"^\s*(?:local\s+)?function\s+[A-Za-z_][A-Za-z0-9_]*\s*\(")
 
         long_string_open = re.compile(r"\[(=*)\[")
 
@@ -2485,15 +2618,15 @@ class TactusRuntime:
                     long_string_eq = None
                 continue
 
-            # If we're inside a declaration block, keep consuming until braces balance.
+            # If we're inside a declaration block, keep consuming until braces/functions balance.
             added_to_decl = False
-            if brace_depth > 0:
+            if brace_depth > 0 or function_depth > 0:
                 decl_lines.append(line)
                 added_to_decl = True
             elif stripped == "" or stripped.startswith("--"):
                 decl_lines.append(line)
                 added_to_decl = True
-            elif decl_start.match(line) or assignment_decl.match(line) or require_stmt.match(line):
+            elif decl_start.match(line) or assignment_decl.match(line) or require_stmt.match(line) or function_def.match(line):
                 decl_lines.append(line)
                 added_to_decl = True
             else:
@@ -2515,6 +2648,17 @@ class TactusRuntime:
             brace_depth += line.count("{") - line.count("}")
             if brace_depth < 0:
                 brace_depth = 0
+
+            # Track function...end blocks for named function definitions
+            # Count 'function' keywords (both named and anonymous)
+            # Note: This is a simple heuristic that counts keywords in comments/strings too,
+            # but that's acceptable for well-formed DSL code
+            import re as re_module
+            function_count = len(re_module.findall(r'\bfunction\b', line))
+            end_count = len(re_module.findall(r'\bend\b', line))
+            function_depth += function_count - end_count
+            if function_depth < 0:
+                function_depth = 0
 
         # If there is no executable code, nothing to wrap.
         if not any(line.strip() for line in body_lines):
@@ -2719,6 +2863,35 @@ class TactusRuntime:
             self._top_level_result = execution_result
         except LuaSandboxError as e:
             raise TactusRuntimeError(f"Failed to parse DSL: {e}")
+
+        # Auto-register plain function main() if it exists
+        #
+        # Some .tac files use plain Lua syntax: `function main() ... end`
+        # instead of the Procedure DSL syntax: `Procedure { function(input) ... end }`
+        #
+        # For these files, we need to explicitly check lua.globals() after execution
+        # and register any function named "main" as the main procedure.
+        #
+        # This allows both syntax styles to work:
+        # 1. DSL style (self-registering): Procedure { function(input) ... end }
+        # 2. Plain Lua style (auto-registered): function main() ... end
+        #
+        # The script mode transformation (in _maybe_transform_script_mode_source)
+        # is designed to skip files with named function definitions to avoid wrapping
+        # them incorrectly.
+        lua_globals = sandbox.lua.globals()
+        if "main" in lua_globals:
+            main_func = lua_globals["main"]
+            # Check if it's a function and not already registered
+            if callable(main_func) and "main" not in builder.registry.named_procedures:
+                logger.info("[AUTO_REGISTER] Found plain function main(), auto-registering as main procedure")
+                builder.register_named_procedure(
+                    name="main",
+                    lua_function=main_func,
+                    input_schema={},
+                    output_schema={},
+                    state_schema={},
+                )
 
         # Validate and return registry
         result = builder.validate()

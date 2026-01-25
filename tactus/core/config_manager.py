@@ -259,10 +259,32 @@ class ConfigManager:
             # Sandbox configuration
             "TACTUS_SANDBOX_ENABLED": ("sandbox", "enabled"),
             "TACTUS_SANDBOX_IMAGE": ("sandbox", "image"),
+            # Notification configuration
+            "TACTUS_NOTIFICATIONS_ENABLED": ("notifications", "enabled"),
+            "TACTUS_NOTIFICATIONS_CALLBACK_URL": ("notifications", "callback_base_url"),
+            "TACTUS_HITL_SIGNING_SECRET": ("notifications", "signing_secret"),
+            # Slack notification channel
+            "SLACK_BOT_TOKEN": ("notifications", "channels", "slack", "token"),
+            # Discord notification channel
+            "DISCORD_BOT_TOKEN": ("notifications", "channels", "discord", "token"),
+            # Teams notification channel
+            "TEAMS_WEBHOOK_URL": ("notifications", "channels", "teams", "webhook_url"),
+            # Control loop configuration
+            "TACTUS_CONTROL_ENABLED": ("control", "enabled"),
+            "TACTUS_CONTROL_CLI_ENABLED": ("control", "channels", "cli", "enabled"),
+            # Tactus Cloud control channel
+            "TACTUS_CLOUD_API_URL": ("control", "channels", "tactus_cloud", "api_url"),
+            "TACTUS_CLOUD_TOKEN": ("control", "channels", "tactus_cloud", "token"),
+            "TACTUS_CLOUD_WORKSPACE_ID": ("control", "channels", "tactus_cloud", "workspace_id"),
         }
 
         # Boolean env vars that need special parsing
-        boolean_env_keys = {"TACTUS_SANDBOX_ENABLED"}
+        boolean_env_keys = {
+            "TACTUS_SANDBOX_ENABLED",
+            "TACTUS_NOTIFICATIONS_ENABLED",
+            "TACTUS_CONTROL_ENABLED",
+            "TACTUS_CONTROL_CLI_ENABLED",
+        }
 
         for env_key, config_key in env_mappings.items():
             value = os.environ.get(env_key)
@@ -272,12 +294,17 @@ class ConfigManager:
                     value = value.lower() in ("true", "1", "yes", "on")
 
                 if isinstance(config_key, tuple):
-                    # Nested key (e.g., aws.access_key_id, sandbox.enabled)
-                    if config_key[0] not in config:
-                        config[config_key[0]] = {}
-                    config[config_key[0]][config_key[1]] = value
+                    # Nested key - handle arbitrary depth
+                    # e.g., ("aws", "access_key_id") -> config["aws"]["access_key_id"]
+                    # e.g., ("notifications", "channels", "slack", "token")
+                    current = config
+                    for i, key in enumerate(config_key[:-1]):
+                        if key not in current:
+                            current[key] = {}
+                        current = current[key]
+                    current[config_key[-1]] = value
                     # Track env var name for this nested key
-                    path = f"{config_key[0]}.{config_key[1]}"
+                    path = ".".join(config_key)
                     self.env_var_mapping[path] = env_key
                 elif config_key == "tool_paths":
                     # Parse JSON list
