@@ -40,6 +40,7 @@ local BaseGenerator = class()
 
 function BaseGenerator:init(config)
     -- Core configuration
+    self.name = config.name
     self.model = config.model
     self.temperature = config.temperature or 0.7
     self.max_tokens = config.max_tokens

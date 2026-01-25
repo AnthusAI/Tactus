@@ -61,12 +61,14 @@ local test_state = {}
 -- Custom step definitions
 Step("an LLM generator", function(ctx)
     test_state.generator_config = {
+        name = "stdlib_generate_llm",
         model = "openai/gpt-4o-mini"
     }
 end)
 
 Step("an LLM generator with reasoning enabled", function(ctx)
     test_state.generator_config = {
+        name = "stdlib_generate_llm",
         model = "openai/gpt-4o-mini",
         reasoning = true
     }
@@ -74,6 +76,7 @@ end)
 
 Step("an LLM generator with JSON output format", function(ctx)
     test_state.generator_config = {
+        name = "stdlib_generate_llm",
         model = "openai/gpt-4o-mini",
         output_format = "json"
     }
@@ -81,6 +84,7 @@ end)
 
 Step("an LLM generator with markdown output format", function(ctx)
     test_state.generator_config = {
+        name = "stdlib_generate_llm",
         model = "openai/gpt-4o-mini",
         output_format = "markdown"
     }
@@ -133,6 +137,29 @@ Step("the output should look like JSON", function(ctx)
     assert(trimmed:match("^%{") or trimmed:match("^%["),
         "Output does not appear to be JSON: " .. output:sub(1, 100))
 end)
+
+Mocks {
+    stdlib_generate_llm = {
+        temporal = {
+            {
+                when_message = "Write a one-sentence description of the color blue.",
+                message = "Blue is a calm, cool color that often symbolizes clarity and depth."
+            },
+            {
+                when_message = "Generate a creative name for a coffee shop.",
+                message = "Amber Bean Cafe"
+            },
+            {
+                when_message = "What is 25% of 120? Explain your calculation.",
+                message = "REASONING: 25% is one quarter. 120 divided by 4 is 30. RESPONSE: 30"
+            },
+            {
+                when_message = "Return a JSON object with keys 'name' and 'age' for a fictional person.",
+                message = [[{"name":"Ava","age":28}]]
+            }
+        }
+    }
+}
 
 -- BDD Specifications
 Specification([[

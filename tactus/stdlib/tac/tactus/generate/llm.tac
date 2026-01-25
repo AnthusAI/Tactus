@@ -52,7 +52,11 @@ function LLMGenerator:init(config)
         agent_config.max_tokens = self.max_tokens
     end
 
-    self.agent = Agent(agent_config)
+    if self.name then
+        self.agent = Agent(self.name)(agent_config)
+    else
+        self.agent = Agent(agent_config)
+    end
 end
 
 function LLMGenerator:generate(prompt)
