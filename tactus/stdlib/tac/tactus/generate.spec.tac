@@ -140,6 +140,7 @@ end)
 
 Mocks {
     stdlib_generate_llm = {
+        message = "Mocked response",
         temporal = {
             {
                 when_message = "Write a one-sentence description of the color blue.",
