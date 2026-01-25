@@ -93,8 +93,7 @@ def test_private_functions_not_loaded(plugin_loader, tmp_path):
     """Test that private functions (starting with _) are not loaded."""
     # Create a test file with public and private functions
     test_file = tmp_path / "test_tools.py"
-    test_file.write_text(
-        """
+    test_file.write_text("""
 def public_tool(x: int) -> int:
     '''A public tool.'''
     return x * 2
@@ -102,8 +101,7 @@ def public_tool(x: int) -> int:
 def _private_tool(x: int) -> int:
     '''A private tool.'''
     return x * 3
-"""
-    )
+""")
 
     tools = plugin_loader.load_from_paths([str(test_file)])
 
@@ -116,13 +114,11 @@ def test_multiple_paths(plugin_loader, example_tools_dir, tmp_path):
     """Test loading tools from multiple paths."""
     # Create an additional test file
     test_file = tmp_path / "extra_tools.py"
-    test_file.write_text(
-        """
+    test_file.write_text("""
 def extra_tool(message: str) -> str:
     '''An extra tool.'''
     return f"Extra: {message}"
-"""
-    )
+""")
 
     tools = plugin_loader.load_from_paths([example_tools_dir, str(test_file)])
 

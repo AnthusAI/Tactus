@@ -10,7 +10,6 @@ from typing import Any, Dict
 
 from tactus.primitives.tool import ToolPrimitive, ToolCall
 
-
 logger = logging.getLogger(__name__)
 
 

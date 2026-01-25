@@ -18,7 +18,6 @@ from typing import Any
 
 from .registry import StepRegistry
 
-
 logger = logging.getLogger(__name__)
 
 

@@ -11,7 +11,6 @@ from typing import Any, Dict, Optional
 
 from tactus.protocols.models import HITLRequest, HITLResponse
 
-
 logger = logging.getLogger(__name__)
 
 

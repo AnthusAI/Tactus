@@ -9,7 +9,6 @@ from typing import Optional, Any
 
 import dspy
 
-
 # Global reference to the current LM configuration
 _current_lm: Optional[dspy.BaseLM] = None
 

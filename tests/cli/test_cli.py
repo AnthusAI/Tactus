@@ -133,8 +133,7 @@ def test_cli_run_help_includes_logging_options(cli_runner):
 def test_cli_run_accepts_log_level_and_format(cli_runner, tmp_path):
     """Test that run accepts --log-level/--log-format (no-sandbox)."""
     workflow_file = tmp_path / "logging_flags.tac"
-    workflow_file.write_text(
-        """
+    workflow_file.write_text("""
 Procedure {
   input = {},
   output = { ok = field.boolean{required = true} },
@@ -145,8 +144,7 @@ Procedure {
     return { ok = true }
   end
 }
-"""
-    )
+""")
 
     result = cli_runner.invoke(
         app,

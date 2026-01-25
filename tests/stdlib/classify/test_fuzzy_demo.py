@@ -8,7 +8,6 @@ ensuring they work correctly before the demo is shown to users.
 import pytest
 from tactus.stdlib.classify.fuzzy import FuzzyMatchClassifier
 
-
 # Test data matching the demo
 SCHOOLS = [
     "United Education Institute",

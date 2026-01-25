@@ -15,7 +15,6 @@ except ImportError:
 
 from .models import ParsedStep, ParsedScenario, ParsedFeature
 
-
 logger = logging.getLogger(__name__)
 
 

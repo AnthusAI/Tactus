@@ -14,7 +14,6 @@ from .models import ParsedFeature, ParsedScenario
 from .steps.registry import StepRegistry
 from .steps.custom import CustomStepManager
 
-
 logger = logging.getLogger(__name__)
 
 

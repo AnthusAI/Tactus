@@ -125,16 +125,14 @@ class LuaSandbox:
         # Whitelist only safe debug functions for source location tracking
         # Keep debug.getinfo but remove dangerous debug functions
         if "debug" in lua_globals:
-            self.lua.execute(
-                """
+            self.lua.execute("""
                 if debug then
                     local safe_debug = {
                         getinfo = debug.getinfo
                     }
                     debug = safe_debug
                 end
-            """
-            )
+            """)
             logger.debug("Replaced debug module with safe_debug (only getinfo allowed)")
 
     def _setup_safe_require(self):
@@ -205,8 +203,7 @@ class LuaSandbox:
 
         # Add to package.loaders (Lua 5.1) or package.searchers (Lua 5.2+)
         # Lupa uses LuaJIT which follows Lua 5.1 conventions
-        self.lua.execute(
-            """
+        self.lua.execute("""
             -- Add Python stdlib loader to package.loaders
             -- Insert after the preload loader but before path loader
             local loaders = package.loaders or package.searchers
@@ -224,8 +221,7 @@ class LuaSandbox:
                 -- Insert at position 2 (after preload, before path)
                 table.insert(loaders, 2, python_searcher)
             end
-        """
-        )
+        """)
 
         logger.debug("Python stdlib loader installed")
 

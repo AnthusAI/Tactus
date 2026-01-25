@@ -14,7 +14,6 @@ from typing import List
 from .models import ScenarioResult, EvaluationResult
 from .test_runner import TactusTestRunner
 
-
 logger = logging.getLogger(__name__)
 
 

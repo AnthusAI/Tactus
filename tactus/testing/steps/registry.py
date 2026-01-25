@@ -6,7 +6,6 @@ import re
 import logging
 from typing import Callable, Dict, Optional, Pattern, Tuple
 
-
 logger = logging.getLogger(__name__)
 
 

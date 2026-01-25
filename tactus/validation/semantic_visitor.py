@@ -12,7 +12,6 @@ from .generated.LuaParser import LuaParser
 from .generated.LuaParserVisitor import LuaParserVisitor
 from tactus.core.registry import RegistryBuilder, ValidationMessage
 
-
 logger = logging.getLogger(__name__)
 
 

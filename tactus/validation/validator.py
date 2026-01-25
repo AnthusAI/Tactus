@@ -18,7 +18,6 @@ from .semantic_visitor import TactusDSLVisitor
 from .error_listener import TactusErrorListener
 from tactus.core.registry import ValidationResult, ValidationMessage
 
-
 logger = logging.getLogger(__name__)
 
 

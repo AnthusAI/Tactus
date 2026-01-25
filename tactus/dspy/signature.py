@@ -9,7 +9,6 @@ from typing import Dict, Any, Optional, Union
 
 import dspy
 
-
 # Map Tactus types to Python types for DSPy fields
 TYPE_MAP = {
     "string": str,
