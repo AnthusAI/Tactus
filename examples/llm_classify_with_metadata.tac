@@ -14,6 +14,7 @@ Answer ONLY with Yes or No.
         method = "llm",
         classes = {"Yes", "No"},
         prompt = prompt_text,
+        name = "llm_metadata_classifier",
         model = "openai/gpt-4o-mini",
         temperature = 0,
         max_retries = 3
@@ -29,6 +30,38 @@ Step("the answer should be \"(.+)\"", function(ctx, expected)
     assert(ctx.result.value == expected,
         "Expected '" .. expected .. "' but got '" .. ctx.result.value .. "'")
 end)
+
+Mocks {
+    llm_metadata_classifier = {
+        message = "Yes\nMocked classification.",
+        temporal = {
+            {
+                when_message = [[Please classify the following:
+
+blue widget]],
+                message = "Yes\nThe item is explicitly blue."
+            },
+            {
+                when_message = [[Please classify the following:
+
+red gadget]],
+                message = "No\nThe item is red, not blue."
+            },
+            {
+                when_message = [[Please classify the following:
+
+azure sky painting]],
+                message = "Yes\nAzure is a shade of blue."
+            },
+            {
+                when_message = [[Please classify the following:
+
+green plant]],
+                message = "No\nThe item is green, not blue."
+            }
+        }
+    }
+}
 
 -- BDD Specification
 Specification([[

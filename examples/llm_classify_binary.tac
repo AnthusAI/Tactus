@@ -7,6 +7,7 @@ Step("a binary classifier asking \"(.+)\"", function(ctx, prompt)
         method = "llm",
         classes = {"Yes", "No"},
         prompt = prompt,
+        name = "llm_binary_classifier",
         model = "openai/gpt-4o-mini",
         temperature = 0,
         max_retries = 3
@@ -31,6 +32,32 @@ end)
 Step("I reset the classifier", function(ctx)
     ctx.classifier.reset()
 end)
+
+Mocks {
+    llm_binary_classifier = {
+        message = "Yes\nMocked classification.",
+        temporal = {
+            {
+                when_message = [[Please classify the following:
+
+The sky is a beautiful blue color today]],
+                message = "Yes\nThe text describes a blue sky."
+            },
+            {
+                when_message = [[Please classify the following:
+
+The sky is red and orange at sunset]],
+                message = "No\nThe text describes a sunset sky, not blue."
+            },
+            {
+                when_message = [[Please classify the following:
+
+Looking up, I see a clear blue sky]],
+                message = "Yes\nThe text explicitly mentions a clear blue sky."
+            }
+        }
+    }
+}
 
 -- BDD Specification
 Specification([[

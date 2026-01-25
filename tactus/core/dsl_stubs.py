@@ -957,6 +957,18 @@ def create_dsl_stubs(
             if not isinstance(mock_config, dict):
                 continue
 
+            # Agent mocks can be message-only, tool_calls-only, or both.
+            if any(k in mock_config for k in ("tool_calls", "message", "data", "usage")):
+                agent_config = {
+                    "tool_calls": mock_config.get("tool_calls", []),
+                    "message": mock_config.get("message", ""),
+                    "data": mock_config.get("data", {}),
+                    "usage": mock_config.get("usage", {}),
+                    "temporal": mock_config.get("temporal", []),
+                }
+                builder.register_agent_mock(name, agent_config)
+                continue
+
             # Tool mocks use explicit keys.
             tool_mock_keys = {"returns", "temporal", "conditional", "error"}
             if any(k in mock_config for k in tool_mock_keys):
@@ -986,17 +998,6 @@ def create_dsl_stubs(
 
                 # Register the tool mock configuration
                 builder.register_mock(name, processed_config)
-                continue
-
-            # Agent mocks can be message-only, tool_calls-only, or both.
-            if any(k in mock_config for k in ("tool_calls", "message", "data")):
-                agent_config = {
-                    "tool_calls": mock_config.get("tool_calls", []),
-                    "message": mock_config.get("message", ""),
-                    "data": mock_config.get("data", {}),
-                    "usage": mock_config.get("usage", {}),
-                }
-                builder.register_agent_mock(name, agent_config)
                 continue
 
             # Otherwise, ignore unknown mock config.
