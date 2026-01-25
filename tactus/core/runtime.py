@@ -1747,8 +1747,13 @@ class TactusRuntime:
         # Initialize user dependencies first (needed by agents)
         await self._initialize_dependencies()
 
-        # Get agent configurations
-        agents_config = self.config.get("agents", {})
+        # Get agent configurations from registry (Lua-parsed) if available, otherwise from YAML config
+        if hasattr(self, "registry") and self.registry and hasattr(self.registry, "agents"):
+            agents_config = self.registry.agents
+            logger.info(f"Using {len(agents_config)} agent(s) from registry: {list(agents_config.keys())}")
+        else:
+            agents_config = self.config.get("agents", {})
+            logger.info(f"Using {len(agents_config)} agent(s) from YAML config")
 
         if not agents_config:
             logger.info("No agents defined in configuration - skipping agent setup")
@@ -1765,7 +1770,18 @@ class TactusRuntime:
             logger.info(f"Default toolsets configured: {default_toolset_names}")
 
         # Setup each agent
-        for agent_name, agent_config in agents_config.items():
+        for agent_name, agent_config_raw in agents_config.items():
+            # Convert AgentDeclaration to dict if needed
+            if hasattr(agent_config_raw, "model_dump"):
+                # Pydantic v2
+                agent_config = agent_config_raw.model_dump()
+            elif hasattr(agent_config_raw, "dict"):
+                # Pydantic v1
+                agent_config = agent_config_raw.dict()
+            else:
+                # Already a dict
+                agent_config = agent_config_raw
+
             # Skip if agent was already created during immediate initialization
             if agent_name in self.agents:
                 logger.debug(
@@ -1975,6 +1991,9 @@ class TactusRuntime:
                     )
 
             # Create DSPy-based agent
+            tool_choice = agent_config.get("tool_choice")
+            logger.info(f"Agent '{agent_name}' config has tool_choice={tool_choice}")
+
             dspy_config = {
                 "system_prompt": system_prompt_template,
                 "model": model_name,
@@ -2000,7 +2019,9 @@ class TactusRuntime:
                 "disable_streaming": agent_config.get("disable_streaming", False),
                 "initial_message": initial_message,
                 "log_handler": self.log_handler,
+                "tool_choice": tool_choice,  # Pass through tool_choice
             }
+            logger.info(f"Agent '{agent_name}' dspy_config has tool_choice={dspy_config.get('tool_choice')}")
 
             # Create DSPy agent with registry, mock_manager, and execution_context
             agent_primitive = create_dspy_agent(

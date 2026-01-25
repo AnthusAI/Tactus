@@ -2,22 +2,12 @@ import React, { useState } from 'react';
 import { Bell, CheckCircle2, FileCode, Clock, ExternalLink, RotateCw } from 'lucide-react';
 import { BaseEventComponent } from './BaseEventComponent';
 import { HITLRequestEvent } from '@/types/events';
+import {
+  HITLInputsModal,
+  HITLInputsPanel,
+  HITLRequestRenderer,
+} from '@anthus/tactus-hitl-components';
 import { Button } from '../ui/button';
-import { Label } from '../ui/label';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '../ui/dialog';
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '../ui/tabs';
 import { getComponentRenderer } from '../hitl/registry';
 
 export type HITLDisplayMode = 'inline' | 'standalone';
@@ -65,12 +55,10 @@ export const HITLEventComponent: React.FC<HITLEventComponentProps> = ({
   const [responded, setResponded] = useState(false);
   const [responseValue, setResponseValue] = useState<any>(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const [formValues, setFormValues] = useState<Record<string, any>>({});
   const [batchedInputsMode, setBatchedInputsMode] = useState<'inline' | 'modal'>('inline');
 
   // Reset form values when a new event arrives
   React.useEffect(() => {
-    setFormValues({});
     setResponded(false);
     setResponseValue(null);
     // Auto-open modal for batched inputs in modal mode
@@ -102,11 +90,6 @@ export const HITLEventComponent: React.FC<HITLEventComponentProps> = ({
     if (onRespond) {
       onRespond(event.request_id, value);
     }
-  };
-
-  const handleFormSubmit = () => {
-    handleResponse(formValues);
-    setModalOpen(false);
   };
 
   return (
@@ -201,24 +184,6 @@ export const HITLEventComponent: React.FC<HITLEventComponentProps> = ({
           {(() => {
             // Special handling for batched inputs - supports inline (default) or modal mode
             if (event.request_type === 'inputs' && event.items) {
-              // Helper to render individual form items using registry components
-              const renderFormItem = (item: typeof event.items[0]) => {
-                const ComponentRenderer = getComponentRenderer(item.request_type, item.metadata?.component_type);
-
-                if (ComponentRenderer) {
-                  return (
-                    <ComponentRenderer
-                      item={item}
-                      value={formValues[item.item_id]}
-                      onValueChange={(value) => setFormValues(prev => ({ ...prev, [item.item_id]: value }))}
-                      responded={false}
-                    />
-                  );
-                }
-
-                return <div className="text-sm text-muted-foreground">Unknown type: {item.request_type}</div>;
-              };
-
               return (
                 <>
                   <div className="text-sm text-foreground">
@@ -249,39 +214,29 @@ export const HITLEventComponent: React.FC<HITLEventComponentProps> = ({
                     </div>
                   ) : batchedInputsMode === 'inline' ? (
                     // INLINE MODE (Default) - Render all items in the event stream
-                    <>
-                      <div className="space-y-4 border rounded-md p-4 bg-muted/30" key={event.request_id}>
-                        {event.items?.map((item, index) => (
-                          <div key={`${event.request_id}-${item.item_id}`} className="space-y-2">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-medium text-muted-foreground">
-                                {index + 1} of {event.items?.length || 0}
-                              </span>
-                              <Label className="text-sm font-semibold">{item.message}</Label>
-                              {item.required && <span className="text-destructive text-xs">*</span>}
-                            </div>
-                            {renderFormItem(item)}
-                          </div>
-                        ))}
-                      </div>
-                      <Button
-                        onClick={handleFormSubmit}
-                        className="w-full"
-                        disabled={event.items?.some(item => {
-                          if (!item.required) return false;
-                          const value = formValues[item.item_id];
-                          // Check if value is missing or invalid
-                          if (value === undefined || value === null) return true;
-                          // For arrays (multi-select), check if empty
-                          if (Array.isArray(value) && value.length === 0) return true;
-                          // For strings, check if empty
-                          if (typeof value === 'string' && value.trim() === '') return true;
-                          return false;
-                        })}
-                      >
-                        Submit All
-                      </Button>
-                    </>
+                    <HITLInputsPanel
+                      request={{
+                        request_id: event.request_id,
+                        procedure_id: event.procedure_name,
+                        procedure_name: event.procedure_name,
+                        invocation_id: event.invocation_id,
+                        request_type: event.request_type,
+                        message: event.message,
+                        default_value: event.default_value,
+                        timeout_seconds: event.timeout_seconds,
+                        options: event.options,
+                        items: event.items,
+                        subject: event.subject,
+                        elapsed_seconds: event.runtime_context?.elapsed_seconds,
+                        input_summary: event.input_summary,
+                        conversation: event.conversation,
+                        prior_interactions: event.prior_interactions,
+                        metadata: event.metadata,
+                      }}
+                      onRespond={(response) => handleResponse(response.value)}
+                      showHeader={false}
+                      showContext={false}
+                    />
                   ) : (
                     // MODAL MODE - Modal opens automatically
                     <>
@@ -300,59 +255,83 @@ export const HITLEventComponent: React.FC<HITLEventComponentProps> = ({
                         )}
                       </div>
 
-                      {/* Batched Inputs Modal */}
-                      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-                        <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
-                          <DialogHeader>
-                            <DialogTitle>Complete Form</DialogTitle>
-                            <DialogDescription>
-                              Please fill out all required fields
-                            </DialogDescription>
-                          </DialogHeader>
-
-                          <Tabs defaultValue={event.items?.[0]?.item_id} className="flex-1 overflow-hidden flex flex-col">
-                            <TabsList className="w-full justify-start overflow-x-auto flex-shrink-0">
-                              {event.items?.map((item) => (
-                                <TabsTrigger key={item.item_id} value={item.item_id} className="flex items-center gap-1">
-                                  {item.label}
-                                  {item.required && <span className="text-destructive">*</span>}
-                                </TabsTrigger>
-                              ))}
-                            </TabsList>
-
-                            <div className="flex-1 overflow-y-auto mt-4">
-                              {event.items?.map((item) => (
-                                <TabsContent key={item.item_id} value={item.item_id} className="space-y-4">
-                                  <div>
-                                    <Label className="text-base font-semibold">{item.message}</Label>
-                                    {item.required && <span className="text-destructive ml-1">*</span>}
-                                  </div>
-
-                                  {/* Use registry-based rendering (same as inline mode) */}
-                                  {renderFormItem(item)}
-                                </TabsContent>
-                              ))}
-                            </div>
-                          </Tabs>
-
-                          <DialogFooter>
-                            <Button variant="outline" onClick={() => setModalOpen(false)}>
-                              Cancel
-                            </Button>
-                            <Button onClick={handleFormSubmit}>
-                              Submit All
-                            </Button>
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
+                      <HITLInputsModal
+                        open={modalOpen}
+                        onOpenChange={setModalOpen}
+                        title={event.message}
+                        description="Please fill out all required fields."
+                        request={{
+                          request_id: event.request_id,
+                          procedure_id: event.procedure_name,
+                          procedure_name: event.procedure_name,
+                          invocation_id: event.invocation_id,
+                          request_type: event.request_type,
+                          message: event.message,
+                          default_value: event.default_value,
+                          timeout_seconds: event.timeout_seconds,
+                          options: event.options,
+                          items: event.items,
+                          subject: event.subject,
+                          elapsed_seconds: event.runtime_context?.elapsed_seconds,
+                          input_summary: event.input_summary,
+                          conversation: event.conversation,
+                          prior_interactions: event.prior_interactions,
+                          metadata: event.metadata,
+                        }}
+                        onRespond={(response) => handleResponse(response.value)}
+                        onCancel={() => setModalOpen(false)}
+                        showHeader={false}
+                        showContext={false}
+                      />
                     </>
                   )}
                 </>
               );
             }
 
-            // For all other types, use registry-based rendering
             const componentType = event.metadata?.component_type;
+            const useSharedComponents =
+              !componentType &&
+              ['approval', 'input', 'select', 'review', 'upload', 'escalation'].includes(
+                event.request_type
+              );
+
+            if (useSharedComponents) {
+              return (
+                <>
+                  {event.request_type !== 'approval' && (
+                    <div className="text-sm text-foreground">
+                      {event.message}
+                    </div>
+                  )}
+                  <HITLRequestRenderer
+                    request={{
+                      request_id: event.request_id,
+                      procedure_id: event.procedure_name,
+                      procedure_name: event.procedure_name,
+                      invocation_id: event.invocation_id,
+                      request_type: event.request_type,
+                      message: event.message,
+                      default_value: event.default_value,
+                      timeout_seconds: event.timeout_seconds,
+                      options: event.options,
+                      items: event.items,
+                      subject: event.subject,
+                      elapsed_seconds: event.runtime_context?.elapsed_seconds,
+                      input_summary: event.input_summary,
+                      conversation: event.conversation,
+                      prior_interactions: event.prior_interactions,
+                      metadata: event.metadata,
+                    }}
+                    onRespond={(response) => handleResponse(response.value)}
+                    showHeader={false}
+                    showContext={false}
+                  />
+                </>
+              );
+            }
+
+            // For all other types, use registry-based rendering
             const ComponentRenderer = getComponentRenderer(event.request_type, componentType);
 
             if (!ComponentRenderer) {

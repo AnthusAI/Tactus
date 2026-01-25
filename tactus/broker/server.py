@@ -73,18 +73,8 @@ class OpenAIChatBackend:
         self._client = None
 
     def _get_client(self):
-        if self._client is not None:
-            return self._client
-
-        from openai import AsyncOpenAI
-
-        # Use direct API key if provided, otherwise read from environment
-        api_key = self._api_key or os.environ.get(self._config.api_key_env)
-        if not api_key:
-            raise RuntimeError(f"Missing OpenAI API key in environment: {self._config.api_key_env}")
-
-        self._client = AsyncOpenAI(api_key=api_key)
-        return self._client
+        # We don't need to maintain a client - LiteLLM handles that
+        return None
 
     async def chat(
         self,
@@ -94,19 +84,43 @@ class OpenAIChatBackend:
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
         stream: bool,
+        tools: Optional[list[dict[str, Any]]] = None,
+        tool_choice: Optional[str] = None,
     ):
-        client = self._get_client()
+        # Use LiteLLM instead of raw OpenAI SDK for provider-agnostic support
+        import litellm
 
-        kwargs: dict[str, Any] = {"model": model, "messages": messages}
+        # Set API key from environment if configured
+        api_key = self._api_key or os.environ.get(self._config.api_key_env)
+        if api_key:
+            os.environ[self._config.api_key_env] = api_key
+
+        kwargs: dict[str, Any] = {"model": model, "messages": messages, "stream": stream}
         if temperature is not None:
             kwargs["temperature"] = temperature
         if max_tokens is not None:
             kwargs["max_tokens"] = max_tokens
+        if tools is not None:
+            kwargs["tools"] = tools
+            logger.info(f"[LITELLM_BACKEND] Sending {len(tools)} tools to LiteLLM")
+            logger.info(f"[LITELLM_BACKEND] Tool schemas: {tools}")
+        if tool_choice is not None:
+            kwargs["tool_choice"] = tool_choice
+            logger.info(f"[LITELLM_BACKEND] Setting tool_choice={tool_choice}")
+
+        # Always use acompletion for consistency, LiteLLM handles both sync/async
+        result = await litellm.acompletion(**kwargs)
 
         if stream:
-            return await client.chat.completions.create(**kwargs, stream=True)
+            logger.info(f"[LITELLM_BACKEND] LiteLLM streaming response started")
+        else:
+            logger.info(f"[LITELLM_BACKEND] LiteLLM response: finish_reason={result.choices[0].finish_reason if result.choices else 'NO_CHOICES'}")
+            if result.choices and hasattr(result.choices[0].message, 'tool_calls') and result.choices[0].message.tool_calls:
+                logger.info(f"[LITELLM_BACKEND] LiteLLM returned {len(result.choices[0].message.tool_calls)} tool calls")
+            else:
+                logger.info(f"[LITELLM_BACKEND] LiteLLM returned NO tool calls")
 
-        return await client.chat.completions.create(**kwargs)
+        return result
 
 
 class HostToolRegistry:
@@ -375,6 +389,8 @@ class _BaseBrokerServer:
         stream = bool(params.get("stream", False))
         temperature = params.get("temperature")
         max_tokens = params.get("max_tokens")
+        tools = params.get("tools")
+        tool_choice = params.get("tool_choice")
 
         if not isinstance(model, str) or not model:
             await _write_event_asyncio(
@@ -405,37 +421,66 @@ class _BaseBrokerServer:
                     temperature=temperature,
                     max_tokens=max_tokens,
                     stream=True,
+                    tools=tools,
+                    tool_choice=tool_choice,
                 )
 
                 full_text = ""
+                tool_calls_data = []
                 async for chunk in stream_iter:
                     try:
                         delta = chunk.choices[0].delta
                         text = getattr(delta, "content", None)
+                        delta_tool_calls = getattr(delta, "tool_calls", None)
                     except Exception:
                         text = None
+                        delta_tool_calls = None
 
-                    if not text:
-                        continue
+                    if text:
+                        full_text += text
+                        await _write_event_asyncio(
+                            writer, {"id": req_id, "event": "delta", "data": {"text": text}}
+                        )
 
-                    full_text += text
-                    await _write_event_asyncio(
-                        writer, {"id": req_id, "event": "delta", "data": {"text": text}}
-                    )
+                    # Accumulate tool calls from deltas
+                    if delta_tool_calls:
+                        logger.info(f"[LITELLM_BACKEND] Received delta_tool_calls: {delta_tool_calls}")
+                        for tc_delta in delta_tool_calls:
+                            idx = tc_delta.index
+                            # Extend tool_calls_data list if needed
+                            while len(tool_calls_data) <= idx:
+                                tool_calls_data.append({"id": "", "type": "function", "function": {"name": "", "arguments": ""}})
+
+                            # Merge delta into accumulated tool call
+                            if tc_delta.id:
+                                tool_calls_data[idx]["id"] = tc_delta.id
+                            if tc_delta.type:
+                                tool_calls_data[idx]["type"] = tc_delta.type
+                            if hasattr(tc_delta, "function") and tc_delta.function:
+                                if tc_delta.function.name:
+                                    tool_calls_data[idx]["function"]["name"] += tc_delta.function.name
+                                if tc_delta.function.arguments:
+                                    tool_calls_data[idx]["function"]["arguments"] += tc_delta.function.arguments
+
+                # Build final response data
+                logger.info(f"[LITELLM_BACKEND] Streaming complete. tool_calls_data={tool_calls_data}, full_text length={len(full_text)}")
+                done_data = {
+                    "text": full_text,
+                    "usage": {
+                        "prompt_tokens": 0,
+                        "completion_tokens": 0,
+                        "total_tokens": 0,
+                    },
+                }
+                if tool_calls_data:
+                    done_data["tool_calls"] = tool_calls_data
 
                 await _write_event_asyncio(
                     writer,
                     {
                         "id": req_id,
                         "event": "done",
-                        "data": {
-                            "text": full_text,
-                            "usage": {
-                                "prompt_tokens": 0,
-                                "completion_tokens": 0,
-                                "total_tokens": 0,
-                            },
-                        },
+                        "data": done_data,
                     },
                 )
                 return
@@ -446,22 +491,45 @@ class _BaseBrokerServer:
                 temperature=temperature,
                 max_tokens=max_tokens,
                 stream=False,
+                tools=tools,
+                tool_choice=tool_choice,
             )
             text = ""
+            tool_calls_data = None
             try:
-                text = resp.choices[0].message.content or ""
+                message = resp.choices[0].message
+                text = message.content or ""
+
+                # Extract tool calls if present
+                if hasattr(message, "tool_calls") and message.tool_calls:
+                    tool_calls_data = []
+                    for tc in message.tool_calls:
+                        tool_calls_data.append({
+                            "id": tc.id,
+                            "type": tc.type,
+                            "function": {
+                                "name": tc.function.name,
+                                "arguments": tc.function.arguments,
+                            }
+                        })
             except Exception:
                 text = ""
+                tool_calls_data = None
+
+            # Build response data
+            done_data = {
+                "text": text,
+                "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+            }
+            if tool_calls_data:
+                done_data["tool_calls"] = tool_calls_data
 
             await _write_event_asyncio(
                 writer,
                 {
                     "id": req_id,
                     "event": "done",
-                    "data": {
-                        "text": text,
-                        "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
-                    },
+                    "data": done_data,
                 },
             )
         except Exception as e:
@@ -628,6 +696,8 @@ class _BaseBrokerServer:
         stream = bool(params.get("stream", False))
         temperature = params.get("temperature")
         max_tokens = params.get("max_tokens")
+        tools = params.get("tools")
+        tool_choice = params.get("tool_choice")
 
         if not isinstance(model, str) or not model:
             await _write_event_anyio(
@@ -658,37 +728,66 @@ class _BaseBrokerServer:
                     temperature=temperature,
                     max_tokens=max_tokens,
                     stream=True,
+                    tools=tools,
+                    tool_choice=tool_choice,
                 )
 
                 full_text = ""
+                tool_calls_data = []
                 async for chunk in stream_iter:
                     try:
                         delta = chunk.choices[0].delta
                         text = getattr(delta, "content", None)
+                        delta_tool_calls = getattr(delta, "tool_calls", None)
                     except Exception:
                         text = None
+                        delta_tool_calls = None
 
-                    if not text:
-                        continue
+                    if text:
+                        full_text += text
+                        await _write_event_anyio(
+                            byte_stream, {"id": req_id, "event": "delta", "data": {"text": text}}
+                        )
 
-                    full_text += text
-                    await _write_event_anyio(
-                        byte_stream, {"id": req_id, "event": "delta", "data": {"text": text}}
-                    )
+                    # Accumulate tool calls from deltas
+                    if delta_tool_calls:
+                        logger.info(f"[LITELLM_BACKEND] Received delta_tool_calls: {delta_tool_calls}")
+                        for tc_delta in delta_tool_calls:
+                            idx = tc_delta.index
+                            # Extend tool_calls_data list if needed
+                            while len(tool_calls_data) <= idx:
+                                tool_calls_data.append({"id": "", "type": "function", "function": {"name": "", "arguments": ""}})
+
+                            # Merge delta into accumulated tool call
+                            if tc_delta.id:
+                                tool_calls_data[idx]["id"] = tc_delta.id
+                            if tc_delta.type:
+                                tool_calls_data[idx]["type"] = tc_delta.type
+                            if hasattr(tc_delta, "function") and tc_delta.function:
+                                if tc_delta.function.name:
+                                    tool_calls_data[idx]["function"]["name"] += tc_delta.function.name
+                                if tc_delta.function.arguments:
+                                    tool_calls_data[idx]["function"]["arguments"] += tc_delta.function.arguments
+
+                # Build final response data
+                logger.info(f"[LITELLM_BACKEND] Streaming complete. tool_calls_data={tool_calls_data}, full_text length={len(full_text)}")
+                done_data = {
+                    "text": full_text,
+                    "usage": {
+                        "prompt_tokens": 0,
+                        "completion_tokens": 0,
+                        "total_tokens": 0,
+                    },
+                }
+                if tool_calls_data:
+                    done_data["tool_calls"] = tool_calls_data
 
                 await _write_event_anyio(
                     byte_stream,
                     {
                         "id": req_id,
                         "event": "done",
-                        "data": {
-                            "text": full_text,
-                            "usage": {
-                                "prompt_tokens": 0,
-                                "completion_tokens": 0,
-                                "total_tokens": 0,
-                            },
-                        },
+                        "data": done_data,
                     },
                 )
                 return
@@ -699,22 +798,45 @@ class _BaseBrokerServer:
                 temperature=temperature,
                 max_tokens=max_tokens,
                 stream=False,
+                tools=tools,
+                tool_choice=tool_choice,
             )
             text = ""
+            tool_calls_data = None
             try:
-                text = resp.choices[0].message.content or ""
+                message = resp.choices[0].message
+                text = message.content or ""
+
+                # Extract tool calls if present
+                if hasattr(message, "tool_calls") and message.tool_calls:
+                    tool_calls_data = []
+                    for tc in message.tool_calls:
+                        tool_calls_data.append({
+                            "id": tc.id,
+                            "type": tc.type,
+                            "function": {
+                                "name": tc.function.name,
+                                "arguments": tc.function.arguments,
+                            }
+                        })
             except Exception:
                 text = ""
+                tool_calls_data = None
+
+            # Build response data
+            done_data = {
+                "text": text,
+                "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+            }
+            if tool_calls_data:
+                done_data["tool_calls"] = tool_calls_data
 
             await _write_event_anyio(
                 byte_stream,
                 {
                     "id": req_id,
                     "event": "done",
-                    "data": {
-                        "text": text,
-                        "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
-                    },
+                    "data": done_data,
                 },
             )
         except Exception as e:
@@ -1025,6 +1147,8 @@ class BrokerServer(_BaseBrokerServer):
         stream = bool(params.get("stream", False))
         temperature = params.get("temperature")
         max_tokens = params.get("max_tokens")
+        tools = params.get("tools")
+        tool_choice = params.get("tool_choice")
 
         if not isinstance(model, str) or not model:
             await write_event(
@@ -1047,65 +1171,139 @@ class BrokerServer(_BaseBrokerServer):
 
         try:
             if stream:
-                stream_iter = await self._openai.chat(
-                    model=model,
-                    messages=messages,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
-                    stream=True,
-                )
+                # Build kwargs for OpenAI chat call
+                chat_kwargs = {
+                    "model": model,
+                    "messages": messages,
+                    "stream": True,
+                }
+                if temperature is not None:
+                    chat_kwargs["temperature"] = temperature
+                if max_tokens is not None:
+                    chat_kwargs["max_tokens"] = max_tokens
+                if tools is not None:
+                    chat_kwargs["tools"] = tools
+                    logger.info(f"[BROKER_SERVER] Added {len(tools)} tools to chat_kwargs")
+                else:
+                    logger.warning("[BROKER_SERVER] No tools to add to chat_kwargs")
+                if tool_choice is not None:
+                    chat_kwargs["tool_choice"] = tool_choice
+                    logger.info(f"[BROKER_SERVER] Added tool_choice={tool_choice} to chat_kwargs")
+                else:
+                    logger.warning("[BROKER_SERVER] No tool_choice to add")
+
+                logger.info(f"[BROKER_SERVER] Calling backend.chat() with {len(chat_kwargs)} kwargs: {list(chat_kwargs.keys())}")
+                stream_iter = await self._openai.chat(**chat_kwargs)
 
                 full_text = ""
+                tool_calls_data = []
                 async for chunk in stream_iter:
                     try:
                         delta = chunk.choices[0].delta
                         text = getattr(delta, "content", None)
+                        delta_tool_calls = getattr(delta, "tool_calls", None)
                     except Exception:
                         text = None
+                        delta_tool_calls = None
 
-                    if not text:
-                        continue
+                    if text:
+                        full_text += text
+                        await write_event({"id": req_id, "event": "delta", "data": {"text": text}})
 
-                    full_text += text
-                    await write_event({"id": req_id, "event": "delta", "data": {"text": text}})
+                    # Accumulate tool calls from deltas
+                    if delta_tool_calls:
+                        logger.info(f"[LITELLM_BACKEND] Received delta_tool_calls: {delta_tool_calls}")
+                        for tc_delta in delta_tool_calls:
+                            idx = tc_delta.index
+                            # Extend tool_calls_data list if needed
+                            while len(tool_calls_data) <= idx:
+                                tool_calls_data.append({"id": "", "type": "function", "function": {"name": "", "arguments": ""}})
+
+                            # Merge delta into accumulated tool call
+                            if tc_delta.id:
+                                tool_calls_data[idx]["id"] = tc_delta.id
+                            if tc_delta.type:
+                                tool_calls_data[idx]["type"] = tc_delta.type
+                            if hasattr(tc_delta, "function") and tc_delta.function:
+                                if tc_delta.function.name:
+                                    tool_calls_data[idx]["function"]["name"] += tc_delta.function.name
+                                if tc_delta.function.arguments:
+                                    tool_calls_data[idx]["function"]["arguments"] += tc_delta.function.arguments
+
+                # Build final response data
+                logger.info(f"[LITELLM_BACKEND] Streaming complete. tool_calls_data={tool_calls_data}, full_text length={len(full_text)}")
+                done_data = {
+                    "text": full_text,
+                    "usage": {
+                        "prompt_tokens": 0,
+                        "completion_tokens": 0,
+                        "total_tokens": 0,
+                    },
+                }
+                if tool_calls_data:
+                    done_data["tool_calls"] = tool_calls_data
 
                 await write_event(
                     {
                         "id": req_id,
                         "event": "done",
-                        "data": {
-                            "text": full_text,
-                            "usage": {
-                                "prompt_tokens": 0,
-                                "completion_tokens": 0,
-                                "total_tokens": 0,
-                            },
-                        },
+                        "data": done_data,
                     }
                 )
                 return
 
-            resp = await self._openai.chat(
-                model=model,
-                messages=messages,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                stream=False,
-            )
+            # Build kwargs for OpenAI chat call
+            chat_kwargs = {
+                "model": model,
+                "messages": messages,
+                "stream": False,
+            }
+            if temperature is not None:
+                chat_kwargs["temperature"] = temperature
+            if max_tokens is not None:
+                chat_kwargs["max_tokens"] = max_tokens
+            if tools is not None:
+                chat_kwargs["tools"] = tools
+            if tool_choice is not None:
+                chat_kwargs["tool_choice"] = tool_choice
+
+            resp = await self._openai.chat(**chat_kwargs)
+
             text = ""
+            tool_calls_data = None
             try:
-                text = resp.choices[0].message.content or ""
+                message = resp.choices[0].message
+                text = message.content or ""
+
+                # Extract tool calls if present
+                if hasattr(message, "tool_calls") and message.tool_calls:
+                    tool_calls_data = []
+                    for tc in message.tool_calls:
+                        tool_calls_data.append({
+                            "id": tc.id,
+                            "type": tc.type,
+                            "function": {
+                                "name": tc.function.name,
+                                "arguments": tc.function.arguments,
+                            }
+                        })
             except Exception:
                 text = ""
+                tool_calls_data = None
+
+            # Build response data
+            done_data = {
+                "text": text,
+                "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+            }
+            if tool_calls_data:
+                done_data["tool_calls"] = tool_calls_data
 
             await write_event(
                 {
                     "id": req_id,
                     "event": "done",
-                    "data": {
-                        "text": text,
-                        "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
-                    },
+                    "data": done_data,
                 }
             )
         except Exception as e:

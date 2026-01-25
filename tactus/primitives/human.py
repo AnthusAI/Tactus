@@ -4,9 +4,15 @@ Human Primitive - Human-in-the-Loop (HITL) operations.
 Provides:
 - Human.approve(opts) - Request yes/no approval (blocking)
 - Human.input(opts) - Request free-form input (blocking)
+- Human.select(opts) - Request selection from options (blocking)
+- Human.multiple(items) - Request multiple inputs in one interaction (blocking)
 - Human.review(opts) - Request review with options (blocking)
 - Human.notify(opts) - Send notification (non-blocking)
 - Human.escalate(opts) - Escalate to human (blocking)
+- Human.custom(opts) - Request custom component interaction (blocking)
+
+Deprecated:
+- Human.inputs(items) - Use Human.multiple() instead
 """
 
 import logging
@@ -594,6 +600,9 @@ class HumanPrimitive:
         """
         Request multiple inputs from human in a single interaction (BLOCKING).
 
+        DEPRECATED: Use Human.multiple() instead for clearer naming.
+        This method will be removed in a future version.
+
         Presents inputs as tabs in the UI, allowing the human to fill them all
         before submitting a single response.
 
@@ -645,6 +654,12 @@ class HumanPrimitive:
                 deploy(responses.target, responses.notes)
             end
         """
+        # Deprecation warning
+        logger.warning(
+            "Human.inputs() is deprecated. Use Human.multiple() instead for clearer naming. "
+            "This method will be removed in a future version."
+        )
+
         # Convert Lua tables to Python dicts recursively
         logger.debug(f"Human.inputs() called with items type: {type(items)}")
         items_list = self._convert_lua_to_python(items) or []
@@ -740,6 +755,66 @@ class HumanPrimitive:
                 converted_result[key] = value
 
         return lua_runtime.table_from(converted_result)
+
+    def multiple(self, items: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+        """
+        Request multiple inputs from human in a single interaction (BLOCKING).
+
+        This is the preferred method name for collecting multiple inputs.
+        Use this instead of inputs() for clearer intent.
+
+        Presents inputs in a unified UI (inline or modal), allowing the human to fill
+        them all before submitting a single response.
+
+        Args:
+            items: List of input items, each with:
+                - id: str - Unique ID for this item (required)
+                - label: str - Short label for tabs (required)
+                - type: str - Request type: "approval", "input", "select", etc. (required)
+                - message: str - Prompt for this input (required)
+                - options: List - Options for select/review types
+                - required: bool - Whether this input is required (default: True)
+                - metadata: Dict - Type-specific metadata
+                - timeout: int - Timeout in seconds
+                - default: Any - Default value
+
+        Returns:
+            Dict keyed by item ID with response values:
+                {
+                    "target": "production",
+                    "confirm": True,
+                    "notes": "Deploy notes..."
+                }
+
+        Example (Lua):
+            local responses = Human.multiple({
+                {
+                    id = "target",
+                    label = "Target",
+                    type = "select",
+                    message = "Which environment?",
+                    options = {"staging", "production"}
+                },
+                {
+                    id = "confirm",
+                    label = "Confirm",
+                    type = "approval",
+                    message = "Are you sure?"
+                },
+                {
+                    id = "notes",
+                    label = "Notes",
+                    type = "input",
+                    message = "Any notes?",
+                    required = false
+                }
+            })
+
+            if responses.confirm then
+                deploy(responses.target, responses.notes)
+            end
+        """
+        return self.inputs(items)
 
     def custom(self, options: Optional[Dict[str, Any]] = None) -> Any:
         """

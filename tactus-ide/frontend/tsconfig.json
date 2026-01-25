@@ -17,7 +17,9 @@
     /* Path aliases */
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@anthus/tactus-hitl-components": ["../../../Tactus-HITL-components/src/index.ts"],
+      "@anthus/tactus-hitl-components/*": ["../../../Tactus-HITL-components/src/*"]
     },
 
     /* Linting */
@@ -29,8 +31,6 @@
   "include": ["src"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
-
-
 
 
 

@@ -1,19 +1,19 @@
 --[[
-Test Human.inputs() - Batched HITL Requests
+Test Human.multiple() - Batched HITL Requests
 
-This example demonstrates the new Human.inputs() method which collects
-multiple inputs in a single interaction with a tabbed UI.
+This example demonstrates the Human.multiple() method which collects
+multiple inputs in a single interaction with a unified UI (inline or modal).
 
-Run with: tactus run examples/92-test-inputs.tac
+Run with: tactus run examples/92-test-multiple.tac
 --]]
 
 Procedure {
     function(input)
-        print("Testing Human.inputs() - Batched HITL Requests")
+        print("Testing Human.multiple() - Batched HITL Requests")
 
-    -- Collect multiple inputs at once in a tabbed UI
+    -- Collect multiple inputs at once in a unified UI
     print("\n=== DEPLOYMENT CONFIGURATION ===")
-    local deployment = Human.inputs({
+    local deployment = Human.multiple({
         {
             id = "target",
             label = "Target",
@@ -50,7 +50,7 @@ Procedure {
 
     -- Another example: User registration form
     print("\n=== USER REGISTRATION ===")
-    local user_info = Human.inputs({
+    local user_info = Human.multiple({
         {
             id = "name",
             label = "Name",

@@ -98,8 +98,17 @@ def configure_lm(
         # Create and configure the standard DSPy LM (LiteLLM-backed)
         lm = dspy.LM(model, **lm_kwargs)
 
-    # Set as global default
-    dspy.configure(lm=lm)
+    # Create adapter with native function calling enabled
+    from dspy.adapters.chat_adapter import ChatAdapter
+    import logging
+    logger = logging.getLogger(__name__)
+
+    adapter = ChatAdapter(use_native_function_calling=True)
+    logger.info(f"[ADAPTER] Created ChatAdapter with use_native_function_calling={adapter.use_native_function_calling}")
+
+    # Set as global default with adapter
+    dspy.configure(lm=lm, adapter=adapter)
+    logger.info(f"[ADAPTER] Configured DSPy with adapter: {adapter}")
     _current_lm = lm
 
     return lm

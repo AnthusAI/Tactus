@@ -47,6 +47,13 @@ Do not skip this step or commit before getting approval and running these checks
 - **Multiple models**: Different agents can use different models (e.g., GPT-4o, GPT-4o-mini, Claude 3.5 Sonnet)
 - **Model parameters**: Supports model-specific parameters like `temperature`, `max_tokens`, `openai_reasoning_effort`
 
+**Provider-Specific Dependencies**:
+- **DO NOT add provider-specific SDK dependencies** (e.g., `openai`, `anthropic`, etc.) unless there is a SPECIFIC reason
+- Tactus uses **LiteLLM (via DSPy)** for ALL LLM calls, which provides unified multi-provider support
+- LiteLLM handles all provider-specific API calls internally
+- Adding provider SDKs creates maintenance burden and can lead to bugs where code bypasses the LiteLLM layer
+- Exception: `boto3` is needed for Bedrock support, but all actual LLM calls still go through LiteLLM
+
 Example:
 ```lua
 -- Tool definition
@@ -212,6 +219,26 @@ Only rebuild when:
 - Dev mode cannot find your source (rare)
 
 **Never rebuild for regular code changes** - that's what dev mode prevents.
+
+### CRITICAL: Auto-Rebuild on Code Changes
+
+**IMPORTANT**: The sandbox automatically rebuilds when it detects changes to core Tactus files. The hash includes:
+- `tactus/dspy/` - DSPy integration
+- `tactus/adapters/` - Adapters
+- `tactus/broker/` - Broker client (used by sandbox for API calls)
+- `tactus/core/` - Core runtime
+- `tactus/primitives/` - Primitives
+- `tactus/sandbox/` - Sandbox infrastructure
+- `tactus/stdlib/` - Standard library
+- `tactus/docker/` - Docker configuration
+- `pyproject.toml` - Dependencies
+
+**Common Pitfall**: When you make changes to these files (especially `tactus/broker/client.py`), the sandbox image is automatically rebuilt on the next `tactus run` command. However, AI agents often forget this and run tests with outdated containers, leading to confusing errors like:
+- `TypeError: BrokerClient.llm_chat() got an unexpected keyword argument 'tools'`
+- New parameters not being recognized
+- Changes seemingly not taking effect
+
+**Solution**: After making changes to any of the above paths, the next `tactus run` will automatically rebuild the sandbox image with your new code. Just wait for the rebuild to complete before declaring victory. Look for log lines indicating the build is happening.
 
 See [docs/development-mode.md](docs/development-mode.md) for complete details.
 

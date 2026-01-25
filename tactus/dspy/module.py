@@ -64,7 +64,13 @@ class RawModule(dspy.Module):
         return [field.strip() for field in output_part.split(",")]
 
     def forward(
-        self, system_prompt: str, history, user_message: str, available_tools: str = "", **kwargs
+        self,
+        system_prompt: str,
+        history,
+        user_message: str,
+        available_tools: str = "",
+        tools=None,
+        **kwargs,
     ):
         """
         Forward pass with direct LM call (no formatting delimiters).
@@ -73,7 +79,8 @@ class RawModule(dspy.Module):
             system_prompt: System prompt (overrides init if provided)
             history: Conversation history (dspy.History, TactusHistory, or string)
             user_message: Current user message
-            available_tools: Optional tools description (for agents with tools)
+            available_tools: Optional tools description (for agents with tools) - legacy, prefer tools param
+            tools: Optional list of dspy.Tool objects for native function calling
             **kwargs: Additional args passed to LM
 
         Returns:
@@ -92,8 +99,52 @@ class RawModule(dspy.Module):
         # Add history messages
         if history:
             if hasattr(history, "messages"):
-                # It's a History object - use messages directly
-                messages.extend(history.messages)
+                # It's a History object - sanitize messages to ensure JSON serializability
+                for msg in history.messages:
+                    logger.debug(f"[RAWMODULE] Sanitizing history message: role={msg.get('role')}")
+                    sanitized_msg = {"role": msg.get("role"), "content": msg.get("content")}
+
+                    # If message is a tool result, preserve tool_call_id and name
+                    if msg.get("role") == "tool":
+                        if "tool_call_id" in msg:
+                            sanitized_msg["tool_call_id"] = msg["tool_call_id"]
+                            logger.debug("[RAWMODULE] Preserved tool_call_id for tool message")
+                        if "name" in msg:
+                            sanitized_msg["name"] = msg["name"]
+
+                    # If message has tool_calls, ensure they're plain dicts
+                    if "tool_calls" in msg:
+                        tool_calls = msg["tool_calls"]
+                        # Convert any non-dict tool calls to dicts
+                        if tool_calls and not isinstance(tool_calls, list):
+                            tool_calls = [tool_calls]
+                        if tool_calls:
+                            sanitized_tool_calls = []
+                            for tc in tool_calls:
+                                if isinstance(tc, dict):
+                                    sanitized_tool_calls.append(tc)
+                                else:
+                                    # It's a typed object - convert to dict
+                                    tc_dict = {
+                                        "id": getattr(tc, "id", ""),
+                                        "type": getattr(tc, "type", "function"),
+                                        "function": {
+                                            "name": (
+                                                getattr(tc.function, "name", "")
+                                                if hasattr(tc, "function")
+                                                else ""
+                                            ),
+                                            "arguments": (
+                                                getattr(tc.function, "arguments", "{}")
+                                                if hasattr(tc, "function")
+                                                else "{}"
+                                            ),
+                                        },
+                                    }
+                                    logger.debug("[RAWMODULE] Converted typed tool call to dict")
+                                    sanitized_tool_calls.append(tc_dict)
+                            sanitized_msg["tool_calls"] = sanitized_tool_calls
+                    messages.append(sanitized_msg)
             elif isinstance(history, str) and history.strip():
                 # It's a formatted string - parse it
                 for line in history.strip().split("\n"):
@@ -104,7 +155,7 @@ class RawModule(dspy.Module):
 
         # Add current user message
         if user_message:
-            # If tools are available, include them in the user message
+            # If tools are available (legacy string format), include them in the user message
             if available_tools and "available_tools" in self.signature:
                 user_content = f"{user_message}\n\nAvailable tools:\n{available_tools}"
                 messages.append({"role": "user", "content": user_content})
@@ -116,20 +167,94 @@ class RawModule(dspy.Module):
         if lm is None:
             raise RuntimeError("No LM configured. Call dspy.configure(lm=...) first.")
 
+        # Convert DSPy Tool objects to LiteLLM format for native function calling
+        if tools and isinstance(tools, list) and len(tools) > 0:
+            litellm_tools = []
+            for tool in tools:
+                if hasattr(tool, "format_as_litellm_function_call"):
+                    litellm_tools.append(tool.format_as_litellm_function_call())
+            if litellm_tools:
+                kwargs["tools"] = litellm_tools
+                # Ensure tool_choice is passed if set on the LM
+                if (
+                    hasattr(lm, "kwargs")
+                    and "tool_choice" in lm.kwargs
+                    and "tool_choice" not in kwargs
+                ):
+                    kwargs["tool_choice"] = lm.kwargs["tool_choice"]
+                logger.debug(
+                    f"[RAWMODULE] Passing {len(litellm_tools)} tools to LM with tool_choice={kwargs.get('tool_choice')}"
+                )
+
+        # Log summary of messages being sent
+        logger.debug(f"[RAWMODULE] Sending {len(messages)} messages to LM")
+
         # Call LM directly - streamify() will intercept this call if streaming is enabled
         response = lm(messages=messages, **kwargs)
 
-        # Extract response text from LM result
-        # LM returns a list of strings - take the first one
-        response_text = response[0] if isinstance(response, list) else str(response)
+        # Extract response text and tool calls from LM result
+        # LM returns either:
+        # - list of strings (when no tool calls): ["response text"]
+        # - list of dicts (when tool calls present): [{"text": "...", "tool_calls": [...]}]
+        response_text = ""
+        tool_calls_from_lm = None
+
+        if isinstance(response, list) and len(response) > 0:
+            first_output = response[0]
+            if isinstance(first_output, dict):
+                # Response is a dict with text and possibly tool_calls
+                response_text = first_output.get("text", "")
+                tool_calls_from_lm = first_output.get("tool_calls")
+                logger.debug(
+                    f"[RAWMODULE] Extracted response with {len(tool_calls_from_lm) if tool_calls_from_lm else 0} tool calls"
+                )
+            else:
+                # Response is a plain string
+                response_text = str(first_output)
+        else:
+            response_text = str(response)
 
         # Build prediction result based on signature
         prediction_kwargs = {"response": response_text}
 
-        # If signature includes tool_calls, add a placeholder
-        # (Real tool call parsing would happen here in a full implementation)
+        # If signature includes tool_calls, use the tool_calls we extracted from the LM response
         if "tool_calls" in self.output_fields:
-            prediction_kwargs["tool_calls"] = "No tools were used."
+            if tool_calls_from_lm:
+                # Convert to DSPy ToolCalls format
+                # tool_calls_from_lm is a list of ChatCompletionMessageToolCall objects from LiteLLM
+                from dspy.adapters.types.tool import ToolCalls
+                import json
+
+                tool_calls_list = []
+                for tc in tool_calls_from_lm:
+                    # Handle both dict and object access patterns
+                    func_name = (
+                        tc.get("function", {}).get("name")
+                        if isinstance(tc, dict)
+                        else tc.function.name
+                    )
+                    func_args = (
+                        tc.get("function", {}).get("arguments")
+                        if isinstance(tc, dict)
+                        else tc.function.arguments
+                    )
+                    tool_calls_list.append(
+                        {
+                            "name": func_name,
+                            "args": (
+                                json.loads(func_args) if isinstance(func_args, str) else func_args
+                            ),
+                        }
+                    )
+                prediction_kwargs["tool_calls"] = ToolCalls.from_dict_list(tool_calls_list)
+                logger.debug(
+                    f"[RAWMODULE] Converted {len(tool_calls_list)} tool calls to DSPy format"
+                )
+            else:
+                # No tool calls in response
+                from dspy.adapters.types.tool import ToolCalls
+
+                prediction_kwargs["tool_calls"] = ToolCalls.from_dict_list([])
 
         # Return as Prediction for DSPy compatibility
         return dspy.Prediction(**prediction_kwargs)

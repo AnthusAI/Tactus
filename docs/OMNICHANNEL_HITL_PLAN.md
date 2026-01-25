@@ -64,37 +64,93 @@ See commits:
 - a6e49ff "feat: enable real-time container HITL and event streaming"
 - 392660c "feat: add modal cancellation handling with reopen capability"
 
-### 🔨 Phase 4.1 IN PROGRESS - Complete Registry Migration
-**Goal:** Eliminate remaining hard-coded rendering in modal mode
+### ✅ Phase 4.1 COMPLETE - Unified Registry Architecture
+**Completion Date: 2026-01-24**
 
-**Status: 95% Complete**
+**Goal Achieved:** 100% unified component architecture across inline and modal modes
 
-What works:
+What was accomplished:
 - ✅ Registry infrastructure (`registry.ts`, `types.ts`)
 - ✅ Built-in components extracted (`ApprovalComponent`, `InputComponent`, `SelectComponent`)
 - ✅ Standard library components (`ImageSelectorComponent`)
 - ✅ Public API (`hitlRegistry.register()`, `override()`, `listAvailable()`)
 - ✅ Single-item requests use registry
 - ✅ Batched inputs inline mode uses registry via `renderFormItem()`
-- ✅ Batched inputs modal mode **PARTIALLY** uses registry
+- ✅ **Batched inputs modal mode uses registry**
+- ✅ **InputComponent fixed** - Now captures text on every keystroke for batched inputs
 
-What needs fixing:
-- ❌ **Modal TabsContent still has 63 lines of hard-coded rendering** (lines 332-399)
-  - Hard-coded approval buttons
-  - Hard-coded input fields
-  - Hard-coded select logic
-  - Should use `renderFormItem()` helper like inline mode
+**Key Changes:**
+- Replaced 66 lines of hard-coded modal rendering with single `renderFormItem()` call
+- Fixed InputComponent to use controlled input with onChange for real-time value capture
+- Removed unused icon imports
+- Modal and inline modes now use identical rendering logic
+- Custom components will work in modal mode
+- Single source of truth for all component rendering
 
-**Impact:** Once fixed, modal and inline modes will use identical rendering logic, custom components will work in modal mode, and changes to components only need to happen once.
+**Impact:**
+- ✅ Zero code duplication between inline and modal
+- ✅ Changes to components only need to happen once
+- ✅ Fully extensible architecture for custom components
+- ✅ Easier maintenance and debugging
+- ✅ Text inputs work correctly in batched mode (inline and modal)
 
-See "Phase 1.1: Complete Registry Migration" in the implementation plan below
+See commits: 4005ae7, [pending commit for InputComponent fix]
 
-### ⏳ Phase 5 FUTURE - Additional Testing & Components
+### ✅ Phase 4.2 COMPLETE - API Cleanup
+**Completion Date: 2026-01-24**
+
+**Goal:** Improve API naming clarity by introducing `Human.multiple()` as primary method for batched inputs
+
+**Tasks:**
+- ✅ Add `Human.multiple()` method to primitives/human.py
+- ✅ Deprecate `Human.inputs()` with logger warning
+- ✅ Create `92-test-multiple.tac` example using new API
+- ✅ Update module docstring to list `Human.multiple()` and mark `inputs()` as deprecated
+- ✅ Add deprecation note in docstrings
+
+**Key Changes:**
+- Added `Human.multiple()` as the new primary method (delegates to `inputs()` internally)
+- `Human.inputs()` now logs deprecation warning on every call
+- Updated module docstring to list `Human.multiple()` and mark `inputs()` as deprecated
+- Created `92-test-multiple.tac` example using the new API
+- Original `92-test-inputs.tac` remains for backward compatibility testing
+
+**Rationale:**
+- "multiple" more clearly communicates collecting multiple inputs in one interaction
+- Avoids confusion with singular "input" method
+- Maintains backward compatibility via deprecation warning
+- Allows gradual migration of existing procedures
+
+### ⏳ Phase 4.3 PLANNED - Component Styling & Polish
+**Status:** Planned for next session (2026-01-25)
+
+**Goal:** Perfect styling and layouts of existing components before creating new ones
+
+**Tasks:**
+- [ ] Review and refine built-in component styling (Approval, Input, Select)
+- [ ] Ensure consistent spacing, borders, colors across components
+- [ ] Improve mobile responsiveness
+- [ ] Polish inline vs modal rendering differences
+- [ ] Add hover states and transitions
+- [ ] Review accessibility (keyboard navigation, ARIA labels)
+
+**Rationale:** Get the foundation perfect before building more standard library components
+
+### ⏳ Phase 5 FUTURE - Standard Library Components
+**Status:** Blocked on Phase 4.3 completion
+
+Standard library components to create (after styling is perfected):
+- TextOptionsSelectorComponent (Priority: HIGH) - Options with descriptions, card-based UI
+- MultiChoiceApprovalComponent (Priority: MEDIUM) - Custom action buttons
+- DatePickerComponent (Priority: LOW)
+- ColorPickerComponent (Priority: LOW)
+
+### ⏳ Phase 6 FUTURE - Documentation & Testing
 Remaining work:
 - Human.review() - Implemented but needs comprehensive testing
 - Human.escalate() - Implemented but needs comprehensive testing
 - Timeout behavior - Logic exists but needs thorough testing
-- Standard library components (TextOptionsSelectorComponent, MultiChoiceApprovalComponent, etc.)
+- Documentation: Create CUSTOM_HITL_COMPONENTS.md guide
 - Test suite expansion (93-test-*.tac series)
 
 See "Testing Plan" section below for detailed checklist
