@@ -2376,6 +2376,18 @@ def stdlib_test(
 
             if failed > 0:
                 console.print(f"  [red]✗ {passed} passed, {failed} failed[/red]")
+                for feature in test_result.features:
+                    for scenario in feature.scenarios:
+                        if scenario.status != "failed":
+                            continue
+                        console.print(f"    [red]Scenario failed:[/red] {scenario.name}")
+                        for step in scenario.steps:
+                            if step.status != "failed":
+                                continue
+                            error_detail = step.error_message or "Unknown failure"
+                            console.print(
+                                f"      [red]{step.keyword} {step.message}[/red]: {error_detail}"
+                            )
                 failed_modules.append(module_name)
             else:
                 console.print(f"  [green]✓ {passed} scenarios passed[/green]")
