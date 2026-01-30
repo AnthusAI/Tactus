@@ -3,7 +3,9 @@ Tests for execution tracing and debugging features.
 """
 
 import tempfile
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+
+import pytest
 
 from tactus.protocols.models import (
     SourceLocation,
@@ -416,6 +418,43 @@ class TestTraceManager:
             checkpoint = trace_mgr.find_checkpoint_after_line("test-run", "/test.tac", 50)
             assert checkpoint is None
 
+    def test_find_checkpoint_after_line_skips_missing_source(self):
+        """Test find_checkpoint_after_line ignores checkpoints without source."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            storage = FileStorage(tmpdir)
+            trace_mgr = TraceManager(storage)
+
+            checkpoints = [
+                CheckpointEntry(
+                    position=0,
+                    type="agent_turn",
+                    result={"text": "Message 1"},
+                    timestamp=datetime.now(timezone.utc),
+                    source_location=None,
+                ),
+                CheckpointEntry(
+                    position=1,
+                    type="agent_turn",
+                    result={"text": "Message 2"},
+                    timestamp=datetime.now(timezone.utc),
+                    source_location=SourceLocation(file="/test.tac", line=15),
+                ),
+            ]
+
+            run = ExecutionRun(
+                run_id="test-run",
+                procedure_name="test_proc",
+                file_path="/test.tac",
+                start_time=datetime.now(timezone.utc),
+                status="COMPLETED",
+                execution_log=checkpoints,
+            )
+            storage.save_run(run)
+
+            checkpoint = trace_mgr.find_checkpoint_after_line("test-run", "/test.tac", 1)
+            assert checkpoint is not None
+            assert checkpoint.source_location.line == 15
+
     def test_compare_runs(self):
         """Test comparing two runs."""
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -493,6 +532,92 @@ class TestTraceManager:
                 d for d in comparison["differences"] if d["type"] == "source_location_mismatch"
             ]
             assert len(loc_diffs) == 1
+
+    def test_compare_runs_with_matching_sources(self):
+        """Test comparing runs with matching source locations."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            storage = FileStorage(tmpdir)
+            trace_mgr = TraceManager(storage)
+
+            checkpoints = [
+                CheckpointEntry(
+                    position=0,
+                    type="agent_turn",
+                    result={"text": "Hello"},
+                    timestamp=datetime.now(timezone.utc),
+                    source_location=SourceLocation(file="/test.tac", line=10),
+                )
+            ]
+
+            run1 = ExecutionRun(
+                run_id="run-1",
+                procedure_name="test_proc",
+                file_path="/test.tac",
+                start_time=datetime.now(timezone.utc),
+                status="COMPLETED",
+                execution_log=checkpoints,
+            )
+            run2 = ExecutionRun(
+                run_id="run-2",
+                procedure_name="test_proc",
+                file_path="/test.tac",
+                start_time=datetime.now(timezone.utc),
+                status="COMPLETED",
+                execution_log=checkpoints,
+            )
+
+            storage.save_run(run1)
+            storage.save_run(run2)
+
+            comparison = trace_mgr.compare_runs("run-1", "run-2")
+
+            assert comparison["differences"] == []
+
+    def test_compare_runs_with_missing_source_location(self):
+        """Test comparing runs when source locations are missing."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            storage = FileStorage(tmpdir)
+            trace_mgr = TraceManager(storage)
+
+            run1 = ExecutionRun(
+                run_id="run-1",
+                procedure_name="test_proc",
+                file_path="/test.tac",
+                start_time=datetime.now(timezone.utc),
+                status="COMPLETED",
+                execution_log=[
+                    CheckpointEntry(
+                        position=0,
+                        type="agent_turn",
+                        result={"text": "Hello"},
+                        timestamp=datetime.now(timezone.utc),
+                        source_location=None,
+                    )
+                ],
+            )
+            run2 = ExecutionRun(
+                run_id="run-2",
+                procedure_name="test_proc",
+                file_path="/test.tac",
+                start_time=datetime.now(timezone.utc),
+                status="COMPLETED",
+                execution_log=[
+                    CheckpointEntry(
+                        position=0,
+                        type="agent_turn",
+                        result={"text": "Hello"},
+                        timestamp=datetime.now(timezone.utc),
+                        source_location=SourceLocation(file="/test.tac", line=10),
+                    )
+                ],
+            )
+
+            storage.save_run(run1)
+            storage.save_run(run2)
+
+            comparison = trace_mgr.compare_runs("run-1", "run-2")
+
+            assert comparison["differences"] == []
 
     def test_export_trace(self):
         """Test exporting a trace."""
@@ -576,6 +701,188 @@ class TestTraceManager:
             assert stats["checkpoints_by_type"]["model_predict"] == 1
             assert stats["total_duration_ms"] == 300.0
             assert stats["has_source_locations"] == 2
+
+    def test_get_statistics_with_end_time(self):
+        """Test statistics with start and end time present."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            storage = FileStorage(tmpdir)
+            trace_mgr = TraceManager(storage)
+
+            start_time = datetime.now(timezone.utc)
+            end_time = start_time + timedelta(seconds=2)
+
+            run = ExecutionRun(
+                run_id="test-run",
+                procedure_name="test_proc",
+                file_path="/test.tac",
+                start_time=start_time,
+                end_time=end_time,
+                status="COMPLETED",
+                execution_log=[],
+            )
+            storage.save_run(run)
+
+            stats = trace_mgr.get_statistics("test-run")
+
+            assert stats["total_time_sec"] == 2.0
+
+    def test_get_statistics_without_timing(self):
+        """Test statistics when timing fields are missing."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            storage = FileStorage(tmpdir)
+            trace_mgr = TraceManager(storage)
+
+            run = ExecutionRun(
+                run_id="test-run",
+                procedure_name="test_proc",
+                file_path="/test.tac",
+                start_time=datetime.now(timezone.utc),
+                end_time=None,
+                status="COMPLETED",
+                execution_log=[
+                    CheckpointEntry(
+                        position=0,
+                        type="agent_turn",
+                        result={"text": "Hello"},
+                        timestamp=datetime.now(timezone.utc),
+                        duration_ms=None,
+                    )
+                ],
+            )
+            storage.save_run(run)
+
+            stats = trace_mgr.get_statistics("test-run")
+
+            assert stats["total_duration_ms"] == 0.0
+            assert stats["total_time_sec"] is None
+
+    def test_list_breakpoints_requires_file(self):
+        """Test list_breakpoints requires file parameter."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            storage = FileStorage(tmpdir)
+            trace_mgr = TraceManager(storage)
+
+            with pytest.raises(NotImplementedError):
+                trace_mgr.list_breakpoints()
+
+    def test_list_breakpoints_with_file(self):
+        """Test list_breakpoints returns breakpoints for a file."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            storage = FileStorage(tmpdir)
+            trace_mgr = TraceManager(storage)
+
+            breakpoints = [
+                Breakpoint(
+                    breakpoint_id="bp-1",
+                    file="/test_proc.tac",
+                    line=10,
+                    enabled=True,
+                )
+            ]
+            storage.save_breakpoints("test_proc", breakpoints)
+
+            result = trace_mgr.list_breakpoints(file="/test_proc.tac")
+            assert result == breakpoints
+
+    def test_remove_and_toggle_breakpoint_not_implemented(self):
+        """Test remove/toggle breakpoint not implemented."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            storage = FileStorage(tmpdir)
+            trace_mgr = TraceManager(storage)
+
+            with pytest.raises(NotImplementedError):
+                trace_mgr.remove_breakpoint("bp-1")
+            with pytest.raises(NotImplementedError):
+                trace_mgr.toggle_breakpoint("bp-1", enabled=False)
+
+    def test_find_checkpoints_by_type(self):
+        """Test finding checkpoints by type."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            storage = FileStorage(tmpdir)
+            trace_mgr = TraceManager(storage)
+
+            checkpoints = [
+                CheckpointEntry(
+                    position=0,
+                    type="agent_turn",
+                    result={},
+                    timestamp=datetime.now(timezone.utc),
+                ),
+                CheckpointEntry(
+                    position=1,
+                    type="model_predict",
+                    result={},
+                    timestamp=datetime.now(timezone.utc),
+                ),
+            ]
+
+            run = ExecutionRun(
+                run_id="test-run",
+                procedure_name="test_proc",
+                file_path="/test.tac",
+                start_time=datetime.now(timezone.utc),
+                status="COMPLETED",
+                execution_log=checkpoints,
+            )
+            storage.save_run(run)
+
+            matches = trace_mgr.find_checkpoints_by_type("test-run", "model_predict")
+            assert len(matches) == 1
+            assert matches[0].type == "model_predict"
+
+    def test_compare_runs_checkpoint_count_mismatch(self):
+        """Test compare_runs detects count mismatch."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            storage = FileStorage(tmpdir)
+            trace_mgr = TraceManager(storage)
+
+            run1 = ExecutionRun(
+                run_id="run-1",
+                procedure_name="test_proc",
+                file_path="/test.tac",
+                start_time=datetime.now(timezone.utc),
+                status="COMPLETED",
+                execution_log=[
+                    CheckpointEntry(
+                        position=0,
+                        type="agent_turn",
+                        result={},
+                        timestamp=datetime.now(timezone.utc),
+                    )
+                ],
+            )
+            run2 = ExecutionRun(
+                run_id="run-2",
+                procedure_name="test_proc",
+                file_path="/test.tac",
+                start_time=datetime.now(timezone.utc),
+                status="COMPLETED",
+                execution_log=[],
+            )
+            storage.save_run(run1)
+            storage.save_run(run2)
+
+            comparison = trace_mgr.compare_runs("run-1", "run-2")
+            diffs = [d for d in comparison["differences"] if d["type"] == "checkpoint_count_mismatch"]
+            assert diffs
+
+    def test_export_trace_rejects_unknown_format(self):
+        """Test export_trace with unsupported format."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            storage = FileStorage(tmpdir)
+            trace_mgr = TraceManager(storage)
+
+            run = ExecutionRun(
+                run_id="test-run",
+                procedure_name="test_proc",
+                file_path="/test.tac",
+                start_time=datetime.now(timezone.utc),
+                status="COMPLETED",
+            )
+            storage.save_run(run)
+
+            with pytest.raises(ValueError):
+                trace_mgr.export_trace("test-run", format="csv")
 
 
 class TestExecutionContextTracing:

@@ -57,6 +57,7 @@ dev = [
     "pytest-asyncio>=0.23",
     "pytest-xdist>=3.0",
     "behave>=1.2.6",
+    "coverage>=7.4",
     "black",
     "ruff",
     "python-semantic-release>=9.0.0",

@@ -256,6 +256,7 @@ class ConfigManager:
             "AWS_DEFAULT_REGION": ("aws", "default_region"),
             "AWS_PROFILE": ("aws", "profile"),
             "TOOL_PATHS": "tool_paths",
+            "TACTUS_DEFAULT_PROVIDER": "default_provider",
             # Sandbox configuration
             "TACTUS_SANDBOX_ENABLED": ("sandbox", "enabled"),
             "TACTUS_SANDBOX_IMAGE": ("sandbox", "image"),

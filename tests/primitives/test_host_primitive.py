@@ -30,3 +30,69 @@ def test_host_call_raises_on_disallowed_tool(monkeypatch: pytest.MonkeyPatch):
 
     with pytest.raises(RuntimeError, match="Tool not allowlisted"):
         host.call("host.nope", {})
+
+
+def test_host_call_rejects_empty_name():
+    class _FakeBrokerClient:
+        async def call_tool(self, *, name: str, args: dict):
+            return {"name": name, "args": args}
+
+    host = HostPrimitive(client=_FakeBrokerClient())
+
+    with pytest.raises(ValueError, match="non-empty tool name"):
+        host.call("", {})
+
+
+def test_host_call_rejects_non_object_args():
+    class _FakeBrokerClient:
+        async def call_tool(self, *, name: str, args: dict):
+            return {"name": name, "args": args}
+
+    host = HostPrimitive(client=_FakeBrokerClient())
+
+    with pytest.raises(ValueError, match="args must be an object"):
+        host.call("host.ping", ["nope"])
+
+
+def test_host_call_requires_broker_socket_when_no_registry():
+    host = HostPrimitive(client=None)
+    host._registry = None
+
+    with pytest.raises(RuntimeError, match="TACTUS_BROKER_SOCKET"):
+        host.call("host.ping", {})
+
+
+def test_host_lua_to_python_converts_tables():
+    host = HostPrimitive(client=None)
+
+    class FakeTable:
+        def items(self):
+            return [("a", 1), ("b", [2, (3,)])]
+
+    assert host._lua_to_python(FakeTable()) == {"a": 1, "b": [2, [3]]}
+
+
+def test_host_lua_to_python_handles_none():
+    host = HostPrimitive(client=None)
+    assert host._lua_to_python(None) is None
+
+
+@pytest.mark.asyncio
+async def test_host_run_coro_with_running_loop():
+    host = HostPrimitive(client=None)
+
+    async def get_value():
+        return "ok"
+
+    assert host._run_coro(get_value()) == "ok"
+
+
+@pytest.mark.asyncio
+async def test_host_run_coro_thread_exception():
+    host = HostPrimitive(client=None)
+
+    async def get_value():
+        raise ValueError("boom")
+
+    with pytest.raises(ValueError, match="boom"):
+        host._run_coro(get_value())

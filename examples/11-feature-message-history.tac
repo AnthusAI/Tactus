@@ -35,7 +35,7 @@ Procedure {
 
         -- Count messages (Python list doesn't support # operator in Lua)
         local count = 0
-        for _, msg in python.iter(history) do
+        for msg in python.iter(history) do
             count = count + 1
             Log.info("Message " .. count, {role = msg.role, content = msg.content})
         end

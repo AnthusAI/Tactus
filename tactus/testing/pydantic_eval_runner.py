@@ -12,7 +12,7 @@ from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING
 
 from .eval_models import EvaluationConfig, EvalCase
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from tactus.core.runtime import TactusRuntime
 
 logger = logging.getLogger(__name__)

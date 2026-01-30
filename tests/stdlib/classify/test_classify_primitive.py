@@ -1,8 +1,10 @@
 """Tests for the Classify primitive with mocked agents."""
 
 import pytest
+from types import SimpleNamespace
+import sys
 
-from tactus.stdlib.classify.primitive import ClassifyPrimitive, ClassifyHandle
+from tactus.stdlib.classify.primitive import ClassifyPrimitive, ClassifyHandle, ClassifierFactory
 from tactus.stdlib.classify.llm import LLMClassifier
 from tactus.stdlib.core.models import ClassifierResult
 
@@ -434,3 +436,139 @@ class TestClassifyResult:
         assert d["value"] == "ERROR"
         assert d["error"] == "Max retries exceeded"
         assert d["retry_count"] == 3
+
+
+class DummyClassifier:
+    def __init__(self):
+        self.classes = ["yes", "no"]
+        self.target_classes = ["yes"]
+        self.total_calls = 0
+        self.total_retries = 2
+
+    def classify(self, text):
+        self.total_calls += 1
+        return ClassifierResult(value="yes", confidence=0.5)
+
+    def reset(self):
+        self.total_calls = 0
+
+
+def test_classify_handle_dict_input_and_repr():
+    handle = ClassifyHandle(classifier=DummyClassifier())
+    result = handle({"input": "yes"})
+    assert result.value == "yes"
+    assert "ClassifyHandle" in repr(handle)
+
+
+def test_classify_handle_reset_and_counters():
+    classifier = DummyClassifier()
+    handle = ClassifyHandle(classifier=classifier)
+    handle("yes")
+    assert handle.total_calls == 1
+    assert handle.total_retries == 2
+    handle.reset()
+    assert handle.total_calls == 0
+
+
+def test_classify_fuzzy_requires_expected_or_classes():
+    primitive = ClassifyPrimitive(agent_factory=create_mock_agent_factory(["Yes"]))
+    with pytest.raises(ValueError, match="expected"):
+        primitive({"method": "fuzzy"})
+
+
+def test_classify_fuzzy_accepts_expected_without_prompt():
+    primitive = ClassifyPrimitive(agent_factory=create_mock_agent_factory(["Yes"]))
+    handle = primitive({"method": "fuzzy", "expected": "Yes"})
+    assert isinstance(handle, ClassifyHandle)
+
+
+def test_classify_lua_to_python_handles_import_error(monkeypatch):
+    primitive = ClassifyPrimitive(agent_factory=create_mock_agent_factory(["Yes"]))
+    monkeypatch.setitem(sys.modules, "lupa", SimpleNamespace())
+    try:
+        assert primitive._lua_to_python({"a": 1}) == {"a": 1}
+    finally:
+        sys.modules.pop("lupa", None)
+
+
+def test_classify_to_lua_table_uses_converter():
+    primitive = ClassifyPrimitive(agent_factory=create_mock_agent_factory(["Yes"]))
+    primitive.lua_table_from = lambda value: {"wrapped": value}
+    output = primitive._to_lua_table({"value": "Yes"})
+    assert output == {"wrapped": {"value": "Yes"}}
+
+
+def test_classify_to_lua_table_returns_non_dict_value():
+    primitive = ClassifyPrimitive(agent_factory=create_mock_agent_factory(["Yes"]))
+    assert primitive._to_lua_table(["a"]) == ["a"]
+
+
+def test_classify_to_lua_table_returns_non_dict_with_converter():
+    primitive = ClassifyPrimitive(agent_factory=create_mock_agent_factory(["Yes"]))
+    primitive.lua_table_from = lambda value: {"wrapped": value}
+    assert primitive._to_lua_table(["a"]) == ["a"]
+
+
+def test_classify_lua_to_python_handles_none():
+    primitive = ClassifyPrimitive(agent_factory=create_mock_agent_factory(["Yes"]))
+    assert primitive._lua_to_python(None) is None
+
+
+def test_classify_lua_to_python_converts_table(monkeypatch):
+    class FakeLuaTable:
+        def __init__(self, items):
+            self._items = items
+
+        def items(self):
+            return self._items.items()
+
+    fake_lupa = SimpleNamespace(
+        lua_type=lambda value: "table" if isinstance(value, FakeLuaTable) else "string"
+    )
+    monkeypatch.setitem(sys.modules, "lupa", fake_lupa)
+    try:
+        primitive = ClassifyPrimitive(agent_factory=create_mock_agent_factory(["Yes"]))
+        lua_table = FakeLuaTable({1: "a", 2: "b"})
+        assert primitive._lua_to_python(lua_table) == ["a", "b"]
+    finally:
+        sys.modules.pop("lupa", None)
+
+
+def test_classify_lua_to_python_keeps_string_keys(monkeypatch):
+    class FakeLuaTable:
+        def __init__(self, items):
+            self._items = items
+
+        def items(self):
+            return self._items.items()
+
+    fake_lupa = SimpleNamespace(
+        lua_type=lambda value: "table" if isinstance(value, FakeLuaTable) else "string"
+    )
+    monkeypatch.setitem(sys.modules, "lupa", fake_lupa)
+    try:
+        primitive = ClassifyPrimitive(agent_factory=create_mock_agent_factory(["Yes"]))
+        lua_table = FakeLuaTable({"a": 1, 1: "b"})
+        assert primitive._lua_to_python(lua_table) == {"a": 1, 1: "b"}
+    finally:
+        sys.modules.pop("lupa", None)
+
+
+def test_classify_unknown_method_uses_factory():
+    class CustomClassifier:
+        def __init__(self, config=None, **kwargs):
+            self.config = config or {}
+            self.kwargs = kwargs
+            self.classes = ["yes"]
+            self.target_classes = []
+
+        def classify(self, _text):
+            return ClassifierResult(value="yes")
+
+        def reset(self):
+            return None
+
+    ClassifierFactory.register("custom_test", CustomClassifier)
+    primitive = ClassifyPrimitive(agent_factory=create_mock_agent_factory(["Yes"]))
+    handle = primitive({"method": "custom_test"})
+    assert isinstance(handle, ClassifyHandle)

@@ -1143,6 +1143,12 @@ until done.called()
 - ✅ `MessageHistory.inject_system(text)` - Inject system messages
 - ✅ `MessageHistory.clear()` - Clear agent's history
 - ✅ `MessageHistory.get()` - Get full conversation history (message_history)
+- ✅ `MessageHistory.reset({keep = ...})` - Reset history while keeping system prefix
+- ✅ `MessageHistory.head(n)` / `MessageHistory.tail(n)` - Non-mutating views
+- ✅ `MessageHistory.keep_head(n)` / `MessageHistory.keep_tail(n)` - Mutating trims
+- ✅ `MessageHistory.tail_tokens(max)` / `MessageHistory.keep_tail_tokens(max)` - Token-budget views
+- ✅ `MessageHistory.rewind(n)` / `MessageHistory.rewind_to(id)` - Rewind history
+- ✅ `MessageHistory.checkpoint(name?)` - Capture message id checkpoints
 - ⚠️ `MessageHistory.load_from_node(node)` - Placeholder (requires graph primitives)
 - ⚠️ `MessageHistory.save_to_node(node)` - Placeholder (requires graph primitives)
 

@@ -110,9 +110,9 @@ async def read_messages(reader: asyncio.StreamReader) -> AsyncIterator[Dict[str,
         while True:
             message = await read_message(reader)
             yield message
-    except EOFError:
-        return
     except asyncio.IncompleteReadError:
+        return
+    except EOFError:
         return
 
 

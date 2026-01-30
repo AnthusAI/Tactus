@@ -104,10 +104,10 @@ class ControlCLI:
             while self._running:
                 try:
                     message = await read_message(self._reader)
-                except EOFError:
+                except asyncio.IncompleteReadError:
                     self.console.print("\n[yellow]✗ Connection closed by runtime[/yellow]")
                     break
-                except asyncio.IncompleteReadError:
+                except EOFError:
                     self.console.print("\n[yellow]✗ Connection closed by runtime[/yellow]")
                     break
 

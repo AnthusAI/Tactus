@@ -1,7 +1,10 @@
 """Tests for the FuzzyMatchClassifier."""
 
+import difflib
+
 import pytest
 
+import tactus.stdlib.classify.fuzzy as fuzzy_module
 from tactus.stdlib.classify.fuzzy import (
     FuzzyMatchClassifier,
     FuzzyClassifier,
@@ -41,6 +44,21 @@ class TestCalculateSimilarity:
         """Completely different strings should have low similarity."""
         sim = calculate_similarity("abc", "xyz")
         assert sim < 0.5
+
+    def test_difflib_fallback_ratio(self, monkeypatch):
+        monkeypatch.setattr(fuzzy_module, "HAS_RAPIDFUZZ", False)
+        monkeypatch.setattr(
+            fuzzy_module, "SequenceMatcher", difflib.SequenceMatcher, raising=False
+        )
+        assert calculate_similarity("hello", "hello") == 1.0
+
+    def test_difflib_fallback_rejects_other_algorithms(self, monkeypatch):
+        monkeypatch.setattr(fuzzy_module, "HAS_RAPIDFUZZ", False)
+        monkeypatch.setattr(
+            fuzzy_module, "SequenceMatcher", difflib.SequenceMatcher, raising=False
+        )
+        with pytest.raises(ValueError, match="rapidfuzz"):
+            calculate_similarity("hello", "hello", algorithm="partial_ratio")
 
 
 class TestFuzzyMatchClassifierBinaryMode:

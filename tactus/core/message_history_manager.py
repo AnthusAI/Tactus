@@ -7,6 +7,7 @@ token budgets, message limits, and custom filters.
 Aligned with pydantic-ai's message_history concept.
 """
 
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 try:
@@ -29,6 +30,8 @@ class MessageHistoryManager:
         """Initialize message history manager."""
         self.histories: dict[str, list[ModelMessage]] = {}
         self.shared_history: list[ModelMessage] = []
+        self._next_message_id = 1
+        self._checkpoints: dict[str, int] = {}
 
     def get_history_for_agent(
         self,
@@ -71,7 +74,7 @@ class MessageHistoryManager:
 
     def add_message(
         self,
-        agent_name: str,
+        agent_name: Optional[str],
         message: ModelMessage,
         also_shared: bool = False,
     ) -> None:
@@ -83,6 +86,12 @@ class MessageHistoryManager:
             message: Message to add
             also_shared: Also add to shared history
         """
+        message = self._ensure_message_metadata(message)
+
+        if agent_name is None:
+            self.shared_history.append(message)
+            return
+
         if agent_name not in self.histories:
             self.histories[agent_name] = []
 
@@ -134,10 +143,18 @@ class MessageHistoryManager:
 
         if filter_type == "last_n":
             return self._filter_last_n(messages, filter_arg)
+        elif filter_type == "first_n":
+            return self._filter_first_n(messages, filter_arg)
         elif filter_type == "token_budget":
             return self._filter_by_token_budget(messages, filter_arg)
+        elif filter_type == "head_tokens":
+            return self._filter_head_tokens(messages, filter_arg)
+        elif filter_type == "tail_tokens":
+            return self._filter_tail_tokens(messages, filter_arg)
         elif filter_type == "by_role":
             return self._filter_by_role(messages, filter_arg)
+        elif filter_type == "system_prefix":
+            return self._filter_system_prefix(messages)
         elif filter_type == "compose":
             # Apply multiple filters in sequence
             result = messages
@@ -155,6 +172,14 @@ class MessageHistoryManager:
     ) -> list[ModelMessage]:
         """Keep only the last N messages."""
         return messages[-n:] if n > 0 else []
+
+    def _filter_first_n(
+        self,
+        messages: list[ModelMessage],
+        n: int,
+    ) -> list[ModelMessage]:
+        """Keep only the first N messages."""
+        return messages[:n] if n > 0 else []
 
     def _filter_by_token_budget(
         self,
@@ -190,6 +215,36 @@ class MessageHistoryManager:
 
         return result
 
+    def _filter_head_tokens(
+        self,
+        messages: list[ModelMessage],
+        max_tokens: int,
+    ) -> list[ModelMessage]:
+        """Keep earliest messages that fit within the token budget."""
+        if max_tokens <= 0:
+            return []
+
+        max_chars = max_tokens * 4
+        result = []
+        current_chars = 0
+
+        for message in messages:
+            message_chars = self._estimate_message_chars(message)
+            if current_chars + message_chars > max_chars:
+                break
+            result.append(message)
+            current_chars += message_chars
+
+        return result
+
+    def _filter_tail_tokens(
+        self,
+        messages: list[ModelMessage],
+        max_tokens: int,
+    ) -> list[ModelMessage]:
+        """Keep latest messages that fit within the token budget."""
+        return self._filter_by_token_budget(messages, max_tokens)
+
     def _filter_by_role(
         self,
         messages: list[ModelMessage],
@@ -197,6 +252,44 @@ class MessageHistoryManager:
     ) -> list[ModelMessage]:
         """Keep only messages with specified role."""
         return [m for m in messages if self._get_message_role(m) == role]
+
+    def _filter_system_prefix(
+        self,
+        messages: list[ModelMessage],
+    ) -> list[ModelMessage]:
+        """Keep only the leading contiguous system messages."""
+        result = []
+        for message in messages:
+            if self._get_message_role(message) != "system":
+                break
+            result.append(message)
+        return result
+
+    def _ensure_message_metadata(self, message: ModelMessage) -> ModelMessage:
+        """Ensure message has id and created_at metadata when dict-based."""
+        if not isinstance(message, dict):
+            return message
+
+        if "id" not in message:
+            message["id"] = self._next_message_id
+            self._next_message_id += 1
+
+        if "created_at" not in message:
+            message["created_at"] = datetime.now(timezone.utc).isoformat()
+
+        return message
+
+    def record_checkpoint(self, name: str, message_id: int) -> None:
+        """Record a named checkpoint pointing at a message id."""
+        self._checkpoints[name] = message_id
+
+    def get_checkpoint(self, name: str) -> Optional[int]:
+        """Retrieve a checkpoint id by name."""
+        return self._checkpoints.get(name)
+
+    def next_message_id(self) -> int:
+        """Return the next message id that will be assigned."""
+        return self._next_message_id
 
     def _estimate_message_chars(self, message: ModelMessage) -> int:
         """Estimate character count of a message."""

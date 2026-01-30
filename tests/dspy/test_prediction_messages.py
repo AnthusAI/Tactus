@@ -3,8 +3,14 @@ Tests for TactusPrediction message tracking (new_messages and all_messages).
 """
 
 import dspy
+import pytest
 
-from tactus.dspy.prediction import create_prediction, wrap_prediction
+from tactus.dspy.prediction import (
+    create_prediction,
+    wrap_prediction,
+    TactusPrediction,
+    validate_field_type,
+)
 
 
 def test_create_prediction_with_messages():
@@ -112,3 +118,40 @@ def test_prediction_with_structured_data_and_messages():
     # Verify message access
     assert result.new_messages() == new_msgs
     assert result.all_messages() == all_msgs
+
+
+def test_getattr_rejects_private_attribute():
+    pred = TactusPrediction(dspy.Prediction(response="ok"))
+    with pytest.raises(AttributeError):
+        _ = pred._secret
+
+
+def test_to_dspy_and_from_dspy():
+    base = dspy.Prediction(response="ok")
+    wrapped = TactusPrediction.from_dspy(base)
+    assert wrapped.to_dspy() is base
+
+
+def test_message_falls_back_to_custom_field():
+    from types import SimpleNamespace
+
+    pred = TactusPrediction(SimpleNamespace(custom="hello"))
+    assert pred.message == "hello"
+
+
+def test_validate_field_type_without_schema_returns_true():
+    assert validate_field_type("field", 1, None) is True
+
+
+def test_create_prediction_missing_required_field_raises():
+    with pytest.raises(ValueError, match="Required field missing"):
+        create_prediction(__schema__={"required": ["answer"]})
+
+
+def test_create_prediction_with_required_fields():
+    result = create_prediction(
+        answer="ok",
+        __schema__={"required": ["answer"], "fields": {"answer": {"type": "str"}}},
+    )
+
+    assert result.answer == "ok"

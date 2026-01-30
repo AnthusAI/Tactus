@@ -11,7 +11,7 @@ Provides:
 import logging
 from typing import Any, Dict, Optional, TYPE_CHECKING
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from tactus.protocols.log_handler import LogHandler
 
 logger = logging.getLogger(__name__)

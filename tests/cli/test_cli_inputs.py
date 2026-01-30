@@ -5,9 +5,10 @@ Tests the --param and --interactive flags for passing procedure inputs.
 """
 
 import pytest
+from rich.console import Console
 from typer.testing import CliRunner
 
-from tactus.cli.app import app, _parse_value, _check_missing_required_inputs
+from tactus.cli.app import app, _parse_value, _check_missing_required_inputs, _prompt_for_inputs
 
 pytestmark = pytest.mark.integration
 
@@ -343,6 +344,31 @@ class TestCLIParamParsing:
 
         result = cli_runner.invoke(app, ["run", str(f), "--no-sandbox", "--param", "nums=[1,2,3]"])
         assert result.exit_code == 0
+
+
+def test_prompt_for_inputs_enum(monkeypatch):
+    input_schema = {
+        "status": {"type": "string", "enum": ["active", "inactive"], "required": True}
+    }
+    provided = {}
+    answers = iter(["2"])
+
+    monkeypatch.setattr("tactus.cli.app.Prompt.ask", lambda *args, **kwargs: next(answers))
+
+    resolved = _prompt_for_inputs(Console(), input_schema, provided)
+
+    assert resolved["status"] == "inactive"
+
+
+def test_prompt_for_inputs_boolean(monkeypatch):
+    input_schema = {"enabled": {"type": "boolean", "required": True}}
+    provided = {}
+
+    monkeypatch.setattr("tactus.cli.app.Confirm.ask", lambda *args, **kwargs: True)
+
+    resolved = _prompt_for_inputs(Console(), input_schema, provided)
+
+    assert resolved["enabled"] is True
 
     def test_param_json_object(self, cli_runner, tmp_path):
         """Test --param correctly parses JSON objects."""
