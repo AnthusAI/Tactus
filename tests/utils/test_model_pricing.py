@@ -1,5 +1,3 @@
-import pytest
-
 from tactus.utils.model_pricing import (
     DEFAULT_PRICING,
     get_model_pricing,

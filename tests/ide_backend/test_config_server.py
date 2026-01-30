@@ -520,9 +520,7 @@ def test_save_config_by_source_env_override(tmp_path, monkeypatch):
 
     monkeypatch.setattr(config_server.Path, "cwd", lambda: tmp_path)
     monkeypatch.setattr(config_server.Path, "home", lambda: tmp_path)
-    monkeypatch.setattr(
-        "tactus.core.config_manager.ConfigManager", EnvConfigManager, raising=False
-    )
+    monkeypatch.setattr("tactus.core.config_manager.ConfigManager", EnvConfigManager, raising=False)
 
     app = _make_app()
     client = app.test_client()

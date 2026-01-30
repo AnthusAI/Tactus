@@ -47,16 +47,12 @@ class TestCalculateSimilarity:
 
     def test_difflib_fallback_ratio(self, monkeypatch):
         monkeypatch.setattr(fuzzy_module, "HAS_RAPIDFUZZ", False)
-        monkeypatch.setattr(
-            fuzzy_module, "SequenceMatcher", difflib.SequenceMatcher, raising=False
-        )
+        monkeypatch.setattr(fuzzy_module, "SequenceMatcher", difflib.SequenceMatcher, raising=False)
         assert calculate_similarity("hello", "hello") == 1.0
 
     def test_difflib_fallback_rejects_other_algorithms(self, monkeypatch):
         monkeypatch.setattr(fuzzy_module, "HAS_RAPIDFUZZ", False)
-        monkeypatch.setattr(
-            fuzzy_module, "SequenceMatcher", difflib.SequenceMatcher, raising=False
-        )
+        monkeypatch.setattr(fuzzy_module, "SequenceMatcher", difflib.SequenceMatcher, raising=False)
         with pytest.raises(ValueError, match="rapidfuzz"):
             calculate_similarity("hello", "hello", algorithm="partial_ratio")
 

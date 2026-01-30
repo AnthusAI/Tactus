@@ -54,8 +54,6 @@ ruff check .
 black tactus tactus-ide/backend features/steps tests --check
 ```
 
-*** FUCKING COMMIT RIGHT NOW ***
-
 Only commit when:
 - The human user has explicitly approved the changes
 - ALL of the above checks pass

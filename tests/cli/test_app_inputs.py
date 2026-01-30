@@ -1,5 +1,3 @@
-import json
-
 from tactus.cli import app as cli_app
 
 
@@ -67,8 +65,8 @@ def test_prompt_for_inputs_enum_value_and_defaults(monkeypatch):
     responses = [
         "x",  # invalid enum choice
         "blue",  # direct enum value
-        "[\"a\"]",  # array json
-        "{\"mode\": \"on\"}",  # object json
+        '["a"]',  # array json
+        '{"mode": "on"}',  # object json
     ]
 
     def fake_prompt(*_args, **_kwargs):

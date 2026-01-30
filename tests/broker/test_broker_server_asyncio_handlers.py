@@ -52,9 +52,7 @@ async def test_events_emit_asyncio_invalid_event():
 async def test_events_emit_asyncio_success_calls_handler():
     received = []
 
-    server = broker_server._BaseBrokerServer(
-        event_handler=lambda event: received.append(event)
-    )
+    server = broker_server._BaseBrokerServer(event_handler=lambda event: received.append(event))
     writer = DummyWriter()
 
     await server._handle_events_emit_asyncio("req", {"event": {"ok": True}}, writer)
@@ -179,7 +177,7 @@ async def test_llm_chat_asyncio_streaming_with_tool_calls():
             )
             delta_2 = SimpleNamespace(
                 content="!",
-                tool_calls=[DummyDeltaCall(0, arguments="{\"x\":1}")],
+                tool_calls=[DummyDeltaCall(0, arguments='{"x":1}')],
             )
             for delta in [delta_1, delta_2]:
                 yield SimpleNamespace(choices=[SimpleNamespace(delta=delta)])
@@ -200,7 +198,37 @@ async def test_llm_chat_asyncio_streaming_with_tool_calls():
     assert messages[-1]["event"] == "done"
     assert messages[-1]["data"]["text"] == "hi!"
     assert messages[-1]["data"]["tool_calls"][0]["id"] == "t1"
-    assert messages[-1]["data"]["tool_calls"][0]["function"]["arguments"] == "{\"x\":1}"
+    assert messages[-1]["data"]["tool_calls"][0]["function"]["arguments"] == '{"x":1}'
+
+
+@pytest.mark.asyncio
+async def test_llm_chat_asyncio_streaming_tool_call_without_function():
+    class DummyDeltaCall:
+        def __init__(self, index):
+            self.index = index
+            self.id = None
+            self.type = None
+            self.function = None
+
+    async def fake_chat(self, **_kwargs):
+        async def gen():
+            delta = SimpleNamespace(content=None, tool_calls=[DummyDeltaCall(0)])
+            yield SimpleNamespace(choices=[SimpleNamespace(delta=delta)])
+
+        return gen()
+
+    server = broker_server._BaseBrokerServer()
+    server._openai = type("FakeOpenAI", (), {"chat": fake_chat})()
+
+    writer = DummyWriter()
+    await server._handle_llm_chat_asyncio(
+        "req",
+        {"provider": "openai", "model": "gpt", "messages": [], "stream": True},
+        writer,
+    )
+
+    messages = decode_messages(writer.buffer)
+    assert messages[-1]["event"] == "done"
 
 
 @pytest.mark.asyncio

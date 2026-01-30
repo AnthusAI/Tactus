@@ -9,7 +9,7 @@ backend_dir = Path(__file__).resolve().parents[2] / "tactus-ide" / "backend"
 if str(backend_dir) not in sys.path:
     sys.path.insert(0, str(backend_dir))
 
-from assistant_service import AssistantService
+from assistant_service import AssistantService  # noqa: E402
 
 
 class FakeTool:
@@ -107,7 +107,9 @@ def test_set_websocket_manager():
 
 
 @pytest.mark.asyncio
-async def test_start_conversation_handles_spec_loading_and_tool_helpers(monkeypatch, tmp_path, caplog):
+async def test_start_conversation_handles_spec_loading_and_tool_helpers(
+    monkeypatch, tmp_path, caplog
+):
     def fake_create_lm(model, temperature=None, max_tokens=None):
         return {
             "model": model,
@@ -328,6 +330,7 @@ async def test_send_message_fallback_str_branch(monkeypatch):
     message_events = [event for event in events if event["type"] == "message"]
     assert message_events[0]["content"] == "raw"
 
+
 @pytest.mark.asyncio
 async def test_send_message_queue_timeout_logs_warning(monkeypatch, caplog):
     import queue as queue_module
@@ -361,7 +364,9 @@ async def test_send_message_queue_timeout_logs_warning(monkeypatch, caplog):
     with caplog.at_level("WARNING"):
         events = [event async for event in service.send_message("hi")]
 
-    assert any("Timeout waiting for streaming chunks" in record.message for record in caplog.records)
+    assert any(
+        "Timeout waiting for streaming chunks" in record.message for record in caplog.records
+    )
     assert events[-1]["type"] == "done"
 
 
@@ -423,7 +428,9 @@ async def test_send_message_outer_agent_error(monkeypatch):
     fake_dspy = build_fake_dspy(streamify_impl)
     monkeypatch.setitem(sys.modules, "dspy", fake_dspy)
     monkeypatch.setattr("assistant_service.dspy", fake_dspy)
-    monkeypatch.setattr(asyncio, "new_event_loop", lambda: (_ for _ in ()).throw(RuntimeError("boom")))
+    monkeypatch.setattr(
+        asyncio, "new_event_loop", lambda: (_ for _ in ()).throw(RuntimeError("boom"))
+    )
 
     service = AssistantService("/tmp", {"provider": "openai", "model": "gpt-4o"})
     service.agent = object()

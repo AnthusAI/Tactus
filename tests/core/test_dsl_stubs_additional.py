@@ -398,18 +398,22 @@ def test_agent_tools_normalization_and_inline_tool_errors():
     stubs = create_dsl_stubs(builder)
 
     tool = ToolHandle("ping", lambda args: "ok")
-    handle = stubs["Agent"]({
-        "system_prompt": "Hi",
-        "tools": [tool],
-    })
+    handle = stubs["Agent"](
+        {
+            "system_prompt": "Hi",
+            "tools": [tool],
+        }
+    )
     agent = builder.registry.agents[handle.name]
     assert agent.tools == ["ping"]
 
     with pytest.raises(ValueError, match="inline tool definitions"):
-        stubs["Agent"]({
-            "system_prompt": "Hi",
-            "tools": [{"handler": lambda args: "nope"}],
-        })
+        stubs["Agent"](
+            {
+                "system_prompt": "Hi",
+                "tools": [{"handler": lambda args: "nope"}],
+            }
+        )
 
     with pytest.raises(ValueError, match="inline_tools"):
         stubs["Agent"]({"system_prompt": "Hi", "inline_tools": ["bad"]})

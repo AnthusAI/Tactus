@@ -437,7 +437,9 @@ def test_update_procedure_status_running_skips_completion_time():
     storage = MemoryStorage()
     ctx = BaseExecutionContext("proc", storage)
 
-    ctx.store_procedure_handle(ProcedureHandle(procedure_id="child", name="child", status="running"))
+    ctx.store_procedure_handle(
+        ProcedureHandle(procedure_id="child", name="child", status="running")
+    )
     ctx.update_procedure_status("child", "running", result="ok")
 
     handle = ctx.get_procedure_handle("child")

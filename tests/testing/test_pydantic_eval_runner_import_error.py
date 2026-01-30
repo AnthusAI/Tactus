@@ -25,6 +25,8 @@ def test_eval_runner_import_error_sets_flag():
 
     assert module.PYDANTIC_EVALS_AVAILABLE is False
     try:
-        module.TactusPydanticEvalRunner(Path("proc.tac"), module.EvaluationConfig(dataset=[], evaluators=[]))
+        module.TactusPydanticEvalRunner(
+            Path("proc.tac"), module.EvaluationConfig(dataset=[], evaluators=[])
+        )
     except ImportError as exc:
         assert "pydantic_evals" in str(exc)

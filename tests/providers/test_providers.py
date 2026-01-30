@@ -1,5 +1,3 @@
-import os
-
 from tactus.providers.bedrock import BedrockProvider
 from tactus.providers.google import GoogleProvider
 from tactus.providers.openai import OpenAIProvider

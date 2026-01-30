@@ -1,5 +1,4 @@
 import io
-from types import SimpleNamespace
 
 import pytest
 
@@ -37,6 +36,7 @@ def test_entrypoint_log_level_branches(monkeypatch):
 
     monkeypatch.setenv("TACTUS_LOG_LEVEL", "debug")
     import tactus.sandbox.entrypoint as entrypoint_mod
+
     importlib.reload(entrypoint_mod)
 
     monkeypatch.setenv("TACTUS_LOG_LEVEL", "info")

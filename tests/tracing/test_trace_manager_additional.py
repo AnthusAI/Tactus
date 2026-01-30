@@ -1,5 +1,3 @@
-from types import SimpleNamespace
-
 import pytest
 
 from tactus.protocols.models import ExecutionRun, CheckpointEntry, Breakpoint, utc_now
@@ -34,9 +32,7 @@ def test_get_checkpoint_out_of_range():
         file_path="proc.tac",
         start_time=utc_now(),
         status="COMPLETED",
-        execution_log=[
-            CheckpointEntry(position=0, type="tool", result=None, timestamp=utc_now())
-        ],
+        execution_log=[CheckpointEntry(position=0, type="tool", result=None, timestamp=utc_now())],
     )
     storage = DummyStorage(runs={"run": run})
     manager = TraceManager(storage)

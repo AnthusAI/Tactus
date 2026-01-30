@@ -1,7 +1,6 @@
 import io
 from datetime import datetime
 
-import pytest
 from rich.console import Console
 
 from tactus.adapters.cli_hitl import CLIHITLHandler
@@ -28,7 +27,9 @@ def test_request_interaction_routes_to_input_with_options(monkeypatch):
 
     prompt_values = iter(["2"])
 
-    monkeypatch.setattr("tactus.adapters.cli_hitl.Prompt.ask", lambda *_a, **_k: next(prompt_values))
+    monkeypatch.setattr(
+        "tactus.adapters.cli_hitl.Prompt.ask", lambda *_a, **_k: next(prompt_values)
+    )
 
     request = HITLRequest(
         request_type="input",
@@ -49,7 +50,9 @@ def test_request_interaction_routes_to_review(monkeypatch):
 
     prompt_values = iter(["reject", "Needs changes"])
 
-    monkeypatch.setattr("tactus.adapters.cli_hitl.Prompt.ask", lambda *_a, **_k: next(prompt_values))
+    monkeypatch.setattr(
+        "tactus.adapters.cli_hitl.Prompt.ask", lambda *_a, **_k: next(prompt_values)
+    )
 
     request = HITLRequest(request_type="review", message="Review this")
     response = handler.request_interaction("proc", request)
@@ -106,7 +109,9 @@ def test_handle_inputs_collects_values(monkeypatch):
         ]
     )
 
-    monkeypatch.setattr("tactus.adapters.cli_hitl.Prompt.ask", lambda *_a, **_k: next(prompt_values))
+    monkeypatch.setattr(
+        "tactus.adapters.cli_hitl.Prompt.ask", lambda *_a, **_k: next(prompt_values)
+    )
     monkeypatch.setattr("tactus.adapters.cli_hitl.Confirm.ask", lambda *_a, **_k: True)
 
     request = HITLRequest(
@@ -129,7 +134,11 @@ def test_handle_inputs_collects_values(monkeypatch):
 
     response = handler.request_interaction("proc", request)
 
-    assert response.value == {"approved": True, "choices": ["a", "b"], "review": {"decision": "approved", "feedback": None}}
+    assert response.value == {
+        "approved": True,
+        "choices": ["a", "b"],
+        "review": {"decision": "approved", "feedback": None},
+    }
 
 
 def test_handle_inputs_missing_items_returns_empty():
@@ -344,9 +353,7 @@ def test_handle_inputs_review_reject(monkeypatch):
     request = HITLRequest(
         request_type="inputs",
         message="Batch",
-        metadata={
-            "items": [{"item_id": "review", "label": "Review", "request_type": "review"}]
-        },
+        metadata={"items": [{"item_id": "review", "label": "Review", "request_type": "review"}]},
     )
 
     response = handler.request_interaction("proc", request)
@@ -364,9 +371,7 @@ def test_handle_inputs_review_invalid_choice_then_approve(monkeypatch):
     request = HITLRequest(
         request_type="inputs",
         message="Batch",
-        metadata={
-            "items": [{"item_id": "review", "label": "Review", "request_type": "review"}]
-        },
+        metadata={"items": [{"item_id": "review", "label": "Review", "request_type": "review"}]},
     )
 
     response = handler.request_interaction("proc", request)

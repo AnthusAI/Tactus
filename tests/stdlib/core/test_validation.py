@@ -86,7 +86,7 @@ def test_generate_suggestions_without_close_match():
 
 
 def test_validate_schema_validation_error():
-    jsonschema = pytest.importorskip("jsonschema")
+    pytest.importorskip("jsonschema")
     schema = {"type": "object", "properties": {"count": {"type": "number"}}}
     result = validate_output(json.dumps({"count": "bad"}), schema=schema)
     assert result["valid"] is False

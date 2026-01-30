@@ -1,4 +1,3 @@
-from types import SimpleNamespace
 import sys
 
 from tactus.testing.eval_models import EvaluatorConfig
@@ -45,11 +44,7 @@ def test_agent_turns_evaluator_filters_agent(monkeypatch):
     evaluator = evaluators.create_evaluator(cfg)
     evaluator.agent_name = "alpha"
 
-    ctx = DummyCtx(
-        metadata={
-            "trace": {"agent_turns": [{"agent": "alpha"}, {"agent": "beta"}]}
-        }
-    )
+    ctx = DummyCtx(metadata={"trace": {"agent_turns": [{"agent": "alpha"}, {"agent": "beta"}]}})
     assert evaluator.evaluate(ctx) is True
 
 

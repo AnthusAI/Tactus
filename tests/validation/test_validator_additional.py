@@ -34,7 +34,7 @@ def test_validate_handles_unexpected_exception(monkeypatch):
 
     monkeypatch.setattr("tactus.validation.validator.LuaLexer", BrokenLexer)
 
-    result = validator.validate("Agent \"a\" {}", ValidationMode.FULL)
+    result = validator.validate('Agent "a" {}', ValidationMode.FULL)
 
     assert result.valid is False
     assert "Validation error" in result.errors[0].message

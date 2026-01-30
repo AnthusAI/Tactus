@@ -96,7 +96,9 @@ def test_raw_module_handles_scalar_lm_response(monkeypatch):
 
 
 def test_raw_module_includes_available_tools(monkeypatch):
-    module = RawModule(signature="system_prompt, history, user_message, available_tools -> response")
+    module = RawModule(
+        signature="system_prompt, history, user_message, available_tools -> response"
+    )
 
     class FakeLM:
         kwargs = {}
@@ -121,7 +123,7 @@ def test_raw_module_extracts_tool_calls(monkeypatch):
         signature="system_prompt, history, user_message, available_tools -> response, tool_calls"
     )
 
-    tool_calls = [{"function": {"name": "do", "arguments": "{\"x\": 1}"}}]
+    tool_calls = [{"function": {"name": "do", "arguments": '{"x": 1}'}}]
 
     class FakeLM:
         kwargs = {}
@@ -138,7 +140,9 @@ def test_raw_module_extracts_tool_calls(monkeypatch):
 
 
 def test_raw_module_passes_tools_and_tool_choice(monkeypatch):
-    module = RawModule(signature="system_prompt, history, user_message, available_tools -> response")
+    module = RawModule(
+        signature="system_prompt, history, user_message, available_tools -> response"
+    )
     recorded = {}
 
     class FakeTool:
@@ -182,7 +186,9 @@ def test_raw_module_ignores_tools_without_formatter(monkeypatch):
 
 
 def test_raw_module_respects_explicit_tool_choice(monkeypatch):
-    module = RawModule(signature="system_prompt, history, user_message, available_tools -> response")
+    module = RawModule(
+        signature="system_prompt, history, user_message, available_tools -> response"
+    )
     recorded = {}
 
     class FakeTool:
@@ -443,7 +449,9 @@ def test_tactus_module_raw_strategy_uses_string_signature(monkeypatch):
 
 def test_lua_callable_module_passes_through_without_mocks(monkeypatch):
     module = TactusModule(name="mod", signature="question -> answer", strategy="predict")
-    lua_module = create_module("mod", {"signature": "question -> answer"}, registry=None, mock_manager=None)
+    lua_module = create_module(
+        "mod", {"signature": "question -> answer"}, registry=None, mock_manager=None
+    )
 
     class FakePredict:
         def __call__(self, **kwargs):
@@ -489,7 +497,6 @@ def test_lua_callable_module_returns_none_for_missing_mock():
         def get_mock_response(self, name, inputs):
             return {"answer": "ok"}
 
-    module = TactusModule(name="mod", signature="question -> answer", strategy="predict")
     lua_module = create_module(
         "mod",
         {"signature": "question -> answer"},
@@ -507,7 +514,6 @@ def test_lua_callable_module_mock_error_propagates():
         def get_mock_response(self, name, inputs):
             raise RuntimeError("boom")
 
-    module = TactusModule(name="mod", signature="question -> answer", strategy="predict")
     lua_module = create_module(
         "mod",
         {"signature": "question -> answer"},

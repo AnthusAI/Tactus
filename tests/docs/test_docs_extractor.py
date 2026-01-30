@@ -1,7 +1,5 @@
 """Tests for documentation extractor."""
 
-from pathlib import Path
-
 from tactus.docs.extractor import TacFileExtractor, DirectoryExtractor
 
 

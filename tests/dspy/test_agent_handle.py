@@ -91,7 +91,7 @@ def test_prediction_to_value_with_schema(monkeypatch):
 
     class FakePrediction:
         def data(self):
-            return {"response": "{\"answer\": \"ok\"}"}
+            return {"response": '{"answer": "ok"}'}
 
         @property
         def message(self):

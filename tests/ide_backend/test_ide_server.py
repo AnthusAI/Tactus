@@ -9,7 +9,9 @@ from tactus.ide import server as ide_server
 def test_clear_runtime_caches_warns_when_unset(caplog):
     ide_server._clear_runtime_caches_fn = None
     ide_server.clear_runtime_caches()
-    assert any("clear_runtime_caches called but no implementation set" in msg for msg in caplog.messages)
+    assert any(
+        "clear_runtime_caches called but no implementation set" in msg for msg in caplog.messages
+    )
 
 
 def test_resolve_workspace_path_errors(tmp_path, monkeypatch):
@@ -233,7 +235,10 @@ def test_lsp_request_and_notifications(monkeypatch):
 
     response = client.post(
         "/api/lsp/notification",
-        json={"method": "textDocument/didOpen", "params": {"textDocument": {"uri": "file://a", "text": "x"}}},
+        json={
+            "method": "textDocument/didOpen",
+            "params": {"textDocument": {"uri": "file://a", "text": "x"}},
+        },
     )
     assert response.get_json()["diagnostics"][0]["message"] == "ok"
 
@@ -270,9 +275,7 @@ def test_chat_endpoints(monkeypatch, tmp_path):
         def get_available_tools(self):
             return ["tool"]
 
-    monkeypatch.setattr(
-        "tactus.ide.coding_assistant.CodingAssistantAgent", FakeAssistant
-    )
+    monkeypatch.setattr("tactus.ide.coding_assistant.CodingAssistantAgent", FakeAssistant)
 
     app = ide_server.create_app(initial_workspace=str(tmp_path))
     client = app.test_client()
@@ -343,9 +346,7 @@ def test_trace_endpoints(tmp_path, monkeypatch):
     response = client.get("/api/traces/runs/run-1", query_string={"procedure": "proc"})
     assert response.get_json()["run_id"] == "run-1"
 
-    response = client.get(
-        "/api/traces/runs/run-1/checkpoints", query_string={"procedure": "proc"}
-    )
+    response = client.get("/api/traces/runs/run-1/checkpoints", query_string={"procedure": "proc"})
     assert len(response.get_json()["checkpoints"]) == 2
 
     response = client.get(
@@ -353,9 +354,7 @@ def test_trace_endpoints(tmp_path, monkeypatch):
     )
     assert response.get_json()["position"] == 1
 
-    response = client.get(
-        "/api/traces/runs/run-1/statistics", query_string={"procedure": "proc"}
-    )
+    response = client.get("/api/traces/runs/run-1/statistics", query_string={"procedure": "proc"})
     assert response.get_json()["total_checkpoints"] == 2
 
     response = client.get("/api/traces/runs/run-1/events")

@@ -863,7 +863,9 @@ class TestTraceManager:
             storage.save_run(run2)
 
             comparison = trace_mgr.compare_runs("run-1", "run-2")
-            diffs = [d for d in comparison["differences"] if d["type"] == "checkpoint_count_mismatch"]
+            diffs = [
+                d for d in comparison["differences"] if d["type"] == "checkpoint_count_mismatch"
+            ]
             assert diffs
 
     def test_export_trace_rejects_unknown_format(self):

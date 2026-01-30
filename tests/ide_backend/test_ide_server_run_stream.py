@@ -70,7 +70,9 @@ def _register_common_fakes(monkeypatch):
     monkeypatch.setattr("tactus.core.runtime.TactusRuntime", FakeRuntime)
     monkeypatch.setattr("tactus.core.config_manager.ConfigManager", FakeConfigManager)
     monkeypatch.setattr("tactus.adapters.control_loop.ControlLoopHandler", FakeControlLoopHandler)
-    monkeypatch.setattr("tactus.adapters.control_loop.ControlLoopHITLAdapter", FakeControlLoopAdapter)
+    monkeypatch.setattr(
+        "tactus.adapters.control_loop.ControlLoopHITLAdapter", FakeControlLoopAdapter
+    )
     monkeypatch.setattr("tactus.adapters.channels.load_default_channels", lambda **_kwargs: [])
     monkeypatch.setattr("tactus.adapters.channels.sse.SSEControlChannel", FakeSSEChannel)
     monkeypatch.setattr("nanoid.generate", lambda size=21: "run-1")
@@ -80,11 +82,14 @@ def test_run_stream_direct_execution(monkeypatch, tmp_path):
     workspace = tmp_path / "workspace"
     workspace.mkdir()
     file_path = workspace / "demo.tac"
-    file_path.write_text("Procedure \"demo\" {}")
+    file_path.write_text('Procedure "demo" {}')
 
     _register_common_fakes(monkeypatch)
     monkeypatch.setattr("tactus.sandbox.is_docker_available", lambda: (False, "no docker"))
-    monkeypatch.setattr("tactus.sandbox.SandboxConfig", lambda **_kwargs: SimpleNamespace(is_explicitly_disabled=lambda: False))
+    monkeypatch.setattr(
+        "tactus.sandbox.SandboxConfig",
+        lambda **_kwargs: SimpleNamespace(is_explicitly_disabled=lambda: False),
+    )
 
     app = ide_server.create_app(initial_workspace=str(workspace))
     client = app.test_client()
@@ -92,9 +97,9 @@ def test_run_stream_direct_execution(monkeypatch, tmp_path):
     response = client.get("/api/run/stream", query_string={"path": "demo.tac"})
     data = response.data.decode("utf-8")
 
-    assert "\"lifecycle_stage\": \"start\"" in data
-    assert "\"lifecycle_stage\": \"complete\"" in data
-    assert "\"event_type\": \"summary_event\"" in data
+    assert '"lifecycle_stage": "start"' in data
+    assert '"lifecycle_stage": "complete"' in data
+    assert '"event_type": "summary_event"' in data
 
 
 def test_run_stream_post_writes_content(monkeypatch, tmp_path):
@@ -103,19 +108,22 @@ def test_run_stream_post_writes_content(monkeypatch, tmp_path):
 
     _register_common_fakes(monkeypatch)
     monkeypatch.setattr("tactus.sandbox.is_docker_available", lambda: (False, "no docker"))
-    monkeypatch.setattr("tactus.sandbox.SandboxConfig", lambda **_kwargs: SimpleNamespace(is_explicitly_disabled=lambda: False))
+    monkeypatch.setattr(
+        "tactus.sandbox.SandboxConfig",
+        lambda **_kwargs: SimpleNamespace(is_explicitly_disabled=lambda: False),
+    )
 
     app = ide_server.create_app(initial_workspace=str(workspace))
     client = app.test_client()
 
     response = client.post(
         "/api/run/stream",
-        json={"path": "demo.tac", "content": "Procedure \"demo\" {}", "inputs": {"x": 1}},
+        json={"path": "demo.tac", "content": 'Procedure "demo" {}', "inputs": {"x": 1}},
     )
     data = response.data.decode("utf-8")
 
-    assert "\"lifecycle_stage\": \"complete\"" in data
-    assert (workspace / "demo.tac").read_text() == "Procedure \"demo\" {}"
+    assert '"lifecycle_stage": "complete"' in data
+    assert (workspace / "demo.tac").read_text() == 'Procedure "demo" {}'
 
 
 @pytest.mark.parametrize("docker_available", [True])
@@ -123,7 +131,7 @@ def test_run_stream_sandbox_execution(monkeypatch, tmp_path, docker_available):
     workspace = tmp_path / "workspace"
     workspace.mkdir()
     file_path = workspace / "demo.tac"
-    file_path.write_text("Procedure \"demo\" {}")
+    file_path.write_text('Procedure "demo" {}')
 
     _register_common_fakes(monkeypatch)
     monkeypatch.setenv("OPENAI_API_KEY", "key")
@@ -178,16 +186,16 @@ def test_run_stream_sandbox_execution(monkeypatch, tmp_path, docker_available):
     response = client.get("/api/run/stream", query_string={"path": "demo.tac"})
     data = response.data.decode("utf-8")
 
-    assert "\"event_type\": \"container_status\"" in data
-    assert "\"event_type\": \"sandbox_event\"" in data
-    assert "\"lifecycle_stage\": \"complete\"" in data
+    assert '"event_type": "container_status"' in data
+    assert '"event_type": "sandbox_event"' in data
+    assert '"lifecycle_stage": "complete"' in data
 
 
 def test_run_stream_container_hitl_success(monkeypatch, tmp_path):
     workspace = tmp_path / "workspace"
     workspace.mkdir()
     file_path = workspace / "demo.tac"
-    file_path.write_text("Procedure \"demo\" {}")
+    file_path.write_text('Procedure "demo" {}')
 
     _register_common_fakes(monkeypatch)
 
@@ -225,7 +233,10 @@ def test_run_stream_container_hitl_success(monkeypatch, tmp_path):
         lambda **_kwargs: SimpleNamespace(is_explicitly_disabled=lambda: False),
     )
     monkeypatch.setattr("tactus.sandbox.ContainerRunner", FakeRunner)
-    monkeypatch.setattr("tactus.protocols.control.ControlRequest.model_validate", lambda data: SimpleNamespace(**data))
+    monkeypatch.setattr(
+        "tactus.protocols.control.ControlRequest.model_validate",
+        lambda data: SimpleNamespace(**data),
+    )
     monkeypatch.setattr("asyncio.to_thread", fake_to_thread)
 
     app = ide_server.create_app(initial_workspace=str(workspace))
@@ -234,14 +245,14 @@ def test_run_stream_container_hitl_success(monkeypatch, tmp_path):
     response = client.get("/api/run/stream", query_string={"path": "demo.tac"})
     data = response.data.decode("utf-8")
 
-    assert "\"lifecycle_stage\": \"complete\"" in data
+    assert '"lifecycle_stage": "complete"' in data
 
 
 def test_run_stream_container_hitl_delivery_failure(monkeypatch, tmp_path):
     workspace = tmp_path / "workspace"
     workspace.mkdir()
     file_path = workspace / "demo.tac"
-    file_path.write_text("Procedure \"demo\" {}")
+    file_path.write_text('Procedure "demo" {}')
 
     class FailingChannel(FakeSSEChannel):
         async def send(self, _request):
@@ -281,7 +292,10 @@ def test_run_stream_container_hitl_delivery_failure(monkeypatch, tmp_path):
         lambda **_kwargs: SimpleNamespace(is_explicitly_disabled=lambda: False),
     )
     monkeypatch.setattr("tactus.sandbox.ContainerRunner", FakeRunner)
-    monkeypatch.setattr("tactus.protocols.control.ControlRequest.model_validate", lambda data: SimpleNamespace(**data))
+    monkeypatch.setattr(
+        "tactus.protocols.control.ControlRequest.model_validate",
+        lambda data: SimpleNamespace(**data),
+    )
 
     app = ide_server.create_app(initial_workspace=str(workspace))
     client = app.test_client()
@@ -289,14 +303,14 @@ def test_run_stream_container_hitl_delivery_failure(monkeypatch, tmp_path):
     response = client.get("/api/run/stream", query_string={"path": "demo.tac"})
     data = response.data.decode("utf-8")
 
-    assert "\"lifecycle_stage\": \"error\"" in data
+    assert '"lifecycle_stage": "error"' in data
 
 
 def test_run_stream_sandbox_failure(monkeypatch, tmp_path):
     workspace = tmp_path / "workspace"
     workspace.mkdir()
     file_path = workspace / "demo.tac"
-    file_path.write_text("Procedure \"demo\" {}")
+    file_path.write_text('Procedure "demo" {}')
 
     _register_common_fakes(monkeypatch)
 
@@ -328,14 +342,14 @@ def test_run_stream_sandbox_failure(monkeypatch, tmp_path):
     response = client.get("/api/run/stream", query_string={"path": "demo.tac"})
     data = response.data.decode("utf-8")
 
-    assert "\"lifecycle_stage\": \"error\"" in data
+    assert '"lifecycle_stage": "error"' in data
 
 
 def test_run_stream_direct_execution_error(monkeypatch, tmp_path):
     workspace = tmp_path / "workspace"
     workspace.mkdir()
     file_path = workspace / "demo.tac"
-    file_path.write_text("Procedure \"demo\" {}")
+    file_path.write_text('Procedure "demo" {}')
 
     class ErrorRuntime(FakeRuntime):
         async def execute(self, *_args, **_kwargs):
@@ -344,7 +358,10 @@ def test_run_stream_direct_execution_error(monkeypatch, tmp_path):
     _register_common_fakes(monkeypatch)
     monkeypatch.setattr("tactus.core.runtime.TactusRuntime", ErrorRuntime)
     monkeypatch.setattr("tactus.sandbox.is_docker_available", lambda: (False, "no docker"))
-    monkeypatch.setattr("tactus.sandbox.SandboxConfig", lambda **_kwargs: SimpleNamespace(is_explicitly_disabled=lambda: False))
+    monkeypatch.setattr(
+        "tactus.sandbox.SandboxConfig",
+        lambda **_kwargs: SimpleNamespace(is_explicitly_disabled=lambda: False),
+    )
 
     app = ide_server.create_app(initial_workspace=str(workspace))
     client = app.test_client()
@@ -352,14 +369,14 @@ def test_run_stream_direct_execution_error(monkeypatch, tmp_path):
     response = client.get("/api/run/stream", query_string={"path": "demo.tac"})
     data = response.data.decode("utf-8")
 
-    assert "\"lifecycle_stage\": \"error\"" in data
+    assert '"lifecycle_stage": "error"' in data
 
 
 def test_run_stream_event_serialization_errors(monkeypatch, tmp_path):
     workspace = tmp_path / "workspace"
     workspace.mkdir()
     file_path = workspace / "demo.tac"
-    file_path.write_text("Procedure \"demo\" {}")
+    file_path.write_text('Procedure "demo" {}')
 
     class BadEvent:
         def __init__(self):
@@ -379,7 +396,10 @@ def test_run_stream_event_serialization_errors(monkeypatch, tmp_path):
     _register_common_fakes(monkeypatch)
     monkeypatch.setattr("tactus.adapters.ide_log.IDELogHandler", BadLogHandler)
     monkeypatch.setattr("tactus.sandbox.is_docker_available", lambda: (False, "no docker"))
-    monkeypatch.setattr("tactus.sandbox.SandboxConfig", lambda **_kwargs: SimpleNamespace(is_explicitly_disabled=lambda: False))
+    monkeypatch.setattr(
+        "tactus.sandbox.SandboxConfig",
+        lambda **_kwargs: SimpleNamespace(is_explicitly_disabled=lambda: False),
+    )
 
     app = ide_server.create_app(initial_workspace=str(workspace))
     client = app.test_client()
@@ -387,14 +407,14 @@ def test_run_stream_event_serialization_errors(monkeypatch, tmp_path):
     response = client.get("/api/run/stream", query_string={"path": "demo.tac"})
     data = response.data.decode("utf-8")
 
-    assert "\"lifecycle_stage\": \"complete\"" in data
+    assert '"lifecycle_stage": "complete"' in data
 
 
 def test_run_stream_consolidates_stream_chunks(monkeypatch, tmp_path):
     workspace = tmp_path / "workspace"
     workspace.mkdir()
     file_path = workspace / "demo.tac"
-    file_path.write_text("Procedure \"demo\" {}")
+    file_path.write_text('Procedure "demo" {}')
 
     class ChunkEvent(FakeEvent):
         def model_dump(self, mode="json"):
@@ -416,7 +436,10 @@ def test_run_stream_consolidates_stream_chunks(monkeypatch, tmp_path):
     _register_common_fakes(monkeypatch)
     monkeypatch.setattr("tactus.adapters.ide_log.IDELogHandler", ChunkLogHandler)
     monkeypatch.setattr("tactus.sandbox.is_docker_available", lambda: (False, "no docker"))
-    monkeypatch.setattr("tactus.sandbox.SandboxConfig", lambda **_kwargs: SimpleNamespace(is_explicitly_disabled=lambda: False))
+    monkeypatch.setattr(
+        "tactus.sandbox.SandboxConfig",
+        lambda **_kwargs: SimpleNamespace(is_explicitly_disabled=lambda: False),
+    )
 
     app = ide_server.create_app(initial_workspace=str(workspace))
     client = app.test_client()
@@ -424,18 +447,21 @@ def test_run_stream_consolidates_stream_chunks(monkeypatch, tmp_path):
     response = client.get("/api/run/stream", query_string={"path": "demo.tac"})
     data = response.data.decode("utf-8")
 
-    assert "\"agent_stream_chunk\"" in data
+    assert '"agent_stream_chunk"' in data
 
 
 def test_run_stream_save_events_error(monkeypatch, tmp_path):
     workspace = tmp_path / "workspace"
     workspace.mkdir()
     file_path = workspace / "demo.tac"
-    file_path.write_text("Procedure \"demo\" {}")
+    file_path.write_text('Procedure "demo" {}')
 
     _register_common_fakes(monkeypatch)
     monkeypatch.setattr("tactus.sandbox.is_docker_available", lambda: (False, "no docker"))
-    monkeypatch.setattr("tactus.sandbox.SandboxConfig", lambda **_kwargs: SimpleNamespace(is_explicitly_disabled=lambda: False))
+    monkeypatch.setattr(
+        "tactus.sandbox.SandboxConfig",
+        lambda **_kwargs: SimpleNamespace(is_explicitly_disabled=lambda: False),
+    )
 
     real_open = open
 
@@ -452,4 +478,4 @@ def test_run_stream_save_events_error(monkeypatch, tmp_path):
     response = client.get("/api/run/stream", query_string={"path": "demo.tac"})
     data = response.data.decode("utf-8")
 
-    assert "\"lifecycle_stage\": \"complete\"" in data
+    assert '"lifecycle_stage": "complete"' in data

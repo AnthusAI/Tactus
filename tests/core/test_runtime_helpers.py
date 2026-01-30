@@ -81,7 +81,7 @@ return { greeting = "hi" }
 
     assert "Procedure {" in transformed
     assert "function(input)" in transformed
-    assert "return { greeting = \"hi\" }" in transformed
+    assert 'return { greeting = "hi" }' in transformed
 
 
 def test_runtime_imports_yaml_fallback_when_parser_missing(monkeypatch):

@@ -66,8 +66,12 @@ def test_wrap_as_result_includes_usage():
 
 def test_add_usage_and_cost_accumulates():
     agent = make_agent()
-    agent._add_usage_and_cost(UsageStats(prompt_tokens=1, completion_tokens=2, total_tokens=3), CostStats(total_cost=0.1))
-    agent._add_usage_and_cost(UsageStats(prompt_tokens=4, completion_tokens=5, total_tokens=9), CostStats(total_cost=0.2))
+    agent._add_usage_and_cost(
+        UsageStats(prompt_tokens=1, completion_tokens=2, total_tokens=3), CostStats(total_cost=0.1)
+    )
+    agent._add_usage_and_cost(
+        UsageStats(prompt_tokens=4, completion_tokens=5, total_tokens=9), CostStats(total_cost=0.2)
+    )
 
     assert agent.usage.total_tokens == 12
     assert agent.cost().total_cost == 0.30000000000000004
@@ -91,7 +95,14 @@ def test_extract_last_call_stats_reads_lm_history(monkeypatch):
     dummy_lm = type(
         "DummyLM",
         (),
-        {"history": [{"usage": {"prompt_tokens": 2, "completion_tokens": 3, "total_tokens": 5}, "model": "openai/gpt-4o"}]},
+        {
+            "history": [
+                {
+                    "usage": {"prompt_tokens": 2, "completion_tokens": 3, "total_tokens": 5},
+                    "model": "openai/gpt-4o",
+                }
+            ]
+        },
     )()
     monkeypatch.setattr(dspy.settings, "lm", dummy_lm)
     usage, cost = agent._extract_last_call_stats()

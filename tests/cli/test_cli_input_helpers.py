@@ -1,6 +1,5 @@
 import io
 
-import pytest
 from rich.console import Console
 
 from tactus.cli import app as cli_app
@@ -15,7 +14,7 @@ def test_parse_value_variants():
     assert cli_app._parse_value("[1, 2]", "array") == [1, 2]
     assert cli_app._parse_value("a,b", "array") == ["a", "b"]
     assert cli_app._parse_value("", "array") == []
-    assert cli_app._parse_value("{\"a\": 1}", "object") == {"a": 1}
+    assert cli_app._parse_value('{"a": 1}', "object") == {"a": 1}
     assert cli_app._parse_value("nope", "object") == {}
     assert cli_app._parse_value("hi", "string") == "hi"
 

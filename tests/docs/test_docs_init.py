@@ -1,7 +1,5 @@
 """Tests for docs package entrypoints."""
 
-from pathlib import Path
-
 import tactus.docs as docs
 
 

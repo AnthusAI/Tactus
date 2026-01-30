@@ -6,7 +6,12 @@ from types import SimpleNamespace
 import pytest
 
 from tactus.testing.pydantic_eval_runner import TactusPydanticEvalRunner
-from tactus.testing.eval_models import EvaluationConfig, EvalCase, EvaluatorConfig, EvaluationThresholds
+from tactus.testing.eval_models import (
+    EvaluationConfig,
+    EvalCase,
+    EvaluatorConfig,
+    EvaluationThresholds,
+)
 
 
 def _runner(tmp_path, eval_config):
@@ -42,7 +47,7 @@ def test_load_json(tmp_path):
 
 def test_load_csv(tmp_path):
     path = tmp_path / "cases.csv"
-    path.write_text("name,inputs\ncase,{\"a\": 1}\n", encoding="utf-8")
+    path.write_text('name,inputs\ncase,{"a": 1}\n', encoding="utf-8")
 
     runner = _runner(tmp_path, EvaluationConfig(dataset=[], evaluators=[]))
     cases = runner._load_csv(path)

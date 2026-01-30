@@ -1,7 +1,8 @@
+import socket
 import threading
 import time
-import types
 import webbrowser
+import sys
 
 import pytest
 import typer
@@ -108,3 +109,86 @@ def test_ide_build_missing_npm(monkeypatch, tmp_path):
 
     with pytest.raises(typer.Exit):
         cli_app.ide(port=0, no_browser=True, verbose=False)
+
+
+def test_ide_build_success_opens_browser(monkeypatch, tmp_path):
+    _setup_ide_paths(monkeypatch, tmp_path, dist_exists=False, frontend_exists=True)
+
+    class FakeResult:
+        returncode = 0
+        stderr = ""
+
+    sleep_calls = {"count": 0}
+    opened = {"url": None}
+
+    def fake_sleep(_seconds):
+        sleep_calls["count"] += 1
+        if sleep_calls["count"] >= 2:
+            raise KeyboardInterrupt()
+
+    import subprocess as subprocess_module
+
+    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose: None)
+    monkeypatch.setattr(subprocess_module, "run", lambda *args, **kwargs: FakeResult())
+    monkeypatch.setattr(threading, "Thread", DummyThread)
+    monkeypatch.setattr(time, "sleep", fake_sleep)
+    monkeypatch.setattr(webbrowser, "open", lambda url: opened.__setitem__("url", url))
+    monkeypatch.setattr("tactus.ide.create_app", lambda **_kwargs: DummyApp())
+    monkeypatch.setattr(cli_app.console, "print", lambda *_args, **_kwargs: None)
+
+    cli_app.ide(port=0, no_browser=False, verbose=False)
+
+    assert opened["url"] is not None
+
+
+def test_ide_prefers_available_port_when_busy(monkeypatch, tmp_path):
+    _setup_ide_paths(monkeypatch, tmp_path, dist_exists=True, frontend_exists=True)
+
+    sleep_calls = {"count": 0}
+
+    def fake_sleep(_seconds):
+        sleep_calls["count"] += 1
+        if sleep_calls["count"] >= 2:
+            raise KeyboardInterrupt()
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.bind(("127.0.0.1", 0))
+    busy_port = sock.getsockname()[1]
+
+    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose: None)
+    monkeypatch.setattr(threading, "Thread", DummyThread)
+    monkeypatch.setattr(time, "sleep", fake_sleep)
+    monkeypatch.setattr(webbrowser, "open", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr("tactus.ide.create_app", lambda **_kwargs: DummyApp())
+    monkeypatch.setattr(cli_app.console, "print", lambda *_args, **_kwargs: None)
+
+    try:
+        cli_app.ide(port=busy_port, no_browser=True, verbose=False)
+    finally:
+        sock.close()
+
+
+def test_ide_uses_pyinstaller_paths(monkeypatch, tmp_path):
+    bundle_dir = tmp_path / "bundle"
+    dist_dir = bundle_dir / "tactus-ide" / "frontend" / "dist"
+    dist_dir.mkdir(parents=True)
+
+    monkeypatch.setattr(cli_app, "__file__", str(tmp_path / "tactus" / "cli" / "app.py"))
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "_MEIPASS", str(bundle_dir), raising=False)
+
+    sleep_calls = {"count": 0}
+
+    def fake_sleep(_seconds):
+        sleep_calls["count"] += 1
+        if sleep_calls["count"] >= 2:
+            raise KeyboardInterrupt()
+
+    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose: None)
+    monkeypatch.setattr(threading, "Thread", DummyThread)
+    monkeypatch.setattr(time, "sleep", fake_sleep)
+    monkeypatch.setattr(webbrowser, "open", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr("tactus.ide.create_app", lambda **_kwargs: DummyApp())
+    monkeypatch.setattr(cli_app.console, "print", lambda *_args, **_kwargs: None)
+
+    cli_app.ide(port=0, no_browser=True, verbose=False)

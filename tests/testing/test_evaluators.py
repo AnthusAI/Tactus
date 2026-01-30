@@ -51,12 +51,8 @@ def test_equals_expected_field_evaluator():
 
 
 def test_min_and_max_length_evaluators():
-    min_eval = evaluators._create_min_length_evaluator(
-        EvaluatorConfig(type="min_length", value=3)
-    )
-    max_eval = evaluators._create_max_length_evaluator(
-        EvaluatorConfig(type="max_length", value=3)
-    )
+    min_eval = evaluators._create_min_length_evaluator(EvaluatorConfig(type="min_length", value=3))
+    max_eval = evaluators._create_max_length_evaluator(EvaluatorConfig(type="max_length", value=3))
 
     assert min_eval.evaluate(_ctx("hey")) is True
     assert min_eval.evaluate(_ctx("hi")) is False
@@ -78,9 +74,7 @@ def test_max_iterations_cost_tokens():
     iterations_eval = evaluators._create_max_iterations_evaluator(
         EvaluatorConfig(type="max_iterations", value=3)
     )
-    cost_eval = evaluators._create_max_cost_evaluator(
-        EvaluatorConfig(type="max_cost", value=1.0)
-    )
+    cost_eval = evaluators._create_max_cost_evaluator(EvaluatorConfig(type="max_cost", value=1.0))
     tokens_eval = evaluators._create_max_tokens_evaluator(
         EvaluatorConfig(type="max_tokens", value=5)
     )
@@ -140,9 +134,7 @@ def test_trace_based_evaluators():
 
 
 def test_regex_and_range_evaluators():
-    regex_eval = evaluators._create_regex_evaluator(
-        EvaluatorConfig(type="regex", value=r"^hi")
-    )
+    regex_eval = evaluators._create_regex_evaluator(EvaluatorConfig(type="regex", value=r"^hi"))
     range_eval = evaluators._create_range_evaluator(
         EvaluatorConfig(type="range", min_value=1, max_value=3)
     )

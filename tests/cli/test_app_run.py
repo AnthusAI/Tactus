@@ -1,4 +1,4 @@
-import asyncio
+import os
 from pathlib import Path
 
 import pytest
@@ -87,7 +87,12 @@ def _patch_runtime_dependencies(
     monkeypatch.setattr("tactus.core.config_manager.ConfigManager", lambda: DummyConfigManager())
     monkeypatch.setattr(cli_app, "TactusRuntime", DummyRuntime)
     if validator_factory is None:
-        validator_factory = lambda: DummyValidator()
+
+        def _default_validator_factory():
+            return DummyValidator()
+
+        validator_factory = _default_validator_factory
+    monkeypatch.setattr(cli_app, "TactusValidator", validator_factory)
     monkeypatch.setattr("tactus.validation.TactusValidator", validator_factory)
     monkeypatch.setattr(
         "tactus.sandbox.is_docker_available",
@@ -129,9 +134,7 @@ def test_run_unknown_storage_backend(tmp_path, monkeypatch):
     _patch_runtime_dependencies(monkeypatch)
 
     with pytest.raises(typer.Exit):
-        cli_app.run(
-            workflow, storage="unknown", param=None, log_level=None, log_format="rich"
-        )
+        cli_app.run(workflow, storage="unknown", param=None, log_level=None, log_format="rich")
 
 
 def test_run_non_sandbox_success(tmp_path, monkeypatch):
@@ -217,6 +220,43 @@ def test_run_missing_required_prompts(tmp_path, monkeypatch):
     )
 
 
+def test_run_prompts_for_inputs_when_interactive(tmp_path, monkeypatch):
+    workflow = tmp_path / "workflow.tac"
+    workflow.write_text("print('hi')")
+
+    registry = type("Registry", (), {"input_schema": {"name": {"required": True}}})()
+    _patch_runtime_dependencies(
+        monkeypatch,
+        validator_factory=lambda: DummyValidator(registry),
+    )
+    monkeypatch.setattr(cli_app.console, "print", lambda *_args, **_kwargs: None)
+
+    prompts = {}
+
+    def fake_prompt(_console, _schema, provided):
+        prompts["called"] = True
+        return {"name": provided.get("name", "ok")}
+
+    monkeypatch.setattr(cli_app, "_prompt_for_inputs", fake_prompt)
+
+    DummyRuntime.next_exception = None
+    cli_app.run(
+        workflow,
+        sandbox=False,
+        storage="memory",
+        param=None,
+        interactive=True,
+        mock_all=False,
+        real_all=False,
+        mock=None,
+        real=None,
+        log_level=None,
+        log_format="rich",
+    )
+
+    assert prompts.get("called") is True
+
+
 def test_run_docker_required_unavailable(tmp_path, monkeypatch):
     workflow = tmp_path / "workflow.tac"
     workflow.write_text("print('hi')")
@@ -250,6 +290,7 @@ def test_run_param_parsing_with_schema_dict(tmp_path, monkeypatch):
         sandbox=False,
         storage="memory",
         param=["count=3.5"],
+        interactive=False,
         verbose=True,
         mock_all=False,
         real_all=False,
@@ -260,6 +301,35 @@ def test_run_param_parsing_with_schema_dict(tmp_path, monkeypatch):
     )
 
     assert DummyRuntime.last_context["count"] == 3.5
+
+
+def test_run_extracts_input_schema_from_registry(tmp_path, monkeypatch):
+    workflow = tmp_path / "workflow.tac"
+    workflow.write_text("print('hi')")
+
+    registry = type("Registry", (), {"input_schema": {"flag": {"type": "boolean"}}})()
+    _patch_runtime_dependencies(
+        monkeypatch,
+        validator_factory=lambda: DummyValidator(registry),
+    )
+    monkeypatch.setattr(cli_app.console, "print", lambda *_args, **_kwargs: None)
+
+    DummyRuntime.next_exception = None
+    cli_app.run(
+        workflow,
+        sandbox=False,
+        storage="memory",
+        param=["flag=true"],
+        interactive=False,
+        mock_all=False,
+        real_all=False,
+        mock=None,
+        real=None,
+        log_level=None,
+        log_format="rich",
+    )
+
+    assert DummyRuntime.last_context["flag"] is True
 
 
 def test_run_param_parsing_schema_fallback_json(tmp_path, monkeypatch):
@@ -279,6 +349,7 @@ def test_run_param_parsing_schema_fallback_json(tmp_path, monkeypatch):
         sandbox=False,
         storage="memory",
         param=['meta={"a": 1}'],
+        interactive=False,
         mock_all=False,
         real_all=False,
         mock=None,
@@ -307,6 +378,7 @@ def test_run_param_parsing_schema_fallback_string(tmp_path, monkeypatch):
         sandbox=False,
         storage="memory",
         param=["meta=nope"],
+        interactive=False,
         mock_all=False,
         real_all=False,
         mock=None,
@@ -403,6 +475,40 @@ def test_run_storage_path_file_parent_used(tmp_path, monkeypatch):
     )
 
     assert captured["storage_dir"] == str(tmp_path)
+
+
+def test_run_storage_path_dir_used(tmp_path, monkeypatch):
+    workflow = tmp_path / "workflow.tac"
+    workflow.write_text("print('hi')")
+    storage_dir = tmp_path / "store"
+    storage_dir.mkdir()
+
+    captured = {}
+
+    class CapturingStorage:
+        def __init__(self, storage_dir):
+            captured["storage_dir"] = storage_dir
+
+    _patch_runtime_dependencies(monkeypatch)
+    monkeypatch.setattr(cli_app, "FileStorage", CapturingStorage)
+    monkeypatch.setattr(cli_app.console, "print", lambda *_args, **_kwargs: None)
+
+    DummyRuntime.next_exception = None
+    cli_app.run(
+        workflow,
+        sandbox=False,
+        storage="file",
+        storage_path=str(storage_dir),
+        param=None,
+        mock_all=False,
+        real_all=False,
+        mock=None,
+        real=None,
+        log_level=None,
+        log_format="rich",
+    )
+
+    assert captured["storage_dir"] == str(storage_dir)
 
 
 def test_run_sandbox_auto_notice_when_docker_missing(tmp_path, monkeypatch):
@@ -815,6 +921,7 @@ def test_run_real_all_disables_mocking(tmp_path, monkeypatch):
         log_format="rich",
     )
 
+
 def test_run_sandbox_success(tmp_path, monkeypatch):
     workflow = tmp_path / "workflow.tac"
     workflow.write_text("print('hi')")
@@ -897,6 +1004,93 @@ def test_run_sandbox_failure_verbose(tmp_path, monkeypatch):
             log_level=None,
             log_format="rich",
         )
+
+
+def test_run_sandbox_failure_not_verbose(tmp_path, monkeypatch):
+    workflow = tmp_path / "workflow.tac"
+    workflow.write_text("print('hi')")
+
+    class DummyRunner:
+        def __init__(self, _config):
+            pass
+
+        async def run(self, **_kwargs):
+            return ExecutionResult(
+                status=ExecutionStatus.ERROR,
+                error="boom",
+                traceback="traceback here",
+            )
+
+    class RequiredSandboxConfig(DummySandboxConfig):
+        def __init__(self, **kwargs):
+            super().__init__(should_use=True, explicit_disabled=False, error_if_unavailable=False)
+            self.env = {}
+
+    _patch_runtime_dependencies(
+        monkeypatch, sandbox_config=RequiredSandboxConfig, docker_available=True
+    )
+    monkeypatch.setattr("tactus.sandbox.ContainerRunner", DummyRunner)
+    monkeypatch.setattr(cli_app.console, "print", lambda *_args, **_kwargs: None)
+
+    with pytest.raises(typer.Exit):
+        cli_app.run(
+            workflow,
+            sandbox=True,
+            storage="memory",
+            param=None,
+            verbose=False,
+            openai_api_key=None,
+            mock_all=False,
+            real_all=False,
+            mock=None,
+            real=None,
+            log_level=None,
+            log_format="rich",
+        )
+
+
+def test_run_sets_api_key_for_sandbox(tmp_path, monkeypatch):
+    workflow = tmp_path / "workflow.tac"
+    workflow.write_text("print('hi')")
+
+    class DummyRunner:
+        def __init__(self, _config):
+            pass
+
+        async def run(self, **_kwargs):
+            return ExecutionResult(
+                status=ExecutionStatus.SUCCESS,
+                result="ok",
+                metadata={},
+            )
+
+    class RequiredSandboxConfig(DummySandboxConfig):
+        def __init__(self, **kwargs):
+            super().__init__(should_use=True, explicit_disabled=False, error_if_unavailable=False)
+            self.env = {}
+
+    _patch_runtime_dependencies(
+        monkeypatch, sandbox_config=RequiredSandboxConfig, docker_available=True
+    )
+    monkeypatch.setattr("tactus.sandbox.ContainerRunner", DummyRunner)
+    monkeypatch.setattr(cli_app.console, "print", lambda *_args, **_kwargs: None)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+    cli_app.run(
+        workflow,
+        sandbox=True,
+        storage="memory",
+        param=None,
+        openai_api_key="test-key",
+        mock_all=False,
+        real_all=False,
+        mock=None,
+        real=None,
+        log_level=None,
+        log_format="rich",
+    )
+
+    assert os.environ.get("OPENAI_API_KEY") == "test-key"
 
 
 def test_run_success_displays_state_and_tools(tmp_path, monkeypatch):

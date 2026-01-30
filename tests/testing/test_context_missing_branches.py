@@ -1,6 +1,5 @@
 from types import SimpleNamespace
 
-import pytest
 
 from tactus.testing.context import TactusTestContext
 
@@ -110,7 +109,7 @@ def test_setup_runtime_mocked_creates_registry(monkeypatch, tmp_path):
 
 def test_run_procedure_async_injects_dependencies_and_metrics(tmp_path):
     proc = tmp_path / "proc.tac"
-    proc.write_text("Agent \"a\" {}")
+    proc.write_text('Agent "a" {}')
 
     ctx = TactusTestContext(procedure_file=proc, mocked=True)
 
@@ -154,7 +153,7 @@ def test_run_procedure_async_injects_dependencies_and_metrics(tmp_path):
 
 def test_run_procedure_async_handles_empty_execution_result(tmp_path):
     proc = tmp_path / "proc.tac"
-    proc.write_text("Agent \"a\" {}")
+    proc.write_text('Agent "a" {}')
 
     ctx = TactusTestContext(procedure_file=proc)
 

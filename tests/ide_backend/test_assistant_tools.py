@@ -283,7 +283,9 @@ def test_write_file_outside_workspace_raises(workspace_root):
 
 
 def test_write_file_failure_raises(workspace_root, monkeypatch):
-    monkeypatch.setattr("builtins.open", lambda *args, **kwargs: (_ for _ in ()).throw(OSError("fail")))
+    monkeypatch.setattr(
+        "builtins.open", lambda *args, **kwargs: (_ for _ in ()).throw(OSError("fail"))
+    )
 
     with pytest.raises(FileToolsError):
         write_file(workspace_root, "file.txt", "data")

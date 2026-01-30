@@ -4,8 +4,6 @@ from datetime import datetime
 import sys
 from pathlib import Path
 
-import pytest
-
 backend_path = Path(__file__).resolve().parents[2] / "tactus-ide" / "backend"
 sys.path.insert(0, str(backend_path))
 

@@ -43,7 +43,9 @@ def test_setup_registers_custom_steps(tmp_path, monkeypatch):
         "tactus.testing.test_runner.GherkinParser.parse",
         lambda _self, _text: parsed,
     )
-    monkeypatch.setattr("tactus.testing.test_runner.setup_behave_directory", lambda *args, **kwargs: tmp_path)
+    monkeypatch.setattr(
+        "tactus.testing.test_runner.setup_behave_directory", lambda *args, **kwargs: tmp_path
+    )
 
     captured = {}
 
@@ -69,7 +71,9 @@ def test_setup_without_custom_steps(tmp_path, monkeypatch):
         "tactus.testing.test_runner.GherkinParser.parse",
         lambda _self, _text: parsed,
     )
-    monkeypatch.setattr("tactus.testing.test_runner.setup_behave_directory", lambda *args, **kwargs: tmp_path)
+    monkeypatch.setattr(
+        "tactus.testing.test_runner.setup_behave_directory", lambda *args, **kwargs: tmp_path
+    )
 
     runner.setup("Feature: X")
 

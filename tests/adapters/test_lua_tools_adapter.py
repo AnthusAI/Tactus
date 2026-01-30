@@ -197,7 +197,9 @@ class TestLuaToolsAdapter:
     @pytest.mark.asyncio
     async def test_inline_tools_toolset_skips_missing_name(self):
         adapter = LuaToolsAdapter()
-        toolset = adapter.create_inline_tools_toolset("agent_name", [{"handler": lambda args: "ok"}])
+        toolset = adapter.create_inline_tools_toolset(
+            "agent_name", [{"handler": lambda args: "ok"}]
+        )
 
         assert await toolset.get_tools(None) == {}
 

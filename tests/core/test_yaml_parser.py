@@ -12,9 +12,7 @@ def _base_config():
         "version": "1.0.0",
         "procedure": "main",
         "default_provider": "openai",
-        "agents": {
-            "agent": {"system_prompt": "hi", "initial_message": "start"}
-        },
+        "agents": {"agent": {"system_prompt": "hi", "initial_message": "start"}},
     }
 
 

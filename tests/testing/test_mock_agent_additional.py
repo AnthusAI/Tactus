@@ -1,6 +1,5 @@
 from types import SimpleNamespace
 
-import pytest
 
 from tactus.testing.mock_agent import MockAgentPrimitive, MockAgentResult
 
@@ -49,7 +48,9 @@ def test_mock_agent_result_repr_and_new_messages_fallback():
 
 
 def test_mock_agent_init_uses_lua_table_from():
-    table_from = lambda messages: {"items": messages}
+    def table_from(messages):
+        return {"items": messages}
+
     agent = MockAgentPrimitive(
         name="agent",
         tool_primitive=None,

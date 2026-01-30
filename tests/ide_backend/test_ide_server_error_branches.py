@@ -53,7 +53,11 @@ def test_tree_path_not_found_and_not_dir(tmp_path, monkeypatch):
 
 def test_tree_operations_handles_exception(tmp_path, monkeypatch):
     monkeypatch.setattr(ide_server, "WORKSPACE_ROOT", str(tmp_path))
-    monkeypatch.setattr(ide_server, "_resolve_workspace_path", lambda _path: (_ for _ in ()).throw(RuntimeError("boom")))
+    monkeypatch.setattr(
+        ide_server,
+        "_resolve_workspace_path",
+        lambda _path: (_ for _ in ()).throw(RuntimeError("boom")),
+    )
     app = ide_server.create_app()
     client = app.test_client()
 
@@ -63,7 +67,11 @@ def test_tree_operations_handles_exception(tmp_path, monkeypatch):
 
 def test_tree_operations_handles_value_error(tmp_path, monkeypatch):
     monkeypatch.setattr(ide_server, "WORKSPACE_ROOT", str(tmp_path))
-    monkeypatch.setattr(ide_server, "_resolve_workspace_path", lambda _path: (_ for _ in ()).throw(ValueError("bad")))
+    monkeypatch.setattr(
+        ide_server,
+        "_resolve_workspace_path",
+        lambda _path: (_ for _ in ()).throw(ValueError("bad")),
+    )
     app = ide_server.create_app()
     client = app.test_client()
 
@@ -90,7 +98,9 @@ def test_file_operations_read_error(tmp_path, monkeypatch):
     file_path.write_text("data")
 
     monkeypatch.setattr(ide_server, "WORKSPACE_ROOT", str(workspace))
-    monkeypatch.setattr(Path, "read_text", lambda _self: (_ for _ in ()).throw(RuntimeError("boom")))
+    monkeypatch.setattr(
+        Path, "read_text", lambda _self: (_ for _ in ()).throw(RuntimeError("boom"))
+    )
     app = ide_server.create_app()
     client = app.test_client()
 
@@ -103,7 +113,9 @@ def test_file_operations_write_error(tmp_path, monkeypatch):
     workspace.mkdir()
 
     monkeypatch.setattr(ide_server, "WORKSPACE_ROOT", str(workspace))
-    monkeypatch.setattr(Path, "write_text", lambda _self, _content: (_ for _ in ()).throw(RuntimeError("boom")))
+    monkeypatch.setattr(
+        Path, "write_text", lambda _self, _content: (_ for _ in ()).throw(RuntimeError("boom"))
+    )
     app = ide_server.create_app()
     client = app.test_client()
 
@@ -113,7 +125,11 @@ def test_file_operations_write_error(tmp_path, monkeypatch):
 
 def test_file_operations_write_value_error(tmp_path, monkeypatch):
     monkeypatch.setattr(ide_server, "WORKSPACE_ROOT", str(tmp_path))
-    monkeypatch.setattr(ide_server, "_resolve_workspace_path", lambda _path: (_ for _ in ()).throw(ValueError("bad")))
+    monkeypatch.setattr(
+        ide_server,
+        "_resolve_workspace_path",
+        lambda _path: (_ for _ in ()).throw(ValueError("bad")),
+    )
     app = ide_server.create_app()
     client = app.test_client()
 
@@ -125,7 +141,9 @@ def test_workspace_post_handles_exception(tmp_path, monkeypatch):
     workspace = tmp_path / "workspace"
     workspace.mkdir()
 
-    monkeypatch.setattr(ide_server.os, "chdir", lambda _path: (_ for _ in ()).throw(RuntimeError("boom")))
+    monkeypatch.setattr(
+        ide_server.os, "chdir", lambda _path: (_ for _ in ()).throw(RuntimeError("boom"))
+    )
     app = ide_server.create_app()
     client = app.test_client()
 
@@ -223,12 +241,16 @@ def test_validate_stream_emits_error_event(tmp_path, monkeypatch):
     response = client.get("/api/validate/stream", query_string={"path": "proc.tac"})
     data = response.get_data(as_text=True)
 
-    assert "\"lifecycle_stage\": \"error\"" in data
+    assert '"lifecycle_stage": "error"' in data
 
 
 def test_validate_stream_handles_value_error(tmp_path, monkeypatch):
     monkeypatch.setattr(ide_server, "WORKSPACE_ROOT", str(tmp_path))
-    monkeypatch.setattr(ide_server, "_resolve_workspace_path", lambda _path: (_ for _ in ()).throw(ValueError("bad")))
+    monkeypatch.setattr(
+        ide_server,
+        "_resolve_workspace_path",
+        lambda _path: (_ for _ in ()).throw(ValueError("bad")),
+    )
 
     app = ide_server.create_app()
     client = app.test_client()
@@ -239,7 +261,11 @@ def test_validate_stream_handles_value_error(tmp_path, monkeypatch):
 
 def test_validate_stream_handles_exception(tmp_path, monkeypatch):
     monkeypatch.setattr(ide_server, "WORKSPACE_ROOT", str(tmp_path))
-    monkeypatch.setattr(ide_server, "_resolve_workspace_path", lambda _path: (_ for _ in ()).throw(RuntimeError("boom")))
+    monkeypatch.setattr(
+        ide_server,
+        "_resolve_workspace_path",
+        lambda _path: (_ for _ in ()).throw(RuntimeError("boom")),
+    )
 
     app = ide_server.create_app()
     client = app.test_client()
@@ -276,7 +302,11 @@ def test_run_procedure_handles_exception(tmp_path, monkeypatch):
     file_path.write_text("content")
 
     monkeypatch.setattr(ide_server, "WORKSPACE_ROOT", str(workspace))
-    monkeypatch.setattr(ide_server.subprocess, "run", lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("boom")))
+    monkeypatch.setattr(
+        ide_server.subprocess,
+        "run",
+        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("boom")),
+    )
 
     app = ide_server.create_app()
     client = app.test_client()
@@ -319,7 +349,11 @@ def test_procedure_metadata_file_not_found(tmp_path, monkeypatch):
 
 def test_procedure_metadata_handles_exception(tmp_path, monkeypatch):
     monkeypatch.setattr(ide_server, "WORKSPACE_ROOT", str(tmp_path))
-    monkeypatch.setattr(ide_server, "_resolve_workspace_path", lambda _path: (_ for _ in ()).throw(RuntimeError("boom")))
+    monkeypatch.setattr(
+        ide_server,
+        "_resolve_workspace_path",
+        lambda _path: (_ for _ in ()).throw(RuntimeError("boom")),
+    )
     app = ide_server.create_app()
     client = app.test_client()
 

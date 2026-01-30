@@ -73,7 +73,7 @@ def test_load_json_invalid_case_raises(tmp_path: Path):
 
 def test_load_csv_missing_columns_raise(tmp_path: Path):
     dataset_file = tmp_path / "cases.csv"
-    dataset_file.write_text("inputs\n{\"x\": 1}\n", encoding="utf-8")
+    dataset_file.write_text('inputs\n{"x": 1}\n', encoding="utf-8")
 
     config = EvaluationConfig(dataset=[], evaluators=[])
     runner = TactusPydanticEvalRunner(tmp_path / "proc.tac", config)

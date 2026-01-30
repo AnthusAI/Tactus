@@ -1,13 +1,10 @@
 """Tests for broker log handler."""
 
 import asyncio
-import os
 import queue
 import threading
 from datetime import datetime
-from types import SimpleNamespace
 
-import pytest
 
 from tactus.adapters.broker_log import BrokerLogHandler
 from tactus.protocols.models import LogEvent, CostEvent

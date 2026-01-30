@@ -1,4 +1,3 @@
-import json
 from types import SimpleNamespace
 
 from tactus.ide import server as ide_server

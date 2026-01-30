@@ -89,6 +89,8 @@ def test_run_single_iteration_sets_iteration(monkeypatch):
     def fake_run(_name, _work_dir):
         return ScenarioResult(name="scenario", status="passed", duration=0.1, steps=[])
 
-    monkeypatch.setattr("tactus.testing.test_runner.TactusTestRunner._run_single_scenario", fake_run)
+    monkeypatch.setattr(
+        "tactus.testing.test_runner.TactusTestRunner._run_single_scenario", fake_run
+    )
     result = TactusEvaluationRunner._run_single_iteration("scenario", ".", 3)
     assert result.iteration == 3

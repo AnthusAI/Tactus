@@ -270,9 +270,7 @@ def test_load_cascade_includes_system_and_user_configs(tmp_path, config_manager,
     system_config.write_text(yaml.dump({"system": {"flag": True}}))
     user_config.write_text(yaml.dump({"user": {"name": "alice"}}))
 
-    monkeypatch.setattr(
-        config_manager, "_get_system_config_paths", lambda: [system_config]
-    )
+    monkeypatch.setattr(config_manager, "_get_system_config_paths", lambda: [system_config])
     monkeypatch.setattr(config_manager, "_get_user_config_paths", lambda: [user_config])
     monkeypatch.setattr(config_manager, "_find_directory_configs", lambda _path: [])
 
@@ -519,9 +517,7 @@ def test_track_nested_values_scalar_is_ignored(config_manager):
 
 def test_track_nested_values_dict_skip_recurses(config_manager):
     source_map = {
-        "root.nested": ConfigValue(
-            value={}, source="base", source_type="base", path="root.nested"
-        )
+        "root.nested": ConfigValue(value={}, source="base", source_type="base", path="root.nested")
     }
 
     config_manager._track_nested_values(

@@ -158,7 +158,9 @@ def test_handle_review_invalid_choice_then_approve(monkeypatch):
     request = _make_request()
 
     answers = iter(["invalid", "approve"])
-    monkeypatch.setattr("tactus.adapters.channels.cli.Prompt.ask", lambda *args, **kwargs: next(answers))
+    monkeypatch.setattr(
+        "tactus.adapters.channels.cli.Prompt.ask", lambda *args, **kwargs: next(answers)
+    )
 
     assert channel._handle_review(request)["decision"] == "approved"
 
@@ -254,7 +256,9 @@ def test_handle_inputs_batched(monkeypatch):
     ]
 
     answers = iter(["one", "two"])
-    monkeypatch.setattr("tactus.adapters.channels.cli.Prompt.ask", lambda *args, **kwargs: next(answers))
+    monkeypatch.setattr(
+        "tactus.adapters.channels.cli.Prompt.ask", lambda *args, **kwargs: next(answers)
+    )
 
     result = channel._handle_inputs(request)
     assert result["a"] == "one"
@@ -477,7 +481,9 @@ def test_handle_inputs_review_edit(monkeypatch):
     ]
 
     answers = iter(["2", "change this"])
-    monkeypatch.setattr("tactus.adapters.channels.cli.Prompt.ask", lambda *args, **kwargs: next(answers))
+    monkeypatch.setattr(
+        "tactus.adapters.channels.cli.Prompt.ask", lambda *args, **kwargs: next(answers)
+    )
 
     result = channel._handle_inputs(request)
     assert result["review"]["decision"] == "approved"
@@ -530,12 +536,15 @@ def test_handle_inputs_skip_summary_when_cancelled_after_spacing(monkeypatch):
 
     assert channel._handle_inputs(request) is None
 
+
 def test_handle_options_invalid_then_valid(monkeypatch):
     channel = CLIControlChannel(console=DummyConsole())
     options = [ControlOption(label="One", value="a"), ControlOption(label="Two", value="b")]
     answers = iter(["zero", "3", "2"])
 
-    monkeypatch.setattr("tactus.adapters.channels.cli.Prompt.ask", lambda *args, **kwargs: next(answers))
+    monkeypatch.setattr(
+        "tactus.adapters.channels.cli.Prompt.ask", lambda *args, **kwargs: next(answers)
+    )
 
     assert channel._handle_options(options, None) == "b"
     assert any("Invalid input" in msg for msg in channel.console.messages)
@@ -660,7 +669,9 @@ def test_handle_inputs_review(monkeypatch):
 
     answers = iter(["3", "needs work"])
 
-    monkeypatch.setattr("tactus.adapters.channels.cli.Prompt.ask", lambda *args, **kwargs: next(answers))
+    monkeypatch.setattr(
+        "tactus.adapters.channels.cli.Prompt.ask", lambda *args, **kwargs: next(answers)
+    )
 
     result = channel._handle_inputs(request)
     assert result["review"]["decision"] == "rejected"
@@ -781,7 +792,9 @@ def test_handle_review_edit_cancelled_after_feedback(monkeypatch):
     answers = iter(["2", "edit feedback"])
     states = iter([False, False, True])
 
-    monkeypatch.setattr("tactus.adapters.channels.cli.Prompt.ask", lambda *args, **kwargs: next(answers))
+    monkeypatch.setattr(
+        "tactus.adapters.channels.cli.Prompt.ask", lambda *args, **kwargs: next(answers)
+    )
     monkeypatch.setattr(channel, "is_cancelled", lambda: next(states))
 
     assert channel._handle_review(request) is None
@@ -796,6 +809,7 @@ def test_handle_escalation_eof_returns_none(monkeypatch):
     monkeypatch.setattr("tactus.adapters.channels.cli.Confirm.ask", fake_confirm)
 
     assert channel._handle_escalation(_make_request()) is None
+
 
 def test_show_cancelled_prints_reason():
     channel = CLIControlChannel(console=DummyConsole())

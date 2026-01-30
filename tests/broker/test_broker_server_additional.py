@@ -247,6 +247,7 @@ async def test_llm_chat_asyncio_streaming_handles_bad_chunk():
         async def chat(self, **_kwargs):
             async def gen():
                 yield SimpleNamespace(choices=[])
+
             return gen()
 
     server = broker_server._BaseBrokerServer(openai_backend=FakeBackend())
@@ -374,6 +375,7 @@ async def test_anyio_llm_chat_streaming_bad_chunk():
         async def chat(self, **_kwargs):
             async def gen():
                 yield SimpleNamespace(choices=[])
+
             return gen()
 
     server = broker_server._BaseBrokerServer(openai_backend=FakeBackend())
@@ -401,6 +403,7 @@ async def test_anyio_llm_chat_streaming_tool_call_without_function():
             async def gen():
                 delta = SimpleNamespace(content=None, tool_calls=[DummyDeltaCall(0)])
                 yield SimpleNamespace(choices=[SimpleNamespace(delta=delta)])
+
             return gen()
 
     server = broker_server._BaseBrokerServer(openai_backend=FakeBackend())
@@ -432,6 +435,7 @@ async def test_anyio_llm_chat_streaming_tool_call_with_function():
             async def gen():
                 delta = SimpleNamespace(content=None, tool_calls=[DummyDeltaCall(0)])
                 yield SimpleNamespace(choices=[SimpleNamespace(delta=delta)])
+
             return gen()
 
     server = broker_server._BaseBrokerServer(openai_backend=FakeBackend())
@@ -464,6 +468,7 @@ async def test_anyio_llm_chat_streaming_tool_call_missing_name_and_args():
             async def gen():
                 delta = SimpleNamespace(content=None, tool_calls=[DummyDeltaCall(0)])
                 yield SimpleNamespace(choices=[SimpleNamespace(delta=delta)])
+
             return gen()
 
     server = broker_server._BaseBrokerServer(openai_backend=FakeBackend())
@@ -851,6 +856,7 @@ async def test_broker_server_llm_chat_asyncio_streaming_tool_call_missing_name_a
             async def gen():
                 delta = SimpleNamespace(content=None, tool_calls=[DummyDeltaCall(0)])
                 yield SimpleNamespace(choices=[SimpleNamespace(delta=delta)])
+
             return gen()
 
     server = broker_server.BrokerServer(tmp_path / "broker.sock", openai_backend=FakeBackend())
@@ -879,6 +885,7 @@ async def test_broker_server_llm_chat_asyncio_streaming_tool_call_missing_functi
             async def gen():
                 delta = SimpleNamespace(content=None, tool_calls=[DummyDeltaCall(0)])
                 yield SimpleNamespace(choices=[SimpleNamespace(delta=delta)])
+
             return gen()
 
     server = broker_server.BrokerServer(tmp_path / "broker.sock", openai_backend=FakeBackend())
@@ -900,6 +907,7 @@ async def test_broker_server_llm_chat_asyncio_streaming_bad_chunk(tmp_path):
         async def chat(self, **_kwargs):
             async def gen():
                 yield SimpleNamespace(choices=[])
+
             return gen()
 
     server = broker_server.BrokerServer(tmp_path / "broker.sock", openai_backend=FakeBackend())
@@ -929,6 +937,7 @@ async def test_broker_server_llm_chat_asyncio_streaming_tool_call_without_functi
             async def gen():
                 delta = SimpleNamespace(content=None, tool_calls=[DummyDeltaCall(0)])
                 yield SimpleNamespace(choices=[SimpleNamespace(delta=delta)])
+
             return gen()
 
     server = broker_server.BrokerServer(tmp_path / "broker.sock", openai_backend=FakeBackend())
@@ -958,6 +967,7 @@ async def test_broker_server_llm_chat_asyncio_streaming_tool_call_with_empty_fun
             async def gen():
                 delta = SimpleNamespace(content=None, tool_calls=[DummyDeltaCall(0)])
                 yield SimpleNamespace(choices=[SimpleNamespace(delta=delta)])
+
             return gen()
 
     server = broker_server.BrokerServer(tmp_path / "broker.sock", openai_backend=FakeBackend())
@@ -1090,6 +1100,7 @@ async def test_broker_server_llm_chat_asyncio_error(tmp_path):
     )
 
     assert events[0]["error"]["type"] == "RuntimeError"
+
 
 @pytest.mark.asyncio
 async def test_tcp_broker_server_bound_port_failure(monkeypatch):

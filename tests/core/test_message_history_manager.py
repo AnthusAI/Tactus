@@ -97,6 +97,7 @@ def test_filter_system_prefix_all_system_messages():
 
     assert filtered == messages
 
+
 def test_get_history_sources_and_filter_callable():
     manager = MessageHistoryManager()
     manager.add_message("agent_a", {"role": "user", "content": "a"})

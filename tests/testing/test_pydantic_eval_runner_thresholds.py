@@ -5,7 +5,9 @@ from tactus.testing.pydantic_eval_runner import TactusPydanticEvalRunner
 
 
 def test_check_thresholds_passes_when_disabled(tmp_path):
-    runner = TactusPydanticEvalRunner(tmp_path / "proc.tac", EvaluationConfig(dataset=[], evaluators=[]))
+    runner = TactusPydanticEvalRunner(
+        tmp_path / "proc.tac", EvaluationConfig(dataset=[], evaluators=[])
+    )
     passed, violations = runner.check_thresholds(SimpleNamespace(cases=[]))
 
     assert passed is True
@@ -30,9 +32,7 @@ def test_check_thresholds_reports_low_success_rate(tmp_path):
 
 
 def test_check_thresholds_reports_cost_duration_tokens(tmp_path):
-    thresholds = EvaluationThresholds(
-        max_cost_per_run=0.5, max_duration=1.0, max_tokens_per_run=5
-    )
+    thresholds = EvaluationThresholds(max_cost_per_run=0.5, max_duration=1.0, max_tokens_per_run=5)
     runner = TactusPydanticEvalRunner(
         tmp_path / "proc.tac",
         EvaluationConfig(dataset=[], evaluators=[], thresholds=thresholds),
@@ -74,7 +74,9 @@ def test_check_thresholds_ignores_missing_case_metrics(tmp_path):
         EvaluationConfig(dataset=[], evaluators=[], thresholds=thresholds),
     )
 
-    report = SimpleNamespace(cases=[SimpleNamespace(assertions={"ok": SimpleNamespace(value=True)})])
+    report = SimpleNamespace(
+        cases=[SimpleNamespace(assertions={"ok": SimpleNamespace(value=True)})]
+    )
 
     passed, violations = runner.check_thresholds(report)
 

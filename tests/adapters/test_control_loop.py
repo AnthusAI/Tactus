@@ -3,9 +3,7 @@ from datetime import datetime, timezone
 import pytest
 
 import asyncio
-from datetime import datetime, timezone
 
-import pytest
 
 from tactus.adapters.control_loop import ControlLoopHandler
 from tactus.protocols.control import (
@@ -143,9 +141,7 @@ def test_build_request_with_context_and_options():
         "invocation_id": "inv-1",
         "started_at": datetime(2024, 1, 1, tzinfo=timezone.utc).isoformat(),
         "elapsed_seconds": 10.5,
-        "backtrace": [
-            {"checkpoint_type": "llm", "line": 99, "function_name": "main"}
-        ],
+        "backtrace": [{"checkpoint_type": "llm", "line": 99, "function_name": "main"}],
     }
     application_context = [{"name": "Customer", "value": "ACME", "url": "http://x"}]
 
@@ -280,11 +276,7 @@ def test_check_pending_response_and_cancel():
 
     storage.set_state(
         "proc-4",
-        {
-            f"{handler.PENDING_KEY_PREFIX}req-1": {
-                "response": response.model_dump(mode="json")
-            }
-        },
+        {f"{handler.PENDING_KEY_PREFIX}req-1": {"response": response.model_dump(mode="json")}},
     )
 
     found = handler.check_pending_response("proc-4", "req-1")
@@ -560,7 +552,9 @@ async def test_cancel_with_error_handling_ignores_failure():
 
     handler = ControlLoopHandler(channels=[])
 
-    await handler._cancel_with_error_handling(CancelFailChannel("c", ChannelCapabilities()), "x", "y")
+    await handler._cancel_with_error_handling(
+        CancelFailChannel("c", ChannelCapabilities()), "x", "y"
+    )
 
 
 @pytest.mark.asyncio
@@ -584,7 +578,9 @@ async def test_request_interaction_async_stores_response():
 async def test_request_interaction_async_no_response_raises(monkeypatch):
     storage = DummyStorage()
     channel = NoResponseChannel("chan", ChannelCapabilities())
-    handler = ControlLoopHandler(channels=[channel], storage=storage, immediate_response_timeout=0.01)
+    handler = ControlLoopHandler(
+        channels=[channel], storage=storage, immediate_response_timeout=0.01
+    )
 
     async def fake_wait(*args, **kwargs):
         return None
@@ -603,7 +599,9 @@ async def test_request_interaction_async_no_response_raises(monkeypatch):
 async def test_request_interaction_async_uses_cached_response():
     storage = DummyStorage()
     response = ControlResponse(request_id="req", value="cached", channel_id="chan")
-    handler = ControlLoopHandler(channels=[DummyChannel("chan", ChannelCapabilities())], storage=storage)
+    handler = ControlLoopHandler(
+        channels=[DummyChannel("chan", ChannelCapabilities())], storage=storage
+    )
 
     request = handler._build_request("proc", "approval", "m")
     storage.set_state(
@@ -650,7 +648,9 @@ async def test_wait_for_first_response_cancels_pending_tasks():
 
     channel_done = DummyChannel("done", ChannelCapabilities(is_synchronous=True))
     channel_blocked = BlockingChannel("blocked", ChannelCapabilities(is_synchronous=False))
-    handler = ControlLoopHandler(channels=[channel_done, channel_blocked], immediate_response_timeout=0.01)
+    handler = ControlLoopHandler(
+        channels=[channel_done, channel_blocked], immediate_response_timeout=0.01
+    )
 
     result = await handler._wait_for_first_response(
         request=handler._build_request("p", "approval", "m"),
@@ -849,7 +849,9 @@ def test_request_interaction_stores_response_and_pending():
         responded_at=datetime.now(timezone.utc),
     )
     channel = RespondingChannel("chan", ChannelCapabilities(), response)
-    handler = ControlLoopHandler(channels=[channel], storage=storage, immediate_response_timeout=0.01)
+    handler = ControlLoopHandler(
+        channels=[channel], storage=storage, immediate_response_timeout=0.01
+    )
 
     result = handler.request_interaction(
         procedure_id="proc",
@@ -885,7 +887,9 @@ def test_request_interaction_without_storage_response():
 def test_request_interaction_stores_pending_on_no_response():
     storage = DummyStorage()
     channel = NoResponseChannel("chan", ChannelCapabilities())
-    handler = ControlLoopHandler(channels=[channel], storage=storage, immediate_response_timeout=0.01)
+    handler = ControlLoopHandler(
+        channels=[channel], storage=storage, immediate_response_timeout=0.01
+    )
 
     with pytest.raises(ProcedureWaitingForHuman):
         handler.request_interaction(
@@ -1002,11 +1006,7 @@ def test_check_pending_response_found_and_cancel_removes():
 
     storage.set_state(
         "proc",
-        {
-            f"{handler.PENDING_KEY_PREFIX}msg": {
-                "response": response.model_dump(mode="json")
-            }
-        },
+        {f"{handler.PENDING_KEY_PREFIX}msg": {"response": response.model_dump(mode="json")}},
     )
 
     found = handler.check_pending_response("proc", "msg")
@@ -1028,11 +1028,7 @@ def test_check_pending_response_returns_response_when_present():
 
     storage.set_state(
         "proc",
-        {
-            f"{handler.PENDING_KEY_PREFIX}msg": {
-                "response": response.model_dump(mode="json")
-            }
-        },
+        {f"{handler.PENDING_KEY_PREFIX}msg": {"response": response.model_dump(mode="json")}},
     )
 
     found = handler.check_pending_response("proc", "msg")

@@ -1,5 +1,3 @@
-import pytest
-
 from tactus.core.runtime import TactusRuntime
 
 

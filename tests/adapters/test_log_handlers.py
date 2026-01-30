@@ -1,10 +1,8 @@
 """Tests for log handler adapters."""
 
-import os
 from datetime import datetime
 from types import SimpleNamespace
 
-import pytest
 import requests
 
 from tactus.adapters.cost_collector_log import CostCollectorLogHandler

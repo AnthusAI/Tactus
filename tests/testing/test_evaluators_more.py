@@ -60,9 +60,7 @@ def test_min_length_uses_expected_override():
 
 
 def test_max_length_handles_list_output():
-    evaluator = evaluators._create_max_length_evaluator(
-        EvaluatorConfig(type="max_length", value=2)
-    )
+    evaluator = evaluators._create_max_length_evaluator(EvaluatorConfig(type="max_length", value=2))
     assert evaluator.evaluate(DummyCtx(output=[1, 2, 3])) is False
 
 
@@ -93,9 +91,7 @@ def test_agent_turns_respects_max_value_and_filter():
     evaluator = evaluators._create_agent_turns_evaluator(
         EvaluatorConfig(type="agent_turns", field="agent", max_value=1)
     )
-    ctx = DummyCtx(
-        output={"__trace__": {"agent_turns": [{"agent": "agent"}, {"agent": "agent"}]}}
-    )
+    ctx = DummyCtx(output={"__trace__": {"agent_turns": [{"agent": "agent"}, {"agent": "agent"}]}})
     assert evaluator.evaluate(ctx) is False
 
 

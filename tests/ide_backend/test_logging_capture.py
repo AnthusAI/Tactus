@@ -46,7 +46,7 @@ def test_capture_handler_ignores_invalid_context():
         level=logging.WARNING,
         pathname=__file__,
         lineno=20,
-        msg='Bad context\nContext: {oops}',
+        msg="Bad context\nContext: {oops}",
         args=(),
         exc_info=None,
     )

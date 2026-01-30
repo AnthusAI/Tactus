@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import pytest
 import typer
 
@@ -117,4 +115,3 @@ def test_sandbox_rebuild_failure(monkeypatch, tmp_path):
 
     with pytest.raises(typer.Exit):
         cli_app.sandbox_rebuild(verbose=False, force=True)
-

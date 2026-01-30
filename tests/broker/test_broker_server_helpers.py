@@ -76,4 +76,3 @@ async def test_openai_chat_backend_uses_litellm(monkeypatch):
     assert captured["tools"][0]["name"] == "tool"
     assert captured["tool_choice"] == "auto"
     assert os.environ["OPENAI_API_KEY"] == "secret"
-

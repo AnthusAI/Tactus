@@ -1,7 +1,6 @@
 import pytest
 import typer
 
-import tactus
 from tactus.cli import app as cli_app
 
 

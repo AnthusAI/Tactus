@@ -33,13 +33,16 @@ async def test_inject_mocked_dependencies_handles_missing_runtime(tmp_path):
 @pytest.mark.asyncio
 async def test_inject_mocked_dependencies_sets_user_dependencies(tmp_path):
     ctx = TactusTestContext(procedure_file=tmp_path / "proc.tac", mocked=True)
+
     async def create_mock_dependencies(_deps):
         return {"api": "mock"}
 
     ctx.mock_registry = SimpleNamespace(create_mock_dependencies=create_mock_dependencies)
 
     ctx.runtime = SimpleNamespace(
-        registry=SimpleNamespace(dependencies={"api": SimpleNamespace(config={"type": "http_client"})}),
+        registry=SimpleNamespace(
+            dependencies={"api": SimpleNamespace(config={"type": "http_client"})}
+        ),
         user_dependencies=None,
     )
 
@@ -51,7 +54,7 @@ async def test_inject_mocked_dependencies_sets_user_dependencies(tmp_path):
 @pytest.mark.asyncio
 async def test_run_procedure_async_captures_metrics_and_primitives(tmp_path):
     proc = tmp_path / "proc.tac"
-    proc.write_text("Agent \"test\" {}")
+    proc.write_text('Agent "test" {}')
 
     class DummyRuntime:
         def __init__(self):

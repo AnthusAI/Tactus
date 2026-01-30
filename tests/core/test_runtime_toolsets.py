@@ -312,7 +312,9 @@ def test_create_toolset_from_config_plugin_success(monkeypatch):
     module.PluginLoader = DummyPluginLoader
     monkeypatch.setitem(sys.modules, "tactus.adapters.plugins", module)
 
-    toolset = _run(runtime._create_toolset_from_config("plugin", {"type": "plugin", "paths": ["./tools"]}))
+    toolset = _run(
+        runtime._create_toolset_from_config("plugin", {"type": "plugin", "paths": ["./tools"]})
+    )
 
     assert toolset["name"] == "plugin"
 
@@ -345,10 +347,12 @@ def test_create_toolset_from_config_filtered_missing_source():
 def test_create_toolset_from_config_filtered_no_source_found():
     runtime = _runtime()
 
-    toolset = _run(runtime._create_toolset_from_config(
-        "filtered",
-        {"type": "filtered", "source": "missing"},
-    ))
+    toolset = _run(
+        runtime._create_toolset_from_config(
+            "filtered",
+            {"type": "filtered", "source": "missing"},
+        )
+    )
 
     assert toolset is None
 
@@ -357,10 +361,12 @@ def test_create_toolset_from_config_filtered_with_pattern():
     runtime = _runtime()
     runtime.toolset_registry["base"] = DummyToolset("base")
 
-    toolset = _run(runtime._create_toolset_from_config(
-        "filtered",
-        {"type": "filtered", "source": "base", "pattern": "^ok"},
-    ))
+    toolset = _run(
+        runtime._create_toolset_from_config(
+            "filtered",
+            {"type": "filtered", "source": "base", "pattern": "^ok"},
+        )
+    )
 
     assert toolset is runtime.toolset_registry["base"]
     assert toolset.filtered_with is not None
@@ -370,10 +376,12 @@ def test_create_toolset_from_config_filtered_without_pattern():
     runtime = _runtime()
     runtime.toolset_registry["base"] = DummyToolset("base")
 
-    toolset = _run(runtime._create_toolset_from_config(
-        "filtered",
-        {"type": "filtered", "source": "base"},
-    ))
+    toolset = _run(
+        runtime._create_toolset_from_config(
+            "filtered",
+            {"type": "filtered", "source": "base"},
+        )
+    )
 
     assert toolset is runtime.toolset_registry["base"]
 
@@ -393,10 +401,12 @@ def test_create_toolset_from_config_combined_success(monkeypatch):
 
     monkeypatch.setattr("pydantic_ai.toolsets.CombinedToolset", DummyCombinedToolset)
 
-    toolset = _run(runtime._create_toolset_from_config(
-        "combined",
-        {"type": "combined", "sources": ["a", "b"]},
-    ))
+    toolset = _run(
+        runtime._create_toolset_from_config(
+            "combined",
+            {"type": "combined", "sources": ["a", "b"]},
+        )
+    )
 
     assert [t.name for t in toolset.toolsets] == ["a", "b"]
 
@@ -407,10 +417,12 @@ def test_create_toolset_from_config_combined_partial_sources(monkeypatch):
 
     monkeypatch.setattr("pydantic_ai.toolsets.CombinedToolset", DummyCombinedToolset)
 
-    toolset = _run(runtime._create_toolset_from_config(
-        "combined",
-        {"type": "combined", "sources": ["a", "missing"]},
-    ))
+    toolset = _run(
+        runtime._create_toolset_from_config(
+            "combined",
+            {"type": "combined", "sources": ["a", "missing"]},
+        )
+    )
 
     assert len(toolset.toolsets) == 1
 
@@ -420,10 +432,12 @@ def test_create_toolset_from_config_combined_no_valid_sources(monkeypatch):
 
     monkeypatch.setattr("pydantic_ai.toolsets.CombinedToolset", DummyCombinedToolset)
 
-    toolset = _run(runtime._create_toolset_from_config(
-        "combined",
-        {"type": "combined", "sources": ["missing"]},
-    ))
+    toolset = _run(
+        runtime._create_toolset_from_config(
+            "combined",
+            {"type": "combined", "sources": ["missing"]},
+        )
+    )
 
     assert toolset is None
 
@@ -451,10 +465,12 @@ def test_create_toolset_from_config_inline_tools(monkeypatch):
     module.LuaToolsAdapter = DummyLuaAdapter
     monkeypatch.setitem(sys.modules, "tactus.adapters.lua_tools", module)
 
-    toolset = _run(runtime._create_toolset_from_config(
-        "inline",
-        {"tools": [{"handler": "noop"}]},
-    ))
+    toolset = _run(
+        runtime._create_toolset_from_config(
+            "inline",
+            {"tools": [{"handler": "noop"}]},
+        )
+    )
 
     assert toolset["name"] == "inline"
 
@@ -474,10 +490,12 @@ def test_create_toolset_from_config_inline_tools_error(monkeypatch):
     module.LuaToolsAdapter = DummyLuaAdapter
     monkeypatch.setitem(sys.modules, "tactus.adapters.lua_tools", module)
 
-    toolset = _run(runtime._create_toolset_from_config(
-        "inline",
-        {"tools": [{"handler": "noop"}]},
-    ))
+    toolset = _run(
+        runtime._create_toolset_from_config(
+            "inline",
+            {"tools": [{"handler": "noop"}]},
+        )
+    )
 
     assert toolset is None
 
@@ -488,10 +506,12 @@ def test_create_toolset_from_config_tool_names(monkeypatch):
 
     monkeypatch.setattr("pydantic_ai.toolsets.CombinedToolset", DummyCombinedToolset)
 
-    toolset = _run(runtime._create_toolset_from_config(
-        "names",
-        {"tools": ["a", "missing"]},
-    ))
+    toolset = _run(
+        runtime._create_toolset_from_config(
+            "names",
+            {"tools": ["a", "missing"]},
+        )
+    )
 
     assert toolset.toolsets[0].name == "a"
 
@@ -501,10 +521,12 @@ def test_create_toolset_from_config_tool_names_no_valid(monkeypatch):
 
     monkeypatch.setattr("pydantic_ai.toolsets.CombinedToolset", DummyCombinedToolset)
 
-    toolset = _run(runtime._create_toolset_from_config(
-        "names",
-        {"tools": ["missing"]},
-    ))
+    toolset = _run(
+        runtime._create_toolset_from_config(
+            "names",
+            {"tools": ["missing"]},
+        )
+    )
 
     assert toolset is None
 
@@ -513,10 +535,12 @@ def test_create_toolset_from_config_use_tac_missing(tmp_path):
     runtime = _runtime()
     runtime.source_file_path = str(tmp_path / "main.tac")
 
-    toolset = _run(runtime._create_toolset_from_config(
-        "use",
-        {"use": "./missing.tac"},
-    ))
+    toolset = _run(
+        runtime._create_toolset_from_config(
+            "use",
+            {"use": "./missing.tac"},
+        )
+    )
 
     assert toolset is None
 
@@ -544,10 +568,12 @@ def test_create_toolset_from_config_use_tac_returns_empty(monkeypatch, tmp_path)
 
     monkeypatch.setattr("pydantic_ai.toolsets.FunctionToolset", DummyFunctionToolset)
 
-    toolset = _run(runtime._create_toolset_from_config(
-        "use",
-        {"use": "./tools.tac"},
-    ))
+    toolset = _run(
+        runtime._create_toolset_from_config(
+            "use",
+            {"use": "./tools.tac"},
+        )
+    )
 
     assert toolset.tools == []
 
@@ -572,10 +598,12 @@ def test_create_toolset_from_config_use_mcp():
     runtime = _runtime()
     runtime.toolset_registry["server"] = DummyToolset("server")
 
-    toolset = _run(runtime._create_toolset_from_config(
-        "use",
-        {"use": "mcp.server"},
-    ))
+    toolset = _run(
+        runtime._create_toolset_from_config(
+            "use",
+            {"use": "mcp.server"},
+        )
+    )
 
     assert toolset is runtime.toolset_registry["server"]
 
@@ -583,10 +611,12 @@ def test_create_toolset_from_config_use_mcp():
 def test_create_toolset_from_config_use_unknown():
     runtime = _runtime()
 
-    toolset = _run(runtime._create_toolset_from_config(
-        "use",
-        {"use": "unknown"},
-    ))
+    toolset = _run(
+        runtime._create_toolset_from_config(
+            "use",
+            {"use": "unknown"},
+        )
+    )
 
     assert toolset is None
 

@@ -1,7 +1,6 @@
 import subprocess
 from pathlib import Path
 
-import pytest
 
 from tactus.sandbox import docker_manager
 
@@ -384,7 +383,9 @@ def test_ensure_image_exists_force_rebuild(monkeypatch):
     manager = docker_manager.DockerManager(image_name="img", image_tag="tag")
     monkeypatch.setattr(manager, "build_image", lambda *args, **kwargs: (True, "built"))
 
-    ok, msg = manager.ensure_image_exists(Path("Dockerfile"), Path("."), version="1.0", force_rebuild=True)
+    ok, msg = manager.ensure_image_exists(
+        Path("Dockerfile"), Path("."), version="1.0", force_rebuild=True
+    )
     assert ok is True
     assert msg == "built"
 
@@ -448,11 +449,13 @@ def test_cleanup_old_images_removes(monkeypatch):
 
     def fake_run(args, **_kwargs):
         if args[:2] == ["docker", "images"]:
+
             class Result:
                 returncode = 0
                 stdout = "img:old\nimg:local\n\nimg\n"
 
             return Result()
+
         class Result:
             returncode = 0
             stdout = ""
@@ -471,11 +474,13 @@ def test_cleanup_old_images_respects_keep_tags(monkeypatch):
 
     def fake_run(args, **_kwargs):
         if args[:2] == ["docker", "images"]:
+
             class Result:
                 returncode = 0
                 stdout = "img:old\nimg:keep\n"
 
             return Result()
+
         class Result:
             returncode = 0
             stdout = ""
@@ -495,6 +500,7 @@ def test_cleanup_old_images_skips_failed_removal(monkeypatch):
 
     def fake_run(args, **_kwargs):
         if args[:2] == ["docker", "images"]:
+
             class Result:
                 returncode = 0
                 stdout = "img:old\n"

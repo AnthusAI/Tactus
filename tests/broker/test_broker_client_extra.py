@@ -1,5 +1,4 @@
 import asyncio
-import os
 
 import pytest
 
@@ -26,7 +25,9 @@ async def test_request_stdio_filters_events(monkeypatch):
         yield {"id": "other", "event": "chunk"}
         yield {"id": req_id, "event": "done", "data": {"ok": True}}
 
-    monkeypatch.setattr(broker_client, "_STDIO_TRANSPORT", type("T", (), {"request": fake_request})())
+    monkeypatch.setattr(
+        broker_client, "_STDIO_TRANSPORT", type("T", (), {"request": fake_request})()
+    )
     monkeypatch.setattr(broker_client.uuid, "uuid4", lambda: type("U", (), {"hex": "req"})())
 
     events = []

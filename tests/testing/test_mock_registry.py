@@ -3,7 +3,7 @@
 import asyncio
 
 from tactus.testing.mock_registry import UnifiedMockRegistry
-from tactus.testing.mock_dependencies import MockHTTPClient, MockDependencyFactory
+from tactus.testing.mock_dependencies import MockHTTPClient
 from tactus.testing.mock_hitl import MockHITLHandler
 
 

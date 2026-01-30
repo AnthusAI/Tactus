@@ -11,7 +11,9 @@ class DummyContext:
 
 def test_trace_aware_evaluator_get_trace_prefers_metadata():
     evaluator = evaluators.TraceAwareEvaluator()
-    ctx = DummyContext(output={"__trace__": {"from": "output"}}, metadata={"trace": {"from": "meta"}})
+    ctx = DummyContext(
+        output={"__trace__": {"from": "output"}}, metadata={"trace": {"from": "meta"}}
+    )
     assert evaluator.get_trace(ctx) == {"from": "meta"}
 
 

@@ -6,7 +6,13 @@ import pytest
 from tactus.broker.stdio import STDIO_REQUEST_PREFIX
 from tactus.sandbox.config import SandboxConfig
 from tactus.sandbox.container_runner import ContainerRunner
-from tactus.sandbox.protocol import ExecutionRequest, ExecutionResult, ExecutionStatus, RESULT_END_MARKER, RESULT_START_MARKER
+from tactus.sandbox.protocol import (
+    ExecutionRequest,
+    ExecutionResult,
+    ExecutionStatus,
+    RESULT_END_MARKER,
+    RESULT_START_MARKER,
+)
 
 
 class DummyStream:
@@ -120,16 +126,19 @@ class FakeChatBackend:
         if model == "boom":
             raise RuntimeError("boom")
         if model == "no-choices":
+
             class Empty:
                 choices = []
 
             return Empty()
         if stream:
+
             async def _gen():
                 if model == "stream-bad":
                     yield FakeBadChunk()
                 for text in ["part1", "part2"]:
                     yield FakeChunk(text)
+
             return _gen()
         return FakeChatResponse("hello")
 
@@ -225,7 +234,6 @@ async def test_run_container_wait_for_tasks_timeout(monkeypatch):
         return process
 
     original_create_task = asyncio.create_task
-    original_wait_for = asyncio.wait_for
 
     async def boom_stdout():
         raise ValueError("stdout boom")
@@ -257,7 +265,7 @@ async def test_run_container_wait_for_tasks_timeout(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_run_container_timeout_kills_process(monkeypatch):
+async def test_run_container_timeout_kills_process_tcp(monkeypatch):
     config = SandboxConfig(mount_current_dir=False, broker_transport="tcp")
     runner = ContainerRunner(config)
 
@@ -297,8 +305,12 @@ async def test_run_container_handles_stdio_broker_requests(monkeypatch):
     config = SandboxConfig(mount_current_dir=False, broker_transport="stdio")
     runner = ContainerRunner(config)
 
-    monkeypatch.setattr("tactus.broker.server.HostToolRegistry.default", lambda: FakeToolRegistry({}))
-    monkeypatch.setattr("tactus.broker.server.OpenAIChatBackend", lambda api_key=None: FakeChatBackend())
+    monkeypatch.setattr(
+        "tactus.broker.server.HostToolRegistry.default", lambda: FakeToolRegistry({})
+    )
+    monkeypatch.setattr(
+        "tactus.broker.server.OpenAIChatBackend", lambda api_key=None: FakeChatBackend()
+    )
 
     result_payload = ExecutionResult.success(result={"ok": True}).to_json()
     stdout_lines = [
@@ -314,8 +326,16 @@ async def test_run_container_handles_stdio_broker_requests(monkeypatch):
         {"id": "control", "method": "control.request", "params": {"request": {"x": 1}}},
         {"id": "tool", "method": "tool.call", "params": {"name": "missing"}},
         {"id": "llm", "method": "llm.chat", "params": {"model": "gpt", "messages": []}},
-        {"id": "llm_no_choices", "method": "llm.chat", "params": {"model": "no-choices", "messages": []}},
-        {"id": "llm_stream", "method": "llm.chat", "params": {"model": "stream-bad", "messages": [], "stream": True}},
+        {
+            "id": "llm_no_choices",
+            "method": "llm.chat",
+            "params": {"model": "no-choices", "messages": []},
+        },
+        {
+            "id": "llm_stream",
+            "method": "llm.chat",
+            "params": {"model": "stream-bad", "messages": [], "stream": True},
+        },
         {"id": "unknown", "method": "unknown.method", "params": {}},
     ]
     stderr_lines = [
@@ -377,7 +397,9 @@ async def test_run_container_stdio_broker_error_branches(monkeypatch):
         }
     )
     monkeypatch.setattr("tactus.broker.server.HostToolRegistry.default", lambda: tool_registry)
-    monkeypatch.setattr("tactus.broker.server.OpenAIChatBackend", lambda api_key=None: FakeChatBackend())
+    monkeypatch.setattr(
+        "tactus.broker.server.OpenAIChatBackend", lambda api_key=None: FakeChatBackend()
+    )
 
     result_payload = ExecutionResult.success(result={"ok": True}).to_json()
     stdout_lines = [
@@ -393,7 +415,11 @@ async def test_run_container_stdio_broker_error_branches(monkeypatch):
         {"id": "tool_args", "method": "tool.call", "params": {"name": "explode", "args": "nope"}},
         {"id": "tool_name", "method": "tool.call", "params": {"name": 123, "args": {}}},
         {"id": "tool_fail", "method": "tool.call", "params": {"name": "explode", "args": {}}},
-        {"id": "provider", "method": "llm.chat", "params": {"provider": "anthropic", "model": "x", "messages": []}},
+        {
+            "id": "provider",
+            "method": "llm.chat",
+            "params": {"provider": "anthropic", "model": "x", "messages": []},
+        },
         {"id": "model", "method": "llm.chat", "params": {"messages": []}},
         {"id": "messages", "method": "llm.chat", "params": {"model": "gpt", "messages": "nope"}},
         {"id": "llm_error", "method": "llm.chat", "params": {"model": "boom", "messages": []}},
@@ -435,8 +461,12 @@ async def test_run_container_handles_invalid_json_and_broker_noise(monkeypatch):
     config = SandboxConfig(mount_current_dir=False, broker_transport="stdio")
     runner = ContainerRunner(config)
 
-    monkeypatch.setattr("tactus.broker.server.HostToolRegistry.default", lambda: FakeToolRegistry({}))
-    monkeypatch.setattr("tactus.broker.server.OpenAIChatBackend", lambda api_key=None: FakeChatBackend())
+    monkeypatch.setattr(
+        "tactus.broker.server.HostToolRegistry.default", lambda: FakeToolRegistry({})
+    )
+    monkeypatch.setattr(
+        "tactus.broker.server.OpenAIChatBackend", lambda api_key=None: FakeChatBackend()
+    )
 
     stdout_lines = [
         f"{RESULT_START_MARKER}\n".encode("utf-8"),
@@ -636,8 +666,13 @@ async def test_run_container_broker_control_success_and_error(monkeypatch):
     config = SandboxConfig(mount_current_dir=False, broker_transport="stdio")
     runner = ContainerRunner(config)
 
-    monkeypatch.setattr("tactus.broker.server.HostToolRegistry.default", lambda: FakeToolRegistry({"ok": {"status": "ok"}}))
-    monkeypatch.setattr("tactus.broker.server.OpenAIChatBackend", lambda api_key=None: FakeChatBackend())
+    monkeypatch.setattr(
+        "tactus.broker.server.HostToolRegistry.default",
+        lambda: FakeToolRegistry({"ok": {"status": "ok"}}),
+    )
+    monkeypatch.setattr(
+        "tactus.broker.server.OpenAIChatBackend", lambda api_key=None: FakeChatBackend()
+    )
 
     result_payload = ExecutionResult.success(result={"ok": True}).to_json()
     stdout_lines = [
@@ -739,8 +774,12 @@ async def test_run_container_event_handler_exception(monkeypatch):
     config = SandboxConfig(mount_current_dir=False, broker_transport="stdio")
     runner = ContainerRunner(config)
 
-    monkeypatch.setattr("tactus.broker.server.HostToolRegistry.default", lambda: FakeToolRegistry({}))
-    monkeypatch.setattr("tactus.broker.server.OpenAIChatBackend", lambda api_key=None: FakeChatBackend())
+    monkeypatch.setattr(
+        "tactus.broker.server.HostToolRegistry.default", lambda: FakeToolRegistry({})
+    )
+    monkeypatch.setattr(
+        "tactus.broker.server.OpenAIChatBackend", lambda api_key=None: FakeChatBackend()
+    )
 
     result_payload = ExecutionResult.success(result={"ok": True}).to_json()
     stdout_lines = [
@@ -750,7 +789,9 @@ async def test_run_container_event_handler_exception(monkeypatch):
         b"",
     ]
 
-    broker_requests = [{"id": "evt", "method": "events.emit", "params": {"event": {"type": "ping"}}}]
+    broker_requests = [
+        {"id": "evt", "method": "events.emit", "params": {"event": {"type": "ping"}}}
+    ]
     stderr_lines = [
         f"{STDIO_REQUEST_PREFIX}{json.dumps(req)}\n".encode("utf-8") for req in broker_requests
     ] + [b""]
@@ -766,9 +807,7 @@ async def test_run_container_event_handler_exception(monkeypatch):
     monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_create_subprocess_exec)
 
     request = ExecutionRequest(source="return {}", working_dir="/workspace")
-    result = await runner._run_container(
-        ["docker"], request, timeout=1, event_handler=boom
-    )
+    result = await runner._run_container(["docker"], request, timeout=1, event_handler=boom)
 
     assert result.status == ExecutionStatus.SUCCESS
 
@@ -778,8 +817,12 @@ async def test_run_container_send_event_writer_closed(monkeypatch):
     config = SandboxConfig(mount_current_dir=False, broker_transport="stdio")
     runner = ContainerRunner(config)
 
-    monkeypatch.setattr("tactus.broker.server.HostToolRegistry.default", lambda: FakeToolRegistry({}))
-    monkeypatch.setattr("tactus.broker.server.OpenAIChatBackend", lambda api_key=None: FakeChatBackend())
+    monkeypatch.setattr(
+        "tactus.broker.server.HostToolRegistry.default", lambda: FakeToolRegistry({})
+    )
+    monkeypatch.setattr(
+        "tactus.broker.server.OpenAIChatBackend", lambda api_key=None: FakeChatBackend()
+    )
 
     result_payload = ExecutionResult.success(result={"ok": True}).to_json()
     stdout_lines = [
@@ -789,7 +832,9 @@ async def test_run_container_send_event_writer_closed(monkeypatch):
         b"",
     ]
 
-    broker_requests = [{"id": "evt", "method": "events.emit", "params": {"event": {"type": "ping"}}}]
+    broker_requests = [
+        {"id": "evt", "method": "events.emit", "params": {"event": {"type": "ping"}}}
+    ]
     stderr_lines = [
         f"{STDIO_REQUEST_PREFIX}{json.dumps(req)}\n".encode("utf-8") for req in broker_requests
     ] + [b""]
@@ -813,8 +858,12 @@ async def test_run_container_send_event_broken_pipe(monkeypatch):
     config = SandboxConfig(mount_current_dir=False, broker_transport="stdio")
     runner = ContainerRunner(config)
 
-    monkeypatch.setattr("tactus.broker.server.HostToolRegistry.default", lambda: FakeToolRegistry({}))
-    monkeypatch.setattr("tactus.broker.server.OpenAIChatBackend", lambda api_key=None: FakeChatBackend())
+    monkeypatch.setattr(
+        "tactus.broker.server.HostToolRegistry.default", lambda: FakeToolRegistry({})
+    )
+    monkeypatch.setattr(
+        "tactus.broker.server.OpenAIChatBackend", lambda api_key=None: FakeChatBackend()
+    )
 
     result_payload = ExecutionResult.success(result={"ok": True}).to_json()
     stdout_lines = [
@@ -824,7 +873,9 @@ async def test_run_container_send_event_broken_pipe(monkeypatch):
         b"",
     ]
 
-    broker_requests = [{"id": "evt", "method": "events.emit", "params": {"event": {"type": "ping"}}}]
+    broker_requests = [
+        {"id": "evt", "method": "events.emit", "params": {"event": {"type": "ping"}}}
+    ]
     stderr_lines = [
         f"{STDIO_REQUEST_PREFIX}{json.dumps(req)}\n".encode("utf-8") for req in broker_requests
     ] + [b""]
@@ -854,7 +905,9 @@ async def test_run_container_uses_openai_key_from_backend_config(monkeypatch):
         captured["api_key"] = api_key
         return FakeChatBackend()
 
-    monkeypatch.setattr("tactus.broker.server.HostToolRegistry.default", lambda: FakeToolRegistry({}))
+    monkeypatch.setattr(
+        "tactus.broker.server.HostToolRegistry.default", lambda: FakeToolRegistry({})
+    )
     monkeypatch.setattr("tactus.broker.server.OpenAIChatBackend", fake_openai_backend)
 
     result_payload = ExecutionResult.success(result={"ok": True}).to_json()

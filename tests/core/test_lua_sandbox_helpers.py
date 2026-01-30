@@ -96,7 +96,7 @@ def test_create_lua_table_and_to_dict():
 
 
 def test_execute_and_eval_errors(monkeypatch):
-    lupa = pytest.importorskip("lupa")
+    pytest.importorskip("lupa")
     sandbox = lua_module.LuaSandbox.__new__(lua_module.LuaSandbox)
     sandbox.lua = DummyLua()
 

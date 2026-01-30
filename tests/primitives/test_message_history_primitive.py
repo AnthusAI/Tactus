@@ -280,9 +280,7 @@ def test_get_handles_object_messages():
     manager = MessageHistoryManager()
     history = MessageHistoryPrimitive(message_history_manager=manager)
 
-    manager.histories["agent"] = [
-        FakeMessage("user", "hi", msg_id=7, created_at="now")
-    ]
+    manager.histories["agent"] = [FakeMessage("user", "hi", msg_id=7, created_at="now")]
     history.agent_name = "agent"
 
     messages = history.get()

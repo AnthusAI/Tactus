@@ -29,7 +29,9 @@ class DummyConsole:
 
 
 class DummyScenario:
-    def __init__(self, name, status, duration, total_cost=0, llm_calls=0, iterations=0, tools_used=None):
+    def __init__(
+        self, name, status, duration, total_cost=0, llm_calls=0, iterations=0, tools_used=None
+    ):
         self.name = name
         self.status = status
         self.duration = duration
@@ -315,9 +317,7 @@ def test_cli_test_command_mock_config(monkeypatch, tmp_path, cli_runner):
     path = tmp_path / "sample.tac"
     path.write_text("content")
 
-    result = cli_runner.invoke(
-        cli_app.app, ["test", str(path), "--mock-config", str(mock_config)]
-    )
+    result = cli_runner.invoke(cli_app.app, ["test", str(path), "--mock-config", str(mock_config)])
     assert result.exit_code == 0
 
 
@@ -554,7 +554,9 @@ def test_display_helpers(monkeypatch):
     console = DummyConsole()
     monkeypatch.setattr(cli_app, "console", console)
 
-    failed = DummyScenario("fail", "failed", 0.5, total_cost=1.0, llm_calls=2, iterations=1, tools_used=["x"])
+    failed = DummyScenario(
+        "fail", "failed", 0.5, total_cost=1.0, llm_calls=2, iterations=1, tools_used=["x"]
+    )
     failed.steps.append(DummyStep("Given", "a failure", error_message="boom"))
     passed = DummyScenario("pass", "passed", 0.2)
     features = [DummyFeature("Feature A", [failed, passed])]
@@ -646,9 +648,7 @@ def test_cli_eval_command_runs(monkeypatch, tmp_path, cli_runner):
         def check_thresholds(self, _report):
             return True, []
 
-    monkeypatch.setattr(
-        "tactus.testing.pydantic_eval_runner.TactusPydanticEvalRunner", FakeRunner
-    )
+    monkeypatch.setattr("tactus.testing.pydantic_eval_runner.TactusPydanticEvalRunner", FakeRunner)
     console = DummyConsole()
     monkeypatch.setattr(cli_app, "console", console)
 
@@ -683,9 +683,7 @@ def test_cli_eval_command_warns_without_openai_key(monkeypatch, tmp_path, cli_ru
         def check_thresholds(self, _report):
             return True, []
 
-    monkeypatch.setattr(
-        "tactus.testing.pydantic_eval_runner.TactusPydanticEvalRunner", FakeRunner
-    )
+    monkeypatch.setattr("tactus.testing.pydantic_eval_runner.TactusPydanticEvalRunner", FakeRunner)
     console = DummyConsole()
     monkeypatch.setattr(cli_app, "console", console)
 
@@ -720,9 +718,7 @@ def test_cli_eval_command_threshold_failure(monkeypatch, tmp_path, cli_runner):
         def check_thresholds(self, _report):
             return False, ["too low"]
 
-    monkeypatch.setattr(
-        "tactus.testing.pydantic_eval_runner.TactusPydanticEvalRunner", FakeRunner
-    )
+    monkeypatch.setattr("tactus.testing.pydantic_eval_runner.TactusPydanticEvalRunner", FakeRunner)
     monkeypatch.setattr(cli_app, "console", DummyConsole())
 
     path = tmp_path / "eval.tac"

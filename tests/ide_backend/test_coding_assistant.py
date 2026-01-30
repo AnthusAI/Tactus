@@ -28,7 +28,9 @@ def test_setup_openai_configures_dspy(monkeypatch, tmp_path):
     monkeypatch.setattr(
         coding_assistant.dspy, "OpenAI", lambda **kwargs: {"lm": kwargs}, raising=False
     )
-    monkeypatch.setattr(coding_assistant.dspy, "settings", SimpleNamespace(configure=fake_configure))
+    monkeypatch.setattr(
+        coding_assistant.dspy, "settings", SimpleNamespace(configure=fake_configure)
+    )
     monkeypatch.setattr(CodingAssistantAgent, "_create_agent", lambda self: "agent")
 
     agent = CodingAssistantAgent(str(tmp_path), {"coding_assistant": {"provider": "openai"}})
@@ -42,7 +44,9 @@ def test_setup_anthropic_configures_dspy(monkeypatch, tmp_path):
     monkeypatch.setattr(
         coding_assistant.dspy, "Claude", lambda **kwargs: {"lm": kwargs}, raising=False
     )
-    monkeypatch.setattr(coding_assistant.dspy, "settings", SimpleNamespace(configure=lambda lm=None: None))
+    monkeypatch.setattr(
+        coding_assistant.dspy, "settings", SimpleNamespace(configure=lambda lm=None: None)
+    )
     monkeypatch.setattr(CodingAssistantAgent, "_create_agent", lambda self: "agent")
 
     agent = CodingAssistantAgent(
@@ -60,7 +64,9 @@ def test_anthropic_requires_api_key(monkeypatch, tmp_path):
 
 
 def test_setup_rejects_unknown_provider(monkeypatch, tmp_path):
-    monkeypatch.setattr(coding_assistant.dspy, "settings", SimpleNamespace(configure=lambda lm=None: None))
+    monkeypatch.setattr(
+        coding_assistant.dspy, "settings", SimpleNamespace(configure=lambda lm=None: None)
+    )
     with pytest.raises(ValueError, match="Unsupported provider"):
         CodingAssistantAgent(str(tmp_path), {"coding_assistant": {"provider": "other"}})
 

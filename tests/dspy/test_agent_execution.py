@@ -125,7 +125,10 @@ class TestToolsetConversion:
     def test_convert_toolsets_handles_bad_tool(self, monkeypatch):
         class BadTool:
             name = "boom"
-            function = lambda: None
+
+            @staticmethod
+            def function():
+                return None
 
             @property
             def description(self):
@@ -239,7 +242,9 @@ class TestToolExecution:
         agent = _make_agent(monkeypatch, toolsets=[toolset])
 
         _patch_import_for("nest_asyncio", monkeypatch, error=True)
-        monkeypatch.setattr(asyncio, "get_event_loop", lambda: (_ for _ in ()).throw(RuntimeError("no loop")))
+        monkeypatch.setattr(
+            asyncio, "get_event_loop", lambda: (_ for _ in ()).throw(RuntimeError("no loop"))
+        )
 
         assert agent._execute_tool("async", {"x": 3}) == 6
 
@@ -448,7 +453,9 @@ class TestTurns:
         monkeypatch.setattr(agent, "_extract_last_call_stats", lambda: (UsageStats(), CostStats()))
         monkeypatch.setattr(agent, "_emit_cost_event", lambda: None)
 
-        result = agent._turn_without_streaming({"message": "hi"}, {"history": [], "system_prompt": "", "user_message": "hi"})
+        result = agent._turn_without_streaming(
+            {"message": "hi"}, {"history": [], "system_prompt": "", "user_message": "hi"}
+        )
 
         assert result.output == "ok"
         assert agent._tool_primitive.calls[0][0] == "done"
@@ -466,7 +473,9 @@ class TestTurns:
         monkeypatch.setattr(agent, "_extract_last_call_stats", lambda: (UsageStats(), CostStats()))
         monkeypatch.setattr(agent, "_emit_cost_event", lambda: None)
 
-        result = agent._turn_without_streaming({}, {"history": [], "system_prompt": "", "user_message": ""})
+        result = agent._turn_without_streaming(
+            {}, {"history": [], "system_prompt": "", "user_message": ""}
+        )
 
         assert result.output == "ok"
         assert agent.get_history()[0]["content"] == "hello"
@@ -483,7 +492,9 @@ class TestTurns:
         monkeypatch.setattr(agent, "_extract_last_call_stats", lambda: (UsageStats(), CostStats()))
         monkeypatch.setattr(agent, "_emit_cost_event", lambda: None)
 
-        result = agent._turn_without_streaming({}, {"history": [], "system_prompt": "", "user_message": ""})
+        result = agent._turn_without_streaming(
+            {}, {"history": [], "system_prompt": "", "user_message": ""}
+        )
 
         assert result.output == "ok"
 
@@ -499,7 +510,9 @@ class TestTurns:
         monkeypatch.setattr(agent, "_extract_last_call_stats", lambda: (UsageStats(), CostStats()))
         monkeypatch.setattr(agent, "_emit_cost_event", lambda: None)
 
-        result = agent._turn_without_streaming({}, {"history": [], "system_prompt": "", "user_message": ""})
+        result = agent._turn_without_streaming(
+            {}, {"history": [], "system_prompt": "", "user_message": ""}
+        )
 
         assert result.output == ""
 
@@ -516,7 +529,9 @@ class TestTurns:
         monkeypatch.setattr(agent, "_extract_last_call_stats", lambda: (UsageStats(), CostStats()))
         monkeypatch.setattr(agent, "_emit_cost_event", lambda: None)
 
-        result = agent._turn_without_streaming({}, {"history": [], "system_prompt": "", "user_message": ""})
+        result = agent._turn_without_streaming(
+            {}, {"history": [], "system_prompt": "", "user_message": ""}
+        )
 
         assert result.output == "ok"
 
@@ -536,11 +551,15 @@ class TestTurns:
             yield final_prediction
 
         monkeypatch.setattr(dspy, "streamify", lambda _module: lambda **_kw: fake_stream())
-        monkeypatch.setattr(agent, "_execute_tool", lambda name, args: {"ok": True, "name": name, "args": args})
+        monkeypatch.setattr(
+            agent, "_execute_tool", lambda name, args: {"ok": True, "name": name, "args": args}
+        )
         monkeypatch.setattr(agent, "_extract_last_call_stats", lambda: (UsageStats(), CostStats()))
         monkeypatch.setattr(agent, "_emit_cost_event", lambda: None)
 
-        result = agent._turn_with_streaming({}, {"history": [], "system_prompt": "", "user_message": ""})
+        result = agent._turn_with_streaming(
+            {}, {"history": [], "system_prompt": "", "user_message": ""}
+        )
 
         assert result.output == "done"
         assert any(isinstance(e, AgentTurnEvent) and e.stage == "started" for e in handler.events)
@@ -559,7 +578,9 @@ class TestTurns:
         monkeypatch.setattr(dspy, "streamify", lambda _module: lambda **_kw: fake_stream())
         monkeypatch.setattr(agent, "_turn_without_streaming", lambda _opts, _ctx: "fallback")
 
-        result = agent._turn_with_streaming({}, {"history": [], "system_prompt": "", "user_message": ""})
+        result = agent._turn_with_streaming(
+            {}, {"history": [], "system_prompt": "", "user_message": ""}
+        )
 
         assert result == "fallback"
 
@@ -684,7 +705,9 @@ class TestCallAndExecute:
 
         assert agent.output.startswith("<")
 
-        monkeypatch.setattr(agent, "_execute_turn", lambda _opts: {"response": 123, "message": None})
+        monkeypatch.setattr(
+            agent, "_execute_turn", lambda _opts: {"response": 123, "message": None}
+        )
         agent({"message": "hi"})
 
         assert agent.output.startswith("{")
@@ -751,7 +774,11 @@ class TestCallAndExecute:
         agent = _make_agent(monkeypatch)
         monkeypatch.setattr("tactus.dspy.config.get_current_lm", lambda: "lm")
         monkeypatch.setattr(agent, "_should_stream", lambda: False)
-        monkeypatch.setattr(agent, "_turn_without_streaming", lambda _opts, _ctx: (_ for _ in ()).throw(ValueError("boom")))
+        monkeypatch.setattr(
+            agent,
+            "_turn_without_streaming",
+            lambda _opts, _ctx: (_ for _ in ()).throw(ValueError("boom")),
+        )
 
         with pytest.raises(ValueError, match="boom"):
             agent._execute_turn({"message": "hi"})
@@ -825,7 +852,9 @@ class TestStreamingBranches:
         monkeypatch.setattr(agent, "_extract_last_call_stats", lambda: (UsageStats(), CostStats()))
         monkeypatch.setattr(agent, "_emit_cost_event", lambda: None)
 
-        result = agent._turn_with_streaming({}, {"history": [], "system_prompt": "", "user_message": ""})
+        result = agent._turn_with_streaming(
+            {}, {"history": [], "system_prompt": "", "user_message": ""}
+        )
 
         assert result.output == "done"
         assert agent.get_history()[0]["content"] == "hi"
@@ -844,7 +873,9 @@ class TestStreamingBranches:
         monkeypatch.setattr(agent, "_extract_last_call_stats", lambda: (UsageStats(), CostStats()))
         monkeypatch.setattr(agent, "_emit_cost_event", lambda: None)
 
-        result = agent._turn_with_streaming({}, {"history": [], "system_prompt": "", "user_message": ""})
+        result = agent._turn_with_streaming(
+            {}, {"history": [], "system_prompt": "", "user_message": ""}
+        )
 
         assert result.output == "ok"
 
@@ -854,7 +885,9 @@ class TestStreamingBranches:
         agent._tool_primitive = DummyToolPrimitive()
         agent._turn_count = 1
 
-        tool_calls = DummyToolCalls([types.SimpleNamespace(name="agent_done", args={"reason": "ok"})])
+        tool_calls = DummyToolCalls(
+            [types.SimpleNamespace(name="agent_done", args={"reason": "ok"})]
+        )
         final_prediction = dspy.Prediction(response="done", tool_calls=tool_calls)
 
         async def fake_stream():
@@ -865,7 +898,9 @@ class TestStreamingBranches:
         monkeypatch.setattr(agent, "_extract_last_call_stats", lambda: (UsageStats(), CostStats()))
         monkeypatch.setattr(agent, "_emit_cost_event", lambda: None)
 
-        result = agent._turn_with_streaming({}, {"history": [], "system_prompt": "", "user_message": ""})
+        result = agent._turn_with_streaming(
+            {}, {"history": [], "system_prompt": "", "user_message": ""}
+        )
 
         assert result.output == "done"
         assert agent._tool_primitive.calls[0][0] == "done"
@@ -891,7 +926,9 @@ class TestStreamingBranches:
 
         monkeypatch.setattr(queue.Queue, "get", raise_empty)
 
-        result = agent._turn_with_streaming({}, {"history": [], "system_prompt": "", "user_message": ""})
+        result = agent._turn_with_streaming(
+            {}, {"history": [], "system_prompt": "", "user_message": ""}
+        )
 
         assert result.output == "ok"
 
@@ -908,7 +945,9 @@ class TestStreamingBranches:
         monkeypatch.setattr(agent, "_extract_last_call_stats", lambda: (UsageStats(), CostStats()))
         monkeypatch.setattr(agent, "_emit_cost_event", lambda: None)
 
-        result = agent._turn_with_streaming({}, {"history": [], "system_prompt": "", "user_message": ""})
+        result = agent._turn_with_streaming(
+            {}, {"history": [], "system_prompt": "", "user_message": ""}
+        )
 
         assert result.output == ""
 
@@ -928,7 +967,9 @@ class TestStreamingBranches:
         monkeypatch.setattr(agent, "_extract_last_call_stats", lambda: (UsageStats(), CostStats()))
         monkeypatch.setattr(agent, "_emit_cost_event", lambda: None)
 
-        result = agent._turn_with_streaming({}, {"history": [], "system_prompt": "", "user_message": ""})
+        result = agent._turn_with_streaming(
+            {}, {"history": [], "system_prompt": "", "user_message": ""}
+        )
 
         assert result.output == "ok"
 
@@ -947,7 +988,9 @@ class TestStreamingBranches:
         monkeypatch.setattr(agent, "_extract_last_call_stats", lambda: (UsageStats(), CostStats()))
         monkeypatch.setattr(agent, "_emit_cost_event", lambda: None)
 
-        result = agent._turn_with_streaming({}, {"history": [], "system_prompt": "", "user_message": ""})
+        result = agent._turn_with_streaming(
+            {}, {"history": [], "system_prompt": "", "user_message": ""}
+        )
 
         assert result.output == "ok"
 
@@ -987,7 +1030,9 @@ class TestStreamingBranches:
 
         monkeypatch.setattr(queue.Queue, "get", fake_get)
 
-        result = agent._turn_with_streaming({}, {"history": [], "system_prompt": "", "user_message": ""})
+        result = agent._turn_with_streaming(
+            {}, {"history": [], "system_prompt": "", "user_message": ""}
+        )
 
         assert result.output == "ok"
 
@@ -1017,7 +1062,9 @@ class TestMockingAndHistory:
 
     def test_get_mock_response_temporal_index_and_non_dict(self, monkeypatch):
         temporal = ["raw", {"message": "second", "tool_calls": []}]
-        mock_config = types.SimpleNamespace(message="default", tool_calls=[], data={}, temporal=temporal)
+        mock_config = types.SimpleNamespace(
+            message="default", tool_calls=[], data={}, temporal=temporal
+        )
         registry = types.SimpleNamespace(agent_mocks={"agent": mock_config})
 
         agent = _make_agent(monkeypatch, registry=registry)
@@ -1028,7 +1075,9 @@ class TestMockingAndHistory:
 
     def test_get_mock_response_when_message_matches(self, monkeypatch):
         temporal = [{"when_message": "hi", "message": "matched", "tool_calls": []}]
-        mock_config = types.SimpleNamespace(message="default", tool_calls=[], data={}, temporal=temporal)
+        mock_config = types.SimpleNamespace(
+            message="default", tool_calls=[], data={}, temporal=temporal
+        )
         registry = types.SimpleNamespace(agent_mocks={"agent": mock_config})
 
         agent = _make_agent(monkeypatch, registry=registry)
@@ -1040,10 +1089,14 @@ class TestMockingAndHistory:
 
     def test_get_mock_response_with_output_schema_data(self, monkeypatch):
         temporal = [{"message": "hi", "tool_calls": [], "data": {"result": "ok"}}]
-        mock_config = types.SimpleNamespace(message="default", tool_calls=[], data={}, temporal=temporal)
+        mock_config = types.SimpleNamespace(
+            message="default", tool_calls=[], data={}, temporal=temporal
+        )
         registry = types.SimpleNamespace(agent_mocks={"agent": mock_config})
 
-        agent = _make_agent(monkeypatch, registry=registry, output_schema={"result": {"type": "string"}})
+        agent = _make_agent(
+            monkeypatch, registry=registry, output_schema={"result": {"type": "string"}}
+        )
         agent._turn_count = 1
 
         result = agent._get_mock_response({"message": "hi"})
@@ -1052,7 +1105,9 @@ class TestMockingAndHistory:
 
     def test_get_mock_response_index_overflow(self, monkeypatch):
         temporal = [{"message": "first", "tool_calls": []}]
-        mock_config = types.SimpleNamespace(message="default", tool_calls=[], data={}, temporal=temporal)
+        mock_config = types.SimpleNamespace(
+            message="default", tool_calls=[], data={}, temporal=temporal
+        )
         registry = types.SimpleNamespace(agent_mocks={"agent": mock_config})
 
         agent = _make_agent(monkeypatch, registry=registry)
@@ -1067,7 +1122,11 @@ class TestMockingAndHistory:
         registry = types.SimpleNamespace(agent_mocks={"agent": mock_config})
         agent = _make_agent(monkeypatch, registry=registry)
 
-        monkeypatch.setattr(agent, "_wrap_mock_response", lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("boom")))
+        monkeypatch.setattr(
+            agent,
+            "_wrap_mock_response",
+            lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("boom")),
+        )
 
         with pytest.raises(ValueError, match="boom"):
             agent._get_mock_response({})
@@ -1146,7 +1205,9 @@ class TestAgentUtilities:
         agent = _make_agent(monkeypatch)
         agent._add_usage_and_cost(
             UsageStats(prompt_tokens=1, completion_tokens=2, total_tokens=3),
-            CostStats(total_cost=1.2, prompt_cost=0.4, completion_cost=0.8, model="m", provider="p"),
+            CostStats(
+                total_cost=1.2, prompt_cost=0.4, completion_cost=0.8, model="m", provider="p"
+            ),
         )
 
         assert agent.usage.total_tokens == 3
@@ -1235,7 +1296,9 @@ class TestAgentUtilities:
             ]
 
         monkeypatch.setattr(dspy.settings, "lm", FakeLM())
-        monkeypatch.setattr("litellm.cost_calculator.cost_per_token", lambda *_args, **_kwargs: (0.1, 0.2))
+        monkeypatch.setattr(
+            "litellm.cost_calculator.cost_per_token", lambda *_args, **_kwargs: (0.1, 0.2)
+        )
 
         usage, cost = agent._extract_last_call_stats()
 
@@ -1319,7 +1382,7 @@ class TestAgentUtilities:
 
         class JsonPrediction:
             def data(self):
-                return {"response": "{\"ok\": true}"}
+                return {"response": '{"ok": true}'}
 
             @property
             def message(self):
@@ -1397,7 +1460,7 @@ class TestAgentUtilities:
             return types.SimpleNamespace(module=lambda **_kw: dspy.Prediction(response="ok"))
 
         monkeypatch.setattr("tactus.dspy.agent.create_module", fake_create_module)
-        agent = DSPyAgentHandle(name="agent", toolsets=[DummyToolset({})], model="openai/gpt-4o-mini")
+        DSPyAgentHandle(name="agent", toolsets=[DummyToolset({})], model="openai/gpt-4o-mini")
 
         assert "tools" in captured["signature"]
 

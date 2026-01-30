@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import tactus
 from tactus.ide import server as ide_server
 

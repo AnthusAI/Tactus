@@ -25,6 +25,7 @@ def test_inject_mocked_dependencies_no_dependencies(tmp_path):
     ctx = TactusTestContext(procedure_file=tmp_path / "proc.tac", mocked=True)
 
     ctx.runtime = SimpleNamespace(registry=SimpleNamespace(dependencies={}), user_dependencies=None)
+
     async def create_mock_dependencies(_deps):
         return {}
 

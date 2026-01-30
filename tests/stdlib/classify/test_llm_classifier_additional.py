@@ -1,5 +1,3 @@
-from types import SimpleNamespace
-
 import pytest
 
 from tactus.stdlib.classify.llm import LLMClassifier

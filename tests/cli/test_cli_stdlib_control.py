@@ -1,4 +1,3 @@
-from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -48,7 +47,10 @@ def test_stdlib_test_reports_failures(monkeypatch, tmp_path, cli_runner):
 
     registry = SimpleNamespace(gherkin_specifications="Feature: Demo", custom_steps={})
     result = SimpleNamespace(valid=True, errors=[], registry=registry)
-    monkeypatch.setattr("tactus.validation.TactusValidator", lambda: SimpleNamespace(validate_file=lambda path: result))
+    monkeypatch.setattr(
+        "tactus.validation.TactusValidator",
+        lambda: SimpleNamespace(validate_file=lambda path: result),
+    )
 
     class FakeRunner:
         def __init__(self, *args, **kwargs):
@@ -86,8 +88,13 @@ def test_stdlib_test_validation_failure(monkeypatch, tmp_path, cli_runner):
     monkeypatch.setattr(tactus, "__file__", str(fake_root / "__init__.py"))
 
     registry = SimpleNamespace(gherkin_specifications="Feature: Demo", custom_steps={})
-    result = SimpleNamespace(valid=False, errors=[SimpleNamespace(message="bad")], registry=registry)
-    monkeypatch.setattr("tactus.validation.TactusValidator", lambda: SimpleNamespace(validate_file=lambda path: result))
+    result = SimpleNamespace(
+        valid=False, errors=[SimpleNamespace(message="bad")], registry=registry
+    )
+    monkeypatch.setattr(
+        "tactus.validation.TactusValidator",
+        lambda: SimpleNamespace(validate_file=lambda path: result),
+    )
 
     result = cli_runner.invoke(cli_app.app, ["stdlib", "test"])
     assert result.exit_code == 1
@@ -105,7 +112,10 @@ def test_stdlib_test_no_specs(monkeypatch, tmp_path, cli_runner):
 
     registry = SimpleNamespace(gherkin_specifications=None, custom_steps={})
     result = SimpleNamespace(valid=True, errors=[], registry=registry)
-    monkeypatch.setattr("tactus.validation.TactusValidator", lambda: SimpleNamespace(validate_file=lambda path: result))
+    monkeypatch.setattr(
+        "tactus.validation.TactusValidator",
+        lambda: SimpleNamespace(validate_file=lambda path: result),
+    )
 
     result = cli_runner.invoke(cli_app.app, ["stdlib", "test"])
     assert result.exit_code == 0
@@ -123,7 +133,10 @@ def test_stdlib_test_success(monkeypatch, tmp_path, cli_runner):
 
     registry = SimpleNamespace(gherkin_specifications="Feature: Demo", custom_steps={})
     result = SimpleNamespace(valid=True, errors=[], registry=registry)
-    monkeypatch.setattr("tactus.validation.TactusValidator", lambda: SimpleNamespace(validate_file=lambda path: result))
+    monkeypatch.setattr(
+        "tactus.validation.TactusValidator",
+        lambda: SimpleNamespace(validate_file=lambda path: result),
+    )
 
     class FakeRunner:
         def __init__(self, *args, **kwargs):
@@ -162,7 +175,10 @@ def test_stdlib_test_runner_error_verbose(monkeypatch, tmp_path, cli_runner):
 
     registry = SimpleNamespace(gherkin_specifications="Feature: Demo", custom_steps={})
     result = SimpleNamespace(valid=True, errors=[], registry=registry)
-    monkeypatch.setattr("tactus.validation.TactusValidator", lambda: SimpleNamespace(validate_file=lambda path: result))
+    monkeypatch.setattr(
+        "tactus.validation.TactusValidator",
+        lambda: SimpleNamespace(validate_file=lambda path: result),
+    )
 
     class FakeRunner:
         def __init__(self, *args, **kwargs):

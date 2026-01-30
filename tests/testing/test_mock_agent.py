@@ -95,6 +95,8 @@ def test_mock_agent_tool_call_errors_are_handled():
 
 
 def test_mock_agent_result_lua_conversion():
-    result = MockAgentResult(message="hi", new_messages=[{"role": "user"}], lua_table_from=lambda x: ["ok"])
+    result = MockAgentResult(
+        message="hi", new_messages=[{"role": "user"}], lua_table_from=lambda x: ["ok"]
+    )
 
     assert result.new_messages() == ["ok"]

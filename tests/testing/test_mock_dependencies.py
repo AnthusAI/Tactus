@@ -2,11 +2,16 @@
 
 import asyncio
 
-from tactus.testing.mock_dependencies import MockHTTPClient, MockDatabase, MockRedis, MockDependencyFactory
+from tactus.testing.mock_dependencies import (
+    MockHTTPClient,
+    MockDatabase,
+    MockRedis,
+    MockDependencyFactory,
+)
 
 
 def test_mock_http_client_get_and_post():
-    client = MockHTTPClient({"/path": "{\"ok\": true}"})
+    client = MockHTTPClient({"/path": '{"ok": true}'})
 
     response = asyncio.run(client.get("/path"))
     assert response.status_code == 200

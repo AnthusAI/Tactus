@@ -1,10 +1,9 @@
-import asyncio
 import os
 
 import pytest
 
 from tactus.core import runtime as runtime_module
-from tactus.core.exceptions import ProcedureWaitingForHuman, TactusRuntimeError
+from tactus.core.exceptions import ProcedureWaitingForHuman
 from tactus.core.output_validator import OutputValidationError
 
 
@@ -322,7 +321,9 @@ async def test_execute_config_error(monkeypatch, tmp_path):
     monkeypatch.setattr(runtime_module, "LuaSandbox", DummyLuaSandbox)
     monkeypatch.setattr(runtime_module, "BaseExecutionContext", DummyExecutionContext)
     monkeypatch.setattr(
-        runtime, "_parse_declarations", lambda *_args, **_kwargs: (_ for _ in ()).throw(runtime_module.ProcedureConfigError("bad"))
+        runtime,
+        "_parse_declarations",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(runtime_module.ProcedureConfigError("bad")),
     )
 
     result = await runtime.execute("return {}", context=None, format="lua")
@@ -343,7 +344,9 @@ async def test_execute_lua_error(monkeypatch, tmp_path):
     monkeypatch.setattr(runtime_module, "LuaSandbox", DummyLuaSandbox)
     monkeypatch.setattr(runtime_module, "BaseExecutionContext", DummyExecutionContext)
     monkeypatch.setattr(runtime, "_parse_declarations", lambda *_args, **_kwargs: DummyRegistry())
-    monkeypatch.setattr(runtime, "_registry_to_config", lambda _registry: {"output": {}, "error_prompt": "oops"})
+    monkeypatch.setattr(
+        runtime, "_registry_to_config", lambda _registry: {"output": {}, "error_prompt": "oops"}
+    )
     monkeypatch.setattr(runtime, "_initialize_primitives", _noop_async)
     monkeypatch.setattr(runtime, "_initialize_toolsets", _noop_async)
     monkeypatch.setattr(runtime, "_initialize_named_procedures", _noop_async)
@@ -351,7 +354,9 @@ async def test_execute_lua_error(monkeypatch, tmp_path):
     monkeypatch.setattr(runtime, "_setup_models", _noop_async)
     monkeypatch.setattr(runtime, "_inject_primitives", lambda: None)
     monkeypatch.setattr(
-        runtime, "_execute_workflow", lambda: (_ for _ in ()).throw(runtime_module.LuaSandboxError("fail"))
+        runtime,
+        "_execute_workflow",
+        lambda: (_ for _ in ()).throw(runtime_module.LuaSandboxError("fail")),
     )
 
     result = await runtime.execute("return {}", context=None, format="lua")
@@ -588,7 +593,9 @@ async def test_execute_config_error_flushes_and_logs(monkeypatch, tmp_path):
     monkeypatch.setattr(runtime_module, "LuaSandbox", DummyLuaSandbox)
     monkeypatch.setattr(runtime_module, "BaseExecutionContext", DummyExecutionContext)
     monkeypatch.setattr(
-        runtime, "_parse_declarations", lambda *_args, **_kwargs: (_ for _ in ()).throw(runtime_module.ProcedureConfigError("bad"))
+        runtime,
+        "_parse_declarations",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(runtime_module.ProcedureConfigError("bad")),
     )
 
     result = await runtime.execute("return {}", context=None, format="lua")
@@ -623,7 +630,9 @@ async def test_execute_config_error_after_session(monkeypatch, tmp_path):
     monkeypatch.setattr(runtime, "_setup_models", _noop_async)
     monkeypatch.setattr(runtime, "_inject_primitives", lambda: None)
     monkeypatch.setattr(
-        runtime, "_execute_workflow", lambda: (_ for _ in ()).throw(runtime_module.ProcedureConfigError("bad"))
+        runtime,
+        "_execute_workflow",
+        lambda: (_ for _ in ()).throw(runtime_module.ProcedureConfigError("bad")),
     )
 
     result = await runtime.execute("return {}", context=None, format="lua")
@@ -649,7 +658,9 @@ async def test_execute_lua_error_flushes_and_logs(monkeypatch, tmp_path):
     monkeypatch.setattr(runtime_module, "LuaSandbox", DummyLuaSandbox)
     monkeypatch.setattr(runtime_module, "BaseExecutionContext", DummyExecutionContext)
     monkeypatch.setattr(runtime, "_parse_declarations", lambda *_args, **_kwargs: DummyRegistry())
-    monkeypatch.setattr(runtime, "_registry_to_config", lambda _registry: {"output": {}, "error_prompt": "oops"})
+    monkeypatch.setattr(
+        runtime, "_registry_to_config", lambda _registry: {"output": {}, "error_prompt": "oops"}
+    )
     monkeypatch.setattr(runtime, "_initialize_primitives", _noop_async)
     monkeypatch.setattr(runtime, "_initialize_toolsets", _noop_async)
     monkeypatch.setattr(runtime, "_initialize_named_procedures", _noop_async)
@@ -657,7 +668,9 @@ async def test_execute_lua_error_flushes_and_logs(monkeypatch, tmp_path):
     monkeypatch.setattr(runtime, "_setup_models", _noop_async)
     monkeypatch.setattr(runtime, "_inject_primitives", lambda: None)
     monkeypatch.setattr(
-        runtime, "_execute_workflow", lambda: (_ for _ in ()).throw(runtime_module.LuaSandboxError("fail"))
+        runtime,
+        "_execute_workflow",
+        lambda: (_ for _ in ()).throw(runtime_module.LuaSandboxError("fail")),
     )
 
     result = await runtime.execute("return {}", context=None, format="lua")
@@ -683,14 +696,18 @@ async def test_execute_unexpected_error_with_prompt(monkeypatch, tmp_path):
     monkeypatch.setattr(runtime_module, "LuaSandbox", DummyLuaSandbox)
     monkeypatch.setattr(runtime_module, "BaseExecutionContext", DummyExecutionContext)
     monkeypatch.setattr(runtime, "_parse_declarations", lambda *_args, **_kwargs: DummyRegistry())
-    monkeypatch.setattr(runtime, "_registry_to_config", lambda _registry: {"output": {}, "error_prompt": "oops"})
+    monkeypatch.setattr(
+        runtime, "_registry_to_config", lambda _registry: {"output": {}, "error_prompt": "oops"}
+    )
     monkeypatch.setattr(runtime, "_initialize_primitives", _noop_async)
     monkeypatch.setattr(runtime, "_initialize_toolsets", _noop_async)
     monkeypatch.setattr(runtime, "_initialize_named_procedures", _noop_async)
     monkeypatch.setattr(runtime, "_setup_agents", _noop_async)
     monkeypatch.setattr(runtime, "_setup_models", _noop_async)
     monkeypatch.setattr(runtime, "_inject_primitives", lambda: None)
-    monkeypatch.setattr(runtime, "_execute_workflow", lambda: (_ for _ in ()).throw(RuntimeError("boom")))
+    monkeypatch.setattr(
+        runtime, "_execute_workflow", lambda: (_ for _ in ()).throw(RuntimeError("boom"))
+    )
 
     result = await runtime.execute("return {}", context=None, format="lua")
 

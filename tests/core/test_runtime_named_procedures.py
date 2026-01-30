@@ -44,7 +44,9 @@ async def test_initialize_named_procedures_updates_stub(monkeypatch):
     stub = type("Stub", (), {"registry": {}})()
     runtime.lua_sandbox.lua.globals()["do_work"] = stub
 
-    monkeypatch.setattr("tactus.primitives.procedure_callable.ProcedureCallable", DummyProcedureCallable)
+    monkeypatch.setattr(
+        "tactus.primitives.procedure_callable.ProcedureCallable", DummyProcedureCallable
+    )
 
     await runtime._initialize_named_procedures()
 
@@ -72,7 +74,9 @@ async def test_initialize_named_procedures_without_stub(monkeypatch):
     runtime.lua_sandbox = DummyLuaSandbox()
     runtime.execution_context = object()
 
-    monkeypatch.setattr("tactus.primitives.procedure_callable.ProcedureCallable", DummyProcedureCallable)
+    monkeypatch.setattr(
+        "tactus.primitives.procedure_callable.ProcedureCallable", DummyProcedureCallable
+    )
 
     await runtime._initialize_named_procedures()
 

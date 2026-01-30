@@ -204,6 +204,7 @@ def test_get_field_description_returns_none_for_non_dict_schema():
     validator = OutputValidator({"name": "desc"})
     assert validator.get_field_description("name") is None
 
+
 def test_validate_wrapped_result_preserves_wrapper():
     from tactus.protocols.result import TactusResult
 

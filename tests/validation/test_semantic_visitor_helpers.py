@@ -79,13 +79,19 @@ def test_extract_literal_value_variants():
 
     assert visitor._extract_literal_value(FakeExp(string_ctx=FakeStringCtx('"hi"'))) == "hi"
     assert visitor._extract_literal_value(FakeExp(string_ctx=FakeStringCtx("'hi'"))) == "hi"
-    assert visitor._extract_literal_value(FakeExp(string_ctx=FakeStringCtx("'hi'", kind="char"))) == "hi"
+    assert (
+        visitor._extract_literal_value(FakeExp(string_ctx=FakeStringCtx("'hi'", kind="char")))
+        == "hi"
+    )
     assert (
         visitor._extract_literal_value(FakeExp(string_ctx=FakeStringCtx('"hi"', kind="char")))
         == "hi"
     )
     assert visitor._extract_literal_value(FakeExp(number_ctx=FakeNumberCtx("7"))) == 7
-    assert visitor._extract_literal_value(FakeExp(number_ctx=FakeNumberCtx("3.5", is_int=False))) == 3.5
+    assert (
+        visitor._extract_literal_value(FakeExp(number_ctx=FakeNumberCtx("3.5", is_int=False)))
+        == 3.5
+    )
     assert visitor._extract_literal_value(FakeExp(text="true")) is True
     assert visitor._extract_literal_value(FakeExp(text="false")) is False
     assert visitor._extract_literal_value(FakeExp(text="nil")) is None
@@ -134,6 +140,27 @@ def test_extract_function_name_from_terminal_child():
             return None
 
     assert visitor._extract_function_name(FakeCtx()) == "Toolset"
+
+
+def test_extract_function_name_returns_none_without_name():
+    visitor = TactusDSLVisitor()
+
+    class FakeVar:
+        def NAME(self):
+            return None
+
+    class FakeVarOrExp:
+        def var(self):
+            return FakeVar()
+
+    class FakeCtx:
+        def getChildCount(self):
+            return 0
+
+        def varOrExp(self):
+            return FakeVarOrExp()
+
+    assert visitor._extract_function_name(FakeCtx()) is None
 
 
 def test_extract_single_table_arg_returns_empty_for_no_args():

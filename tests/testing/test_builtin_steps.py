@@ -256,10 +256,10 @@ def test_agent_and_regex_steps():
     step_agent_takes_turn(ctx, "agent")
     assert ctx._ran is True
 
-    step_mock_agent_responds_with(ctx, "agent", "\"hi\"")
-    step_set_scenario_message(ctx, "\"hello\"")
-    step_mock_agent_calls_tool_with_args(ctx, "agent", "done", "{\"ok\": True}")
-    step_mock_agent_returns_data(ctx, "agent", "{\"value\": 1}")
+    step_mock_agent_responds_with(ctx, "agent", '"hi"')
+    step_set_scenario_message(ctx, '"hello"')
+    step_mock_agent_calls_tool_with_args(ctx, "agent", "done", '{"ok": True}')
+    step_mock_agent_returns_data(ctx, "agent", '{"value": 1}')
 
     step_output_matches_pattern(ctx, "text", "he.*")
     step_state_matches_pattern(ctx, "status", "o.*")

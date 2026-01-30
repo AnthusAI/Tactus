@@ -26,11 +26,7 @@ def test_register_conditional_mock():
     manager = MockManager()
     manager.register_mock(
         "tool",
-        {
-            "conditional_mocks": [
-                {"when": {"query": "contains:hello"}, "return": "hit"}
-            ]
-        },
+        {"conditional_mocks": [{"when": {"query": "contains:hello"}, "return": "hit"}]},
     )
 
     assert manager.get_mock_response("tool", {"query": "hello world"}) == "hit"
@@ -60,11 +56,7 @@ def test_register_conditional_exact_and_non_string():
     manager = MockManager()
     manager.register_mock(
         "tool",
-        {
-            "conditional_mocks": [
-                {"when": {"mode": "fast", "count": 2}, "return": "hit"}
-            ]
-        },
+        {"conditional_mocks": [{"when": {"mode": "fast", "count": 2}, "return": "hit"}]},
     )
 
     assert manager.get_mock_response("tool", {"mode": "fast", "count": 2}) == "hit"
@@ -126,8 +118,6 @@ def test_temporal_mock_falls_back_to_last():
 
 def test_disabled_mock_config_returns_none():
     manager = MockManager()
-    manager.register_mock(
-        "tool", MockConfig(tool_name="tool", static_result="ok", enabled=False)
-    )
+    manager.register_mock("tool", MockConfig(tool_name="tool", static_result="ok", enabled=False))
 
     assert manager.get_mock_response("tool", {}) is None

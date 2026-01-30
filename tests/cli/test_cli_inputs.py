@@ -347,9 +347,7 @@ class TestCLIParamParsing:
 
 
 def test_prompt_for_inputs_enum(monkeypatch):
-    input_schema = {
-        "status": {"type": "string", "enum": ["active", "inactive"], "required": True}
-    }
+    input_schema = {"status": {"type": "string", "enum": ["active", "inactive"], "required": True}}
     provided = {}
     answers = iter(["2"])
 

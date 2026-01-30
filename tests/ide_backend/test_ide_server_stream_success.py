@@ -109,7 +109,10 @@ def test_test_stream_success(monkeypatch, tmp_path):
     file_path.write_text("content")
 
     monkeypatch.setattr(ide_server, "WORKSPACE_ROOT", str(workspace))
-    monkeypatch.setattr("tactus.validation.TactusValidator", lambda: SimpleNamespace(validate_file=lambda _path: _fake_validator()))
+    monkeypatch.setattr(
+        "tactus.validation.TactusValidator",
+        lambda: SimpleNamespace(validate_file=lambda _path: _fake_validator()),
+    )
     monkeypatch.setattr("tactus.testing.TactusTestRunner", FakeTestRunner)
     monkeypatch.setattr("tactus.testing.GherkinParser", FakeParser)
 
@@ -119,9 +122,9 @@ def test_test_stream_success(monkeypatch, tmp_path):
     response = client.get("/api/test/stream", query_string={"path": "sample.tac"})
     data = response.data.decode("utf-8")
 
-    assert "\"event_type\": \"test_started\"" in data
-    assert "\"event_type\": \"test_completed\"" in data
-    assert "\"scenario_name\": \"Scenario A\"" in data
+    assert '"event_type": "test_started"' in data
+    assert '"event_type": "test_completed"' in data
+    assert '"scenario_name": "Scenario A"' in data
 
 
 def test_evaluate_stream_success(monkeypatch, tmp_path):
@@ -131,7 +134,10 @@ def test_evaluate_stream_success(monkeypatch, tmp_path):
     file_path.write_text("content")
 
     monkeypatch.setattr(ide_server, "WORKSPACE_ROOT", str(workspace))
-    monkeypatch.setattr("tactus.validation.TactusValidator", lambda: SimpleNamespace(validate_file=lambda _path: _fake_validator()))
+    monkeypatch.setattr(
+        "tactus.validation.TactusValidator",
+        lambda: SimpleNamespace(validate_file=lambda _path: _fake_validator()),
+    )
     monkeypatch.setattr("tactus.testing.TactusEvaluationRunner", FakeEvaluationRunner)
     monkeypatch.setattr("tactus.testing.GherkinParser", FakeParser)
 
@@ -141,9 +147,9 @@ def test_evaluate_stream_success(monkeypatch, tmp_path):
     response = client.get("/api/evaluate/stream", query_string={"path": "sample.tac"})
     data = response.data.decode("utf-8")
 
-    assert "\"event_type\": \"evaluation_started\"" in data
-    assert "\"event_type\": \"evaluation_completed\"" in data
-    assert "\"scenario_name\": \"Scenario A\"" in data
+    assert '"event_type": "evaluation_started"' in data
+    assert '"event_type": "evaluation_completed"' in data
+    assert '"scenario_name": "Scenario A"' in data
 
 
 def test_pydantic_eval_stream_success(monkeypatch, tmp_path):
@@ -204,12 +210,16 @@ def test_pydantic_eval_stream_success(monkeypatch, tmp_path):
     monkeypatch.setattr(ide_server, "WORKSPACE_ROOT", str(workspace))
     monkeypatch.setattr(
         "tactus.validation.TactusValidator",
-        lambda: SimpleNamespace(validate_file=lambda _path: SimpleNamespace(valid=True, errors=[], registry=registry)),
+        lambda: SimpleNamespace(
+            validate_file=lambda _path: SimpleNamespace(valid=True, errors=[], registry=registry)
+        ),
     )
     monkeypatch.setattr(
         ide_server,
         "TactusValidator",
-        lambda: SimpleNamespace(validate_file=lambda _path: SimpleNamespace(valid=True, errors=[], registry=registry)),
+        lambda: SimpleNamespace(
+            validate_file=lambda _path: SimpleNamespace(valid=True, errors=[], registry=registry)
+        ),
     )
     monkeypatch.setattr("tactus.testing.pydantic_eval_runner.TactusPydanticEvalRunner", FakeRunner)
     monkeypatch.setattr("tactus.testing.eval_models.EvaluationConfig", EvaluationConfig)
@@ -223,5 +233,5 @@ def test_pydantic_eval_stream_success(monkeypatch, tmp_path):
     response = client.get("/api/pydantic-eval/stream", query_string={"path": "eval.tac"})
     data = response.data.decode("utf-8")
 
-    assert "\"type\": \"pydantic_eval\"" in data
-    assert "\"lifecycle_stage\": \"complete\"" in data
+    assert '"type": "pydantic_eval"' in data
+    assert '"lifecycle_stage": "complete"' in data

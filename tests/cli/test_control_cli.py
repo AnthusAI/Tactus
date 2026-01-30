@@ -320,11 +320,7 @@ def test_handle_list_response_with_requests():
     cli.console = Console(file=console_output, force_terminal=False)
 
     cli._handle_list_response(
-        {
-            "requests": [
-                {"request_id": "abc12345", "request_type": "input", "message": "hello"}
-            ]
-        }
+        {"requests": [{"request_id": "abc12345", "request_type": "input", "message": "hello"}]}
     )
 
     assert "Pending Requests" in console_output.getvalue()

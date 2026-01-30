@@ -14,7 +14,9 @@ def test_fuzzy_import_error_falls_back():
             raise ImportError("missing")
         return real_import(name, *args, **kwargs)
 
-    spec = importlib.util.spec_from_file_location("tactus.stdlib.classify.fuzzy_missing", fuzzy.__file__)
+    spec = importlib.util.spec_from_file_location(
+        "tactus.stdlib.classify.fuzzy_missing", fuzzy.__file__
+    )
     module = importlib.util.module_from_spec(spec)
     try:
         builtins.__import__ = fake_import

@@ -19,7 +19,9 @@ class FakeRuntime:
         self.tool_primitive = None
         self.mcp_manager = None
         if mcp_toolset is not None:
-            self.mcp_manager = type("MCP", (), {"get_toolset_by_name": lambda self, name: mcp_toolset})()
+            self.mcp_manager = type(
+                "MCP", (), {"get_toolset_by_name": lambda self, name: mcp_toolset}
+            )()
 
     def resolve_toolset(self, name):
         return self._resolved

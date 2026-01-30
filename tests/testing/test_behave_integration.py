@@ -39,7 +39,9 @@ def test_feature_generator_writes_tags_and_steps(tmp_path):
 
 def test_steps_generator_writes_wrapper(tmp_path):
     registry = StepRegistry()
-    registry.register(r"the output (?P<key>\\w+) should be (?P<value>.+)", lambda *args, **kwargs: None)
+    registry.register(
+        r"the output (?P<key>\\w+) should be (?P<value>.+)", lambda *args, **kwargs: None
+    )
     custom = CustomStepManager()
 
     gen = BehaveStepsGenerator()

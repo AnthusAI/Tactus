@@ -1,6 +1,4 @@
-import json
 from pathlib import Path
-from types import SimpleNamespace
 
 from tactus.ide import server as ide_server
 
@@ -58,7 +56,10 @@ def test_lsp_notification_did_change_and_close(monkeypatch):
 
     response = client.post(
         "/api/lsp/notification",
-        json={"method": "textDocument/didClose", "params": {"textDocument": {"uri": "file://demo"}}},
+        json={
+            "method": "textDocument/didClose",
+            "params": {"textDocument": {"uri": "file://demo"}},
+        },
     )
     assert response.status_code == 200
     assert captured["closed"] == "file://demo"
@@ -75,7 +76,7 @@ def test_hitl_stream_emits_connection_event(monkeypatch):
 
     response = client.get("/api/hitl/stream")
     chunk = next(response.response).decode("utf-8")
-    assert "\"type\": \"connection\"" in chunk
+    assert '"type": "connection"' in chunk
 
 
 def test_chat_reset_without_assistant(monkeypatch):

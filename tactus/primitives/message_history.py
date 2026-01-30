@@ -155,8 +155,7 @@ class MessageHistoryPrimitive:
 
         normalized = self._normalize_messages(messages)
         normalized = [
-            self.message_history_manager._ensure_message_metadata(msg)
-            for msg in normalized
+            self.message_history_manager._ensure_message_metadata(msg) for msg in normalized
         ]
 
         if self.agent_name:

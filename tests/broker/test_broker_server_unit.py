@@ -312,7 +312,10 @@ async def test_handle_llm_chat_streaming_chunks():
         async def chat(self, **kwargs):
             async def gen():
                 for token in ["a", "b"]:
-                    yield SimpleNamespace(choices=[SimpleNamespace(delta=SimpleNamespace(content=token))])
+                    yield SimpleNamespace(
+                        choices=[SimpleNamespace(delta=SimpleNamespace(content=token))]
+                    )
+
             return gen()
 
     server = _BaseBrokerServer(openai_backend=FakeBackend())

@@ -208,7 +208,9 @@ async def test_adapter_tool_wrapper_handles_call_method_and_scalar_result():
             return 123
 
     adapter = PydanticAIMCPAdapter(DummyClient())
-    tool = adapter._convert_mcp_tool_to_pydantic_ai({"name": "call", "inputSchema": {"type": "object"}})
+    tool = adapter._convert_mcp_tool_to_pydantic_ai(
+        {"name": "call", "inputSchema": {"type": "object"}}
+    )
     args_model = tool.function.__annotations__["args"]
     result = await tool.function(args_model())
 
@@ -275,7 +277,9 @@ async def test_adapter_tool_wrapper_uses_dict_args():
             return {"x": "1"}
 
     adapter = PydanticAIMCPAdapter(DummyClient())
-    tool = adapter._convert_mcp_tool_to_pydantic_ai({"name": "dict", "inputSchema": {"type": "object"}})
+    tool = adapter._convert_mcp_tool_to_pydantic_ai(
+        {"name": "dict", "inputSchema": {"type": "object"}}
+    )
     result = await tool.function(Args())
 
     assert result == "ok"
@@ -296,7 +300,9 @@ async def test_adapter_tool_wrapper_uses_iterable_args():
             return {"x": "1"}
 
     adapter = PydanticAIMCPAdapter(DummyClient())
-    tool = adapter._convert_mcp_tool_to_pydantic_ai({"name": "iter", "inputSchema": {"type": "object"}})
+    tool = adapter._convert_mcp_tool_to_pydantic_ai(
+        {"name": "iter", "inputSchema": {"type": "object"}}
+    )
     result = await tool.function(Args())
 
     assert result == "ok"

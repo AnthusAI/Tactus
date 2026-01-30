@@ -183,13 +183,15 @@ async def test_anyio_llm_chat_streaming_with_tool_calls():
                     (),
                     {
                         "content": "hi",
-                        "tool_calls": [DummyDeltaCall(0, tool_id="t1", tool_type="function", name="tool")],
+                        "tool_calls": [
+                            DummyDeltaCall(0, tool_id="t1", tool_type="function", name="tool")
+                        ],
                     },
                 )()
                 delta_2 = type(
                     "Delta",
                     (),
-                    {"content": "!", "tool_calls": [DummyDeltaCall(0, arguments="{\"x\":1}")]},
+                    {"content": "!", "tool_calls": [DummyDeltaCall(0, arguments='{"x":1}')]},
                 )()
                 for delta in [delta_1, delta_2]:
                     yield type("Chunk", (), {"choices": [type("Choice", (), {"delta": delta})()]})()

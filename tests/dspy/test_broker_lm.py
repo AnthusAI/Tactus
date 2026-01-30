@@ -249,7 +249,9 @@ async def test_brokered_lm_streaming_non_dict_choice(monkeypatch):
     def fake_stream_chunk_builder(_chunks):
         return DummyResponse([DummyChoice(DummyMessage("Howdy"))])
 
-    monkeypatch.setattr("tactus.dspy.broker_lm.litellm.stream_chunk_builder", fake_stream_chunk_builder)
+    monkeypatch.setattr(
+        "tactus.dspy.broker_lm.litellm.stream_chunk_builder", fake_stream_chunk_builder
+    )
 
     stream = DummyStream()
     lm = BrokeredLM(model="openai/gpt-4o", socket_path="sock")
@@ -274,7 +276,9 @@ async def test_brokered_lm_streaming_without_choices(monkeypatch):
     def fake_stream_chunk_builder(_chunks):
         return DummyResponse()
 
-    monkeypatch.setattr("tactus.dspy.broker_lm.litellm.stream_chunk_builder", fake_stream_chunk_builder)
+    monkeypatch.setattr(
+        "tactus.dspy.broker_lm.litellm.stream_chunk_builder", fake_stream_chunk_builder
+    )
 
     stream = DummyStream()
     lm = BrokeredLM(model="openai/gpt-4o", socket_path="sock")
@@ -304,7 +308,9 @@ async def test_brokered_lm_streaming_missing_message(monkeypatch):
     def fake_stream_chunk_builder(_chunks):
         return DummyResponse()
 
-    monkeypatch.setattr("tactus.dspy.broker_lm.litellm.stream_chunk_builder", fake_stream_chunk_builder)
+    monkeypatch.setattr(
+        "tactus.dspy.broker_lm.litellm.stream_chunk_builder", fake_stream_chunk_builder
+    )
 
     stream = DummyStream()
     lm = BrokeredLM(model="openai/gpt-4o", socket_path="sock")

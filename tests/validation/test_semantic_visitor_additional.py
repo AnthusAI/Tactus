@@ -1,5 +1,3 @@
-import pytest
-
 from tactus.validation.validator import TactusValidator, ValidationMode
 
 

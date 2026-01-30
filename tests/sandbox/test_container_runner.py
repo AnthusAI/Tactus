@@ -8,7 +8,7 @@ import pytest
 from tactus.broker.stdio import STDIO_TRANSPORT_VALUE
 from tactus.sandbox.config import SandboxConfig
 from tactus.sandbox import container_runner as container_runner_module
-from tactus.sandbox.container_runner import ContainerRunner, SandboxError
+from tactus.sandbox.container_runner import ContainerRunner
 from tactus.sandbox.protocol import ExecutionRequest, ExecutionResult, ExecutionStatus
 
 
@@ -221,9 +221,7 @@ def test_find_tactus_source_dir_env_and_cwd(tmp_path: Path, monkeypatch) -> None
     (repo / "tactus").mkdir(parents=True)
     (repo / "pyproject.toml").write_text("x")
 
-    monkeypatch.setattr(
-        container_runner_module.os, "environ", {"TACTUS_DEV_PATH": str(Path.cwd())}
-    )
+    monkeypatch.setattr(container_runner_module.os, "environ", {"TACTUS_DEV_PATH": str(Path.cwd())})
     runner = ContainerRunner(SandboxConfig(dev_mode=True))
     assert runner._find_tactus_source_dir() == Path.cwd()
 
@@ -356,6 +354,7 @@ async def test_run_tcp_broker_serve_error_is_ignored(monkeypatch) -> None:
     monkeypatch.setattr("tactus.broker.server.OpenAIChatBackend", lambda api_key=None: object())
     monkeypatch.setattr(runner, "_ensure_sandbox_up_to_date", lambda **_kwargs: None)
     monkeypatch.setattr(runner, "_build_docker_command", lambda **_kwargs: ["docker"])
+
     async def fake_run_container(*_args, **_kwargs):
         await asyncio.sleep(0)
         return ExecutionResult.success(result={"ok": True})
@@ -461,7 +460,10 @@ async def test_run_copies_source_dir_into_temp_workspace(monkeypatch, tmp_path: 
     monkeypatch.setattr(runner, "_build_docker_command", lambda **_kwargs: ["docker"])
     monkeypatch.setattr(runner, "_run_container", fake_run_container)
 
-    result = await runner.run(source="main = Procedure { function() end }", source_file_path=str(src_dir / "procedure.tac"))
+    result = await runner.run(
+        source="main = Procedure { function() end }",
+        source_file_path=str(src_dir / "procedure.tac"),
+    )
 
     assert result.status.value == "success"
 
@@ -534,10 +536,18 @@ def test_ensure_sandbox_up_to_date_rebuild_success(monkeypatch, tmp_path: Path) 
     runner = ContainerRunner(SandboxConfig())
     monkeypatch.setenv("TACTUS_AUTO_REBUILD_SANDBOX", "true")
 
-    monkeypatch.setattr("tactus.sandbox.container_runner.resolve_dockerfile_path", lambda root: (tmp_path / "Dockerfile", "source"))
-    monkeypatch.setattr("tactus.sandbox.container_runner.calculate_source_hash", lambda root: "hash")
+    monkeypatch.setattr(
+        "tactus.sandbox.container_runner.resolve_dockerfile_path",
+        lambda root: (tmp_path / "Dockerfile", "source"),
+    )
+    monkeypatch.setattr(
+        "tactus.sandbox.container_runner.calculate_source_hash", lambda root: "hash"
+    )
     monkeypatch.setattr("tactus.sandbox.container_runner.Path", Path)
-    monkeypatch.setattr("tactus.sandbox.container_runner.__file__", str(tmp_path / "tactus" / "sandbox" / "container_runner.py"))
+    monkeypatch.setattr(
+        "tactus.sandbox.container_runner.__file__",
+        str(tmp_path / "tactus" / "sandbox" / "container_runner.py"),
+    )
     monkeypatch.setattr(runner.docker_manager, "needs_rebuild", lambda version, current_hash: True)
     monkeypatch.setattr(runner.docker_manager, "build_image", lambda **kwargs: (True, "ok"))
 
@@ -548,10 +558,18 @@ def test_ensure_sandbox_up_to_date_rebuild_failure(monkeypatch, tmp_path: Path) 
     runner = ContainerRunner(SandboxConfig())
     monkeypatch.setenv("TACTUS_AUTO_REBUILD_SANDBOX", "true")
 
-    monkeypatch.setattr("tactus.sandbox.container_runner.resolve_dockerfile_path", lambda root: (tmp_path / "Dockerfile", "source"))
-    monkeypatch.setattr("tactus.sandbox.container_runner.calculate_source_hash", lambda root: "hash")
+    monkeypatch.setattr(
+        "tactus.sandbox.container_runner.resolve_dockerfile_path",
+        lambda root: (tmp_path / "Dockerfile", "source"),
+    )
+    monkeypatch.setattr(
+        "tactus.sandbox.container_runner.calculate_source_hash", lambda root: "hash"
+    )
     monkeypatch.setattr("tactus.sandbox.container_runner.Path", Path)
-    monkeypatch.setattr("tactus.sandbox.container_runner.__file__", str(tmp_path / "tactus" / "sandbox" / "container_runner.py"))
+    monkeypatch.setattr(
+        "tactus.sandbox.container_runner.__file__",
+        str(tmp_path / "tactus" / "sandbox" / "container_runner.py"),
+    )
     monkeypatch.setattr(runner.docker_manager, "needs_rebuild", lambda version, current_hash: True)
     monkeypatch.setattr(runner.docker_manager, "build_image", lambda **kwargs: (False, "nope"))
 
@@ -754,7 +772,11 @@ async def test_run_cleans_up_temp_dir_failure(monkeypatch, tmp_path: Path):
     monkeypatch.setattr(container_runner_module.tempfile, "mkdtemp", lambda prefix: str(temp_dir))
     monkeypatch.setattr(runner, "_build_docker_command", lambda **_kwargs: ["docker"])
     monkeypatch.setattr(runner, "_run_container", fake_run_container)
-    monkeypatch.setattr(container_runner_module.shutil, "rmtree", lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("boom")))
+    monkeypatch.setattr(
+        container_runner_module.shutil,
+        "rmtree",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("boom")),
+    )
 
     result = await runner.run(source="main = Procedure { function() end }")
 

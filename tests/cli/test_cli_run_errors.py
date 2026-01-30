@@ -26,9 +26,7 @@ def minimal_workflow_file(tmp_path):
 
 
 def test_cli_run_rejects_bad_param_format(cli_runner, minimal_workflow_file):
-    result = cli_runner.invoke(
-        app, ["run", str(minimal_workflow_file), "--param", "not-a-pair"]
-    )
+    result = cli_runner.invoke(app, ["run", str(minimal_workflow_file), "--param", "not-a-pair"])
     assert result.exit_code == 1
     assert "expected key=value" in result.stdout.lower()
 

@@ -74,6 +74,7 @@ async def test_run_async_with_running_loop_and_nest_asyncio(monkeypatch):
             return loop
 
     monkeypatch.setitem(sys.modules, "nest_asyncio", DummyNest)
+
     def fake_run(coro):
         coro.close()
         return "done"

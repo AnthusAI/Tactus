@@ -6,7 +6,7 @@ from tactus.core.registry import ValidationMessage
 
 BACKEND_PATH = Path(__file__).resolve().parents[2] / "tactus-ide" / "backend"
 sys.path.insert(0, str(BACKEND_PATH))
-from tactus_lsp_handler import TactusLSPHandler
+from tactus_lsp_handler import TactusLSPHandler  # noqa: E402
 
 
 def test_validate_document_records_registry_and_diagnostics(monkeypatch):
@@ -87,9 +87,7 @@ def test_completions_and_hover_include_registry_data():
     registry = SimpleNamespace(
         agents={"agentA": SimpleNamespace(provider="openai", model="gpt")},
         parameters={
-            "paramA": SimpleNamespace(
-                parameter_type=SimpleNamespace(value="string"), default="x"
-            )
+            "paramA": SimpleNamespace(parameter_type=SimpleNamespace(value="string"), default="x")
         },
         outputs={
             "outA": SimpleNamespace(field_type=SimpleNamespace(value="string"), required=True)

@@ -1,7 +1,5 @@
 """BDD steps for IDE chat API."""
 
-import asyncio
-import json
 import sys
 from pathlib import Path
 from unittest import mock
@@ -60,7 +58,9 @@ def step_create_client(context):
 
 @when("I start a chat conversation")
 def step_start_chat(context):
-    with mock.patch.object(chat_server, "get_or_create_service", return_value=FakeService("/tmp", {})):
+    with mock.patch.object(
+        chat_server, "get_or_create_service", return_value=FakeService("/tmp", {})
+    ):
         with mock.patch("chat_server.uuid.uuid4", return_value="test-conv"):
             response = context.client.post(
                 "/api/chat/start",
@@ -120,7 +120,9 @@ def step_verify_history(context):
 
 @when("I resume a chat conversation")
 def step_resume_chat(context):
-    with mock.patch.object(chat_server, "get_or_create_service", return_value=FakeService("/tmp", {})):
+    with mock.patch.object(
+        chat_server, "get_or_create_service", return_value=FakeService("/tmp", {})
+    ):
         response = context.client.post(
             "/api/chat/resume/test-resume",
             json={"workspace_root": "/tmp", "config": {}},
@@ -150,7 +152,9 @@ def step_verify_clear(context):
 
 @when('I stream a chat message "{message}"')
 def step_stream_chat(context, message):
-    with mock.patch.object(chat_server, "get_or_create_service", return_value=FakeService("/tmp", {})):
+    with mock.patch.object(
+        chat_server, "get_or_create_service", return_value=FakeService("/tmp", {})
+    ):
         with mock.patch("chat_server.uuid.uuid4", return_value="stream-conv"):
             response = context.client.post(
                 "/api/chat/stream",

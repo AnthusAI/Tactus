@@ -80,5 +80,5 @@ def test_extract_result_handles_invalid_json():
 
 
 def test_extract_result_handles_missing_end_marker():
-    incomplete = f"{protocol.RESULT_START_MARKER}\n{{\"ok\": true}}\n"
+    incomplete = f'{protocol.RESULT_START_MARKER}\n{{"ok": true}}\n'
     assert protocol.extract_result_from_stdout(incomplete) is None

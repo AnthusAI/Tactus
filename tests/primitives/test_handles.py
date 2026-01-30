@@ -3,7 +3,13 @@ import typing
 
 import pytest
 
-from tactus.primitives.handles import _convert_lua_table, AgentHandle, ModelHandle, AgentLookup, ModelLookup
+from tactus.primitives.handles import (
+    _convert_lua_table,
+    AgentHandle,
+    ModelHandle,
+    AgentLookup,
+    ModelLookup,
+)
 
 
 class FakeLuaTable(dict):

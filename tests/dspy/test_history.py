@@ -1,7 +1,6 @@
 """Tests for TactusHistory wrapper."""
 
 import pytest
-import dspy
 
 from tactus.dspy.history import TactusHistory, create_history
 

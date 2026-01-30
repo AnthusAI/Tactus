@@ -16,7 +16,7 @@ def test_load_jsonl_valid(tmp_path):
     runner = _make_runner(tmp_path)
     file_path = tmp_path / "cases.jsonl"
     file_path.write_text(
-        '\n'.join(
+        "\n".join(
             [
                 json.dumps({"name": "case1", "inputs": {"x": 1}}),
                 "",
@@ -91,7 +91,7 @@ def test_load_dataset_file_resolves_relative(tmp_path):
 def test_load_dataset_file_handles_csv(tmp_path):
     runner = _make_runner(tmp_path)
     file_path = tmp_path / "cases.csv"
-    file_path.write_text("name,inputs\ncase1,{\"x\": 1}\n")
+    file_path.write_text('name,inputs\ncase1,{"x": 1}\n')
 
     cases = runner._load_dataset_file(str(file_path))
 
@@ -111,7 +111,7 @@ def test_load_dataset_file_handles_jsonl(tmp_path):
 def test_load_csv_rejects_missing_name_column(tmp_path):
     runner = _make_runner(tmp_path)
     file_path = tmp_path / "cases.csv"
-    file_path.write_text("inputs\n\"{}\"\n")
+    file_path.write_text('inputs\n"{}"\n')
 
     with pytest.raises(ValueError, match="name"):
         runner._load_csv(file_path)

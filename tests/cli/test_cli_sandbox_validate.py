@@ -1,12 +1,10 @@
 from types import SimpleNamespace
-from pathlib import Path
 
 import pytest
 from typer.testing import CliRunner
 
 import tactus
 from tactus.cli.app import app
-
 
 pytestmark = pytest.mark.integration
 
@@ -96,9 +94,7 @@ def test_validate_lua_reports_warnings(monkeypatch, tmp_path, cli_runner):
 
     registry = SimpleNamespace(
         description="demo",
-        agents={
-            "agent": SimpleNamespace(system_prompt="hi", provider="openai", model="gpt")
-        },
+        agents={"agent": SimpleNamespace(system_prompt="hi", provider="openai", model="gpt")},
         output_schema={},
         input_schema={},
     )

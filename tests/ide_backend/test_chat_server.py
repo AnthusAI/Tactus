@@ -93,7 +93,9 @@ def test_start_conversation_requires_workspace_root(client):
 
 def test_start_conversation_success(client, monkeypatch):
     service = FakeService()
-    monkeypatch.setattr(chat_server, "get_or_create_service", lambda workspace_root, config: service)
+    monkeypatch.setattr(
+        chat_server, "get_or_create_service", lambda workspace_root, config: service
+    )
     monkeypatch.setattr(chat_server.uuid, "uuid4", lambda: "fixed-id")
 
     response = client.post("/api/chat/start", json={"workspace_root": "/tmp", "config": {}})
@@ -104,7 +106,9 @@ def test_start_conversation_success(client, monkeypatch):
 
 
 def test_start_conversation_error_returns_500(client, monkeypatch):
-    monkeypatch.setattr(chat_server, "get_or_create_service", lambda workspace_root, config: StartErrorService())
+    monkeypatch.setattr(
+        chat_server, "get_or_create_service", lambda workspace_root, config: StartErrorService()
+    )
 
     response = client.post("/api/chat/start", json={"workspace_root": "/tmp", "config": {}})
 
@@ -118,7 +122,9 @@ def test_send_message_requires_fields(client):
 
 
 def test_send_message_not_found(client):
-    response = client.post("/api/chat/message", json={"conversation_id": "missing", "message": "hi"})
+    response = client.post(
+        "/api/chat/message", json={"conversation_id": "missing", "message": "hi"}
+    )
 
     assert response.status_code == 404
 
@@ -126,9 +132,7 @@ def test_send_message_not_found(client):
 def test_send_message_success(client):
     chat_server.conversations["conv-1"] = FakeService()
 
-    response = client.post(
-        "/api/chat/message", json={"conversation_id": "conv-1", "message": "hi"}
-    )
+    response = client.post("/api/chat/message", json={"conversation_id": "conv-1", "message": "hi"})
 
     assert response.status_code == 200
     events = response.get_json()["events"]
@@ -138,9 +142,7 @@ def test_send_message_success(client):
 def test_send_message_error_returns_500(client):
     chat_server.conversations["conv-1"] = ErrorService()
 
-    response = client.post(
-        "/api/chat/message", json={"conversation_id": "conv-1", "message": "hi"}
-    )
+    response = client.post("/api/chat/message", json={"conversation_id": "conv-1", "message": "hi"})
 
     assert response.status_code == 500
 
@@ -153,7 +155,9 @@ def test_stream_message_requires_fields(client):
 
 def test_stream_message_success(client, monkeypatch):
     service = FakeService()
-    monkeypatch.setattr(chat_server, "get_or_create_service", lambda workspace_root, config: service)
+    monkeypatch.setattr(
+        chat_server, "get_or_create_service", lambda workspace_root, config: service
+    )
     monkeypatch.setattr(chat_server.uuid, "uuid4", lambda: "stream-id")
 
     response = client.post(
@@ -169,7 +173,9 @@ def test_stream_message_success(client, monkeypatch):
 
 def test_stream_message_generator_error_returns_error_event(client, monkeypatch):
     service = StartErrorService()
-    monkeypatch.setattr(chat_server, "get_or_create_service", lambda workspace_root, config: service)
+    monkeypatch.setattr(
+        chat_server, "get_or_create_service", lambda workspace_root, config: service
+    )
 
     response = client.post(
         "/api/chat/stream",
@@ -182,7 +188,9 @@ def test_stream_message_generator_error_returns_error_event(client, monkeypatch)
 
 
 def test_stream_message_outer_error_returns_500(client, monkeypatch):
-    monkeypatch.setattr(chat_server.uuid, "uuid4", lambda: (_ for _ in ()).throw(RuntimeError("boom")))
+    monkeypatch.setattr(
+        chat_server.uuid, "uuid4", lambda: (_ for _ in ()).throw(RuntimeError("boom"))
+    )
 
     response = client.post(
         "/api/chat/stream",
@@ -223,7 +231,9 @@ def test_resume_requires_workspace_root(client):
 
 def test_resume_success(client, monkeypatch):
     service = FakeService()
-    monkeypatch.setattr(chat_server, "get_or_create_service", lambda workspace_root, config: service)
+    monkeypatch.setattr(
+        chat_server, "get_or_create_service", lambda workspace_root, config: service
+    )
 
     response = client.post("/api/chat/resume/conv-1", json={"workspace_root": "/tmp"})
 
@@ -234,7 +244,9 @@ def test_resume_success(client, monkeypatch):
 
 def test_resume_error_returns_500(client, monkeypatch):
     service = ErrorService()
-    monkeypatch.setattr(chat_server, "get_or_create_service", lambda workspace_root, config: service)
+    monkeypatch.setattr(
+        chat_server, "get_or_create_service", lambda workspace_root, config: service
+    )
 
     response = client.post("/api/chat/resume/conv-1", json={"workspace_root": "/tmp"})
 

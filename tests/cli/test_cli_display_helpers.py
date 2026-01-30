@@ -114,9 +114,7 @@ def test_display_eval_results_handles_long_output_and_reasons(monkeypatch):
     long_text = "x" * 250
     case1 = SimpleNamespace(
         name="task_run1",
-        assertions={
-            "eval": SimpleNamespace(value=False, reason="line1\nline2\nline3\nline4")
-        },
+        assertions={"eval": SimpleNamespace(value=False, reason="line1\nline2\nline3\nline4")},
         inputs={"q": "hi"},
         output={"answer": long_text},
     )

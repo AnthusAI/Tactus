@@ -182,7 +182,8 @@ def test_save_config_validation_errors(client, temp_paths):
     assert client.post("/api/config", json={"config": None}).status_code == 400
     assert client.post("/api/config", json={"config": ["x"]}).status_code == 400
     assert (
-        client.post("/api/config", json={"config": {"a": 1}, "targetFile": "system"}).status_code == 400
+        client.post("/api/config", json={"config": {"a": 1}, "targetFile": "system"}).status_code
+        == 400
     )
 
 
@@ -200,7 +201,6 @@ def test_save_config_success_project_and_user(client, temp_paths, monkeypatch):
     response = client.post("/api/config", json={"config": {"b": 2}, "targetFile": "user"})
     assert response.status_code == 200
     assert len(saved) == 2
-
 
 
 def test_save_config_error_returns_500(client, temp_paths, monkeypatch):
@@ -223,7 +223,9 @@ def test_save_config_by_source_validations(client, temp_paths):
 
 def test_save_config_by_source_strategies(client, temp_paths, monkeypatch):
     source_map = {
-        "env.value": FakeConfigValue(source_type="user", is_env_override=True, original_env_var="ENV_VAR"),
+        "env.value": FakeConfigValue(
+            source_type="user", is_env_override=True, original_env_var="ENV_VAR"
+        ),
         "user.value": FakeConfigValue(source_type="user"),
         "project.value": FakeConfigValue(source_type="project"),
         "system.value": FakeConfigValue(source_type="system"),
@@ -336,7 +338,9 @@ def test_validate_config_paths(client):
 
 def test_validate_config_yaml_error(client, monkeypatch):
     monkeypatch.setattr(
-        config_server.yaml, "safe_dump", lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("boom"))
+        config_server.yaml,
+        "safe_dump",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("boom")),
     )
 
     response = client.post("/api/config/validate", json={"config": {"a": 1}})
@@ -389,7 +393,9 @@ def test_load_yaml_file_failure_returns_none(tmp_path, monkeypatch):
     config_path.write_text("bad: [", encoding="utf-8")
 
     monkeypatch.setattr(
-        config_server.yaml, "safe_load", lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("boom"))
+        config_server.yaml,
+        "safe_load",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("boom")),
     )
 
     assert config_server.load_yaml_file(config_path) is None

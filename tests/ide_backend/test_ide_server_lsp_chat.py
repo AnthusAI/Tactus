@@ -1,5 +1,3 @@
-from types import SimpleNamespace
-
 from tactus.ide import server as ide_server
 
 
@@ -125,7 +123,10 @@ def test_lsp_notification_returns_diagnostics(monkeypatch):
 
     response = client.post(
         "/api/lsp/notification",
-        json={"method": "textDocument/didOpen", "params": {"textDocument": {"uri": "u", "text": "x"}}},
+        json={
+            "method": "textDocument/didOpen",
+            "params": {"textDocument": {"uri": "u", "text": "x"}},
+        },
     )
 
     assert response.status_code == 200

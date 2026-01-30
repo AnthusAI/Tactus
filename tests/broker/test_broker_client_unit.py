@@ -1,4 +1,3 @@
-import os
 import ssl
 
 import pytest
@@ -83,7 +82,9 @@ async def test_request_stdio_filters_request_id(monkeypatch):
             yield event
 
     monkeypatch.setattr("tactus.broker.client._STDIO_TRANSPORT.request", fake_request)
-    monkeypatch.setattr("tactus.broker.client.uuid.uuid4", lambda: type("u", (), {"hex": "match"})())
+    monkeypatch.setattr(
+        "tactus.broker.client.uuid.uuid4", lambda: type("u", (), {"hex": "match"})()
+    )
 
     client = BrokerClient("stdio")
     results = []
@@ -186,7 +187,10 @@ async def test_request_tls_insecure_updates_ssl_context(monkeypatch):
     async def fake_open(_host, _port, ssl=None):
         assert ssl.check_hostname is False
         assert ssl.verify_mode == ssl_module.CERT_NONE
-        return object(), type("W", (), {"close": lambda self: None, "wait_closed": lambda self: None})()
+        return (
+            object(),
+            type("W", (), {"close": lambda self: None, "wait_closed": lambda self: None})(),
+        )
 
     async def fake_read(_reader):
         return {"id": "req", "event": "done"}
@@ -397,7 +401,10 @@ async def test_request_tls_insecure_env_true_branch(monkeypatch):
     async def fake_open(_host, _port, ssl=None):
         assert ssl.check_hostname is False
         assert ssl.verify_mode == ssl_module.CERT_NONE
-        return object(), type("W", (), {"close": lambda self: None, "wait_closed": lambda self: None})()
+        return (
+            object(),
+            type("W", (), {"close": lambda self: None, "wait_closed": lambda self: None})(),
+        )
 
     async def fake_read(_reader):
         return {"id": "req", "event": "done"}
@@ -431,7 +438,10 @@ async def test_request_tls_insecure_env_false_branch(monkeypatch):
     async def fake_open(_host, _port, ssl=None):
         assert ssl.check_hostname is True
         assert ssl.verify_mode == "unset"
-        return object(), type("W", (), {"close": lambda self: None, "wait_closed": lambda self: None})()
+        return (
+            object(),
+            type("W", (), {"close": lambda self: None, "wait_closed": lambda self: None})(),
+        )
 
     async def fake_read(_reader):
         return {"id": "req", "event": "done"}

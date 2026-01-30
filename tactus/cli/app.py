@@ -414,6 +414,8 @@ def _check_missing_required_inputs(input_schema: dict, provided_params: dict) ->
     """
     missing = []
     for name, field in input_schema.items():
+        if not isinstance(field, dict):
+            continue
         if field.get("required", False):
             if name not in provided_params and field.get("default") is None:
                 missing.append(name)

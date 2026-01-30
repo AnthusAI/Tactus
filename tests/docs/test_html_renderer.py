@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from tactus.docs.html_renderer import HTMLRenderer
 from tactus.docs.models import DocumentationTree, ModuleDoc
 

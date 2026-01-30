@@ -5,7 +5,9 @@ from tactus.testing.pydantic_eval_runner import TactusPydanticEvalRunner
 
 
 def test_extract_trace_from_runtime(tmp_path):
-    runner = TactusPydanticEvalRunner(tmp_path / "proc.tac", EvaluationConfig(dataset=[], evaluators=[]))
+    runner = TactusPydanticEvalRunner(
+        tmp_path / "proc.tac", EvaluationConfig(dataset=[], evaluators=[])
+    )
 
     session = SimpleNamespace(
         tool_calls=[SimpleNamespace(name="tool", args={"x": 1}, result="ok")],
@@ -27,7 +29,9 @@ def test_extract_trace_from_runtime(tmp_path):
 
 
 def test_extract_trace_handles_missing_session_fields(tmp_path):
-    runner = TactusPydanticEvalRunner(tmp_path / "proc.tac", EvaluationConfig(dataset=[], evaluators=[]))
+    runner = TactusPydanticEvalRunner(
+        tmp_path / "proc.tac", EvaluationConfig(dataset=[], evaluators=[])
+    )
 
     session = SimpleNamespace(messages=[SimpleNamespace(role="user", content="hi")])
     runtime = SimpleNamespace(session=session)
@@ -43,7 +47,9 @@ def test_extract_trace_handles_missing_session_fields(tmp_path):
 
 
 def test_extract_trace_handles_no_messages(tmp_path):
-    runner = TactusPydanticEvalRunner(tmp_path / "proc.tac", EvaluationConfig(dataset=[], evaluators=[]))
+    runner = TactusPydanticEvalRunner(
+        tmp_path / "proc.tac", EvaluationConfig(dataset=[], evaluators=[])
+    )
 
     session = SimpleNamespace(tool_calls=[], state_history=[])
     runtime = SimpleNamespace(session=session)

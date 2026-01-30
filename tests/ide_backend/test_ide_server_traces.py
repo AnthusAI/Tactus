@@ -95,9 +95,7 @@ def test_get_run_checkpoints(monkeypatch, tmp_path):
     app = ide_server.create_app()
     client = app.test_client()
 
-    response = client.get(
-        "/api/traces/runs/run1/checkpoints", query_string={"procedure": "proc"}
-    )
+    response = client.get("/api/traces/runs/run1/checkpoints", query_string={"procedure": "proc"})
 
     assert response.status_code == 200
     assert response.get_json()["checkpoints"][0]["name"] == "agent_turn"
@@ -119,9 +117,7 @@ def test_get_checkpoint_not_found(monkeypatch, tmp_path):
     app = ide_server.create_app()
     client = app.test_client()
 
-    response = client.get(
-        "/api/traces/runs/run1/checkpoints/1", query_string={"procedure": "proc"}
-    )
+    response = client.get("/api/traces/runs/run1/checkpoints/1", query_string={"procedure": "proc"})
 
     assert response.status_code == 404
 
@@ -167,9 +163,7 @@ def test_get_run_statistics(monkeypatch, tmp_path):
     app = ide_server.create_app()
     client = app.test_client()
 
-    response = client.get(
-        "/api/traces/runs/run1/statistics", query_string={"procedure": "proc"}
-    )
+    response = client.get("/api/traces/runs/run1/statistics", query_string={"procedure": "proc"})
 
     assert response.status_code == 200
     payload = response.get_json()

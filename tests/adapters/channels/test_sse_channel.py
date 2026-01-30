@@ -176,6 +176,7 @@ def test_handle_ide_response_put_error():
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
+
         def raise_error(_response):
             raise RuntimeError("queue failed")
 

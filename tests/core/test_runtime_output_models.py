@@ -27,7 +27,10 @@ def test_create_pydantic_model_from_output_dict():
     runtime = TactusRuntime(procedure_id="proc", hitl_handler=object())
 
     model = runtime._create_pydantic_model_from_output(
-        {"name": {"type": "string", "required": True}, "age": {"type": "integer", "required": False}},
+        {
+            "name": {"type": "string", "required": True},
+            "age": {"type": "integer", "required": False},
+        },
         model_name="Out",
     )
 

@@ -1,4 +1,3 @@
-import asyncio
 from types import SimpleNamespace
 from pathlib import Path
 import threading
@@ -43,7 +42,9 @@ def test_call_requires_lua_sandbox():
         primitive("missing")
 
     sandbox = SimpleNamespace(lua=SimpleNamespace(globals=lambda: {}))
-    primitive = ProcedurePrimitive(FakeExecutionContext(), runtime_factory=lambda n, p: None, lua_sandbox=sandbox)
+    primitive = ProcedurePrimitive(
+        FakeExecutionContext(), runtime_factory=lambda n, p: None, lua_sandbox=sandbox
+    )
     with pytest.raises(ProcedureExecutionError, match="not found"):
         primitive("missing")
 
@@ -51,7 +52,9 @@ def test_call_requires_lua_sandbox():
 def test_call_returns_named_procedure():
     proc = object()
     sandbox = SimpleNamespace(lua=SimpleNamespace(globals=lambda: {"proc": proc}))
-    primitive = ProcedurePrimitive(FakeExecutionContext(), runtime_factory=lambda n, p: None, lua_sandbox=sandbox)
+    primitive = ProcedurePrimitive(
+        FakeExecutionContext(), runtime_factory=lambda n, p: None, lua_sandbox=sandbox
+    )
     assert primitive("proc") is proc
 
 
@@ -227,9 +230,7 @@ def test_inject_logs_warning(caplog):
     handle = ProcedureHandle(procedure_id="id", name="child")
     with caplog.at_level("WARNING", logger="tactus.primitives.procedure"):
         primitive.inject(handle, "note")
-    assert any(
-        "Procedure.inject() not fully implemented" in rec.message for rec in caplog.records
-    )
+    assert any("Procedure.inject() not fully implemented" in rec.message for rec in caplog.records)
 
 
 def test_wait_any_waits_until_completion(monkeypatch):
@@ -357,7 +358,7 @@ def test_run_debug_info_invalid_source_falls_back(monkeypatch):
 
     class Debug:
         def getinfo(self, _level, _spec):
-            return DebugInfo({"source": "[string \"<python>\"]", "currentline": 10})
+            return DebugInfo({"source": '[string "<python>"]', "currentline": 10})
 
     class Globals:
         def __init__(self):

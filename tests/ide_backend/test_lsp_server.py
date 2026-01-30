@@ -4,7 +4,7 @@ from pathlib import Path
 BACKEND_PATH = Path(__file__).resolve().parents[2] / "tactus-ide" / "backend"
 sys.path.insert(0, str(BACKEND_PATH))
 
-from lsp_server import LSPServer
+from lsp_server import LSPServer  # noqa: E402
 
 
 def test_lsp_server_initialize_response():

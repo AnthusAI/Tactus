@@ -1,5 +1,4 @@
 import logging
-import os
 import sys
 from pathlib import Path
 
@@ -90,7 +89,9 @@ def test_build_docker_command_includes_expected_flags(tmp_path):
     assert f"-v {tmp_path}/tactus:/app/tactus:ro" in cmd_str
 
 
-def test_build_docker_command_handles_limits_and_dev_mode_missing_source(tmp_path, caplog, monkeypatch):
+def test_build_docker_command_handles_limits_and_dev_mode_missing_source(
+    tmp_path, caplog, monkeypatch
+):
     mcp_path = tmp_path / "mcp"
     mcp_path.mkdir()
 
@@ -313,7 +314,7 @@ async def test_run_returns_failure_for_invalid_transport(monkeypatch):
 
     monkeypatch.setenv("TACTUS_AUTO_REBUILD_SANDBOX", "false")
 
-    result = await runner.run(source="Agent \"a\" {}")
+    result = await runner.run(source='Agent "a" {}')
 
     assert isinstance(result, ExecutionResult)
     assert result.status == ExecutionStatus.ERROR

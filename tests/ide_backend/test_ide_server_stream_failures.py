@@ -92,7 +92,7 @@ def test_test_stream_behave_reset_failure(tmp_path, monkeypatch):
 
     response = client.get("/api/test/stream", query_string={"path": "sample.tac"})
     data = response.data.decode("utf-8")
-    assert "\"lifecycle_stage\": \"error\"" in data
+    assert '"lifecycle_stage": "error"' in data
 
 
 def test_evaluate_stream_missing_path():
@@ -175,7 +175,7 @@ def test_evaluate_stream_runner_error(tmp_path, monkeypatch):
 
     response = client.get("/api/evaluate/stream", query_string={"path": "sample.tac"})
     data = response.data.decode("utf-8")
-    assert "\"lifecycle_stage\": \"error\"" in data
+    assert '"lifecycle_stage": "error"' in data
 
 
 def test_pydantic_eval_stream_validation_failed(tmp_path, monkeypatch):
@@ -198,7 +198,7 @@ def test_pydantic_eval_stream_validation_failed(tmp_path, monkeypatch):
 
     response = client.get("/api/pydantic-eval/stream", query_string={"path": "eval.tac"})
     data = response.data.decode("utf-8")
-    assert "\"lifecycle_stage\": \"error\"" in data
+    assert '"lifecycle_stage": "error"' in data
 
 
 def test_pydantic_eval_stream_runner_error(tmp_path, monkeypatch):
@@ -248,4 +248,4 @@ def test_pydantic_eval_stream_runner_error(tmp_path, monkeypatch):
 
     response = client.get("/api/pydantic-eval/stream", query_string={"path": "eval.tac"})
     data = response.data.decode("utf-8")
-    assert "\"lifecycle_stage\": \"error\"" in data
+    assert '"lifecycle_stage": "error"' in data

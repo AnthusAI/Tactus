@@ -1,7 +1,6 @@
 import os
 from pathlib import Path
 
-import pytest
 
 from tactus.cli import app
 
@@ -39,9 +38,7 @@ def test_load_tactus_config_merges_and_sets_env(monkeypatch, tmp_path):
             return merged
 
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(
-        "tactus.core.config_manager.ConfigManager", DummyConfigManager
-    )
+    monkeypatch.setattr("tactus.core.config_manager.ConfigManager", DummyConfigManager)
     monkeypatch.setenv("API_KEY", "preexisting")
 
     result = app.load_tactus_config()
@@ -59,9 +56,7 @@ def test_load_tactus_config_handles_exceptions(monkeypatch):
         def __init__(self):
             raise RuntimeError("boom")
 
-    monkeypatch.setattr(
-        "tactus.core.config_manager.ConfigManager", ExplodingConfigManager
-    )
+    monkeypatch.setattr("tactus.core.config_manager.ConfigManager", ExplodingConfigManager)
 
     assert app.load_tactus_config() == {}
 

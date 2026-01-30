@@ -183,9 +183,7 @@ def test_predict_sync_returns_raw_list(monkeypatch, tmp_path):
     fake_torch.Tensor = FakeTensor
     fake_torch.tensor = lambda data: FakeTensor(data)
     fake_torch.no_grad = contextlib.nullcontext
-    fake_torch.load = lambda path, map_location=None: FakeModel(
-        FakeTensor([1, 2], numel_value=2)
-    )
+    fake_torch.load = lambda path, map_location=None: FakeModel(FakeTensor([1, 2], numel_value=2))
 
     monkeypatch.setitem(sys.modules, "torch", fake_torch)
 
@@ -201,9 +199,7 @@ def test_predict_sync_label_out_of_range_returns_index(monkeypatch, tmp_path):
     fake_torch.Tensor = FakeTensor
     fake_torch.tensor = lambda data: FakeTensor(data)
     fake_torch.no_grad = contextlib.nullcontext
-    fake_torch.load = lambda path, map_location=None: FakeModel(
-        FakeTensor([0.1, 0.9])
-    )
+    fake_torch.load = lambda path, map_location=None: FakeModel(FakeTensor([0.1, 0.9]))
 
     monkeypatch.setitem(sys.modules, "torch", fake_torch)
 

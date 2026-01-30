@@ -44,13 +44,18 @@ def test_validate_command_success(monkeypatch, tmp_path):
 
 def test_validate_command_failure(monkeypatch, tmp_path):
     import click
+
     console = DummyConsole()
     monkeypatch.setattr(cli_app, "console", console)
     monkeypatch.setattr(cli_app, "setup_logging", lambda verbose: None)
     monkeypatch.setattr(
         cli_app,
         "TactusValidator",
-        lambda: FakeValidator(FakeResult(valid=False, errors=[type("Err", (), {"message": "bad", "location": None})()])),
+        lambda: FakeValidator(
+            FakeResult(
+                valid=False, errors=[type("Err", (), {"message": "bad", "location": None})()]
+            )
+        ),
     )
 
     path = tmp_path / "sample.tac"

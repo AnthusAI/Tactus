@@ -1,5 +1,3 @@
-import asyncio
-
 from tactus.testing.context import TactusTestContext
 
 

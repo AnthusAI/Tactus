@@ -1,5 +1,3 @@
-import pytest
-
 from tactus.testing.eval_models import EvaluationConfig
 from tactus.testing.pydantic_eval_runner import TactusPydanticEvalRunner
 
@@ -14,7 +12,9 @@ def test_task_function_returns_error_payload(monkeypatch, tmp_path):
 
     monkeypatch.setattr("tactus.core.runtime.TactusRuntime", FakeRuntime)
 
-    runner = TactusPydanticEvalRunner(tmp_path / "proc.tac", EvaluationConfig(dataset=[], evaluators=[]))
+    runner = TactusPydanticEvalRunner(
+        tmp_path / "proc.tac", EvaluationConfig(dataset=[], evaluators=[])
+    )
     runner._procedure_source = "Procedure { function() end }"
 
     task = runner._create_task_function()
@@ -37,7 +37,9 @@ def test_task_function_wraps_non_dict_output(monkeypatch, tmp_path):
 
     monkeypatch.setattr("tactus.core.runtime.TactusRuntime", FakeRuntime)
 
-    runner = TactusPydanticEvalRunner(tmp_path / "proc.tac", EvaluationConfig(dataset=[], evaluators=[]))
+    runner = TactusPydanticEvalRunner(
+        tmp_path / "proc.tac", EvaluationConfig(dataset=[], evaluators=[])
+    )
     runner._procedure_source = "Procedure { function() end }"
 
     task = runner._create_task_function()
@@ -58,7 +60,9 @@ def test_task_function_preserves_dict_output_without_result(monkeypatch, tmp_pat
 
     monkeypatch.setattr("tactus.core.runtime.TactusRuntime", FakeRuntime)
 
-    runner = TactusPydanticEvalRunner(tmp_path / "proc.tac", EvaluationConfig(dataset=[], evaluators=[]))
+    runner = TactusPydanticEvalRunner(
+        tmp_path / "proc.tac", EvaluationConfig(dataset=[], evaluators=[])
+    )
     runner._procedure_source = "Procedure { function() end }"
 
     task = runner._create_task_function()

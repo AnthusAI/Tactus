@@ -197,9 +197,7 @@ def test_select_merges_config_and_uses_label_option():
     ctx = FakeExecutionContext()
     primitive = HumanPrimitive(ctx, hitl_config={"pick": {"message": "Config"}})
 
-    primitive.select(
-        {"config_key": "pick", "message": "Override", "options": [{"label": "Alpha"}]}
-    )
+    primitive.select({"config_key": "pick", "message": "Override", "options": [{"label": "Alpha"}]})
 
     call = ctx.calls[0]
     assert call["message"] == "Override"
