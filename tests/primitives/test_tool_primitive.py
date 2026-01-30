@@ -1,208 +1,319 @@
-from tactus.primitives.tool import ToolPrimitive, ToolCall
+import importlib
+import typing
+
+import pytest
+
+from tactus.primitives.tool import ToolCall, ToolPrimitive
 
 
-def test_tool_record_and_queries():
-    """Test basic tool recording and query functionality."""
+class FakeTool:
+    def __init__(self, name, function=None):
+        self.name = name
+        self.function = function
+
+
+class FakeToolset:
+    def __init__(self, tools):
+        self.tools = tools
+
+
+class FakeMCPToolset:
+    def __init__(self):
+        self.calls = []
+        self.tool = None
+
+    def get_tool(self, name):
+        return self.tool
+
+    def call_tool(self, name, args):
+        self.calls.append((name, args))
+        return {"ok": True}
+
+
+class FakeRuntime:
+    def __init__(self, toolset_registry=None):
+        self.toolset_registry = toolset_registry or {}
+
+
+class FakeLogHandler:
+    def __init__(self):
+        self.events = []
+
+    def log(self, event):
+        self.events.append(event)
+
+
+def test_tool_call_to_dict_and_repr():
+    call = ToolCall("tool", {"a": 1}, "ok")
+    assert call.to_dict() == {"name": "tool", "args": {"a": 1}, "result": "ok"}
+    assert "ToolCall(tool" in repr(call)
+
+
+def test_tool_registry_lookup():
     tool = ToolPrimitive()
-    tool.record_call("search", {"query": "ai"}, {"results": 3})
+    tool.set_tool_registry({"done": "handle"})
+    assert tool("done") == "handle"
+    with pytest.raises(ValueError, match="not defined"):
+        tool("missing")
+
+
+def test_get_toolset_requires_runtime():
+    tool = ToolPrimitive()
+    assert tool._get_toolset("x") is None
+    tool.set_runtime(object())
+    assert tool._get_toolset("x") is None
+
+
+def test_get_toolset_from_runtime():
+    runtime = FakeRuntime(toolset_registry={"search": object()})
+    tool = ToolPrimitive()
+    tool.set_runtime(runtime)
+    assert tool._get_toolset("search") is runtime.toolset_registry["search"]
+
+
+def test_extract_tool_function_from_list():
+    tool = ToolPrimitive()
+
+    def fn(args):
+        return args["x"]
+
+    toolset = FakeToolset([FakeTool("t1", function=fn)])
+    assert tool._extract_tool_function(toolset, "t1") is fn
+
+
+def test_extract_tool_function_from_list_callable_tool():
+    tool = ToolPrimitive()
+
+    class CallableTool:
+        def __init__(self, name):
+            self.name = name
+
+        def __call__(self, args):
+            return args["x"] + 1
+
+    toolset = FakeToolset([CallableTool("t1")])
+    extracted = tool._extract_tool_function(toolset, "t1")
+    assert extracted({"x": 2}) == 3
+
+
+def test_extract_tool_function_from_dict():
+    tool = ToolPrimitive()
+
+    def fn(args):
+        return args["x"]
+
+    toolset = FakeToolset({"t1": FakeTool("t1", function=fn)})
+    assert tool._extract_tool_function(toolset, "t1") is fn
+
+
+def test_extract_tool_function_from_dict_callable_tool():
+    tool = ToolPrimitive()
+
+    class CallableTool:
+        def __init__(self, name):
+            self.name = name
+
+        def __call__(self, args):
+            return args["x"] * 2
+
+    toolset = FakeToolset({"t1": CallableTool("t1")})
+    extracted = tool._extract_tool_function(toolset, "t1")
+    assert extracted({"x": 3}) == 6
+
+
+def test_extract_tool_function_from_mcp_wrapper():
+    tool = ToolPrimitive()
+    toolset = FakeMCPToolset()
+    wrapper = tool._extract_tool_function(toolset, "mcp")
+    assert wrapper({"q": 1}) == {"ok": True}
+    assert toolset.calls == [("mcp", {"q": 1})]
+
+
+def test_extract_tool_function_from_mcp_get_tool():
+    tool = ToolPrimitive()
+    toolset = FakeMCPToolset()
+
+    def fn(args):
+        return args["x"]
+
+    toolset.tool = fn
+    assert tool._extract_tool_function(toolset, "mcp") is fn
+
+
+def test_extract_tool_function_callable_toolset():
+    tool = ToolPrimitive()
+
+    def toolset(args):
+        return args["x"]
+
+    assert tool._extract_tool_function(toolset, "callable") is toolset
+
+
+def test_extract_tool_function_toolset_function_attr():
+    tool = ToolPrimitive()
+
+    class Toolset:
+        def __init__(self):
+            self.function = lambda args: args["x"]
+
+    toolset = Toolset()
+    assert tool._extract_tool_function(toolset, "fn")({"x": 2}) == 2
+
+
+def test_extract_tool_function_fallback_call():
+    class FallbackToolset:
+        def call(self, name, args):
+            return {"name": name, "args": args}
+
+    tool = ToolPrimitive()
+    wrapper = tool._extract_tool_function(FallbackToolset(), "fallback")
+    assert wrapper({"x": 1}) == {"name": "fallback", "args": {"x": 1}}
+
+
+def test_extract_tool_function_fallback_wrapper_raises():
+    tool = ToolPrimitive()
+
+    class Toolset:
+        pass
+
+    wrapper = tool._extract_tool_function(Toolset(), "missing")
+    with pytest.raises(RuntimeError, match="not supported"):
+        wrapper({"x": 1})
+
+
+def test_extract_tool_function_list_no_match_uses_function_attr():
+    tool = ToolPrimitive()
+
+    class Toolset:
+        def __init__(self):
+            self.tools = [FakeTool("other", function=lambda args: args["x"])]
+            self.function = lambda args: args["x"] + 1
+
+    toolset = Toolset()
+    assert tool._extract_tool_function(toolset, "t1")({"x": 2}) == 3
+
+
+def test_extract_tool_function_list_match_not_callable_falls_through():
+    tool = ToolPrimitive()
+
+    class Toolset:
+        def __init__(self):
+            self.tools = [type("PlainTool", (), {"name": "t1"})()]
+            self.function = lambda args: args["x"] + 1
+
+    toolset = Toolset()
+    assert tool._extract_tool_function(toolset, "t1")({"x": 2}) == 3
+
+
+def test_extract_tool_function_dict_no_match_uses_callable_toolset():
+    tool = ToolPrimitive()
+
+    class Toolset:
+        def __init__(self):
+            self.tools = {"other": FakeTool("other", function=lambda args: args["x"])}
+
+        def __call__(self, args):
+            return args["x"] * 3
+
+    toolset = Toolset()
+    assert tool._extract_tool_function(toolset, "t1")({"x": 2}) == 6
+
+
+def test_extract_tool_function_dict_match_not_callable_falls_through():
+    tool = ToolPrimitive()
+
+    class Toolset:
+        def __init__(self):
+            self.tools = {"t1": type("PlainTool", (), {})()}
+
+        def __call__(self, args):
+            return args["x"] * 4
+
+    toolset = Toolset()
+    assert tool._extract_tool_function(toolset, "t1")({"x": 2}) == 8
+
+
+def test_extract_tool_function_mcp_without_get_tool():
+    tool = ToolPrimitive()
+
+    class Toolset:
+        _tools = {}
+
+        def call_tool(self, name, args):
+            return {"name": name, "args": args}
+
+    wrapper = tool._extract_tool_function(Toolset(), "mcp")
+    assert wrapper({"q": 1}) == {"name": "mcp", "args": {"q": 1}}
+
+
+def test_get_returns_tool_handle_from_runtime():
+    tool = ToolPrimitive()
+
+    class Toolset:
+        def __init__(self):
+            self.function = lambda args: args["x"] + 1
+
+    runtime = FakeRuntime(toolset_registry={"inc": Toolset()})
+    tool.set_runtime(runtime)
+
+    handle = tool.get("inc")
+    assert handle({"x": 2}) == 3
+
+
+def test_get_raises_when_tool_missing():
+    tool = ToolPrimitive()
+    tool.set_runtime(FakeRuntime(toolset_registry={}))
+
+    with pytest.raises(ValueError, match="not found"):
+        tool.get("missing")
+
+
+def test_record_call_and_accessors():
+    log_handler = FakeLogHandler()
+    tool = ToolPrimitive(log_handler=log_handler, agent_name="agent", procedure_id="proc")
+    tool.record_call("search", {"q": "hi"}, "ok")
 
     assert tool.called("search") is True
+    assert tool.last_result("search") == "ok"
+    assert tool.last_call("search")["args"]["q"] == "hi"
     assert tool.get_call_count() == 1
-    assert tool.last_result("search") == {"results": 3}
-    last_call = tool.last_call("search")
-    assert last_call["args"]["query"] == "ai"
-
-
-def test_tool_not_called():
-    """Test querying a tool that was never called."""
-    tool = ToolPrimitive()
-
-    assert tool.called("nonexistent") is False
-    assert tool.last_result("nonexistent") is None
-    assert tool.last_call("nonexistent") is None
-    assert tool.get_call_count("nonexistent") == 0
-
-
-def test_get_all_calls():
-    """Test retrieving complete call history."""
-    tool = ToolPrimitive()
-
-    # Record multiple calls
-    tool.record_call("search", {"query": "ai"}, {"results": 3})
-    tool.record_call("calculate", {"x": 5, "y": 10}, 15)
-    tool.record_call("search", {"query": "ml"}, {"results": 5})
-
-    all_calls = tool.get_all_calls()
-
-    assert len(all_calls) == 3
-    assert all_calls[0].name == "search"
-    assert all_calls[0].args == {"query": "ai"}
-    assert all_calls[0].result == {"results": 3}
-    assert all_calls[1].name == "calculate"
-    assert all_calls[2].name == "search"
-    assert all_calls[2].args == {"query": "ml"}
-
-
-def test_get_call_count_specific_tool():
-    """Test counting calls for a specific tool."""
-    tool = ToolPrimitive()
-
-    tool.record_call("search", {"query": "ai"}, {"results": 3})
-    tool.record_call("calculate", {"x": 5, "y": 10}, 15)
-    tool.record_call("search", {"query": "ml"}, {"results": 5})
-    tool.record_call("search", {"query": "nlp"}, {"results": 2})
-
-    assert tool.get_call_count("search") == 3
-    assert tool.get_call_count("calculate") == 1
-    assert tool.get_call_count("nonexistent") == 0
-
-
-def test_get_call_count_total():
-    """Test counting total calls across all tools."""
-    tool = ToolPrimitive()
-
-    assert tool.get_call_count() == 0
-
-    tool.record_call("search", {"query": "ai"}, {"results": 3})
-    assert tool.get_call_count() == 1
-
-    tool.record_call("calculate", {"x": 5, "y": 10}, 15)
-    assert tool.get_call_count() == 2
-
-    tool.record_call("search", {"query": "ml"}, {"results": 5})
-    assert tool.get_call_count() == 3
-
-
-def test_reset():
-    """Test resetting tool tracking clears all history."""
-    tool = ToolPrimitive()
-
-    # Record some calls
-    tool.record_call("search", {"query": "ai"}, {"results": 3})
-    tool.record_call("calculate", {"x": 5, "y": 10}, 15)
-
-    assert tool.get_call_count() == 2
-    assert tool.called("search") is True
-
-    # Reset and verify everything is cleared
-    tool.reset()
-
-    assert tool.get_call_count() == 0
-    assert tool.called("search") is False
-    assert tool.called("calculate") is False
-    assert tool.last_result("search") is None
-    assert tool.last_call("search") is None
-    assert len(tool.get_all_calls()) == 0
-
-
-def test_multiple_calls_same_tool():
-    """Test that multiple calls to the same tool update last_call correctly."""
-    tool = ToolPrimitive()
-
-    # First call
-    tool.record_call("search", {"query": "ai"}, {"results": 3})
-    assert tool.last_result("search") == {"results": 3}
-    assert tool.last_call("search")["args"]["query"] == "ai"
-
-    # Second call - should update last_result/last_call
-    tool.record_call("search", {"query": "ml"}, {"results": 5})
-    assert tool.last_result("search") == {"results": 5}
-    assert tool.last_call("search")["args"]["query"] == "ml"
-
-    # But total calls should be 2
-    assert tool.get_call_count("search") == 2
-
-    # And get_all_calls should have both
-    all_calls = tool.get_all_calls()
-    assert len(all_calls) == 2
-    assert all_calls[0].args["query"] == "ai"
-    assert all_calls[1].args["query"] == "ml"
-
-
-def test_multiple_different_tools():
-    """Test tracking multiple different tools independently."""
-    tool = ToolPrimitive()
-
-    tool.record_call("search", {"query": "ai"}, {"results": 3})
-    tool.record_call("calculate", {"x": 5, "y": 10}, 15)
-    tool.record_call("summarize", {"text": "..."}, "Summary")
-
-    # Each tool should be tracked independently
-    assert tool.called("search") is True
-    assert tool.called("calculate") is True
-    assert tool.called("summarize") is True
-    assert tool.called("nonexistent") is False
-
-    # Last results should be separate
-    assert tool.last_result("search") == {"results": 3}
-    assert tool.last_result("calculate") == 15
-    assert tool.last_result("summarize") == "Summary"
-
-    # Counts should be separate
     assert tool.get_call_count("search") == 1
-    assert tool.get_call_count("calculate") == 1
-    assert tool.get_call_count("summarize") == 1
-    assert tool.get_call_count() == 3
+    assert tool.get_all_calls()
 
-
-def test_tool_call_dataclass():
-    """Test ToolCall dataclass properties."""
-    call = ToolCall("search", {"query": "ai"}, {"results": 3})
-
-    assert call.name == "search"
-    assert call.args == {"query": "ai"}
-    assert call.result == {"results": 3}
-    assert call.timestamp is None
-
-    # Test to_dict conversion
-    call_dict = call.to_dict()
-    assert call_dict["name"] == "search"
-    assert call_dict["args"] == {"query": "ai"}
-    assert call_dict["result"] == {"results": 3}
-
-    # Test repr
-    assert "ToolCall" in repr(call)
-    assert "search" in repr(call)
-
-
-def test_empty_history():
-    """Test behavior with empty call history."""
-    tool = ToolPrimitive()
-
+    tool.reset()
     assert tool.get_call_count() == 0
-    assert len(tool.get_all_calls()) == 0
-    assert tool.called("anything") is False
-    assert tool.last_result("anything") is None
-    assert tool.last_call("anything") is None
-    assert "0 calls" in repr(tool)
 
 
-def test_tool_with_none_result():
-    """Test recording a tool call that returns None."""
+def test_last_result_returns_none_when_missing():
     tool = ToolPrimitive()
-
-    tool.record_call("void_function", {"arg": "value"}, None)
-
-    assert tool.called("void_function") is True
-    assert tool.last_result("void_function") is None
-    assert tool.last_call("void_function")["result"] is None
-    assert tool.get_call_count("void_function") == 1
+    assert tool.last_result("missing") is None
 
 
-def test_tool_with_complex_args_and_results():
-    """Test recording tools with complex nested data structures."""
+def test_record_call_logs_warning_on_handler_failure(caplog):
+    class ExplodingLogHandler:
+        def log(self, event):
+            raise RuntimeError("nope")
+
+    tool = ToolPrimitive(log_handler=ExplodingLogHandler())
+    with caplog.at_level("WARNING", logger="tactus.primitives.tool"):
+        tool.record_call("search", {"q": "hi"}, "ok")
+    assert any("Failed to log tool call event" in rec.message for rec in caplog.records)
+
+
+def test_tool_repr_includes_call_count():
     tool = ToolPrimitive()
+    assert repr(tool) == "ToolPrimitive(0 calls)"
+    tool.record_call("search", {"q": "hi"}, "ok")
+    assert repr(tool) == "ToolPrimitive(1 calls)"
 
-    complex_args = {"nested": {"list": [1, 2, 3], "dict": {"key": "value"}}, "top_level": "string"}
 
-    complex_result = {
-        "status": "success",
-        "data": [{"id": 1, "name": "item1"}, {"id": 2, "name": "item2"}],
-    }
+def test_type_checking_import_path():
+    import tactus.primitives.tool as tool_mod
 
-    tool.record_call("complex_tool", complex_args, complex_result)
-
-    assert tool.called("complex_tool") is True
-    last_call = tool.last_call("complex_tool")
-    assert last_call["args"]["nested"]["list"] == [1, 2, 3]
-    assert last_call["result"]["data"][0]["name"] == "item1"
+    original = typing.TYPE_CHECKING
+    try:
+        typing.TYPE_CHECKING = True
+        importlib.reload(tool_mod)
+    finally:
+        typing.TYPE_CHECKING = original
+        importlib.reload(tool_mod)

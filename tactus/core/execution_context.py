@@ -465,11 +465,8 @@ class BaseExecutionContext(ExecutionContext):
         Args:
             handle: ProcedureHandle instance
         """
-        # Store in metadata under "async_procedures" key
-        if "async_procedures" not in self.metadata:
-            self.metadata["async_procedures"] = {}
-
-        self.metadata["async_procedures"][handle.procedure_id] = handle.to_dict()
+        async_procedures = self._get_async_procedures()
+        async_procedures[handle.procedure_id] = handle.to_dict()
         self.storage.save_procedure_metadata(self.procedure_id, self.metadata)
 
     def get_procedure_handle(self, procedure_id: str) -> Optional[Dict[str, Any]]:
@@ -482,8 +479,7 @@ class BaseExecutionContext(ExecutionContext):
         Returns:
             Handle dict or None
         """
-        async_procedures = self.metadata.get("async_procedures", {})
-        return async_procedures.get(procedure_id)
+        return self._get_async_procedures().get(procedure_id)
 
     def list_pending_procedures(self) -> List[Dict[str, Any]]:
         """
@@ -492,7 +488,7 @@ class BaseExecutionContext(ExecutionContext):
         Returns:
             List of handle dicts for procedures with status "running" or "waiting"
         """
-        async_procedures = self.metadata.get("async_procedures", {})
+        async_procedures = self._get_async_procedures()
         return [
             handle
             for handle in async_procedures.values()
@@ -511,11 +507,9 @@ class BaseExecutionContext(ExecutionContext):
             result: Optional result value
             error: Optional error message
         """
-        if "async_procedures" not in self.metadata:
-            return
-
-        if procedure_id in self.metadata["async_procedures"]:
-            handle = self.metadata["async_procedures"][procedure_id]
+        async_procedures = self._get_async_procedures()
+        if procedure_id in async_procedures:
+            handle = async_procedures[procedure_id]
             handle["status"] = status
             if result is not None:
                 handle["result"] = result
@@ -525,6 +519,17 @@ class BaseExecutionContext(ExecutionContext):
                 handle["completed_at"] = datetime.now(timezone.utc).isoformat()
 
             self.storage.save_procedure_metadata(self.procedure_id, self.metadata)
+
+    def _get_async_procedures(self) -> Dict[str, Any]:
+        """Return the async procedures map stored on metadata."""
+        if isinstance(self.metadata, dict):
+            return self.metadata.setdefault("async_procedures", {})
+        store = getattr(self.metadata, "__dict__", None)
+        if store is None:
+            return {}
+        if "async_procedures" not in store:
+            store["async_procedures"] = {}
+        return store["async_procedures"]
 
     def save_execution_run(
         self, procedure_name: str, file_path: str, status: str = "COMPLETED"

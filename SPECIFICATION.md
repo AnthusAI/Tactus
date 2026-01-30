@@ -274,9 +274,28 @@ Procedure {
 
 **Message history filters:**
 - `filters.last_n(n)` - Keep only last N messages
+- `filters.first_n(n)` - Keep only first N messages
 - `filters.token_budget(max)` - Keep messages within token budget
+- `filters.head_tokens(max)` - Keep earliest messages within token budget
+- `filters.tail_tokens(max)` - Keep latest messages within token budget
 - `filters.by_role(role)` - Filter by message role
+- `filters.system_prefix()` - Keep leading system messages
 - `filters.compose(...)` - Combine multiple filters
+
+**MessageHistory transforms:**
+Use the `MessageHistory` primitive to inspect and mutate history from within procedures.
+
+- `MessageHistory.reset({keep = "system_prefix" | "system_all" | "none"})`
+- `MessageHistory.head(n)` / `MessageHistory.tail(n)` - Non-mutating views
+- `MessageHistory.slice({start = i, stop = j})` - 1-based slice view
+- `MessageHistory.keep_head(n)` / `MessageHistory.keep_tail(n)` - Mutating trims
+- `MessageHistory.tail_tokens(max_tokens)` / `MessageHistory.keep_tail_tokens(max_tokens)`
+- `MessageHistory.rewind(n)` - Remove last N messages
+- `MessageHistory.checkpoint(name?) -> id`
+- `MessageHistory.rewind_to(id_or_name)`
+
+**Token budgeting:** token-based filters and transforms use a deterministic heuristic
+(~4 characters per token) unless a model-specific tokenizer is added in the future.
 
 **Agent-level overrides:**
 

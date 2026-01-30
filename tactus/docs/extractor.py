@@ -146,6 +146,9 @@ class TacFileExtractor:
         for line in lines:
             line = line.strip()
 
+            if not line:
+                continue
+
             if line.startswith("Feature:"):
                 feature_name = line[8:].strip()
 
@@ -163,17 +166,15 @@ class TacFileExtractor:
                 current_scenario = line[9:].strip()
                 current_steps = []
 
-            elif any(line.startswith(kw) for kw in ["Given ", "When ", "Then ", "And ", "But "]):
-                # Extract keyword and text
+            else:
                 for keyword in ["Given", "When", "Then", "And", "But"]:
                     if line.startswith(keyword + " "):
                         step_text = line[len(keyword) + 1 :].strip()
                         current_steps.append(BDDStep(keyword=keyword, text=step_text))
                         break
-
-            elif line and not feature_name:
-                # Description line before first scenario
-                feature_desc_lines.append(line)
+                else:
+                    if not feature_name:
+                        feature_desc_lines.append(line)
 
         # Save last scenario
         if current_scenario:

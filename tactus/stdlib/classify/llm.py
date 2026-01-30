@@ -221,12 +221,10 @@ Start your response with the classification on its own line."""
 
     def _parse_response(self, response: str) -> Dict[str, Any]:
         """Parse classification response to extract value and explanation."""
-        if not response:
+        if not response or not response.strip():
             return {"value": None, "explanation": None}
 
         lines = response.strip().split("\n")
-        if not lines:
-            return {"value": None, "explanation": None}
 
         # First non-empty line should be the classification
         first_line = lines[0].strip()

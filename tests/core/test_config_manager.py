@@ -76,6 +76,14 @@ def test_no_sidecar_config(tmp_path, config_manager):
     assert found is None
 
 
+def test_sidecar_config_ignored_for_non_tac(tmp_path, config_manager):
+    procedure = tmp_path / "procedure.txt"
+    procedure.touch()
+
+    found = config_manager._find_sidecar_config(procedure)
+    assert found is None
+
+
 def test_load_yaml_file(tmp_path, config_manager):
     """Test loading a YAML configuration file."""
     config_file = tmp_path / "config.yml"
@@ -151,6 +159,10 @@ def test_merge_configs_multiple(config_manager):
     assert result["tool_paths"] == ["./common", "./specific"]
     assert result["model"] == "gpt-4o-mini"  # Last one wins
     assert result["temperature"] == 0.7
+
+
+def test_merge_configs_empty(config_manager):
+    assert config_manager._merge_configs([]) == {}
 
 
 def test_load_cascade_with_sidecar(tmp_path, config_manager):
@@ -250,6 +262,402 @@ def test_cascade_priority_order(tmp_path, config_manager, monkeypatch):
     assert "./sidecar_tools" in result["tool_paths"]
     # Root tool_paths should also be included (lists extend)
     assert "./root_tools" in result["tool_paths"]
+
+
+def test_load_cascade_includes_system_and_user_configs(tmp_path, config_manager, monkeypatch):
+    system_config = tmp_path / "system.yml"
+    user_config = tmp_path / "user.yml"
+    system_config.write_text(yaml.dump({"system": {"flag": True}}))
+    user_config.write_text(yaml.dump({"user": {"name": "alice"}}))
+
+    monkeypatch.setattr(
+        config_manager, "_get_system_config_paths", lambda: [system_config]
+    )
+    monkeypatch.setattr(config_manager, "_get_user_config_paths", lambda: [user_config])
+    monkeypatch.setattr(config_manager, "_find_directory_configs", lambda _path: [])
+
+    procedure = tmp_path / "proc.tac"
+    procedure.write_text("-- test")
+    monkeypatch.chdir(tmp_path)
+
+    merged = config_manager.load_cascade(procedure)
+
+    assert merged["system"]["flag"] is True
+    assert merged["user"]["name"] == "alice"
+
+
+def test_load_cascade_includes_parent_config(tmp_path, config_manager, monkeypatch):
+    parent_config = tmp_path / "parent" / ".tactus" / "config.yml"
+    parent_config.parent.mkdir(parents=True)
+    parent_config.write_text(yaml.dump({"parent": {"flag": True}}))
+
+    procedure_dir = tmp_path / "parent" / "proc"
+    procedure_dir.mkdir(parents=True)
+    procedure = procedure_dir / "test.tac"
+    procedure.write_text("-- test")
+
+    monkeypatch.setattr(config_manager, "_find_directory_configs", lambda _path: [parent_config])
+    monkeypatch.setattr(config_manager, "_get_system_config_paths", lambda: [])
+    monkeypatch.setattr(config_manager, "_get_user_config_paths", lambda: [])
+    monkeypatch.setattr(config_manager, "_load_from_environment", lambda: {})
+    monkeypatch.chdir(tmp_path)
+
+    merged = config_manager.load_cascade(procedure)
+
+    assert merged["parent"]["flag"] is True
+
+
+def test_load_cascade_skips_empty_configs(tmp_path, config_manager, monkeypatch):
+    system_config = tmp_path / "system.yml"
+    user_config = tmp_path / "user.yml"
+    root_config = tmp_path / ".tactus" / "config.yml"
+    parent_config = tmp_path / "parent" / ".tactus" / "config.yml"
+    local_config = tmp_path / "proc" / ".tactus" / "config.yml"
+    sidecar_config = tmp_path / "proc" / "test.tac.yml"
+
+    parent_config.parent.mkdir(parents=True)
+    local_config.parent.mkdir(parents=True)
+    root_config.parent.mkdir(parents=True)
+
+    for path in [
+        system_config,
+        user_config,
+        root_config,
+        parent_config,
+        local_config,
+        sidecar_config,
+    ]:
+        path.write_text("noop: true")
+
+    procedure = tmp_path / "proc" / "test.tac"
+    procedure.write_text("-- test")
+
+    monkeypatch.setattr(config_manager, "_get_system_config_paths", lambda: [system_config])
+    monkeypatch.setattr(config_manager, "_get_user_config_paths", lambda: [user_config])
+    monkeypatch.setattr(config_manager, "_find_directory_configs", lambda _path: [parent_config])
+    monkeypatch.setattr(config_manager, "_load_yaml_file", lambda _path: {})
+    monkeypatch.setattr(config_manager, "_load_from_environment", lambda: {})
+    monkeypatch.chdir(tmp_path)
+
+    result = config_manager.load_cascade(procedure)
+
+    assert result == {}
+    assert config_manager.loaded_configs == []
+
+
+def test_environment_boolean_and_tool_paths(config_manager, monkeypatch):
+    monkeypatch.setenv("TACTUS_CONTROL_ENABLED", "true")
+    monkeypatch.setenv("TOOL_PATHS", '["./tools"]')
+
+    env_config = config_manager._load_from_environment()
+
+    assert env_config["control"]["enabled"] is True
+    assert env_config["tool_paths"] == ["./tools"]
+
+
+def test_environment_invalid_tool_paths_logs_warning(config_manager, monkeypatch):
+    monkeypatch.setenv("TOOL_PATHS", "not-json")
+
+    env_config = config_manager._load_from_environment()
+
+    assert "tool_paths" not in env_config
+
+
+def test_environment_string_value_mapping(config_manager, monkeypatch):
+    monkeypatch.setenv("TACTUS_DEFAULT_PROVIDER", "openai")
+
+    env_config = config_manager._load_from_environment()
+
+    assert env_config["default_provider"] == "openai"
+    assert config_manager.env_var_mapping["default_provider"] == "TACTUS_DEFAULT_PROVIDER"
+
+
+def test_get_system_config_paths_windows_branch(config_manager, monkeypatch):
+    import pathlib
+    import tactus.core.config_manager as config_manager_module
+
+    monkeypatch.setattr("os.name", "nt", raising=False)
+    monkeypatch.setenv("PROGRAMDATA", r"C:\ProgramData")
+    monkeypatch.setattr(config_manager_module, "Path", pathlib.PureWindowsPath)
+
+    paths = config_manager._get_system_config_paths()
+    assert str(paths[0]).endswith("ProgramData\\tactus\\config.yml")
+
+
+def test_get_user_config_paths_xdg(config_manager, monkeypatch, tmp_path):
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    paths = config_manager._get_user_config_paths()
+
+    assert paths[0] == tmp_path / "tactus" / "config.yml"
+
+
+def test_get_user_config_paths_dedup(config_manager, monkeypatch):
+    import tactus.core.config_manager as config_manager_module
+
+    class FakePath:
+        def __init__(self, path: str):
+            self.path = path
+
+        def __truediv__(self, part: str) -> "FakePath":
+            if self.path.endswith("/"):
+                return FakePath(f"{self.path}{part}")
+            return FakePath(f"{self.path}/{part}")
+
+        def __eq__(self, other: object) -> bool:
+            if not isinstance(other, FakePath):
+                return False
+            return self._canonical() == other._canonical()
+
+        def __hash__(self) -> int:
+            return hash(self._canonical())
+
+        def _canonical(self) -> str:
+            return self.path.replace("/.tactus/tactus/", "/.tactus/")
+
+        def __repr__(self) -> str:
+            return f"FakePath({self.path!r})"
+
+        @classmethod
+        def home(cls) -> "FakePath":
+            return cls("/home")
+
+    monkeypatch.setenv("XDG_CONFIG_HOME", "/home/.tactus")
+    monkeypatch.setattr(config_manager_module, "Path", FakePath)
+
+    paths = config_manager._get_user_config_paths()
+
+    assert len(paths) == 1
+
+
+def test_deep_merge_with_tracking_list_override(config_manager):
+    config_manager.env_var_mapping = {"tool_paths": "TACTUS_TOOL_PATHS"}
+    base = {"tool_paths": ["./base"]}
+    override = {"tool_paths": ["./override"]}
+
+    merged, source_map = config_manager._deep_merge_with_tracking(
+        base, override, "base", "environment", "", {}
+    )
+
+    assert merged["tool_paths"] == ["./base", "./override"]
+    assert source_map["tool_paths"].original_env_var == "TACTUS_TOOL_PATHS"
+
+
+def test_deep_merge_with_tracking_list_duplicate(config_manager):
+    base = {"tool_paths": ["./shared", "./base"]}
+    override = {"tool_paths": ["./shared", "./override"]}
+
+    merged, source_map = config_manager._deep_merge_with_tracking(
+        base, override, "base", "user", "", {}
+    )
+
+    assert merged["tool_paths"] == ["./shared", "./base", "./override"]
+    assert source_map["tool_paths"].override_chain[-1][1] == ["./shared", "./override"]
+
+
+def test_track_nested_values_without_overwrite(config_manager):
+    source_map = {
+        "root.value": ConfigValue(value=1, source="base", source_type="base", path="root.value")
+    }
+
+    config_manager._track_nested_values(
+        {"value": 2, "nested": {"child": 3}},
+        source="override",
+        source_type="override",
+        path_prefix="root",
+        source_map=source_map,
+        overwrite=False,
+    )
+
+    assert source_map["root.value"].value == 1
+    assert source_map["root.nested.child"].value == 3
+
+
+def test_track_nested_values_without_overwrite_lists(config_manager):
+    source_map = {
+        "items[0]": ConfigValue(value=1, source="base", source_type="base", path="items[0]")
+    }
+
+    config_manager._track_nested_values(
+        [{"child": 2}, {"child": 3}],
+        source="override",
+        source_type="override",
+        path_prefix="items",
+        source_map=source_map,
+        overwrite=False,
+    )
+
+    assert source_map["items[0]"].value == 1
+    assert source_map["items[1].child"].value == 3
+
+
+def test_track_nested_values_without_overwrite_scalar_list(config_manager):
+    source_map = {
+        "items[0]": ConfigValue(value=1, source="base", source_type="base", path="items[0]")
+    }
+
+    config_manager._track_nested_values(
+        [1],
+        source="override",
+        source_type="override",
+        path_prefix="items",
+        source_map=source_map,
+        overwrite=False,
+    )
+
+    assert source_map["items[0]"].value == 1
+
+
+def test_track_nested_values_scalar_is_ignored(config_manager):
+    source_map = {}
+
+    config_manager._track_nested_values(
+        "value", source="base", source_type="base", path_prefix="root", source_map=source_map
+    )
+
+    assert source_map == {}
+
+
+def test_track_nested_values_dict_skip_recurses(config_manager):
+    source_map = {
+        "root.nested": ConfigValue(
+            value={}, source="base", source_type="base", path="root.nested"
+        )
+    }
+
+    config_manager._track_nested_values(
+        {"nested": {"child": 1}},
+        source="override",
+        source_type="override",
+        path_prefix="root",
+        source_map=source_map,
+        overwrite=False,
+    )
+
+    assert source_map["root.nested.child"].value == 1
+
+
+def test_track_nested_values_list_nested(config_manager):
+    source_map = {
+        "items[0]": ConfigValue(value={}, source="base", source_type="base", path="items[0]")
+    }
+
+    config_manager._track_nested_values(
+        [{"child": 1}],
+        source="override",
+        source_type="override",
+        path_prefix="items",
+        source_map=source_map,
+        overwrite=False,
+    )
+
+    assert source_map["items[0].child"].value == 1
+
+
+def test_track_nested_values_list_of_dicts(config_manager):
+    source_map = {}
+
+    config_manager._track_nested_values(
+        [{"child": 2}, {"child": 3}],
+        source="base",
+        source_type="project",
+        path_prefix="items",
+        source_map=source_map,
+    )
+
+    assert source_map["items[0].child"].value == 2
+    assert source_map["items[1].child"].value == 3
+
+
+def test_load_cascade_with_sources_no_configs(tmp_path, config_manager, monkeypatch):
+    procedure = tmp_path / "proc.tac"
+    procedure.write_text("-- test")
+    monkeypatch.setattr(config_manager, "_load_from_environment", lambda: {})
+    monkeypatch.setattr(config_manager, "_get_system_config_paths", lambda: [])
+    monkeypatch.setattr(config_manager, "_get_user_config_paths", lambda: [])
+    monkeypatch.setattr(config_manager, "_find_directory_configs", lambda _path: [])
+    monkeypatch.chdir(tmp_path)
+
+    merged, source_map = config_manager.load_cascade_with_sources(procedure)
+
+    assert merged == {}
+    assert source_map == {}
+
+
+def test_load_cascade_with_sources_skips_empty_configs(tmp_path, config_manager, monkeypatch):
+    system_config = tmp_path / "system.yml"
+    user_config = tmp_path / "user.yml"
+    root_config = tmp_path / ".tactus" / "config.yml"
+    parent_config = tmp_path / "parent" / ".tactus" / "config.yml"
+    local_config = tmp_path / "proc" / ".tactus" / "config.yml"
+    sidecar_config = tmp_path / "proc" / "test.tac.yml"
+
+    parent_config.parent.mkdir(parents=True)
+    local_config.parent.mkdir(parents=True)
+    root_config.parent.mkdir(parents=True)
+
+    for path in [
+        system_config,
+        user_config,
+        root_config,
+        parent_config,
+        local_config,
+        sidecar_config,
+    ]:
+        path.write_text("noop: true")
+
+    procedure = tmp_path / "proc" / "test.tac"
+    procedure.write_text("-- test")
+
+    monkeypatch.setattr(config_manager, "_get_system_config_paths", lambda: [system_config])
+    monkeypatch.setattr(config_manager, "_get_user_config_paths", lambda: [user_config])
+    monkeypatch.setattr(config_manager, "_find_directory_configs", lambda _path: [parent_config])
+    monkeypatch.setattr(config_manager, "_load_yaml_file", lambda _path: {})
+    monkeypatch.setattr(config_manager, "_load_from_environment", lambda: {})
+    monkeypatch.chdir(tmp_path)
+
+    merged, source_map = config_manager.load_cascade_with_sources(procedure)
+
+    assert merged == {}
+    assert source_map == {}
+
+
+def test_load_cascade_with_sources_includes_all_sources(tmp_path, config_manager, monkeypatch):
+    system_config = tmp_path / "system.yml"
+    user_config = tmp_path / "user.yml"
+    root_config = tmp_path / ".tactus" / "config.yml"
+    parent_config = tmp_path / "parent" / ".tactus" / "config.yml"
+    local_config = tmp_path / "proc" / ".tactus" / "config.yml"
+    sidecar_config = tmp_path / "proc" / "test.tac.yml"
+
+    parent_config.parent.mkdir(parents=True)
+    local_config.parent.mkdir(parents=True)
+    root_config.parent.mkdir(parents=True)
+
+    system_config.write_text("system_flag: true")
+    user_config.write_text("user_name: alice")
+    root_config.write_text("root_key: root")
+    parent_config.write_text("parent_key: parent")
+    local_config.write_text("local_key: local")
+    sidecar_config.write_text("sidecar_key: sidecar")
+
+    procedure = tmp_path / "proc" / "test.tac"
+    procedure.write_text("-- test")
+
+    monkeypatch.setattr(config_manager, "_get_system_config_paths", lambda: [system_config])
+    monkeypatch.setattr(config_manager, "_get_user_config_paths", lambda: [user_config])
+    monkeypatch.setattr(config_manager, "_find_directory_configs", lambda _path: [parent_config])
+    monkeypatch.setattr(config_manager, "_load_from_environment", lambda: {})
+    monkeypatch.chdir(tmp_path)
+
+    merged, source_map = config_manager.load_cascade_with_sources(procedure)
+
+    assert merged["system_flag"] is True
+    assert merged["user_name"] == "alice"
+    assert merged["root_key"] == "root"
+    assert merged["parent_key"] == "parent"
+    assert merged["local_key"] == "local"
+    assert merged["sidecar_key"] == "sidecar"
+    assert source_map["sidecar_key"].source_type == "sidecar"
 
 
 # ============================================================================

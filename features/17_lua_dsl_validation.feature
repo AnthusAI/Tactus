@@ -131,6 +131,10 @@ Feature: Lua DSL Validation
   And the output should show the error location
   And the output should suggest how to fix it
 
+  Scenario: CLI validation fails for missing file
+  When I run "tactus validate missing.tac"
+  Then the command should fail
+  And the output should show "not found"
 
 
 

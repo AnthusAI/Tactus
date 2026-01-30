@@ -96,6 +96,35 @@ class TestStdlibModuleLoader:
         result = loader_func("tactus.io.nonexistent")
         assert result is None
 
+    def test_loader_wraps_module_load_errors(self, tmp_path, monkeypatch):
+        """Test that module load failures are wrapped for Lua."""
+        sandbox = LuaSandbox(base_path=str(tmp_path))
+        loader = StdlibModuleLoader(sandbox, str(tmp_path))
+        loader_func = loader.create_loader_function()
+
+        def boom(_name, _path):
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr(loader, "_load_python_module", boom)
+
+        with pytest.raises(RuntimeError, match="Failed to load module"):
+            loader_func("tactus.io.json")
+
+    def test_load_module_import_spec_failure(self, tmp_path, monkeypatch):
+        """Test that spec loading failures raise ImportError."""
+        sandbox = LuaSandbox(base_path=str(tmp_path))
+        loader = StdlibModuleLoader(sandbox, str(tmp_path))
+        fake_path = tmp_path / "fake.py"
+        fake_path.write_text("x = 1")
+
+        monkeypatch.setattr(
+            "importlib.util.spec_from_file_location",
+            lambda _name, _path: None,
+        )
+
+        with pytest.raises(ImportError, match="Could not load spec"):
+            loader._load_python_module("tactus.io.fake", fake_path)
+
     def test_explicit_exports(self, tmp_path):
         """Test that __tactus_exports__ limits exposed functions."""
         sandbox = LuaSandbox(base_path=str(tmp_path))
@@ -130,6 +159,23 @@ class TestStdlibModuleLoader:
         assert "public_func" in exports
         assert "another_func" not in exports
         assert "_private_func" not in exports
+
+    def test_skip_imported_functions(self, tmp_path):
+        """Test that imported functions are skipped."""
+        sandbox = LuaSandbox(base_path=str(tmp_path))
+        loader = StdlibModuleLoader(sandbox, str(tmp_path))
+
+        test_module = type("TestModule", (), {})()
+        test_module.__name__ = "test_module"
+
+        def external_func():
+            pass
+
+        external_func.__module__ = "other_module"
+        test_module.external_func = external_func
+
+        exports = loader._get_module_exports(test_module)
+        assert "external_func" not in exports
 
 
 class TestTactusStdlibContext:
@@ -178,3 +224,10 @@ class TestTactusStdlibContext:
         # Should raise PermissionError
         with pytest.raises(PermissionError):
             context.validate_path("../../../etc/passwd")
+
+
+def test_python_to_lua_fallback_value(tmp_path):
+    sandbox = LuaSandbox(base_path=str(tmp_path))
+    loader = StdlibModuleLoader(sandbox, str(tmp_path))
+    marker = object()
+    assert loader._python_to_lua(marker) is marker

@@ -72,6 +72,94 @@ Feature: Session Filters
   When I validate the file
   Then validation should succeed
 
+  Scenario: first_n filter
+  Given a Lua DSL file with content:
+  """
+  worker = Agent {
+  provider = "openai",
+  system_prompt = "Work",
+  tools = {},
+  message_history = {
+  source = "own",
+  filter = filters.first_n(3)
+  }
+  }
+
+  main = Procedure "main" {
+    function(input)
+  return { result = "done" }
+  end
+  }
+  """
+  When I validate the file
+  Then validation should succeed
+
+  Scenario: head_tokens filter
+  Given a Lua DSL file with content:
+  """
+  worker = Agent {
+  provider = "openai",
+  system_prompt = "Work",
+  tools = {},
+  message_history = {
+  source = "own",
+  filter = filters.head_tokens(2048)
+  }
+  }
+
+  main = Procedure "main" {
+    function(input)
+  return { result = "done" }
+  end
+  }
+  """
+  When I validate the file
+  Then validation should succeed
+
+  Scenario: tail_tokens filter
+  Given a Lua DSL file with content:
+  """
+  worker = Agent {
+  provider = "openai",
+  system_prompt = "Work",
+  tools = {},
+  message_history = {
+  source = "own",
+  filter = filters.tail_tokens(2048)
+  }
+  }
+
+  main = Procedure "main" {
+    function(input)
+  return { result = "done" }
+  end
+  }
+  """
+  When I validate the file
+  Then validation should succeed
+
+  Scenario: system_prefix filter
+  Given a Lua DSL file with content:
+  """
+  worker = Agent {
+  provider = "openai",
+  system_prompt = "Work",
+  tools = {},
+  message_history = {
+  source = "own",
+  filter = filters.system_prefix()
+  }
+  }
+
+  main = Procedure "main" {
+    function(input)
+  return { result = "done" }
+  end
+  }
+  """
+  When I validate the file
+  Then validation should succeed
+
   Scenario: compose multiple filters
   Given a Lua DSL file with content:
   """

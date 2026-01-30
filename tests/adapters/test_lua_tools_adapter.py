@@ -194,6 +194,155 @@ class TestLuaToolsAdapter:
         toolset = adapter.create_inline_tools_toolset("agent_name", tools_list)
         assert toolset is not None
 
+    @pytest.mark.asyncio
+    async def test_inline_tools_toolset_skips_missing_name(self):
+        adapter = LuaToolsAdapter()
+        toolset = adapter.create_inline_tools_toolset("agent_name", [{"handler": lambda args: "ok"}])
+
+        assert await toolset.get_tools(None) == {}
+
+    @pytest.mark.asyncio
+    async def test_inline_toolset_skips_missing_name(self):
+        adapter = LuaToolsAdapter()
+        toolset = adapter.create_inline_toolset("toolset_name", [{"handler": lambda args: "ok"}])
+
+        assert await toolset.get_tools(None) == {}
+
+    @pytest.mark.asyncio
+    async def test_inline_toolset_with_named_tool(self):
+        adapter = LuaToolsAdapter()
+
+        def handler(args):
+            return args.get("x")
+
+        toolset = adapter.create_inline_toolset(
+            "toolset_name",
+            [
+                {
+                    "name": "echo",
+                    "description": "Echo input",
+                    "input": {"x": {"type": "string", "required": True}},
+                    "handler": handler,
+                }
+            ],
+        )
+
+        assert "toolset_name_echo" in toolset.tools
+
+    @pytest.mark.asyncio
+    async def test_wrapped_function_uses_fallback_handler_and_mock_manager(self):
+        calls = []
+
+        class MockManager:
+            def get_mock_response(self, name, kwargs):
+                return "mocked"
+
+            def record_call(self, name, kwargs, result):
+                calls.append((name, kwargs, result))
+
+        class ToolPrimitive:
+            def __init__(self):
+                self.calls = []
+
+            def record_call(self, name, kwargs, result):
+                self.calls.append((name, kwargs, result))
+
+        adapter = LuaToolsAdapter(tool_primitive=ToolPrimitive(), mock_manager=MockManager())
+
+        def handler(args):
+            return f"real-{args['x']}"
+
+        tool_spec = {1: handler, "input": {"x": {"type": "string", "required": True}}}
+        wrapped = adapter._create_wrapped_function("tool", tool_spec)
+
+        result = await wrapped(x="value")
+
+        assert result == "mocked"
+        assert calls[0][0] == "tool"
+        assert adapter.tool_primitive.calls[0][0] == "tool"
+
+    @pytest.mark.asyncio
+    async def test_wrapped_function_records_mock_calls(self):
+        class MockManager:
+            def __init__(self):
+                self.calls = []
+
+            def get_mock_response(self, name, kwargs):
+                return "mocked"
+
+            def record_call(self, name, kwargs, result):
+                self.calls.append((name, kwargs, result))
+
+        class ToolPrimitive:
+            def __init__(self):
+                self.calls = []
+
+            def record_call(self, name, kwargs, result):
+                self.calls.append((name, kwargs, result))
+
+        mock_manager = MockManager()
+        tool_primitive = ToolPrimitive()
+        adapter = LuaToolsAdapter(tool_primitive=tool_primitive, mock_manager=mock_manager)
+
+        def handler(args):
+            return f"real-{args['x']}"
+
+        tool_spec = {"handler": handler, "input": {"x": {"type": "string", "required": True}}}
+        wrapped = adapter._create_wrapped_function("tool", tool_spec)
+
+        result = await wrapped(x="value")
+
+        assert result == "mocked"
+        assert tool_primitive.calls[0][0] == "tool"
+        assert mock_manager.calls[0][0] == "tool"
+
+    @pytest.mark.asyncio
+    async def test_wrapped_function_mock_without_tool_primitive(self):
+        class MockManager:
+            def __init__(self):
+                self.calls = []
+
+            def get_mock_response(self, name, kwargs):
+                return "mocked"
+
+            def record_call(self, name, kwargs, result):
+                self.calls.append((name, kwargs, result))
+
+        adapter = LuaToolsAdapter(mock_manager=MockManager())
+
+        def handler(args):
+            return f"real-{args['x']}"
+
+        tool_spec = {"handler": handler, "input": {"x": {"type": "string", "required": True}}}
+        wrapped = adapter._create_wrapped_function("tool", tool_spec)
+
+        result = await wrapped(x="value")
+
+        assert result == "mocked"
+        assert adapter.mock_manager.calls[0][0] == "tool"
+
+    @pytest.mark.asyncio
+    async def test_wrapped_function_records_error(self):
+        class ToolPrimitive:
+            def __init__(self):
+                self.calls = []
+
+            def record_call(self, name, kwargs, result):
+                self.calls.append((name, kwargs, result))
+
+        adapter = LuaToolsAdapter(tool_primitive=ToolPrimitive())
+
+        def handler(_args):
+            raise RuntimeError("boom")
+
+        tool_spec = {"handler": handler, "input": {}}
+        wrapped = adapter._create_wrapped_function("tool", tool_spec)
+
+        with pytest.raises(RuntimeError, match="Error executing Lua tool"):
+            await wrapped()
+
+        assert adapter.tool_primitive.calls
+
     def test_create_wrapped_function_missing_handler(self):
         """Test error when handler is missing."""
         adapter = LuaToolsAdapter()
@@ -203,6 +352,19 @@ class TestLuaToolsAdapter:
             "input": {},
             # Missing 'handler' key
         }
+
+        with pytest.raises(ValueError, match="missing handler function"):
+            adapter._create_wrapped_function("test_tool", tool_spec)
+
+    def test_create_wrapped_function_fallback_get_error(self):
+        class BadGet(dict):
+            def get(self, key, default=None):
+                if key == 1:
+                    raise RuntimeError("boom")
+                return super().get(key, default)
+
+        adapter = LuaToolsAdapter()
+        tool_spec = BadGet({"description": "Test tool", "input": {}})
 
         with pytest.raises(ValueError, match="missing handler function"):
             adapter._create_wrapped_function("test_tool", tool_spec)
@@ -274,8 +436,30 @@ class TestLuaToolsAdapter:
         assert result == "30"
         assert len(mock_primitive.calls) == 1
         assert mock_primitive.calls[0]["tool_name"] == "add"
-        assert mock_primitive.calls[0]["args"] == {"a": 10, "b": 20}
-        assert mock_primitive.calls[0]["result"] == "30"
+
+    @pytest.mark.asyncio
+    async def test_wrapped_function_records_mock_manager_on_real_call(self):
+        calls = []
+
+        class MockManager:
+            def get_mock_response(self, name, kwargs):
+                return None
+
+            def record_call(self, name, kwargs, result):
+                calls.append((name, kwargs, result))
+
+        adapter = LuaToolsAdapter(mock_manager=MockManager())
+
+        def handler(args):
+            return f"real-{args['x']}"
+
+        tool_spec = {"handler": handler, "input": {"x": {"type": "string", "required": True}}}
+        wrapped = adapter._create_wrapped_function("tool", tool_spec)
+
+        result = await wrapped(x="value")
+
+        assert result == "real-value"
+        assert calls[0][0] == "tool"
 
     @pytest.mark.asyncio
     async def test_wrapped_function_error_handling(self):

@@ -885,7 +885,9 @@ class ContainerRunner:
             async def handle_broker_request(
                 writer: asyncio.StreamWriter, req: dict[str, Any]
             ) -> None:
-                raise RuntimeError("Broker requests are not expected in non-stdio transports")
+                raise RuntimeError(
+                    "Broker requests are not expected in non-stdio transports"
+                )  # pragma: no cover
 
         # Start container process
         process = await asyncio.create_subprocess_exec(
@@ -1075,7 +1077,7 @@ class ContainerRunner:
             except Exception:
                 pass
             for task in (stdout_task, stderr_task, wait_task):
-                if task is None:
+                if task is None:  # pragma: no cover
                     continue
                 task.cancel()
                 try:

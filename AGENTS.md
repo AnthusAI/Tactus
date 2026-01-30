@@ -54,6 +54,8 @@ ruff check .
 black tactus tactus-ide/backend features/steps tests --check
 ```
 
+*** FUCKING COMMIT RIGHT NOW ***
+
 Only commit when:
 - The human user has explicitly approved the changes
 - ALL of the above checks pass
@@ -122,6 +124,14 @@ Agent "bedrock_agent" {
 - Verify that implementations actually work as intended
 - Acknowledge limitations and incomplete features
 - Suggest improvements and note areas that need work
+
+## Testing Philosophy (BDD-First)
+
+Tactus aspires to be **religiously BDD** and **spec-first**:
+- **Outside-in first**: Start with BDD specs that narrate the feature behavior.
+- **Specs as story**: Scenarios should read like a short narrative of how the feature works.
+- **Pytest is secondary**: Use unit tests only when a behavior is best verified at the unit level.
+- **Unit tests are limited**: Prefer BDD unless a unit test is the most sensible and lowest-friction way to verify correctness.
 
 ## Semantic Release and Changelog
 

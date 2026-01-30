@@ -91,16 +91,12 @@ class PydanticAIMCPAdapter:
             pydantic_ai.Tool instance or None if conversion fails
         """
         # Extract tool metadata
-        tool_name = (
-            getattr(mcp_tool, "name", None) or mcp_tool.get("name")
-            if isinstance(mcp_tool, dict)
-            else None
-        )
-        tool_description = (
-            getattr(mcp_tool, "description", None) or mcp_tool.get("description", "")
-            if isinstance(mcp_tool, dict)
-            else ""
-        )
+        if isinstance(mcp_tool, dict):
+            tool_name = mcp_tool.get("name")
+            tool_description = mcp_tool.get("description", "")
+        else:
+            tool_name = getattr(mcp_tool, "name", None)
+            tool_description = getattr(mcp_tool, "description", None) or ""
 
         if not tool_name:
             logger.warning(f"MCP tool missing name: {mcp_tool}")

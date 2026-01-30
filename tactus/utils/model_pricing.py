@@ -73,16 +73,16 @@ def normalize_model_name(model_name: str, provider: Optional[str] = None) -> tup
     Returns:
         Tuple of (normalized_model_name, provider)
     """
+    # Check for Bedrock format (anthropic.claude-...)
+    if model_name.startswith("anthropic."):
+        return (model_name, "bedrock")
+
     # Extract provider from model name if present
     if ":" in model_name:
         parts = model_name.split(":", 1)
         detected_provider = parts[0].lower()
         model_only = parts[1]
         return (model_only, detected_provider)
-
-    # Check for Bedrock format (anthropic.claude-...)
-    if model_name.startswith("anthropic."):
-        return (model_name, "bedrock")
 
     # Use provided provider or try to infer
     if provider:

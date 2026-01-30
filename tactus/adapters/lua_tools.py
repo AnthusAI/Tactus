@@ -193,8 +193,7 @@ class LuaToolsAdapter:
                         # Track the mock call
                         if self.tool_primitive:
                             self.tool_primitive.record_call(tool_name, kwargs, result_str)
-                        if self.mock_manager:
-                            self.mock_manager.record_call(tool_name, kwargs, result_str)
+                        self.mock_manager.record_call(tool_name, kwargs, result_str)
                         return result_str
 
                 # Call Lua function directly (Lupa is NOT thread-safe, so we can't use executor)

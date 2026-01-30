@@ -241,9 +241,9 @@ class IPCControlChannel:
             while True:
                 try:
                     message = await read_message(reader)
-                except EOFError:
-                    break
                 except asyncio.IncompleteReadError:
+                    break
+                except EOFError:
                     break
 
                 # Handle message
