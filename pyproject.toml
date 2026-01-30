@@ -49,6 +49,9 @@ dependencies = [
     # IDE server dependencies
     "flask>=3.0.0",
     "flask-cors>=4.0.0",
+    # Documentation rendering
+    "markdown>=3.0",
+    "jinja2>=3.0",
 ]
 
 [project.optional-dependencies]
