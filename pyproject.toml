@@ -28,7 +28,7 @@ dependencies = [
     "lupa>=2.6",
     "pyyaml",
     "pydantic>=2.0",
-    "pydantic-ai[bedrock]",
+    "pydantic-ai-slim[bedrock]",
     # NOTE: We use LiteLLM (via DSPy) for all LLM calls - do not add provider-specific SDKs
     "boto3>=1.28.0",
     "rich>=13.9.4",
