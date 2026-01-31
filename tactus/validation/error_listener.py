@@ -18,17 +18,17 @@ class TactusErrorListener(ErrorListener):
         self,
         parser,
         offending_token,
-        line_number,
-        column_number,
-        error_message,
+        line_number: int,
+        column_number: int,
+        antlr_error_message: str,
         antlr_exception,
-    ):
+    ) -> None:
         """Called when parser encounters a syntax error."""
-        _ = parser, offending_token, antlr_exception
+        del parser, offending_token, antlr_exception
         self.syntax_errors.append(
             ValidationMessage(
                 level="error",
-                message=f"Syntax error: {error_message}",
+                message=f"Syntax error: {antlr_error_message}",
                 location=(line_number, column_number),
             )
         )

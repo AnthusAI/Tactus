@@ -1,5 +1,8 @@
 # Tactus
 
+![Continuous integration][continuous-integration-badge]
+![Coverage][coverage-badge]
+
 **A programming language for reliable, tool-using AI agents.**
 
 *Agents that never lose their place.*
@@ -1758,3 +1761,6 @@ See `tactus/validation/README.md` for detailed documentation.
 ## License
 
 MIT License - see LICENSE file for details.
+
+[continuous-integration-badge]: https://github.com/AnthusAI/Tactus/actions/workflows/release.yml/badge.svg?branch=main
+[coverage-badge]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/AnthusAI/Tactus/main/coverage_badge.json
