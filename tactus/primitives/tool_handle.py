@@ -9,6 +9,8 @@ import asyncio
 import logging
 from typing import Any, Callable, Optional, TYPE_CHECKING
 
+from tactus.utils.asyncio_helpers import clear_closed_event_loop
+
 if TYPE_CHECKING:
     from tactus.primitives.tool import ToolPrimitive
 
@@ -276,6 +278,7 @@ class ToolHandle:
 
         except RuntimeError:
             # No event loop running - safe to use asyncio.run()
+            clear_closed_event_loop()
             return asyncio.run(self.implementation_function(args))
 
     def _lua_table_to_dict(self, lua_table: Any) -> Any:

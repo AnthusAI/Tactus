@@ -12,6 +12,7 @@ import asyncio
 from typing import Any, Optional
 
 from tactus.broker.client import BrokerClient
+from tactus.utils.asyncio_helpers import clear_closed_event_loop
 
 
 class HostPrimitive:
@@ -55,6 +56,7 @@ class HostPrimitive:
             return thread_result["value"]
 
         except RuntimeError:
+            clear_closed_event_loop()
             return asyncio.run(coroutine)
 
     def _lua_to_python(self, value: Any) -> Any:

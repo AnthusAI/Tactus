@@ -399,6 +399,26 @@ def test_request_interaction_uses_new_loop(monkeypatch):
     assert created_loops
 
 
+def test_request_interaction_restores_previous_event_loop(monkeypatch):
+    handler = ControlLoopHandler(channels=[])
+
+    async def fake_async(_request):
+        return ControlResponse(request_id="req", value="ok")
+
+    previous_event_loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(previous_event_loop)
+
+    monkeypatch.setattr(handler, "_request_interaction_async", fake_async)
+    monkeypatch.setattr(asyncio, "get_running_loop", lambda: (_ for _ in ()).throw(RuntimeError()))
+
+    response = handler.request_interaction("proc", "approval", "msg")
+    assert response.value == "ok"
+    assert asyncio.get_event_loop() is previous_event_loop
+
+    previous_event_loop.close()
+    asyncio.set_event_loop(None)
+
+
 @pytest.mark.asyncio
 async def test_wait_for_first_response_returns_response():
     response = ControlResponse(request_id="req", value="ok", channel_id="chan")

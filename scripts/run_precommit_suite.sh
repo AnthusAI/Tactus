@@ -4,6 +4,9 @@ set -euo pipefail
 # Run the project's full pre-commit suite with per-command timeouts so the
 # runner can't stall indefinitely on a "landmine" test.
 #
+# This script is intended to mirror GitHub Actions CI as closely as possible.
+# Keep the command list and flags aligned with .github/workflows/release.yml.
+#
 # Default timeout per command is 300 seconds (5 minutes). Override via:
 #   TACTUS_CMD_TIMEOUT_SECONDS=600 scripts/run_precommit_suite.sh
 #
@@ -13,7 +16,6 @@ set -euo pipefail
 
 TIMEOUT_SECONDS="${TACTUS_CMD_TIMEOUT_SECONDS:-300}"
 PYTEST_CMD_TIMEOUT_SECONDS="${TACTUS_PYTEST_CMD_TIMEOUT_SECONDS:-900}"
-PYTEST_TEST_TIMEOUT_SECONDS="${TACTUS_PYTEST_TEST_TIMEOUT_SECONDS:-300}"
 TIMEOUT="scripts/timeout.py"
 
 # Prefer an explicitly provided interpreter, otherwise try the repo's typical env.
@@ -52,9 +54,8 @@ run_pytest() {
   echo "✓ $*"
 }
 
-run_pytest ${PYTEST} tests/ -x -k "not test_real_execution" --timeout="${PYTEST_TEST_TIMEOUT_SECONDS}" --timeout-method=thread
-run ${BEHAVE} --summary
-run ${RUFF} check .
-run ${BLACK} tactus tactus-ide/backend features/steps tests
-run ${RUFF} check .
-run ${BLACK} tactus tactus-ide/backend features/steps tests --check
+run ${RUFF} check tactus/ tests/ features/steps/
+run ${BLACK} --check tactus/ tests/ features/steps/
+run_pytest ${PYTEST} tests/ -v --tb=short -m "not integration" -n0
+run ${BEHAVE}
+run tactus stdlib test

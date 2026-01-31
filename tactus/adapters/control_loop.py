@@ -215,14 +215,23 @@ class ControlLoopHandler:
             nest_asyncio.apply()
             return event_loop.run_until_complete(self._request_interaction_async(request))
         except RuntimeError:
-            # Not in async context - create new event loop
+            # Not in async context - create a temporary event loop.
+            previous_event_loop: asyncio.AbstractEventLoop | None = None
+            try:
+                previous_event_loop = asyncio.get_event_loop()
+            except RuntimeError:
+                previous_event_loop = None
+            else:
+                if getattr(previous_event_loop, "is_closed", lambda: False)():
+                    previous_event_loop = None
+
             event_loop = asyncio.new_event_loop()
             try:
                 asyncio.set_event_loop(event_loop)
                 return event_loop.run_until_complete(self._request_interaction_async(request))
             finally:
                 event_loop.close()
-                asyncio.set_event_loop(None)
+                asyncio.set_event_loop(previous_event_loop)
 
     async def _request_interaction_async(self, request: ControlRequest) -> ControlResponse:
         """
