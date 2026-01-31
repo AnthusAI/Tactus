@@ -61,7 +61,7 @@ dev = [
     "pytest-xdist>=3.0",
     "behave>=1.2.6",
     "coverage>=7.4",
-    "black",
+    "black==25.12.0",
     "ruff",
     "python-semantic-release>=9.0.0",
     "antlr4-tools>=0.2.1",

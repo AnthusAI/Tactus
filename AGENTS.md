@@ -485,13 +485,16 @@ Repeat this loop for each iteration of readability improvements:
 
 1. Identify readability improvements (prioritize high-impact or high-traffic code paths).
 2. Make the largest safe readability refactor you can without changing behavior.
-3. Run the full local quality gate **including Ruff and Black** (do not skip):
+3. Run the explicit test commands first (match the Pre-Commit Checklist flags):
+   - `pytest tests/ -x -k "not test_real_execution"`
+   - `behave --summary`
+4. Run the full local quality gate **including Ruff and Black** (do not skip):
    - `ruff check .`
    - `black tactus tactus-ide/backend features/steps tests`
    - `black tactus tactus-ide/backend features/steps tests --check`
-4. Run the full coverage suite and regenerate reports:
+5. Run the full coverage suite and regenerate reports:
    - `scripts/run_coverage.sh`
-5. If anything fails, fix immediately, then repeat steps 3–4 before continuing.
+6. If anything fails, fix immediately, then repeat steps 3–5 before continuing.
 
 ## Using the CLI for Development
 

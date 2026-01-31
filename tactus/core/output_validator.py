@@ -76,6 +76,21 @@ class OutputValidator:
                 field_count = 0
             logger.debug("OutputValidator initialized with %s output fields", field_count)
 
+    @staticmethod
+    def _unwrap_result(output: Any) -> tuple[Any, Any | None]:
+        from tactus.protocols.result import TactusResult
+
+        wrapped_result = output if isinstance(output, TactusResult) else None
+        return (wrapped_result.output if wrapped_result is not None else output, wrapped_result)
+
+    @staticmethod
+    def _normalize_unstructured_output(output: Any) -> Any:
+        if isinstance(output, dict):
+            return output
+        if hasattr(output, "items"):
+            return dict(output.items())
+        return output
+
     def validate(self, output: Any) -> Any:
         """
         Validate workflow output against schema.
@@ -91,22 +106,12 @@ class OutputValidator:
         """
         # If a procedure returns a Result wrapper, validate its `.output` payload
         # while preserving the wrapper (so callers can still access usage/cost/etc.).
-        from tactus.protocols.result import TactusResult
-
-        wrapped_result: TactusResult | None = output if isinstance(output, TactusResult) else None
-        if wrapped_result is not None:
-            output = wrapped_result.output
+        output, wrapped_result = self._unwrap_result(output)
 
         # If no schema defined, accept any output
         if not self.schema:
             logger.debug("No output schema defined, skipping validation")
-            if isinstance(output, dict):
-                validated_payload = output
-            elif hasattr(output, "items"):
-                # Lua table - convert to dict
-                validated_payload = dict(output.items())
-            else:
-                validated_payload = output
+            validated_payload = self._normalize_unstructured_output(output)
 
             if wrapped_result is not None:
                 return wrapped_result.model_copy(update={"output": validated_payload})
@@ -251,23 +256,21 @@ class OutputValidator:
             return {key: self._convert_lua_tables(value) for key, value in obj.items()}
 
         # Handle lists
-        elif isinstance(obj, (list, tuple)):
+        if isinstance(obj, (list, tuple)):
             return [self._convert_lua_tables(item) for item in obj]
 
         # Handle dicts
-        elif isinstance(obj, dict):
+        if isinstance(obj, dict):
             return {key: self._convert_lua_tables(value) for key, value in obj.items()}
 
         # Return as-is for primitives
-        else:
-            return obj
+        return obj
 
     def get_field_description(self, field_name: str) -> Optional[str]:
         """Get description for an output field."""
-        if field_name in self.schema:
-            field_def = self.schema[field_name]
-            if isinstance(field_def, dict):
-                return field_def.get("description")
+        field_definition = self.schema.get(field_name)
+        if isinstance(field_definition, dict):
+            return field_definition.get("description")
         return None
 
     def get_required_fields(self) -> list[str]:

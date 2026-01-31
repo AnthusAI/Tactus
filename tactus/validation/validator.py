@@ -45,6 +45,32 @@ class TactusValidator:
         token_stream = CommonTokenStream(lexer)
         return LuaParser(token_stream)
 
+    def _result_with_errors(
+        self,
+        errors: list[ValidationMessage],
+        warnings: Optional[list[ValidationMessage]] = None,
+        registry: Optional[object] = None,
+    ) -> ValidationResult:
+        return ValidationResult(
+            valid=False,
+            errors=errors,
+            warnings=warnings or [],
+            registry=registry,
+        )
+
+    def _result_success(
+        self,
+        errors: Optional[list[ValidationMessage]] = None,
+        warnings: Optional[list[ValidationMessage]] = None,
+        registry: Optional[object] = None,
+    ) -> ValidationResult:
+        return ValidationResult(
+            valid=not errors,
+            errors=errors or [],
+            warnings=warnings or [],
+            registry=registry,
+        )
+
     def validate(
         self,
         source: str,
@@ -78,8 +104,7 @@ class TactusValidator:
 
             # Check for syntax errors
             if syntax_error_collector.syntax_errors:
-                return ValidationResult(
-                    valid=False,
+                return self._result_with_errors(
                     errors=syntax_error_collector.syntax_errors,
                     warnings=[],
                     registry=None,
@@ -87,7 +112,7 @@ class TactusValidator:
 
             # Quick mode: just syntax check
             if mode == ValidationMode.QUICK:
-                return ValidationResult(valid=True, errors=[], warnings=[], registry=None)
+                return self._result_success(errors=[], warnings=[], registry=None)
 
             # Phase 2: Semantic analysis (DSL validation)
             dsl_semantic_visitor = TactusDSLVisitor()
@@ -108,8 +133,7 @@ class TactusValidator:
                     else None
                 )
 
-            return ValidationResult(
-                valid=len(validation_errors) == 0,
+            return self._result_success(
                 errors=validation_errors,
                 warnings=validation_warnings,
                 registry=validation_registry,
@@ -127,8 +151,7 @@ class TactusValidator:
                     message=f"Validation error: {unexpected_exception}",
                 )
             )
-            return ValidationResult(
-                valid=False,
+            return self._result_with_errors(
                 errors=validation_errors,
                 warnings=validation_warnings,
                 registry=None,
@@ -154,26 +177,20 @@ class TactusValidator:
                 source_text = source_file_handle.read()
             return self.validate(source_text, mode)
         except FileNotFoundError:
-            return ValidationResult(
-                valid=False,
+            return self._result_with_errors(
                 errors=[
                     ValidationMessage(
                         level="error",
                         message=f"File not found: {file_path}",
                     )
-                ],
-                warnings=[],
-                registry=None,
+                ]
             )
         except Exception as exception:
-            return ValidationResult(
-                valid=False,
+            return self._result_with_errors(
                 errors=[
                     ValidationMessage(
                         level="error",
                         message=f"Error reading file: {exception}",
                     )
-                ],
-                warnings=[],
-                registry=None,
+                ]
             )

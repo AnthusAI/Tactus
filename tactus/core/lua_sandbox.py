@@ -388,28 +388,20 @@ class LuaSandbox:
             name: Name of the global variable
             value: Value to set (can be Python object, dict, etc.)
         """
-        # Convert Python dicts to Lua tables if needed
-        if isinstance(value, dict):
-            lua_table = self.lua.table()
-            for key, item in value.items():
-                if isinstance(item, dict):
-                    # Recursively convert nested dicts
-                    lua_table[key] = self._dict_to_lua_table(item)
-                else:
-                    lua_table[key] = item
-            self.lua.globals()[name] = lua_table
-        else:
-            self.lua.globals()[name] = value
+        self.lua.globals()[name] = self._convert_python_value_to_lua(value)
         logger.debug("Set global '%s' in Lua sandbox", name)
+
+    def _convert_python_value_to_lua(self, value: Any) -> Any:
+        """Convert Python values to Lua-friendly values."""
+        if isinstance(value, dict):
+            return self._dict_to_lua_table(value)
+        return value
 
     def _dict_to_lua_table(self, python_dict: dict) -> Any:
         """Convert Python dict to Lua table recursively."""
         lua_table = self.lua.table()
         for key, value in python_dict.items():
-            if isinstance(value, dict):
-                lua_table[key] = self._dict_to_lua_table(value)
-            else:
-                lua_table[key] = value
+            lua_table[key] = self._convert_python_value_to_lua(value)
         return lua_table
 
     def execute(self, lua_code: str) -> Any:
@@ -485,7 +477,7 @@ class LuaSandbox:
         # Create and populate Lua table
         lua_table = self.lua.table()
         for key, value in python_dict.items():
-            lua_table[key] = value
+            lua_table[key] = self._convert_python_value_to_lua(value)
 
         return lua_table
 
