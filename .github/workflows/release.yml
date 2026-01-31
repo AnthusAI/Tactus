@@ -13,8 +13,11 @@ permissions:
 
 jobs:
   quality-checks:
-    name: Quality Checks
+    name: Quality Checks (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12']
 
     steps:
       - name: Checkout code
@@ -25,7 +28,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: ${{ matrix.python-version }}
           cache: 'pip'
 
       - name: Install dependencies
