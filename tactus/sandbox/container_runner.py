@@ -17,7 +17,7 @@ import tempfile
 import time
 import uuid
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from .config import SandboxConfig
 from .docker_manager import (
@@ -589,7 +589,7 @@ class ContainerRunner:
         """
         broker_transport = (self.config.broker_transport or "stdio").lower()
 
-        stdio_request_prefix: str | None = None
+        stdio_request_prefix: Optional[str] = None
         if broker_transport == "stdio":
             from tactus.broker.server import OpenAIChatBackend
             from tactus.broker.server import HostToolRegistry
@@ -950,9 +950,9 @@ class ContainerRunner:
         )
         logger.debug("[SANDBOX] Spawned container process pid=%s", process.pid)
 
-        stdout_task: asyncio.Task[None] | None = None
-        stderr_task: asyncio.Task[None] | None = None
-        wait_task: asyncio.Task[int] | None = None
+        stdout_task: Optional[asyncio.Task[None]] = None
+        stderr_task: Optional[asyncio.Task[None]] = None
+        wait_task: Optional[asyncio.Task[int]] = None
 
         try:
             assert process.stdin is not None
@@ -1159,7 +1159,7 @@ class ContainerRunner:
             return
 
         # Rich/terminal: parse our container log format and re-emit.
-        current: tuple[str, int, list[str]] | None = None  # (logger_name, levelno, lines)
+        current: Optional[Tuple[str, int, List[str]]] = None  # (logger_name, levelno, lines)
 
         def flush_current() -> None:
             nonlocal current

@@ -14,7 +14,7 @@ Provides a comprehensive library of steps for testing:
 import logging
 import re
 import ast
-from typing import Any
+from typing import Any, Optional
 
 from .registry import StepRegistry
 
@@ -645,7 +645,7 @@ def step_agent_takes_turn(context: Any, agent: str) -> None:
 
 
 def step_mock_agent_responds_with(
-    context: Any, agent: str, message: str, when_message: str | None = None
+    context: Any, agent: str, message: str, when_message: Optional[str] = None
 ) -> None:
     """Configure a per-scenario mock agent response (temporal)."""
     message, _ = _parse_step_string_literal(message)

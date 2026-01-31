@@ -1,3 +1,5 @@
+from typing import Optional, Union
+
 import pytest
 
 import dspy
@@ -13,10 +15,10 @@ class _FakeBrokerClient:
         provider: str,
         model: str,
         messages: list[dict],
-        temperature: float | None = None,
-        max_tokens: int | None = None,
-        tools: list[dict] | None = None,
-        tool_choice: dict | str | None = None,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
+        tools: Optional[list[dict]] = None,
+        tool_choice: Optional[Union[dict, str]] = None,
         stream: bool,
         **kwargs,
     ):

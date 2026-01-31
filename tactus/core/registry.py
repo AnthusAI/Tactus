@@ -6,7 +6,7 @@ procedure declarations from .tac files.
 """
 
 import logging
-from typing import Any
+from typing import Any, Dict, Optional, Union
 
 from pydantic import BaseModel, Field, ValidationError, ConfigDict
 
@@ -19,7 +19,7 @@ class OutputFieldDeclaration(BaseModel):
     name: str
     field_type: str = Field(alias="type")  # string, number, boolean, array, object
     required: bool = False
-    description: str | None = None
+    description: Optional[str] = None
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -31,7 +31,7 @@ class MessageHistoryConfiguration(BaseModel):
     """
 
     source: str = "own"  # "own", "shared", or another agent's name
-    filter: Any | None = None  # Lua function reference or filter name
+    filter: Optional[Any] = None  # Lua function reference or filter name
 
 
 class AgentOutputSchema(BaseModel):
@@ -44,21 +44,21 @@ class AgentDeclaration(BaseModel):
     """Agent declaration from DSL."""
 
     name: str
-    provider: str | None = None
-    model: str | dict[str, Any] = "gpt-4o"
-    system_prompt: str | Any  # String with {markers} or Lua function
-    initial_message: str | None = None
+    provider: Optional[str] = None
+    model: Union[str, Dict[str, Any]] = "gpt-4o"
+    system_prompt: Union[str, Any]  # String with {markers} or Lua function
+    initial_message: Optional[str] = None
     tools: list[Any] = Field(default_factory=list)  # Tool/toolset references and expressions
     inline_tools: list[dict[str, Any]] = Field(default_factory=list)  # Inline tool definitions
-    output: AgentOutputSchema | None = None  # Aligned with pydantic-ai
-    message_history: MessageHistoryConfiguration | None = None
+    output: Optional[AgentOutputSchema] = None  # Aligned with pydantic-ai
+    message_history: Optional[MessageHistoryConfiguration] = None
     max_turns: int = 50
     disable_streaming: bool = (
         False  # Disable streaming for models that don't support tools in streaming mode
     )
-    temperature: float | None = None
-    max_tokens: int | None = None
-    model_type: str | None = None  # e.g., "chat", "responses" for reasoning models
+    temperature: Optional[float] = None
+    max_tokens: Optional[int] = None
+    model_type: Optional[str] = None  # e.g., "chat", "responses" for reasoning models
 
     model_config = ConfigDict(extra="allow")
 
@@ -69,9 +69,9 @@ class HITLDeclaration(BaseModel):
     name: str
     hitl_type: str = Field(alias="type")  # approval, input, review
     message: str
-    timeout: int | None = None
+    timeout: Optional[int] = None
     default: Any = None
-    options: list[dict[str, Any]] | None = None
+    options: Optional[list[dict[str, Any]]] = None
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -81,9 +81,9 @@ class ScenarioDeclaration(BaseModel):
 
     name: str
     given: dict[str, Any] = Field(default_factory=dict)
-    when: str | None = None  # defaults to "procedure_completes"
-    then_output: dict[str, Any] | None = None
-    then_state: dict[str, Any] | None = None
+    when: Optional[str] = None  # defaults to "procedure_completes"
+    then_output: Optional[Dict[str, Any]] = None
+    then_state: Optional[Dict[str, Any]] = None
     mocks: dict[str, Any] = Field(default_factory=dict)  # tool_name -> response
 
 
@@ -134,7 +134,7 @@ class ProcedureRegistry(BaseModel):
     model_config = {"arbitrary_types_allowed": True}
 
     # Metadata
-    description: str | None = None
+    description: Optional[str] = None
 
     # Declarations
     input_schema: dict[str, Any] = Field(default_factory=dict)
@@ -154,26 +154,26 @@ class ProcedureRegistry(BaseModel):
     message_history_config: dict[str, Any] = Field(default_factory=dict)
 
     # Gherkin BDD Testing
-    gherkin_specifications: str | None = None  # Raw Gherkin text
+    gherkin_specifications: Optional[str] = None  # Raw Gherkin text
     specs_from_references: list[str] = Field(default_factory=list)  # External spec file paths
     custom_steps: dict[str, Any] = Field(default_factory=dict)  # step_text -> lua_function
     evaluation_config: dict[str, Any] = Field(default_factory=dict)  # runs, parallel, etc.
 
     # Pydantic Evals Integration
-    pydantic_evaluations: dict[str, Any] | None = None  # Pydantic Evals configuration
+    pydantic_evaluations: Optional[Dict[str, Any]] = None  # Pydantic Evals configuration
 
     # Prompts
     prompts: dict[str, str] = Field(default_factory=dict)
-    return_prompt: str | None = None
-    error_prompt: str | None = None
-    status_prompt: str | None = None
+    return_prompt: Optional[str] = None
+    error_prompt: Optional[str] = None
+    status_prompt: Optional[str] = None
 
     # Execution settings
     async_enabled: bool = False
     max_depth: int = 5
     max_turns: int = 50
-    default_provider: str | None = None
-    default_model: str | None = None
+    default_provider: Optional[str] = None
+    default_model: Optional[str] = None
 
     # Named procedures (for in-file sub-procedures)
     named_procedures: dict[str, dict[str, Any]] = Field(default_factory=dict)
@@ -193,8 +193,8 @@ class ValidationMessage(BaseModel):
 
     level: str  # "error" or "warning"
     message: str
-    location: tuple[int, int] | None = None
-    declaration: str | None = None
+    location: Optional[tuple[int, int]] = None
+    declaration: Optional[str] = None
 
 
 class ValidationResult(BaseModel):
@@ -203,7 +203,7 @@ class ValidationResult(BaseModel):
     valid: bool
     errors: list[ValidationMessage] = Field(default_factory=list)
     warnings: list[ValidationMessage] = Field(default_factory=list)
-    registry: ProcedureRegistry | None = None
+    registry: Optional["ProcedureRegistry"] = None
 
 
 class RegistryBuilder:
@@ -229,7 +229,7 @@ class RegistryBuilder:
         self,
         name: str,
         config: dict,
-        output_schema: dict | None = None,
+        output_schema: Optional[dict] = None,
     ) -> None:
         """Register an agent declaration."""
         agent_config = dict(config)

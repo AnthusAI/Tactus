@@ -7,6 +7,7 @@ import anyio
 import pytest
 
 from tactus.broker.server import (
+    BaseExceptionGroup,
     HostToolRegistry,
     OpenAIChatBackend,
     OpenAIChatConfig,

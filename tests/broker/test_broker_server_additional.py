@@ -94,12 +94,12 @@ async def test_base_server_aclose_raises_on_unhandled_exception_group():
             return None
 
     async def raise_group():
-        raise BaseExceptionGroup("group", [ValueError("boom")])
+        raise broker_server.BaseExceptionGroup("group", [ValueError("boom")])
 
     server._listener = DummyListener()
     server._serve_task = asyncio.create_task(raise_group())
 
-    with pytest.raises(BaseExceptionGroup):
+    with pytest.raises(broker_server.BaseExceptionGroup):
         await server.aclose()
 
 

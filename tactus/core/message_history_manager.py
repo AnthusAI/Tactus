@@ -8,7 +8,7 @@ Aligned with pydantic-ai's message_history concept.
 """
 
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any, Optional, Tuple
 
 try:
     from pydantic_ai.messages import ModelMessage
@@ -146,7 +146,7 @@ class MessageHistoryManager:
         return self._apply_named_filter(messages, filter_name, filter_value)
 
     @staticmethod
-    def _parse_filter_spec(filter_specification: Any) -> tuple[str | None, Any]:
+    def _parse_filter_spec(filter_specification: Any) -> Tuple[Optional[str], Any]:
         if not isinstance(filter_specification, tuple) or len(filter_specification) < 2:
             return None, None
 

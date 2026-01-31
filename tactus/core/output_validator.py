@@ -6,7 +6,7 @@ Enables type safety and composability for sub-agent workflows.
 """
 
 import logging
-from typing import Any, Optional
+from typing import Any, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +78,7 @@ class OutputValidator:
             logger.debug("OutputValidator initialized with %s output fields", field_count)
 
     @staticmethod
-    def _unwrap_result(output: Any) -> tuple[Any, Any | None]:
+    def _unwrap_result(output: Any) -> Tuple[Any, Optional[Any]]:
         from tactus.protocols.result import TactusResult
 
         wrapped_result = output if isinstance(output, TactusResult) else None
@@ -94,7 +94,7 @@ class OutputValidator:
 
     @staticmethod
     def _wrap_validated_output(
-        wrapped_result: Any | None,
+        wrapped_result: Optional[Any],
         validated_payload: Any,
     ) -> Any:
         if wrapped_result is not None:
@@ -129,7 +129,7 @@ class OutputValidator:
     def _validate_without_schema(
         self,
         output: Any,
-        wrapped_result: Any | None,
+        wrapped_result: Optional[Any],
     ) -> Any:
         """Accept any output when no schema is defined."""
         logger.debug("No output schema defined, skipping validation")
@@ -139,7 +139,7 @@ class OutputValidator:
     def _validate_scalar_schema(
         self,
         output: Any,
-        wrapped_result: Any | None,
+        wrapped_result: Optional[Any],
     ) -> Any:
         """Validate scalar outputs (`field.string{}` etc.)."""
         # Lua tables are not valid scalar outputs.
@@ -168,7 +168,7 @@ class OutputValidator:
     def _validate_structured_schema(
         self,
         output: Any,
-        wrapped_result: Any | None,
+        wrapped_result: Optional[Any],
     ) -> Any:
         """Validate dict/table outputs against a schema."""
         if hasattr(output, "items") or isinstance(output, dict):

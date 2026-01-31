@@ -6,7 +6,7 @@ Uses pluggable storage and HITL handlers via protocols.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Callable
+from typing import Any, Callable, Dict, List, Optional
 from datetime import datetime, timezone
 import logging
 import time
@@ -39,7 +39,7 @@ class ExecutionContext(ABC):
         self,
         fn: Callable[[], Any],
         checkpoint_type: str,
-        source_info: dict[str, Any] | None = None,
+        source_info: Optional[Dict[str, Any]] = None,
     ) -> Any:
         """
         Execute fn with position-based checkpointing. On replay, return stored result.
@@ -59,9 +59,9 @@ class ExecutionContext(ABC):
         self,
         request_type: str,
         message: str,
-        timeout_seconds: int | None,
+        timeout_seconds: Optional[int],
         default_value: Any,
-        options: list[dict] | None,
+        options: Optional[List[dict]],
         metadata: dict,
     ) -> HITLResponse:
         """
@@ -121,7 +121,7 @@ class BaseExecutionContext(ExecutionContext):
         self,
         procedure_id: str,
         storage_backend: StorageBackend,
-        hitl_handler: HITLHandler | None = None,
+        hitl_handler: Optional[HITLHandler] = None,
         strict_determinism: bool = False,
         log_handler=None,
     ):
@@ -145,14 +145,14 @@ class BaseExecutionContext(ExecutionContext):
         self._inside_checkpoint = False
 
         # Run ID tracking for distinguishing between different executions
-        self.current_run_id: str | None = None
+        self.current_run_id: Optional[str] = None
 
         # .tac file tracking for accurate source locations
-        self.current_tac_file: str | None = None
-        self.current_tac_content: str | None = None
+        self.current_tac_file: Optional[str] = None
+        self.current_tac_content: Optional[str] = None
 
         # Lua sandbox reference for debug.getinfo access
-        self.lua_sandbox: Any | None = None
+        self.lua_sandbox: Optional[Any] = None
 
         # Rich metadata for HITL notifications
         self._initialize_run_metadata(procedure_id)
@@ -177,7 +177,7 @@ class BaseExecutionContext(ExecutionContext):
         """Set the run_id for subsequent checkpoints in this execution."""
         self.current_run_id = run_id
 
-    def set_tac_file(self, file_path: str, content: str | None = None) -> None:
+    def set_tac_file(self, file_path: str, content: Optional[str] = None) -> None:
         """
         Store the currently executing .tac file for accurate source location capture.
 
@@ -193,7 +193,7 @@ class BaseExecutionContext(ExecutionContext):
         self.lua_sandbox = lua_sandbox
 
     def set_procedure_metadata(
-        self, procedure_name: str | None = None, input_data: Any = None
+        self, procedure_name: Optional[str] = None, input_data: Any = None
     ) -> None:
         """
         Set rich metadata for HITL notifications.
@@ -211,7 +211,7 @@ class BaseExecutionContext(ExecutionContext):
         self,
         fn: Callable[[], Any],
         checkpoint_type: str,
-        source_info: dict[str, Any] | None = None,
+        source_info: Optional[Dict[str, Any]] = None,
     ) -> Any:
         """
         Execute fn with position-based checkpointing and source tracking.
@@ -406,7 +406,7 @@ class BaseExecutionContext(ExecutionContext):
 
     def _get_code_context(
         self, file_path: str, line_number: int, context_lines: int = 3
-    ) -> str | None:
+    ) -> Optional[str]:
         """Read source file and extract surrounding lines for debugging."""
         try:
             with open(file_path, "r") as source_file:
@@ -421,9 +421,9 @@ class BaseExecutionContext(ExecutionContext):
         self,
         request_type: str,
         message: str,
-        timeout_seconds: int | None,
+        timeout_seconds: Optional[int],
         default_value: Any,
-        options: list[dict] | None,
+        options: Optional[List[dict]],
         metadata: dict,
     ) -> HITLResponse:
         """
@@ -505,7 +505,7 @@ class BaseExecutionContext(ExecutionContext):
         async_procedure_handles[handle.procedure_id] = handle.to_dict()
         self.storage.save_procedure_metadata(self.procedure_id, self.metadata)
 
-    def get_procedure_handle(self, procedure_id: str) -> dict[str, Any] | None:
+    def get_procedure_handle(self, procedure_id: str) -> Optional[Dict[str, Any]]:
         """
         Retrieve procedure handle.
 
@@ -609,7 +609,7 @@ class BaseExecutionContext(ExecutionContext):
 
         return run_id
 
-    def get_subject(self) -> str | None:
+    def get_subject(self) -> Optional[str]:
         """
         Return a human-readable subject line for this execution.
 
@@ -621,7 +621,7 @@ class BaseExecutionContext(ExecutionContext):
             return f"{self.procedure_name} (checkpoint {checkpoint_position})"
         return f"Procedure {self.procedure_id} (checkpoint {checkpoint_position})"
 
-    def get_started_at(self) -> datetime | None:
+    def get_started_at(self) -> Optional[datetime]:
         """
         Return when this execution started.
 
@@ -630,7 +630,7 @@ class BaseExecutionContext(ExecutionContext):
         """
         return self._started_at
 
-    def get_input_summary(self) -> dict[str, Any] | None:
+    def get_input_summary(self) -> Optional[Dict[str, Any]]:
         """
         Return a summary of the initial input to this procedure.
 
@@ -647,7 +647,7 @@ class BaseExecutionContext(ExecutionContext):
         # Otherwise wrap it in a dict
         return {"value": self._input_data}
 
-    def get_conversation_history(self) -> list[dict] | None:
+    def get_conversation_history(self) -> Optional[List[dict]]:
         """
         Return conversation history if available.
 
@@ -658,7 +658,7 @@ class BaseExecutionContext(ExecutionContext):
         # in future implementations
         return None
 
-    def get_prior_control_interactions(self) -> list[dict] | None:
+    def get_prior_control_interactions(self) -> Optional[List[dict]]:
         """
         Return list of prior HITL interactions in this execution.
 
@@ -682,7 +682,7 @@ class BaseExecutionContext(ExecutionContext):
 
         return hitl_checkpoints if hitl_checkpoints else None
 
-    def get_lua_source_line(self) -> int | None:
+    def get_lua_source_line(self) -> Optional[int]:
         """
         Get the current source line from Lua debug.getinfo.
 
@@ -768,7 +768,7 @@ class InMemoryExecutionContext(BaseExecutionContext):
     and simple CLI workflows that don't need to survive restarts.
     """
 
-    def __init__(self, procedure_id: str, hitl_handler: HITLHandler | None = None):
+    def __init__(self, procedure_id: str, hitl_handler: Optional[HITLHandler] = None):
         """
         Initialize with in-memory storage.
 

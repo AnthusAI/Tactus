@@ -27,7 +27,7 @@ class ModelPrimitive:
         self,
         model_name: str,
         config: dict,
-        context: ExecutionContext | None = None,
+        context: Optional[ExecutionContext] = None,
         mock_manager: Optional[Any] = None,
     ):
         """

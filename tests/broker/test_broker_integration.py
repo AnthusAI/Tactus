@@ -2,6 +2,7 @@ from pathlib import Path
 import socket
 import tempfile
 from types import SimpleNamespace
+from typing import Optional
 
 import pytest
 
@@ -35,8 +36,8 @@ class _FakeOpenAIBackend:
         *,
         model: str,
         messages: list[dict],
-        temperature: float | None = None,
-        max_tokens: int | None = None,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
         stream: bool,
     ):
         if stream:

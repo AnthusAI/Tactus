@@ -7,7 +7,7 @@ name = "tactus"
 version = "0.35.1"
 description = "Tactus: Lua-based DSL for agentic workflows"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.9"
 license = {text = "MIT"}
 authors = [
     {name = "Anthus", email = "info@anthus.ai"}
@@ -18,6 +18,8 @@ classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Software Development :: Libraries :: Python Modules",
@@ -37,7 +39,7 @@ dependencies = [
     "boto3>=1.28.0",
     "rich>=13.9.4",
     "typer",
-    "dotyaml>=0.1.0",
+    "dotyaml>=0.1.4",
     "antlr4-python3-runtime==4.13.1",
     "behave>=1.2.6",
     "gherkin-official>=28.0.0",
@@ -119,11 +121,11 @@ filterwarnings = [
 
 [tool.black]
 line-length = 100
-target-version = ['py311']
+target-version = ['py39']
 
 [tool.ruff]
 line-length = 100
-target-version = "py311"
+target-version = "py39"
 
 [tool.ruff.lint.per-file-ignores]
 "features/steps/*.py" = ["F811"]  # Allow step_impl redefinition in behave steps

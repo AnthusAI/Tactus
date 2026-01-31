@@ -550,7 +550,7 @@ class ProcedurePrimitive:
 
         name_path = Path(name)
 
-        def add_candidates(base: Path | None, rel: Path) -> None:
+        def add_candidates(base: Optional[Path], rel: Path) -> None:
             candidate = (base / rel) if base is not None else rel
             add_path(candidate)
             if candidate.suffix != ".tac":

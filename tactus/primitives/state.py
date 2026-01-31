@@ -10,7 +10,7 @@ Provides:
 """
 
 import logging
-from typing import Any
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ class StatePrimitive:
     progress, accumulate results, and coordinate between agents.
     """
 
-    def __init__(self, state_schema: dict[str, Any] | None = None):
+    def __init__(self, state_schema: Optional[Dict[str, Any]] = None):
         """
         Initialize state storage.
 

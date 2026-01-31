@@ -3,7 +3,7 @@ HTTP model backend for REST endpoint inference.
 """
 
 import logging
-from typing import Any
+from typing import Any, Dict, Optional
 
 import httpx
 
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 class HTTPModelBackend:
     """Model backend that calls HTTP REST endpoints."""
 
-    def __init__(self, endpoint: str, timeout: float = 30.0, headers: dict | None = None):
+    def __init__(self, endpoint: str, timeout: float = 30.0, headers: Optional[Dict] = None):
         """
         Initialize HTTP model backend.
 

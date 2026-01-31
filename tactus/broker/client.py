@@ -16,7 +16,7 @@ import sys
 import threading
 import uuid
 from pathlib import Path
-from typing import Any, AsyncIterator, Optional
+from typing import Any, AsyncIterator, Optional, Union
 
 from tactus.broker.protocol import read_message, write_message
 from tactus.broker.stdio import STDIO_REQUEST_PREFIX, STDIO_TRANSPORT_VALUE
@@ -122,7 +122,7 @@ async def close_stdio_transport() -> None:
 
 
 class BrokerClient:
-    def __init__(self, socket_path: str | Path):
+    def __init__(self, socket_path: Union[str, Path]):
         self.socket_path = str(socket_path)
 
     @classmethod
@@ -158,7 +158,7 @@ class BrokerClient:
             except ValueError as error:
                 raise ValueError(f"Invalid broker port in endpoint: {self.socket_path}") from error
 
-            ssl_context: ssl.SSLContext | None = None
+            ssl_context: Optional[ssl.SSLContext] = None
             if use_tls:
                 ssl_context = ssl.create_default_context()
                 cafile = os.environ.get("TACTUS_BROKER_TLS_CA_FILE")

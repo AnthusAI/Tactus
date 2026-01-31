@@ -31,7 +31,7 @@ Agent/Tool calls use direct variable access:
     done.last_result()              -- Get last tool result
 """
 
-from typing import Any, Callable
+from typing import Any, Callable, Dict, Optional
 
 from .registry import RegistryBuilder
 from tactus.primitives.handles import AgentHandle, ModelHandle, AgentLookup, ModelLookup
@@ -112,7 +112,7 @@ def create_dsl_stubs(
     builder: RegistryBuilder,
     tool_primitive: Any = None,
     mock_manager: Any = None,
-    runtime_context: dict[str, Any] | None = None,
+    runtime_context: Optional[Dict[str, Any]] = None,
 ) -> dict[str, Callable]:
     """
     Create DSL stub functions that populate the registry.
@@ -144,7 +144,7 @@ def create_dsl_stubs(
     _procedure_registry = {}
 
     def _process_procedure_config(
-        name: str | None, config: Any, procedure_registry: dict[str, Any]
+        name: Optional[str], config: Any, procedure_registry: Dict[str, Any]
     ):
         """
         Process procedure config and register the procedure.

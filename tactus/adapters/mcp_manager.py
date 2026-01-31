@@ -10,7 +10,7 @@ import os
 import re
 import asyncio
 from contextlib import AsyncExitStack
-from typing import Any
+from typing import Any, Optional
 
 from pydantic_ai.mcp import MCPServerStdio
 
@@ -64,7 +64,7 @@ class MCPServerManager:
         """Connect to all configured MCP servers."""
         for name, config in self.configs.items():
             # Retry a few times for transient stdio startup issues.
-            last_error: Exception | None = None
+            last_error: Optional[Exception] = None
             for attempt in range(1, 4):
                 try:
                     logger.info(

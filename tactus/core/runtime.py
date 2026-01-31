@@ -13,7 +13,7 @@ import io
 import logging
 import time
 import uuid
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 from tactus.core.registry import ProcedureRegistry, RegistryBuilder
 from tactus.core.dsl_stubs import create_dsl_stubs, lua_table_to_dict
@@ -68,19 +68,19 @@ class TactusRuntime:
     def __init__(
         self,
         procedure_id: str,
-        storage_backend: StorageBackend | None = None,
-        hitl_handler: HITLHandler | None = None,
-        chat_recorder: ChatRecorder | None = None,
+        storage_backend: Optional[StorageBackend] = None,
+        hitl_handler: Optional[HITLHandler] = None,
+        chat_recorder: Optional[ChatRecorder] = None,
         mcp_server=None,
-        mcp_servers: dict[str, Any] | None = None,
-        openai_api_key: str | None = None,
+        mcp_servers: Optional[Dict[str, Any]] = None,
+        openai_api_key: Optional[str] = None,
         log_handler=None,
-        tool_primitive: ToolPrimitive | None = None,
+        tool_primitive: Optional[ToolPrimitive] = None,
         recursion_depth: int = 0,
-        tool_paths: list[str] | None = None,
-        external_config: dict[str, Any] | None = None,
-        run_id: str | None = None,
-        source_file_path: str | None = None,
+        tool_paths: Optional[List[str]] = None,
+        external_config: Optional[Dict[str, Any]] = None,
+        run_id: Optional[str] = None,
+        source_file_path: Optional[str] = None,
     ):
         """
         Initialize the Tactus runtime.
@@ -144,31 +144,31 @@ class TactusRuntime:
         self.source_file_path = source_file_path
 
         # Will be initialized during setup
-        self.config: dict[str, Any] | None = None  # Legacy YAML support
-        self.registry: ProcedureRegistry | None = None  # New DSL registry
-        self.lua_sandbox: LuaSandbox | None = None
-        self.output_validator: OutputValidator | None = None
-        self.template_resolver: TemplateResolver | None = None
-        self.message_history_manager: MessageHistoryManager | None = None
+        self.config: Optional[Dict[str, Any]] = None  # Legacy YAML support
+        self.registry: Optional[ProcedureRegistry] = None  # New DSL registry
+        self.lua_sandbox: Optional[LuaSandbox] = None
+        self.output_validator: Optional[OutputValidator] = None
+        self.template_resolver: Optional[TemplateResolver] = None
+        self.message_history_manager: Optional[MessageHistoryManager] = None
 
         # Execution context
-        self.execution_context: BaseExecutionContext | None = None
+        self.execution_context: Optional[BaseExecutionContext] = None
 
         # Primitives (shared across all agents)
-        self.state_primitive: StatePrimitive | None = None
-        self.iterations_primitive: IterationsPrimitive | None = None
-        self.stop_primitive: StopPrimitive | None = None
-        self.tool_primitive: ToolPrimitive | None = None
-        self.human_primitive: HumanPrimitive | None = None
-        self.step_primitive: StepPrimitive | None = None
-        self.checkpoint_primitive: CheckpointPrimitive | None = None
-        self.log_primitive: LogPrimitive | None = None
-        self.json_primitive: JsonPrimitive | None = None
-        self.retry_primitive: RetryPrimitive | None = None
-        self.file_primitive: FilePrimitive | None = None
-        self.procedure_primitive: ProcedurePrimitive | None = None
-        self.system_primitive: SystemPrimitive | None = None
-        self.host_primitive: HostPrimitive | None = None
+        self.state_primitive: Optional[StatePrimitive] = None
+        self.iterations_primitive: Optional[IterationsPrimitive] = None
+        self.stop_primitive: Optional[StopPrimitive] = None
+        self.tool_primitive: Optional[ToolPrimitive] = None
+        self.human_primitive: Optional[HumanPrimitive] = None
+        self.step_primitive: Optional[StepPrimitive] = None
+        self.checkpoint_primitive: Optional[CheckpointPrimitive] = None
+        self.log_primitive: Optional[LogPrimitive] = None
+        self.json_primitive: Optional[JsonPrimitive] = None
+        self.retry_primitive: Optional[RetryPrimitive] = None
+        self.file_primitive: Optional[FilePrimitive] = None
+        self.procedure_primitive: Optional[ProcedurePrimitive] = None
+        self.system_primitive: Optional[SystemPrimitive] = None
+        self.host_primitive: Optional[HostPrimitive] = None
 
         # Agent primitives (one per agent)
         self.agents: dict[str, Any] = {}
@@ -181,17 +181,17 @@ class TactusRuntime:
 
         # User dependencies (HTTP clients, DB connections, etc.)
         self.user_dependencies: dict[str, Any] = {}
-        self.dependency_manager: Any | None = None  # ResourceManager for cleanup
+        self.dependency_manager: Optional[Any] = None  # ResourceManager for cleanup
 
         # Mock manager for testing
-        self.mock_manager: Any | None = None  # MockManager instance
-        self.external_agent_mocks: dict[str, list[dict[str, Any]]] | None = None
+        self.mock_manager: Optional[Any] = None  # MockManager instance
+        self.external_agent_mocks: Optional[Dict[str, List[Dict[str, Any]]]] = None
         self.mock_all_agents: bool = False
 
         logger.info("TactusRuntime initialized for procedure %s", procedure_id)
 
     async def execute(
-        self, source: str, context: dict[str, Any] | None = None, format: str = "yaml"
+        self, source: str, context: Optional[Dict[str, Any]] = None, format: str = "yaml"
     ) -> dict[str, Any]:
         """
         Execute a workflow (Lua DSL or legacy YAML format).
@@ -772,7 +772,7 @@ class TactusRuntime:
                 except Exception as e:
                     logger.warning("Error cleaning up dependencies: %s", e)
 
-    def _resolve_sandbox_base_path(self) -> str | None:
+    def _resolve_sandbox_base_path(self) -> Optional[str]:
         # Compute base_path for sandbox from source file path if available.
         # This ensures require() works correctly even when running from different directories.
         if not self.source_file_path:
@@ -798,7 +798,7 @@ class TactusRuntime:
 
     async def _initialize_primitives(
         self,
-        placeholder_tool: ToolPrimitive | None = None,
+        placeholder_tool: Optional[ToolPrimitive] = None,
     ):
         """Initialize all primitive objects.
 
@@ -836,7 +836,7 @@ class TactusRuntime:
 
         logger.debug("All primitives initialized")
 
-    def resolve_toolset(self, name: str) -> Any | None:
+    def resolve_toolset(self, name: str) -> Optional[Any]:
         """
         Resolve a toolset by name from runtime's registered toolsets.
 
@@ -1047,7 +1047,7 @@ class TactusRuntime:
         for name, toolset in self.toolset_registry.items():
             logger.debug(f"  - {name}: {type(toolset)} -> {toolset}")
 
-    async def _resolve_tool_source(self, tool_name: str, source: str) -> Any | None:
+    async def _resolve_tool_source(self, tool_name: str, source: str) -> Optional[Any]:
         """
         Resolve a tool from an external source.
 
@@ -1442,7 +1442,7 @@ class TactusRuntime:
 
     async def _create_toolset_from_config(
         self, name: str, definition: dict[str, Any]
-    ) -> Any | None:
+    ) -> Optional[Any]:
         """
         Create toolset from YAML config definition.
 
@@ -2194,7 +2194,7 @@ class TactusRuntime:
             if is_required:
                 fields[field_name] = (field_type, ...)  # Required field
             else:
-                fields[field_name] = (field_type | None, None)  # Optional field
+                fields[field_name] = (Optional[field_type], None)  # Optional field
 
         return create_model(model_name, **fields)
 
@@ -2652,7 +2652,7 @@ class TactusRuntime:
         in_body = False
         brace_depth = 0
         function_depth = 0  # Track function...end blocks
-        long_string_eq: str | None = None
+        long_string_eq: Optional[str] = None
 
         decl_start = re.compile(
             r"^\s*(?:"
@@ -2871,7 +2871,7 @@ class TactusRuntime:
         return False
 
     def _parse_declarations(
-        self, source: str, tool_primitive: ToolPrimitive | None = None
+        self, source: str, tool_primitive: Optional[ToolPrimitive] = None
     ) -> ProcedureRegistry:
         """
         Execute .tac to collect declarations.

@@ -29,6 +29,17 @@ from tactus.broker.protocol import (
 logger = logging.getLogger(__name__)
 
 
+try:
+    BaseExceptionGroup
+except NameError:  # pragma: no cover - Python < 3.11 fallback
+    class BaseExceptionGroup(Exception):
+        """Minimal BaseExceptionGroup fallback for Python < 3.11."""
+
+        def __init__(self, message: str, exceptions: list[BaseException]):
+            super().__init__(message)
+            self.exceptions = exceptions
+
+
 def _json_dumps(obj: Any) -> str:
     return json.dumps(obj, ensure_ascii=False, separators=(",", ":"))
 
@@ -170,7 +181,7 @@ class _BaseBrokerServer:
         control_handler: Optional[Callable[[dict], Awaitable[dict]]] = None,
     ):
         self._listener = None
-        self._serve_task: asyncio.Task[None] | None = None
+        self._serve_task: Optional[asyncio.Task[None]] = None
         self._openai = openai_backend or OpenAIChatBackend()
         self._tools = tool_registry or HostToolRegistry.default()
         self._event_handler = event_handler
@@ -1012,7 +1023,7 @@ class BrokerServer(_BaseBrokerServer):
             openai_backend=openai_backend, tool_registry=tool_registry, event_handler=event_handler
         )
         self.socket_path = Path(socket_path)
-        self._server: asyncio.AbstractServer | None = None
+        self._server: Optional[asyncio.AbstractServer] = None
 
     async def start(self) -> None:
         # Most platforms enforce a short maximum length for AF_UNIX socket paths.
@@ -1445,7 +1456,7 @@ class TcpBrokerServer(_BaseBrokerServer):
         *,
         host: str = "127.0.0.1",
         port: int = 0,
-        ssl_context: ssl.SSLContext | None = None,
+        ssl_context: Optional[ssl.SSLContext] = None,
         openai_backend: Optional[OpenAIChatBackend] = None,
         tool_registry: Optional[HostToolRegistry] = None,
         event_handler: Optional[Callable[[dict[str, Any]], None]] = None,
@@ -1460,8 +1471,8 @@ class TcpBrokerServer(_BaseBrokerServer):
         self.host = host
         self.port = port
         self.ssl_context = ssl_context
-        self.bound_port: int | None = None
-        self._serve_task: asyncio.Task[None] | None = None
+        self.bound_port: Optional[int] = None
+        self._serve_task: Optional[asyncio.Task[None]] = None
 
     async def start(self) -> None:
         # Create AnyIO TCP listener (doesn't block, just binds to port)

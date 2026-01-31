@@ -24,4 +24,5 @@ def clear_closed_event_loop() -> None:
         return
 
     if getattr(current_loop, "is_closed", lambda: False)():
-        asyncio.set_event_loop(None)
+        new_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(new_loop)

@@ -45,18 +45,18 @@ class TactusTestContext:
         self.total_tokens: int = 0  # Track total tokens
         self.cost_breakdown: List[Any] = []  # Track per-call costs
         self._agent_mock_turns: Dict[str, List[Dict[str, Any]]] = {}
-        self._scenario_message: str | None = None
+        self._scenario_message: Optional[str] = None
 
     def set_scenario_message(self, message: str) -> None:
         """Set the scenario's primary injected message (for in-spec mocking coordination)."""
         self._scenario_message = message
 
-    def get_scenario_message(self) -> str | None:
+    def get_scenario_message(self) -> Optional[str]:
         """Get the scenario's primary injected message, if set."""
         return self._scenario_message
 
     def mock_agent_response(
-        self, agent: str, message: str, when_message: str | None = None
+        self, agent: str, message: str, when_message: Optional[str] = None
     ) -> None:
         """Add a mocked agent response for this scenario (temporal; 1 per agent turn).
 
@@ -79,8 +79,8 @@ class TactusTestContext:
         self,
         agent: str,
         tool: str,
-        args: Dict[str, Any] | None = None,
-        when_message: str | None = None,
+        args: Optional[Dict[str, Any]] = None,
+        when_message: Optional[str] = None,
     ) -> None:
         """Add a mocked tool call to an agent's next mocked turn for this scenario."""
         args = args or {}
@@ -114,7 +114,7 @@ class TactusTestContext:
             self.runtime.external_agent_mocks = self._agent_mock_turns
 
     def mock_agent_data(
-        self, agent: str, data: Dict[str, Any], when_message: str | None = None
+        self, agent: str, data: Dict[str, Any], when_message: Optional[str] = None
     ) -> None:
         """Set structured output mock data for an agent's next mocked turn.
 

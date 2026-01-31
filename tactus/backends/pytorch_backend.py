@@ -4,7 +4,7 @@ PyTorch model backend for .pt file inference.
 
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 class PyTorchModelBackend:
     """Model backend that loads and runs PyTorch models."""
 
-    def __init__(self, path: str, device: str = "cpu", labels: list[str] | None = None):
+    def __init__(self, path: str, device: str = "cpu", labels: Optional[List[str]] = None):
         """
         Initialize PyTorch model backend.
 

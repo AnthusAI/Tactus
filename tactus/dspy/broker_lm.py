@@ -11,7 +11,7 @@ while still supporting streaming via DSPy's `streamify()` mechanism.
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 import dspy
 import litellm
@@ -42,10 +42,10 @@ class BrokeredLM(dspy.BaseLM):
         model: str,
         *,
         model_type: str = "chat",
-        temperature: float | None = None,
-        max_tokens: int | None = None,
-        cache: bool | None = None,
-        socket_path: str | None = None,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
+        cache: Optional[bool] = None,
+        socket_path: Optional[str] = None,
         **kwargs: Any,
     ):
         if model_type != "chat":
@@ -70,12 +70,18 @@ class BrokeredLM(dspy.BaseLM):
         self._client = env_client
 
     def forward(
-        self, prompt: str | None = None, messages: list[dict[str, Any]] | None = None, **kwargs: Any
+        self,
+        prompt: Optional[str] = None,
+        messages: Optional[List[Dict[str, Any]]] = None,
+        **kwargs: Any,
     ):
         return syncify(self.aforward)(prompt=prompt, messages=messages, **kwargs)
 
     async def aforward(
-        self, prompt: str | None = None, messages: list[dict[str, Any]] | None = None, **kwargs: Any
+        self,
+        prompt: Optional[str] = None,
+        messages: Optional[List[Dict[str, Any]]] = None,
+        **kwargs: Any,
     ):
         provider, model_id = _split_provider_model(self.model)
 
