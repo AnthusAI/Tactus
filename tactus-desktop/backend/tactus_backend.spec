@@ -3,7 +3,12 @@
 import os
 import sys
 import glob
-from PyInstaller.utils.hooks import collect_data_files, collect_submodules, collect_dynamic_libs, copy_metadata
+from PyInstaller.utils.hooks import (
+    collect_data_files,
+    collect_submodules,
+    collect_dynamic_libs,
+    copy_metadata,
+)
 
 block_cipher = None
 
@@ -25,6 +30,13 @@ gherkin_datas = collect_data_files('gherkin')
 litellm_datas = collect_data_files('litellm')
 rfc3987_syntax_datas = collect_data_files('rfc3987_syntax')
 
+
+def _safe_copy_metadata(package_name: str):
+    try:
+        return copy_metadata(package_name)
+    except Exception:
+        return []
+
 # Manually collect lupa native libraries
 # collect_dynamic_libs doesn't find them, so we do it explicitly
 import lupa
@@ -43,12 +55,11 @@ a = Analysis(
         *gherkin_datas,
         *litellm_datas,
         *rfc3987_syntax_datas,
-        *copy_metadata('genai_prices'),
-        *copy_metadata('pydantic_ai_slim'),
-        *copy_metadata('pydantic_ai'),
-        *copy_metadata('pydantic'),
-        *copy_metadata('openai'),
-        *copy_metadata('anthropic'),
+        *_safe_copy_metadata('genai_prices'),
+        *_safe_copy_metadata('pydantic_ai_slim'),
+        *_safe_copy_metadata('pydantic'),
+        *_safe_copy_metadata('openai'),
+        *_safe_copy_metadata('anthropic'),
         (os.path.join(project_root, 'tactus', 'validation', 'grammar', '*.g4'), 'tactus/validation/grammar'),
         (os.path.join(project_root, 'tactus-ide', 'frontend', 'dist'), 'tactus-ide/frontend/dist'),
     ],
@@ -61,7 +72,6 @@ a = Analysis(
         'lupa',
         'flask_cors',
         'pydantic',
-        'pydantic_ai',
         'boto3',
         'botocore',
         'openai',
