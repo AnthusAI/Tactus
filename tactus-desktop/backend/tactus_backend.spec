@@ -15,22 +15,6 @@ block_cipher = None
 # Get the project root (parent of tactus-desktop)
 project_root = os.path.abspath(os.path.join(SPECPATH, '..', '..'))
 
-# Collect all tactus modules
-tactus_modules = collect_submodules('tactus')
-flask_modules = collect_submodules('flask')
-antlr_modules = collect_submodules('antlr4')
-litellm_modules = collect_submodules('litellm')
-
-# Collect data files
-tactus_datas = collect_data_files('tactus', include_py_files=True)
-antlr_datas = collect_data_files('antlr4')
-lupa_datas = collect_data_files('lupa', include_py_files=True)
-behave_datas = collect_data_files('behave')
-gherkin_datas = collect_data_files('gherkin')
-litellm_datas = collect_data_files('litellm')
-rfc3987_syntax_datas = collect_data_files('rfc3987_syntax')
-
-
 def _safe_copy_metadata(package_name: str):
     try:
         return copy_metadata(package_name)
@@ -44,6 +28,27 @@ def _safe_collect_submodules(package_name: str):
     except Exception:
         return []
 
+
+def _collect_data_files(package_name: str, include_py_files: bool = False):
+    return collect_data_files(package_name, include_py_files=include_py_files)
+
+
+# Collect modules
+tactus_modules = _safe_collect_submodules("tactus")
+flask_modules = _safe_collect_submodules("flask")
+antlr_modules = _safe_collect_submodules("antlr4")
+litellm_modules = _safe_collect_submodules("litellm")
+pydantic_ai_modules = _safe_collect_submodules("pydantic_ai")
+
+# Collect data files
+tactus_data_files = _collect_data_files("tactus", include_py_files=True)
+antlr_data_files = _collect_data_files("antlr4")
+lupa_data_files = _collect_data_files("lupa", include_py_files=True)
+behave_data_files = _collect_data_files("behave")
+gherkin_data_files = _collect_data_files("gherkin")
+litellm_data_files = _collect_data_files("litellm")
+rfc3987_syntax_data_files = _collect_data_files("rfc3987_syntax")
+
 # Manually collect lupa native libraries
 # collect_dynamic_libs doesn't find them, so we do it explicitly
 import lupa
@@ -55,13 +60,13 @@ a = Analysis(
     pathex=[project_root],
     binaries=lupa_binaries,
     datas=[
-        *tactus_datas,
-        *antlr_datas,
-        *lupa_datas,
-        *behave_datas,
-        *gherkin_datas,
-        *litellm_datas,
-        *rfc3987_syntax_datas,
+        *tactus_data_files,
+        *antlr_data_files,
+        *lupa_data_files,
+        *behave_data_files,
+        *gherkin_data_files,
+        *litellm_data_files,
+        *rfc3987_syntax_data_files,
         *_safe_copy_metadata('genai_prices'),
         *_safe_copy_metadata('pydantic_ai_slim'),
         *_safe_copy_metadata('pydantic_ai'),
@@ -76,7 +81,7 @@ a = Analysis(
         *flask_modules,
         *antlr_modules,
         *litellm_modules,
-        *_safe_collect_submodules('pydantic_ai'),
+        *pydantic_ai_modules,
         'litellm.litellm_core_utils.tokenizers',
         'lupa',
         'flask_cors',

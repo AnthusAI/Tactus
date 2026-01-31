@@ -102,7 +102,7 @@ class HostControlChannel(InProcessChannel):
 
         # Start background thread for input collection
         self._input_thread = threading.Thread(
-            target=self._input_thread_main,
+            target=self._collect_input_in_thread,
             args=(request,),
             daemon=True,
         )
@@ -142,7 +142,7 @@ class HostControlChannel(InProcessChannel):
         if self._input_thread and self._input_thread.is_alive():
             self._input_thread.join(timeout=1.0)
 
-    def _input_thread_main(self, request: ControlRequest) -> None:
+    def _collect_input_in_thread(self, request: ControlRequest) -> None:
         """
         Background thread main function.
 
@@ -154,31 +154,37 @@ class HostControlChannel(InProcessChannel):
         """
         try:
             # Collect input (may block)
-            response_value = self._prompt_for_input(request)
+            user_response_value = self._prompt_for_input(request)
 
             # Check if cancelled while waiting
             if self._cancel_event.is_set():
                 return
 
-            if response_value is not None:
-                # Create response and push to queue
-                response = ControlResponse(
-                    request_id=request.request_id,
-                    value=response_value,
-                    responded_at=datetime.now(timezone.utc),
-                    timed_out=False,
-                    channel_id=self.channel_id,
-                )
-
-                # Push thread-safe
-                if self._event_loop:
-                    self.push_response_threadsafe(response, self._event_loop)
-                else:
-                    self.push_response(response)
+            if user_response_value is not None:
+                response = self._build_response(request, user_response_value)
+                self._push_response_from_thread(response)
 
         except Exception as error:
             if not self._cancel_event.is_set():
                 logger.error("%s: input error: %s", self.channel_id, error)
+
+    def _input_thread_main(self, request: ControlRequest) -> None:
+        self._collect_input_in_thread(request)
+
+    def _build_response(self, request: ControlRequest, response_value: Any) -> ControlResponse:
+        return ControlResponse(
+            request_id=request.request_id,
+            value=response_value,
+            responded_at=datetime.now(timezone.utc),
+            timed_out=False,
+            channel_id=self.channel_id,
+        )
+
+    def _push_response_from_thread(self, response: ControlResponse) -> None:
+        if self._event_loop:
+            self.push_response_threadsafe(response, self._event_loop)
+        else:
+            self.push_response(response)
 
     @abstractmethod
     def _display_request(self, request: ControlRequest) -> None:
