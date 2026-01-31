@@ -52,11 +52,31 @@ class TactusDSLVisitor(LuaParserVisitor):
 
     def __init__(self):
         self.builder = RegistryBuilder()
-        self.errors = []
-        self.warnings = []
+        self.errors: list[ValidationMessage] = []
+        self.warnings: list[ValidationMessage] = []
         self.current_line = 0
         self.current_col = 0
         self.in_function_body = False  # Track if we're inside a function body
+
+    def _record_error(
+        self,
+        message: str,
+        declaration: Optional[str] = None,
+        line_number: Optional[int] = None,
+        column_number: Optional[int] = None,
+    ) -> None:
+        """Record a validation error with the current location by default."""
+        self.errors.append(
+            ValidationMessage(
+                level="error",
+                message=message,
+                location=(
+                    self.current_line if line_number is None else line_number,
+                    self.current_col if column_number is None else column_number,
+                ),
+                declaration=declaration,
+            )
+        )
 
     def visitFunctiondef(self, context):
         """Track when entering/exiting function definitions."""
@@ -155,16 +175,12 @@ class TactusDSLVisitor(LuaParserVisitor):
                         and isinstance(declaration_config.get("name"), str)
                         and declaration_config.get("name") != assignment_target_name
                     ):
-                        self.errors.append(
-                            ValidationMessage(
-                                level="error",
-                                message=(
-                                    f"Tool name mismatch: '{assignment_target_name} = Tool {{ name = \"{declaration_config.get('name')}\" }}'. "
-                                    f"Remove the 'name' field or set it to '{assignment_target_name}'."
-                                ),
-                                location=(self.current_line, self.current_col),
-                                declaration="Tool",
-                            )
+                        self._record_error(
+                            message=(
+                                f"Tool name mismatch: '{assignment_target_name} = Tool {{ name = \"{declaration_config.get('name')}\" }}'. "
+                                f"Remove the 'name' field or set it to '{assignment_target_name}'."
+                            ),
+                            declaration="Tool",
                         )
                     self.builder.register_tool(
                         assignment_target_name,
@@ -249,13 +265,12 @@ class TactusDSLVisitor(LuaParserVisitor):
 
         # Check for .turn() pattern (method call with dot notation)
         if ".turn(" in full_text or ":turn(" in full_text:
-            self.errors.append(
-                ValidationMessage(
-                    level="error",
-                    message='The .turn() method is deprecated. Use callable syntax instead: agent() or agent({message = "..."})',
-                    location=(self.current_line, self.current_col),
-                    declaration="Agent.turn",
-                )
+            self._record_error(
+                message=(
+                    "The .turn() method is deprecated. Use callable syntax instead: "
+                    'agent() or agent({message = "..."})'
+                ),
+                declaration="Agent.turn",
             )
 
         # Check for .run() pattern on agents
@@ -263,13 +278,12 @@ class TactusDSLVisitor(LuaParserVisitor):
             # Try to determine if this is an agent call (not procedure or other types)
             # If the text contains "Agent(" it's likely an agent method
             if "Agent(" in full_text or ctx.getText().startswith("agent"):
-                self.errors.append(
-                    ValidationMessage(
-                        level="error",
-                        message='The .run() method on agents is deprecated. Use callable syntax instead: agent() or agent({message = "..."})',
-                        location=(self.current_line, self.current_col),
-                        declaration="Agent.run",
-                    )
+                self._record_error(
+                    message=(
+                        "The .run() method on agents is deprecated. Use callable syntax instead: "
+                        'agent() or agent({message = "..."})'
+                    ),
+                    declaration="Agent.run",
                 )
 
     def _is_method_access_call(
@@ -287,6 +301,8 @@ class TactusDSLVisitor(LuaParserVisitor):
         """Extract a literal value from an expression node."""
         if not expression_node:
             return None
+
+        expression_text = expression_node.getText()
 
         # Check for string literals
         if expression_node.string():
@@ -319,17 +335,17 @@ class TactusDSLVisitor(LuaParserVisitor):
                 return float(number_context.FLOAT().getText())
 
         # Check for boolean literals
-        if expression_node.getText() == "true":
+        if expression_text == "true":
             return True
-        elif expression_node.getText() == "false":
+        elif expression_text == "false":
             return False
 
         # Check for nil
-        if expression_node.getText() == "nil":
+        if expression_text == "nil":
             return None
 
         # Default to the text representation
-        return expression_node.getText()
+        return expression_text
 
     def _extract_function_name(
         self, function_call_context: LuaParser.FunctioncallContext
@@ -383,7 +399,10 @@ class TactusDSLVisitor(LuaParserVisitor):
                     self.errors.append(
                         ValidationMessage(
                             level="error",
-                            message=f'Curried syntax Agent "{agent_name}" {{...}} is deprecated. Use assignment syntax: {agent_name} = Agent {{...}}',
+                            message=(
+                                f'Curried syntax Agent "{agent_name}" {{...}} is deprecated. '
+                                f"Use assignment syntax: {agent_name} = Agent {{...}}"
+                            ),
                             location=(self.current_line, self.current_col),
                             declaration="Agent",
                         )
@@ -391,13 +410,13 @@ class TactusDSLVisitor(LuaParserVisitor):
                 elif len(argument_values) == 1 and isinstance(agent_name, str):
                     # DEPRECATED: Agent("name") lookup or curried declaration
                     # This is now invalid - users should use variable references
-                    self.errors.append(
-                        ValidationMessage(
-                            level="error",
-                            message=f'Agent("{agent_name}") lookup syntax is deprecated. Declare the agent with assignment: {agent_name} = Agent {{...}}, then use {agent_name}() to call it.',
-                            location=(self.current_line, self.current_col),
-                            declaration="Agent",
-                        )
+                    self._record_error(
+                        message=(
+                            f'Agent("{agent_name}") lookup syntax is deprecated. '
+                            f"Declare the agent with assignment: {agent_name} = Agent {{...}}, "
+                            f"then use {agent_name}() to call it."
+                        ),
+                        declaration="Agent",
                     )
         elif function_name == "Model":  # CamelCase only
             if argument_values and len(argument_values) >= 1:
@@ -580,16 +599,12 @@ class TactusDSLVisitor(LuaParserVisitor):
                 and isinstance(argument_values[0], str)
             ):
                 tool_name = argument_values[0]
-                self.errors.append(
-                    ValidationMessage(
-                        level="error",
-                        message=(
-                            f'Curried Tool syntax is not supported: Tool "{tool_name}" {{...}}. '
-                            f"Use assignment syntax: {tool_name} = Tool {{...}}."
-                        ),
-                        location=(self.current_line, self.current_col),
-                        declaration="Tool",
-                    )
+                self._record_error(
+                    message=(
+                        f'Curried Tool syntax is not supported: Tool "{tool_name}" {{...}}. '
+                        f"Use assignment syntax: {tool_name} = Tool {{...}}."
+                    ),
+                    declaration="Tool",
                 )
         elif function_name == "Toolset":  # CamelCase only
             # Toolset("name", {config})
@@ -773,7 +788,7 @@ class TactusDSLVisitor(LuaParserVisitor):
 
         return token_text
 
-    def _parse_table_constructor(self, ctx: LuaParser.TableconstructorContext) -> dict:
+    def _parse_table_constructor(self, ctx: LuaParser.TableconstructorContext) -> Any:
         """Parse Lua table constructor to Python dict."""
         parsed_table = {}
         array_items = []
@@ -810,7 +825,10 @@ class TactusDSLVisitor(LuaParserVisitor):
                         self.errors.append(
                             ValidationMessage(
                                 level="error",
-                                message=f"Old type syntax detected. Use field.{value}{{}} instead of {{type = '{value}'}}",
+                                message=(
+                                    f"Old type syntax detected. Use field.{value}{{}} instead of "
+                                    f"{{type = '{value}'}}"
+                                ),
                                 line=field.start.line if field.start else 0,
                                 column=field.start.column if field.start else 0,
                             )

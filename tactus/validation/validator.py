@@ -9,7 +9,7 @@ Validates .tac files using ANTLR parser:
 
 import logging
 from enum import Enum
-from typing import List
+from typing import Optional
 
 from antlr4 import InputStream, CommonTokenStream
 from .generated.LuaLexer import LuaLexer
@@ -36,6 +36,15 @@ class TactusValidator:
     visitor for DSL construct recognition.
     """
 
+    def _build_parser(self, source: str) -> LuaParser:
+        """
+        Build a LuaParser for the provided source string.
+        """
+        source_stream = InputStream(source)
+        lexer = LuaLexer(source_stream)
+        token_stream = CommonTokenStream(lexer)
+        return LuaParser(token_stream)
+
     def validate(
         self,
         source: str,
@@ -51,16 +60,13 @@ class TactusValidator:
         Returns:
             ValidationResult with errors, warnings, and registry
         """
-        validation_errors: List[ValidationMessage] = []
-        validation_warnings: List[ValidationMessage] = []
-        validation_registry = None
+        validation_errors: list[ValidationMessage] = []
+        validation_warnings: list[ValidationMessage] = []
+        validation_registry: Optional[object] = None
 
         try:
             # Phase 1: Lexical and syntactic analysis via ANTLR
-            source_stream = InputStream(source)
-            lexer = LuaLexer(source_stream)
-            token_stream = CommonTokenStream(lexer)
-            parser = LuaParser(token_stream)
+            parser = self._build_parser(source)
 
             # Attach error listener to collect syntax errors
             syntax_error_collector = TactusErrorListener()
@@ -101,8 +107,6 @@ class TactusValidator:
                     if registry_validation_result.valid
                     else None
                 )
-            else:
-                validation_registry = None
 
             return ValidationResult(
                 valid=len(validation_errors) == 0,

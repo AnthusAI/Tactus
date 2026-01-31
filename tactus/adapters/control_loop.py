@@ -816,9 +816,7 @@ class ControlLoopHITLAdapter:
         prior_interactions = None
 
         if execution_context_to_use:
-            procedure_name = getattr(
-                execution_context_to_use, "procedure_name", procedure_name
-            )
+            procedure_name = getattr(execution_context_to_use, "procedure_name", procedure_name)
             invocation_id = getattr(execution_context_to_use, "invocation_id", invocation_id)
 
             # Try to get additional context if methods exist
