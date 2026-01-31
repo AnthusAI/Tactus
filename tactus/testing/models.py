@@ -82,6 +82,8 @@ class FeatureResult(BaseModel):
 class TestResult(BaseModel):
     """Result from 'tactus test' command."""
 
+    __test__ = False
+
     features: List[FeatureResult] = Field(default_factory=list)
     total_scenarios: int
     passed_scenarios: int

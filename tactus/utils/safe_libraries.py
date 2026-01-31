@@ -10,7 +10,7 @@ import math
 import random
 import time
 import warnings
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Callable, Optional
 from functools import wraps
 
@@ -191,7 +191,7 @@ def create_safe_os_library(get_context: Callable, strict_mode: bool = False):
     @warn_if_unsafe("os.date()", get_context)
     def safe_date(format_string=None):
         """Safe os.date() with checkpoint warning."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         if format_string is None:
             # Default format like Lua's os.date()

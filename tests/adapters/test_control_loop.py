@@ -376,6 +376,18 @@ def test_request_interaction_uses_running_loop(monkeypatch):
     assert response.value == "ok"
 
 
+def test_get_running_event_loop_ignores_closed_loop(monkeypatch):
+    handler = ControlLoopHandler(channels=[])
+
+    class ClosedLoop:
+        def is_closed(self):
+            return True
+
+    monkeypatch.setattr(asyncio, "get_running_loop", lambda: ClosedLoop())
+
+    assert handler._get_running_event_loop() is None
+
+
 def test_request_interaction_uses_new_loop(monkeypatch):
     handler = ControlLoopHandler(channels=[])
 
@@ -417,6 +429,60 @@ def test_request_interaction_restores_previous_event_loop(monkeypatch):
 
     previous_event_loop.close()
     asyncio.set_event_loop(None)
+
+
+def test_request_interaction_ignores_closed_previous_event_loop(monkeypatch):
+    handler = ControlLoopHandler(channels=[])
+
+    async def fake_async(_request):
+        return ControlResponse(request_id="req", value="ok")
+
+    closed_event_loop = asyncio.new_event_loop()
+    closed_event_loop.close()
+
+    set_event_loop_calls: list[object] = []
+
+    def record_set_event_loop(loop):
+        set_event_loop_calls.append(loop)
+        return None
+
+    monkeypatch.setattr(handler, "_request_interaction_async", fake_async)
+    monkeypatch.setattr(asyncio, "get_running_loop", lambda: (_ for _ in ()).throw(RuntimeError()))
+    monkeypatch.setattr(asyncio, "get_event_loop", lambda: closed_event_loop)
+    monkeypatch.setattr(asyncio, "set_event_loop", record_set_event_loop)
+
+    response = handler.request_interaction("proc", "approval", "msg")
+    assert response.value == "ok"
+
+    assert set_event_loop_calls
+    assert set_event_loop_calls[-1] is None
+
+
+def test_request_interaction_restores_previous_event_loop_without_is_closed(monkeypatch):
+    handler = ControlLoopHandler(channels=[])
+
+    async def fake_async(_request):
+        return ControlResponse(request_id="req", value="ok")
+
+    class LoopWithoutIsClosed:
+        def run_until_complete(self, coro):
+            return asyncio.run(coro)
+
+    previous_event_loop = LoopWithoutIsClosed()
+    set_event_loop_calls: list[object] = []
+
+    def record_set_event_loop(loop):
+        set_event_loop_calls.append(loop)
+        return None
+
+    monkeypatch.setattr(handler, "_request_interaction_async", fake_async)
+    monkeypatch.setattr(asyncio, "get_running_loop", lambda: (_ for _ in ()).throw(RuntimeError()))
+    monkeypatch.setattr(asyncio, "get_event_loop", lambda: previous_event_loop)
+    monkeypatch.setattr(asyncio, "set_event_loop", record_set_event_loop)
+
+    response = handler.request_interaction("proc", "approval", "msg")
+    assert response.value == "ok"
+    assert set_event_loop_calls[-1] is previous_event_loop
 
 
 @pytest.mark.asyncio

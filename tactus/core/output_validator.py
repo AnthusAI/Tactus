@@ -29,13 +29,14 @@ class OutputValidator:
     """
 
     # Type mapping from YAML to Python
-    TYPE_MAP = {
+    SCHEMA_TYPE_TO_PYTHON_TYPE = {
         "string": str,
         "number": (int, float),
         "boolean": bool,
         "object": dict,
         "array": list,
     }
+    TYPE_MAP = SCHEMA_TYPE_TO_PYTHON_TYPE
 
     @classmethod
     def _is_scalar_schema(cls, schema: Any) -> bool:
@@ -91,6 +92,15 @@ class OutputValidator:
             return dict(output.items())
         return output
 
+    @staticmethod
+    def _wrap_validated_output(
+        wrapped_result: Any | None,
+        validated_payload: Any,
+    ) -> Any:
+        if wrapped_result is not None:
+            return wrapped_result.model_copy(update={"output": validated_payload})
+        return validated_payload
+
     def validate(self, output: Any) -> Any:
         """
         Validate workflow output against schema.
@@ -108,49 +118,63 @@ class OutputValidator:
         # while preserving the wrapper (so callers can still access usage/cost/etc.).
         output, wrapped_result = self._unwrap_result(output)
 
-        # If no schema defined, accept any output
         if not self.schema:
-            logger.debug("No output schema defined, skipping validation")
-            validated_payload = self._normalize_unstructured_output(output)
+            return self._validate_without_schema(output, wrapped_result)
 
-            if wrapped_result is not None:
-                return wrapped_result.model_copy(update={"output": validated_payload})
-            return validated_payload
-
-        # Scalar output schema: `output = field.string{...}` etc.
         if self._is_scalar_schema(self.schema):
-            # Lua tables are not valid scalar outputs.
-            if hasattr(output, "items") and not isinstance(output, dict):
-                output = dict(output.items())
+            return self._validate_scalar_schema(output, wrapped_result)
 
-            is_required = self.schema.get("required", False)
-            if output is None and not is_required:
-                return None
+        return self._validate_structured_schema(output, wrapped_result)
 
-            expected_type = self.schema.get("type")
-            if expected_type and not self._check_type(output, expected_type):
+    def _validate_without_schema(
+        self,
+        output: Any,
+        wrapped_result: Any | None,
+    ) -> Any:
+        """Accept any output when no schema is defined."""
+        logger.debug("No output schema defined, skipping validation")
+        validated_payload = self._normalize_unstructured_output(output)
+        return self._wrap_validated_output(wrapped_result, validated_payload)
+
+    def _validate_scalar_schema(
+        self,
+        output: Any,
+        wrapped_result: Any | None,
+    ) -> Any:
+        """Validate scalar outputs (`field.string{}` etc.)."""
+        # Lua tables are not valid scalar outputs.
+        if hasattr(output, "items") and not isinstance(output, dict):
+            output = dict(output.items())
+
+        is_required = self.schema.get("required", False)
+        if output is None and not is_required:
+            return None
+
+        expected_type = self.schema.get("type")
+        if expected_type and not self._check_type(output, expected_type):
+            raise OutputValidationError(
+                f"Output should be {expected_type}, got {type(output).__name__}"
+            )
+
+        if "enum" in self.schema and self.schema["enum"]:
+            allowed_values = self.schema["enum"]
+            if output not in allowed_values:
                 raise OutputValidationError(
-                    f"Output should be {expected_type}, got {type(output).__name__}"
+                    f"Output has invalid value '{output}'. Allowed values: {allowed_values}"
                 )
 
-            if "enum" in self.schema and self.schema["enum"]:
-                allowed_values = self.schema["enum"]
-                if output not in allowed_values:
-                    raise OutputValidationError(
-                        f"Output has invalid value '{output}'. Allowed values: {allowed_values}"
-                    )
+        return self._wrap_validated_output(wrapped_result, output)
 
-            validated_payload = output
-            if wrapped_result is not None:
-                return wrapped_result.model_copy(update={"output": validated_payload})
-            return validated_payload
-
-        # Convert Lua tables to dicts recursively
+    def _validate_structured_schema(
+        self,
+        output: Any,
+        wrapped_result: Any | None,
+    ) -> Any:
+        """Validate dict/table outputs against a schema."""
         if hasattr(output, "items") or isinstance(output, dict):
             logger.debug("Converting Lua tables to Python dicts recursively")
             output = self._convert_lua_tables(output)
 
-        # Output must be a dict/table
         if not isinstance(output, dict):
             raise OutputValidationError(
                 f"Output must be an object/table, got {type(output).__name__}"
@@ -159,7 +183,6 @@ class OutputValidator:
         validation_errors: list[str] = []
         validated_output: dict[str, Any] = {}
 
-        # Check required fields and validate types
         for field_name, field_def in self.schema.items():
             if not isinstance(field_def, dict) or "type" not in field_def:
                 validation_errors.append(
@@ -167,28 +190,23 @@ class OutputValidator:
                     f"Use field.{field_def.get('type', 'string')}{{}} instead."
                 )
                 continue
-            is_required = bool(field_def.get("required", False))
 
+            is_required = bool(field_def.get("required", False))
             if is_required and field_name not in output:
                 validation_errors.append(f"Required field '{field_name}' is missing")
                 continue
 
-            # Skip validation if field not present and not required
             if field_name not in output:
                 continue
 
             value = output[field_name]
-
-            # Type checking
             expected_type = field_def.get("type")
-            if expected_type:
-                if not self._check_type(value, expected_type):
-                    actual_type = type(value).__name__
-                    validation_errors.append(
-                        f"Field '{field_name}' should be {expected_type}, got {actual_type}"
-                    )
+            if expected_type and not self._check_type(value, expected_type):
+                actual_type = type(value).__name__
+                validation_errors.append(
+                    f"Field '{field_name}' should be {expected_type}, got {actual_type}"
+                )
 
-            # Enum validation
             if "enum" in field_def and field_def["enum"]:
                 allowed_values = field_def["enum"]
                 if value not in allowed_values:
@@ -197,10 +215,8 @@ class OutputValidator:
                         f"Allowed values: {allowed_values}"
                     )
 
-            # Add to validated output (only declared fields)
             validated_output[field_name] = value
 
-        # Filter undeclared fields (only return declared fields)
         for field_name in output:
             if field_name not in self.schema:
                 logger.debug("Filtering undeclared field '%s' from output", field_name)
@@ -210,9 +226,7 @@ class OutputValidator:
             raise OutputValidationError(error_message)
 
         logger.info("Output validation passed for %s fields", len(validated_output))
-        if wrapped_result is not None:
-            return wrapped_result.model_copy(update={"output": validated_output})
-        return validated_output
+        return self._wrap_validated_output(wrapped_result, validated_output)
 
     def _check_type(self, value: Any, expected_type: str) -> bool:
         """

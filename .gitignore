@@ -19,6 +19,8 @@ pip-delete-this-directory.txt
 .cache
 nosetests.xml
 coverage.xml
+coverage.json
+coverage_html/
 *.cover
 *.log
 .pytest_cache/

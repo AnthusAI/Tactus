@@ -241,7 +241,7 @@ class LuaSandbox:
         """Setup safe global functions and utilities."""
         # Keep safe standard library functions
         # (These are already available by default, just documenting them)
-        safe_functions = {
+        safe_global_symbols = {
             # Math
             "math",  # Math library (will be replaced with safe version if context available)
             "tonumber",  # Convert to number
@@ -264,54 +264,62 @@ class LuaSandbox:
         }
 
         # Just log what's available - no need to explicitly set
-        logger.debug("Safe Lua functions available: %s", ", ".join(safe_functions))
+        logger.debug("Safe Lua functions available: %s", ", ".join(safe_global_symbols))
 
         # Replace math and os libraries with safe versions if context available
         if self.execution_context is not None:
-            from tactus.utils.safe_libraries import (
-                create_safe_math_library,
-                create_safe_os_library,
-            )
-
-            def get_context():
-                return self.execution_context
-
-            safe_math_dict = create_safe_math_library(get_context, self.strict_determinism)
-            safe_os_dict = create_safe_os_library(get_context, self.strict_determinism)
-
-            safe_math_table = self._dict_to_lua_table(safe_math_dict)
-            safe_os_table = self._dict_to_lua_table(safe_os_dict)
-
-            self.lua.globals()["math"] = safe_math_table
-            self.lua.globals()["os"] = safe_os_table
-
-            logger.debug("Installed safe math and os libraries with determinism checking")
+            self._install_context_safe_libraries()
             return  # Skip default os.date setup below
 
-        # Add safe subset of os module (only date function for timestamps)
-        # This is a fallback when no execution context is available (testing/REPL)
-        from datetime import datetime
+        self._install_fallback_os_date()
 
-        def safe_date(format_str=None):
+    def _install_context_safe_libraries(self) -> None:
+        """Install safe math and os libraries based on execution context."""
+        from tactus.utils.safe_libraries import (
+            create_safe_math_library,
+            create_safe_os_library,
+        )
+
+        def get_execution_context() -> Any:
+            return self.execution_context
+
+        safe_math_dict = create_safe_math_library(get_execution_context, self.strict_determinism)
+        safe_os_dict = create_safe_os_library(get_execution_context, self.strict_determinism)
+
+        safe_math_table = self._dict_to_lua_table(safe_math_dict)
+        safe_os_table = self._dict_to_lua_table(safe_os_dict)
+
+        self.lua.globals()["math"] = safe_math_table
+        self.lua.globals()["os"] = safe_os_table
+
+        logger.debug("Installed safe math and os libraries with determinism checking")
+
+    def _install_fallback_os_date(self) -> None:
+        """Install a safe os.date() fallback when no execution context is available."""
+        safe_os_table = self._build_fallback_os_table()
+        self.lua.globals()["os"] = safe_os_table
+        logger.debug("Added safe os.date() function")
+
+    def _build_fallback_os_table(self) -> Any:
+        """Build a Lua os table with a safe date() implementation."""
+        from datetime import datetime, timezone
+
+        def safe_date(format_string: Optional[str] = None) -> str:
             """Safe implementation of os.date() for timestamp generation."""
-            now = datetime.utcnow()
-            if format_str is None:
+            now = datetime.now(timezone.utc)
+            if format_string is None:
                 # Return default format like Lua's os.date()
                 return now.strftime("%a %b %d %H:%M:%S %Y")
-            elif format_str == "%Y-%m-%dT%H:%M:%SZ":
+            if format_string == "%Y-%m-%dT%H:%M:%SZ":
                 # ISO 8601 format
                 return now.strftime("%Y-%m-%dT%H:%M:%SZ")
-            else:
-                # Support Python strftime formats
-                try:
-                    return now.strftime(format_str)
-                except Exception:  # noqa: E722
-                    return now.strftime("%a %b %d %H:%M:%S %Y")
+            # Support Python strftime formats
+            try:
+                return now.strftime(format_string)
+            except Exception:  # noqa: E722
+                return now.strftime("%a %b %d %H:%M:%S %Y")
 
-        # Create safe os table with only date function
-        safe_os = self.lua.table(date=safe_date)
-        self.lua.globals()["os"] = safe_os
-        logger.debug("Added safe os.date() function")
+        return self.lua.table(date=safe_date)
 
     def setup_assignment_interception(self, callback: Any) -> None:
         """

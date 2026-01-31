@@ -155,11 +155,16 @@ class BaseExecutionContext(ExecutionContext):
         self.lua_sandbox: Any | None = None
 
         # Rich metadata for HITL notifications
-        self.procedure_name: str = procedure_id  # Use procedure_id as default name
-        self.invocation_id: str = str(uuid.uuid4())
-        self._started_at: datetime = datetime.now(timezone.utc)
-        self._input_data: Any = None
+        self._initialize_run_metadata(procedure_id)
+        self._load_and_reset_metadata(procedure_id)
 
+    def _initialize_run_metadata(self, procedure_id: str) -> None:
+        self.procedure_name = procedure_id
+        self.invocation_id = str(uuid.uuid4())
+        self._started_at = datetime.now(timezone.utc)
+        self._input_data = None
+
+    def _load_and_reset_metadata(self, procedure_id: str) -> None:
         # Load procedure metadata (contains execution_log and replay_index)
         self.metadata = self.storage.load_procedure_metadata(procedure_id)
 

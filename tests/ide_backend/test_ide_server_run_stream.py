@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
@@ -9,7 +10,7 @@ from tactus.ide import server as ide_server
 class FakeEvent:
     def __init__(self, event_type="agent_event", timestamp=None):
         self.event_type = event_type
-        self.timestamp = timestamp or datetime.utcnow()
+        self.timestamp = timestamp or datetime.now(timezone.utc)
 
     def model_dump(self, mode="json"):
         return {"event_type": self.event_type, "timestamp": self.timestamp.isoformat()}
@@ -38,6 +39,24 @@ class FakeIDELogHandlerQueueTz:
         return [FakeEvent(event_type="summary_event")]
 
 
+class FakeIDELogHandlerNaive:
+    def __init__(self):
+        self.events = ide_server.queue.Queue()
+        self.events.put(FakeEvent(timestamp=datetime.now()))
+
+    def get_events(self, timeout=0.1):
+        return [FakeEvent(event_type="summary_event", timestamp=datetime.now())]
+
+
+class FakeIDELogHandlerQueueNaive:
+    def __init__(self):
+        self.events = ide_server.queue.Queue()
+        self.events.put(FakeEvent(timestamp=datetime.now()))
+
+    def get_events(self, timeout=0.1):
+        return [FakeEvent(event_type="summary_event")]
+
+
 class ErrorLogHandler(FakeIDELogHandler):
     def get_events(self, timeout=0.1):
         raise RuntimeError("log-fail")
@@ -58,6 +77,64 @@ class FakeRuntime:
 
     async def execute(self, source, context=None, format=None):
         return {"ok": True, "source": source, "context": context, "format": format}
+
+
+class FakeRuntimeSlow(FakeRuntime):
+    async def execute(self, source, context=None, format=None):
+        await asyncio.sleep(0.02)
+        return await super().execute(source, context=context, format=format)
+
+
+class ControlledEventQueue:
+    def __init__(self, responses):
+        self._responses = list(responses)
+        self._index = 0
+
+    def get(self, timeout=0.0):
+        if self._index >= len(self._responses):
+            raise ide_server.queue.Empty
+        response = self._responses[self._index]
+        self._index += 1
+        return response
+
+
+class QueueOnlyLogHandlerDelayed:
+    def __init__(self):
+        self.events = ControlledEventQueue(
+            [
+                FakeEvent(event_type="agent_event", timestamp=datetime.now(timezone.utc)),
+                FakeEvent(event_type="agent_event", timestamp=datetime.now()),
+            ]
+        )
+
+    def get_events(self, timeout=0.1):
+        return []
+
+
+class BrokenEvent(FakeEvent):
+    def model_dump(self, mode="json"):
+        raise ValueError("broken-event")
+
+
+class QueueOnlyLogHandlerBroken:
+    def __init__(self):
+        self.events = ControlledEventQueue(
+            [
+                BrokenEvent(event_type="agent_event"),
+            ]
+        )
+
+    def get_events(self, timeout=0.1):
+        return []
+
+
+class ImmediateThread:
+    def __init__(self, target):
+        self._target = target
+        self.daemon = False
+
+    def start(self):
+        self._target()
 
 
 class FakeConfigManager:
@@ -178,6 +255,54 @@ def test_run_stream_direct_execution_queue_timezone_timestamp(monkeypatch, tmp_p
     assert "+00:00" in data
 
 
+def test_run_stream_direct_execution_naive_timestamp(monkeypatch, tmp_path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    file_path = workspace / "demo.tac"
+    file_path.write_text('Procedure "demo" {}')
+
+    _register_common_fakes(monkeypatch)
+    monkeypatch.setattr("tactus.adapters.ide_log.IDELogHandler", FakeIDELogHandlerNaive)
+    monkeypatch.setattr("tactus.sandbox.is_docker_available", lambda: (False, "no docker"))
+    monkeypatch.setattr(
+        "tactus.sandbox.SandboxConfig",
+        lambda **_kwargs: SimpleNamespace(is_explicitly_disabled=lambda: False),
+    )
+
+    app = ide_server.create_app(initial_workspace=str(workspace))
+    client = app.test_client()
+
+    response = client.get("/api/run/stream", query_string={"path": "demo.tac"})
+    data = response.data.decode("utf-8")
+
+    assert '"event_type": "summary_event"' in data
+    assert "Z" in data
+
+
+def test_run_stream_direct_execution_queue_naive_timestamp(monkeypatch, tmp_path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    file_path = workspace / "demo.tac"
+    file_path.write_text('Procedure "demo" {}')
+
+    _register_common_fakes(monkeypatch)
+    monkeypatch.setattr("tactus.adapters.ide_log.IDELogHandler", FakeIDELogHandlerQueueNaive)
+    monkeypatch.setattr("tactus.sandbox.is_docker_available", lambda: (False, "no docker"))
+    monkeypatch.setattr(
+        "tactus.sandbox.SandboxConfig",
+        lambda **_kwargs: SimpleNamespace(is_explicitly_disabled=lambda: False),
+    )
+
+    app = ide_server.create_app(initial_workspace=str(workspace))
+    client = app.test_client()
+
+    response = client.get("/api/run/stream", query_string={"path": "demo.tac"})
+    data = response.data.decode("utf-8")
+
+    assert '"event_type": "summary_event"' in data
+    assert "Z" in data
+
+
 def test_run_stream_direct_execution_queue_events(monkeypatch, tmp_path):
     workspace = tmp_path / "workspace"
     workspace.mkdir()
@@ -199,6 +324,56 @@ def test_run_stream_direct_execution_queue_events(monkeypatch, tmp_path):
     data = response.data.decode("utf-8")
 
     assert '"event_type": "agent_event"' in data
+
+
+def test_run_stream_direct_execution_queue_events_after_completion(monkeypatch, tmp_path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    file_path = workspace / "demo.tac"
+    file_path.write_text('Procedure "demo" {}')
+
+    _register_common_fakes(monkeypatch)
+    monkeypatch.setattr("tactus.core.runtime.TactusRuntime", FakeRuntimeSlow)
+    monkeypatch.setattr("tactus.adapters.ide_log.IDELogHandler", QueueOnlyLogHandlerDelayed)
+    monkeypatch.setattr("tactus.ide.server.threading.Thread", ImmediateThread)
+    monkeypatch.setattr("tactus.sandbox.is_docker_available", lambda: (False, "no docker"))
+    monkeypatch.setattr(
+        "tactus.sandbox.SandboxConfig",
+        lambda **_kwargs: SimpleNamespace(is_explicitly_disabled=lambda: False),
+    )
+
+    app = ide_server.create_app(initial_workspace=str(workspace))
+    client = app.test_client()
+
+    response = client.get("/api/run/stream", query_string={"path": "demo.tac"})
+    data = response.data.decode("utf-8")
+
+    assert '"event_type": "agent_event"' in data
+
+
+def test_run_stream_direct_execution_queue_event_serialization_error(monkeypatch, tmp_path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    file_path = workspace / "demo.tac"
+    file_path.write_text('Procedure "demo" {}')
+
+    _register_common_fakes(monkeypatch)
+    monkeypatch.setattr("tactus.core.runtime.TactusRuntime", FakeRuntimeSlow)
+    monkeypatch.setattr("tactus.adapters.ide_log.IDELogHandler", QueueOnlyLogHandlerBroken)
+    monkeypatch.setattr("tactus.ide.server.threading.Thread", ImmediateThread)
+    monkeypatch.setattr("tactus.sandbox.is_docker_available", lambda: (False, "no docker"))
+    monkeypatch.setattr(
+        "tactus.sandbox.SandboxConfig",
+        lambda **_kwargs: SimpleNamespace(is_explicitly_disabled=lambda: False),
+    )
+
+    app = ide_server.create_app(initial_workspace=str(workspace))
+    client = app.test_client()
+
+    response = client.get("/api/run/stream", query_string={"path": "demo.tac"})
+    data = response.data.decode("utf-8")
+
+    assert '"event_type": "execution"' in data
 
 
 def test_run_stream_sandbox_success(monkeypatch, tmp_path):
@@ -749,7 +924,7 @@ def test_run_stream_event_serialization_errors(monkeypatch, tmp_path):
 
     class BadEvent:
         def __init__(self):
-            self.timestamp = datetime.utcnow()
+            self.timestamp = datetime.now(timezone.utc)
 
         def model_dump(self, mode="json"):
             raise RuntimeError("boom")

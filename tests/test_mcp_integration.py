@@ -46,6 +46,13 @@ async def test_mcp_server_connection():
 async def test_mcp_tools_in_procedure(tmp_path):
     """Test using MCP tools in a Tactus procedure."""
     import sys
+    import warnings
+
+    warnings.filterwarnings(
+        "ignore",
+        message=r"(?s)Pydantic serializer warnings:.*",
+        category=UserWarning,
+    )
 
     # Create a simple procedure that uses MCP tools
     procedure_source = """

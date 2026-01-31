@@ -7,7 +7,6 @@ for all supported file formats: File, Csv, Tsv, Json, Parquet, Hdf5, Excel.
 
 import json
 import os
-
 import pytest
 
 from tactus.utils.safe_file_library import (

@@ -11,7 +11,7 @@ import queue
 import subprocess
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from flask import Flask, request, jsonify, Response, stream_with_context
 from flask_cors import CORS
@@ -27,6 +27,11 @@ WORKSPACE_ROOT = None
 
 # Global cache clearing function - set by create_app()
 _clear_runtime_caches_fn = None
+
+
+def _utc_now_iso() -> str:
+    """Return an ISO-8601 UTC timestamp with a trailing Z."""
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def clear_runtime_caches():
@@ -559,7 +564,6 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                 """Generator function that yields SSE validation events."""
                 try:
                     import json
-                    from datetime import datetime
 
                     # Read and validate file
                     content = path.read_text()
@@ -588,7 +592,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                             }
                             for warn in result.warnings
                         ],
-                        "timestamp": datetime.utcnow().isoformat() + "Z",
+                        "timestamp": _utc_now_iso(),
                     }
                     yield f"data: {json.dumps(validation_event)}\n\n"
 
@@ -597,7 +601,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                     error_event = {
                         "event_type": "execution",
                         "lifecycle_stage": "error",
-                        "timestamp": datetime.utcnow().isoformat() + "Z",
+                        "timestamp": _utc_now_iso(),
                         "details": {"error": str(e)},
                     }
                     yield f"data: {json.dumps(error_event)}\n\n"
@@ -720,7 +724,6 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                 try:
                     # Send start event
                     import json
-                    from datetime import datetime
                     from tactus.adapters.ide_log import IDELogHandler
                     from tactus.core.runtime import TactusRuntime
                     from tactus.adapters.file_storage import FileStorage
@@ -734,7 +737,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                         "lifecycle_stage": "start",
                         "procedure_id": procedure_id,
                         "run_id": run_id,
-                        "timestamp": datetime.utcnow().isoformat() + "Z",
+                        "timestamp": _utc_now_iso(),
                         "details": {"path": file_path},
                         "inputs": inputs,  # Include inputs in start event
                     }
@@ -837,7 +840,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                             "event_type": "container_status",
                             "status": "starting",
                             "execution_id": run_id,
-                            "timestamp": datetime.utcnow().isoformat() + "Z",
+                            "timestamp": _utc_now_iso(),
                         }
                         all_events.append(container_starting_event)
                         yield f"data: {json.dumps(container_starting_event)}\n\n"
@@ -992,7 +995,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                             "event_type": "container_status",
                             "status": "running",
                             "execution_id": run_id,
-                            "timestamp": datetime.utcnow().isoformat() + "Z",
+                            "timestamp": _utc_now_iso(),
                         }
                         all_events.append(container_running_event)
                         yield f"data: {json.dumps(container_running_event)}\n\n"
@@ -1088,12 +1091,41 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                             "event_type": "container_status",
                             "status": "stopped",
                             "execution_id": run_id,
-                            "timestamp": datetime.utcnow().isoformat() + "Z",
+                            "timestamp": _utc_now_iso(),
                         }
                         all_events.append(container_stopped_event)
                         yield f"data: {json.dumps(container_stopped_event)}\n\n"
                     else:
                         # Drain IDELogHandler events (direct execution)
+                        # Drain queued events that may have been enqueued before execution completed.
+                        while True:
+                            try:
+                                event = log_handler.events.get(timeout=0.01)
+                            except queue.Empty:
+                                break
+                            try:
+                                event_dict = event.model_dump(mode="json")
+                                iso_string = event.timestamp.isoformat()
+                                if not (
+                                    iso_string.endswith("Z")
+                                    or "+" in iso_string
+                                    or iso_string.count("-") > 2
+                                ):
+                                    iso_string += "Z"
+                                event_dict["timestamp"] = iso_string
+                                all_events.append(event_dict)
+                                yield f"data: {json.dumps(event_dict)}\n\n"
+                            except Exception as e:
+                                logger.error(
+                                    "Error serializing event: %s",
+                                    e,
+                                    exc_info=True,
+                                )
+                                logger.error(
+                                    "Event type: %s, Event: %s",
+                                    type(event),
+                                    event,
+                                )
                         events = log_handler.get_events(timeout=0.1)
                         for event in events:
                             try:
@@ -1132,7 +1164,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                             "lifecycle_stage": "error",
                             "procedure_id": procedure_id,
                             "exit_code": 1,
-                            "timestamp": datetime.utcnow().isoformat() + "Z",
+                            "timestamp": _utc_now_iso(),
                             "details": {"success": False, "error": str(result_container["error"])},
                         }
                     else:
@@ -1141,7 +1173,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                             "lifecycle_stage": "complete",
                             "procedure_id": procedure_id,
                             "exit_code": 0,
-                            "timestamp": datetime.utcnow().isoformat() + "Z",
+                            "timestamp": _utc_now_iso(),
                             "details": {"success": True},
                         }
                     all_events.append(complete_event)
@@ -1186,7 +1218,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                         "event_type": "execution",
                         "lifecycle_stage": "error",
                         "procedure_id": procedure_id,
-                        "timestamp": datetime.utcnow().isoformat() + "Z",
+                        "timestamp": _utc_now_iso(),
                         "details": {"error": str(e)},
                     }
                     yield f"data: {json.dumps(error_event)}\n\n"
@@ -1241,7 +1273,6 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                 """Generator function that yields SSE test events."""
                 try:
                     import json
-                    from datetime import datetime
                     from tactus.validation import TactusValidator
                     from tactus.testing import TactusTestRunner, GherkinParser
 
@@ -1255,7 +1286,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                             "event_type": "execution",
                             "lifecycle_stage": "error",
                             "procedure_id": procedure_id,
-                            "timestamp": datetime.utcnow().isoformat() + "Z",
+                            "timestamp": _utc_now_iso(),
                             "details": {
                                 "error": "Validation failed",
                                 "errors": [
@@ -1276,7 +1307,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                             "event_type": "execution",
                             "lifecycle_stage": "error",
                             "procedure_id": procedure_id,
-                            "timestamp": datetime.utcnow().isoformat() + "Z",
+                            "timestamp": _utc_now_iso(),
                             "details": {"error": "No specifications found in procedure"},
                         }
                         yield f"data: {json.dumps(error_event)}\n\n"
@@ -1327,7 +1358,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                         "event_type": "test_started",
                         "procedure_file": str(path),
                         "total_scenarios": total_scenarios,
-                        "timestamp": datetime.utcnow().isoformat() + "Z",
+                        "timestamp": _utc_now_iso(),
                     }
                     yield f"data: {json.dumps(start_event)}\n\n"
 
@@ -1347,7 +1378,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                                 "llm_calls": scenario.llm_calls,
                                 "iterations": scenario.iterations,
                                 "tools_used": scenario.tools_used,
-                                "timestamp": datetime.utcnow().isoformat() + "Z",
+                                "timestamp": _utc_now_iso(),
                             }
                             yield f"data: {json.dumps(scenario_event)}\n\n"
 
@@ -1387,7 +1418,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                                 for f in test_result.features
                             ],
                         },
-                        "timestamp": datetime.utcnow().isoformat() + "Z",
+                        "timestamp": _utc_now_iso(),
                     }
                     yield f"data: {json.dumps(complete_event)}\n\n"
 
@@ -1400,7 +1431,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                         "event_type": "execution",
                         "lifecycle_stage": "error",
                         "procedure_id": procedure_id,
-                        "timestamp": datetime.utcnow().isoformat() + "Z",
+                        "timestamp": _utc_now_iso(),
                         "details": {"error": str(e)},
                     }
                     yield f"data: {json.dumps(error_event)}\n\n"
@@ -1457,7 +1488,6 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                 """Generator function that yields SSE evaluation events."""
                 try:
                     import json
-                    from datetime import datetime
                     from tactus.validation import TactusValidator
                     from tactus.testing import TactusEvaluationRunner, GherkinParser
 
@@ -1470,7 +1500,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                             "event_type": "execution",
                             "lifecycle_stage": "error",
                             "procedure_id": procedure_id,
-                            "timestamp": datetime.utcnow().isoformat() + "Z",
+                            "timestamp": _utc_now_iso(),
                             "details": {
                                 "error": "Validation failed",
                                 "errors": [
@@ -1490,7 +1520,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                             "event_type": "execution",
                             "lifecycle_stage": "error",
                             "procedure_id": procedure_id,
-                            "timestamp": datetime.utcnow().isoformat() + "Z",
+                            "timestamp": _utc_now_iso(),
                             "details": {"error": "No specifications found in procedure"},
                         }
                         yield f"data: {json.dumps(error_event)}\n\n"
@@ -1512,7 +1542,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                         "procedure_file": str(path),
                         "total_scenarios": total_scenarios,
                         "runs_per_scenario": runs,
-                        "timestamp": datetime.utcnow().isoformat() + "Z",
+                        "timestamp": _utc_now_iso(),
                     }
                     yield f"data: {json.dumps(start_event)}\n\n"
 
@@ -1526,7 +1556,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                             "scenario_name": eval_result.scenario_name,
                             "completed_runs": eval_result.total_runs,
                             "total_runs": eval_result.total_runs,
-                            "timestamp": datetime.utcnow().isoformat() + "Z",
+                            "timestamp": _utc_now_iso(),
                         }
                         yield f"data: {json.dumps(progress_event)}\n\n"
 
@@ -1547,7 +1577,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                             }
                             for r in eval_results
                         ],
-                        "timestamp": datetime.utcnow().isoformat() + "Z",
+                        "timestamp": _utc_now_iso(),
                     }
                     yield f"data: {json.dumps(complete_event)}\n\n"
 
@@ -1560,7 +1590,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                         "event_type": "execution",
                         "lifecycle_stage": "error",
                         "procedure_id": procedure_id,
-                        "timestamp": datetime.utcnow().isoformat() + "Z",
+                        "timestamp": _utc_now_iso(),
                         "details": {"error": str(e)},
                     }
                     yield f"data: {json.dumps(error_event)}\n\n"
@@ -1629,7 +1659,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                             "event_type": "execution",
                             "lifecycle_stage": "error",
                             "procedure_id": procedure_id,
-                            "timestamp": datetime.utcnow().isoformat() + "Z",
+                            "timestamp": _utc_now_iso(),
                             "details": {
                                 "error": "Validation failed",
                                 "errors": [e.message for e in validation_result.errors],
@@ -1646,7 +1676,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                             "event_type": "execution",
                             "lifecycle_stage": "error",
                             "procedure_id": procedure_id,
-                            "timestamp": datetime.utcnow().isoformat() + "Z",
+                            "timestamp": _utc_now_iso(),
                             "details": {"error": "No evaluations found in procedure"},
                         }
                         yield f"data: {json.dumps(error_event)}\n\n"
@@ -1672,7 +1702,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                         "event_type": "execution",
                         "lifecycle_stage": "started",
                         "procedure_id": procedure_id,
-                        "timestamp": datetime.utcnow().isoformat() + "Z",
+                        "timestamp": _utc_now_iso(),
                         "details": {"type": "pydantic_eval", "runs": actual_runs},
                     }
                     yield f"data: {json.dumps(start_event)}\n\n"
@@ -1747,7 +1777,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                         "event_type": "execution",
                         "lifecycle_stage": "complete",
                         "procedure_id": procedure_id,
-                        "timestamp": datetime.utcnow().isoformat() + "Z",
+                        "timestamp": _utc_now_iso(),
                         "details": result_details,
                     }
                     yield f"data: {json.dumps(result_event)}\n\n"
@@ -1757,7 +1787,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                         "event_type": "execution",
                         "lifecycle_stage": "error",
                         "procedure_id": procedure_id,
-                        "timestamp": datetime.utcnow().isoformat() + "Z",
+                        "timestamp": _utc_now_iso(),
                         "details": {"error": f"pydantic_evals not installed: {e}"},
                     }
                     yield f"data: {json.dumps(error_event)}\n\n"
@@ -1767,7 +1797,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                         "event_type": "execution",
                         "lifecycle_stage": "error",
                         "procedure_id": procedure_id,
-                        "timestamp": datetime.utcnow().isoformat() + "Z",
+                        "timestamp": _utc_now_iso(),
                         "details": {"error": str(e)},
                     }
                     yield f"data: {json.dumps(error_event)}\n\n"
@@ -2484,7 +2514,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                 connection_event = {
                     "type": "connection",
                     "status": "connected",
-                    "timestamp": datetime.utcnow().isoformat() + "Z",
+                    "timestamp": _utc_now_iso(),
                 }
                 logger.info("[HITL-SSE] Sending connection event to client")
                 yield f"data: {json.dumps(connection_event)}\n\n"

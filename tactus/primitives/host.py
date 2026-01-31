@@ -37,27 +37,30 @@ class HostPrimitive:
         try:
             asyncio.get_running_loop()
 
-            import threading
-
-            thread_result = {"value": None, "exception": None}
-
-            def run_in_thread():
-                try:
-                    thread_result["value"] = asyncio.run(coroutine)
-                except Exception as error:
-                    thread_result["exception"] = error
-
-            thread = threading.Thread(target=run_in_thread)
-            thread.start()
-            thread.join()
-
-            if thread_result["exception"]:
-                raise thread_result["exception"]
-            return thread_result["value"]
+            return self._run_coro_in_thread(coroutine)
 
         except RuntimeError:
             clear_closed_event_loop()
             return asyncio.run(coroutine)
+
+    def _run_coro_in_thread(self, coroutine: Any) -> Any:
+        import threading
+
+        result_container = {"value": None, "exception": None}
+
+        def run_in_thread():
+            try:
+                result_container["value"] = asyncio.run(coroutine)
+            except Exception as error:
+                result_container["exception"] = error
+
+        worker_thread = threading.Thread(target=run_in_thread)
+        worker_thread.start()
+        worker_thread.join()
+
+        if result_container["exception"]:
+            raise result_container["exception"]
+        return result_container["value"]
 
     def _lua_to_python(self, value: Any) -> Any:
         if value is None:

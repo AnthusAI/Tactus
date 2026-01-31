@@ -6,7 +6,7 @@ allowing tests to run without human intervention.
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 from tactus.protocols.models import HITLRequest, HITLResponse
@@ -71,7 +71,7 @@ class MockHITLHandler:
 
         return HITLResponse(
             value=value,
-            responded_at=datetime.utcnow(),
+            responded_at=datetime.now(timezone.utc),
             timed_out=False,
         )
 

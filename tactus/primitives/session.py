@@ -80,11 +80,7 @@ class SessionPrimitive:
         if not self._has_session_context():
             return
 
-        message_role = message_payload.get("role", "user")
-        message_content = message_payload.get("content", "")
-
-        # Create a simple message dict
-        message_entry = {"role": message_role, "content": message_content}
+        message_entry = self._build_message_entry(message_payload)
 
         self.session_manager.add_message(self.agent_name, message_entry)
 
@@ -134,11 +130,15 @@ class SessionPrimitive:
         messages = self.session_manager.histories.get(self.agent_name, [])
 
         # Convert to Lua-friendly format
-        serialized_messages: list[dict[str, str]] = [
-            self._serialize_message(message) for message in messages
-        ]
+        return self._serialize_messages(messages)
 
-        return serialized_messages
+    def _build_message_entry(self, message_payload: dict[str, Any]) -> dict[str, Any]:
+        message_role = message_payload.get("role", "user")
+        message_content = message_payload.get("content", "")
+        return {"role": message_role, "content": message_content}
+
+    def _serialize_messages(self, messages: list[Any]) -> list[dict[str, str]]:
+        return [self._serialize_message(message) for message in messages]
 
     def load_from_node(self, node: Any) -> None:
         """

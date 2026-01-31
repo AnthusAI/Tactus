@@ -4,9 +4,10 @@ Root pytest configuration for Tactus tests.
 Provides global fixtures and configuration for all tests.
 """
 
-import pytest
 import os
 from pathlib import Path
+
+import pytest
 
 
 def pytest_configure(config):

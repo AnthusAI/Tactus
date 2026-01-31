@@ -221,17 +221,7 @@ class TactusRuntime:
             logger.info("Step 0: Setting up Lua sandbox")
             strict_determinism = self.external_config.get("strict_determinism", False)
 
-            # Compute base_path for sandbox from source file path if available
-            # This ensures require() works correctly even when running from different directories
-            sandbox_base_path = None
-            if self.source_file_path:
-                from pathlib import Path
-
-                sandbox_base_path = str(Path(self.source_file_path).parent.resolve())
-                logger.debug(
-                    "Using source file directory as sandbox base_path: %s",
-                    sandbox_base_path,
-                )
+            sandbox_base_path = self._resolve_sandbox_base_path()
 
             self.lua_sandbox = LuaSandbox(
                 execution_context=None,
@@ -242,13 +232,7 @@ class TactusRuntime:
             # 0.5. Create execution context EARLY so it's available during DSL parsing
             # This is critical for immediate agent creation during parsing
             logger.info("Step 0.5: Creating execution context (early)")
-            self.execution_context = BaseExecutionContext(
-                procedure_id=self.procedure_id,
-                storage_backend=self.storage_backend,
-                hitl_handler=self.hitl_handler,
-                strict_determinism=strict_determinism,
-                log_handler=self.log_handler,
-            )
+            self.execution_context = self._create_execution_context(strict_determinism)
 
             # Set run_id if provided
             if self.run_id:
@@ -787,6 +771,30 @@ class TactusRuntime:
                     logger.info("Cleaned up user dependencies")
                 except Exception as e:
                     logger.warning("Error cleaning up dependencies: %s", e)
+
+    def _resolve_sandbox_base_path(self) -> str | None:
+        # Compute base_path for sandbox from source file path if available.
+        # This ensures require() works correctly even when running from different directories.
+        if not self.source_file_path:
+            return None
+
+        from pathlib import Path
+
+        sandbox_base_path = str(Path(self.source_file_path).parent.resolve())
+        logger.debug(
+            "Using source file directory as sandbox base_path: %s",
+            sandbox_base_path,
+        )
+        return sandbox_base_path
+
+    def _create_execution_context(self, strict_determinism: bool) -> BaseExecutionContext:
+        return BaseExecutionContext(
+            procedure_id=self.procedure_id,
+            storage_backend=self.storage_backend,
+            hitl_handler=self.hitl_handler,
+            strict_determinism=strict_determinism,
+            log_handler=self.log_handler,
+        )
 
     async def _initialize_primitives(
         self,

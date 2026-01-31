@@ -136,36 +136,59 @@ class MessageHistoryManager:
                 print(f"Warning: Filter function failed: {exception}")
                 return messages
 
-        # Otherwise it's a tuple (filter_type, filter_arg)
+        filter_name, filter_value = self._parse_filter_spec(filter_specification)
+        if filter_name is None:
+            return messages
+
+        if filter_name == "compose":
+            return self._apply_composed_filters(messages, filter_value, context)
+
+        return self._apply_named_filter(messages, filter_name, filter_value)
+
+    @staticmethod
+    def _parse_filter_spec(filter_specification: Any) -> tuple[str | None, Any]:
         if not isinstance(filter_specification, tuple) or len(filter_specification) < 2:
+            return None, None
+
+        return filter_specification[0], filter_specification[1]
+
+    def _apply_composed_filters(
+        self,
+        messages: list[ModelMessage],
+        filter_steps: Any,
+        context: Optional[Any],
+    ) -> list[ModelMessage]:
+        filtered_messages = messages
+        for filter_step in filter_steps:
+            filtered_messages = self._apply_filter(filtered_messages, filter_step, context)
+        return filtered_messages
+
+    def _apply_named_filter(
+        self,
+        messages: list[ModelMessage],
+        filter_name: str,
+        filter_value: Any,
+    ) -> list[ModelMessage]:
+        filter_function = self._filter_dispatch.get(filter_name)
+        if filter_function is None:
             return messages
 
-        filter_name = filter_specification[0]
-        filter_value = filter_specification[1]
+        if filter_name == "system_prefix":
+            return filter_function(messages)
 
-        if filter_name == "last_n":
-            return self._filter_last_n(messages, filter_value)
-        elif filter_name == "first_n":
-            return self._filter_first_n(messages, filter_value)
-        elif filter_name == "token_budget":
-            return self._filter_by_token_budget(messages, filter_value)
-        elif filter_name == "head_tokens":
-            return self._filter_head_tokens(messages, filter_value)
-        elif filter_name == "tail_tokens":
-            return self._filter_tail_tokens(messages, filter_value)
-        elif filter_name == "by_role":
-            return self._filter_by_role(messages, filter_value)
-        elif filter_name == "system_prefix":
-            return self._filter_system_prefix(messages)
-        elif filter_name == "compose":
-            # Apply multiple filters in sequence
-            filtered_messages = messages
-            for filter_step in filter_value:
-                filtered_messages = self._apply_filter(filtered_messages, filter_step, context)
-            return filtered_messages
-        else:
-            # Unknown filter type, return unfiltered
-            return messages
+        return filter_function(messages, filter_value)
+
+    @property
+    def _filter_dispatch(self) -> dict[str, Any]:
+        return {
+            "last_n": self._filter_last_n,
+            "first_n": self._filter_first_n,
+            "token_budget": self._filter_by_token_budget,
+            "head_tokens": self._filter_head_tokens,
+            "tail_tokens": self._filter_tail_tokens,
+            "by_role": self._filter_by_role,
+            "system_prefix": self._filter_system_prefix,
+        }
 
     def _filter_last_n(
         self,

@@ -330,15 +330,10 @@ class ProcedurePrimitive:
             # Create runtime for sub-procedure
             runtime = self.runtime_factory(name, params)
 
-            # Execute in new event loop (thread-safe)
-            event_loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(event_loop)
-
-            result = event_loop.run_until_complete(
+            # Execute in a dedicated event loop for thread safety
+            result = self._run_in_new_event_loop(
                 runtime.execute(source=source, context=params, format="lua")
             )
-
-            event_loop.close()
 
             # Update handle
             with self._lock:
@@ -367,6 +362,14 @@ class ProcedurePrimitive:
                 handle.status = "failed"
                 handle.error = str(error)
                 handle.completed_at = datetime.now()
+
+    def _run_in_new_event_loop(self, coroutine: Any) -> dict[str, Any]:
+        event_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(event_loop)
+        try:
+            return event_loop.run_until_complete(coroutine)
+        finally:
+            event_loop.close()
 
     def status(self, handle: ProcedureHandle) -> dict[str, Any]:
         """

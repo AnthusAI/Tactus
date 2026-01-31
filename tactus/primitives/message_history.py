@@ -58,13 +58,7 @@ class MessageHistoryPrimitive:
             return
 
         message_payload = self._normalize_message_payload(message_payload)
-        role = message_payload.get("role", "user")
-        content = message_payload.get("content", "")
-
-        # Create a message dict and preserve extra fields
-        message_entry = dict(message_payload)
-        message_entry["role"] = role
-        message_entry["content"] = content
+        message_entry = self._build_message_entry(message_payload)
 
         self.message_history_manager.add_message(self.agent_name, message_entry)
 
@@ -116,13 +110,7 @@ class MessageHistoryPrimitive:
             return []
         messages = self._get_history_ref()
 
-        # Convert to Lua-friendly format
-        result: list[dict[str, Any]] = []
-        for message in messages:
-            serialized_message = self._serialize_message(message)
-            result.append(serialized_message)
-
-        return result
+        return self._serialize_messages(messages)
 
     def replace(self, messages: list[Any]) -> None:
         """
@@ -344,6 +332,15 @@ class MessageHistoryPrimitive:
             except Exception:
                 pass
         return {"role": "user", "content": str(message_payload)}
+
+    def _build_message_entry(self, message_payload: dict[str, Any]) -> dict[str, Any]:
+        role = message_payload.get("role", "user")
+        content = message_payload.get("content", "")
+
+        message_entry = dict(message_payload)
+        message_entry["role"] = role
+        message_entry["content"] = content
+        return message_entry
 
     def _normalize_message_data(self, message_data: Any) -> dict[str, Any]:
         """Compatibility alias for existing tests and external callers."""

@@ -251,30 +251,7 @@ class ToolHandle:
                 return asyncio.run(self.implementation_function(args))
             except ImportError:
                 # nest_asyncio not available, fall back to threading
-                import threading
-
-                async_result = {"value": None, "exception": None}
-
-                def run_in_thread():
-                    try:
-                        thread_event_loop = asyncio.new_event_loop()
-                        asyncio.set_event_loop(thread_event_loop)
-                        try:
-                            async_result["value"] = thread_event_loop.run_until_complete(
-                                self.implementation_function(args)
-                            )
-                        finally:
-                            thread_event_loop.close()
-                    except Exception as error:
-                        async_result["exception"] = error
-
-                worker_thread = threading.Thread(target=run_in_thread)
-                worker_thread.start()
-                worker_thread.join()
-
-                if async_result["exception"]:
-                    raise async_result["exception"]
-                return async_result["value"]
+                return self._run_async_in_thread(args)
 
         except RuntimeError:
             # No event loop running - safe to use asyncio.run()
@@ -296,6 +273,32 @@ class ToolHandle:
             else:
                 result[key] = value
         return result
+
+    def _run_async_in_thread(self, args: dict[str, Any]) -> Any:
+        import threading
+
+        thread_result = {"value": None, "exception": None}
+
+        def run_in_thread():
+            try:
+                thread_event_loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(thread_event_loop)
+                try:
+                    thread_result["value"] = thread_event_loop.run_until_complete(
+                        self.implementation_function(args)
+                    )
+                finally:
+                    thread_event_loop.close()
+            except Exception as error:
+                thread_result["exception"] = error
+
+        worker_thread = threading.Thread(target=run_in_thread)
+        worker_thread.start()
+        worker_thread.join()
+
+        if thread_result["exception"]:
+            raise thread_result["exception"]
+        return thread_result["value"]
 
     def __repr__(self) -> str:
         return f"ToolHandle('{self.name}')"

@@ -5,7 +5,7 @@ These are IDE-specific models for capturing and structuring runtime output.
 They are NOT part of core Tactus - core Tactus uses standard Python logging.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
@@ -19,7 +19,10 @@ class BaseEvent(BaseModel):
     """Base event model for all IDE events."""
 
     event_type: str = Field(..., description="Type of event (log, execution, output, validation)")
-    timestamp: datetime = Field(default_factory=datetime.utcnow, description="Event timestamp")
+    timestamp: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="Event timestamp",
+    )
     procedure_id: Optional[str] = Field(None, description="Procedure identifier if available")
 
 

@@ -248,7 +248,14 @@ class SSEControlChannel(InProcessChannel):
         """
         logger.info("%s: received response for %s", self.channel_id, request_id)
 
-        response = ControlResponse(
+        response = self._build_response(request_id, value)
+
+        # Push to queue from sync context (Flask thread)
+        # Get the running event loop and schedule the put operation
+        self._enqueue_response_from_sync_context(request_id, response)
+
+    def _build_response(self, request_id: str, value: Any) -> ControlResponse:
+        return ControlResponse(
             request_id=request_id,
             value=value,
             responded_at=datetime.now(timezone.utc),
@@ -256,15 +263,14 @@ class SSEControlChannel(InProcessChannel):
             channel_id=self.channel_id,
         )
 
-        # Push to queue from sync context (Flask thread)
-        # Get the running event loop and schedule the put operation
+    def _enqueue_response_from_sync_context(
+        self, request_id: str, response: ControlResponse
+    ) -> None:
         try:
             event_loop = asyncio.get_event_loop()
             if event_loop.is_running():
-                # Schedule the coroutine in the running loop
                 asyncio.run_coroutine_threadsafe(self._response_queue.put(response), event_loop)
             else:
-                # If no loop is running, use put_nowait (shouldn't happen)
                 self._response_queue.put_nowait(response)
         except Exception as error:
             logger.error(
