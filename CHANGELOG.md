@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.35.1 (2026-01-31)
+
+### Bug Fixes
+
+- **code**: Quality iteration.
+  ([`6a456df`](https://github.com/AnthusAI/Tactus/commit/6a456df70c6a5e0338815079e75757cbe8b66af3))
+
+
 ## v0.35.0 (2026-01-31)
 
 ### Bug Fixes
