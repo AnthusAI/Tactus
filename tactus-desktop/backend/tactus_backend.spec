@@ -30,7 +30,10 @@ def _safe_collect_submodules(package_name: str):
 
 
 def _collect_data_files(package_name: str, include_py_files: bool = False):
-    return collect_data_files(package_name, include_py_files=include_py_files)
+    try:
+        return collect_data_files(package_name, include_py_files=include_py_files)
+    except Exception:
+        return []
 
 
 # Collect modules
