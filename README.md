@@ -1763,4 +1763,4 @@ See `tactus/validation/README.md` for detailed documentation.
 MIT License - see LICENSE file for details.
 
 [continuous-integration-badge]: https://github.com/AnthusAI/Tactus/actions/workflows/release.yml/badge.svg?branch=main
-[coverage-badge]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/AnthusAI/Tactus/main/coverage_badge.json
+[coverage-badge]: https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FAnthusAI%2FTactus%2Fmain%2Fcoverage_badge.json
