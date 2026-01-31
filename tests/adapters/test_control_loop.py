@@ -357,8 +357,14 @@ def test_request_interaction_uses_running_loop(monkeypatch):
         return ControlResponse(request_id="req", value="ok")
 
     class DummyLoop:
+        def __init__(self):
+            self._closed = False
+
+        def is_closed(self):
+            return self._closed
+
         def run_until_complete(self, coro):
-            return asyncio.get_event_loop().run_until_complete(coro)
+            return asyncio.run(coro)
 
     dummy_loop = DummyLoop()
 
@@ -376,22 +382,21 @@ def test_request_interaction_uses_new_loop(monkeypatch):
     async def fake_async(_request):
         return ControlResponse(request_id="req", value="ok")
 
-    class DummyLoop:
-        def run_until_complete(self, coro):
-            loop = asyncio.new_event_loop()
-            try:
-                return loop.run_until_complete(coro)
-            finally:
-                loop.close()
+    created_loops: list[asyncio.AbstractEventLoop] = []
+    original_new_event_loop = asyncio.new_event_loop
 
-    dummy_loop = DummyLoop()
+    def create_loop():
+        loop = original_new_event_loop()
+        created_loops.append(loop)
+        return loop
 
     monkeypatch.setattr(handler, "_request_interaction_async", fake_async)
     monkeypatch.setattr(asyncio, "get_running_loop", lambda: (_ for _ in ()).throw(RuntimeError()))
-    monkeypatch.setattr(asyncio, "get_event_loop", lambda: dummy_loop)
+    monkeypatch.setattr(asyncio, "new_event_loop", create_loop)
 
     response = handler.request_interaction("proc", "approval", "msg")
     assert response.value == "ok"
+    assert created_loops
 
 
 @pytest.mark.asyncio

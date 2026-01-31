@@ -205,6 +205,9 @@ class ControlLoopHandler:
         # Check if we're already in an async context
         try:
             event_loop = asyncio.get_running_loop()
+            if event_loop.is_closed():
+                raise RuntimeError("Running event loop is closed")
+
             # Already in async context - create task and run it
             # This shouldn't normally happen since request_interaction is sync
             import nest_asyncio
@@ -213,9 +216,13 @@ class ControlLoopHandler:
             return event_loop.run_until_complete(self._request_interaction_async(request))
         except RuntimeError:
             # Not in async context - create new event loop
-            return asyncio.get_event_loop().run_until_complete(
-                self._request_interaction_async(request)
-            )
+            event_loop = asyncio.new_event_loop()
+            try:
+                asyncio.set_event_loop(event_loop)
+                return event_loop.run_until_complete(self._request_interaction_async(request))
+            finally:
+                event_loop.close()
+                asyncio.set_event_loop(None)
 
     async def _request_interaction_async(self, request: ControlRequest) -> ControlResponse:
         """
