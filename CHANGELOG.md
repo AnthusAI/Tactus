@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.36.0 (2026-01-31)
+
+### Features
+
+- Test CI on supported Python versions
+  ([`37c1791`](https://github.com/AnthusAI/Tactus/commit/37c1791810690e26965415046fee02351415eeb5))
+
+
 ## v0.35.1 (2026-01-31)
 
 ### Bug Fixes
