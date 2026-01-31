@@ -2,6 +2,36 @@
 
 <!-- version list -->
 
+## v0.35.0 (2026-01-31)
+
+### Bug Fixes
+
+- Expand coverage and harden cli paths
+  ([`1b98486`](https://github.com/AnthusAI/Tactus/commit/1b9848629c54dd2655f428b13ca2c8d775cc395f))
+
+- Update pydantic-ai dependency to pydantic-ai-slim
+  ([`f4f54c1`](https://github.com/AnthusAI/Tactus/commit/f4f54c19d0969a8c54a9214e5f465bdfc55e95dc))
+
+- Update pydantic-ai-slim dependency to include evals extra
+  ([`d1af5d1`](https://github.com/AnthusAI/Tactus/commit/d1af5d101cd099b2806a12f0fef898170bfec597))
+
+- **quality**: Imposing opinions.
+  ([`d41d6b8`](https://github.com/AnthusAI/Tactus/commit/d41d6b805e9e7ff2373c58437c3d76306599ab2f))
+
+### Chores
+
+- Add markdown and jinja2 dependencies for documentation rendering
+  ([`0a0b24f`](https://github.com/AnthusAI/Tactus/commit/0a0b24fe9400cc74724e1543d79a6e87f85e1b88))
+
+### Features
+
+- Add message history transforms
+  ([`2263017`](https://github.com/AnthusAI/Tactus/commit/226301762526bdd9d3bc0e91a7401c8407e6b85e))
+
+- **specs**: 100% test coverage!
+  ([`4b913d6`](https://github.com/AnthusAI/Tactus/commit/4b913d65f952585392f368db70a6e730cfa204e6))
+
+
 ## v0.34.1 (2026-01-25)
 
 ### Bug Fixes
