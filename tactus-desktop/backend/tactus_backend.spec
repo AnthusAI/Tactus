@@ -37,6 +37,13 @@ def _safe_copy_metadata(package_name: str):
     except Exception:
         return []
 
+
+def _safe_collect_submodules(package_name: str):
+    try:
+        return collect_submodules(package_name)
+    except Exception:
+        return []
+
 # Manually collect lupa native libraries
 # collect_dynamic_libs doesn't find them, so we do it explicitly
 import lupa
@@ -57,6 +64,7 @@ a = Analysis(
         *rfc3987_syntax_datas,
         *_safe_copy_metadata('genai_prices'),
         *_safe_copy_metadata('pydantic_ai_slim'),
+        *_safe_copy_metadata('pydantic_ai'),
         *_safe_copy_metadata('pydantic'),
         *_safe_copy_metadata('openai'),
         *_safe_copy_metadata('anthropic'),
@@ -68,10 +76,14 @@ a = Analysis(
         *flask_modules,
         *antlr_modules,
         *litellm_modules,
+        *_safe_collect_submodules('pydantic_ai'),
         'litellm.litellm_core_utils.tokenizers',
         'lupa',
         'flask_cors',
         'pydantic',
+        'pydantic_ai',
+        'pydantic_ai.toolsets',
+        'pydantic_ai.mcp',
         'boto3',
         'botocore',
         'openai',
