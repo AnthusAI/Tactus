@@ -5,7 +5,7 @@ Defines the SandboxConfig Pydantic model for controlling container execution.
 """
 
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -47,7 +47,7 @@ class SandboxConfig(BaseModel):
     )
 
     # Additional environment variables to pass to container
-    env: Dict[str, str] = Field(
+    env: dict[str, str] = Field(
         default_factory=dict,
         description="Additional environment variables to pass to the container",
     )
@@ -59,7 +59,7 @@ class SandboxConfig(BaseModel):
     )
 
     # Additional volume mounts
-    volumes: List[str] = Field(
+    volumes: list[str] = Field(
         default_factory=list,
         description="Additional volume mounts in 'host:container:mode' format",
     )
@@ -157,7 +157,7 @@ class SandboxConfig(BaseModel):
     model_config = {"arbitrary_types_allowed": True}
 
     @model_validator(mode="after")
-    def add_default_volumes(self):
+    def add_default_volumes(self) -> "SandboxConfig":
         """Add default volume mounts based on config flags."""
         if self.mount_current_dir:
             # Insert at beginning so user volumes can override

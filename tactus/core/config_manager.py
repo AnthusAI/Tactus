@@ -4,13 +4,13 @@ Configuration Manager for Tactus.
 Implements cascading configuration from multiple sources with clear priority ordering.
 """
 
-import logging
-import os
-import yaml
 from pathlib import Path
-from typing import Dict, Any, Optional, List, Tuple
 from copy import deepcopy
 from dataclasses import dataclass, field
+import logging
+import os
+from typing import Any, Optional
+import yaml
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +39,7 @@ class ConfigValue:
     overridden_by: Optional[str] = None
     """If overridden, what source did the override? None if this is the final value."""
 
-    override_chain: List[Tuple[str, Any]] = field(default_factory=list)
+    override_chain: list[tuple[str, Any]] = field(default_factory=list)
     """History of overrides: [(source, value), ...] in chronological order"""
 
     is_env_override: bool = False
@@ -48,7 +48,7 @@ class ConfigValue:
     original_env_var: Optional[str] = None
     """Original environment variable name if value came from env (e.g., 'OPENAI_API_KEY')"""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return {
             "value": self.value,
@@ -82,7 +82,7 @@ class ConfigManager:
         self.loaded_configs = []  # Track loaded configs for debugging
         self.env_var_mapping = {}  # Track which env var each config key came from
 
-    def load_cascade(self, procedure_path: Path) -> Dict[str, Any]:
+    def load_cascade(self, procedure_path: Path) -> dict[str, Any]:
         """
         Load and merge all configuration sources in priority order.
 
@@ -95,53 +95,53 @@ class ConfigManager:
         Returns:
             Merged configuration dictionary
         """
-        configs = []
+        config_sources: list[tuple[str, dict[str, Any]]] = []
 
         # 1. System config (lowest precedence)
         for system_path in self._get_system_config_paths():
             if system_path.exists():
                 system_config = self._load_yaml_file(system_path)
                 if system_config:
-                    configs.append((f"system:{system_path}", system_config))
-                    logger.debug(f"Loaded system config: {system_path}")
+                    config_sources.append((f"system:{system_path}", system_config))
+                    logger.debug("Loaded system config: %s", system_path)
 
         # 2. User config (~/.tactus/config.yml, XDG, etc.)
         for user_path in self._get_user_config_paths():
             if user_path.exists():
                 user_config = self._load_yaml_file(user_path)
                 if user_config:
-                    configs.append((f"user:{user_path}", user_config))
-                    logger.debug(f"Loaded user config: {user_path}")
+                    config_sources.append((f"user:{user_path}", user_config))
+                    logger.debug("Loaded user config: %s", user_path)
 
         # 3. Project config (.tactus/config.yml in cwd)
         root_config_path = Path.cwd() / ".tactus" / "config.yml"
         if root_config_path.exists():
             root_config = self._load_yaml_file(root_config_path)
             if root_config:
-                configs.append(("root", root_config))
-                logger.debug(f"Loaded root config: {root_config_path}")
+                config_sources.append(("root", root_config))
+                logger.debug("Loaded root config: %s", root_config_path)
 
         # 4. Parent directory configs (walk up from procedure directory)
-        procedure_dir = procedure_path.parent.resolve()
-        parent_configs = self._find_directory_configs(procedure_dir)
-        for config_path in parent_configs:
-            config = self._load_yaml_file(config_path)
-            if config:
-                configs.append((f"parent:{config_path}", config))
-                logger.debug(f"Loaded parent config: {config_path}")
+        procedure_directory = procedure_path.parent.resolve()
+        parent_config_paths = self._find_directory_configs(procedure_directory)
+        for config_path in parent_config_paths:
+            parent_config = self._load_yaml_file(config_path)
+            if parent_config:
+                config_sources.append((f"parent:{config_path}", parent_config))
+                logger.debug("Loaded parent config: %s", config_path)
 
         # 5. Local directory config (.tactus/config.yml in procedure's directory)
-        local_config_path = procedure_dir / ".tactus" / "config.yml"
-        if local_config_path.exists() and local_config_path not in parent_configs:
+        local_config_path = procedure_directory / ".tactus" / "config.yml"
+        if local_config_path.exists() and local_config_path not in parent_config_paths:
             local_config = self._load_yaml_file(local_config_path)
             if local_config:
-                configs.append(("local", local_config))
-                logger.debug(f"Loaded local config: {local_config_path}")
+                config_sources.append(("local", local_config))
+                logger.debug("Loaded local config: %s", local_config_path)
 
         # 6. Environment variables (override config files)
-        env_config = self._load_from_environment()
-        if env_config:
-            configs.append(("environment", env_config))
+        environment_config = self._load_from_environment()
+        if environment_config:
+            config_sources.append(("environment", environment_config))
             logger.debug("Loaded config from environment variables")
 
         # 7. Sidecar config (highest priority, except CLI args)
@@ -149,16 +149,16 @@ class ConfigManager:
         if sidecar_path:
             sidecar_config = self._load_yaml_file(sidecar_path)
             if sidecar_config:
-                configs.append(("sidecar", sidecar_config))
-                logger.debug(f"Loaded sidecar config: {sidecar_path}")
+                config_sources.append(("sidecar", sidecar_config))
+                logger.debug("Loaded sidecar config: %s", sidecar_path)
 
         # Store for debugging
-        self.loaded_configs = configs
+        self.loaded_configs = config_sources
 
         # Merge all configs (later configs override earlier ones)
-        merged = self._merge_configs([c[1] for c in configs])
+        merged = self._merge_configs([config for _, config in config_sources])
 
-        logger.debug(f"Merged configuration from {len(configs)} source(s)")
+        logger.debug("Merged configuration from %s source(s)", len(config_sources))
         return merged
 
     def _find_sidecar_config(self, tac_path: Path) -> Optional[Path]:
@@ -188,7 +188,7 @@ class ConfigManager:
 
         return None
 
-    def _find_directory_configs(self, start_path: Path) -> List[Path]:
+    def _find_directory_configs(self, start_path: Path) -> list[Path]:
         """
         Walk up directory tree to find all .tactus/config.yml files.
 
@@ -217,7 +217,7 @@ class ConfigManager:
         # Return in order from root to start_path (so later ones override)
         return list(reversed(configs))
 
-    def _load_yaml_file(self, path: Path) -> Optional[Dict[str, Any]]:
+    def _load_yaml_file(self, path: Path) -> Optional[dict[str, Any]]:
         """
         Load YAML configuration file.
 
@@ -228,14 +228,14 @@ class ConfigManager:
             Configuration dictionary or None if loading fails
         """
         try:
-            with open(path, "r") as f:
-                config = yaml.safe_load(f)
-                return config if isinstance(config, dict) else {}
-        except Exception as e:
-            logger.warning(f"Failed to load config from {path}: {e}")
+            with open(path, "r") as file_handle:
+                loaded_config = yaml.safe_load(file_handle)
+                return loaded_config if isinstance(loaded_config, dict) else {}
+        except Exception as exception:
+            logger.warning("Failed to load config from %s: %s", path, exception)
             return None
 
-    def _load_from_environment(self) -> Dict[str, Any]:
+    def _load_from_environment(self) -> dict[str, Any]:
         """
         Load configuration from environment variables.
 
@@ -244,11 +244,11 @@ class ConfigManager:
         Returns:
             Configuration dictionary from environment
         """
-        config = {}
+        config: dict[str, Any] = {}
 
         # Load known config keys from environment
         # NOTE: Keys must match the config file structure (nested under provider name)
-        env_mappings = {
+        env_var_to_config_path = {
             "OPENAI_API_KEY": ("openai", "api_key"),
             "GOOGLE_API_KEY": ("google", "api_key"),
             "AWS_ACCESS_KEY_ID": ("aws", "access_key_id"),
@@ -280,49 +280,49 @@ class ConfigManager:
         }
 
         # Boolean env vars that need special parsing
-        boolean_env_keys = {
+        boolean_env_var_keys = {
             "TACTUS_SANDBOX_ENABLED",
             "TACTUS_NOTIFICATIONS_ENABLED",
             "TACTUS_CONTROL_ENABLED",
             "TACTUS_CONTROL_CLI_ENABLED",
         }
 
-        for env_key, config_key in env_mappings.items():
-            value = os.environ.get(env_key)
-            if value:
+        for env_var_name, config_key in env_var_to_config_path.items():
+            env_var_value = os.environ.get(env_var_name)
+            if env_var_value:
                 # Parse boolean values
-                if env_key in boolean_env_keys:
-                    value = value.lower() in ("true", "1", "yes", "on")
+                if env_var_name in boolean_env_var_keys:
+                    env_var_value = env_var_value.lower() in ("true", "1", "yes", "on")
 
                 if isinstance(config_key, tuple):
                     # Nested key - handle arbitrary depth
                     # e.g., ("aws", "access_key_id") -> config["aws"]["access_key_id"]
                     # e.g., ("notifications", "channels", "slack", "token")
-                    current = config
-                    for i, key in enumerate(config_key[:-1]):
-                        if key not in current:
-                            current[key] = {}
-                        current = current[key]
-                    current[config_key[-1]] = value
+                    current_container = config
+                    for key in config_key[:-1]:
+                        if key not in current_container:
+                            current_container[key] = {}
+                        current_container = current_container[key]
+                    current_container[config_key[-1]] = env_var_value
                     # Track env var name for this nested key
-                    path = ".".join(config_key)
-                    self.env_var_mapping[path] = env_key
+                    config_path = ".".join(config_key)
+                    self.env_var_mapping[config_path] = env_var_name
                 elif config_key == "tool_paths":
                     # Parse JSON list
                     import json
 
                     try:
-                        config[config_key] = json.loads(value)
-                        self.env_var_mapping[config_key] = env_key
+                        config[config_key] = json.loads(env_var_value)
+                        self.env_var_mapping[config_key] = env_var_name
                     except json.JSONDecodeError:
-                        logger.warning(f"Failed to parse TOOL_PATHS as JSON: {value}")
+                        logger.warning("Failed to parse TOOL_PATHS as JSON: %s", env_var_value)
                 else:
-                    config[config_key] = value
-                    self.env_var_mapping[config_key] = env_key
+                    config[config_key] = env_var_value
+                    self.env_var_mapping[config_key] = env_var_name
 
         return config
 
-    def _get_system_config_paths(self) -> List[Path]:
+    def _get_system_config_paths(self) -> list[Path]:
         """
         Return system-wide config locations (lowest precedence).
 
@@ -337,13 +337,13 @@ class ConfigManager:
             Path("/usr/local/etc/tactus/config.yml"),
         ]
 
-    def _get_user_config_paths(self) -> List[Path]:
+    def _get_user_config_paths(self) -> list[Path]:
         """
         Return per-user config locations (lower precedence than project configs).
 
         Order is from lower to higher precedence so later configs override earlier ones.
         """
-        paths: List[Path] = []
+        paths: list[Path] = []
 
         xdg_home = os.environ.get("XDG_CONFIG_HOME")
         if xdg_home:
@@ -356,14 +356,14 @@ class ConfigManager:
 
         # Deduplicate while preserving order
         seen = set()
-        unique: List[Path] = []
+        unique: list[Path] = []
         for p in paths:
             if p not in seen:
                 unique.append(p)
                 seen.add(p)
         return unique
 
-    def _merge_configs(self, configs: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def _merge_configs(self, configs: list[dict[str, Any]]) -> dict[str, Any]:
         """
         Deep merge multiple configuration dictionaries.
 
@@ -380,14 +380,14 @@ class ConfigManager:
         if not configs:
             return {}
 
-        result = {}
+        merged_config: dict[str, Any] = {}
 
         for config in configs:
-            result = self._deep_merge(result, config)
+            merged_config = self._deep_merge(merged_config, config)
 
-        return result
+        return merged_config
 
-    def _deep_merge(self, base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
+    def _deep_merge(self, base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
         """
         Deep merge two dictionaries.
 
@@ -398,15 +398,15 @@ class ConfigManager:
         Returns:
             Merged dictionary
         """
-        result = deepcopy(base)
+        merged_result = deepcopy(base)
 
         for key, value in override.items():
-            if key in result:
-                base_value = result[key]
+            if key in merged_result:
+                base_value = merged_result[key]
 
                 # If both are dicts, deep merge
                 if isinstance(base_value, dict) and isinstance(value, dict):
-                    result[key] = self._deep_merge(base_value, value)
+                    merged_result[key] = self._deep_merge(base_value, value)
 
                 # If both are lists, extend (combine)
                 elif isinstance(base_value, list) and isinstance(value, list):
@@ -415,25 +415,25 @@ class ConfigManager:
                     for item in value:
                         if item not in combined:
                             combined.append(item)
-                    result[key] = combined
+                    merged_result[key] = combined
 
                 # Otherwise, override takes precedence
                 else:
-                    result[key] = deepcopy(value)
+                    merged_result[key] = deepcopy(value)
             else:
-                result[key] = deepcopy(value)
+                merged_result[key] = deepcopy(value)
 
-        return result
+        return merged_result
 
     def _deep_merge_with_tracking(
         self,
-        base: Dict[str, Any],
-        override: Dict[str, Any],
+        base: dict[str, Any],
+        override: dict[str, Any],
         base_source: str,
         override_source: str,
         path_prefix: str = "",
-        base_source_map: Optional[Dict[str, ConfigValue]] = None,
-    ) -> Tuple[Dict[str, Any], Dict[str, ConfigValue]]:
+        base_source_map: Optional[dict[str, ConfigValue]] = None,
+    ) -> tuple[dict[str, Any], dict[str, ConfigValue]]:
         """
         Deep merge with source tracking at every level.
 
@@ -453,8 +453,8 @@ class ConfigManager:
             - merged_dict: The merged configuration
             - source_map: Dict mapping paths to ConfigValue objects
         """
-        result = deepcopy(base)
-        source_map: Dict[str, ConfigValue] = base_source_map.copy() if base_source_map else {}
+        merged_result = deepcopy(base)
+        source_map: dict[str, ConfigValue] = base_source_map.copy() if base_source_map else {}
 
         # Normalize source types
         base_source_type = base_source.split(":")[0] if ":" in base_source else base_source
@@ -465,14 +465,16 @@ class ConfigManager:
         for key, value in override.items():
             current_path = f"{path_prefix}.{key}" if path_prefix else key
 
-            if key in result:
-                base_value = result[key]
+            if key in merged_result:
+                base_value = merged_result[key]
 
                 # If both are dicts, deep merge recursively with tracking
                 if isinstance(base_value, dict) and isinstance(value, dict):
                     # Get nested source map for base
                     nested_base_source_map = {
-                        k: v for k, v in source_map.items() if k.startswith(current_path + ".")
+                        key_path: config_value
+                        for key_path, config_value in source_map.items()
+                        if key_path.startswith(current_path + ".")
                     }
 
                     # Ensure all base dict values are tracked before merge
@@ -495,7 +497,7 @@ class ConfigManager:
                         current_path,
                         nested_base_source_map,
                     )
-                    result[key] = merged_dict
+                    merged_result[key] = merged_dict
 
                     # Update source map with nested results
                     source_map.update(nested_source_map)
@@ -506,7 +508,10 @@ class ConfigManager:
                         override_chain = source_map[current_path].override_chain.copy()
                         override_chain.append((override_source, value))
                     else:
-                        override_chain = [(base_source, base_value), (override_source, value)]
+                        override_chain = [
+                            (base_source, base_value),
+                            (override_source, value),
+                        ]
 
                     # Get env var name if from environment
                     env_var_name = None
@@ -531,14 +536,17 @@ class ConfigManager:
                     for item in value:
                         if item not in combined:
                             combined.append(item)
-                    result[key] = combined
+                    merged_result[key] = combined
 
                     # Track list override
                     if current_path in source_map:
                         override_chain = source_map[current_path].override_chain.copy()
                         override_chain.append((override_source, value))
                     else:
-                        override_chain = [(base_source, base_value), (override_source, value)]
+                        override_chain = [
+                            (base_source, base_value),
+                            (override_source, value),
+                        ]
 
                     # Get env var name if from environment
                     env_var_name = None
@@ -558,14 +566,17 @@ class ConfigManager:
 
                 # Otherwise, override takes precedence
                 else:
-                    result[key] = deepcopy(value)
+                    merged_result[key] = deepcopy(value)
 
                     # Track simple value override
                     if current_path in source_map:
                         override_chain = source_map[current_path].override_chain.copy()
                         override_chain.append((override_source, value))
                     else:
-                        override_chain = [(base_source, base_value), (override_source, value)]
+                        override_chain = [
+                            (base_source, base_value),
+                            (override_source, value),
+                        ]
 
                     # Get env var name if from environment
                     env_var_name = None
@@ -584,7 +595,7 @@ class ConfigManager:
                     )
             else:
                 # New key, not an override
-                result[key] = deepcopy(value)
+                merged_result[key] = deepcopy(value)
 
                 # Get env var name if from environment
                 env_var_name = None
@@ -606,10 +617,14 @@ class ConfigManager:
                 # For nested dicts/lists in new keys, track their children
                 if isinstance(value, dict):
                     self._track_nested_values(
-                        value, override_source, override_source_type, current_path, source_map
+                        value,
+                        override_source,
+                        override_source_type,
+                        current_path,
+                        source_map,
                     )
 
-        return result, source_map
+        return merged_result, source_map
 
     def _track_nested_values(
         self,
@@ -617,7 +632,7 @@ class ConfigManager:
         source: str,
         source_type: str,
         path_prefix: str,
-        source_map: Dict[str, ConfigValue],
+        source_map: dict[str, ConfigValue],
         overwrite: bool = True,
     ) -> None:
         """
@@ -642,7 +657,12 @@ class ConfigManager:
                     # Still recurse for nested structures
                     if isinstance(value, (dict, list)):
                         self._track_nested_values(
-                            value, source, source_type, current_path, source_map, overwrite
+                            value,
+                            source,
+                            source_type,
+                            current_path,
+                            source_map,
+                            overwrite,
                         )
                     continue
 
@@ -667,7 +687,12 @@ class ConfigManager:
                 )
                 if isinstance(value, (dict, list)):
                     self._track_nested_values(
-                        value, source, source_type, current_path, source_map, overwrite
+                        value,
+                        source,
+                        source_type,
+                        current_path,
+                        source_map,
+                        overwrite,
                     )
         elif isinstance(obj, list):
             for i, item in enumerate(obj):
@@ -677,7 +702,12 @@ class ConfigManager:
                     # Still recurse for nested structures
                     if isinstance(item, (dict, list)):
                         self._track_nested_values(
-                            item, source, source_type, current_path, source_map, overwrite
+                            item,
+                            source,
+                            source_type,
+                            current_path,
+                            source_map,
+                            overwrite,
                         )
                     continue
 
@@ -693,7 +723,12 @@ class ConfigManager:
                 )
                 if isinstance(item, (dict, list)):
                     self._track_nested_values(
-                        item, source, source_type, current_path, source_map, overwrite
+                        item,
+                        source,
+                        source_type,
+                        current_path,
+                        source_map,
+                        overwrite,
                     )
 
     def _extract_env_var_name(self, source: str) -> Optional[str]:
@@ -712,7 +747,7 @@ class ConfigManager:
 
     def load_cascade_with_sources(
         self, procedure_path: Path
-    ) -> Tuple[Dict[str, Any], Dict[str, ConfigValue]]:
+    ) -> tuple[dict[str, Any], dict[str, ConfigValue]]:
         """
         Load cascade and return both merged config and detailed source map.
 
@@ -730,59 +765,60 @@ class ConfigManager:
             - merged_config: Traditional flat merged config (backward compatible)
             - source_map: Dict mapping paths to ConfigValue objects with full metadata
         """
-        configs = []
+        config_sources: list[tuple[str, dict[str, Any]]] = []
 
         # 1. System config (lowest precedence)
         for system_path in self._get_system_config_paths():
             if system_path.exists():
                 system_config = self._load_yaml_file(system_path)
                 if system_config:
-                    configs.append((f"system:{system_path}", system_config))
-                    logger.debug(f"Loaded system config: {system_path}")
+                    config_sources.append((f"system:{system_path}", system_config))
+                    logger.debug("Loaded system config: %s", system_path)
 
         # 2. User config (~/.tactus/config.yml, XDG, etc.)
         for user_path in self._get_user_config_paths():
             if user_path.exists():
                 user_config = self._load_yaml_file(user_path)
                 if user_config:
-                    configs.append((f"user:{user_path}", user_config))
-                    logger.debug(f"Loaded user config: {user_path}")
+                    config_sources.append((f"user:{user_path}", user_config))
+                    logger.debug("Loaded user config: %s", user_path)
 
         # 3. Project config (.tactus/config.yml in cwd)
         root_config_path = Path.cwd() / ".tactus" / "config.yml"
         if root_config_path.exists():
             root_config = self._load_yaml_file(root_config_path)
             if root_config:
-                configs.append((f"project:{root_config_path}", root_config))
-                logger.debug(f"Loaded root config: {root_config_path}")
+                config_sources.append((f"project:{root_config_path}", root_config))
+                logger.debug("Loaded root config: %s", root_config_path)
 
         # 4. Parent directory configs (walk up from procedure directory)
-        procedure_dir = procedure_path.parent.resolve()
-        parent_configs = self._find_directory_configs(procedure_dir)
-        for config_path in parent_configs:
-            config = self._load_yaml_file(config_path)
-            if config:
-                configs.append((f"parent:{config_path}", config))
-                logger.debug(f"Loaded parent config: {config_path}")
+        procedure_directory = procedure_path.parent.resolve()
+        parent_config_paths = self._find_directory_configs(procedure_directory)
+        for config_path in parent_config_paths:
+            parent_config = self._load_yaml_file(config_path)
+            if parent_config:
+                config_sources.append((f"parent:{config_path}", parent_config))
+                logger.debug("Loaded parent config: %s", config_path)
 
         # 5. Local directory config (.tactus/config.yml in procedure's directory)
-        local_config_path = procedure_dir / ".tactus" / "config.yml"
+        local_config_path = procedure_directory / ".tactus" / "config.yml"
         if (
             local_config_path.exists()
-            and local_config_path not in [root_config_path] + parent_configs
+            and local_config_path not in [root_config_path] + parent_config_paths
         ):
             local_config = self._load_yaml_file(local_config_path)
             if local_config:
-                configs.append((f"local:{local_config_path}", local_config))
-                logger.debug(f"Loaded local config: {local_config_path}")
+                config_sources.append((f"local:{local_config_path}", local_config))
+                logger.debug("Loaded local config: %s", local_config_path)
 
         # 6. Environment variables (override config files)
-        env_config = self._load_from_environment()
-        if env_config:
+        environment_config = self._load_from_environment()
+        if environment_config:
             # We use "environment" as source, but individual var names are in self.env_var_mapping
-            configs.append(("environment", env_config))
+            config_sources.append(("environment", environment_config))
             logger.debug(
-                f"Loaded config from environment variables: {list(self.env_var_mapping.keys())}"
+                "Loaded config from environment variables: %s",
+                list(self.env_var_mapping.keys()),
             )
 
         # 7. Sidecar config (highest priority, except CLI args)
@@ -790,29 +826,38 @@ class ConfigManager:
         if sidecar_path:
             sidecar_config = self._load_yaml_file(sidecar_path)
             if sidecar_config:
-                configs.append((f"sidecar:{sidecar_path}", sidecar_config))
-                logger.info(f"Loaded sidecar config: {sidecar_path}")
+                config_sources.append((f"sidecar:{sidecar_path}", sidecar_config))
+                logger.info("Loaded sidecar config: %s", sidecar_path)
 
         # Store for debugging
-        self.loaded_configs = configs
+        self.loaded_configs = config_sources
 
         # Merge all configs with source tracking
-        if not configs:
+        if not config_sources:
             return {}, {}
 
         # Start with first config
-        source, config = configs[0]
-        result = deepcopy(config)
-        source_map: Dict[str, ConfigValue] = {}
+        first_source, first_config = config_sources[0]
+        result = deepcopy(first_config)
+        source_map: dict[str, ConfigValue] = {}
 
         # Track initial values
-        self._track_nested_values(config, source, source.split(":")[0], "", source_map)
+        self._track_nested_values(
+            first_config,
+            first_source,
+            first_source.split(":")[0],
+            "",
+            source_map,
+        )
 
         # Merge remaining configs with tracking
-        for source, config in configs[1:]:
+        for source, config in config_sources[1:]:
             result, source_map = self._deep_merge_with_tracking(
                 result, config, "merged", source, "", source_map
             )
 
-        logger.info(f"Merged configuration from {len(configs)} source(s) with full tracking")
+        logger.info(
+            "Merged configuration from %s source(s) with full tracking",
+            len(config_sources),
+        )
         return result, source_map

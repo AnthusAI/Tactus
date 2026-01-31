@@ -6,7 +6,7 @@ Uses pluggable storage and HITL handlers via protocols.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Optional, Callable, List, Dict
+from typing import Any, Callable
 from datetime import datetime, timezone
 import logging
 import time
@@ -39,7 +39,7 @@ class ExecutionContext(ABC):
         self,
         fn: Callable[[], Any],
         checkpoint_type: str,
-        source_info: Optional[Dict[str, Any]] = None,
+        source_info: dict[str, Any] | None = None,
     ) -> Any:
         """
         Execute fn with position-based checkpointing. On replay, return stored result.
@@ -59,9 +59,9 @@ class ExecutionContext(ABC):
         self,
         request_type: str,
         message: str,
-        timeout_seconds: Optional[int],
+        timeout_seconds: int | None,
         default_value: Any,
-        options: Optional[List[dict]],
+        options: list[dict] | None,
         metadata: dict,
     ) -> HITLResponse:
         """
@@ -121,7 +121,7 @@ class BaseExecutionContext(ExecutionContext):
         self,
         procedure_id: str,
         storage_backend: StorageBackend,
-        hitl_handler: Optional[HITLHandler] = None,
+        hitl_handler: HITLHandler | None = None,
         strict_determinism: bool = False,
         log_handler=None,
     ):
@@ -145,14 +145,14 @@ class BaseExecutionContext(ExecutionContext):
         self._inside_checkpoint = False
 
         # Run ID tracking for distinguishing between different executions
-        self.current_run_id: Optional[str] = None
+        self.current_run_id: str | None = None
 
         # .tac file tracking for accurate source locations
-        self.current_tac_file: Optional[str] = None
-        self.current_tac_content: Optional[str] = None
+        self.current_tac_file: str | None = None
+        self.current_tac_content: str | None = None
 
         # Lua sandbox reference for debug.getinfo access
-        self.lua_sandbox: Optional[Any] = None
+        self.lua_sandbox: Any | None = None
 
         # Rich metadata for HITL notifications
         self.procedure_name: str = procedure_id  # Use procedure_id as default name
@@ -172,7 +172,7 @@ class BaseExecutionContext(ExecutionContext):
         """Set the run_id for subsequent checkpoints in this execution."""
         self.current_run_id = run_id
 
-    def set_tac_file(self, file_path: str, content: Optional[str] = None) -> None:
+    def set_tac_file(self, file_path: str, content: str | None = None) -> None:
         """
         Store the currently executing .tac file for accurate source location capture.
 
@@ -188,7 +188,7 @@ class BaseExecutionContext(ExecutionContext):
         self.lua_sandbox = lua_sandbox
 
     def set_procedure_metadata(
-        self, procedure_name: Optional[str] = None, input_data: Any = None
+        self, procedure_name: str | None = None, input_data: Any = None
     ) -> None:
         """
         Set rich metadata for HITL notifications.
@@ -206,7 +206,7 @@ class BaseExecutionContext(ExecutionContext):
         self,
         fn: Callable[[], Any],
         checkpoint_type: str,
-        source_info: Optional[Dict[str, Any]] = None,
+        source_info: dict[str, Any] | None = None,
     ) -> Any:
         """
         Execute fn with position-based checkpointing and source tracking.
@@ -215,52 +215,67 @@ class BaseExecutionContext(ExecutionContext):
         On first execution, runs fn(), records in log, and returns result.
         """
         logger.info(
-            f"[CHECKPOINT] checkpoint() called, type={checkpoint_type}, position={self.metadata.replay_index}, "
-            f"current_run_id={self.current_run_id}, has_log_handler={self.log_handler is not None}"
+            "[CHECKPOINT] checkpoint() called, type=%s, position=%s, current_run_id=%s, "
+            "has_log_handler=%s",
+            checkpoint_type,
+            self.metadata.replay_index,
+            self.current_run_id,
+            self.log_handler is not None,
         )
-        current_position = self.metadata.replay_index
+        checkpoint_position = self.metadata.replay_index
 
         # Check if we're in replay mode (checkpoint exists at this position)
-        if current_position < len(self.metadata.execution_log):
-            entry = self.metadata.execution_log[current_position]
+        if checkpoint_position < len(self.metadata.execution_log):
+            checkpoint_entry = self.metadata.execution_log[checkpoint_position]
             logger.info(
-                f"[CHECKPOINT] Found existing checkpoint at position {current_position}: "
-                f"type={entry.type}, run_id={entry.run_id}, result_type={type(entry.result).__name__}"
+                "[CHECKPOINT] Found existing checkpoint at position %s: type=%s, run_id=%s, "
+                "result_type=%s",
+                checkpoint_position,
+                checkpoint_entry.type,
+                checkpoint_entry.run_id,
+                type(checkpoint_entry.result).__name__,
             )
 
             # CRITICAL: Only replay checkpoints from the CURRENT run
             # Each new run should execute fresh, not use cached results from previous runs
-            if entry.run_id != self.current_run_id:
+            if checkpoint_entry.run_id != self.current_run_id:
                 logger.info(
-                    f"[CHECKPOINT] Checkpoint is from DIFFERENT run "
-                    f"(checkpoint run_id={entry.run_id}, current run_id={self.current_run_id}), "
-                    f"executing fresh (NOT replaying)"
+                    "[CHECKPOINT] Checkpoint is from DIFFERENT run (checkpoint run_id=%s, "
+                    "current run_id=%s), executing fresh (NOT replaying)",
+                    checkpoint_entry.run_id,
+                    self.current_run_id,
                 )
                 # Fall through to execute mode - this is a new run
             # Special case: HITL checkpoints may have result=None if saved before response arrived
             # In this case, re-execute to check for cached response from control loop
-            elif entry.result is None and checkpoint_type.startswith("hitl_"):
+            elif checkpoint_entry.result is None and checkpoint_type.startswith("hitl_"):
                 logger.info(
-                    f"[CHECKPOINT] HITL checkpoint at position {current_position} has no result, "
-                    f"re-executing to check for cached response"
+                    "[CHECKPOINT] HITL checkpoint at position %s has no result, re-executing "
+                    "to check for cached response",
+                    checkpoint_position,
                 )
                 # Fall through to execute mode - will check for cached response
             else:
                 # Normal replay: return cached result from CURRENT run
                 self.metadata.replay_index += 1
                 logger.info(
-                    f"[CHECKPOINT] REPLAYING checkpoint at position {current_position}, "
-                    f"type={entry.type}, run_id={entry.run_id}, returning cached result"
+                    "[CHECKPOINT] REPLAYING checkpoint at position %s, type=%s, run_id=%s, "
+                    "returning cached result",
+                    checkpoint_position,
+                    checkpoint_entry.type,
+                    checkpoint_entry.run_id,
                 )
-                return entry.result
+                return checkpoint_entry.result
         else:
             logger.info(
-                f"[CHECKPOINT] No checkpoint at position {current_position} "
-                f"(only {len(self.metadata.execution_log)} checkpoints exist), executing fresh"
+                "[CHECKPOINT] No checkpoint at position %s (only %s checkpoints exist), "
+                "executing fresh",
+                checkpoint_position,
+                len(self.metadata.execution_log),
             )
 
         # Execute mode: run function with checkpoint scope tracking
-        old_checkpoint_flag = self._inside_checkpoint
+        previous_checkpoint_state = self._inside_checkpoint
         self._inside_checkpoint = True
 
         # Capture source location if provided
@@ -282,17 +297,17 @@ class BaseExecutionContext(ExecutionContext):
             )
 
         try:
-            start_time = time.time()
+            execution_start_time = time.time()
             result = fn()
-            duration_ms = (time.time() - start_time) * 1000
+            execution_duration_ms = (time.time() - execution_start_time) * 1000
 
             # Create checkpoint entry with source location and run_id (if available)
-            entry = CheckpointEntry(
-                position=current_position,
+            checkpoint_entry = CheckpointEntry(
+                position=checkpoint_position,
                 type=checkpoint_type,
                 result=result,
                 timestamp=datetime.now(timezone.utc),
-                duration_ms=duration_ms,
+                duration_ms=execution_duration_ms,
                 run_id=self.current_run_id,  # Can be None for backward compatibility
                 source_location=source_location,
                 captured_vars=(
@@ -303,13 +318,13 @@ class BaseExecutionContext(ExecutionContext):
             # CRITICAL: For HITL checkpoints, we need to save the checkpoint BEFORE exiting
             # This enables transparent resume - on restart, we'll have a checkpoint at this position
             # with result=None, and the control loop will check for cached responses
-            duration_ms = (time.time() - start_time) * 1000
-            entry = CheckpointEntry(
-                position=current_position,
+            execution_duration_ms = (time.time() - execution_start_time) * 1000
+            checkpoint_entry = CheckpointEntry(
+                position=checkpoint_position,
                 type=checkpoint_type,
                 result=None,  # Will be filled in when response arrives
                 timestamp=datetime.now(timezone.utc),
-                duration_ms=duration_ms,
+                duration_ms=execution_duration_ms,
                 run_id=self.current_run_id,
                 source_location=source_location,
                 captured_vars=(
@@ -317,38 +332,41 @@ class BaseExecutionContext(ExecutionContext):
                 ),
             )
             # Only append if checkpoint doesn't already exist (from previous failed attempt)
-            if current_position < len(self.metadata.execution_log):
+            if checkpoint_position < len(self.metadata.execution_log):
                 # Checkpoint already exists - update it
                 logger.debug(
-                    f"[CHECKPOINT] Updating existing HITL checkpoint at position {current_position} before exit"
+                    "[CHECKPOINT] Updating existing HITL checkpoint at position %s " "before exit",
+                    checkpoint_position,
                 )
-                self.metadata.execution_log[current_position] = entry
+                self.metadata.execution_log[checkpoint_position] = checkpoint_entry
             else:
                 # New checkpoint - append and increment
                 logger.debug(
-                    f"[CHECKPOINT] Creating new HITL checkpoint at position {current_position} before exit"
+                    "[CHECKPOINT] Creating new HITL checkpoint at position %s before exit",
+                    checkpoint_position,
                 )
-                self.metadata.execution_log.append(entry)
+                self.metadata.execution_log.append(checkpoint_entry)
                 self.metadata.replay_index += 1
 
             self.storage.save_procedure_metadata(self.procedure_id, self.metadata)
             # Restore checkpoint flag and re-raise
-            self._inside_checkpoint = old_checkpoint_flag
+            self._inside_checkpoint = previous_checkpoint_state
             raise
         finally:
             # Always restore checkpoint flag, even if fn() raises
-            self._inside_checkpoint = old_checkpoint_flag
+            self._inside_checkpoint = previous_checkpoint_state
 
         # Add to execution log (or update if checkpoint already exists from HITL exit)
-        if current_position < len(self.metadata.execution_log):
+        if checkpoint_position < len(self.metadata.execution_log):
             # Checkpoint already exists (saved during HITL exit) - update it with the result
             logger.debug(
-                f"[CHECKPOINT] Updating existing HITL checkpoint at position {current_position} with result"
+                "[CHECKPOINT] Updating existing HITL checkpoint at position %s with result",
+                checkpoint_position,
             )
-            self.metadata.execution_log[current_position] = entry
+            self.metadata.execution_log[checkpoint_position] = checkpoint_entry
         else:
             # New checkpoint - append to log
-            self.metadata.execution_log.append(entry)
+            self.metadata.execution_log.append(checkpoint_entry)
         self.metadata.replay_index += 1
 
         # Emit checkpoint created event if we have a log handler
@@ -357,18 +375,22 @@ class BaseExecutionContext(ExecutionContext):
                 from tactus.protocols.models import CheckpointCreatedEvent
 
                 event = CheckpointCreatedEvent(
-                    checkpoint_position=current_position,
+                    checkpoint_position=checkpoint_position,
                     checkpoint_type=checkpoint_type,
-                    duration_ms=duration_ms,
+                    duration_ms=execution_duration_ms,
                     source_location=source_location,
                     procedure_id=self.procedure_id,
                 )
                 logger.debug(
-                    f"[CHECKPOINT] Emitting CheckpointCreatedEvent: position={current_position}, type={checkpoint_type}, duration_ms={duration_ms}"
+                    "[CHECKPOINT] Emitting CheckpointCreatedEvent: position=%s, type=%s, "
+                    "duration_ms=%s",
+                    checkpoint_position,
+                    checkpoint_type,
+                    execution_duration_ms,
                 )
                 self.log_handler.log(event)
-            except Exception as e:
-                logger.warning(f"Failed to emit checkpoint event: {e}")
+            except Exception as exception:
+                logger.warning("Failed to emit checkpoint event: %s", exception)
         else:
             logger.warning("[CHECKPOINT] No log_handler available to emit checkpoint event")
 
@@ -377,14 +399,16 @@ class BaseExecutionContext(ExecutionContext):
 
         return result
 
-    def _get_code_context(self, file_path: str, line: int, context_lines: int = 3) -> Optional[str]:
+    def _get_code_context(
+        self, file_path: str, line_number: int, context_lines: int = 3
+    ) -> str | None:
         """Read source file and extract surrounding lines for debugging."""
         try:
-            with open(file_path, "r") as f:
-                lines = f.readlines()
-                start = max(0, line - context_lines - 1)
-                end = min(len(lines), line + context_lines)
-                return "".join(lines[start:end])
+            with open(file_path, "r") as source_file:
+                lines = source_file.readlines()
+                start_index = max(0, line_number - context_lines - 1)
+                end_index = min(len(lines), line_number + context_lines)
+                return "".join(lines[start_index:end_index])
         except Exception:
             return None
 
@@ -392,9 +416,9 @@ class BaseExecutionContext(ExecutionContext):
         self,
         request_type: str,
         message: str,
-        timeout_seconds: Optional[int],
+        timeout_seconds: int | None,
         default_value: Any,
-        options: Optional[List[dict]],
+        options: list[dict] | None,
         metadata: dict,
     ) -> HITLResponse:
         """
@@ -402,20 +426,25 @@ class BaseExecutionContext(ExecutionContext):
 
         Delegates to the HITLHandler protocol implementation.
         """
+        message_preview = message[:50] if message else "None"
         logger.debug(
-            f"[HITL] wait_for_human called: type={request_type}, message={message[:50] if message else 'None'}, hitl_handler={self.hitl}"
+            "[HITL] wait_for_human called: type=%s, message=%s, hitl_handler=%s",
+            request_type,
+            message_preview,
+            self.hitl,
         )
         if not self.hitl:
             # No HITL handler - return default immediately
             logger.warning(
-                f"[HITL] No HITL handler configured - returning default value: {default_value}"
+                "[HITL] No HITL handler configured - returning default value: %s",
+                default_value,
             )
             return HITLResponse(
                 value=default_value, responded_at=datetime.now(timezone.utc), timed_out=True
             )
 
         # Create HITL request
-        request = HITLRequest(
+        hitl_request = HITLRequest(
             request_type=request_type,
             message=message,
             timeout_seconds=timeout_seconds,
@@ -426,7 +455,9 @@ class BaseExecutionContext(ExecutionContext):
 
         # Delegate to HITL handler (may raise ProcedureWaitingForHuman)
         # Pass self (execution_context) for deterministic request ID generation
-        return self.hitl.request_interaction(self.procedure_id, request, execution_context=self)
+        return self.hitl.request_interaction(
+            self.procedure_id, hitl_request, execution_context=self
+        )
 
     def sleep(self, seconds: int) -> None:
         """
@@ -465,11 +496,11 @@ class BaseExecutionContext(ExecutionContext):
         Args:
             handle: ProcedureHandle instance
         """
-        async_procedures = self._get_async_procedures()
-        async_procedures[handle.procedure_id] = handle.to_dict()
+        async_procedure_handles = self._get_async_procedures()
+        async_procedure_handles[handle.procedure_id] = handle.to_dict()
         self.storage.save_procedure_metadata(self.procedure_id, self.metadata)
 
-    def get_procedure_handle(self, procedure_id: str) -> Optional[Dict[str, Any]]:
+    def get_procedure_handle(self, procedure_id: str) -> dict[str, Any] | None:
         """
         Retrieve procedure handle.
 
@@ -481,7 +512,7 @@ class BaseExecutionContext(ExecutionContext):
         """
         return self._get_async_procedures().get(procedure_id)
 
-    def list_pending_procedures(self) -> List[Dict[str, Any]]:
+    def list_pending_procedures(self) -> list[dict[str, Any]]:
         """
         List all pending async procedures.
 
@@ -520,7 +551,7 @@ class BaseExecutionContext(ExecutionContext):
 
             self.storage.save_procedure_metadata(self.procedure_id, self.metadata)
 
-    def _get_async_procedures(self) -> Dict[str, Any]:
+    def _get_async_procedures(self) -> dict[str, Any]:
         """Return the async procedures map stored on metadata."""
         if isinstance(self.metadata, dict):
             return self.metadata.setdefault("async_procedures", {})
@@ -573,19 +604,19 @@ class BaseExecutionContext(ExecutionContext):
 
         return run_id
 
-    def get_subject(self) -> Optional[str]:
+    def get_subject(self) -> str | None:
         """
         Return a human-readable subject line for this execution.
 
         Returns:
             Subject line combining procedure name and current checkpoint position
         """
-        checkpoint_pos = self.next_position()
+        checkpoint_position = self.next_position()
         if self.procedure_name:
-            return f"{self.procedure_name} (checkpoint {checkpoint_pos})"
-        return f"Procedure {self.procedure_id} (checkpoint {checkpoint_pos})"
+            return f"{self.procedure_name} (checkpoint {checkpoint_position})"
+        return f"Procedure {self.procedure_id} (checkpoint {checkpoint_position})"
 
-    def get_started_at(self) -> Optional[datetime]:
+    def get_started_at(self) -> datetime | None:
         """
         Return when this execution started.
 
@@ -594,7 +625,7 @@ class BaseExecutionContext(ExecutionContext):
         """
         return self._started_at
 
-    def get_input_summary(self) -> Optional[Dict[str, Any]]:
+    def get_input_summary(self) -> dict[str, Any] | None:
         """
         Return a summary of the initial input to this procedure.
 
@@ -611,7 +642,7 @@ class BaseExecutionContext(ExecutionContext):
         # Otherwise wrap it in a dict
         return {"value": self._input_data}
 
-    def get_conversation_history(self) -> Optional[List[Dict]]:
+    def get_conversation_history(self) -> list[dict] | None:
         """
         Return conversation history if available.
 
@@ -622,7 +653,7 @@ class BaseExecutionContext(ExecutionContext):
         # in future implementations
         return None
 
-    def get_prior_control_interactions(self) -> Optional[List[Dict]]:
+    def get_prior_control_interactions(self) -> list[dict] | None:
         """
         Return list of prior HITL interactions in this execution.
 
@@ -646,7 +677,7 @@ class BaseExecutionContext(ExecutionContext):
 
         return hitl_checkpoints if hitl_checkpoints else None
 
-    def get_lua_source_line(self) -> Optional[int]:
+    def get_lua_source_line(self) -> int | None:
         """
         Get the current source line from Lua debug.getinfo.
 
@@ -658,27 +689,31 @@ class BaseExecutionContext(ExecutionContext):
 
         try:
             # Access Lua debug module to get current line
-            debug_mod = self.lua_sandbox.globals().debug
-            if debug_mod and hasattr(debug_mod, "getinfo"):
+            debug_module = self.lua_sandbox.globals().debug
+            if debug_module and hasattr(debug_module, "getinfo"):
                 # getinfo(2) gets info about the calling function
                 # We need to go up the stack to find the user's code
                 for level in range(2, 10):
                     try:
-                        info = debug_mod.getinfo(level, "Sl")
-                        if info:
-                            line = info.get("currentline")
-                            source = info.get("source", "")
+                        debug_info = debug_module.getinfo(level, "Sl")
+                        if debug_info:
+                            current_line = debug_info.get("currentline")
+                            source_name = debug_info.get("source", "")
                             # Skip internal sources (start with @)
-                            if line and line > 0 and not source.startswith("@"):
-                                return int(line)
+                            if (
+                                current_line
+                                and current_line > 0
+                                and not source_name.startswith("@")
+                            ):
+                                return int(current_line)
                     except Exception:
                         break
-        except Exception as e:
-            logger.debug(f"Could not get Lua source line: {e}")
+        except Exception as exception:
+            logger.debug("Could not get Lua source line: %s", exception)
 
         return None
 
-    def get_runtime_context(self) -> Dict[str, Any]:
+    def get_runtime_context(self) -> dict[str, Any]:
         """
         Build RuntimeContext dict for HITL requests.
 
@@ -688,9 +723,9 @@ class BaseExecutionContext(ExecutionContext):
             Dict with runtime context fields
         """
         # Calculate elapsed time
-        elapsed = 0.0
+        elapsed_seconds = 0.0
         if self._started_at:
-            elapsed = (datetime.now(timezone.utc) - self._started_at).total_seconds()
+            elapsed_seconds = (datetime.now(timezone.utc) - self._started_at).total_seconds()
 
         # Get current source location
         source_line = self.get_lua_source_line()
@@ -699,14 +734,14 @@ class BaseExecutionContext(ExecutionContext):
         backtrace = []
         if self.metadata and self.metadata.execution_log:
             for entry in self.metadata.execution_log:
-                bt_entry = {
+                backtrace_entry = {
                     "checkpoint_type": entry.type,
                     "duration_ms": entry.duration_ms,
                 }
                 if entry.source_location:
-                    bt_entry["line"] = entry.source_location.line
-                    bt_entry["function_name"] = entry.source_location.function
-                backtrace.append(bt_entry)
+                    backtrace_entry["line"] = entry.source_location.line
+                    backtrace_entry["function_name"] = entry.source_location.function
+                backtrace.append(backtrace_entry)
 
         return {
             "source_line": source_line,
@@ -715,7 +750,7 @@ class BaseExecutionContext(ExecutionContext):
             "procedure_name": self.procedure_name,
             "invocation_id": self.invocation_id,
             "started_at": self._started_at.isoformat() if self._started_at else None,
-            "elapsed_seconds": elapsed,
+            "elapsed_seconds": elapsed_seconds,
             "backtrace": backtrace,
         }
 
@@ -728,7 +763,7 @@ class InMemoryExecutionContext(BaseExecutionContext):
     and simple CLI workflows that don't need to survive restarts.
     """
 
-    def __init__(self, procedure_id: str, hitl_handler: Optional[HITLHandler] = None):
+    def __init__(self, procedure_id: str, hitl_handler: HITLHandler | None = None):
         """
         Initialize with in-memory storage.
 

@@ -75,8 +75,8 @@ class InProcessChannel(ABC):
 
         Default: no-op. Override for auth handshakes, connections, etc.
         """
-        logger.info(f"{self.channel_id}: initializing...")
-        logger.info(f"{self.channel_id}: ready")
+        logger.info("%s: initializing...", self.channel_id)
+        logger.info("%s: ready", self.channel_id)
 
     @abstractmethod
     async def send(self, request: ControlRequest) -> DeliveryResult:
@@ -112,7 +112,11 @@ class InProcessChannel(ABC):
                     self._response_queue.get(),
                     timeout=0.5,
                 )
-                logger.info(f"{self.channel_id}: received response for {response.request_id}")
+                logger.info(
+                    "%s: received response for %s",
+                    self.channel_id,
+                    response.request_id,
+                )
                 yield response
             except asyncio.TimeoutError:
                 continue
@@ -130,7 +134,12 @@ class InProcessChannel(ABC):
             external_message_id: Channel-specific message ID
             reason: Reason for cancellation
         """
-        logger.debug(f"{self.channel_id}: cancelling {external_message_id}: {reason}")
+        logger.debug(
+            "%s: cancelling %s: %s",
+            self.channel_id,
+            external_message_id,
+            reason,
+        )
 
     async def shutdown(self) -> None:
         """
@@ -139,7 +148,7 @@ class InProcessChannel(ABC):
         Default: sets shutdown event to stop receive loop.
         Override for additional cleanup (close connections, etc.).
         """
-        logger.info(f"{self.channel_id}: shutting down")
+        logger.info("%s: shutting down", self.channel_id)
         self._shutdown_event.set()
 
     def push_response(self, response: ControlResponse) -> None:
@@ -156,8 +165,8 @@ class InProcessChannel(ABC):
         """
         try:
             self._response_queue.put_nowait(response)
-        except Exception as e:
-            logger.error(f"{self.channel_id}: failed to queue response: {e}")
+        except Exception as error:
+            logger.error("%s: failed to queue response: %s", self.channel_id, error)
 
     def push_response_threadsafe(
         self, response: ControlResponse, loop: asyncio.AbstractEventLoop

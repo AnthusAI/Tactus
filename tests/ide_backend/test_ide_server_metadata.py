@@ -58,6 +58,147 @@ def test_procedure_metadata_returns_registry(monkeypatch, tmp_path):
     assert payload["metadata"]["evaluations"]["dataset_count"] == 1
 
 
+def test_procedure_metadata_handles_non_dict_evaluations(monkeypatch, tmp_path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    proc_path = workspace / "proc.tac"
+    proc_path.write_text("name('demo')")
+
+    registry = SimpleNamespace(
+        description=None,
+        input_schema={},
+        output_schema={},
+        agents={},
+        toolsets={},
+        lua_tools={},
+        gherkin_specifications=None,
+        pydantic_evaluations=["not-a-dict"],
+    )
+    result = SimpleNamespace(registry=registry, errors=[])
+
+    class DummyValidator:
+        def validate_file(self, _path, _mode):
+            return result
+
+    monkeypatch.setattr(ide_server, "TactusValidator", DummyValidator)
+    monkeypatch.setattr(ide_server, "WORKSPACE_ROOT", str(workspace))
+
+    app = ide_server.create_app()
+    client = app.test_client()
+
+    response = client.get("/api/procedure/metadata", query_string={"path": "proc.tac"})
+    payload = response.get_json()
+
+    assert response.status_code == 200
+    assert payload["metadata"]["evaluations"]["runs"] == 1
+
+
+def test_procedure_metadata_handles_partial_eval_dict(monkeypatch, tmp_path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    proc_path = workspace / "proc.tac"
+    proc_path.write_text("name('demo')")
+
+    registry = SimpleNamespace(
+        description=None,
+        input_schema={},
+        output_schema={},
+        agents={},
+        toolsets={},
+        lua_tools={},
+        gherkin_specifications="Feature: Demo\nScenario: One\n",
+        pydantic_evaluations={"dataset": "not-a-list", "evaluators": ["ok"], "runs": 3},
+    )
+    result = SimpleNamespace(registry=registry, errors=[])
+
+    class DummyValidator:
+        def validate_file(self, _path, _mode):
+            return result
+
+    monkeypatch.setattr(ide_server, "TactusValidator", DummyValidator)
+    monkeypatch.setattr(ide_server, "WORKSPACE_ROOT", str(workspace))
+
+    app = ide_server.create_app()
+    client = app.test_client()
+
+    response = client.get("/api/procedure/metadata", query_string={"path": "proc.tac"})
+    payload = response.get_json()
+
+    assert response.status_code == 200
+    assert payload["metadata"]["evaluations"]["dataset_count"] == 0
+    assert payload["metadata"]["evaluations"]["evaluator_count"] == 1
+
+
+def test_procedure_metadata_handles_empty_evaluations(monkeypatch, tmp_path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    proc_path = workspace / "proc.tac"
+    proc_path.write_text("name('demo')")
+
+    registry = SimpleNamespace(
+        description=None,
+        input_schema={},
+        output_schema={},
+        agents={},
+        toolsets={},
+        lua_tools={},
+        gherkin_specifications=None,
+        pydantic_evaluations={},
+    )
+    result = SimpleNamespace(registry=registry, errors=[])
+
+    class DummyValidator:
+        def validate_file(self, _path, _mode):
+            return result
+
+    monkeypatch.setattr(ide_server, "TactusValidator", DummyValidator)
+    monkeypatch.setattr(ide_server, "WORKSPACE_ROOT", str(workspace))
+
+    app = ide_server.create_app()
+    client = app.test_client()
+
+    response = client.get("/api/procedure/metadata", query_string={"path": "proc.tac"})
+    payload = response.get_json()
+
+    assert response.status_code == 200
+    assert payload["metadata"]["evaluations"] is None
+
+
+def test_procedure_metadata_handles_non_list_evaluators(monkeypatch, tmp_path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    proc_path = workspace / "proc.tac"
+    proc_path.write_text("name('demo')")
+
+    registry = SimpleNamespace(
+        description=None,
+        input_schema={},
+        output_schema={},
+        agents={},
+        toolsets={},
+        lua_tools={},
+        gherkin_specifications="Feature: Demo\nScenario: One\n",
+        pydantic_evaluations={"dataset": [], "evaluators": "bad"},
+    )
+    result = SimpleNamespace(registry=registry, errors=[])
+
+    class DummyValidator:
+        def validate_file(self, _path, _mode):
+            return result
+
+    monkeypatch.setattr(ide_server, "TactusValidator", DummyValidator)
+    monkeypatch.setattr(ide_server, "WORKSPACE_ROOT", str(workspace))
+
+    app = ide_server.create_app()
+    client = app.test_client()
+
+    response = client.get("/api/procedure/metadata", query_string={"path": "proc.tac"})
+    payload = response.get_json()
+
+    assert response.status_code == 200
+    assert payload["metadata"]["evaluations"]["evaluator_count"] == 0
+
+
 def test_procedure_metadata_handles_missing_registry(monkeypatch, tmp_path):
     workspace = tmp_path / "workspace"
     workspace.mkdir()

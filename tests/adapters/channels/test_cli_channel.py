@@ -699,6 +699,42 @@ def test_handle_inputs_custom_type_and_summary(monkeypatch):
     assert any("Summary" in msg for msg in channel.console.messages)
 
 
+def test_handle_inputs_summary_handles_list_values_and_missing_labels(monkeypatch):
+    class SummaryEmptyItems(list):
+        def __init__(self, items):
+            super().__init__(items)
+            self._iteration_count = 0
+
+        def __iter__(self):
+            self._iteration_count += 1
+            if self._iteration_count >= 3:
+                return iter([])
+            return super().__iter__()
+
+    channel = CLIControlChannel(console=DummyConsole())
+    request = _make_request()
+    request.request_type = ControlRequestType.INPUTS
+    request.items = SummaryEmptyItems(
+        [
+            ControlRequestItem(
+                item_id="choices",
+                label="Choices",
+                request_type=ControlRequestType.SELECT,
+                message="Choose items",
+                options=[ControlOption(label="A", value="a"), ControlOption(label="B", value="b")],
+                required=True,
+            )
+        ]
+    )
+
+    monkeypatch.setattr(channel, "_handle_options", lambda *_a, **_k: ["a", "b"])
+
+    result = channel._handle_inputs(request)
+
+    assert result["choices"] == ["a", "b"]
+    assert any("choices" in msg for msg in channel.console.messages)
+
+
 def test_prompt_for_input_unknown_type_falls_back(monkeypatch):
     channel = CLIControlChannel(console=DummyConsole())
     request = _make_request()

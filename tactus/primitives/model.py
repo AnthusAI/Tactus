@@ -74,7 +74,7 @@ class ModelPrimitive:
                 headers=config.get("headers"),
             )
 
-        elif model_type == "pytorch":
+        if model_type == "pytorch":
             from tactus.backends.pytorch_backend import PyTorchModelBackend
 
             return PyTorchModelBackend(
@@ -83,8 +83,7 @@ class ModelPrimitive:
                 labels=config.get("labels"),
             )
 
-        else:
-            raise ValueError(f"Unknown model type: {model_type}. Supported types: http, pytorch")
+        raise ValueError(f"Unknown model type: {model_type}. Supported types: http, pytorch")
 
     def predict(self, input_data: Any) -> Any:
         """
@@ -104,9 +103,9 @@ class ModelPrimitive:
         # Capture source location
         import inspect
 
-        frame = inspect.currentframe()
-        if frame and frame.f_back:
-            caller_frame = frame.f_back
+        current_frame = inspect.currentframe()
+        if current_frame and current_frame.f_back:
+            caller_frame = current_frame.f_back
             source_info = {
                 "file": caller_frame.f_code.co_filename,
                 "line": caller_frame.f_lineno,
@@ -132,12 +131,19 @@ class ModelPrimitive:
             Model prediction result
         """
         if self.mock_manager is not None:
-            args = input_data if isinstance(input_data, dict) else {"input": input_data}
-            mock_result = self.mock_manager.get_mock_response(self.model_name, args)
+            args_payload = input_data if isinstance(input_data, dict) else {"input": input_data}
+            mock_result = self.mock_manager.get_mock_response(
+                self.model_name,
+                args_payload,
+            )
             if mock_result is not None:
                 # Ensure temporal mocks advance and calls are available for assertions.
                 try:
-                    self.mock_manager.record_call(self.model_name, args, mock_result)
+                    self.mock_manager.record_call(
+                        self.model_name,
+                        args_payload,
+                        mock_result,
+                    )
                 except Exception:
                     pass
                 return mock_result

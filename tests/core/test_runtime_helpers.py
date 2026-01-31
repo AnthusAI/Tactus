@@ -1,6 +1,7 @@
 import builtins
 import importlib.machinery
 import importlib.util
+from types import SimpleNamespace
 
 import pytest
 
@@ -13,6 +14,7 @@ from tactus.core.registry import (
     ProcedureRegistry,
 )
 from tactus.core.runtime import TactusRuntime
+from tactus.core import runtime as runtime_module
 
 
 class DummyState:
@@ -134,6 +136,45 @@ end
     assert runtime._maybe_transform_script_mode_source(source) == source
 
 
+def test_maybe_transform_script_mode_tracks_long_string_and_unbalanced_end():
+    runtime = _runtime()
+
+    source = """
+Specifications([[
+Scenario: Example
+]])
+print("hi")
+end
+"""
+
+    transformed = runtime._maybe_transform_script_mode_source(source)
+    assert isinstance(transformed, str)
+
+
+def test_maybe_transform_script_mode_long_string_single_line():
+    runtime = _runtime()
+
+    source = """
+Specifications([[Scenario: Single line]])
+return { ok = true }
+"""
+
+    transformed = runtime._maybe_transform_script_mode_source(source)
+    assert "Procedure {" in transformed
+
+
+def test_maybe_transform_script_mode_negative_function_depth():
+    runtime = _runtime()
+
+    source = """
+end
+return { ok = true }
+"""
+
+    transformed = runtime._maybe_transform_script_mode_source(source)
+    assert "Procedure {" in transformed
+
+
 def test_process_template_missing_key_returns_template():
     runtime = _runtime()
     runtime.config = {}
@@ -141,6 +182,15 @@ def test_process_template_missing_key_returns_template():
     result = runtime._process_template("Hello {missing}", {})
 
     assert result == "Hello "
+
+
+def test_process_template_skips_non_dict_defaults():
+    runtime = _runtime()
+    runtime.config = {"input": {"topic": "AI"}}
+
+    result = runtime._process_template("Topic {input.topic}", {})
+
+    assert result == "Topic "
 
 
 def test_format_output_schema_for_prompt():
@@ -249,6 +299,18 @@ def test_registry_to_config_includes_optional_fields():
     assert config["procedure"].startswith("-- Procedure function")
 
 
+def test_registry_to_config_skips_empty_hitl_fields():
+    runtime = _runtime()
+    registry = ProcedureRegistry(
+        hitl_points={"approve": HITLDeclaration(name="approve", type="approval", message="ok")}
+    )
+
+    config = runtime._registry_to_config(registry)
+
+    assert config["hitl"]["approve"]["type"] == "approval"
+    assert "timeout" not in config["hitl"]["approve"]
+
+
 def test_create_runtime_for_procedure_inherits_context():
     runtime = TactusRuntime(
         procedure_id="root",
@@ -290,3 +352,221 @@ def test_load_procedure_by_name_raises_when_missing(tmp_path, monkeypatch):
 
     with pytest.raises(FileNotFoundError, match="Procedure 'missing' not found"):
         runtime._load_procedure_by_name("missing")
+
+
+def test_parse_declarations_registers_created_agents(monkeypatch):
+    runtime = _runtime()
+
+    class DummySandbox:
+        def __init__(self):
+            self.globals = {}
+            self.assignment_callback = None
+
+        def set_global(self, name, value):
+            self.globals[name] = value
+
+        def setup_assignment_interception(self, callback):
+            self.assignment_callback = callback
+
+        def execute(self, _source):
+            return None
+
+        class lua:
+            @staticmethod
+            def globals():
+                return {}
+
+    runtime.lua_sandbox = DummySandbox()
+
+    def fake_stubs(builder, _tool_primitive, mock_manager=None, runtime_context=None):
+        runtime_context["_created_agents"]["temp"] = object()
+        return {
+            "_registries": {},
+            "_tactus_register_binding": lambda *_args, **_kwargs: None,
+            "Agent": object(),
+        }
+
+    monkeypatch.setattr(runtime_module, "create_dsl_stubs", fake_stubs)
+    monkeypatch.setattr(
+        runtime_module.RegistryBuilder,
+        "validate",
+        lambda self: SimpleNamespace(valid=True, errors=[], warnings=[], registry=self.registry),
+    )
+
+    registry = runtime._parse_declarations("return {}")
+
+    assert "temp" in runtime.agents
+    assert registry is not None
+    assert runtime.lua_sandbox.assignment_callback is not None
+
+
+def test_parse_declarations_skips_binding_callback(monkeypatch):
+    runtime = _runtime()
+
+    class DummySandbox:
+        def __init__(self):
+            self.globals = {}
+            self.assignment_callback = None
+
+        def set_global(self, name, value):
+            self.globals[name] = value
+
+        def setup_assignment_interception(self, callback):
+            self.assignment_callback = callback
+
+        def execute(self, _source):
+            return None
+
+        class lua:
+            @staticmethod
+            def globals():
+                return {}
+
+    runtime.lua_sandbox = DummySandbox()
+
+    def fake_stubs(builder, _tool_primitive, mock_manager=None, runtime_context=None):
+        return {"_registries": {}, "Agent": object()}
+
+    monkeypatch.setattr(runtime_module, "create_dsl_stubs", fake_stubs)
+    monkeypatch.setattr(
+        runtime_module.RegistryBuilder,
+        "validate",
+        lambda self: SimpleNamespace(valid=True, errors=[], warnings=[], registry=self.registry),
+    )
+
+    runtime._parse_declarations("return {}")
+
+    assert runtime.lua_sandbox.assignment_callback is None
+
+
+def test_parse_declarations_raises_on_lua_error(monkeypatch):
+    runtime = _runtime()
+
+    class DummySandbox:
+        def set_global(self, _name, _value):
+            return None
+
+        def execute(self, _source):
+            raise runtime_module.LuaSandboxError("boom")
+
+        class lua:
+            @staticmethod
+            def globals():
+                return {}
+
+    runtime.lua_sandbox = DummySandbox()
+
+    monkeypatch.setattr(
+        runtime_module,
+        "create_dsl_stubs",
+        lambda *args, **kwargs: {"_registries": {}, "_tactus_register_binding": None},
+    )
+
+    with pytest.raises(runtime_module.TactusRuntimeError, match="Failed to parse DSL"):
+        runtime._parse_declarations("return {}")
+
+
+def test_parse_declarations_auto_registers_plain_main(monkeypatch):
+    runtime = _runtime()
+
+    class DummySandbox:
+        def set_global(self, _name, _value):
+            return None
+
+        def execute(self, _source):
+            return None
+
+        class lua:
+            @staticmethod
+            def globals():
+                return {"main": lambda *_args, **_kwargs: None}
+
+    runtime.lua_sandbox = DummySandbox()
+
+    monkeypatch.setattr(
+        runtime_module,
+        "create_dsl_stubs",
+        lambda *args, **kwargs: {"_registries": {}, "_tactus_register_binding": None},
+    )
+    monkeypatch.setattr(
+        runtime_module.RegistryBuilder,
+        "validate",
+        lambda self: SimpleNamespace(valid=True, errors=[], warnings=[], registry=self.registry),
+    )
+
+    registry = runtime._parse_declarations("function main() end")
+
+    assert "main" in registry.named_procedures
+
+
+def test_parse_declarations_validation_errors(monkeypatch):
+    runtime = _runtime()
+
+    class DummySandbox:
+        def set_global(self, _name, _value):
+            return None
+
+        def execute(self, _source):
+            return None
+
+        class lua:
+            @staticmethod
+            def globals():
+                return {}
+
+    runtime.lua_sandbox = DummySandbox()
+
+    monkeypatch.setattr(
+        runtime_module,
+        "create_dsl_stubs",
+        lambda *args, **kwargs: {"_registries": {}, "_tactus_register_binding": None},
+    )
+    monkeypatch.setattr(
+        runtime_module.RegistryBuilder,
+        "validate",
+        lambda self: SimpleNamespace(
+            valid=False,
+            errors=[SimpleNamespace(message="bad")],
+            warnings=[],
+            registry=self.registry,
+        ),
+    )
+
+    with pytest.raises(runtime_module.TactusRuntimeError, match="DSL validation failed"):
+        runtime._parse_declarations("return {}")
+
+
+@pytest.mark.asyncio
+async def test_setup_models_registers_models(monkeypatch):
+    runtime = _runtime()
+    runtime.registry = SimpleNamespace(models={"demo": {"type": "x"}})
+    runtime.execution_context = object()
+    runtime.mock_manager = object()
+
+    created = []
+
+    class DummyModel:
+        def __init__(self, model_name, config, context, mock_manager):
+            created.append((model_name, config, context, mock_manager))
+
+    monkeypatch.setattr("tactus.primitives.model.ModelPrimitive", DummyModel)
+
+    await runtime._setup_models()
+
+    assert runtime.models["demo"]
+    assert created[0][0] == "demo"
+
+
+@pytest.mark.asyncio
+async def test_setup_models_raises_on_error(monkeypatch):
+    runtime = _runtime()
+    runtime.registry = SimpleNamespace(models={"demo": {"type": "x"}})
+
+    class BoomModel:
+        def __init__(self, *args, **kwargs):
+            raise ValueError("boom")
+
+    monkeypatch.setattr("tactus.primitives.model.ModelPrimitive", BoomModel)
+
+    with pytest.raises(ValueError, match="boom"):
+        await runtime._setup_models()

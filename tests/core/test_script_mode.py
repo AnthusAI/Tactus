@@ -208,3 +208,30 @@ worker = Agent {
     result = await runtime.execute(source, context={"name": "Test"}, format="lua")
     assert not result["success"]
     assert "main" in result.get("error", "")
+
+
+def test_script_mode_transform_skips_without_markers():
+    runtime = TactusRuntime(procedure_id="test", storage_backend=FileStorage("/tmp"))
+    source = "print('hi')"
+
+    assert runtime._maybe_transform_script_mode_source(source) == source
+
+
+def test_script_mode_transform_handles_long_strings_and_depth():
+    runtime = TactusRuntime(procedure_id="test", storage_backend=FileStorage("/tmp"))
+    source = """
+input {
+}}
+Specifications [[
+Feature: demo
+Scenario: one
+]]
+function()
+end end
+return { ok = true }
+"""
+
+    transformed = runtime._maybe_transform_script_mode_source(source)
+
+    assert "Procedure {" in transformed
+    assert "Specifications [[" in transformed

@@ -9,7 +9,7 @@ import logging
 import uuid
 import asyncio
 import threading
-from typing import Any, Optional, Dict, List, Callable
+from typing import Any, Optional, Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -29,7 +29,7 @@ class ProcedureHandle:
     completed_at: Optional[datetime] = None
     thread: Optional[threading.Thread] = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for Lua access."""
         return {
             "procedure_id": self.procedure_id,
@@ -74,7 +74,7 @@ class ProcedurePrimitive:
     def __init__(
         self,
         execution_context: Any,
-        runtime_factory: Callable[[str, Dict[str, Any]], Any],
+        runtime_factory: Callable[[str, dict[str, Any]], Any],
         lua_sandbox: Any = None,
         max_depth: int = 5,
         current_depth: int = 0,
@@ -94,10 +94,14 @@ class ProcedurePrimitive:
         self.lua_sandbox = lua_sandbox
         self.max_depth = max_depth
         self.current_depth = current_depth
-        self.handles: Dict[str, ProcedureHandle] = {}
+        self.handles: dict[str, ProcedureHandle] = {}
         self._lock = threading.Lock()
 
-        logger.info(f"ProcedurePrimitive initialized (depth {current_depth}/{max_depth})")
+        logger.info(
+            "ProcedurePrimitive initialized (depth %s/%s)",
+            current_depth,
+            max_depth,
+        )
 
     def __call__(self, name: str) -> Any:
         """
@@ -112,16 +116,16 @@ class ProcedurePrimitive:
             raise ProcedureExecutionError("Procedure lookup is not available (lua_sandbox missing)")
 
         try:
-            proc = self.lua_sandbox.lua.globals()[name]
+            procedure_callable = self.lua_sandbox.lua.globals()[name]
         except Exception:
-            proc = None
+            procedure_callable = None
 
-        if proc is None:
+        if procedure_callable is None:
             raise ProcedureExecutionError(f"Named procedure '{name}' not found")
 
-        return proc
+        return procedure_callable
 
-    def run(self, name: str, params: Optional[Dict[str, Any]] = None) -> Any:
+    def run(self, name: str, params: Optional[dict[str, Any]] = None) -> Any:
         """
         Synchronous procedure invocation with auto-checkpointing.
 
@@ -143,16 +147,20 @@ class ProcedurePrimitive:
         if self.current_depth >= self.max_depth:
             raise ProcedureRecursionError(f"Maximum recursion depth ({self.max_depth}) exceeded")
 
-        logger.info(f"Running procedure '{name}' synchronously (depth {self.current_depth})")
+        logger.info(
+            "Running procedure '%s' synchronously (depth %s)",
+            name,
+            self.current_depth,
+        )
 
         # Normalize params
-        params = params or {}
-        if hasattr(params, "items"):
+        procedure_params = params or {}
+        if hasattr(procedure_params, "items"):
             from tactus.core.dsl_stubs import lua_table_to_dict
 
-            params = lua_table_to_dict(params)
-            if isinstance(params, list) and len(params) == 0:
-                params = {}
+            procedure_params = lua_table_to_dict(procedure_params)
+            if isinstance(procedure_params, list) and len(procedure_params) == 0:
+                procedure_params = {}
 
         # Wrap execution in checkpoint for durability
         def execute_procedure():
@@ -161,14 +169,13 @@ class ProcedurePrimitive:
                 source = self._load_procedure_source(name)
 
                 # Create runtime for sub-procedure
-                runtime = self.runtime_factory(name, params)
+                runtime = self.runtime_factory(name, procedure_params)
 
                 # Execute synchronously (runtime.execute is async, so we need to run it)
-                import asyncio
-                import threading
-
                 async def run_subprocedure():
-                    return await runtime.execute(source=source, context=params, format="lua")
+                    return await runtime.execute(
+                        source=source, context=procedure_params, format="lua"
+                    )
 
                 try:
                     asyncio.get_running_loop()
@@ -177,18 +184,18 @@ class ProcedurePrimitive:
                     has_running_loop = False
 
                 if has_running_loop:
-                    result_holder = {}
-                    error_holder = {}
+                    result_holder: dict[str, Any] = {}
+                    error_holder: dict[str, Exception] = {}
 
                     def run_in_thread():
                         try:
                             result_holder["result"] = asyncio.run(run_subprocedure())
-                        except Exception as e:
-                            error_holder["error"] = e
+                        except Exception as error:
+                            error_holder["error"] = error
 
-                    t = threading.Thread(target=run_in_thread, daemon=True)
-                    t.start()
-                    t.join()
+                    worker_thread = threading.Thread(target=run_in_thread, daemon=True)
+                    worker_thread.start()
+                    worker_thread.join()
 
                     if "error" in error_holder:
                         raise error_holder["error"]
@@ -199,20 +206,20 @@ class ProcedurePrimitive:
 
                 # Extract result from execution response
                 if result.get("success"):
-                    logger.info(f"Procedure '{name}' completed successfully")
+                    logger.info("Procedure '%s' completed successfully", name)
                     return result.get("result")
                 else:
                     error_msg = result.get("error", "Unknown error")
-                    logger.error(f"Procedure '{name}' failed: {error_msg}")
+                    logger.error("Procedure '%s' failed: %s", name, error_msg)
                     raise ProcedureExecutionError(f"Procedure '{name}' failed: {error_msg}")
 
             except ProcedureExecutionError:
                 raise
             except ProcedureRecursionError:
                 raise
-            except Exception as e:
-                logger.error(f"Error executing procedure '{name}': {e}")
-                raise ProcedureExecutionError(f"Failed to execute procedure '{name}': {e}")
+            except Exception as error:
+                logger.error("Error executing procedure '%s': %s", name, error)
+                raise ProcedureExecutionError(f"Failed to execute procedure '{name}': {error}")
 
         # Auto-checkpoint sub-procedure call
         # Try to capture Lua source location if available
@@ -228,9 +235,9 @@ class ProcedurePrimitive:
                     try:
                         info = lua_globals.debug.getinfo(level, "Sl")
                         if info:
-                            lua_dict = dict(info.items()) if hasattr(info, "items") else {}
-                            source = lua_dict.get("source", "")
-                            line = lua_dict.get("currentline", -1)
+                            lua_debug_info = dict(info.items()) if hasattr(info, "items") else {}
+                            source = lua_debug_info.get("source", "")
+                            line = lua_debug_info.get("currentline", -1)
                             # Look for a valid source location (not -1, not C function, not internal)
                             if (
                                 line > 0
@@ -238,7 +245,7 @@ class ProcedurePrimitive:
                                 and not source.startswith("=[C]")
                                 and not source.startswith("[string")
                             ):
-                                debug_info = lua_dict
+                                debug_info = lua_debug_info
                                 break
                     except Exception:
                         continue
@@ -257,9 +264,9 @@ class ProcedurePrimitive:
         if not source_info:
             import inspect
 
-            frame = inspect.currentframe()
-            if frame and frame.f_back:
-                caller_frame = frame.f_back
+            current_frame = inspect.currentframe()
+            if current_frame and current_frame.f_back:
+                caller_frame = current_frame.f_back
                 # Use .tac file if available, otherwise use Python file
                 source_info = {
                     "file": self.execution_context.current_tac_file
@@ -272,7 +279,7 @@ class ProcedurePrimitive:
             execute_procedure, "procedure_call", source_info=source_info
         )
 
-    def spawn(self, name: str, params: Optional[Dict[str, Any]] = None) -> ProcedureHandle:
+    def spawn(self, name: str, params: Optional[dict[str, Any]] = None) -> ProcedureHandle:
         """
         Async procedure invocation.
 
@@ -298,19 +305,23 @@ class ProcedurePrimitive:
         with self._lock:
             self.handles[procedure_id] = handle
 
-        logger.info(f"Spawning procedure '{name}' asynchronously (id: {procedure_id})")
+        logger.info(
+            "Spawning procedure '%s' asynchronously (id: %s)",
+            name,
+            procedure_id,
+        )
 
         # Start async execution in thread
-        params = params or {}
+        procedure_params = params or {}
         thread = threading.Thread(
-            target=self._execute_async, args=(handle, name, params), daemon=True
+            target=self._execute_async, args=(handle, name, procedure_params), daemon=True
         )
         handle.thread = thread
         thread.start()
 
         return handle
 
-    def _execute_async(self, handle: ProcedureHandle, name: str, params: Dict[str, Any]):
+    def _execute_async(self, handle: ProcedureHandle, name: str, params: dict[str, Any]):
         """Execute procedure asynchronously in background thread."""
         try:
             # Load procedure source
@@ -320,36 +331,44 @@ class ProcedurePrimitive:
             runtime = self.runtime_factory(name, params)
 
             # Execute in new event loop (thread-safe)
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+            event_loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(event_loop)
 
-            result = loop.run_until_complete(
+            result = event_loop.run_until_complete(
                 runtime.execute(source=source, context=params, format="lua")
             )
 
-            loop.close()
+            event_loop.close()
 
             # Update handle
             with self._lock:
                 if result.get("success"):
                     handle.status = "completed"
                     handle.result = result.get("result")
-                    logger.info(f"Async procedure '{name}' completed (id: {handle.procedure_id})")
+                    logger.info(
+                        "Async procedure '%s' completed (id: %s)",
+                        name,
+                        handle.procedure_id,
+                    )
                 else:
                     handle.status = "failed"
                     handle.error = result.get("error", "Unknown error")
-                    logger.error(f"Async procedure '{name}' failed: {handle.error}")
+                    logger.error(
+                        "Async procedure '%s' failed: %s",
+                        name,
+                        handle.error,
+                    )
 
                 handle.completed_at = datetime.now()
 
-        except Exception as e:
-            logger.error(f"Error in async procedure '{name}': {e}")
+        except Exception as error:
+            logger.error("Error in async procedure '%s': %s", name, error)
             with self._lock:
                 handle.status = "failed"
-                handle.error = str(e)
+                handle.error = str(error)
                 handle.completed_at = datetime.now()
 
-    def status(self, handle: ProcedureHandle) -> Dict[str, Any]:
+    def status(self, handle: ProcedureHandle) -> dict[str, Any]:
         """
         Get procedure status.
 
@@ -377,7 +396,7 @@ class ProcedurePrimitive:
             ProcedureExecutionError: If procedure failed
             TimeoutError: If timeout exceeded
         """
-        logger.debug(f"Waiting for procedure {handle.procedure_id}")
+        logger.debug("Waiting for procedure %s", handle.procedure_id)
 
         # Wait for thread to complete
         if handle.thread:
@@ -409,7 +428,10 @@ class ProcedurePrimitive:
         Note: This is a placeholder - full implementation requires
         communication channel with running procedure.
         """
-        logger.warning(f"Procedure.inject() not fully implemented - message ignored: {message}")
+        logger.warning(
+            "Procedure.inject() not fully implemented - message ignored: %s",
+            message,
+        )
         # TODO: Implement message injection mechanism
 
     def cancel(self, handle: ProcedureHandle):
@@ -422,7 +444,7 @@ class ProcedurePrimitive:
         Note: Python threads cannot be forcefully cancelled,
         so this just marks the status.
         """
-        logger.info(f"Cancelling procedure {handle.procedure_id}")
+        logger.info("Cancelling procedure %s", handle.procedure_id)
 
         with self._lock:
             handle.status = "cancelled"
@@ -430,7 +452,7 @@ class ProcedurePrimitive:
 
         # Note: Thread will continue running but result will be ignored
 
-    def wait_any(self, handles: List[ProcedureHandle]) -> ProcedureHandle:
+    def wait_any(self, handles: list[ProcedureHandle]) -> ProcedureHandle:
         """
         Wait for first completion.
 
@@ -440,7 +462,7 @@ class ProcedurePrimitive:
         Returns:
             First completed handle
         """
-        logger.debug(f"Waiting for any of {len(handles)} procedures")
+        logger.debug("Waiting for any of %s procedures", len(handles))
 
         while True:
             # Check if any completed
@@ -454,7 +476,7 @@ class ProcedurePrimitive:
 
             time.sleep(0.1)
 
-    def wait_all(self, handles: List[ProcedureHandle]) -> List[Any]:
+    def wait_all(self, handles: list[ProcedureHandle]) -> list[Any]:
         """
         Wait for all completions.
 
@@ -464,7 +486,7 @@ class ProcedurePrimitive:
         Returns:
             List of results
         """
-        logger.debug(f"Waiting for all {len(handles)} procedures")
+        logger.debug("Waiting for all %s procedures", len(handles))
 
         results = []
         for handle in handles:
@@ -486,7 +508,7 @@ class ProcedurePrimitive:
         with self._lock:
             return handle.status in ("completed", "failed", "cancelled")
 
-    def all_complete(self, handles: List[ProcedureHandle]) -> bool:
+    def all_complete(self, handles: list[ProcedureHandle]) -> bool:
         """
         Check if all procedures are complete.
 
@@ -555,7 +577,7 @@ class ProcedurePrimitive:
         for path in search_paths:
             try:
                 if path.exists() and path.is_file():
-                    logger.debug(f"Loading procedure from: {path}")
+                    logger.debug("Loading procedure from: %s", path)
                     return path.read_text()
             except Exception:
                 continue

@@ -7,7 +7,7 @@ Used when TACTUS_CALLBACK_URL environment variable is set.
 
 import logging
 import os
-from typing import Optional, List
+from typing import Optional
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -42,7 +42,7 @@ class HTTPCallbackLogHandler:
         """
         self.callback_url = callback_url
         self.timeout = timeout
-        self.cost_events: List[CostEvent] = []  # Track cost events for aggregation
+        self.cost_events: list[CostEvent] = []  # Track cost events for aggregation
 
         # Setup session with retry logic
         self.session = requests.Session()
@@ -55,7 +55,7 @@ class HTTPCallbackLogHandler:
         self.session.mount("http://", adapter)
         self.session.mount("https://", adapter)
 
-        logger.info(f"[HTTP_CALLBACK] Initialized with URL: {callback_url}")
+        logger.info("[HTTP_CALLBACK] Initialized with URL: %s", callback_url)
 
     def log(self, event: LogEvent) -> None:
         """
@@ -70,29 +70,36 @@ class HTTPCallbackLogHandler:
 
         try:
             # Serialize event to JSON
-            event_dict = event.model_dump(mode="json")
+            event_payload = event.model_dump(mode="json")
 
             # Format timestamp to ensure ISO format with Z suffix
             iso_string = event.timestamp.isoformat()
-            if not (iso_string.endswith("Z") or "+" in iso_string or iso_string.count("-") > 2):
+            has_timezone_marker = (
+                iso_string.endswith("Z") or "+" in iso_string or iso_string.count("-") > 2
+            )
+            if not has_timezone_marker:
                 iso_string += "Z"
-            event_dict["timestamp"] = iso_string
+            event_payload["timestamp"] = iso_string
 
             # POST to callback URL
             response = self.session.post(
                 self.callback_url,
-                json=event_dict,
+                json=event_payload,
                 timeout=self.timeout,
             )
             response.raise_for_status()
-            logger.debug(f"[HTTP_CALLBACK] Event posted: type={event.event_type}")
+            logger.debug("[HTTP_CALLBACK] Event posted: type=%s", event.event_type)
 
-        except requests.exceptions.RequestException as e:
+        except requests.exceptions.RequestException as error:
             # Log but don't fail - event streaming is best-effort
-            logger.warning(f"[HTTP_CALLBACK] Failed to POST event to {self.callback_url}: {e}")
-        except Exception as e:
+            logger.warning(
+                "[HTTP_CALLBACK] Failed to POST event to %s: %s",
+                self.callback_url,
+                error,
+            )
+        except Exception as error:
             # Catch any other errors to prevent crashing the procedure
-            logger.warning(f"[HTTP_CALLBACK] Unexpected error posting event: {e}")
+            logger.warning("[HTTP_CALLBACK] Unexpected error posting event: %s", error)
 
     @classmethod
     def from_environment(cls) -> Optional["HTTPCallbackLogHandler"]:
@@ -104,6 +111,9 @@ class HTTPCallbackLogHandler:
         """
         callback_url = os.environ.get("TACTUS_CALLBACK_URL")
         if callback_url:
-            logger.info(f"[HTTP_CALLBACK] Creating handler from environment: {callback_url}")
+            logger.info(
+                "[HTTP_CALLBACK] Creating handler from environment: %s",
+                callback_url,
+            )
             return cls(callback_url=callback_url)
         return None

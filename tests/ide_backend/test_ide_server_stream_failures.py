@@ -12,6 +12,26 @@ def test_test_stream_missing_path():
     assert response.status_code == 400
 
 
+def test_test_stream_value_error(tmp_path, monkeypatch):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    file_path = workspace / "sample.tac"
+    file_path.write_text("content")
+
+    monkeypatch.setattr(ide_server, "WORKSPACE_ROOT", str(workspace))
+    monkeypatch.setattr(
+        ide_server,
+        "_resolve_workspace_path",
+        lambda _path: (_ for _ in ()).throw(ValueError("bad")),
+    )
+
+    app = ide_server.create_app()
+    client = app.test_client()
+
+    response = client.get("/api/test/stream", query_string={"path": "sample.tac"})
+    assert response.status_code == 400
+
+
 def test_test_stream_file_not_found(tmp_path, monkeypatch):
     monkeypatch.setattr(ide_server, "WORKSPACE_ROOT", str(tmp_path))
     app = ide_server.create_app()
@@ -135,6 +155,86 @@ def test_evaluate_stream_validation_failed(tmp_path, monkeypatch):
     assert "Validation failed" in data
 
 
+def test_test_stream_setup_exception(tmp_path, monkeypatch):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    file_path = workspace / "sample.tac"
+    file_path.write_text("content")
+
+    monkeypatch.setattr(ide_server, "WORKSPACE_ROOT", str(workspace))
+    monkeypatch.setattr(
+        "tactus.validation.TactusValidator",
+        lambda: (_ for _ in ()).throw(RuntimeError("boom")),
+    )
+
+    app = ide_server.create_app()
+    client = app.test_client()
+
+    response = client.get("/api/test/stream", query_string={"path": "sample.tac"})
+    data = response.data.decode("utf-8")
+    assert '"lifecycle_stage": "error"' in data
+
+
+def test_evaluate_stream_setup_exception(tmp_path, monkeypatch):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    file_path = workspace / "sample.tac"
+    file_path.write_text("content")
+
+    monkeypatch.setattr(ide_server, "WORKSPACE_ROOT", str(workspace))
+    monkeypatch.setattr(
+        "tactus.validation.TactusValidator",
+        lambda: (_ for _ in ()).throw(RuntimeError("boom")),
+    )
+
+    app = ide_server.create_app()
+    client = app.test_client()
+
+    response = client.get("/api/evaluate/stream", query_string={"path": "sample.tac"})
+    data = response.data.decode("utf-8")
+    assert '"lifecycle_stage": "error"' in data
+
+
+def test_evaluate_stream_value_error(tmp_path, monkeypatch):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    file_path = workspace / "sample.tac"
+    file_path.write_text("content")
+
+    monkeypatch.setattr(ide_server, "WORKSPACE_ROOT", str(workspace))
+    monkeypatch.setattr(
+        ide_server,
+        "_resolve_workspace_path",
+        lambda _path: (_ for _ in ()).throw(ValueError("bad")),
+    )
+
+    app = ide_server.create_app()
+    client = app.test_client()
+
+    response = client.get("/api/evaluate/stream", query_string={"path": "sample.tac"})
+    assert response.status_code == 400
+
+
+def test_evaluate_stream_unexpected_error(tmp_path, monkeypatch):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    file_path = workspace / "sample.tac"
+    file_path.write_text("content")
+
+    monkeypatch.setattr(ide_server, "WORKSPACE_ROOT", str(workspace))
+    monkeypatch.setattr(
+        ide_server,
+        "_resolve_workspace_path",
+        lambda _path: (_ for _ in ()).throw(RuntimeError("boom")),
+    )
+
+    app = ide_server.create_app()
+    client = app.test_client()
+
+    response = client.get("/api/evaluate/stream", query_string={"path": "sample.tac"})
+    assert response.status_code == 500
+
+
 def test_evaluate_stream_runner_error(tmp_path, monkeypatch):
     workspace = tmp_path / "workspace"
     workspace.mkdir()
@@ -249,3 +349,55 @@ def test_pydantic_eval_stream_runner_error(tmp_path, monkeypatch):
     response = client.get("/api/pydantic-eval/stream", query_string={"path": "eval.tac"})
     data = response.data.decode("utf-8")
     assert '"lifecycle_stage": "error"' in data
+
+
+def test_pydantic_eval_stream_missing_path():
+    app = ide_server.create_app()
+    client = app.test_client()
+
+    response = client.get("/api/pydantic-eval/stream")
+    assert response.status_code == 400
+
+
+def test_pydantic_eval_stream_file_not_found(tmp_path, monkeypatch):
+    monkeypatch.setattr(ide_server, "WORKSPACE_ROOT", str(tmp_path))
+    app = ide_server.create_app()
+    client = app.test_client()
+
+    response = client.get("/api/pydantic-eval/stream", query_string={"path": "missing.tac"})
+    assert response.status_code == 404
+
+
+def test_pydantic_eval_stream_import_error(tmp_path, monkeypatch):
+    import builtins
+
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    file_path = workspace / "eval.tac"
+    file_path.write_text("content")
+
+    class DummyValidator:
+        def validate_file(self, _path):
+            return SimpleNamespace(
+                valid=True,
+                errors=[],
+                registry=SimpleNamespace(pydantic_evaluations={"dataset": [], "evaluators": []}),
+            )
+
+    real_import = builtins.__import__
+
+    def fake_import(name, *args, **kwargs):
+        if name == "tactus.testing.pydantic_eval_runner":
+            raise ImportError("boom")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+    monkeypatch.setattr(ide_server, "WORKSPACE_ROOT", str(workspace))
+    monkeypatch.setattr(ide_server, "TactusValidator", lambda: DummyValidator())
+
+    app = ide_server.create_app()
+    client = app.test_client()
+
+    response = client.get("/api/pydantic-eval/stream", query_string={"path": "eval.tac"})
+    data = response.data.decode("utf-8")
+    assert "pydantic_evals not installed" in data

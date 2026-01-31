@@ -249,7 +249,12 @@ def test_tsv_write_skips_items_branch_when_hasattr_false(tmp_path, monkeypatch):
 
     monkeypatch.setattr("builtins.hasattr", fake_hasattr)
 
-    lib["write"]("data.tsv", [row])
+    try:
+        lib["write"]("data.tsv", [row])
+    except OSError as exc:
+        if exc.errno == 28:
+            pytest.skip("No space left on device")
+        raise
     content = (tmp_path / "data.tsv").read_text()
     assert content.splitlines()[1] == "1\t2"
 
@@ -341,9 +346,194 @@ def test_hdf5_list_datasets(tmp_path):
     lib = create_safe_hdf5_library(str(tmp_path))
     file_path = tmp_path / "data.h5"
 
-    with h5py.File(file_path, "w") as hdf5_file:
-        hdf5_file.create_dataset("group/data", data=numpy.array([1, 2, 3]))
+    try:
+        with h5py.File(file_path, "w") as hdf5_file:
+            hdf5_file.create_dataset("group/data", data=numpy.array([1, 2, 3]))
+    except OSError as exc:
+        if exc.errno == 28:
+            pytest.skip("No space left on device")
+        raise
 
     datasets = lib["list"]("data.h5")
 
     assert "group/data" in datasets
+
+
+def test_csv_write_creates_parent_dirs(tmp_path):
+    from tactus.utils.safe_file_library import create_safe_csv_library
+
+    lib = create_safe_csv_library(str(tmp_path))
+    lib["write"]("nested/output.csv", [{"name": "Alice"}])
+
+    assert (tmp_path / "nested" / "output.csv").exists()
+
+
+def test_tsv_write_creates_parent_dirs(tmp_path):
+    from tactus.utils.safe_file_library import create_safe_tsv_library
+
+    lib = create_safe_tsv_library(str(tmp_path))
+    lib["write"]("nested/output.tsv", [{"name": "Alice"}])
+
+    assert (tmp_path / "nested" / "output.tsv").exists()
+
+
+def test_json_write_creates_parent_dirs(tmp_path):
+    from tactus.utils.safe_file_library import create_safe_json_library
+
+    lib = create_safe_json_library(str(tmp_path))
+    lib["write"]("nested/output.json", {"name": "Alice"})
+
+    assert (tmp_path / "nested" / "output.json").exists()
+
+
+def test_parquet_write_creates_parent_dirs(tmp_path):
+    pytest.importorskip("pyarrow")
+
+    from tactus.utils.safe_file_library import create_safe_parquet_library
+
+    lib = create_safe_parquet_library(str(tmp_path))
+    lib["write"]("nested/output.parquet", [{"name": "Alice"}])
+
+    assert (tmp_path / "nested" / "output.parquet").exists()
+
+
+def test_hdf5_write_creates_parent_dirs(tmp_path):
+    pytest.importorskip("h5py")
+    pytest.importorskip("numpy")
+
+    from tactus.utils.safe_file_library import create_safe_hdf5_library
+
+    lib = create_safe_hdf5_library(str(tmp_path))
+    lib["write"]("nested/output.h5", "data", [1, 2, 3])
+
+    assert (tmp_path / "nested" / "output.h5").exists()
+
+
+def test_excel_write_creates_parent_dirs(tmp_path):
+    pytest.importorskip("openpyxl")
+
+    from tactus.utils.safe_file_library import create_safe_excel_library
+
+    lib = create_safe_excel_library(str(tmp_path))
+    lib["write"]("nested/output.xlsx", [{"name": "Alice"}])
+
+    assert (tmp_path / "nested" / "output.xlsx").exists()
+
+
+def test_file_write_skips_parent_creation_when_dirname_empty(monkeypatch, tmp_path):
+    from tactus.utils import safe_file_library
+
+    lib = safe_file_library.create_safe_file_library(str(tmp_path))
+
+    monkeypatch.setattr(safe_file_library.os.path, "dirname", lambda _path: "")
+    monkeypatch.setattr(
+        safe_file_library.os,
+        "makedirs",
+        lambda *_a, **_k: (_ for _ in ()).throw(AssertionError("makedirs called")),
+    )
+
+    lib["write"]("output.txt", "content")
+    assert (tmp_path / "output.txt").read_text() == "content"
+
+
+def test_csv_write_skips_parent_creation_when_dirname_empty(monkeypatch, tmp_path):
+    from tactus.utils import safe_file_library
+
+    lib = safe_file_library.create_safe_csv_library(str(tmp_path))
+
+    monkeypatch.setattr(safe_file_library.os.path, "dirname", lambda _path: "")
+    monkeypatch.setattr(
+        safe_file_library.os,
+        "makedirs",
+        lambda *_a, **_k: (_ for _ in ()).throw(AssertionError("makedirs called")),
+    )
+
+    lib["write"]("output.csv", [{"name": "Alice"}])
+    assert (tmp_path / "output.csv").exists()
+
+
+def test_tsv_write_skips_parent_creation_when_dirname_empty(monkeypatch, tmp_path):
+    from tactus.utils import safe_file_library
+
+    lib = safe_file_library.create_safe_tsv_library(str(tmp_path))
+
+    monkeypatch.setattr(safe_file_library.os.path, "dirname", lambda _path: "")
+    monkeypatch.setattr(
+        safe_file_library.os,
+        "makedirs",
+        lambda *_a, **_k: (_ for _ in ()).throw(AssertionError("makedirs called")),
+    )
+
+    lib["write"]("output.tsv", [{"name": "Alice"}])
+    assert (tmp_path / "output.tsv").exists()
+
+
+def test_json_write_skips_parent_creation_when_dirname_empty(monkeypatch, tmp_path):
+    from tactus.utils import safe_file_library
+
+    lib = safe_file_library.create_safe_json_library(str(tmp_path))
+
+    monkeypatch.setattr(safe_file_library.os.path, "dirname", lambda _path: "")
+    monkeypatch.setattr(
+        safe_file_library.os,
+        "makedirs",
+        lambda *_a, **_k: (_ for _ in ()).throw(AssertionError("makedirs called")),
+    )
+
+    lib["write"]("output.json", {"name": "Alice"})
+    assert (tmp_path / "output.json").exists()
+
+
+def test_parquet_write_skips_parent_creation_when_dirname_empty(monkeypatch, tmp_path):
+    pytest.importorskip("pyarrow")
+
+    from tactus.utils import safe_file_library
+
+    lib = safe_file_library.create_safe_parquet_library(str(tmp_path))
+
+    monkeypatch.setattr(safe_file_library.os.path, "dirname", lambda _path: "")
+    monkeypatch.setattr(
+        safe_file_library.os,
+        "makedirs",
+        lambda *_a, **_k: (_ for _ in ()).throw(AssertionError("makedirs called")),
+    )
+
+    lib["write"]("output.parquet", [{"name": "Alice"}])
+    assert (tmp_path / "output.parquet").exists()
+
+
+def test_hdf5_write_skips_parent_creation_when_dirname_empty(monkeypatch, tmp_path):
+    pytest.importorskip("h5py")
+    pytest.importorskip("numpy")
+
+    from tactus.utils import safe_file_library
+
+    lib = safe_file_library.create_safe_hdf5_library(str(tmp_path))
+
+    monkeypatch.setattr(safe_file_library.os.path, "dirname", lambda _path: "")
+    monkeypatch.setattr(
+        safe_file_library.os,
+        "makedirs",
+        lambda *_a, **_k: (_ for _ in ()).throw(AssertionError("makedirs called")),
+    )
+
+    lib["write"]("output.h5", "data", [1, 2, 3])
+    assert (tmp_path / "output.h5").exists()
+
+
+def test_excel_write_skips_parent_creation_when_dirname_empty(monkeypatch, tmp_path):
+    pytest.importorskip("openpyxl")
+
+    from tactus.utils import safe_file_library
+
+    lib = safe_file_library.create_safe_excel_library(str(tmp_path))
+
+    monkeypatch.setattr(safe_file_library.os.path, "dirname", lambda _path: "")
+    monkeypatch.setattr(
+        safe_file_library.os,
+        "makedirs",
+        lambda *_a, **_k: (_ for _ in ()).throw(AssertionError("makedirs called")),
+    )
+
+    lib["write"]("output.xlsx", [{"name": "Alice"}])
+    assert (tmp_path / "output.xlsx").exists()

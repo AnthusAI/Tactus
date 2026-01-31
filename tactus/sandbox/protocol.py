@@ -6,9 +6,9 @@ over stdio between the host process and the sandboxed container.
 """
 
 import json
-from dataclasses import dataclass, field, asdict
-from typing import Any, Dict, List, Optional
+from dataclasses import asdict, dataclass, field
 from enum import Enum
+from typing import Any, Optional
 
 from pydantic import BaseModel
 
@@ -46,7 +46,7 @@ class ExecutionRequest:
     working_dir: str = "/workspace"
 
     # Input parameters for the procedure
-    params: Dict[str, Any] = field(default_factory=dict)
+    params: dict[str, Any] = field(default_factory=dict)
 
     # Unique execution ID for tracking
     execution_id: Optional[str] = None
@@ -101,10 +101,10 @@ class ExecutionResult:
     exit_code: int = 0
 
     # Structured logs from execution
-    logs: List[Dict[str, Any]] = field(default_factory=list)
+    logs: list[dict[str, Any]] = field(default_factory=list)
 
     # Metadata about the execution
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def to_json(self) -> str:
         """Serialize to JSON string."""
@@ -126,8 +126,8 @@ class ExecutionResult:
         cls,
         result: Any,
         duration_seconds: float = 0.0,
-        logs: Optional[List[Dict[str, Any]]] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        logs: Optional[list[dict[str, Any]]] = None,
+        metadata: Optional[dict[str, Any]] = None,
     ) -> "ExecutionResult":
         """Create a successful result."""
         return cls(
@@ -147,7 +147,7 @@ class ExecutionResult:
         traceback: Optional[str] = None,
         duration_seconds: float = 0.0,
         exit_code: int = 1,
-        logs: Optional[List[Dict[str, Any]]] = None,
+        logs: Optional[list[dict[str, Any]]] = None,
     ) -> "ExecutionResult":
         """Create a failed result."""
         return cls(
@@ -164,7 +164,7 @@ class ExecutionResult:
     def timeout(
         cls,
         duration_seconds: float,
-        logs: Optional[List[Dict[str, Any]]] = None,
+        logs: Optional[list[dict[str, Any]]] = None,
     ) -> "ExecutionResult":
         """Create a timeout result."""
         return cls(
@@ -198,17 +198,17 @@ def extract_result_from_stdout(stdout: str) -> Optional[ExecutionResult]:
 
     Returns None if no valid result is found.
     """
-    start_idx = stdout.find(RESULT_START_MARKER)
-    if start_idx == -1:
+    start_marker_index = stdout.find(RESULT_START_MARKER)
+    if start_marker_index == -1:
         return None
 
-    end_idx = stdout.find(RESULT_END_MARKER, start_idx)
-    if end_idx == -1:
+    end_marker_index = stdout.find(RESULT_END_MARKER, start_marker_index)
+    if end_marker_index == -1:
         return None
 
     # Extract JSON between markers
-    json_start = start_idx + len(RESULT_START_MARKER)
-    json_str = stdout[json_start:end_idx].strip()
+    json_start = start_marker_index + len(RESULT_START_MARKER)
+    json_str = stdout[json_start:end_marker_index].strip()
 
     try:
         return ExecutionResult.from_json(json_str)

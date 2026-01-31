@@ -8,7 +8,7 @@ Provides:
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -22,19 +22,19 @@ class SystemPrimitive:
         self.procedure_id = procedure_id
         self.log_handler = log_handler
 
-    def _lua_to_python(self, obj: Any) -> Any:
+    def _lua_to_python(self, value: Any) -> Any:
         """Convert Lua objects to Python equivalents recursively."""
-        if obj is None:
+        if value is None:
             return None
-        if hasattr(obj, "items") and not isinstance(obj, dict):
-            return {k: self._lua_to_python(v) for k, v in obj.items()}
-        if isinstance(obj, dict):
-            return {k: self._lua_to_python(v) for k, v in obj.items()}
-        if isinstance(obj, (list, tuple)):
-            return [self._lua_to_python(v) for v in obj]
-        return obj
+        if hasattr(value, "items") and not isinstance(value, dict):
+            return {k: self._lua_to_python(v) for k, v in value.items()}
+        if isinstance(value, dict):
+            return {k: self._lua_to_python(v) for k, v in value.items()}
+        if isinstance(value, (list, tuple)):
+            return [self._lua_to_python(v) for v in value]
+        return value
 
-    def alert(self, options: Optional[Dict[str, Any]] = None) -> None:
+    def alert(self, options: Optional[dict[str, Any]] = None) -> None:
         """
         Emit a system alert (NON-BLOCKING).
 
@@ -45,12 +45,12 @@ class SystemPrimitive:
                 - source: str - Where the alert originated (optional)
                 - context: Dict - Additional structured context (optional)
         """
-        opts = self._lua_to_python(options) or {}
+        options_dict = self._lua_to_python(options) or {}
 
-        message = str(opts.get("message", "Alert"))
-        level = str(opts.get("level", "info")).lower()
-        source = opts.get("source")
-        context = opts.get("context") or {}
+        message = str(options_dict.get("message", "Alert"))
+        level = str(options_dict.get("level", "info")).lower()
+        source = options_dict.get("source")
+        context = options_dict.get("context") or {}
 
         if level not in self._ALLOWED_LEVELS:
             raise ValueError(
@@ -71,8 +71,8 @@ class SystemPrimitive:
                 )
                 self.log_handler.log(event)
                 return
-            except Exception as e:  # pragma: no cover
-                logger.warning(f"Failed to emit SystemAlertEvent: {e}")
+            except Exception as error:  # pragma: no cover
+                logger.warning("Failed to emit SystemAlertEvent: %s", error)
 
         # Fallback to standard logging
         python_level = {
@@ -84,9 +84,22 @@ class SystemPrimitive:
 
         origin = f" source={source}" if source is not None else ""
         if context:
-            logger.log(python_level, f"System.alert [{level}]{origin}: {message} | {context}")
+            logger.log(
+                python_level,
+                "System.alert [%s]%s: %s | %s",
+                level,
+                origin,
+                message,
+                context,
+            )
         else:
-            logger.log(python_level, f"System.alert [{level}]{origin}: {message}")
+            logger.log(
+                python_level,
+                "System.alert [%s]%s: %s",
+                level,
+                origin,
+                message,
+            )
 
     def __repr__(self) -> str:
         return f"SystemPrimitive(procedure_id={self.procedure_id})"

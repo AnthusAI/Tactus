@@ -123,6 +123,63 @@ def test_file_operations_write_error(tmp_path, monkeypatch):
     assert response.status_code == 500
 
 
+def test_test_stream_setup_exception(tmp_path, monkeypatch):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    file_path = workspace / "sample.tac"
+    file_path.write_text("content")
+
+    monkeypatch.setattr(ide_server, "WORKSPACE_ROOT", str(workspace))
+    monkeypatch.setattr(
+        ide_server,
+        "_resolve_workspace_path",
+        lambda _path: (_ for _ in ()).throw(RuntimeError("boom")),
+    )
+    app = ide_server.create_app()
+    client = app.test_client()
+
+    response = client.get("/api/test/stream", query_string={"path": "sample.tac"})
+    assert response.status_code == 500
+
+
+def test_evaluate_stream_setup_exception(tmp_path, monkeypatch):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    file_path = workspace / "sample.tac"
+    file_path.write_text("content")
+
+    monkeypatch.setattr(ide_server, "WORKSPACE_ROOT", str(workspace))
+    monkeypatch.setattr(
+        ide_server,
+        "_resolve_workspace_path",
+        lambda _path: (_ for _ in ()).throw(RuntimeError("boom")),
+    )
+    app = ide_server.create_app()
+    client = app.test_client()
+
+    response = client.get("/api/evaluate/stream", query_string={"path": "sample.tac"})
+    assert response.status_code == 500
+
+
+def test_pydantic_eval_stream_setup_exception(tmp_path, monkeypatch):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    file_path = workspace / "sample.tac"
+    file_path.write_text("content")
+
+    monkeypatch.setattr(ide_server, "WORKSPACE_ROOT", str(workspace))
+    monkeypatch.setattr(
+        ide_server,
+        "_resolve_workspace_path",
+        lambda _path: (_ for _ in ()).throw(RuntimeError("boom")),
+    )
+    app = ide_server.create_app()
+    client = app.test_client()
+
+    response = client.get("/api/pydantic-eval/stream", query_string={"path": "sample.tac"})
+    assert response.status_code == 500
+
+
 def test_file_operations_write_value_error(tmp_path, monkeypatch):
     monkeypatch.setattr(ide_server, "WORKSPACE_ROOT", str(tmp_path))
     monkeypatch.setattr(
@@ -377,3 +434,239 @@ def test_list_trace_runs_handles_exception(monkeypatch, tmp_path):
 
     response = client.get("/api/traces/runs", query_string={"procedure": "proc"})
     assert response.status_code == 500
+
+
+def test_trace_run_handles_exception(monkeypatch, tmp_path):
+    class DummyStorage:
+        def __init__(self, storage_dir):
+            self.storage_dir = storage_dir
+
+        def load_procedure_metadata(self, _procedure):
+            raise RuntimeError("boom")
+
+    monkeypatch.setattr("tactus.adapters.file_storage.FileStorage", DummyStorage)
+    monkeypatch.setattr(ide_server, "WORKSPACE_ROOT", str(tmp_path))
+
+    app = ide_server.create_app()
+    client = app.test_client()
+
+    response = client.get("/api/traces/runs/run-1", query_string={"procedure": "proc"})
+    assert response.status_code == 500
+
+
+def test_trace_run_checkpoints_handles_exception(monkeypatch, tmp_path):
+    class DummyStorage:
+        def __init__(self, storage_dir):
+            self.storage_dir = storage_dir
+
+        def load_procedure_metadata(self, _procedure):
+            raise RuntimeError("boom")
+
+    monkeypatch.setattr("tactus.adapters.file_storage.FileStorage", DummyStorage)
+    monkeypatch.setattr(ide_server, "WORKSPACE_ROOT", str(tmp_path))
+
+    app = ide_server.create_app()
+    client = app.test_client()
+
+    response = client.get("/api/traces/runs/run-1/checkpoints", query_string={"procedure": "proc"})
+    assert response.status_code == 500
+
+
+def test_trace_checkpoint_handles_exception(monkeypatch, tmp_path):
+    class DummyStorage:
+        def __init__(self, storage_dir):
+            self.storage_dir = storage_dir
+
+        def load_procedure_metadata(self, _procedure):
+            raise RuntimeError("boom")
+
+    monkeypatch.setattr("tactus.adapters.file_storage.FileStorage", DummyStorage)
+    monkeypatch.setattr(ide_server, "WORKSPACE_ROOT", str(tmp_path))
+
+    app = ide_server.create_app()
+    client = app.test_client()
+
+    response = client.get(
+        "/api/traces/runs/run-1/checkpoints/1", query_string={"procedure": "proc"}
+    )
+    assert response.status_code == 500
+
+
+def test_trace_statistics_run_not_found(monkeypatch, tmp_path):
+    class DummyStorage:
+        def __init__(self, storage_dir):
+            self.storage_dir = storage_dir
+
+        def load_procedure_metadata(self, _procedure):
+            return SimpleNamespace(execution_log=[])
+
+    monkeypatch.setattr("tactus.adapters.file_storage.FileStorage", DummyStorage)
+    monkeypatch.setattr(ide_server, "WORKSPACE_ROOT", str(tmp_path))
+
+    app = ide_server.create_app()
+    client = app.test_client()
+
+    response = client.get("/api/traces/runs/run-1/statistics", query_string={"procedure": "proc"})
+    assert response.status_code == 404
+
+
+def test_trace_statistics_handles_exception(monkeypatch, tmp_path):
+    class DummyStorage:
+        def __init__(self, storage_dir):
+            self.storage_dir = storage_dir
+
+        def load_procedure_metadata(self, _procedure):
+            raise RuntimeError("boom")
+
+    monkeypatch.setattr("tactus.adapters.file_storage.FileStorage", DummyStorage)
+    monkeypatch.setattr(ide_server, "WORKSPACE_ROOT", str(tmp_path))
+
+    app = ide_server.create_app()
+    client = app.test_client()
+
+    response = client.get("/api/traces/runs/run-1/statistics", query_string={"procedure": "proc"})
+    assert response.status_code == 500
+
+
+def test_trace_events_handles_exception(monkeypatch, tmp_path):
+    events_dir = tmp_path / ".tac" / "storage" / "events"
+    events_dir.mkdir(parents=True)
+    (events_dir / "run-1.json").write_text("[]")
+
+    monkeypatch.setattr(ide_server, "WORKSPACE_ROOT", str(tmp_path))
+    monkeypatch.setattr(
+        ide_server,
+        "json",
+        SimpleNamespace(load=lambda _f: (_ for _ in ()).throw(RuntimeError("boom"))),
+    )
+
+    app = ide_server.create_app()
+    client = app.test_client()
+
+    response = client.get("/api/traces/runs/run-1/events")
+    assert response.status_code == 500
+
+
+def test_clear_checkpoints_no_file(tmp_path, monkeypatch):
+    monkeypatch.setattr(ide_server, "WORKSPACE_ROOT", str(tmp_path))
+    app = ide_server.create_app()
+    client = app.test_client()
+
+    response = client.delete("/api/procedures/proc/checkpoints")
+    assert response.status_code == 200
+    assert "No checkpoints found" in response.get_json()["message"]
+
+
+def test_clear_checkpoints_remove_error(tmp_path, monkeypatch):
+    storage_dir = tmp_path / ".tac" / "storage"
+    storage_dir.mkdir(parents=True)
+    checkpoint_file = storage_dir / "proc.json"
+    checkpoint_file.write_text("{}")
+
+    monkeypatch.setattr(ide_server, "WORKSPACE_ROOT", str(tmp_path))
+    monkeypatch.setattr(
+        ide_server.os, "remove", lambda _path: (_ for _ in ()).throw(RuntimeError("boom"))
+    )
+
+    app = ide_server.create_app()
+    client = app.test_client()
+
+    response = client.delete("/api/procedures/proc/checkpoints")
+    assert response.status_code == 500
+
+
+def test_lsp_request_returns_null_result(monkeypatch):
+    class DummyServer:
+        def handle_message(self, _message):
+            return None
+
+    monkeypatch.setattr(ide_server, "LSPServer", lambda: DummyServer())
+    app = ide_server.create_app()
+    client = app.test_client()
+
+    response = client.post("/api/lsp", json={"id": 1, "method": "noop"})
+    payload = response.get_json()
+
+    assert payload["result"] is None
+
+
+def test_lsp_request_handles_exception(monkeypatch):
+    class DummyServer:
+        def handle_message(self, _message):
+            raise RuntimeError("boom")
+
+    monkeypatch.setattr(ide_server, "LSPServer", lambda: DummyServer())
+    app = ide_server.create_app()
+    client = app.test_client()
+
+    response = client.post("/api/lsp", json={"id": 1, "method": "noop"})
+    assert response.status_code == 500
+    assert response.get_json()["error"]["code"] == -32603
+
+
+def test_lsp_notification_did_open_returns_diagnostics(monkeypatch):
+    class DummyHandler:
+        def validate_document(self, _uri, _text):
+            return [{"message": "ok"}]
+
+        def close_document(self, _uri):
+            return None
+
+    class DummyServer:
+        def __init__(self):
+            self.handler = DummyHandler()
+
+    monkeypatch.setattr(ide_server, "LSPServer", lambda: DummyServer())
+    app = ide_server.create_app()
+    client = app.test_client()
+
+    response = client.post(
+        "/api/lsp/notification",
+        json={
+            "method": "textDocument/didOpen",
+            "params": {"textDocument": {"uri": "file://demo", "text": "content"}},
+        },
+    )
+    payload = response.get_json()
+    assert payload["diagnostics"] == [{"message": "ok"}]
+
+
+def test_lsp_notification_handles_exception(monkeypatch):
+    class DummyHandler:
+        def validate_document(self, _uri, _text):
+            raise RuntimeError("boom")
+
+        def close_document(self, _uri):
+            return None
+
+    class DummyServer:
+        def __init__(self):
+            self.handler = DummyHandler()
+
+    monkeypatch.setattr(ide_server, "LSPServer", lambda: DummyServer())
+    app = ide_server.create_app()
+    client = app.test_client()
+
+    response = client.post(
+        "/api/lsp/notification",
+        json={
+            "method": "textDocument/didOpen",
+            "params": {"textDocument": {"uri": "file://demo", "text": "content"}},
+        },
+    )
+    assert response.status_code == 500
+
+
+def test_create_app_handles_config_routes_import_error(monkeypatch):
+    import builtins
+
+    real_import = builtins.__import__
+
+    def fake_import(name, *args, **kwargs):
+        if name == "tactus.ide.config_server":
+            raise ImportError("boom")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+    app = ide_server.create_app()
+    assert app is not None

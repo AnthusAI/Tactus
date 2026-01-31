@@ -46,14 +46,16 @@ def test_docker_sandbox_smoke(tmp_path: Path) -> None:
         )
 
     workflow_file = tmp_path / "smoke.tac"
-    workflow_file.write_text("""Procedure {
+    workflow_file.write_text(
+        """Procedure {
     input = {},
     output = { ok = field.boolean{required = true} },
     function(input)
         return { ok = true }
     end
 }
-""")
+"""
+    )
 
     isolated_home = tmp_path / "home"
     isolated_home.mkdir(parents=True, exist_ok=True)

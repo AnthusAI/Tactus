@@ -60,16 +60,16 @@ class JsonPrimitive:
             # Convert Lua tables to Python dicts recursively if needed
             python_data = self._lua_to_python(data)
 
-            json_str = json.dumps(python_data, ensure_ascii=False, indent=None)
-            logger.debug(f"Encoded data to JSON ({len(json_str)} bytes)")
-            return json_str
+            json_payload = json.dumps(python_data, ensure_ascii=False, indent=None)
+            logger.debug("Encoded data to JSON (%s bytes)", len(json_payload))
+            return json_payload
 
-        except (TypeError, ValueError) as e:
-            error_msg = f"Failed to encode to JSON: {e}"
-            logger.error(error_msg)
-            raise ValueError(error_msg)
+        except (TypeError, ValueError) as error:
+            error_message = f"Failed to encode to JSON: {error}"
+            logger.error(error_message)
+            raise ValueError(error_message)
 
-    def decode(self, json_str: str):
+    def decode(self, json_str: str) -> Any:
         """
         Decode JSON string to Lua table.
 
@@ -93,7 +93,7 @@ class JsonPrimitive:
         try:
             # Parse JSON to Python dict
             python_data = json.loads(json_str)
-            logger.debug(f"Decoded JSON string ({len(json_str)} bytes)")
+            logger.debug("Decoded JSON string (%s bytes)", len(json_str))
 
             # Convert to Lua table if lua_sandbox available
             if self.lua_sandbox:
@@ -102,10 +102,10 @@ class JsonPrimitive:
                 # Fallback: return Python dict (will work but not ideal)
                 return python_data
 
-        except json.JSONDecodeError as e:
-            error_msg = f"Failed to decode JSON: {e}"
-            logger.error(error_msg)
-            raise ValueError(error_msg)
+        except json.JSONDecodeError as error:
+            error_message = f"Failed to decode JSON: {error}"
+            logger.error(error_message)
+            raise ValueError(error_message)
 
     def _lua_to_python(self, value: Any) -> Any:
         """
@@ -125,27 +125,27 @@ class JsonPrimitive:
             if lua_type(value) == "table":
                 # Try to determine if it's an array or dict
                 # Lua arrays have consecutive integer keys starting at 1
-                result = {}
+                converted = {}
                 is_array = True
                 keys = []
 
                 for k, v in value.items():
                     keys.append(k)
-                    result[k] = self._lua_to_python(v)
+                    converted[k] = self._lua_to_python(v)
                     if not isinstance(k, int) or k < 1:
                         is_array = False
 
                 # Check if keys are consecutive integers starting at 1
                 if is_array and keys:
-                    keys_sorted = sorted(keys)
-                    if keys_sorted != list(range(1, len(keys) + 1)):
+                    sorted_keys = sorted(keys)
+                    if sorted_keys != list(range(1, len(keys) + 1)):
                         is_array = False
 
                 # Convert to list if it's an array
                 if is_array and keys:
-                    return [result[i] for i in range(1, len(keys) + 1)]
+                    return [converted[i] for i in range(1, len(keys) + 1)]
                 else:
-                    return result
+                    return converted
             else:
                 # Primitive value
                 return value
@@ -174,16 +174,15 @@ class JsonPrimitive:
                 lua_table[k] = self._python_to_lua(v)
             return lua_table
 
-        elif isinstance(value, (list, tuple)):
+        if isinstance(value, (list, tuple)):
             # Convert list to Lua array (1-indexed)
             lua_table = self.lua_sandbox.lua.table()
             for i, item in enumerate(value, start=1):
                 lua_table[i] = self._python_to_lua(item)
             return lua_table
 
-        else:
-            # Primitive value (str, int, float, bool, None)
-            return value
+        # Primitive value (str, int, float, bool, None)
+        return value
 
     def __repr__(self) -> str:
         return "JsonPrimitive()"

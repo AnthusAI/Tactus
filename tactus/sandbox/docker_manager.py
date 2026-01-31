@@ -9,7 +9,7 @@ import logging
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Tuple, Optional
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ DEFAULT_IMAGE_NAME = "tactus-sandbox"
 DEFAULT_IMAGE_TAG = "local"
 
 
-def resolve_dockerfile_path(tactus_root: Path) -> Tuple[Path, str]:
+def resolve_dockerfile_path(tactus_root: Path) -> tuple[Path, str]:
     """
     Choose the appropriate Dockerfile for the sandbox build.
 
@@ -94,7 +94,7 @@ def calculate_source_hash(tactus_root: Path) -> str:
     return hasher.hexdigest()[:16]
 
 
-def is_docker_available() -> Tuple[bool, str]:
+def is_docker_available() -> tuple[bool, str]:
     """
     Check if Docker is available and running.
 
@@ -134,8 +134,8 @@ def is_docker_available() -> Tuple[bool, str]:
         return False, "Docker daemon not responding (timeout after 10s)"
     except FileNotFoundError:
         return False, "Docker CLI not found"
-    except Exception as e:
-        return False, f"Docker check failed: {e}"
+    except Exception as error:
+        return False, f"Docker check failed: {error}"
 
 
 class DockerManager:
@@ -263,7 +263,7 @@ class DockerManager:
                 return True
 
             if image_hash != current_hash:
-                logger.debug(f"Source hash mismatch: {image_hash} != {current_hash}")
+                logger.debug("Source hash mismatch: %s != %s", image_hash, current_hash)
                 return True
 
         return False
@@ -275,7 +275,7 @@ class DockerManager:
         version: str,
         source_hash: Optional[str] = None,
         verbose: bool = False,
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """
         Build the sandbox Docker image.
 
@@ -295,7 +295,7 @@ class DockerManager:
         if not context_path.exists():
             return False, f"Build context not found: {context_path}"
 
-        logger.info(f"Building sandbox image: {self.full_image_name}")
+        logger.info("Building sandbox image: %s", self.full_image_name)
 
         cmd = [
             "docker",
@@ -329,7 +329,7 @@ class DockerManager:
                 for line in iter(process.stdout.readline, ""):
                     if line:
                         output_lines.append(line.rstrip())
-                        logger.info(line.rstrip())
+                        logger.info("%s", line.rstrip())
                 process.wait()
                 returncode = process.returncode
                 output = "\n".join(output_lines)
@@ -344,15 +344,15 @@ class DockerManager:
                 output = result.stderr if result.returncode != 0 else result.stdout
 
             if returncode == 0:
-                logger.info(f"Successfully built: {self.full_image_name}")
+                logger.info("Successfully built: %s", self.full_image_name)
                 return True, f"Successfully built {self.full_image_name}"
             else:
                 return False, f"Build failed: {output}"
 
         except subprocess.TimeoutExpired:
             return False, "Build timed out after 10 minutes"
-        except Exception as e:
-            return False, f"Build failed: {e}"
+        except Exception as error:
+            return False, f"Build failed: {error}"
 
     def ensure_image_exists(
         self,
@@ -360,7 +360,7 @@ class DockerManager:
         context_path: Path,
         version: str,
         force_rebuild: bool = False,
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """
         Ensure the sandbox image exists, building if necessary.
 
@@ -378,7 +378,7 @@ class DockerManager:
 
         return True, f"Image {self.full_image_name} is up to date"
 
-    def remove_image(self) -> Tuple[bool, str]:
+    def remove_image(self) -> tuple[bool, str]:
         """
         Remove the sandbox image.
 
@@ -399,10 +399,10 @@ class DockerManager:
                 return True, f"Removed {self.full_image_name}"
             else:
                 return False, f"Failed to remove image: {result.stderr}"
-        except Exception as e:
-            return False, f"Failed to remove image: {e}"
+        except Exception as error:
+            return False, f"Failed to remove image: {error}"
 
-    def cleanup_old_images(self, keep_tags: Optional[list] = None) -> int:
+    def cleanup_old_images(self, keep_tags: Optional[list[str]] = None) -> int:
         """
         Remove old sandbox images, keeping specified tags.
 
@@ -447,10 +447,10 @@ class DockerManager:
                         )
                         if rm_result.returncode == 0:
                             removed += 1
-                            logger.info(f"Removed old image: {line}")
+                            logger.info("Removed old image: %s", line)
 
             return removed
 
-        except Exception as e:
-            logger.warning(f"Failed to cleanup old images: {e}")
+        except Exception as error:
+            logger.warning("Failed to cleanup old images: %s", error)
             return 0

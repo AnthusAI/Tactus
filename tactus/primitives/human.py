@@ -16,7 +16,7 @@ Deprecated:
 """
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ class HumanPrimitive:
     actual human interactions (via CLI, web UI, API, etc.).
     """
 
-    def __init__(self, execution_context, hitl_config: Optional[Dict[str, Any]] = None):
+    def __init__(self, execution_context, hitl_config: Optional[dict[str, Any]] = None):
         """
         Initialize Human primitive.
 
@@ -41,39 +41,41 @@ class HumanPrimitive:
         self.hitl_config = hitl_config or {}
         logger.debug("HumanPrimitive initialized")
 
-    def _convert_lua_to_python(self, obj: Any) -> Any:
+    def _convert_lua_to_python(self, lua_value: Any) -> Any:
         """Recursively convert Lua tables to Python dicts or lists."""
-        if obj is None:
+        if lua_value is None:
             return None
         # Check if it's a Lua table (has .items() but not a dict)
-        if hasattr(obj, "items") and not isinstance(obj, dict):
+        if hasattr(lua_value, "items") and not isinstance(lua_value, dict):
             # Get all items from the Lua table
-            items = list(obj.items())
+            table_items = list(lua_value.items())
 
             # Check if this is an array-like table (numeric keys starting from 1)
-            if items and all(isinstance(k, int) for k, v in items):
+            if table_items and all(isinstance(key, int) for key, _ in table_items):
                 # Sort by key and extract values to create a Python list
-                sorted_items = sorted(items, key=lambda x: x[0])
+                sorted_items = sorted(table_items, key=lambda item: item[0])
                 # Check if keys are consecutive starting from 1
-                if [k for k, v in sorted_items] == list(range(1, len(sorted_items) + 1)):
-                    return [self._convert_lua_to_python(v) for k, v in sorted_items]
+                sorted_keys = [key for key, _ in sorted_items]
+                expected_keys = list(range(1, len(sorted_items) + 1))
+                if sorted_keys == expected_keys:
+                    return [self._convert_lua_to_python(value) for _, value in sorted_items]
 
             # Otherwise, convert to dict (string keys or mixed)
             result = {}
-            for key, value in items:
+            for key, value in table_items:
                 result[key] = self._convert_lua_to_python(value)
             return result
-        elif isinstance(obj, dict):
+        elif isinstance(lua_value, dict):
             # Recursively convert nested dicts
-            return {k: self._convert_lua_to_python(v) for k, v in obj.items()}
-        elif isinstance(obj, (list, tuple)):
+            return {key: self._convert_lua_to_python(value) for key, value in lua_value.items()}
+        elif isinstance(lua_value, (list, tuple)):
             # Recursively convert lists
-            return [self._convert_lua_to_python(item) for item in obj]
+            return [self._convert_lua_to_python(item) for item in lua_value]
         else:
             # Primitive type, return as-is
-            return obj
+            return lua_value
 
-    def approve(self, options: Optional[Dict[str, Any]] = None) -> bool:
+    def approve(self, options: Optional[dict[str, Any]] = None) -> bool:
         """
         Request yes/no approval from human (BLOCKING).
 
@@ -105,26 +107,26 @@ class HumanPrimitive:
             end
         """
         # Convert Lua tables to Python dicts recursively
-        opts = self._convert_lua_to_python(options) or {}
+        options_dict = self._convert_lua_to_python(options) or {}
 
         # Support string message shorthand: Human.approve("message")
-        if isinstance(opts, str):
-            opts = {"message": opts}
+        if isinstance(options_dict, str):
+            options_dict = {"message": options_dict}
 
         # Check for config reference
-        config_key = opts.get("config_key")
+        config_key = options_dict.get("config_key")
         if config_key and config_key in self.hitl_config:
             # Merge config with runtime options (runtime wins)
             config_opts = self.hitl_config[config_key].copy()
-            config_opts.update(opts)
-            opts = config_opts
+            config_opts.update(options_dict)
+            options_dict = config_opts
 
-        message = opts.get("message", "Approval requested")
-        context = opts.get("context", {})
-        timeout = opts.get("timeout")
-        default = opts.get("default", False)
+        message = options_dict.get("message", "Approval requested")
+        context = options_dict.get("context", {})
+        timeout = options_dict.get("timeout")
+        default = options_dict.get("default", False)
 
-        logger.info(f"Human approval requested: {message[:50]}...")
+        logger.info("Human approval requested: %s...", message[:50])
 
         # CRITICAL: Wrap HITL call in checkpoint for transparent durability
         # This allows kill/resume to work - procedure can be restarted and will resume from this point
@@ -141,16 +143,19 @@ class HumanPrimitive:
             )
 
         response = self.execution_context.checkpoint(checkpoint_fn, "hitl_approval")
-        logger.debug(f"[CHECKPOINT] Human.approve() checkpoint completed, response={response}")
+        logger.debug(
+            "[CHECKPOINT] Human.approve() checkpoint completed, response=%s",
+            response,
+        )
 
         return response.value
 
-    def input(self, options: Optional[Dict[str, Any]] = None) -> Optional[str]:
+    def input(self, options: Optional[dict[str, Any]] = None) -> Optional[str]:
         """
         Request free-form input from human (BLOCKING).
 
         Args:
-            options: Dict with:
+            options: dict with:
                 - message: str - Prompt for human
                 - placeholder: str - Input placeholder
                 - timeout: int - Timeout in seconds
@@ -172,21 +177,21 @@ class HumanPrimitive:
             end
         """
         # Convert Lua table to dict if needed
-        opts = self._convert_lua_to_python(options) or {}
+        options_dict = self._convert_lua_to_python(options) or {}
 
         # Check for config reference
-        config_key = opts.get("config_key")
+        config_key = options_dict.get("config_key")
         if config_key and config_key in self.hitl_config:
             config_opts = self.hitl_config[config_key].copy()
-            config_opts.update(opts)
-            opts = config_opts
+            config_opts.update(options_dict)
+            options_dict = config_opts
 
-        message = opts.get("message", "Input requested")
-        placeholder = opts.get("placeholder", "")
-        timeout = opts.get("timeout")
-        default = opts.get("default")
+        message = options_dict.get("message", "Input requested")
+        placeholder = options_dict.get("placeholder", "")
+        timeout = options_dict.get("timeout")
+        default = options_dict.get("default")
 
-        logger.info(f"Human input requested: {message[:50]}...")
+        logger.info("Human input requested: %s...", message[:50])
 
         # CRITICAL: Wrap HITL call in checkpoint for transparent durability
         def checkpoint_fn():
@@ -203,21 +208,21 @@ class HumanPrimitive:
 
         return response.value
 
-    def review(self, options: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
+    def review(self, options: Optional[dict[str, Any]] = None) -> Optional[dict[str, Any]]:
         """
         Request human review (BLOCKING).
 
         Args:
-            options: Dict with:
+            options: dict with:
                 - message: str - Review prompt
                 - artifact: Any - Thing to review
                 - artifact_type: str - Type of artifact
-                - options: List[str] - Available actions
+                - options: list[str] - Available actions
                 - timeout: int - Timeout in seconds
                 - config_key: str - Reference to hitl: declaration
 
         Returns:
-            Dict with:
+            dict with:
                 - decision: str - Selected option
                 - edited_artifact: Any - Modified artifact (if edited)
                 - feedback: str - Human feedback
@@ -235,35 +240,35 @@ class HumanPrimitive:
             end
         """
         # Convert Lua table to dict if needed
-        opts = self._convert_lua_to_python(options) or {}
+        options_dict = self._convert_lua_to_python(options) or {}
 
         # Check for config reference
-        config_key = opts.get("config_key")
+        config_key = options_dict.get("config_key")
         if config_key and config_key in self.hitl_config:
             config_opts = self.hitl_config[config_key].copy()
-            config_opts.update(opts)
-            opts = config_opts
+            config_opts.update(options_dict)
+            options_dict = config_opts
 
-        message = opts.get("message", "Review requested")
-        artifact = opts.get("artifact")
-        options_list = opts.get("options", ["approve", "reject"])
-        artifact_type = opts.get("artifact_type", "artifact")
-        timeout = opts.get("timeout")
+        message = options_dict.get("message", "Review requested")
+        artifact = options_dict.get("artifact")
+        options_list = options_dict.get("options", ["approve", "reject"])
+        artifact_type = options_dict.get("artifact_type", "artifact")
+        timeout = options_dict.get("timeout")
 
-        logger.info(f"Human review requested: {message[:50]}...")
+        logger.info("Human review requested: %s...", message[:50])
 
         # Convert artifact from Lua table to Python dict
         artifact_python = self._convert_lua_to_python(artifact) if artifact is not None else None
 
         # Convert options list to format expected by protocol: [{label, type}, ...]
         formatted_options = []
-        for opt in options_list:
+        for option_entry in options_list:
             # If already a dict with label/type, use as-is
-            if isinstance(opt, dict) and "label" in opt:
-                formatted_options.append(opt)
+            if isinstance(option_entry, dict) and "label" in option_entry:
+                formatted_options.append(option_entry)
             # Otherwise treat as string label, default to "action" type
             else:
-                formatted_options.append({"label": str(opt).title(), "type": "action"})
+                formatted_options.append({"label": str(option_entry).title(), "type": "action"})
 
         # CRITICAL: Wrap HITL call in checkpoint for transparent durability
         def checkpoint_fn():
@@ -284,7 +289,7 @@ class HumanPrimitive:
 
         return response.value
 
-    def notify(self, options: Optional[Dict[str, Any]] = None) -> None:
+    def notify(self, options: Optional[dict[str, Any]] = None) -> None:
         """
         Send notification to human (NON-BLOCKING).
 
@@ -293,7 +298,7 @@ class HumanPrimitive:
         delivery should use a custom notification system.
 
         Args:
-            options: Dict with:
+            options: dict with:
                 - message: str - Notification message (required)
                 - level: str - info, warning, error (default: info)
 
@@ -304,17 +309,17 @@ class HumanPrimitive:
             })
         """
         # Convert Lua table to dict if needed
-        opts = self._convert_lua_to_python(options) or {}
+        options_dict = self._convert_lua_to_python(options) or {}
 
-        message = opts.get("message", "Notification")
-        level = opts.get("level", "info")
+        message = options_dict.get("message", "Notification")
+        level = options_dict.get("level", "info")
 
-        logger.info(f"Human notification: [{level}] {message}")
+        logger.info("Human notification: [%s] %s", level, message)
 
         # In base Tactus, notifications are just logged
         # Implementations can override this to send actual notifications
 
-    def escalate(self, options: Optional[Dict[str, Any]] = None) -> None:
+    def escalate(self, options: Optional[dict[str, Any]] = None) -> None:
         """
         Escalate to human (BLOCKING).
 
@@ -323,7 +328,7 @@ class HumanPrimitive:
         indefinitely until a human manually resumes the procedure.
 
         Args:
-            options: Dict with:
+            options: dict with:
                 - message: str - Escalation message
                 - context: Dict - Error context
                 - severity: str - Severity level (info/warning/error/critical)
@@ -343,21 +348,21 @@ class HumanPrimitive:
             end
         """
         # Convert Lua tables to Python dicts recursively
-        opts = self._convert_lua_to_python(options) or {}
+        options_dict = self._convert_lua_to_python(options) or {}
 
         # Check for config reference
-        config_key = opts.get("config_key")
+        config_key = options_dict.get("config_key")
         if config_key and config_key in self.hitl_config:
             # Merge config with runtime options (runtime wins)
             config_opts = self.hitl_config[config_key].copy()
-            config_opts.update(opts)
-            opts = config_opts
+            config_opts.update(options_dict)
+            options_dict = config_opts
 
-        message = opts.get("message", "Escalation required")
-        context = opts.get("context", {})
-        severity = opts.get("severity", "error")
+        message = options_dict.get("message", "Escalation required")
+        context = options_dict.get("context", {})
+        severity = options_dict.get("severity", "error")
 
-        logger.warning(f"Human escalation: {message[:50]}... (severity: {severity})")
+        logger.warning("Human escalation: %s... (severity: %s)", message[:50], severity)
 
         # Prepare metadata with severity and context
         metadata = {"severity": severity, "context": context}
@@ -377,7 +382,7 @@ class HumanPrimitive:
 
         logger.info("Human escalation resolved - resuming workflow")
 
-    def select(self, options: Optional[Dict[str, Any]] = None) -> Any:
+    def select(self, options: Optional[dict[str, Any]] = None) -> Any:
         """
         Request selection from options (BLOCKING).
 
@@ -386,7 +391,7 @@ class HumanPrimitive:
         Args:
             options: Dict with:
                 - message: str - Prompt for human
-                - options: List[str] or List[Dict] - Available choices
+                - options: list[str] or list[dict] - Available choices
                 - mode: str - "single" (default) or "multiple"
                 - style: str - UI hint: "radio", "dropdown", "checkbox" (optional)
                 - min: int - Minimum selections required (for multiple mode)
@@ -397,7 +402,7 @@ class HumanPrimitive:
 
         Returns:
             For single mode: str - Selected option value
-            For multiple mode: List[str] - Selected option values
+            For multiple mode: list[str] - Selected option values
 
         Example (Lua):
             -- Single select (radio buttons)
@@ -418,38 +423,40 @@ class HumanPrimitive:
             })
         """
         # Convert Lua tables to Python dicts recursively
-        opts = self._convert_lua_to_python(options) or {}
+        options_dict = self._convert_lua_to_python(options) or {}
 
         # Check for config reference
-        config_key = opts.get("config_key")
+        config_key = options_dict.get("config_key")
         if config_key and config_key in self.hitl_config:
             config_opts = self.hitl_config[config_key].copy()
-            config_opts.update(opts)
-            opts = config_opts
+            config_opts.update(options_dict)
+            options_dict = config_opts
 
-        message = opts.get("message", "Selection required")
-        options_list = opts.get("options", [])
-        mode = opts.get("mode", "single")
-        style = opts.get("style")  # UI hint: radio, dropdown, checkbox
-        min_selections = opts.get("min", 1 if mode == "multiple" else None)
-        max_selections = opts.get("max")
-        timeout = opts.get("timeout")
-        default = opts.get("default", [] if mode == "multiple" else None)
+        message = options_dict.get("message", "Selection required")
+        options_list = options_dict.get("options", [])
+        mode = options_dict.get("mode", "single")
+        style = options_dict.get("style")  # UI hint: radio, dropdown, checkbox
+        min_selections = options_dict.get("min", 1 if mode == "multiple" else None)
+        max_selections = options_dict.get("max")
+        timeout = options_dict.get("timeout")
+        default = options_dict.get("default", [] if mode == "multiple" else None)
 
-        logger.info(f"Human selection requested ({mode}): {message[:50]}...")
+        logger.info("Human selection requested (%s): %s...", mode, message[:50])
 
         # Convert options list to format expected by protocol: [{label, value}, ...]
         formatted_options = []
-        for opt in options_list:
-            if isinstance(opt, dict) and "label" in opt:
+        for option_entry in options_list:
+            if isinstance(option_entry, dict) and "label" in option_entry:
                 # Already formatted: {label: "...", value: "..."}
-                formatted_options.append(opt)
-            elif isinstance(opt, dict) and "value" in opt:
+                formatted_options.append(option_entry)
+            elif isinstance(option_entry, dict) and "value" in option_entry:
                 # Has value but no label - use value as label
-                formatted_options.append({"label": str(opt["value"]), "value": opt["value"]})
+                formatted_options.append(
+                    {"label": str(option_entry["value"]), "value": option_entry["value"]}
+                )
             else:
                 # Simple string - use as both label and value
-                formatted_options.append({"label": str(opt), "value": opt})
+                formatted_options.append({"label": str(option_entry), "value": option_entry})
 
         # Build metadata with select-specific fields
         metadata = {
@@ -475,7 +482,7 @@ class HumanPrimitive:
 
         return response.value
 
-    def upload(self, options: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
+    def upload(self, options: Optional[dict[str, Any]] = None) -> Optional[dict[str, Any]]:
         """
         Request file upload from human (BLOCKING).
 
@@ -485,14 +492,14 @@ class HumanPrimitive:
         Args:
             options: Dict with:
                 - message: str - Upload prompt
-                - accept: str or List[str] - Accepted file types (e.g., ".pdf,.doc" or ["image/*"])
+                - accept: str or list[str] - Accepted file types (e.g., ".pdf,.doc" or ["image/*"])
                 - max_size: str or int - Maximum file size (e.g., "10MB" or 10485760)
                 - multiple: bool - Allow multiple files (default: False)
                 - timeout: int - Timeout in seconds
                 - config_key: str - Reference to hitl: declaration
 
         Returns:
-            Dict with file info (or List[Dict] if multiple=True):
+            dict with file info (or list[dict] if multiple=True):
                 - path: str - Local filesystem path to uploaded file
                 - name: str - Original filename
                 - size: int - File size in bytes
@@ -527,22 +534,22 @@ class HumanPrimitive:
             end
         """
         # Convert Lua tables to Python dicts recursively
-        opts = self._convert_lua_to_python(options) or {}
+        options_dict = self._convert_lua_to_python(options) or {}
 
         # Check for config reference
-        config_key = opts.get("config_key")
+        config_key = options_dict.get("config_key")
         if config_key and config_key in self.hitl_config:
             config_opts = self.hitl_config[config_key].copy()
-            config_opts.update(opts)
-            opts = config_opts
+            config_opts.update(options_dict)
+            options_dict = config_opts
 
-        message = opts.get("message", "File upload requested")
-        accept = opts.get("accept")  # File type filter
-        max_size = opts.get("max_size")  # Size limit
-        multiple = opts.get("multiple", False)
-        timeout = opts.get("timeout")
+        message = options_dict.get("message", "File upload requested")
+        accept = options_dict.get("accept")  # File type filter
+        max_size = options_dict.get("max_size")  # Size limit
+        multiple = options_dict.get("multiple", False)
+        timeout = options_dict.get("timeout")
 
-        logger.info(f"Human file upload requested: {message[:50]}...")
+        logger.info("Human file upload requested: %s...", message[:50])
 
         # Normalize accept to list
         if isinstance(accept, str):
@@ -593,10 +600,10 @@ class HumanPrimitive:
         try:
             return int(size_str)
         except ValueError:
-            logger.warning(f"Could not parse size '{size_str}', using default")
+            logger.warning("Could not parse size '%s', using default", size_str)
             return 10 * 1024 * 1024  # Default 10MB
 
-    def inputs(self, items: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+    def inputs(self, items: Optional[list[dict[str, Any]]] = None) -> dict[str, Any]:
         """
         Request multiple inputs from human in a single interaction (BLOCKING).
 
@@ -607,19 +614,19 @@ class HumanPrimitive:
         before submitting a single response.
 
         Args:
-            items: List of input items, each with:
+            items: list of input items, each with:
                 - id: str - Unique ID for this item (required)
                 - label: str - Short label for tabs (required)
                 - type: str - Request type: "approval", "input", "select", etc. (required)
                 - message: str - Prompt for this input (required)
-                - options: List - Options for select/review types
+                - options: list - Options for select/review types
                 - required: bool - Whether this input is required (default: True)
-                - metadata: Dict - Type-specific metadata
+                - metadata: dict - Type-specific metadata
                 - timeout: int - Timeout in seconds
                 - default: Any - Default value
 
         Returns:
-            Dict keyed by item ID with response values:
+            dict keyed by item ID with response values:
                 {
                     "target": "production",
                     "confirm": True,
@@ -661,10 +668,12 @@ class HumanPrimitive:
         )
 
         # Convert Lua tables to Python dicts recursively
-        logger.debug(f"Human.inputs() called with items type: {type(items)}")
+        logger.debug("Human.inputs() called with items type: %s", type(items))
         items_list = self._convert_lua_to_python(items) or []
         logger.debug(
-            f"Converted to items_list, length: {len(items_list)}, type: {type(items_list)}"
+            "Converted to items_list, length: %s, type: %s",
+            len(items_list),
+            type(items_list),
         )
 
         if not items_list:
@@ -672,15 +681,18 @@ class HumanPrimitive:
 
         # Validate items
         seen_ids = set()
-        for idx, item in enumerate(items_list):
+        for index, item in enumerate(items_list):
             logger.debug(
-                f"Validating item {idx}: type={type(item)}, keys={list(item.keys()) if isinstance(item, dict) else 'NOT A DICT'}"
+                "Validating item %s: type=%s, keys=%s",
+                index,
+                type(item),
+                list(item.keys()) if isinstance(item, dict) else "NOT A DICT",
             )
 
             # Ensure item is a dict
             if not isinstance(item, dict):
                 raise ValueError(
-                    f"Item {idx} is not a dictionary (got {type(item).__name__}): {item}"
+                    f"Item {index} is not a dictionary (got {type(item).__name__}): {item}"
                 )
 
             # Validate required fields
@@ -699,7 +711,7 @@ class HumanPrimitive:
                 raise ValueError(f"Duplicate item ID: {item_id}")
             seen_ids.add(item_id)
 
-        logger.info(f"Human inputs requested: {len(items_list)} items")
+        logger.info("Human inputs requested: %s items", len(items_list))
 
         # Build ControlRequestItem list
         from tactus.protocols.control import ControlRequestItem
@@ -709,13 +721,18 @@ class HumanPrimitive:
             # Convert options if present
             options_list = item.get("options", [])
             formatted_options = []
-            for opt in options_list:
-                if isinstance(opt, dict) and "label" in opt:
-                    formatted_options.append(opt)
-                elif isinstance(opt, dict) and "value" in opt:
-                    formatted_options.append({"label": str(opt["value"]), "value": opt["value"]})
+            for option_entry in options_list:
+                if isinstance(option_entry, dict) and "label" in option_entry:
+                    formatted_options.append(option_entry)
+                elif isinstance(option_entry, dict) and "value" in option_entry:
+                    formatted_options.append(
+                        {
+                            "label": str(option_entry["value"]),
+                            "value": option_entry["value"],
+                        }
+                    )
                 else:
-                    formatted_options.append({"label": str(opt), "value": opt})
+                    formatted_options.append({"label": str(option_entry), "value": option_entry})
 
             # Build metadata
             metadata = item.get("metadata", {})
@@ -762,7 +779,7 @@ class HumanPrimitive:
 
         return lua_runtime.table_from(converted_result)
 
-    def multiple(self, items: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+    def multiple(self, items: Optional[list[dict[str, Any]]] = None) -> dict[str, Any]:
         """
         Request multiple inputs from human in a single interaction (BLOCKING).
 
@@ -773,19 +790,19 @@ class HumanPrimitive:
         them all before submitting a single response.
 
         Args:
-            items: List of input items, each with:
+            items: list of input items, each with:
                 - id: str - Unique ID for this item (required)
                 - label: str - Short label for tabs (required)
                 - type: str - Request type: "approval", "input", "select", etc. (required)
                 - message: str - Prompt for this input (required)
-                - options: List - Options for select/review types
+                - options: list - Options for select/review types
                 - required: bool - Whether this input is required (default: True)
-                - metadata: Dict - Type-specific metadata
+                - metadata: dict - Type-specific metadata
                 - timeout: int - Timeout in seconds
                 - default: Any - Default value
 
         Returns:
-            Dict keyed by item ID with response values:
+            dict keyed by item ID with response values:
                 {
                     "target": "production",
                     "confirm": True,
@@ -822,7 +839,7 @@ class HumanPrimitive:
         """
         return self.inputs(items)
 
-    def custom(self, options: Optional[Dict[str, Any]] = None) -> Any:
+    def custom(self, options: Optional[dict[str, Any]] = None) -> Any:
         """
         Request custom component interaction from human (BLOCKING).
 
@@ -830,11 +847,11 @@ class HumanPrimitive:
         The component receives all metadata and can return arbitrary values.
 
         Args:
-            options: Dict with:
+            options: dict with:
                 - component_type: str - Which custom component to render (required)
                 - message: str - Message to display (required)
-                - data: Dict - Component-specific data (images, options, etc.)
-                - actions: List[Dict] - Optional action buttons
+                - data: dict - Component-specific data (images, options, etc.)
+                - actions: list[dict] - Optional action buttons
                 - timeout: int - Timeout in seconds
                 - default: Any - Default value if timeout
                 - config_key: str - Reference to hitl: declaration
@@ -892,7 +909,7 @@ class HumanPrimitive:
             "actions": actions,
         }
 
-        logger.info(f"Human custom component requested: {component_type}")
+        logger.info("Human custom component requested: %s", component_type)
 
         # CRITICAL: Wrap HITL call in checkpoint for transparent durability
         def checkpoint_fn():

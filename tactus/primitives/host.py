@@ -9,7 +9,7 @@ It delegates allowlisted operations to the trusted host-side broker via the
 from __future__ import annotations
 
 import asyncio
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from tactus.broker.client import BrokerClient
 
@@ -27,7 +27,7 @@ class HostPrimitive:
 
             self._registry = HostToolRegistry.default()
 
-    def _run_coro(self, coro):
+    def _run_coro(self, coroutine: Any) -> Any:
         """
         Run an async coroutine from Lua's synchronous context.
 
@@ -38,37 +38,37 @@ class HostPrimitive:
 
             import threading
 
-            result_container = {"value": None, "exception": None}
+            thread_result = {"value": None, "exception": None}
 
             def run_in_thread():
                 try:
-                    result_container["value"] = asyncio.run(coro)
-                except Exception as e:
-                    result_container["exception"] = e
+                    thread_result["value"] = asyncio.run(coroutine)
+                except Exception as error:
+                    thread_result["exception"] = error
 
             thread = threading.Thread(target=run_in_thread)
             thread.start()
             thread.join()
 
-            if result_container["exception"]:
-                raise result_container["exception"]
-            return result_container["value"]
+            if thread_result["exception"]:
+                raise thread_result["exception"]
+            return thread_result["value"]
 
         except RuntimeError:
-            return asyncio.run(coro)
+            return asyncio.run(coroutine)
 
-    def _lua_to_python(self, obj: Any) -> Any:
-        if obj is None:
+    def _lua_to_python(self, value: Any) -> Any:
+        if value is None:
             return None
-        if hasattr(obj, "items") and not isinstance(obj, dict):
-            return {k: self._lua_to_python(v) for k, v in obj.items()}
-        if isinstance(obj, dict):
-            return {k: self._lua_to_python(v) for k, v in obj.items()}
-        if isinstance(obj, (list, tuple)):
-            return [self._lua_to_python(v) for v in obj]
-        return obj
+        if hasattr(value, "items") and not isinstance(value, dict):
+            return {k: self._lua_to_python(v) for k, v in value.items()}
+        if isinstance(value, dict):
+            return {k: self._lua_to_python(v) for k, v in value.items()}
+        if isinstance(value, (list, tuple)):
+            return [self._lua_to_python(v) for v in value]
+        return value
 
-    def call(self, name: str, args: Optional[Dict[str, Any]] = None) -> Any:
+    def call(self, name: str, args: Optional[dict[str, Any]] = None) -> Any:
         """
         Call an allowlisted host tool via the broker.
 
@@ -78,17 +78,17 @@ class HostPrimitive:
         if not isinstance(name, str) or not name:
             raise ValueError("Host.call requires a non-empty tool name string")
 
-        args_dict = self._lua_to_python(args) or {}
-        if not isinstance(args_dict, dict):
+        args_payload = self._lua_to_python(args) or {}
+        if not isinstance(args_payload, dict):
             raise ValueError("Host.call args must be an object/table")
 
         if self._client is not None:
-            return self._run_coro(self._client.call_tool(name=name, args=args_dict))
+            return self._run_coro(self._client.call_tool(name=name, args=args_payload))
 
         if self._registry is not None:
             try:
-                return self._registry.call(name, args_dict)
-            except KeyError as e:
-                raise RuntimeError(f"Tool not allowlisted: {name}") from e
+                return self._registry.call(name, args_payload)
+            except KeyError as error:
+                raise RuntimeError(f"Tool not allowlisted: {name}") from error
 
         raise RuntimeError("Host.call requires TACTUS_BROKER_SOCKET to be set")

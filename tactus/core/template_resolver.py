@@ -62,15 +62,15 @@ class TemplateResolver:
         if not template:
             return template
 
-        def replace_match(match):
-            path = match.group(1)
-            value = self._get_value(path)
-            if value is None:
+        def replace_template_match(match: re.Match) -> str:
+            template_path = match.group(1)
+            resolved_value = self._get_value(template_path)
+            if resolved_value is None:
                 # Keep the marker if value not found
                 return match.group(0)
-            return str(value)
+            return str(resolved_value)
 
-        return self.TEMPLATE_PATTERN.sub(replace_match, template)
+        return self.TEMPLATE_PATTERN.sub(replace_template_match, template)
 
     def _get_value(self, path: str) -> Any:
         """
@@ -82,29 +82,29 @@ class TemplateResolver:
         Returns:
             Value at path, or None if not found
         """
-        parts = path.split(".")
-        if not parts:
+        path_segments = path.split(".")
+        if not path_segments:
             return None
 
         # First part is the namespace
-        namespace_name = parts[0]
-        namespace = self.namespaces.get(namespace_name)
+        namespace_key = path_segments[0]
+        namespace = self.namespaces.get(namespace_key)
         if namespace is None:
             return None
 
         # Navigate nested keys
-        current = namespace
-        for part in parts[1:]:
-            if isinstance(current, dict):
-                current = current.get(part)
+        current_value = namespace
+        for part in path_segments[1:]:
+            if isinstance(current_value, dict):
+                current_value = current_value.get(part)
             else:
                 # Can't navigate further
                 return None
 
-            if current is None:
+            if current_value is None:
                 return None
 
-        return current
+        return current_value
 
 
 def resolve_template(

@@ -165,3 +165,63 @@ def test_load_tactus_config_project_file_empty(monkeypatch, tmp_path):
     result = app.load_tactus_config()
 
     assert result == {}
+
+
+def test_load_tactus_config_skips_non_scalar_nested(monkeypatch, tmp_path):
+    system_path = tmp_path / "system.yml"
+    system_path.write_text("placeholder")
+
+    class DummyConfigManager:
+        def _get_system_config_paths(self):
+            return [system_path]
+
+        def _get_user_config_paths(self):
+            return []
+
+        def _load_yaml_file(self, path: Path):
+            if path == system_path:
+                return {"nested": {"list": [1, 2]}}
+            return {}
+
+        def _merge_configs(self, configs):
+            merged = {}
+            for cfg in configs:
+                merged.update(cfg)
+            return merged
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("tactus.core.config_manager.ConfigManager", DummyConfigManager)
+
+    app.load_tactus_config()
+
+    assert "NESTED_LIST" not in os.environ
+
+
+def test_load_tactus_config_ignores_unhandled_types(monkeypatch, tmp_path):
+    system_path = tmp_path / "system.yml"
+    system_path.write_text("placeholder")
+
+    class DummyConfigManager:
+        def _get_system_config_paths(self):
+            return [system_path]
+
+        def _get_user_config_paths(self):
+            return []
+
+        def _load_yaml_file(self, path: Path):
+            if path == system_path:
+                return {"tuple_value": ("a", "b")}
+            return {}
+
+        def _merge_configs(self, configs):
+            merged = {}
+            for cfg in configs:
+                merged.update(cfg)
+            return merged
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("tactus.core.config_manager.ConfigManager", DummyConfigManager)
+
+    app.load_tactus_config()
+
+    assert "TUPLE_VALUE" not in os.environ

@@ -8,9 +8,9 @@ Provides comprehensive mocking capabilities including:
 - Mock state tracking and assertions
 """
 
-import logging
-from typing import Any, Dict, List, Optional, Union
 from dataclasses import dataclass, field
+import logging
+from typing import Any, Optional, Union
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ class MockCall:
     """Record of a mock tool call."""
 
     tool_name: str
-    args: Dict[str, Any]
+    args: dict[str, Any]
     result: Any
     call_number: int
     timestamp: float
@@ -36,10 +36,10 @@ class MockConfig:
     static_result: Optional[Any] = None
 
     # Temporal mocks - return different values per call
-    temporal_results: List[Any] = field(default_factory=list)
+    temporal_results: list[Any] = field(default_factory=list)
 
     # Conditional mocks - return based on args
-    conditional_mocks: List[Dict[str, Any]] = field(default_factory=list)
+    conditional_mocks: list[dict[str, Any]] = field(default_factory=list)
 
     # Error simulation
     error: Optional[str] = None
@@ -58,12 +58,12 @@ class MockManager:
 
     def __init__(self):
         """Initialize mock manager."""
-        self.mocks: Dict[str, MockConfig] = {}
-        self.call_history: Dict[str, List[MockCall]] = {}
-        self.call_counts: Dict[str, int] = {}
+        self.mocks: dict[str, MockConfig] = {}
+        self.call_history: dict[str, list[MockCall]] = {}
+        self.call_counts: dict[str, int] = {}
         self.enabled = True  # Global mock enable/disable
 
-    def register_mock(self, tool_name: str, config: Union[MockConfig, Dict[str, Any]]) -> None:
+    def register_mock(self, tool_name: str, config: Union[MockConfig, dict[str, Any]]) -> None:
         """
         Register a mock configuration for a tool.
 
@@ -89,9 +89,9 @@ class MockManager:
             mock_config = config
 
         self.mocks[tool_name] = mock_config
-        logger.info(f"Registered mock for tool '{tool_name}'")
+        logger.info("Registered mock for tool '%s'", tool_name)
 
-    def get_mock_response(self, tool_name: str, args: Dict[str, Any]) -> Optional[Any]:
+    def get_mock_response(self, tool_name: str, args: dict[str, Any]) -> Optional[Any]:
         """
         Get mock response for a tool call.
 
@@ -125,14 +125,20 @@ class MockManager:
             if call_number <= len(mock_config.temporal_results):
                 result = mock_config.temporal_results[call_number - 1]
                 logger.debug(
-                    f"Mock '{tool_name}' returning temporal result for call {call_number}: {result}"
+                    "Mock '%s' returning temporal result for call %s: %s",
+                    tool_name,
+                    call_number,
+                    result,
                 )
                 return result
             else:
                 # Fallback to last result if we've exceeded temporal results
                 result = mock_config.temporal_results[-1]
                 logger.debug(
-                    f"Mock '{tool_name}' returning last temporal result (call {call_number}): {result}"
+                    "Mock '%s' returning last temporal result (call %s): %s",
+                    tool_name,
+                    call_number,
+                    result,
                 )
                 return result
 
@@ -141,18 +147,26 @@ class MockManager:
             condition = conditional.get("when", {})
             if self._matches_condition(args, condition):
                 result = conditional.get("return")
-                logger.debug(f"Mock '{tool_name}' matched condition, returning: {result}")
+                logger.debug(
+                    "Mock '%s' matched condition, returning: %s",
+                    tool_name,
+                    result,
+                )
                 return result
 
         # Return static result if configured
         if mock_config.static_result is not None:
-            logger.debug(f"Mock '{tool_name}' returning static result: {mock_config.static_result}")
+            logger.debug(
+                "Mock '%s' returning static result: %s",
+                tool_name,
+                mock_config.static_result,
+            )
             return mock_config.static_result
 
         # No mock response configured
         return None
 
-    def record_call(self, tool_name: str, args: Dict[str, Any], result: Any) -> None:
+    def record_call(self, tool_name: str, args: dict[str, Any], result: Any) -> None:
         """
         Record a tool call for assertions.
 
@@ -180,7 +194,7 @@ class MockManager:
             self.call_history[tool_name] = []
         self.call_history[tool_name].append(call)
 
-        logger.debug(f"Recorded call to '{tool_name}' (call #{call.call_number})")
+        logger.debug("Recorded call to '%s' (call #%s)", tool_name, call.call_number)
 
     def get_call_count(self, tool_name: str) -> int:
         """
@@ -194,7 +208,7 @@ class MockManager:
         """
         return self.call_counts.get(tool_name, 0)
 
-    def get_call_history(self, tool_name: str) -> List[MockCall]:
+    def get_call_history(self, tool_name: str) -> list[MockCall]:
         """
         Get the call history for a tool.
 
@@ -212,7 +226,7 @@ class MockManager:
         self.call_counts.clear()
         logger.debug("Mock manager state reset")
 
-    def _matches_condition(self, args: Dict[str, Any], condition: Dict[str, Any]) -> bool:
+    def _matches_condition(self, args: dict[str, Any], condition: dict[str, Any]) -> bool:
         """
         Check if args match a condition.
 
@@ -227,30 +241,30 @@ class MockManager:
             if key not in args:
                 return False
 
-            arg_value = args[key]
+            argument_value = args[key]
 
             # Handle different pattern types
             if isinstance(pattern, str):
                 # Check for operators
                 if pattern.startswith("contains:"):
                     substring = pattern[9:].strip()
-                    if substring not in str(arg_value):
+                    if substring not in str(argument_value):
                         return False
                 elif pattern.startswith("startswith:"):
                     prefix = pattern[11:].strip()
-                    if not str(arg_value).startswith(prefix):
+                    if not str(argument_value).startswith(prefix):
                         return False
                 elif pattern.startswith("endswith:"):
                     suffix = pattern[9:].strip()
-                    if not str(arg_value).endswith(suffix):
+                    if not str(argument_value).endswith(suffix):
                         return False
                 else:
                     # Exact match
-                    if arg_value != pattern:
+                    if argument_value != pattern:
                         return False
             else:
                 # Direct comparison
-                if arg_value != pattern:
+                if argument_value != pattern:
                     return False
 
         return True
@@ -265,7 +279,7 @@ class MockManager:
         if tool_name:
             if tool_name in self.mocks:
                 self.mocks[tool_name].enabled = True
-                logger.info(f"Enabled mock for tool '{tool_name}'")
+                logger.info("Enabled mock for tool '%s'", tool_name)
         else:
             self.enabled = True
             logger.info("Enabled all mocks")
@@ -280,7 +294,7 @@ class MockManager:
         if tool_name:
             if tool_name in self.mocks:
                 self.mocks[tool_name].enabled = False
-                logger.info(f"Disabled mock for tool '{tool_name}'")
+                logger.info("Disabled mock for tool '%s'", tool_name)
         else:
             self.enabled = False
             logger.info("Disabled all mocks")

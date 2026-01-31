@@ -10,7 +10,7 @@ Provides:
 """
 
 import logging
-from typing import Any, Dict
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -23,22 +23,26 @@ class StatePrimitive:
     progress, accumulate results, and coordinate between agents.
     """
 
-    def __init__(self, state_schema: Dict[str, Any] = None):
+    def __init__(self, state_schema: dict[str, Any] | None = None):
         """
         Initialize state storage.
 
         Args:
             state_schema: Optional state schema with field definitions and defaults
         """
-        self._state: Dict[str, Any] = {}
-        self._schema: Dict[str, Any] = state_schema or {}
+        self._state_values: dict[str, Any] = {}
+        self._state = self._state_values
+        self._schema_definitions: dict[str, Any] = state_schema or {}
 
         # Initialize state with defaults from schema
-        for key, field_def in self._schema.items():
-            if isinstance(field_def, dict) and "default" in field_def:
-                self._state[key] = field_def["default"]
+        for state_key, schema_field_definition in self._schema_definitions.items():
+            if isinstance(schema_field_definition, dict) and "default" in schema_field_definition:
+                self._state_values[state_key] = schema_field_definition["default"]
 
-        logger.debug(f"StatePrimitive initialized with {len(self._schema)} schema fields")
+        logger.debug(
+            "StatePrimitive initialized with %s schema fields",
+            len(self._schema_definitions),
+        )
 
     def get(self, key: str, default: Any = None) -> Any:
         """
@@ -54,9 +58,9 @@ class StatePrimitive:
         Example (Lua):
             local count = State.get("hypothesis_count", 0)
         """
-        value = self._state.get(key, default)
-        logger.debug(f"State.get('{key}') = {value}")
-        return value
+        stored_value = self._state_values.get(key, default)
+        logger.debug("State.get('%s') = %s", key, stored_value)
+        return stored_value
 
     def set(self, key: str, value: Any) -> None:
         """
@@ -70,18 +74,20 @@ class StatePrimitive:
             State.set("current_phase", "exploration")
         """
         # Validate against schema if present
-        if key in self._schema:
-            field_def = self._schema[key]
-            if isinstance(field_def, dict) and "type" in field_def:
-                expected_type = field_def["type"]
-                if not self._validate_type(value, expected_type):
+        if key in self._schema_definitions:
+            schema_field_definition = self._schema_definitions[key]
+            if isinstance(schema_field_definition, dict) and "type" in schema_field_definition:
+                expected_type = schema_field_definition["type"]
+                if not self._is_value_matching_schema_type(value, expected_type):
                     logger.warning(
-                        f"State.set('{key}'): value type {type(value).__name__} "
-                        f"does not match schema type {expected_type}"
+                        "State.set('%s'): value type %s does not match schema type %s",
+                        key,
+                        type(value).__name__,
+                        expected_type,
                     )
 
-        self._state[key] = value
-        logger.debug(f"State.set('{key}', {value})")
+        self._state_values[key] = value
+        logger.debug("State.set('%s', %s)", key, value)
 
     def increment(self, key: str, amount: float = 1) -> float:
         """
@@ -98,17 +104,17 @@ class StatePrimitive:
             State.increment("hypotheses_filed")
             State.increment("score", 10)
         """
-        current = self._state.get(key, 0)
+        current_value = self._state_values.get(key, 0)
 
         # Ensure numeric
-        if not isinstance(current, (int, float)):
-            logger.warning(f"State.increment: '{key}' is not numeric, resetting to 0")
-            current = 0
+        if not isinstance(current_value, (int, float)):
+            logger.warning("State.increment: '%s' is not numeric, resetting to 0", key)
+            current_value = 0
 
-        new_value = current + amount
-        self._state[key] = new_value
+        new_value = current_value + amount
+        self._state_values[key] = new_value
 
-        logger.debug(f"State.increment('{key}', {amount}) = {new_value}")
+        logger.debug("State.increment('%s', %s) = %s", key, amount, new_value)
         return new_value
 
     def append(self, key: str, value: Any) -> None:
@@ -122,16 +128,21 @@ class StatePrimitive:
         Example (Lua):
             State.append("nodes_created", node_id)
         """
-        if key not in self._state:
-            self._state[key] = []
-        elif not isinstance(self._state[key], list):
-            logger.warning(f"State.append: '{key}' is not a list, converting")
-            self._state[key] = [self._state[key]]
+        if key not in self._state_values:
+            self._state_values[key] = []
+        elif not isinstance(self._state_values[key], list):
+            logger.warning("State.append: '%s' is not a list, converting", key)
+            self._state_values[key] = [self._state_values[key]]
 
-        self._state[key].append(value)
-        logger.debug(f"State.append('{key}', {value}) -> list length: {len(self._state[key])}")
+        self._state_values[key].append(value)
+        logger.debug(
+            "State.append('%s', %s) -> list length: %s",
+            key,
+            value,
+            len(self._state_values[key]),
+        )
 
-    def all(self) -> Dict[str, Any]:
+    def all(self) -> dict[str, Any]:
         """
         Get all state as a dictionary.
 
@@ -144,15 +155,15 @@ class StatePrimitive:
                 print(k, v)
             end
         """
-        logger.debug(f"State.all() returning {len(self._state)} keys")
-        return self._state.copy()
+        logger.debug("State.all() returning %s keys", len(self._state_values))
+        return self._state_values.copy()
 
     def clear(self) -> None:
         """Clear all state (mainly for testing)."""
-        self._state.clear()
+        self._state_values.clear()
         logger.debug("State.clear() - all state cleared")
 
-    def _validate_type(self, value: Any, expected_type: str) -> bool:
+    def _is_value_matching_schema_type(self, value: Any, expected_type: str) -> bool:
         """
         Validate value against expected type from schema.
 
@@ -173,10 +184,10 @@ class StatePrimitive:
 
         expected_python_type = type_mapping.get(expected_type)
         if expected_python_type is None:
-            logger.warning(f"Unknown type in schema: {expected_type}")
+            logger.warning("Unknown type in schema: %s", expected_type)
             return True  # Allow unknown types
 
         return isinstance(value, expected_python_type)
 
     def __repr__(self) -> str:
-        return f"StatePrimitive({len(self._state)} keys)"
+        return f"StatePrimitive({len(self._state_values)} keys)"

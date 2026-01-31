@@ -13,7 +13,7 @@ import io
 import logging
 import time
 import uuid
-from typing import Dict, Any, Optional
+from typing import Any
 
 from tactus.core.registry import ProcedureRegistry, RegistryBuilder
 from tactus.core.dsl_stubs import create_dsl_stubs, lua_table_to_dict
@@ -68,19 +68,19 @@ class TactusRuntime:
     def __init__(
         self,
         procedure_id: str,
-        storage_backend: Optional[StorageBackend] = None,
-        hitl_handler: Optional[HITLHandler] = None,
-        chat_recorder: Optional[ChatRecorder] = None,
+        storage_backend: StorageBackend | None = None,
+        hitl_handler: HITLHandler | None = None,
+        chat_recorder: ChatRecorder | None = None,
         mcp_server=None,
-        mcp_servers: Optional[Dict[str, Any]] = None,
-        openai_api_key: Optional[str] = None,
+        mcp_servers: dict[str, Any] | None = None,
+        openai_api_key: str | None = None,
         log_handler=None,
-        tool_primitive: Optional[ToolPrimitive] = None,
+        tool_primitive: ToolPrimitive | None = None,
         recursion_depth: int = 0,
-        tool_paths: Optional[list] = None,
-        external_config: Optional[Dict[str, Any]] = None,
-        run_id: Optional[str] = None,
-        source_file_path: Optional[str] = None,
+        tool_paths: list[str] | None = None,
+        external_config: dict[str, Any] | None = None,
+        run_id: str | None = None,
+        source_file_path: str | None = None,
     ):
         """
         Initialize the Tactus runtime.
@@ -117,7 +117,10 @@ class TactusRuntime:
                 )
                 # Wrap in adapter for HITLHandler compatibility
                 self.hitl_handler = ControlLoopHITLAdapter(control_handler)
-                logger.info(f"Auto-configured ControlLoopHandler with {len(channels)} channel(s)")
+                logger.info(
+                    "Auto-configured ControlLoopHandler with %s channel(s)",
+                    len(channels),
+                )
             else:
                 # No channels available, leave hitl_handler as None
                 self.hitl_handler = None
@@ -141,55 +144,55 @@ class TactusRuntime:
         self.source_file_path = source_file_path
 
         # Will be initialized during setup
-        self.config: Optional[Dict[str, Any]] = None  # Legacy YAML support
-        self.registry: Optional[ProcedureRegistry] = None  # New DSL registry
-        self.lua_sandbox: Optional[LuaSandbox] = None
-        self.output_validator: Optional[OutputValidator] = None
-        self.template_resolver: Optional[TemplateResolver] = None
-        self.message_history_manager: Optional[MessageHistoryManager] = None
+        self.config: dict[str, Any] | None = None  # Legacy YAML support
+        self.registry: ProcedureRegistry | None = None  # New DSL registry
+        self.lua_sandbox: LuaSandbox | None = None
+        self.output_validator: OutputValidator | None = None
+        self.template_resolver: TemplateResolver | None = None
+        self.message_history_manager: MessageHistoryManager | None = None
 
         # Execution context
-        self.execution_context: Optional[BaseExecutionContext] = None
+        self.execution_context: BaseExecutionContext | None = None
 
         # Primitives (shared across all agents)
-        self.state_primitive: Optional[StatePrimitive] = None
-        self.iterations_primitive: Optional[IterationsPrimitive] = None
-        self.stop_primitive: Optional[StopPrimitive] = None
-        self.tool_primitive: Optional[ToolPrimitive] = None
-        self.human_primitive: Optional[HumanPrimitive] = None
-        self.step_primitive: Optional[StepPrimitive] = None
-        self.checkpoint_primitive: Optional[CheckpointPrimitive] = None
-        self.log_primitive: Optional[LogPrimitive] = None
-        self.json_primitive: Optional[JsonPrimitive] = None
-        self.retry_primitive: Optional[RetryPrimitive] = None
-        self.file_primitive: Optional[FilePrimitive] = None
-        self.procedure_primitive: Optional[ProcedurePrimitive] = None
-        self.system_primitive: Optional[SystemPrimitive] = None
-        self.host_primitive: Optional[HostPrimitive] = None
+        self.state_primitive: StatePrimitive | None = None
+        self.iterations_primitive: IterationsPrimitive | None = None
+        self.stop_primitive: StopPrimitive | None = None
+        self.tool_primitive: ToolPrimitive | None = None
+        self.human_primitive: HumanPrimitive | None = None
+        self.step_primitive: StepPrimitive | None = None
+        self.checkpoint_primitive: CheckpointPrimitive | None = None
+        self.log_primitive: LogPrimitive | None = None
+        self.json_primitive: JsonPrimitive | None = None
+        self.retry_primitive: RetryPrimitive | None = None
+        self.file_primitive: FilePrimitive | None = None
+        self.procedure_primitive: ProcedurePrimitive | None = None
+        self.system_primitive: SystemPrimitive | None = None
+        self.host_primitive: HostPrimitive | None = None
 
         # Agent primitives (one per agent)
-        self.agents: Dict[str, Any] = {}
+        self.agents: dict[str, Any] = {}
 
         # Model primitives (one per model)
-        self.models: Dict[str, Any] = {}
+        self.models: dict[str, Any] = {}
 
         # Toolset registry (name -> AbstractToolset instance)
-        self.toolset_registry: Dict[str, Any] = {}
+        self.toolset_registry: dict[str, Any] = {}
 
         # User dependencies (HTTP clients, DB connections, etc.)
-        self.user_dependencies: Dict[str, Any] = {}
-        self.dependency_manager: Optional[Any] = None  # ResourceManager for cleanup
+        self.user_dependencies: dict[str, Any] = {}
+        self.dependency_manager: Any | None = None  # ResourceManager for cleanup
 
         # Mock manager for testing
-        self.mock_manager: Optional[Any] = None  # MockManager instance
-        self.external_agent_mocks: Optional[dict[str, list[dict[str, Any]]]] = None
+        self.mock_manager: Any | None = None  # MockManager instance
+        self.external_agent_mocks: dict[str, list[dict[str, Any]]] | None = None
         self.mock_all_agents: bool = False
 
-        logger.info(f"TactusRuntime initialized for procedure {procedure_id}")
+        logger.info("TactusRuntime initialized for procedure %s", procedure_id)
 
     async def execute(
-        self, source: str, context: Optional[Dict[str, Any]] = None, format: str = "yaml"
-    ) -> Dict[str, Any]:
+        self, source: str, context: dict[str, Any] | None = None, format: str = "yaml"
+    ) -> dict[str, Any]:
         """
         Execute a workflow (Lua DSL or legacy YAML format).
 
@@ -210,7 +213,7 @@ class TactusRuntime:
         Raises:
             TactusRuntimeError: If execution fails
         """
-        session_id = None
+        chat_session_id = None
         self.context = context or {}  # Store context for param merging
 
         try:
@@ -226,7 +229,8 @@ class TactusRuntime:
 
                 sandbox_base_path = str(Path(self.source_file_path).parent.resolve())
                 logger.debug(
-                    f"Using source file directory as sandbox base_path: {sandbox_base_path}"
+                    "Using source file directory as sandbox base_path: %s",
+                    sandbox_base_path,
                 )
 
             self.lua_sandbox = LuaSandbox(
@@ -262,13 +266,13 @@ class TactusRuntime:
             # Set .tac file path NOW (before parsing) so source location is available during agent calls
             if self.source_file_path:
                 self.execution_context.set_tac_file(self.source_file_path, source)
-                logger.info(f"[CHECKPOINT] Set .tac file path EARLY: {self.source_file_path}")
+                logger.info("[CHECKPOINT] Set .tac file path EARLY: %s", self.source_file_path)
             else:
                 logger.warning("[CHECKPOINT] .tac file path NOT set - source_file_path is None")
 
             # 0b. For Lua DSL, inject placeholder primitives BEFORE parsing
             # so they're available in the procedure function's closure
-            placeholder_tool = None  # Will be set for Lua DSL
+            placeholder_tool_primitive = None  # Will be set for Lua DSL
             if format == "lua":
                 logger.debug("Pre-injecting placeholder primitives for Lua DSL parsing")
                 # Import here to avoid issues with YAML format
@@ -283,11 +287,11 @@ class TactusRuntime:
                 # Use injected tool primitive if provided (for mock mode)
                 # This ensures ToolHandles (like done) use the same primitive as MockAgentPrimitive
                 if self._injected_tool_primitive:
-                    placeholder_tool = self._injected_tool_primitive
+                    placeholder_tool_primitive = self._injected_tool_primitive
                     logger.debug("Using injected tool primitive for parsing (mock mode)")
                 else:
                     # Create tool primitive with log_handler so direct tool calls are tracked
-                    placeholder_tool = LuaToolPrimitive(
+                    placeholder_tool_primitive = LuaToolPrimitive(
                         log_handler=self.log_handler, procedure_id=self.procedure_id
                     )
                 placeholder_params = {}  # Empty params dict
@@ -296,7 +300,8 @@ class TactusRuntime:
                 self.lua_sandbox.inject_primitive("_state_primitive", placeholder_state)
 
                 # Create State object with special methods and lowercase state proxy with metatable
-                self.lua_sandbox.lua.execute("""
+                self.lua_sandbox.lua.execute(
+                    """
                     State = {
                         increment = function(key, amount)
                             return _state_primitive.increment(key, amount or 1)
@@ -318,8 +323,9 @@ class TactusRuntime:
                             _state_primitive.set(key, value)
                         end
                     })
-                """)
-                self.lua_sandbox.inject_primitive("Tool", placeholder_tool)
+                """
+                )
+                self.lua_sandbox.inject_primitive("Tool", placeholder_tool_primitive)
                 self.lua_sandbox.inject_primitive("params", placeholder_params)
                 placeholder_system = LuaSystemPrimitive(
                     procedure_id=self.procedure_id, log_handler=self.log_handler
@@ -335,12 +341,14 @@ class TactusRuntime:
                 source = self._maybe_transform_script_mode_source(source)
 
                 # Pass placeholder_tool so tool() can return callable ToolHandles
-                self.registry = self._parse_declarations(source, placeholder_tool)
+                self.registry = self._parse_declarations(source, placeholder_tool_primitive)
                 logger.info("Loaded procedure from Lua DSL")
                 # Convert registry to config dict for compatibility
                 self.config = self._registry_to_config(self.registry)
                 logger.debug(
-                    f"Registry contents: agents={list(self.registry.agents.keys())}, lua_tools={list(self.registry.lua_tools.keys())}"
+                    "Registry contents: agents=%s, lua_tools=%s",
+                    list(self.registry.agents.keys()),
+                    list(self.registry.lua_tools.keys()),
                 )
 
                 # Process mocks from registry if mock_manager exists
@@ -390,14 +398,18 @@ class TactusRuntime:
                         if key in self.external_config:
                             self.config[key] = self.external_config[key]
 
-                    logger.debug(f"Merged external config with {len(self.external_config)} keys")
+                    logger.debug("Merged external config with %s keys", len(self.external_config))
             else:
                 # Legacy YAML support
                 logger.info("Step 1: Parsing YAML configuration (legacy)")
                 if ProcedureYAMLParser is None:
                     raise TactusRuntimeError("YAML support not available - use Lua DSL format")
                 self.config = ProcedureYAMLParser.parse(source)
-                logger.info(f"Loaded procedure: {self.config['name']} v{self.config['version']}")
+                logger.info(
+                    "Loaded procedure: %s v%s",
+                    self.config["name"],
+                    self.config["version"],
+                )
 
             # 2. Setup output validator
             logger.info("Step 2: Setting up output validator")
@@ -405,7 +417,9 @@ class TactusRuntime:
             self.output_validator = OutputValidator(output_schema)
             if output_schema:
                 logger.info(
-                    f"Output schema has {len(output_schema)} fields: {list(output_schema.keys())}"
+                    "Output schema has %s fields: %s",
+                    len(output_schema),
+                    list(output_schema.keys()),
                 )
 
             # 3. Lua sandbox is already set up in step 0
@@ -414,7 +428,7 @@ class TactusRuntime:
             # 4. Initialize primitives
             logger.info("Step 4: Initializing primitives")
             # Pass placeholder_tool so direct tool calls are tracked in the same primitive
-            await self._initialize_primitives(placeholder_tool=placeholder_tool)
+            await self._initialize_primitives(placeholder_tool=placeholder_tool_primitive)
 
             # 4b. Initialize template resolver and session manager
             self.template_resolver = TemplateResolver(
@@ -427,9 +441,9 @@ class TactusRuntime:
             # 5. Start chat session if recorder available
             if self.chat_recorder:
                 logger.info("Step 5: Starting chat session")
-                session_id = await self.chat_recorder.start_session(context)
-                if session_id:
-                    logger.info(f"Chat session started: {session_id}")
+                chat_session_id = await self.chat_recorder.start_session(context)
+                if chat_session_id:
+                    logger.info("Chat session started: %s", chat_session_id)
                 else:
                     logger.warning("Failed to create chat session - continuing without recording")
 
@@ -501,7 +515,7 @@ class TactusRuntime:
             # 10.5. Apply return_prompt if specified (future: inject to agent for summary)
             if self.config.get("return_prompt"):
                 return_prompt = self.config["return_prompt"]
-                logger.info(f"Return prompt specified: {return_prompt[:50]}...")
+                logger.info("Return prompt specified: %s...", return_prompt[:50])
                 # TODO: In full implementation, inject this prompt to an agent to get a summary
                 # For now, just log it
 
@@ -524,8 +538,8 @@ class TactusRuntime:
                         await agent_primitive.flush_recordings()
 
             # 13. End chat session
-            if self.chat_recorder and session_id:
-                await self.chat_recorder.end_session(session_id, status="COMPLETED")
+            if self.chat_recorder and chat_session_id:
+                await self.chat_recorder.end_session(chat_session_id, status="COMPLETED")
 
             # 14. Build final results
             final_state = self.state_primitive.all() if self.state_primitive else {}
@@ -536,9 +550,9 @@ class TactusRuntime:
             )
 
             logger.info(
-                f"Workflow execution complete: "
-                f"{self.iterations_primitive.current() if self.iterations_primitive else 0} iterations, "
-                f"{len(tools_used)} tool calls"
+                "Workflow execution complete: %s iterations, %s tool calls",
+                self.iterations_primitive.current() if self.iterations_primitive else 0,
+                len(tools_used),
             )
 
             # Collect cost events and calculate totals
@@ -608,14 +622,14 @@ class TactusRuntime:
                 "tools_used": tools_used,
                 "stop_requested": self.stop_primitive.requested() if self.stop_primitive else False,
                 "stop_reason": self.stop_primitive.reason() if self.stop_primitive else None,
-                "session_id": session_id,
+                "session_id": chat_session_id,
                 "total_cost": total_cost,
                 "total_tokens": total_tokens,
                 "cost_breakdown": cost_breakdown,
             }
 
         except ProcedureWaitingForHuman as e:
-            logger.info(f"Procedure waiting for human: {e}")
+            logger.info("Procedure waiting for human: %s", e)
 
             # Flush recordings before exiting
             if self.chat_recorder:
@@ -632,17 +646,17 @@ class TactusRuntime:
                 "procedure_id": self.procedure_id,
                 "pending_message_id": getattr(e, "pending_message_id", None),
                 "message": str(e),
-                "session_id": session_id,
+                "session_id": chat_session_id,
             }
 
         except ProcedureConfigError as e:
-            logger.error(f"Configuration error: {e}")
+            logger.error("Configuration error: %s", e)
             # Flush recordings even on error
-            if self.chat_recorder and session_id:
+            if self.chat_recorder and chat_session_id:
                 try:
-                    await self.chat_recorder.end_session(session_id, status="FAILED")
+                    await self.chat_recorder.end_session(chat_session_id, status="FAILED")
                 except Exception as err:
-                    logger.warning(f"Failed to end chat session: {err}")
+                    logger.warning("Failed to end chat session: %s", err)
 
             # Send error summary event if log handler is available
             if self.log_handler:
@@ -672,20 +686,20 @@ class TactusRuntime:
             }
 
         except LuaSandboxError as e:
-            logger.error(f"Lua execution error: {e}")
+            logger.error("Lua execution error: %s", e)
 
             # Apply error_prompt if specified (future: inject to agent for explanation)
             if self.config and self.config.get("error_prompt"):
                 error_prompt = self.config["error_prompt"]
-                logger.info(f"Error prompt specified: {error_prompt[:50]}...")
+                logger.info("Error prompt specified: %s...", error_prompt[:50])
                 # TODO: In full implementation, inject this prompt to an agent to get an explanation
 
             # Flush recordings even on error
-            if self.chat_recorder and session_id:
+            if self.chat_recorder and chat_session_id:
                 try:
-                    await self.chat_recorder.end_session(session_id, status="FAILED")
+                    await self.chat_recorder.end_session(chat_session_id, status="FAILED")
                 except Exception as err:
-                    logger.warning(f"Failed to end chat session: {err}")
+                    logger.warning("Failed to end chat session: %s", err)
 
             # Send error summary event if log handler is available
             if self.log_handler:
@@ -714,26 +728,21 @@ class TactusRuntime:
                 "error": f"Lua execution error: {e}",
             }
 
-        except ProcedureWaitingForHuman:
-            # Re-raise this exception to trigger exit-and-resume pattern
-            # Don't treat this as an error - it's expected behavior
-            raise
-
         except Exception as e:
-            logger.error(f"Unexpected error: {e}", exc_info=True)
+            logger.error("Unexpected error: %s", e, exc_info=True)
 
             # Apply error_prompt if specified (future: inject to agent for explanation)
             if self.config and self.config.get("error_prompt"):
                 error_prompt = self.config["error_prompt"]
-                logger.info(f"Error prompt specified: {error_prompt[:50]}...")
+                logger.info("Error prompt specified: %s...", error_prompt[:50])
                 # TODO: In full implementation, inject this prompt to an agent to get an explanation
 
             # Flush recordings even on error
-            if self.chat_recorder and session_id:
+            if self.chat_recorder and chat_session_id:
                 try:
-                    await self.chat_recorder.end_session(session_id, status="FAILED")
+                    await self.chat_recorder.end_session(chat_session_id, status="FAILED")
                 except Exception as err:
-                    logger.warning(f"Failed to end chat session: {err}")
+                    logger.warning("Failed to end chat session: %s", err)
 
             # Send error summary event if log handler is available
             if self.log_handler:
@@ -769,7 +778,7 @@ class TactusRuntime:
                     await self.mcp_manager.__aexit__(None, None, None)
                     logger.info("Disconnected from MCP servers")
                 except Exception as e:
-                    logger.warning(f"Error disconnecting from MCP servers: {e}")
+                    logger.warning("Error disconnecting from MCP servers: %s", e)
 
             # Cleanup: Close user dependencies
             if self.dependency_manager:
@@ -777,9 +786,12 @@ class TactusRuntime:
                     await self.dependency_manager.cleanup()
                     logger.info("Cleaned up user dependencies")
                 except Exception as e:
-                    logger.warning(f"Error cleaning up dependencies: {e}")
+                    logger.warning("Error cleaning up dependencies: %s", e)
 
-    async def _initialize_primitives(self, placeholder_tool: Optional[ToolPrimitive] = None):
+    async def _initialize_primitives(
+        self,
+        placeholder_tool: ToolPrimitive | None = None,
+    ):
         """Initialize all primitive objects.
 
         Args:
@@ -798,7 +810,7 @@ class TactusRuntime:
             self.tool_primitive = self._injected_tool_primitive
             logger.info("Using injected tool primitive (mock mode)")
         elif placeholder_tool:
-            # Reuse placeholder_tool so direct tool calls from ToolHandles are tracked
+            # Reuse placeholder tool primitive so direct tool calls from ToolHandles are tracked
             self.tool_primitive = placeholder_tool
             logger.debug("Reusing placeholder tool primitive for direct tool call tracking")
         else:
@@ -816,7 +828,7 @@ class TactusRuntime:
 
         logger.debug("All primitives initialized")
 
-    def resolve_toolset(self, name: str) -> Optional[Any]:
+    def resolve_toolset(self, name: str) -> Any | None:
         """
         Resolve a toolset by name from runtime's registered toolsets.
 
@@ -1027,7 +1039,7 @@ class TactusRuntime:
         for name, toolset in self.toolset_registry.items():
             logger.debug(f"  - {name}: {type(toolset)} -> {toolset}")
 
-    async def _resolve_tool_source(self, tool_name: str, source: str) -> Optional[Any]:
+    async def _resolve_tool_source(self, tool_name: str, source: str) -> Any | None:
         """
         Resolve a tool from an external source.
 
@@ -1102,34 +1114,38 @@ class TactusRuntime:
             plugin_path = source[7:]  # Remove "plugin." prefix
             try:
                 # Split the plugin path into module and function
-                parts = plugin_path.rsplit(".", 1)
-                if len(parts) != 2:
+                path_segments = plugin_path.rsplit(".", 1)
+                if len(path_segments) != 2:
                     logger.error(
                         f"Invalid plugin path format: {source} (expected plugin.module.function)"
                     )
                     return None
 
-                module_name, func_name = parts
+                module_name, function_name = path_segments
 
                 # Try to import the module
                 import importlib
 
                 try:
-                    module = importlib.import_module(module_name)
+                    module_object = importlib.import_module(module_name)
                 except ModuleNotFoundError:
                     # Try with "tactus.plugins." prefix
                     try:
-                        module = importlib.import_module(f"tactus.plugins.{module_name}")
+                        module_object = importlib.import_module(f"tactus.plugins.{module_name}")
                     except ModuleNotFoundError:
                         logger.error(f"Plugin module not found: {module_name}")
                         return None
 
                 # Get the function from the module
-                if not hasattr(module, func_name):
-                    logger.error(f"Function '{func_name}' not found in module '{module_name}'")
+                if not hasattr(module_object, function_name):
+                    logger.error(
+                        "Function '%s' not found in module '%s'",
+                        function_name,
+                        module_name,
+                    )
                     return None
 
-                tool_func = getattr(module, func_name)
+                tool_function = getattr(module_object, function_name)
 
                 # Create a toolset with the plugin tool
                 from pydantic_ai.toolsets import FunctionToolset
@@ -1154,7 +1170,7 @@ class TactusRuntime:
                             return mock_result
 
                     # Call the plugin function
-                    result = tool_func(**kwargs)
+                    result = tool_function(**kwargs)
                     logger.debug(f"Plugin tool '{tool_name}' returned: {result}")
 
                     # Track the call
@@ -1168,13 +1184,18 @@ class TactusRuntime:
                 # Copy metadata
                 tracked_plugin_tool.__name__ = tool_name
                 tracked_plugin_tool.__doc__ = getattr(
-                    tool_func, "__doc__", f"Plugin tool: {tool_name}"
+                    tool_function, "__doc__", f"Plugin tool: {tool_name}"
                 )
 
                 # Create and return toolset
                 wrapped_tool = Tool(tracked_plugin_tool, name=tool_name)
                 toolset = FunctionToolset(tools=[wrapped_tool])
-                logger.info(f"Loaded plugin tool '{tool_name}' from {module_name}.{func_name}")
+                logger.info(
+                    "Loaded plugin tool '%s' from %s.%s",
+                    tool_name,
+                    module_name,
+                    function_name,
+                )
                 return toolset
 
             except Exception as e:
@@ -1209,7 +1230,7 @@ class TactusRuntime:
                             return mock_result
 
                     # Build command line
-                    cmd = [cli_command]
+                    command_arguments = [cli_command]
 
                     # Add arguments from kwargs
                     # Common patterns:
@@ -1220,23 +1241,23 @@ class TactusRuntime:
                     for key, value in kwargs.items():
                         if key == "args" and isinstance(value, list):
                             # Positional arguments
-                            cmd.extend(value)
+                            command_arguments.extend(value)
                         elif isinstance(value, bool):
                             if value:
                                 # Boolean flag
                                 flag = f"--{key.replace('_', '-')}"
-                                cmd.append(flag)
+                                command_arguments.append(flag)
                         elif value is not None:
                             # Key-value argument
                             flag = f"--{key.replace('_', '-')}"
-                            cmd.extend([flag, str(value)])
+                            command_arguments.extend([flag, str(value)])
 
-                    logger.debug(f"Executing CLI command: {' '.join(cmd)}")
+                    logger.debug("Executing CLI command: %s", " ".join(command_arguments))
 
                     try:
                         # Execute the command
-                        result = subprocess.run(
-                            cmd,
+                        command_result = subprocess.run(
+                            command_arguments,
                             capture_output=True,
                             text=True,
                             check=False,
@@ -1244,31 +1265,31 @@ class TactusRuntime:
                         )
 
                         # Prepare response
-                        response = {
-                            "stdout": result.stdout,
-                            "stderr": result.stderr,
-                            "returncode": result.returncode,
-                            "success": result.returncode == 0,
+                        command_response = {
+                            "stdout": command_result.stdout,
+                            "stderr": command_result.stderr,
+                            "returncode": command_result.returncode,
+                            "success": command_result.returncode == 0,
                         }
 
                         # Try to parse JSON output if possible
-                        if result.stdout.strip().startswith(
+                        if command_result.stdout.strip().startswith(
                             "{"
-                        ) or result.stdout.strip().startswith("["):
+                        ) or command_result.stdout.strip().startswith("["):
                             try:
-                                response["json"] = json.loads(result.stdout)
+                                command_response["json"] = json.loads(command_result.stdout)
                             except json.JSONDecodeError:
                                 pass
 
-                        logger.debug(f"CLI tool '{tool_name}' returned: {response}")
+                        logger.debug("CLI tool '%s' returned: %s", tool_name, command_response)
 
                         # Track the call
                         if tool_primitive:
-                            tool_primitive.record_call(tool_name, kwargs, response)
+                            tool_primitive.record_call(tool_name, kwargs, command_response)
                         if self.mock_manager:
-                            self.mock_manager.record_call(tool_name, kwargs, response)
+                            self.mock_manager.record_call(tool_name, kwargs, command_response)
 
-                        return response
+                        return command_response
 
                     except subprocess.TimeoutExpired:
                         error_response = {
@@ -1364,49 +1385,56 @@ class TactusRuntime:
 
         from tactus.primitives.procedure_callable import ProcedureCallable
 
-        for proc_name, proc_def in self.registry.named_procedures.items():
+        for procedure_name, procedure_definition in self.registry.named_procedures.items():
             try:
                 logger.debug(
-                    f"Processing named procedure '{proc_name}': "
-                    f"function={proc_def['function']}, type={type(proc_def['function'])}"
+                    "Processing named procedure '%s': function=%s, type=%s",
+                    procedure_name,
+                    procedure_definition["function"],
+                    type(procedure_definition["function"]),
                 )
 
                 # Create callable wrapper
                 callable_wrapper = ProcedureCallable(
-                    name=proc_name,
-                    procedure_function=proc_def["function"],
-                    input_schema=proc_def["input_schema"],
-                    output_schema=proc_def["output_schema"],
-                    state_schema=proc_def["state_schema"],
+                    name=procedure_name,
+                    procedure_function=procedure_definition["function"],
+                    input_schema=procedure_definition["input_schema"],
+                    output_schema=procedure_definition["output_schema"],
+                    state_schema=procedure_definition["state_schema"],
                     execution_context=self.execution_context,
                     lua_sandbox=self.lua_sandbox,
                 )
 
                 # Get the old stub (if it exists) to update its registry
                 try:
-                    old_value = self.lua_sandbox.lua.globals()[proc_name]
+                    old_value = self.lua_sandbox.lua.globals()[procedure_name]
                     if old_value and hasattr(old_value, "registry"):
                         # Update the stub's registry so it delegates to the real callable
-                        old_value.registry[proc_name] = callable_wrapper
+                        old_value.registry[procedure_name] = callable_wrapper
                 except (KeyError, AttributeError):
                     # Stub doesn't exist in globals yet, that's fine
                     pass
 
                 # Inject into Lua globals (replaces placeholder)
-                self.lua_sandbox.lua.globals()[proc_name] = callable_wrapper
+                self.lua_sandbox.lua.globals()[procedure_name] = callable_wrapper
 
-                logger.info(f"Registered named procedure: {proc_name}")
+                logger.info("Registered named procedure: %s", procedure_name)
             except Exception as e:
                 logger.error(
-                    f"Failed to initialize named procedure '{proc_name}': {e}",
+                    "Failed to initialize named procedure '%s': %s",
+                    procedure_name,
+                    e,
                     exc_info=True,
                 )
 
-        logger.info(f"Initialized {len(self.registry.named_procedures)} named procedure(s)")
+        logger.info(
+            "Initialized %s named procedure(s)",
+            len(self.registry.named_procedures),
+        )
 
     async def _create_toolset_from_config(
-        self, name: str, definition: Dict[str, Any]
-    ) -> Optional[Any]:
+        self, name: str, definition: dict[str, Any]
+    ) -> Any | None:
         """
         Create toolset from YAML config definition.
 
@@ -1481,7 +1509,9 @@ class TactusRuntime:
 
             if pattern:
                 # Filter by regex pattern
-                return source_toolset.filtered(lambda ctx, tool: re.match(pattern, tool.name))
+                return source_toolset.filtered(
+                    lambda execution_context, tool: re.match(pattern, tool.name)
+                )
             else:
                 logger.warning(f"Filtered toolset '{name}' has no filter pattern")
                 return source_toolset
@@ -1685,13 +1715,17 @@ class TactusRuntime:
                 if "include" in expr:
                     # Filter to specific tools
                     tool_names = set(expr["include"])
-                    toolset = toolset.filtered(lambda ctx, tool: tool.name in tool_names)
+                    toolset = toolset.filtered(
+                        lambda execution_context, tool: tool.name in tool_names
+                    )
                     logger.debug(f"Applied include filter to toolset '{name}': {tool_names}")
 
                 if "exclude" in expr:
                     # Exclude specific tools
                     tool_names = set(expr["exclude"])
-                    toolset = toolset.filtered(lambda ctx, tool: tool.name not in tool_names)
+                    toolset = toolset.filtered(
+                        lambda execution_context, tool: tool.name not in tool_names
+                    )
                     logger.debug(f"Applied exclude filter to toolset '{name}': {tool_names}")
 
                 if "prefix" in expr:
@@ -1748,7 +1782,7 @@ class TactusRuntime:
             logger.error(f"Failed to initialize dependencies: {e}")
             raise RuntimeError(f"Dependency initialization failed: {e}")
 
-    async def _setup_agents(self, context: Dict[str, Any]):
+    async def _setup_agents(self, context: dict[str, Any]):
         """
         Setup agent primitives with LLMs and tools using Pydantic AI.
 
@@ -2110,7 +2144,7 @@ class TactusRuntime:
                 logger.error(f"Failed to setup model '{model_name}': {e}")
                 raise
 
-    def _create_pydantic_model_from_output(self, output_schema, model_name: str) -> type:
+    def _create_pydantic_model_from_output(self, output_schema: Any, model_name: str) -> type:
         """
         Convert output schema to Pydantic model.
 
@@ -2124,7 +2158,6 @@ class TactusRuntime:
             Dynamically created Pydantic model class
         """
         from pydantic import create_model
-        from typing import Optional
 
         fields = {}
 
@@ -2139,21 +2172,21 @@ class TactusRuntime:
             # Extract field properties
             if hasattr(field_def, "type"):
                 field_type_str = field_def.type
-                required = getattr(field_def, "required", True)
+                is_required = getattr(field_def, "required", True)
             else:
                 # Fields from registry are plain dicts (FieldDefinition type is lost)
                 # Trust that they were created with field builders
                 field_type_str = field_def.get("type", "string")
-                required = field_def.get("required", True)
+                is_required = field_def.get("required", True)
 
             # Map type string to Python type
             field_type = self._map_type_string(field_type_str)
 
             # Create field tuple (type, default_or_required)
-            if required:
+            if is_required:
                 fields[field_name] = (field_type, ...)  # Required field
             else:
-                fields[field_name] = (Optional[field_type], None)  # Optional field
+                fields[field_name] = (field_type | None, None)  # Optional field
 
         return create_model(model_name, **fields)
 
@@ -2176,7 +2209,7 @@ class TactusRuntime:
         return type_map.get(type_str.lower(), str)
 
     def _create_output_model_from_schema(
-        self, output_schema: Dict[str, Any], model_name: str = "OutputModel"
+        self, output_schema: dict[str, Any], model_name: str = "OutputModel"
     ) -> type:
         """
         Create a Pydantic model from output schema definition.
@@ -2334,14 +2367,14 @@ class TactusRuntime:
                 if isinstance(value, list):
                     # Convert Python list to Lua table (1-indexed)
                     lua_table = self.lua_sandbox.lua.table()
-                    for i, item in enumerate(value, 1):
-                        lua_table[i] = convert_to_lua(item)
+                    for index, item in enumerate(value, 1):
+                        lua_table[index] = convert_to_lua(item)
                     return lua_table
                 elif isinstance(value, dict):
                     # Convert Python dict to Lua table
                     lua_table = self.lua_sandbox.lua.table()
-                    for k, v in value.items():
-                        lua_table[k] = convert_to_lua(v)
+                    for key, item in value.items():
+                        lua_table[key] = convert_to_lua(item)
                     return lua_table
                 else:
                     return value
@@ -2381,7 +2414,8 @@ class TactusRuntime:
             self.lua_sandbox.inject_primitive("_python_checkpoint", self.step_primitive.checkpoint)
 
             # Create Lua wrapper that captures source location before calling Python
-            self.lua_sandbox.lua.execute("""
+            self.lua_sandbox.lua.execute(
+                """
                 function checkpoint(fn)
                     -- Capture caller's source location (2 levels up: this wrapper -> caller)
                     local info = debug.getinfo(2, 'Sl')
@@ -2397,7 +2431,8 @@ class TactusRuntime:
                         return _python_checkpoint(fn, nil)
                     end
                 end
-            """)
+            """
+            )
             logger.debug("Checkpoint wrapper injected with Lua source location tracking")
 
         if self.checkpoint_primitive:
@@ -2715,7 +2750,7 @@ class TactusRuntime:
 
         return transformed
 
-    def _process_template(self, template: str, context: Dict[str, Any]) -> str:
+    def _process_template(self, template: str, context: dict[str, Any]) -> str:
         """
         Process a template string with variable substitution.
 
@@ -2733,14 +2768,14 @@ class TactusRuntime:
             class DotFormatter(Formatter):
                 def get_field(self, field_name, args, kwargs):
                     # Support dot notation like {params.topic}
-                    parts = field_name.split(".")
-                    obj = kwargs
-                    for part in parts:
-                        if isinstance(obj, dict):
-                            obj = obj.get(part, "")
+                    path_parts = field_name.split(".")
+                    current_value = kwargs
+                    for part in path_parts:
+                        if isinstance(current_value, dict):
+                            current_value = current_value.get(part, "")
                         else:
-                            obj = getattr(obj, part, "")
-                    return obj, field_name
+                            current_value = getattr(current_value, part, "")
+                    return current_value, field_name
 
             template_vars = {}
 
@@ -2763,15 +2798,15 @@ class TactusRuntime:
 
             # Use dot-notation formatter
             formatter = DotFormatter()
-            result = formatter.format(template, **template_vars)
-            return result
+            resolved_template = formatter.format(template, **template_vars)
+            return resolved_template
 
-        except KeyError as e:
-            logger.warning(f"Template variable {e} not found, using template as-is")
+        except KeyError as exception:
+            logger.warning(f"Template variable {exception} not found, using template as-is")
             return template
 
-        except Exception as e:
-            logger.error(f"Error processing template: {e}")
+        except Exception as exception:
+            logger.error(f"Error processing template: {exception}")
             return template
 
     def _format_output_schema_for_prompt(self) -> str:
@@ -2809,7 +2844,7 @@ class TactusRuntime:
 
         return "\n".join(lines)
 
-    def get_state(self) -> Dict[str, Any]:
+    def get_state(self) -> dict[str, Any]:
         """Get current procedure state."""
         if self.state_primitive:
             return self.state_primitive.all()
@@ -2828,7 +2863,7 @@ class TactusRuntime:
         return False
 
     def _parse_declarations(
-        self, source: str, tool_primitive: Optional[ToolPrimitive] = None
+        self, source: str, tool_primitive: ToolPrimitive | None = None
     ) -> ProcedureRegistry:
         """
         Execute .tac to collect declarations.
@@ -2940,7 +2975,7 @@ class TactusRuntime:
         logger.debug(f"Registry after parsing: lua_tools={list(result.registry.lua_tools.keys())}")
         return result.registry
 
-    def _registry_to_config(self, registry: ProcedureRegistry) -> Dict[str, Any]:
+    def _registry_to_config(self, registry: ProcedureRegistry) -> dict[str, Any]:
         """
         Convert registry to config dict format.
 
@@ -3049,7 +3084,7 @@ class TactusRuntime:
         return config
 
     def _create_runtime_for_procedure(
-        self, procedure_name: str, params: Dict[str, Any]
+        self, procedure_name: str, params: dict[str, Any]
     ) -> "TactusRuntime":
         """
         Create a new runtime instance for a sub-procedure.

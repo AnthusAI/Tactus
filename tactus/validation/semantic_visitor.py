@@ -6,6 +6,7 @@ extracting declarations without executing code.
 """
 
 import logging
+import re
 from typing import Any, Optional
 
 from .generated.LuaParser import LuaParser
@@ -57,196 +58,185 @@ class TactusDSLVisitor(LuaParserVisitor):
         self.current_col = 0
         self.in_function_body = False  # Track if we're inside a function body
 
-    def visitFunctiondef(self, ctx):
+    def visitFunctiondef(self, context):
         """Track when entering/exiting function definitions."""
         # Set flag when entering function body
-        old_in_function = self.in_function_body
+        previous_in_function_body = self.in_function_body
         self.in_function_body = True
         try:
-            result = super().visitChildren(ctx)
+            child_visit_result = super().visitChildren(context)
         finally:
             # Restore previous state when exiting
-            self.in_function_body = old_in_function
-        return result
+            self.in_function_body = previous_in_function_body
+        return child_visit_result
 
-    def visitStat(self, ctx: LuaParser.StatContext):
+    def visitStat(self, context: LuaParser.StatContext):
         """Handle statement nodes including assignments."""
         # Check if this is an assignment statement
-        if ctx.varlist() and ctx.explist():
+        if context.varlist() and context.explist():
             # This is an assignment: varlist '=' explist
-            varlist = ctx.varlist()
-            explist = ctx.explist()
+            variable_list = context.varlist()
+            expression_list = context.explist()
 
             # Get the variable name
-            if varlist.var() and len(varlist.var()) > 0:
-                var = varlist.var()[0]
-                if var.NAME():
-                    var_name = var.NAME().getText()
+            if variable_list.var() and len(variable_list.var()) > 0:
+                assignment_target_node = variable_list.var()[0]
+                if assignment_target_node.NAME():
+                    assignment_target_name = assignment_target_node.NAME().getText()
 
                     # Check if this is a DSL setting assignment
-                    if var_name in [
-                        "default_provider",
-                        "default_model",
-                        "return_prompt",
-                        "error_prompt",
-                        "status_prompt",
-                        "async",
-                        "max_depth",
-                        "max_turns",
-                    ]:
+                    setting_handlers_by_name = {
+                        "default_provider": self.builder.set_default_provider,
+                        "default_model": self.builder.set_default_model,
+                        "return_prompt": self.builder.set_return_prompt,
+                        "error_prompt": self.builder.set_error_prompt,
+                        "status_prompt": self.builder.set_status_prompt,
+                        "async": self.builder.set_async,
+                        "max_depth": self.builder.set_max_depth,
+                        "max_turns": self.builder.set_max_turns,
+                    }
+                    if assignment_target_name in setting_handlers_by_name:
                         # Get the value from explist
-                        if explist.exp() and len(explist.exp()) > 0:
-                            exp = explist.exp()[0]
-                            value = self._extract_literal_value(exp)
-
+                        if expression_list.exp() and len(expression_list.exp()) > 0:
+                            first_expression = expression_list.exp()[0]
+                            literal_value = self._extract_literal_value(first_expression)
                             # Process the assignment like a function call
-                            if var_name == "default_provider":
-                                self.builder.set_default_provider(value)
-                            elif var_name == "default_model":
-                                self.builder.set_default_model(value)
-                            elif var_name == "return_prompt":
-                                self.builder.set_return_prompt(value)
-                            elif var_name == "error_prompt":
-                                self.builder.set_error_prompt(value)
-                            elif var_name == "status_prompt":
-                                self.builder.set_status_prompt(value)
-                            elif var_name == "async":
-                                self.builder.set_async(value)
-                            elif var_name == "max_depth":
-                                self.builder.set_max_depth(value)
-                            elif var_name == "max_turns":
-                                self.builder.set_max_turns(value)
+                            setting_handlers_by_name[assignment_target_name](literal_value)
                     else:
                         # Check for assignment-based DSL declarations
                         # e.g., greeter = Agent {...}, done = Tool {...}
-                        if explist.exp() and len(explist.exp()) > 0:
-                            exp = explist.exp()[0]
-                            self._check_assignment_based_declaration(var_name, exp)
+                        if expression_list.exp() and len(expression_list.exp()) > 0:
+                            first_expression = expression_list.exp()[0]
+                            self._check_assignment_based_declaration(
+                                assignment_target_name, first_expression
+                            )
 
         # Continue visiting children
-        return self.visitChildren(ctx)
+        return self.visitChildren(context)
 
-    def _check_assignment_based_declaration(self, var_name: str, exp):
+    def _check_assignment_based_declaration(
+        self, assignment_target_name: str, assignment_expression
+    ):
         """Check if an assignment is a DSL declaration like 'greeter = Agent {...}'."""
         # Look for prefixexp with functioncall pattern: Agent {...}
-        if exp.prefixexp():
-            prefixexp = exp.prefixexp()
-            if prefixexp.functioncall():
-                func_call = prefixexp.functioncall()
-                func_name = self._extract_function_name(func_call)
+        if assignment_expression.prefixexp():
+            prefix_expression = assignment_expression.prefixexp()
+            if prefix_expression.functioncall():
+                function_call = prefix_expression.functioncall()
+                function_name = self._extract_function_name(function_call)
 
                 # Check if this is a chained method call (e.g., Agent('name').turn())
                 # Chained calls have structure: func_name args . method_name args
                 # Simple declarations have: func_name args or func_name table
                 # If there are more than 2 children, it's a chained call, not a declaration
-                is_chained_call = func_call.getChildCount() > 2
+                is_chained_method_call = function_call.getChildCount() > 2
 
-                if func_name == "Agent" and not is_chained_call:
+                if function_name == "Agent" and not is_chained_method_call:
                     # Extract config from Agent {...}
-                    config = self._extract_single_table_arg(func_call)
+                    declaration_config = self._extract_single_table_arg(function_call)
                     # Filter out None values from tools list (variable refs can't be resolved)
-                    if config and "tools" in config:
-                        tools = config["tools"]
-                        if isinstance(tools, list):
-                            config["tools"] = [t for t in tools if t is not None]
-                    self.builder.register_agent(var_name, config if config else {}, None)
-                elif func_name == "Tool":
+                    if declaration_config and "tools" in declaration_config:
+                        tool_name_list = declaration_config["tools"]
+                        if isinstance(tool_name_list, list):
+                            declaration_config["tools"] = [
+                                tool_name for tool_name in tool_name_list if tool_name is not None
+                            ]
+                    self.builder.register_agent(
+                        assignment_target_name,
+                        declaration_config if declaration_config else {},
+                        None,
+                    )
+                elif function_name == "Tool":
                     # Extract config from Tool {...}
-                    config = self._extract_single_table_arg(func_call)
+                    declaration_config = self._extract_single_table_arg(function_call)
                     if (
-                        config
-                        and isinstance(config, dict)
-                        and isinstance(config.get("name"), str)
-                        and config.get("name") != var_name
+                        declaration_config
+                        and isinstance(declaration_config, dict)
+                        and isinstance(declaration_config.get("name"), str)
+                        and declaration_config.get("name") != assignment_target_name
                     ):
                         self.errors.append(
                             ValidationMessage(
                                 level="error",
                                 message=(
-                                    f"Tool name mismatch: '{var_name} = Tool {{ name = \"{config.get('name')}\" }}'. "
-                                    f"Remove the 'name' field or set it to '{var_name}'."
+                                    f"Tool name mismatch: '{assignment_target_name} = Tool {{ name = \"{declaration_config.get('name')}\" }}'. "
+                                    f"Remove the 'name' field or set it to '{assignment_target_name}'."
                                 ),
                                 location=(self.current_line, self.current_col),
                                 declaration="Tool",
                             )
                         )
-                    self.builder.register_tool(var_name, config if config else {}, None)
-                elif func_name == "Toolset":
+                    self.builder.register_tool(
+                        assignment_target_name,
+                        declaration_config if declaration_config else {},
+                        None,
+                    )
+                elif function_name == "Toolset":
                     # Extract config from Toolset {...}
-                    config = self._extract_single_table_arg(func_call)
-                    self.builder.register_toolset(var_name, config if config else {})
-                elif func_name == "Procedure":
+                    declaration_config = self._extract_single_table_arg(function_call)
+                    self.builder.register_toolset(
+                        assignment_target_name,
+                        declaration_config if declaration_config else {},
+                    )
+                elif function_name == "Procedure":
                     # New assignment syntax: main = Procedure { function(input) ... }
                     # Register as a named procedure
                     self.builder.register_named_procedure(
-                        var_name,
+                        assignment_target_name,
                         None,  # Function not available during validation
                         {},  # Input schema will be extracted from top-level input {}
                         {},  # Output schema will be extracted from top-level output {}
                         {},  # State schema
                     )
 
-    def _extract_single_table_arg(self, func_call) -> dict:
+    def _extract_single_table_arg(self, function_call) -> dict:
         """Extract a single table argument from a function call like Agent {...}."""
-        args_list = func_call.args()
-        if not args_list:
+        argument_list_nodes = function_call.args()
+        if not argument_list_nodes:
             return {}
 
         # Process first args entry only
-        if len(args_list) > 0:
-            args_ctx = args_list[0]
-            if args_ctx.tableconstructor():
-                return self._parse_table_constructor(args_ctx.tableconstructor())
+        argument_context = argument_list_nodes[0]
+        if argument_context.tableconstructor():
+            return self._parse_table_constructor(argument_context.tableconstructor())
 
         return {}
 
-    def visitFunctioncall(self, ctx: LuaParser.FunctioncallContext):
+    def visitFunctioncall(self, context: LuaParser.FunctioncallContext):
         """Recognize and process DSL function calls."""
         try:
             # Extract line/column for error reporting
-            if ctx.start:
-                self.current_line = ctx.start.line
-                self.current_col = ctx.start.column
+            if context.start:
+                self.current_line = context.start.line
+                self.current_col = context.start.column
 
             # Check for deprecated method calls like .turn() or .run()
-            self._check_deprecated_method_calls(ctx)
+            self._check_deprecated_method_calls(context)
 
-            func_name = self._extract_function_name(ctx)
+            function_name = self._extract_function_name(context)
 
             # Check if this is a method call (e.g., Tool.called()) vs a direct call (e.g., Tool())
             # For "Tool.called()", parser extracts "Tool" as func_name but full text is "Tool.called(...)"
             # We want to skip if full_text shows it's actually calling a method ON Tool, not Tool itself
-            full_text = ctx.getText()
-            is_method_call = False
-            if func_name:
-                # If the text is "Tool.called(...)" and func_name is "Tool",
-                # then it's actually calling .called() method on Tool, not calling Tool()
-                # Check: does full_text have func_name followed by a dot/colon (not by opening paren)?
-                # Pattern: func_name followed by . or : means it's accessing a method/property
-                import re
+            is_method_access_call = self._is_method_access_call(function_name, context)
 
-                # Match: funcName followed by . or : (not by opening paren directly)
-                method_access_pattern = re.escape(func_name) + r"[.:]"
-                if re.search(method_access_pattern, full_text):
-                    is_method_call = True
-
-            if func_name in self.DSL_FUNCTIONS and not is_method_call:
+            if function_name in self.DSL_FUNCTIONS and not is_method_access_call:
                 # Process the DSL call (but skip method calls like Tool.called())
                 try:
-                    self._process_dsl_call(func_name, ctx)
-                except Exception as e:
+                    self._process_dsl_call(function_name, context)
+                except Exception as processing_exception:
                     self.errors.append(
                         ValidationMessage(
                             level="error",
-                            message=f"Error processing {func_name}: {e}",
+                            message=(f"Error processing {function_name}: {processing_exception}"),
                             location=(self.current_line, self.current_col),
-                            declaration=func_name,
+                            declaration=function_name,
                         )
                     )
-        except Exception as e:
-            logger.debug(f"Error in visitFunctioncall: {e}")
+        except Exception as visit_exception:
+            logger.debug("Error in visitFunctioncall: %s", visit_exception)
 
-        return self.visitChildren(ctx)
+        return self.visitChildren(context)
 
     def _check_deprecated_method_calls(self, ctx: LuaParser.FunctioncallContext):
         """Check for deprecated method calls like .turn() or .run()."""
@@ -282,66 +272,82 @@ class TactusDSLVisitor(LuaParserVisitor):
                     )
                 )
 
-    def _extract_literal_value(self, exp):
+    def _is_method_access_call(
+        self, function_name: Optional[str], ctx: LuaParser.FunctioncallContext
+    ) -> bool:
+        """Return True when the call is actually a method access like Tool.called()."""
+        if not function_name:
+            return False
+
+        function_call_text = ctx.getText()
+        method_access_pattern = re.escape(function_name) + r"[.:]"
+        return re.search(method_access_pattern, function_call_text) is not None
+
+    def _extract_literal_value(self, expression_node):
         """Extract a literal value from an expression node."""
-        if not exp:
+        if not expression_node:
             return None
 
         # Check for string literals
-        if exp.string():
-            string_ctx = exp.string()
+        if expression_node.string():
+            string_context = expression_node.string()
             # Extract the string value (remove quotes)
-            if string_ctx.NORMALSTRING():
-                text = string_ctx.NORMALSTRING().getText()
+            if string_context.NORMALSTRING():
+                string_text = string_context.NORMALSTRING().getText()
                 # Remove surrounding quotes
-                if text.startswith('"') and text.endswith('"'):
-                    return text[1:-1]
-                elif text.startswith("'") and text.endswith("'"):
-                    return text[1:-1]
-            elif string_ctx.CHARSTRING():
-                text = string_ctx.CHARSTRING().getText()
-                # Remove surrounding quotes
-                if text.startswith('"') and text.endswith('"'):
-                    return text[1:-1]
-                elif text.startswith("'") and text.endswith("'"):
-                    return text[1:-1]
+                if string_text.startswith('"') and string_text.endswith('"'):
+                    return string_text[1:-1]
+                elif string_text.startswith("'") and string_text.endswith("'"):
+                    return string_text[1:-1]
+            elif string_context.CHARSTRING():
+                string_text = string_context.CHARSTRING().getText()
+                # Character strings are always quoted in Lua tokens.
+                if (
+                    len(string_text) >= 2
+                    and string_text[0] == string_text[-1]
+                    and string_text[0] in ("'", '"')
+                ):
+                    return string_text[1:-1]
+                return string_text
 
         # Check for number literals
-        if exp.number():
-            number_ctx = exp.number()
-            if number_ctx.INT():
-                return int(number_ctx.INT().getText())
-            elif number_ctx.FLOAT():
-                return float(number_ctx.FLOAT().getText())
+        if expression_node.number():
+            number_context = expression_node.number()
+            if number_context.INT():
+                return int(number_context.INT().getText())
+            elif number_context.FLOAT():
+                return float(number_context.FLOAT().getText())
 
         # Check for boolean literals
-        if exp.getText() == "true":
+        if expression_node.getText() == "true":
             return True
-        elif exp.getText() == "false":
+        elif expression_node.getText() == "false":
             return False
 
         # Check for nil
-        if exp.getText() == "nil":
+        if expression_node.getText() == "nil":
             return None
 
         # Default to the text representation
-        return exp.getText()
+        return expression_node.getText()
 
-    def _extract_function_name(self, ctx: LuaParser.FunctioncallContext) -> Optional[str]:
+    def _extract_function_name(
+        self, function_call_context: LuaParser.FunctioncallContext
+    ) -> Optional[str]:
         """Extract function name from parse tree."""
         # The function name is the first child of functioncall
         # Look for a terminal node with text
-        for i in range(ctx.getChildCount()):
-            child = ctx.getChild(i)
+        for i in range(function_call_context.getChildCount()):
+            child = function_call_context.getChild(i)
             if hasattr(child, "symbol"):
                 # It's a terminal node
-                text = child.getText()
-                if text and text.isidentifier():
-                    return text
+                token_text = child.getText()
+                if token_text and token_text.isidentifier():
+                    return token_text
 
         # Fallback: try varOrExp approach
-        if ctx.varOrExp():
-            var_or_exp = ctx.varOrExp()
+        if function_call_context.varOrExp():
+            var_or_exp = function_call_context.varOrExp()
             # varOrExp: var | '(' exp ')'
             if var_or_exp.var():
                 var_ctx = var_or_exp.var()
@@ -351,25 +357,27 @@ class TactusDSLVisitor(LuaParserVisitor):
 
         return None
 
-    def _process_dsl_call(self, func_name: str, ctx: LuaParser.FunctioncallContext):
+    def _process_dsl_call(self, function_name: str, ctx: LuaParser.FunctioncallContext):
         """Extract arguments and register declaration."""
-        args = self._extract_arguments(ctx)
+        argument_values = self._extract_arguments(ctx)
 
-        if func_name == "name":
-            if args and len(args) >= 1:
-                self.builder.set_name(args[0])
-        elif func_name == "version":
-            if args and len(args) >= 1:
-                self.builder.set_version(args[0])
-        elif func_name == "Agent":  # CamelCase only
+        if function_name == "name":
+            if argument_values and len(argument_values) >= 1:
+                self.builder.set_name(argument_values[0])
+        elif function_name == "version":
+            if argument_values and len(argument_values) >= 1:
+                self.builder.set_version(argument_values[0])
+        elif function_name == "Agent":  # CamelCase only
             # Skip Agent calls inside function bodies - they're runtime lookups, not declarations
             if self.in_function_body:
                 return self.visitChildren(ctx)
 
-            if args and len(args) >= 1:  # Support curried syntax with just name
-                agent_name = args[0]
+            if (
+                argument_values and len(argument_values) >= 1
+            ):  # Support curried syntax with just name
+                agent_name = argument_values[0]
                 # Check if this is a declaration (has config) or a lookup (just name)
-                if len(args) >= 2 and isinstance(args[1], dict):
+                if len(argument_values) >= 2 and isinstance(argument_values[1], dict):
                     # DEPRECATED: Curried syntax Agent "name" { config }
                     # Raise validation error
                     self.errors.append(
@@ -380,7 +388,7 @@ class TactusDSLVisitor(LuaParserVisitor):
                             declaration="Agent",
                         )
                     )
-                elif len(args) == 1 and isinstance(agent_name, str):
+                elif len(argument_values) == 1 and isinstance(agent_name, str):
                     # DEPRECATED: Agent("name") lookup or curried declaration
                     # This is now invalid - users should use variable references
                     self.errors.append(
@@ -391,47 +399,51 @@ class TactusDSLVisitor(LuaParserVisitor):
                             declaration="Agent",
                         )
                     )
-        elif func_name == "Model":  # CamelCase only
-            if args and len(args) >= 1:
+        elif function_name == "Model":  # CamelCase only
+            if argument_values and len(argument_values) >= 1:
                 # Check if this is assignment syntax (single dict arg) or curried syntax (name + dict)
-                if len(args) == 1 and isinstance(args[0], dict):
+                if len(argument_values) == 1 and isinstance(argument_values[0], dict):
                     # Assignment syntax: my_model = Model {config}
                     # Generate a temp name for validation
                     import uuid
 
                     temp_name = f"_temp_model_{uuid.uuid4().hex[:8]}"
-                    self.builder.register_model(temp_name, args[0])
-                elif len(args) >= 2 and isinstance(args[1], dict):
+                    self.builder.register_model(temp_name, argument_values[0])
+                elif len(argument_values) >= 2 and isinstance(argument_values[1], dict):
                     # Curried syntax: Model "name" {config}
-                    config = args[1]
-                    self.builder.register_model(args[0], config)
-                elif isinstance(args[0], str):
+                    config = argument_values[1]
+                    self.builder.register_model(argument_values[0], config)
+                elif isinstance(argument_values[0], str):
                     # Just a name, register with empty config
-                    self.builder.register_model(args[0], {})
-        elif func_name == "Procedure":  # CamelCase only
+                    self.builder.register_model(argument_values[0], {})
+        elif function_name == "Procedure":  # CamelCase only
             # Supports multiple syntax variants:
             # 1. Unnamed (new): Procedure { config with function }
             # 2. Named (curried): Procedure "name" { config }
             # 3. Named (old): procedure("name", {config}, function)
             # Note: args may contain None for unparseable expressions (like functions)
-            if args and len(args) >= 1:
+            if argument_values and len(argument_values) >= 1:
                 # Check if first arg is a table (unnamed procedure syntax)
                 # Tables are parsed as dict if they have named fields, or list if only positional
-                if isinstance(args[0], dict):
+                if isinstance(argument_values[0], dict):
                     # Unnamed syntax: Procedure {...} with named fields
                     # e.g., Procedure { output = {...}, function(input) ... end }
                     proc_name = "main"
-                    config = args[0]
-                elif isinstance(args[0], list):
+                    config = argument_values[0]
+                elif isinstance(argument_values[0], list):
                     # Unnamed syntax: Procedure {...} with only function (no named fields)
                     # e.g., Procedure { function(input) ... end }
                     # The list contains [None] for the unparseable function
                     proc_name = "main"
                     config = {}  # No extractable config from function-only table
-                elif isinstance(args[0], str):
+                elif isinstance(argument_values[0], str):
                     # Named syntax: Procedure "name" {...}
-                    proc_name = args[0]
-                    config = args[1] if len(args) >= 2 and isinstance(args[1], dict) else None
+                    proc_name = argument_values[0]
+                    config = (
+                        argument_values[1]
+                        if len(argument_values) >= 2 and isinstance(argument_values[1], dict)
+                        else None
+                    )
                 else:
                     # Invalid syntax
                     return
@@ -459,90 +471,115 @@ class TactusDSLVisitor(LuaParserVisitor):
                     # Extract inline state schema
                     if "state" in config and isinstance(config["state"], dict):
                         self.builder.register_state_schema(config["state"])
-        elif func_name == "Prompt":  # CamelCase
-            if args and len(args) >= 2:
-                self.builder.register_prompt(args[0], args[1])
-        elif func_name == "Hitl":  # CamelCase
-            if args and len(args) >= 2:
-                self.builder.register_hitl(args[0], args[1] if isinstance(args[1], dict) else {})
-        elif func_name == "Specification":  # CamelCase
+        elif function_name == "Prompt":  # CamelCase
+            if argument_values and len(argument_values) >= 2:
+                self.builder.register_prompt(argument_values[0], argument_values[1])
+        elif function_name == "Hitl":  # CamelCase
+            if argument_values and len(argument_values) >= 2:
+                self.builder.register_hitl(
+                    argument_values[0],
+                    argument_values[1] if isinstance(argument_values[1], dict) else {},
+                )
+        elif function_name == "Specification":  # CamelCase
             # Three supported forms:
             # - Specification([[ Gherkin text ]]) (inline Gherkin)
             # - Specification("name", { ... })   (structured form; legacy)
             # - Specification { from = "path" }  (external file reference)
-            if args and len(args) == 1:
-                arg = args[0]
-                if isinstance(arg, dict) and "from" in arg:
+            if argument_values and len(argument_values) == 1:
+                specification_argument = argument_values[0]
+                if isinstance(specification_argument, dict) and "from" in specification_argument:
                     # External file reference
-                    self.builder.register_specs_from(arg["from"])
+                    self.builder.register_specs_from(specification_argument["from"])
                 else:
                     # Inline Gherkin text
-                    self.builder.register_specifications(arg)
-            elif args and len(args) >= 2:
+                    self.builder.register_specifications(specification_argument)
+            elif argument_values and len(argument_values) >= 2:
                 self.builder.register_specification(
-                    args[0], args[1] if isinstance(args[1], list) else []
+                    argument_values[0],
+                    argument_values[1] if isinstance(argument_values[1], list) else [],
                 )
-        elif func_name == "Specifications":  # CamelCase
+        elif function_name == "Specifications":  # CamelCase
             # Specifications([[ Gherkin text ]]) (plural form; singular is Specification([[...]]))
-            if args and len(args) >= 1:
-                self.builder.register_specifications(args[0])
-        elif func_name == "Step":  # CamelCase
+            if argument_values and len(argument_values) >= 1:
+                self.builder.register_specifications(argument_values[0])
+        elif function_name == "Step":  # CamelCase
             # Step("step text", function() ... end)
-            if args and len(args) >= 2:
-                self.builder.register_custom_step(args[0], args[1])
-        elif func_name == "Evaluation":  # CamelCase
+            if argument_values and len(argument_values) >= 2:
+                self.builder.register_custom_step(argument_values[0], argument_values[1])
+        elif function_name == "Evaluation":  # CamelCase
             # Either:
             # - Evaluation({ runs = 10, parallel = true })               (simple config)
             # - Evaluation({ dataset = {...}, evaluators = {...}, ... }) (alias for Evaluations)
-            if args and len(args) >= 1 and isinstance(args[0], dict):
-                cfg = args[0]
-                if any(k in cfg for k in ("dataset", "dataset_file", "evaluators", "thresholds")):
-                    self.builder.register_evaluations(cfg)
+            if (
+                argument_values
+                and len(argument_values) >= 1
+                and isinstance(argument_values[0], dict)
+            ):
+                evaluation_config = argument_values[0]
+                if any(
+                    key in evaluation_config
+                    for key in ("dataset", "dataset_file", "evaluators", "thresholds")
+                ):
+                    self.builder.register_evaluations(evaluation_config)
                 else:
-                    self.builder.set_evaluation_config(cfg)
-            elif args and len(args) >= 1:
+                    self.builder.set_evaluation_config(evaluation_config)
+            elif argument_values and len(argument_values) >= 1:
                 self.builder.set_evaluation_config({})
-        elif func_name == "Evaluations":  # CamelCase
+        elif function_name == "Evaluations":  # CamelCase
             # Evaluation(s)({ dataset = {...}, evaluators = {...} })
-            if args and len(args) >= 1:
-                self.builder.register_evaluations(args[0] if isinstance(args[0], dict) else {})
-        elif func_name == "default_provider":
-            if args and len(args) >= 1:
-                self.builder.set_default_provider(args[0])
-        elif func_name == "default_model":
-            if args and len(args) >= 1:
-                self.builder.set_default_model(args[0])
-        elif func_name == "return_prompt":
-            if args and len(args) >= 1:
-                self.builder.set_return_prompt(args[0])
-        elif func_name == "error_prompt":
-            if args and len(args) >= 1:
-                self.builder.set_error_prompt(args[0])
-        elif func_name == "status_prompt":
-            if args and len(args) >= 1:
-                self.builder.set_status_prompt(args[0])
-        elif func_name == "async":
-            if args and len(args) >= 1:
-                self.builder.set_async(args[0])
-        elif func_name == "max_depth":
-            if args and len(args) >= 1:
-                self.builder.set_max_depth(args[0])
-        elif func_name == "max_turns":
-            if args and len(args) >= 1:
-                self.builder.set_max_turns(args[0])
-        elif func_name == "input":
+            if argument_values and len(argument_values) >= 1:
+                self.builder.register_evaluations(
+                    argument_values[0] if isinstance(argument_values[0], dict) else {}
+                )
+        elif function_name == "default_provider":
+            if argument_values and len(argument_values) >= 1:
+                self.builder.set_default_provider(argument_values[0])
+        elif function_name == "default_model":
+            if argument_values and len(argument_values) >= 1:
+                self.builder.set_default_model(argument_values[0])
+        elif function_name == "return_prompt":
+            if argument_values and len(argument_values) >= 1:
+                self.builder.set_return_prompt(argument_values[0])
+        elif function_name == "error_prompt":
+            if argument_values and len(argument_values) >= 1:
+                self.builder.set_error_prompt(argument_values[0])
+        elif function_name == "status_prompt":
+            if argument_values and len(argument_values) >= 1:
+                self.builder.set_status_prompt(argument_values[0])
+        elif function_name == "async":
+            if argument_values and len(argument_values) >= 1:
+                self.builder.set_async(argument_values[0])
+        elif function_name == "max_depth":
+            if argument_values and len(argument_values) >= 1:
+                self.builder.set_max_depth(argument_values[0])
+        elif function_name == "max_turns":
+            if argument_values and len(argument_values) >= 1:
+                self.builder.set_max_turns(argument_values[0])
+        elif function_name == "input":
             # Top-level input schema for script mode: input { field1 = ..., field2 = ... }
-            if args and len(args) >= 1 and isinstance(args[0], dict):
-                self.builder.register_top_level_input(args[0])
-        elif func_name == "output":
+            if (
+                argument_values
+                and len(argument_values) >= 1
+                and isinstance(argument_values[0], dict)
+            ):
+                self.builder.register_top_level_input(argument_values[0])
+        elif function_name == "output":
             # Top-level output schema for script mode: output { field1 = ..., field2 = ... }
-            if args and len(args) >= 1 and isinstance(args[0], dict):
-                self.builder.register_top_level_output(args[0])
-        elif func_name == "Tool":  # CamelCase only
+            if (
+                argument_values
+                and len(argument_values) >= 1
+                and isinstance(argument_values[0], dict)
+            ):
+                self.builder.register_top_level_output(argument_values[0])
+        elif function_name == "Tool":  # CamelCase only
             # Curried syntax (Tool "name" {...} / Tool("name", ...)) is not supported.
             # Use assignment syntax: my_tool = Tool { ... }.
-            if args and len(args) >= 1 and isinstance(args[0], str):
-                tool_name = args[0]
+            if (
+                argument_values
+                and len(argument_values) >= 1
+                and isinstance(argument_values[0], str)
+            ):
+                tool_name = argument_values[0]
                 self.errors.append(
                     ValidationMessage(
                         level="error",
@@ -554,14 +591,18 @@ class TactusDSLVisitor(LuaParserVisitor):
                         declaration="Tool",
                     )
                 )
-        elif func_name == "Toolset":  # CamelCase only
+        elif function_name == "Toolset":  # CamelCase only
             # Toolset("name", {config})
             # or new curried syntax: Toolset "name" { config }
-            if args and len(args) >= 1:  # Support curried syntax
+            if argument_values and len(argument_values) >= 1:  # Support curried syntax
                 # First arg must be name (string)
-                if isinstance(args[0], str):
-                    toolset_name = args[0]
-                    config = args[1] if len(args) >= 2 and isinstance(args[1], dict) else {}
+                if isinstance(argument_values[0], str):
+                    toolset_name = argument_values[0]
+                    config = (
+                        argument_values[1]
+                        if len(argument_values) >= 2 and isinstance(argument_values[1], dict)
+                        else {}
+                    )
                     # Register the toolset (validation only, no runtime impl yet)
                     self.builder.register_toolset(toolset_name, config)
 
@@ -573,20 +614,20 @@ class TactusDSLVisitor(LuaParserVisitor):
         - Unparseable expressions (like functions) are included as None placeholders
         This allows checking total argument count for validation.
         """
-        args = []
+        parsed_arguments = []
 
         # functioncall has args() children
         # args: '(' explist? ')' | tableconstructor | LiteralString
 
-        args_list = ctx.args()
-        if not args_list:
-            return args
+        argument_nodes = ctx.args()
+        if not argument_nodes:
+            return parsed_arguments
 
         # Check if this is a method call chain by looking for '.' or ':' between args
         # For Agent("name").turn({...}), we should only extract "name"
         # For Procedure "name" {...}, we should extract both "name" and {...}
         is_method_chain = False
-        if len(args_list) > 1:
+        if len(argument_nodes) > 1:
             # Check if there's a method access between the first two args
             # Method chains have pattern: func(arg1).method(arg2)
             # Shorthand has pattern: func arg1 arg2
@@ -597,9 +638,9 @@ class TactusDSLVisitor(LuaParserVisitor):
             for i in range(ctx.getChildCount()):
                 child = ctx.getChild(i)
                 # Check if this is the first args
-                if child == args_list[0]:
+                if child == argument_nodes[0]:
                     found_first_args = True
-                elif found_first_args and child == args_list[1]:
+                elif found_first_args and child == argument_nodes[1]:
                     # We've reached the second args without finding . or :
                     # So this is NOT a method chain
                     break
@@ -613,30 +654,30 @@ class TactusDSLVisitor(LuaParserVisitor):
         # Process arguments
         if is_method_chain:
             # Only process first args for method chains like Agent("name").turn(...)
-            args_to_process = [args_list[0]]
+            args_to_process = [argument_nodes[0]]
         else:
             # Process all args for shorthand syntax like Procedure "name" {...}
-            args_to_process = args_list
+            args_to_process = argument_nodes
 
         for args_ctx in args_to_process:
             # Check for different argument types
             if args_ctx.explist():
                 # Regular function call with expression list
-                explist = args_ctx.explist()
-                for exp in explist.exp():
-                    value = self._parse_expression(exp)
+                expression_list = args_ctx.explist()
+                for expression in expression_list.exp():
+                    value = self._parse_expression(expression)
                     # Include None placeholders to preserve argument count
-                    args.append(value)
+                    parsed_arguments.append(value)
             elif args_ctx.tableconstructor():
                 # Table constructor argument
                 table = self._parse_table_constructor(args_ctx.tableconstructor())
-                args.append(table)
+                parsed_arguments.append(table)
             elif args_ctx.string():
                 # String literal argument
                 string_val = self._parse_string(args_ctx.string())
-                args.append(string_val)
+                parsed_arguments.append(string_val)
 
-        return args
+        return parsed_arguments
 
     def _parse_expression(self, ctx: LuaParser.ExpContext) -> Any:
         """Parse an expression to a Python value."""
@@ -644,22 +685,22 @@ class TactusDSLVisitor(LuaParserVisitor):
             return None
 
         # Detect field.<type>{...} builder syntax so we can preserve schema info
-        prefix = ctx.prefixexp()
-        if prefix and prefix.functioncall():
-            func_ctx = prefix.functioncall()
-            name_tokens = [t.getText() for t in func_ctx.NAME()]
+        prefix_expression = ctx.prefixexp()
+        if prefix_expression and prefix_expression.functioncall():
+            function_call_context = prefix_expression.functioncall()
+            function_name_tokens = [token.getText() for token in function_call_context.NAME()]
 
             # field.string{required = true, ...}
-            if len(name_tokens) >= 2 and name_tokens[0] == "field":
-                field_type = name_tokens[-1]
+            if len(function_name_tokens) >= 2 and function_name_tokens[0] == "field":
+                field_type = function_name_tokens[-1]
 
                 # Default field definition
                 field_def = {"type": field_type, "required": False}
 
                 # Parse options table if present
-                if func_ctx.args():
+                if function_call_context.args():
                     # We only expect a single args() entry for the builder
-                    first_arg = func_ctx.args(0)
+                    first_arg = function_call_context.args(0)
                     if first_arg.tableconstructor():
                         options = self._parse_table_constructor(first_arg.tableconstructor())
                         if isinstance(options, dict):
@@ -707,42 +748,42 @@ class TactusDSLVisitor(LuaParserVisitor):
 
     def _parse_string_token(self, token) -> str:
         """Parse string token to Python string."""
-        text = token.getText()
+        token_text = token.getText()
 
         # Handle different Lua string formats
-        if text.startswith("[[") and text.endswith("]]"):
+        if token_text.startswith("[[") and token_text.endswith("]]"):
             # Long string literal
-            return text[2:-2]
-        elif text.startswith('"') and text.endswith('"'):
+            return token_text[2:-2]
+        elif token_text.startswith('"') and token_text.endswith('"'):
             # Double-quoted string
-            content = text[1:-1]
+            content = token_text[1:-1]
             content = content.replace("\\n", "\n")
             content = content.replace("\\t", "\t")
             content = content.replace('\\"', '"')
             content = content.replace("\\\\", "\\")
             return content
-        elif text.startswith("'") and text.endswith("'"):
+        elif token_text.startswith("'") and token_text.endswith("'"):
             # Single-quoted string
-            content = text[1:-1]
+            content = token_text[1:-1]
             content = content.replace("\\n", "\n")
             content = content.replace("\\t", "\t")
             content = content.replace("\\'", "'")
             content = content.replace("\\\\", "\\")
             return content
 
-        return text
+        return token_text
 
     def _parse_table_constructor(self, ctx: LuaParser.TableconstructorContext) -> dict:
         """Parse Lua table constructor to Python dict."""
-        result = {}
+        parsed_table = {}
         array_items = []
 
         if not ctx or not ctx.fieldlist():
             # Empty table
             return []  # Return empty list for empty tables (matches runtime behavior)
 
-        fieldlist = ctx.fieldlist()
-        for field in fieldlist.field():
+        field_list = ctx.fieldlist()
+        for field in field_list.field():
             # field: '[' exp ']' '=' exp | NAME '=' exp | exp
             if field.NAME():
                 # Named field: NAME '=' exp
@@ -775,7 +816,7 @@ class TactusDSLVisitor(LuaParserVisitor):
                             )
                         )
 
-                result[key] = value
+                parsed_table[key] = value
             elif len(field.exp()) == 2:
                 # Indexed field: '[' exp ']' '=' exp
                 # Skip for now (complex)
@@ -786,37 +827,37 @@ class TactusDSLVisitor(LuaParserVisitor):
                 array_items.append(value)
 
         # If we only have array items, return as list
-        if array_items and not result:
+        if array_items and not parsed_table:
             return array_items
 
         # If we have both, prefer dict (shouldn't happen in DSL)
         if array_items:
             # Mixed table - add array items with numeric keys
             for i, item in enumerate(array_items, 1):
-                result[i] = item
+                parsed_table[i] = item
 
-        return result if result else []
+        return parsed_table if parsed_table else []
 
-    def _parse_number(self, ctx: LuaParser.NumberContext) -> float:
+    def _parse_number(self, number_context: LuaParser.NumberContext) -> float:
         """Parse Lua number to Python number."""
-        text = ctx.getText()
+        number_text = number_context.getText()
 
         # Try integer first
         try:
-            return int(text)
+            return int(number_text)
         except ValueError:
             pass
 
         # Try float
         try:
-            return float(text)
+            return float(number_text)
         except ValueError:
             pass
 
         # Try hex
-        if text.startswith("0x") or text.startswith("0X"):
+        if number_text.startswith("0x") or number_text.startswith("0X"):
             try:
-                return int(text, 16)
+                return int(number_text, 16)
             except ValueError:
                 pass
 

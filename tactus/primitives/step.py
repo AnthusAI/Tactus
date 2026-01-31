@@ -46,7 +46,7 @@ class StepPrimitive:
         Returns:
             Result of fn() on first execution, cached result on replay
         """
-        logger.debug(f"checkpoint() at position {self.execution_context.next_position()}")
+        logger.debug("checkpoint() at position %s", self.execution_context.next_position())
 
         # Prioritize Lua source info over Python stack inspection
         if lua_source_info:
@@ -54,11 +54,7 @@ class StepPrimitive:
             try:
                 if hasattr(lua_source_info, "items"):
                     # It's already dict-like
-                    lua_dict = (
-                        dict(lua_source_info.items())
-                        if hasattr(lua_source_info, "items")
-                        else lua_source_info
-                    )
+                    lua_dict = dict(lua_source_info.items())
                 else:
                     # Try to convert if it's a LuaTable
                     lua_dict = dict(lua_source_info)
@@ -72,14 +68,14 @@ class StepPrimitive:
                 "line": lua_dict.get("line", 0),
                 "function": lua_dict.get("function", "unknown"),
             }
-            logger.debug(f"Using Lua source info: {source_info}")
+            logger.debug("Using Lua source info: %s", source_info)
         else:
             # Fallback to Python stack inspection (for backward compatibility)
             import inspect
 
-            frame = inspect.currentframe()
-            if frame and frame.f_back:
-                caller_frame = frame.f_back
+            current_frame = inspect.currentframe()
+            if current_frame and current_frame.f_back:
+                caller_frame = current_frame.f_back
                 source_info = {
                     "file": caller_frame.f_code.co_filename,
                     "line": caller_frame.f_lineno,
@@ -94,8 +90,8 @@ class StepPrimitive:
             )
             logger.debug("checkpoint() completed successfully")
             return result
-        except Exception as e:
-            logger.error(f"checkpoint() failed: {e}")
+        except Exception as error:
+            logger.error("checkpoint() failed: %s", error)
             raise
 
 
@@ -158,7 +154,7 @@ class CheckpointPrimitive:
         Example:
             Checkpoint.clear_after(3)  -- Clear checkpoint 3 and beyond
         """
-        logger.info(f"Clearing checkpoints after position {position}")
+        logger.info("Clearing checkpoints after position %s", position)
         self.execution_context.checkpoint_clear_after(position)
 
     def next_position(self) -> int:

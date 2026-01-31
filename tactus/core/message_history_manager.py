@@ -59,18 +59,20 @@ class MessageHistoryManager:
 
         # Determine source
         if message_history_config.source == "own":
-            messages = self.histories.get(agent_name, [])
+            selected_messages = self.histories.get(agent_name, [])
         elif message_history_config.source == "shared":
-            messages = self.shared_history
+            selected_messages = self.shared_history
         else:
             # Another agent's history
-            messages = self.histories.get(message_history_config.source, [])
+            selected_messages = self.histories.get(message_history_config.source, [])
 
         # Apply filter if specified
         if message_history_config.filter:
-            messages = self._apply_filter(messages, message_history_config.filter, context)
+            selected_messages = self._apply_filter(
+                selected_messages, message_history_config.filter, context
+            )
 
-        return messages
+        return selected_messages
 
     def add_message(
         self,
@@ -111,7 +113,7 @@ class MessageHistoryManager:
     def _apply_filter(
         self,
         messages: list[ModelMessage],
-        filter_spec: Any,
+        filter_specification: Any,
         context: Optional[Any],
     ) -> list[ModelMessage]:
         """
@@ -126,41 +128,41 @@ class MessageHistoryManager:
             Filtered messages
         """
         # If it's a callable (Lua function), call it
-        if callable(filter_spec):
+        if callable(filter_specification):
             try:
-                return filter_spec(messages, context)
-            except Exception as e:
+                return filter_specification(messages, context)
+            except Exception as exception:
                 # If filter fails, return unfiltered
-                print(f"Warning: Filter function failed: {e}")
+                print(f"Warning: Filter function failed: {exception}")
                 return messages
 
         # Otherwise it's a tuple (filter_type, filter_arg)
-        if not isinstance(filter_spec, tuple) or len(filter_spec) < 2:
+        if not isinstance(filter_specification, tuple) or len(filter_specification) < 2:
             return messages
 
-        filter_type = filter_spec[0]
-        filter_arg = filter_spec[1]
+        filter_name = filter_specification[0]
+        filter_value = filter_specification[1]
 
-        if filter_type == "last_n":
-            return self._filter_last_n(messages, filter_arg)
-        elif filter_type == "first_n":
-            return self._filter_first_n(messages, filter_arg)
-        elif filter_type == "token_budget":
-            return self._filter_by_token_budget(messages, filter_arg)
-        elif filter_type == "head_tokens":
-            return self._filter_head_tokens(messages, filter_arg)
-        elif filter_type == "tail_tokens":
-            return self._filter_tail_tokens(messages, filter_arg)
-        elif filter_type == "by_role":
-            return self._filter_by_role(messages, filter_arg)
-        elif filter_type == "system_prefix":
+        if filter_name == "last_n":
+            return self._filter_last_n(messages, filter_value)
+        elif filter_name == "first_n":
+            return self._filter_first_n(messages, filter_value)
+        elif filter_name == "token_budget":
+            return self._filter_by_token_budget(messages, filter_value)
+        elif filter_name == "head_tokens":
+            return self._filter_head_tokens(messages, filter_value)
+        elif filter_name == "tail_tokens":
+            return self._filter_tail_tokens(messages, filter_value)
+        elif filter_name == "by_role":
+            return self._filter_by_role(messages, filter_value)
+        elif filter_name == "system_prefix":
             return self._filter_system_prefix(messages)
-        elif filter_type == "compose":
+        elif filter_name == "compose":
             # Apply multiple filters in sequence
-            result = messages
-            for f in filter_arg:
-                result = self._apply_filter(result, f, context)
-            return result
+            filtered_messages = messages
+            for filter_step in filter_value:
+                filtered_messages = self._apply_filter(filtered_messages, filter_step, context)
+            return filtered_messages
         else:
             # Unknown filter type, return unfiltered
             return messages
@@ -198,22 +200,22 @@ class MessageHistoryManager:
         # Rough estimate: 4 chars per token
         max_chars = max_tokens * 4
 
-        result = []
-        current_chars = 0
+        filtered_messages = []
+        current_character_count = 0
 
         # Work backwards from most recent
         for message in reversed(messages):
             # Estimate message size
-            message_chars = self._estimate_message_chars(message)
+            message_character_count = self._estimate_message_chars(message)
 
-            if current_chars + message_chars > max_chars:
+            if current_character_count + message_character_count > max_chars:
                 # Would exceed budget, stop here
                 break
 
-            result.insert(0, message)
-            current_chars += message_chars
+            filtered_messages.insert(0, message)
+            current_character_count += message_character_count
 
-        return result
+        return filtered_messages
 
     def _filter_head_tokens(
         self,
@@ -225,17 +227,17 @@ class MessageHistoryManager:
             return []
 
         max_chars = max_tokens * 4
-        result = []
-        current_chars = 0
+        filtered_messages = []
+        current_character_count = 0
 
         for message in messages:
-            message_chars = self._estimate_message_chars(message)
-            if current_chars + message_chars > max_chars:
+            message_character_count = self._estimate_message_chars(message)
+            if current_character_count + message_character_count > max_chars:
                 break
-            result.append(message)
-            current_chars += message_chars
+            filtered_messages.append(message)
+            current_character_count += message_character_count
 
-        return result
+        return filtered_messages
 
     def _filter_tail_tokens(
         self,
@@ -258,12 +260,12 @@ class MessageHistoryManager:
         messages: list[ModelMessage],
     ) -> list[ModelMessage]:
         """Keep only the leading contiguous system messages."""
-        result = []
+        system_prefix_messages: list[ModelMessage] = []
         for message in messages:
             if self._get_message_role(message) != "system":
                 break
-            result.append(message)
-        return result
+            system_prefix_messages.append(message)
+        return system_prefix_messages
 
     def _ensure_message_metadata(self, message: ModelMessage) -> ModelMessage:
         """Ensure message has id and created_at metadata when dict-based."""
@@ -295,19 +297,19 @@ class MessageHistoryManager:
         """Estimate character count of a message."""
         if isinstance(message, dict):
             # Dict-based message
-            content = message.get("content", "")
-            if isinstance(content, str):
-                return len(content)
-            elif isinstance(content, list):
+            message_content = message.get("content", "")
+            if isinstance(message_content, str):
+                return len(message_content)
+            elif isinstance(message_content, list):
                 # Multiple content parts
-                total = 0
-                for part in content:
+                total_character_count = 0
+                for part in message_content:
                     if isinstance(part, dict):
-                        total += len(str(part.get("text", "")))
+                        total_character_count += len(str(part.get("text", "")))
                     else:
-                        total += len(str(part))
-                return total
-            return len(str(content))
+                        total_character_count += len(str(part))
+                return total_character_count
+            return len(str(message_content))
         else:
             # Pydantic AI ModelMessage object
             try:

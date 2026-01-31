@@ -73,9 +73,9 @@ class BrokerControlChannel(InProcessChannel):
 
     async def initialize(self) -> None:
         """Initialize broker control channel (broker already connected)."""
-        logger.info(f"{self.channel_id}: initializing...")
+        logger.info("%s: initializing...", self.channel_id)
         # Broker client already initialized by BrokerLogHandler setup
-        logger.info(f"{self.channel_id}: ready (via broker)")
+        logger.info("%s: ready (via broker)", self.channel_id)
 
     async def send(self, request: ControlRequest) -> DeliveryResult:
         """
@@ -84,7 +84,11 @@ class BrokerControlChannel(InProcessChannel):
         The request is serialized and sent via broker's control.request method.
         The host will relay to its SSE channel and return the response.
         """
-        logger.info(f"{self.channel_id}: sending control request {request.request_id} via broker")
+        logger.info(
+            "%s: sending control request %s via broker",
+            self.channel_id,
+            request.request_id,
+        )
 
         try:
             # Serialize request to JSON-compatible dict
@@ -96,7 +100,11 @@ class BrokerControlChannel(InProcessChannel):
 
                 if event_type == "delivered":
                     # Request successfully delivered to host channels
-                    logger.debug(f"{self.channel_id}: request {request.request_id} delivered")
+                    logger.debug(
+                        "%s: request %s delivered",
+                        self.channel_id,
+                        request.request_id,
+                    )
                     continue
 
                 elif event_type == "response":
@@ -110,13 +118,21 @@ class BrokerControlChannel(InProcessChannel):
                         channel_id=response_data.get("channel_id", "sse"),
                         responder_id=response_data.get("responder_id"),
                     )
-                    logger.info(f"{self.channel_id}: received response for {request.request_id}")
+                    logger.info(
+                        "%s: received response for %s",
+                        self.channel_id,
+                        request.request_id,
+                    )
                     self._response_queue.put_nowait(response)
                     break
 
                 elif event_type == "timeout":
                     # Host-side timeout
-                    logger.warning(f"{self.channel_id}: timeout for {request.request_id}")
+                    logger.warning(
+                        "%s: timeout for %s",
+                        self.channel_id,
+                        request.request_id,
+                    )
                     response = ControlResponse(
                         request_id=request.request_id,
                         value=request.default_value,
@@ -131,7 +147,12 @@ class BrokerControlChannel(InProcessChannel):
                     # Delivery or processing error
                     error = event.get("error", {})
                     error_msg = error.get("message", "Unknown broker error")
-                    logger.error(f"{self.channel_id}: error for {request.request_id}: {error_msg}")
+                    logger.error(
+                        "%s: error for %s: %s",
+                        self.channel_id,
+                        request.request_id,
+                        error_msg,
+                    )
                     raise RuntimeError(f"Broker control request failed: {error_msg}")
 
             return DeliveryResult(
@@ -141,14 +162,19 @@ class BrokerControlChannel(InProcessChannel):
                 success=True,
             )
 
-        except Exception as e:
-            logger.error(f"{self.channel_id}: failed to send {request.request_id}: {e}")
+        except Exception as error:
+            logger.error(
+                "%s: failed to send %s: %s",
+                self.channel_id,
+                request.request_id,
+                error,
+            )
             return DeliveryResult(
                 channel_id=self.channel_id,
                 external_message_id=request.request_id,
                 delivered_at=datetime.now(timezone.utc),
                 success=False,
-                error_message=str(e),
+                error_message=str(error),
             )
 
     @classmethod
@@ -171,9 +197,13 @@ class BrokerControlChannel(InProcessChannel):
 
             client = BrokerClient(socket_path)
             logger.info(
-                f"BrokerControlChannel: initialized from environment (socket={socket_path})"
+                "BrokerControlChannel: initialized from environment (socket=%s)",
+                socket_path,
             )
             return cls(client)
-        except Exception as e:
-            logger.warning(f"BrokerControlChannel: failed to initialize from environment: {e}")
+        except Exception as error:
+            logger.warning(
+                "BrokerControlChannel: failed to initialize from environment: %s",
+                error,
+            )
             return None

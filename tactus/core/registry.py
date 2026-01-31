@@ -6,7 +6,7 @@ procedure declarations from .tac files.
 """
 
 import logging
-from typing import Any, Optional, Union
+from typing import Any
 
 from pydantic import BaseModel, Field, ValidationError, ConfigDict
 
@@ -19,7 +19,7 @@ class OutputFieldDeclaration(BaseModel):
     name: str
     field_type: str = Field(alias="type")  # string, number, boolean, array, object
     required: bool = False
-    description: Optional[str] = None
+    description: str | None = None
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -31,7 +31,7 @@ class MessageHistoryConfiguration(BaseModel):
     """
 
     source: str = "own"  # "own", "shared", or another agent's name
-    filter: Optional[Any] = None  # Lua function reference or filter name
+    filter: Any | None = None  # Lua function reference or filter name
 
 
 class AgentOutputSchema(BaseModel):
@@ -44,21 +44,21 @@ class AgentDeclaration(BaseModel):
     """Agent declaration from DSL."""
 
     name: str
-    provider: Optional[str] = None
-    model: Union[str, dict[str, Any]] = "gpt-4o"
-    system_prompt: Union[str, Any]  # String with {markers} or Lua function
-    initial_message: Optional[str] = None
+    provider: str | None = None
+    model: str | dict[str, Any] = "gpt-4o"
+    system_prompt: str | Any  # String with {markers} or Lua function
+    initial_message: str | None = None
     tools: list[Any] = Field(default_factory=list)  # Tool/toolset references and expressions
     inline_tools: list[dict[str, Any]] = Field(default_factory=list)  # Inline tool definitions
-    output: Optional[AgentOutputSchema] = None  # Aligned with pydantic-ai
-    message_history: Optional[MessageHistoryConfiguration] = None
+    output: AgentOutputSchema | None = None  # Aligned with pydantic-ai
+    message_history: MessageHistoryConfiguration | None = None
     max_turns: int = 50
     disable_streaming: bool = (
         False  # Disable streaming for models that don't support tools in streaming mode
     )
-    temperature: Optional[float] = None
-    max_tokens: Optional[int] = None
-    model_type: Optional[str] = None  # e.g., "chat", "responses" for reasoning models
+    temperature: float | None = None
+    max_tokens: int | None = None
+    model_type: str | None = None  # e.g., "chat", "responses" for reasoning models
 
     model_config = ConfigDict(extra="allow")
 
@@ -69,9 +69,9 @@ class HITLDeclaration(BaseModel):
     name: str
     hitl_type: str = Field(alias="type")  # approval, input, review
     message: str
-    timeout: Optional[int] = None
+    timeout: int | None = None
     default: Any = None
-    options: Optional[list[dict[str, Any]]] = None
+    options: list[dict[str, Any]] | None = None
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -81,9 +81,9 @@ class ScenarioDeclaration(BaseModel):
 
     name: str
     given: dict[str, Any] = Field(default_factory=dict)
-    when: Optional[str] = None  # defaults to "procedure_completes"
-    then_output: Optional[dict[str, Any]] = None
-    then_state: Optional[dict[str, Any]] = None
+    when: str | None = None  # defaults to "procedure_completes"
+    then_output: dict[str, Any] | None = None
+    then_state: dict[str, Any] | None = None
     mocks: dict[str, Any] = Field(default_factory=dict)  # tool_name -> response
 
 
@@ -134,7 +134,7 @@ class ProcedureRegistry(BaseModel):
     model_config = {"arbitrary_types_allowed": True}
 
     # Metadata
-    description: Optional[str] = None
+    description: str | None = None
 
     # Declarations
     input_schema: dict[str, Any] = Field(default_factory=dict)
@@ -154,26 +154,26 @@ class ProcedureRegistry(BaseModel):
     message_history_config: dict[str, Any] = Field(default_factory=dict)
 
     # Gherkin BDD Testing
-    gherkin_specifications: Optional[str] = None  # Raw Gherkin text
+    gherkin_specifications: str | None = None  # Raw Gherkin text
     specs_from_references: list[str] = Field(default_factory=list)  # External spec file paths
     custom_steps: dict[str, Any] = Field(default_factory=dict)  # step_text -> lua_function
     evaluation_config: dict[str, Any] = Field(default_factory=dict)  # runs, parallel, etc.
 
     # Pydantic Evals Integration
-    pydantic_evaluations: Optional[dict[str, Any]] = None  # Pydantic Evals configuration
+    pydantic_evaluations: dict[str, Any] | None = None  # Pydantic Evals configuration
 
     # Prompts
     prompts: dict[str, str] = Field(default_factory=dict)
-    return_prompt: Optional[str] = None
-    error_prompt: Optional[str] = None
-    status_prompt: Optional[str] = None
+    return_prompt: str | None = None
+    error_prompt: str | None = None
+    status_prompt: str | None = None
 
     # Execution settings
     async_enabled: bool = False
     max_depth: int = 5
     max_turns: int = 50
-    default_provider: Optional[str] = None
-    default_model: Optional[str] = None
+    default_provider: str | None = None
+    default_model: str | None = None
 
     # Named procedures (for in-file sub-procedures)
     named_procedures: dict[str, dict[str, Any]] = Field(default_factory=dict)
@@ -193,8 +193,8 @@ class ValidationMessage(BaseModel):
 
     level: str  # "error" or "warning"
     message: str
-    location: Optional[tuple[int, int]] = None
-    declaration: Optional[str] = None
+    location: tuple[int, int] | None = None
+    declaration: str | None = None
 
 
 class ValidationResult(BaseModel):
@@ -203,7 +203,7 @@ class ValidationResult(BaseModel):
     valid: bool
     errors: list[ValidationMessage] = Field(default_factory=list)
     warnings: list[ValidationMessage] = Field(default_factory=list)
-    registry: Optional[ProcedureRegistry] = None
+    registry: ProcedureRegistry | None = None
 
 
 class RegistryBuilder:
@@ -225,30 +225,38 @@ class RegistryBuilder:
         """Register state schema declaration."""
         self.registry.state_schema = schema
 
-    def register_agent(self, name: str, config: dict, output_schema: Optional[dict] = None) -> None:
+    def register_agent(
+        self,
+        name: str,
+        config: dict,
+        output_schema: dict | None = None,
+    ) -> None:
         """Register an agent declaration."""
-        config["name"] = name
+        agent_config = dict(config)
+        agent_config["name"] = name
 
         # Add output_schema to config if provided
         if output_schema:
             # Convert output_schema dict to AgentOutputSchema
-            fields = {}
-            for field_name, field_config in output_schema.items():
+            output_field_declarations: dict[str, OutputFieldDeclaration] = {}
+            for field_name, field_definition in output_schema.items():
                 # Add the field name to the config (required by OutputFieldDeclaration)
-                field_config_with_name = dict(field_config)
-                field_config_with_name["name"] = field_name
-                fields[field_name] = OutputFieldDeclaration(**field_config_with_name)
-            config["output"] = AgentOutputSchema(fields=fields)
+                field_definition_with_name = dict(field_definition)
+                field_definition_with_name["name"] = field_name
+                output_field_declarations[field_name] = OutputFieldDeclaration(
+                    **field_definition_with_name
+                )
+            agent_config["output"] = AgentOutputSchema(fields=output_field_declarations)
 
         # Apply defaults
-        if "provider" not in config and self.registry.default_provider:
-            config["provider"] = self.registry.default_provider
-        if "model" not in config and self.registry.default_model:
-            config["model"] = self.registry.default_model
+        if "provider" not in agent_config and self.registry.default_provider:
+            agent_config["provider"] = self.registry.default_provider
+        if "model" not in agent_config and self.registry.default_model:
+            agent_config["model"] = self.registry.default_model
         try:
-            self.registry.agents[name] = AgentDeclaration(**config)
-        except ValidationError as e:
-            self._add_error(f"Invalid agent '{name}': {e}")
+            self.registry.agents[name] = AgentDeclaration(**agent_config)
+        except ValidationError as exception:
+            self._add_error(f"Invalid agent '{name}': {exception}")
 
     def register_model(self, name: str, config: dict) -> None:
         """Register a model declaration."""
@@ -260,21 +268,21 @@ class RegistryBuilder:
         config["name"] = name
         try:
             self.registry.hitl_points[name] = HITLDeclaration(**config)
-        except ValidationError as e:
-            self._add_error(f"Invalid HITL point '{name}': {e}")
+        except ValidationError as exception:
+            self._add_error(f"Invalid HITL point '{name}': {exception}")
 
     def register_dependency(self, name: str, config: dict) -> None:
         """Register a dependency declaration."""
         # The config dict contains the type and all other configuration
-        dependency_config = {
+        dependency_declaration = {
             "name": name,
             "type": config.get("type"),
             "config": config,  # Store the entire config dict
         }
         try:
-            self.registry.dependencies[name] = DependencyDeclaration(**dependency_config)
-        except ValidationError as e:
-            self._add_error(f"Invalid dependency '{name}': {e}")
+            self.registry.dependencies[name] = DependencyDeclaration(**dependency_declaration)
+        except ValidationError as exception:
+            self._add_error(f"Invalid dependency '{name}': {exception}")
 
     def register_prompt(self, name: str, content: str) -> None:
         """Register a prompt template."""
@@ -292,7 +300,7 @@ class RegistryBuilder:
             config: Dict with description, input, output schemas, and source info
             lua_handler: Lupa function reference (or placeholder for external sources)
         """
-        tool_def = {
+        tool_definition = {
             "description": config.get("description", ""),
             "input": config.get("input", {}),  # Changed from parameters
             "output": config.get("output", {}),  # New: output schema
@@ -301,9 +309,9 @@ class RegistryBuilder:
 
         # If this tool references an external source, store that info
         if "source" in config:
-            tool_def["source"] = config["source"]
+            tool_definition["source"] = config["source"]
 
-        self.registry.lua_tools[name] = tool_def
+        self.registry.lua_tools[name] = tool_definition
 
     def register_mock(self, tool_name: str, config: dict) -> None:
         """Register a mock configuration for a tool.
@@ -323,8 +331,8 @@ class RegistryBuilder:
         """
         try:
             self.registry.agent_mocks[agent_name] = AgentMockConfig(**config)
-        except Exception as e:
-            self._add_error(f"Invalid agent mock config for '{agent_name}': {e}")
+        except Exception as exception:
+            self._add_error(f"Invalid agent mock config for '{agent_name}': {exception}")
 
     def register_specification(self, name: str, scenarios: list) -> None:
         """Register a BDD specification."""
@@ -333,8 +341,8 @@ class RegistryBuilder:
                 name=name, scenarios=[ScenarioDeclaration(**s) for s in scenarios]
             )
             self.registry.specifications.append(spec)
-        except ValidationError as e:
-            self._add_error(f"Invalid specification '{name}': {e}")
+        except ValidationError as exception:
+            self._add_error(f"Invalid specification '{name}': {exception}")
 
     def register_named_procedure(
         self,
@@ -451,24 +459,26 @@ class RegistryBuilder:
 
     def validate(self) -> ValidationResult:
         """Run all validations after declarations collected."""
-        errors = []
-        warnings = []
+        validation_errors: list[ValidationMessage] = []
+        validation_warnings: list[ValidationMessage] = []
 
         # Script mode: merge top-level schemas into main procedure
         if self.registry.script_mode and "main" in self.registry.named_procedures:
-            main_proc = self.registry.named_procedures["main"]
+            main_procedure_entry = self.registry.named_procedures["main"]
             # Merge top-level input schema if main doesn't have one
-            if not main_proc["input_schema"] and self.registry.top_level_input_schema:
-                main_proc["input_schema"] = self.registry.top_level_input_schema
+            if not main_procedure_entry["input_schema"] and self.registry.top_level_input_schema:
+                main_procedure_entry["input_schema"] = self.registry.top_level_input_schema
             # Merge top-level output schema if main doesn't have one
-            if not main_proc["output_schema"] and self.registry.top_level_output_schema:
-                main_proc["output_schema"] = self.registry.top_level_output_schema
+            if not main_procedure_entry["output_schema"] and self.registry.top_level_output_schema:
+                main_procedure_entry["output_schema"] = self.registry.top_level_output_schema
 
         # Check for multiple unnamed Procedures (all would register as "main")
         # Count how many times a procedure was registered as "main"
-        main_count = sum(1 for name in self.registry.named_procedures.keys() if name == "main")
-        if main_count > 1:
-            errors.append(
+        main_procedure_declaration_count = sum(
+            1 for name in self.registry.named_procedures.keys() if name == "main"
+        )
+        if main_procedure_declaration_count > 1:
+            validation_errors.append(
                 ValidationMessage(
                     level="error",
                     message="Multiple unnamed Procedures found. Only one unnamed Procedure is allowed as the main entry point. Use named Procedures (e.g., helper = Procedure {...}) for additional procedures.",
@@ -479,25 +489,25 @@ class RegistryBuilder:
         # Top-level code can execute directly without being wrapped in a Procedure.
 
         # Agent validation
-        for agent in self.registry.agents.values():
+        for agent_declaration in self.registry.agents.values():
             # Check if agent has provider or if there's a default
-            if not agent.provider and not self.registry.default_provider:
-                errors.append(
+            if not agent_declaration.provider and not self.registry.default_provider:
+                validation_errors.append(
                     ValidationMessage(
                         level="error",
-                        message=f"Agent '{agent.name}' missing provider",
-                        declaration=agent.name,
+                        message=f"Agent '{agent_declaration.name}' missing provider",
+                        declaration=agent_declaration.name,
                     )
                 )
 
         # Warnings for missing specifications
-        has_specs = (
+        has_specifications = (
             self.registry.specifications
             or self.registry.gherkin_specifications
             or self.registry.specs_from_references
         )
-        if not has_specs:
-            warnings.append(
+        if not has_specifications:
+            validation_warnings.append(
                 ValidationMessage(
                     level="warning",
                     message='No specifications defined - consider adding BDD tests using Specification([[...]]) or Specification { from = "path" }',
@@ -505,12 +515,16 @@ class RegistryBuilder:
             )
 
         # Add any errors from registration
-        errors.extend([m for m in self.validation_messages if m.level == "error"])
-        warnings.extend([m for m in self.validation_messages if m.level == "warning"])
+        validation_errors.extend(
+            [message for message in self.validation_messages if message.level == "error"]
+        )
+        validation_warnings.extend(
+            [message for message in self.validation_messages if message.level == "warning"]
+        )
 
         return ValidationResult(
-            valid=len(errors) == 0,
-            errors=errors,
-            warnings=warnings,
-            registry=self.registry if len(errors) == 0 else None,
+            valid=len(validation_errors) == 0,
+            errors=validation_errors,
+            warnings=validation_warnings,
+            registry=self.registry if len(validation_errors) == 0 else None,
         )

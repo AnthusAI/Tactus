@@ -31,7 +31,7 @@ def test_state_all_clear_and_validation():
     assert state.all()["name"] == 123
     state.clear()
     assert state.all() == {}
-    assert state._validate_type(1, "unknown") is True
+    assert state._is_value_matching_schema_type(1, "unknown") is True
 
 
 def test_state_set_with_matching_schema_type():

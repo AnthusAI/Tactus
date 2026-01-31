@@ -5,7 +5,7 @@ Provides first-class support for Pydantic AI's composable toolset architecture.
 """
 
 import logging
-from typing import Any, Dict, Callable
+from typing import Any, Callable
 from pydantic_ai.toolsets import AbstractToolset, CombinedToolset, FilteredToolset
 
 logger = logging.getLogger(__name__)
@@ -36,7 +36,7 @@ class ToolsetPrimitive:
         self.definitions = {}  # name -> toolset config (from DSL)
         logger.debug("ToolsetPrimitive initialized")
 
-    def define(self, name: str, config: Dict[str, Any]) -> None:
+    def define(self, name: str, config: dict[str, Any]) -> None:
         """
         Register a toolset definition from the DSL.
 
@@ -61,7 +61,11 @@ class ToolsetPrimitive:
             }
         """
         self.definitions[name] = config
-        logger.info(f"Defined toolset '{name}' of type '{config.get('type')}'")
+        logger.info(
+            "Defined toolset '%s' of type '%s'",
+            name,
+            config.get("type"),
+        )
 
     def get(self, name: str) -> AbstractToolset:
         """
@@ -80,9 +84,9 @@ class ToolsetPrimitive:
             ValueError: If toolset not found
         """
         # Try to resolve from runtime first (config-defined toolsets)
-        toolset = self.runtime.resolve_toolset(name)
-        if toolset:
-            return toolset
+        toolset_from_runtime = self.runtime.resolve_toolset(name)
+        if toolset_from_runtime:
+            return toolset_from_runtime
 
         # Try DSL definitions
         if name in self.definitions:
@@ -101,7 +105,7 @@ class ToolsetPrimitive:
             CombinedToolset containing all input toolsets
         """
         toolset_list = list(toolsets)
-        logger.debug(f"Combining {len(toolset_list)} toolsets")
+        logger.debug("Combining %s toolsets", len(toolset_list))
         return CombinedToolset(toolset_list)
 
     def filter(self, toolset: AbstractToolset, predicate: Callable[[str], bool]) -> FilteredToolset:
@@ -123,14 +127,14 @@ class ToolsetPrimitive:
 
         # Wrap Lua function for Pydantic AI's filter API
         # Pydantic AI's filtered() expects: lambda ctx, tool: bool
-        def pydantic_filter(ctx, tool):
+        def pydantic_filter(_context, tool):
             # Call Lua predicate with just the tool name
             return predicate(tool.name)
 
         logger.debug("Creating filtered toolset")
         return toolset.filtered(pydantic_filter)
 
-    def _create_toolset_from_definition(self, name: str, config: Dict[str, Any]) -> AbstractToolset:
+    def _create_toolset_from_definition(self, name: str, config: dict[str, Any]) -> AbstractToolset:
         """
         Create a toolset from a DSL definition.
 
@@ -148,16 +152,15 @@ class ToolsetPrimitive:
 
         if toolset_type == "plugin":
             return self._create_plugin_toolset(name, config)
-        elif toolset_type == "mcp":
+        if toolset_type == "mcp":
             return self._create_mcp_toolset_reference(name, config)
-        elif toolset_type == "combined":
+        if toolset_type == "combined":
             return self._create_combined_toolset(name, config)
-        elif toolset_type == "filtered":
+        if toolset_type == "filtered":
             return self._create_filtered_toolset(name, config)
-        else:
-            raise ValueError(f"Unknown toolset type: {toolset_type}")
+        raise ValueError(f"Unknown toolset type: {toolset_type}")
 
-    def _create_plugin_toolset(self, name: str, config: Dict[str, Any]) -> AbstractToolset:
+    def _create_plugin_toolset(self, name: str, config: dict[str, Any]) -> AbstractToolset:
         """Create a plugin toolset from paths."""
         from tactus.adapters.plugins import PluginLoader
 
@@ -169,7 +172,7 @@ class ToolsetPrimitive:
         toolset = loader.create_toolset(paths, name=name)
         return toolset
 
-    def _create_mcp_toolset_reference(self, name: str, config: Dict[str, Any]) -> AbstractToolset:
+    def _create_mcp_toolset_reference(self, name: str, config: dict[str, Any]) -> AbstractToolset:
         """Get reference to an MCP toolset."""
         server_name = config.get("server")
         if not server_name:
@@ -183,12 +186,12 @@ class ToolsetPrimitive:
         # Get the toolset by server name
         toolset = self.runtime.mcp_manager.get_toolset_by_name(server_name)
         if toolset:
-            logger.info(f"Found MCP toolset for server '{server_name}'")
+            logger.info("Found MCP toolset for server '%s'", server_name)
             return toolset
 
         raise ValueError(f"MCP server toolset '{server_name}' not found")
 
-    def _create_combined_toolset(self, name: str, config: Dict[str, Any]) -> CombinedToolset:
+    def _create_combined_toolset(self, name: str, config: dict[str, Any]) -> CombinedToolset:
         """Create a combined toolset from sources."""
         sources = config.get("sources", [])
         if not sources:
@@ -197,12 +200,12 @@ class ToolsetPrimitive:
         # Resolve each source toolset
         resolved_toolsets = []
         for source_name in sources:
-            toolset = self.get(source_name)
-            resolved_toolsets.append(toolset)
+            resolved_toolset = self.get(source_name)
+            resolved_toolsets.append(resolved_toolset)
 
         return CombinedToolset(resolved_toolsets)
 
-    def _create_filtered_toolset(self, name: str, config: Dict[str, Any]) -> FilteredToolset:
+    def _create_filtered_toolset(self, name: str, config: dict[str, Any]) -> FilteredToolset:
         """Create a filtered toolset."""
         source = config.get("source")
         filter_pattern = config.get("filter")
@@ -220,7 +223,7 @@ class ToolsetPrimitive:
 
         pattern = re.compile(filter_pattern)
 
-        def filter_func(ctx, tool):
+        def filter_func(_context, tool):
             return pattern.match(tool.name) is not None
 
         return source_toolset.filtered(filter_func)

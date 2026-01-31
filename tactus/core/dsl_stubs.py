@@ -31,7 +31,7 @@ Agent/Tool calls use direct variable access:
     done.last_result()              -- Get last tool result
 """
 
-from typing import Any, Callable, Dict
+from typing import Any, Callable
 
 from .registry import RegistryBuilder
 from tactus.primitives.handles import AgentHandle, ModelHandle, AgentLookup, ModelLookup
@@ -45,7 +45,7 @@ class FieldDefinition(dict):
     pass
 
 
-def lua_table_to_dict(lua_table):
+def lua_table_to_dict(lua_table: Any) -> Any:
     """
     Convert lupa table to Python dict or list recursively.
 
@@ -66,35 +66,35 @@ def lua_table_to_dict(lua_table):
 
     try:
         # Get all keys
-        keys = list(lua_table.keys())
+        table_keys = list(lua_table.keys())
 
         # Empty table - return empty list (common for tools = {})
-        if not keys:
+        if not table_keys:
             return []
 
         # Check if it's an array (all keys are consecutive integers starting from 1)
-        if all(isinstance(k, int) for k in keys):
-            sorted_keys = sorted(keys)
-            if sorted_keys == list(range(1, len(keys) + 1)):
+        if all(isinstance(key, int) for key in table_keys):
+            sorted_keys = sorted(table_keys)
+            if sorted_keys == list(range(1, len(table_keys) + 1)):
                 # It's an array
                 return [
                     (
-                        lua_table_to_dict(lua_table[k])
-                        if hasattr(lua_table[k], "items")
-                        else lua_table[k]
+                        lua_table_to_dict(lua_table[key])
+                        if hasattr(lua_table[key], "items")
+                        else lua_table[key]
                     )
-                    for k in sorted_keys
+                    for key in sorted_keys
                 ]
 
         # It's a dictionary
-        result = {}
+        converted_mapping: dict[Any, Any] = {}
         for key, value in lua_table.items():
             # Recursively convert nested tables
             if hasattr(value, "items"):
-                result[key] = lua_table_to_dict(value)
+                converted_mapping[key] = lua_table_to_dict(value)
             else:
-                result[key] = value
-        return result
+                converted_mapping[key] = value
+        return converted_mapping
 
     except (AttributeError, TypeError):
         # Fallback: return as-is
@@ -112,7 +112,7 @@ def create_dsl_stubs(
     builder: RegistryBuilder,
     tool_primitive: Any = None,
     mock_manager: Any = None,
-    runtime_context: Dict[str, Any] | None = None,
+    runtime_context: dict[str, Any] | None = None,
 ) -> dict[str, Callable]:
     """
     Create DSL stub functions that populate the registry.
@@ -133,9 +133,9 @@ def create_dsl_stubs(
         - Uppercase lookup functions: Agent, Tool, Model
     """
     # Registries for handle lookup
-    _agent_registry: Dict[str, AgentHandle] = {}
-    _tool_registry: Dict[str, Any] = {}  # ToolHandle instances
-    _model_registry: Dict[str, ModelHandle] = {}
+    _agent_registry: dict[str, AgentHandle] = {}
+    _tool_registry: dict[str, Any] = {}  # ToolHandle instances
+    _model_registry: dict[str, ModelHandle] = {}
 
     # Store runtime context for immediate agent creation
     _runtime_context = runtime_context or {}
@@ -143,7 +143,9 @@ def create_dsl_stubs(
     # Global registry for named procedure stubs to find their implementations
     _procedure_registry = {}
 
-    def _process_procedure_config(name: str | None, config, procedure_registry: dict):
+    def _process_procedure_config(
+        name: str | None, config: Any, procedure_registry: dict[str, Any]
+    ):
         """
         Process procedure config and register the procedure.
 
@@ -163,18 +165,18 @@ def create_dsl_stubs(
             name = "main"
         # Extract the function from the raw Lua table before conversion
         # In Lua tables, unnamed elements are stored with numeric indices (1-based)
-        run_fn = None
+        run_function = None
 
         # Check for function in array part of table (numeric indices)
         if hasattr(config, "__getitem__"):
             # Try to get function from numeric indices (Lua uses 1-based indexing)
-            for i in range(1, 10):  # Check first few positions
+            for index in range(1, 10):  # Check first few positions
                 try:
-                    item = config[i]
-                    if callable(item):
-                        run_fn = item
+                    candidate_item = config[index]
+                    if callable(candidate_item):
+                        run_function = candidate_item
                         # Remove from table so it doesn't appear in config_dict
-                        config[i] = None
+                        config[index] = None
                         break
                 except (KeyError, TypeError):
                     break
@@ -190,12 +192,15 @@ def create_dsl_stubs(
             config_dict = [x for x in config_dict if x is not None]
             if len(config_dict) == 0:
                 config_dict = {}
+            else:
+                # Ignore extra positional entries that cannot be mapped to config fields.
+                config_dict = {}
 
         # If no function found in array part, check for legacy 'run' field
-        if run_fn is None:
-            run_fn = config_dict.pop("run", None)
+        if run_function is None:
+            run_function = config_dict.pop("run", None)
 
-        if run_fn is None:
+        if run_function is None:
             raise TypeError(
                 f"Procedure '{name}' requires a function. "
                 f"Use: Procedure {{ input = {{...}}, function() ... end }}"
@@ -214,7 +219,9 @@ def create_dsl_stubs(
         if dependencies_schema:
             state_schema["_dependencies"] = dependencies_schema
 
-        builder.register_named_procedure(name, run_fn, input_schema, output_schema, state_schema)
+        builder.register_named_procedure(
+            name, run_function, input_schema, output_schema, state_schema
+        )
 
         # Return a stub that will delegate to the registry at call time
         class NamedProcedureStub:
@@ -479,15 +486,21 @@ def create_dsl_stubs(
           - Specification { from = "path" }      (external file reference)
         """
         if len(args) == 1:
-            arg = args[0]
+            single_argument = args[0]
             # Check if it's a table with 'from' parameter
-            if isinstance(arg, dict) or (hasattr(arg, "keys") and callable(arg.keys)):
-                config = lua_table_to_dict(arg) if not isinstance(arg, dict) else arg
+            if isinstance(single_argument, dict) or (
+                hasattr(single_argument, "keys") and callable(single_argument.keys)
+            ):
+                config = (
+                    lua_table_to_dict(single_argument)
+                    if not isinstance(single_argument, dict)
+                    else single_argument
+                )
                 if "from" in config:
                     builder.register_specs_from(config["from"])
                     return
             # Otherwise treat as inline Gherkin text
-            builder.register_specifications(arg)
+            builder.register_specifications(single_argument)
             return
         if len(args) >= 2:
             spec_name, scenarios = args[0], args[1]
@@ -511,7 +524,8 @@ def create_dsl_stubs(
           - Evaluation({ dataset=..., evaluators=..., ...}) (alias for Evaluations)
         """
         config_dict = lua_table_to_dict(config or {})
-        if any(k in config_dict for k in ("dataset", "dataset_file", "evaluators", "thresholds")):
+        evaluation_keys = ("dataset", "dataset_file", "evaluators", "thresholds")
+        if any(key in config_dict for key in evaluation_keys):
             builder.register_evaluations(config_dict)
             return
         builder.set_evaluation_config(config_dict)
@@ -738,9 +752,9 @@ def create_dsl_stubs(
                 options = lua_table_to_dict(options)
             if not isinstance(options, dict):
                 options = {}
-            cfg = {"type": evaluator_type}
-            cfg.update(options)
-            return cfg
+            evaluator_config = {"type": evaluator_type}
+            evaluator_config.update(options)
+            return evaluator_config
 
         return build_evaluator
 
@@ -777,12 +791,12 @@ def create_dsl_stubs(
                     # Assignment syntax: generate temp name and register
                     import uuid
 
-                    temp_name = f"_temp_model_{uuid.uuid4().hex[:8]}"
+                    temporary_name = f"_temp_model_{uuid.uuid4().hex[:8]}"
                     config_dict = lua_table_to_dict(name)
-                    builder.register_model(temp_name, config_dict)
+                    builder.register_model(temporary_name, config_dict)
 
-                    handle = ModelHandle(temp_name)
-                    _model_registry[temp_name] = handle
+                    handle = ModelHandle(temporary_name)
+                    _model_registry[temporary_name] = handle
                     return handle
 
                 # If config is provided, it's old-style definition: Model("name", {config})
@@ -804,18 +818,18 @@ def create_dsl_stubs(
 
                 # Otherwise pass through to definer
                 return self.definer(name, config)  # pragma: no cover
-            except TypeError as e:
+            except TypeError as error:
                 # Handle unhashable type errors from Lua tables
-                if "unhashable type" in str(e):
+                if "unhashable type" in str(error):
                     # This is assignment syntax with a Lua table
                     import uuid
 
-                    temp_name = f"_temp_model_{uuid.uuid4().hex[:8]}"
+                    temporary_name = f"_temp_model_{uuid.uuid4().hex[:8]}"
                     config_dict = lua_table_to_dict(name)
-                    builder.register_model(temp_name, config_dict)
+                    builder.register_model(temporary_name, config_dict)
 
-                    handle = ModelHandle(temp_name)
-                    _model_registry[temp_name] = handle
+                    handle = ModelHandle(temporary_name)
+                    _model_registry[temporary_name] = handle
                     return handle
                 raise
 
@@ -864,9 +878,9 @@ def create_dsl_stubs(
                 return create_signature(sig_input)
             else:
                 # This is a name for curried form: Signature "name" {...}
-                def accept_config(cfg):
+                def accept_config(config):
                     """Accept config and create structured signature."""
-                    config_dict = lua_table_to_dict(cfg)
+                    config_dict = lua_table_to_dict(config)
 
                     # Normalize empty config
                     if isinstance(config_dict, list) and len(config_dict) == 0:
@@ -916,9 +930,9 @@ def create_dsl_stubs(
         # Check if this is curried syntax (config is None, return acceptor)
         if config is None:
             # Return a function that accepts config
-            def accept_config(cfg=None):
-                cfg_dict = lua_table_to_dict(cfg) if cfg else {}
-                return configure_lm(model, **cfg_dict)
+            def accept_config(config_override=None):
+                config_dict = lua_table_to_dict(config_override) if config_override else {}
+                return configure_lm(model, **config_dict)
 
             # Also allow immediate call without config
             # This handles: LM("openai/gpt-4o") with no second arg
@@ -989,7 +1003,7 @@ def create_dsl_stubs(
 
             # Tool mocks use explicit keys.
             tool_mock_keys = {"returns", "temporal", "conditional", "error"}
-            if any(k in mock_config for k in tool_mock_keys):
+            if any(key in mock_config for key in tool_mock_keys):
                 # Convert DSL syntax to MockConfig format
                 processed_config = {}
 
@@ -1005,13 +1019,22 @@ def create_dsl_stubs(
                 elif "conditional" in mock_config:
                     # Convert DSL conditional format to MockManager format
                     conditionals = []
-                    for cond in mock_config["conditional"]:
-                        if isinstance(cond, dict) and "when" in cond and "returns" in cond:
-                            conditionals.append({"when": cond["when"], "return": cond["returns"]})
+                    for conditional in mock_config["conditional"]:
+                        if (
+                            isinstance(conditional, dict)
+                            and "when" in conditional
+                            and "returns" in conditional
+                        ):
+                            conditionals.append(
+                                {
+                                    "when": conditional["when"],
+                                    "return": conditional["returns"],
+                                }
+                            )
                     processed_config["conditional_mocks"] = conditionals
 
-                # Error simulation
-                elif "error" in mock_config:
+                # Error simulation (fallback when no other tool mock key matched)
+                else:
                     processed_config["error"] = mock_config["error"]
 
                 # Register the tool mock configuration
@@ -1049,8 +1072,8 @@ def create_dsl_stubs(
         from tactus.dspy import create_history
 
         if messages is not None:
-            messages_list = lua_table_to_dict(messages)
-            return create_history(messages_list)
+            message_entries = lua_table_to_dict(messages)
+            return create_history(message_entries)
         return create_history()
 
     class TactusMessage:
@@ -1118,7 +1141,9 @@ def create_dsl_stubs(
             raise ValueError("Message requires 'content' field")
 
         # Extract any additional metadata
-        metadata = {k: v for k, v in config_dict.items() if k not in ("role", "content")}
+        metadata = {
+            key: value for key, value in config_dict.items() if key not in ("role", "content")
+        }
 
         return TactusMessage(role, content, **metadata)
 
@@ -1160,9 +1185,9 @@ def create_dsl_stubs(
             )
 
         # New curried syntax - return a function that accepts config
-        def accept_config(cfg):
+        def accept_config(config):
             """Accept config and create module."""
-            config_dict = lua_table_to_dict(cfg)
+            config_dict = lua_table_to_dict(config)
             return create_module(
                 module_name, config_dict, registry=builder.registry, mock_manager=mock_manager
             )
@@ -1212,9 +1237,9 @@ def create_dsl_stubs(
             )
 
         # Curried form - return function that accepts config
-        def accept_config(cfg):
+        def accept_config(config):
             """Accept config and create DSPy agent."""
-            config_dict = lua_table_to_dict(cfg)
+            config_dict = lua_table_to_dict(config)
             agent_name = config_dict.pop("name", "dspy_agent")
             return create_dspy_agent(
                 agent_name, config_dict, registry=builder.registry, mock_manager=mock_manager
@@ -1296,14 +1321,14 @@ def create_dsl_stubs(
         from tactus.primitives.tool_handle import ToolHandle
 
         # Extract function from config
-        handler_fn = None
+        handler_function = None
         if hasattr(config, "__getitem__"):
-            for i in range(1, 10):
+            for index in range(1, 10):
                 try:
-                    item = config[i]
-                    if callable(item):
-                        handler_fn = item
-                        config[i] = None
+                    candidate_item = config[index]
+                    if callable(candidate_item):
+                        handler_function = candidate_item
+                        config[index] = None
                         break
                 except (KeyError, TypeError, IndexError):
                     break
@@ -1314,8 +1339,8 @@ def create_dsl_stubs(
         # Clean up None values from function extraction
         if isinstance(config_dict, list):
             config_dict = [x for x in config_dict if x is not None]
-            if len(config_dict) == 0:
-                config_dict = {}
+            # Ignore extra positional entries that can't be mapped to config fields.
+            config_dict = {}
 
         # Normalize empty schemas (lua {} -> python []) so tools treat empty schemas
         # as empty objects, not arrays.
@@ -1324,8 +1349,8 @@ def create_dsl_stubs(
             config_dict["output"] = _normalize_schema(config_dict.get("output", {}))
 
         # Check for legacy handler field
-        if handler_fn is None and isinstance(config_dict, dict):
-            handler_fn = config_dict.pop("handler", None)
+        if handler_function is None and isinstance(config_dict, dict):
+            handler_function = config_dict.pop("handler", None)
 
         # Tool sources: allow `use = "..."` (or legacy/internal `source = "..."`) in lieu of a handler.
         source = None
@@ -1338,14 +1363,16 @@ def create_dsl_stubs(
             else:
                 source = config_dict.get("source")
 
-        if handler_fn is not None and isinstance(source, str) and source.strip():
+        if handler_function is not None and isinstance(source, str) and source.strip():
             raise TypeError(
                 f"Tool '{tool_name}' cannot specify both a function and 'use = \"...\"'"
             )
 
-        is_source_tool = handler_fn is None and isinstance(source, str) and bool(source.strip())
+        is_source_tool = (
+            handler_function is None and isinstance(source, str) and bool(source.strip())
+        )
 
-        if handler_fn is None and not is_source_tool:
+        if handler_function is None and not is_source_tool:
             raise TypeError(
                 f"Tool '{tool_name}' requires either a function or 'use = \"...\"'. "
                 'Example: my_tool = Tool { use = "broker.host.ping" }'
@@ -1376,7 +1403,7 @@ def create_dsl_stubs(
                         f"Tool '{tool_name}' not resolved from source '{source_str}'"
                     )
 
-                tool_fn = tool_primitive._extract_tool_function(toolset, tool_name)
+                tool_function = tool_primitive._extract_tool_function(toolset, tool_name)
 
                 # Support both tool_fn(**kwargs) and tool_fn(args_dict) styles.
                 # Prefer kwargs (pydantic-ai Tool functions) then fall back to dict.
@@ -1387,9 +1414,9 @@ def create_dsl_stubs(
                 if not isinstance(args_dict, dict):
                     raise TypeError(f"Tool '{tool_name}' args must be an object/table")
 
-                if asyncio.iscoroutinefunction(tool_fn):
+                if asyncio.iscoroutinefunction(tool_function):
 
-                    def _run_coro(coro):
+                    def run_coroutine_in_thread(coro):
                         try:
                             asyncio.get_running_loop()
                         except RuntimeError:
@@ -1400,8 +1427,8 @@ def create_dsl_stubs(
                         def run_in_thread():
                             try:
                                 result_container["value"] = asyncio.run(coro)
-                            except Exception as e:
-                                result_container["exception"] = e
+                            except Exception as error:
+                                result_container["exception"] = error
 
                         thread = threading.Thread(target=run_in_thread)
                         thread.start()
@@ -1412,22 +1439,22 @@ def create_dsl_stubs(
                         return result_container["value"]
 
                     try:
-                        return _run_coro(tool_fn(**args_dict))
+                        return run_coroutine_in_thread(tool_function(**args_dict))
                     except TypeError:
-                        return _run_coro(tool_fn(args_dict))
+                        return run_coroutine_in_thread(tool_function(args_dict))
 
                 try:
-                    return tool_fn(**args_dict)
+                    return tool_function(**args_dict)
                 except TypeError:
-                    return tool_fn(args_dict)
+                    return tool_function(args_dict)
 
-            handler_fn = source_tool_handler
+            handler_function = source_tool_handler
 
         # Register tool with provided name
-        builder.register_tool(tool_name, config_dict, handler_fn)
+        builder.register_tool(tool_name, config_dict, handler_function)
         handle = ToolHandle(
             tool_name,
-            handler_fn,
+            handler_function,
             tool_primitive,
             record_calls=not is_source_tool,
         )
@@ -1475,14 +1502,14 @@ def create_dsl_stubs(
             raise TypeError("Tool requires a configuration table")
 
         # Extract function from config
-        handler_fn = None
+        handler_function = None
         if hasattr(config, "__getitem__"):
-            for i in range(1, 10):
+            for index in range(1, 10):
                 try:
-                    item = config[i]
-                    if callable(item):
-                        handler_fn = item
-                        config[i] = None
+                    candidate_item = config[index]
+                    if callable(candidate_item):
+                        handler_function = candidate_item
+                        config[index] = None
                         break
                 except (KeyError, TypeError, IndexError):
                     break
@@ -1493,8 +1520,8 @@ def create_dsl_stubs(
         # Clean up None values from function extraction
         if isinstance(config_dict, list):
             config_dict = [x for x in config_dict if x is not None]
-            if len(config_dict) == 0:
-                config_dict = {}
+            # Ignore extra positional entries that can't be mapped to config fields.
+            config_dict = {}
 
         # Normalize empty schemas (lua {} -> python []) so tools treat empty schemas
         # as empty objects, not arrays.
@@ -1503,8 +1530,8 @@ def create_dsl_stubs(
             config_dict["output"] = _normalize_schema(config_dict.get("output", {}))
 
         # Check for legacy handler field
-        if handler_fn is None and isinstance(config_dict, dict):
-            handler_fn = config_dict.pop("handler", None)
+        if handler_function is None and isinstance(config_dict, dict):
+            handler_function = config_dict.pop("handler", None)
 
         # Tool sources: allow `use = "..."` (or legacy/internal `source = "..."`) in lieu of a handler.
         source = None
@@ -1517,12 +1544,14 @@ def create_dsl_stubs(
             else:
                 source = config_dict.get("source")
 
-        if handler_fn is not None and isinstance(source, str) and source.strip():
+        if handler_function is not None and isinstance(source, str) and source.strip():
             raise TypeError("Tool cannot specify both a function and 'use = \"...\"'")
 
-        is_source_tool = handler_fn is None and isinstance(source, str) and bool(source.strip())
+        is_source_tool = (
+            handler_function is None and isinstance(source, str) and bool(source.strip())
+        )
 
-        if handler_fn is None and not is_source_tool:
+        if handler_function is None and not is_source_tool:
             raise TypeError(
                 "Tool requires either a function or 'use = \"...\"'. "
                 'Example: my_tool = Tool { use = "broker.host.ping" }'
@@ -1540,7 +1569,7 @@ def create_dsl_stubs(
         # Generate a temporary name - will be replaced when assigned
         import uuid
 
-        temp_name = (
+        temporary_name = (
             explicit_name.strip()
             if isinstance(explicit_name, str)
             else f"_temp_tool_{uuid.uuid4().hex[:8]}"
@@ -1551,7 +1580,7 @@ def create_dsl_stubs(
             import threading
 
             source_str = source.strip()
-            handle_ref = {"handle": None}
+            handle_reference = {"handle": None}
 
             def source_tool_handler(args):
                 # Resolve at call time so runtime toolsets are available.
@@ -1562,14 +1591,18 @@ def create_dsl_stubs(
                 if runtime is None:
                     raise RuntimeError("Tool not available (runtime not connected)")
 
-                resolved_name = handle_ref["handle"].name if handle_ref["handle"] else temp_name
+                resolved_name = (
+                    handle_reference["handle"].name
+                    if handle_reference["handle"]
+                    else temporary_name
+                )
                 toolset = runtime.toolset_registry.get(resolved_name)
                 if toolset is None:
                     raise RuntimeError(
                         f"Tool '{resolved_name}' not resolved from source '{source_str}'"
                     )
 
-                tool_fn = tool_primitive._extract_tool_function(toolset, resolved_name)
+                tool_function = tool_primitive._extract_tool_function(toolset, resolved_name)
 
                 # Support both tool_fn(**kwargs) and tool_fn(args_dict) styles.
                 # Prefer kwargs (pydantic-ai Tool functions) then fall back to dict.
@@ -1580,9 +1613,9 @@ def create_dsl_stubs(
                 if not isinstance(args_dict, dict):
                     raise TypeError("Tool args must be an object/table")
 
-                if asyncio.iscoroutinefunction(tool_fn):
+                if asyncio.iscoroutinefunction(tool_function):
 
-                    def _run_coro(coro):
+                    def run_coroutine_in_thread(coro):
                         try:
                             asyncio.get_running_loop()
                         except RuntimeError:
@@ -1593,8 +1626,8 @@ def create_dsl_stubs(
                         def run_in_thread():
                             try:
                                 result_container["value"] = asyncio.run(coro)
-                            except Exception as e:
-                                result_container["exception"] = e
+                            except Exception as error:
+                                result_container["exception"] = error
 
                         thread = threading.Thread(target=run_in_thread)
                         thread.start()
@@ -1605,31 +1638,31 @@ def create_dsl_stubs(
                         return result_container["value"]
 
                     try:
-                        return _run_coro(tool_fn(**args_dict))
+                        return run_coroutine_in_thread(tool_function(**args_dict))
                     except TypeError:
-                        return _run_coro(tool_fn(args_dict))
+                        return run_coroutine_in_thread(tool_function(args_dict))
 
                 try:
-                    return tool_fn(**args_dict)
+                    return tool_function(**args_dict)
                 except TypeError:
-                    return tool_fn(args_dict)
+                    return tool_function(args_dict)
 
-            handler_fn = source_tool_handler
+            handler_function = source_tool_handler
 
         # Register tool
-        builder.register_tool(temp_name, config_dict, handler_fn)
+        builder.register_tool(temporary_name, config_dict, handler_function)
         handle = ToolHandle(
-            temp_name,
-            handler_fn,
+            temporary_name,
+            handler_function,
             tool_primitive,
             record_calls=not is_source_tool,
         )
 
         # Store in registry with temp name
-        _tool_registry[temp_name] = handle
+        _tool_registry[temporary_name] = handle
 
         if is_source_tool:
-            handle_ref["handle"] = handle
+            handle_reference["handle"] = handle
 
         return handle
 
@@ -1668,21 +1701,21 @@ def create_dsl_stubs(
 
         # tools: tool/toolset references and toolset expressions (filter dicts)
         if "tools" in config_dict:
-            tools = config_dict["tools"]
-            if isinstance(tools, (list, tuple)):
+            tool_references = config_dict["tools"]
+            if isinstance(tool_references, (list, tuple)):
                 normalized = []
-                for t in tools:
-                    if isinstance(t, dict):
-                        if "handler" in t:
+                for tool_entry in tool_references:
+                    if isinstance(tool_entry, dict):
+                        if "handler" in tool_entry:
                             raise ValueError(
                                 f"Agent '{agent_name}': inline tool definitions must be in 'inline_tools', not 'tools'."
                             )
-                        normalized.append(t)
+                        normalized.append(tool_entry)
                         continue
-                    if hasattr(t, "name"):  # ToolHandle or ToolsetHandle
-                        normalized.append(t.name)
+                    if hasattr(tool_entry, "name"):  # ToolHandle or ToolsetHandle
+                        normalized.append(tool_entry.name)
                     else:
-                        normalized.append(t)
+                        normalized.append(tool_entry)
                 config_dict["tools"] = normalized
 
         # Extract input schema if present
@@ -1780,9 +1813,9 @@ def create_dsl_stubs(
                     f"[AGENT_CREATION] Stored agent '{agent_name}' in _created_agents dict"
                 )
 
-            except Exception as e:
+            except Exception as error:
                 logger.error(
-                    f"[AGENT_CREATION] Failed to create agent '{agent_name}' immediately: {e}",
+                    f"[AGENT_CREATION] Failed to create agent '{agent_name}' immediately: {error}",
                     exc_info=True,
                 )
                 # Fall back to two-phase initialization if immediate creation fails
@@ -1853,21 +1886,21 @@ def create_dsl_stubs(
 
         # tools: tool/toolset references and toolset expressions (filter dicts)
         if "tools" in config_dict:
-            tools = config_dict["tools"]
-            if isinstance(tools, (list, tuple)):
+            tool_references = config_dict["tools"]
+            if isinstance(tool_references, (list, tuple)):
                 normalized = []
-                for t in tools:
-                    if isinstance(t, dict):
-                        if "handler" in t:
+                for tool_entry in tool_references:
+                    if isinstance(tool_entry, dict):
+                        if "handler" in tool_entry:
                             raise ValueError(
                                 "Agent: inline tool definitions must be in 'inline_tools', not 'tools'."
                             )
-                        normalized.append(t)
+                        normalized.append(tool_entry)
                         continue
-                    if hasattr(t, "name"):  # ToolHandle or ToolsetHandle
-                        normalized.append(t.name)
+                    if hasattr(tool_entry, "name"):  # ToolHandle or ToolsetHandle
+                        normalized.append(tool_entry.name)
                     else:
-                        normalized.append(t)
+                        normalized.append(tool_entry)
                 config_dict["tools"] = normalized
 
         # Extract input schema if present
@@ -1895,13 +1928,13 @@ def create_dsl_stubs(
         # Generate a temporary name - will be replaced when assigned
         import uuid
 
-        temp_name = f"_temp_agent_{uuid.uuid4().hex[:8]}"
+        temporary_agent_name = f"_temp_agent_{uuid.uuid4().hex[:8]}"
 
         # Register agent
-        builder.register_agent(temp_name, config_dict, output_schema)
+        builder.register_agent(temporary_agent_name, config_dict, output_schema)
 
         # Create handle
-        handle = AgentHandle(temp_name)
+        handle = AgentHandle(temporary_agent_name)
 
         # If we have runtime context, create the agent primitive immediately
         import logging
@@ -1909,13 +1942,15 @@ def create_dsl_stubs(
         logger = logging.getLogger(__name__)
 
         logger.debug(
-            f"[AGENT_CREATION] Agent '{temp_name}': runtime_context={bool(_runtime_context)}, has_log_handler={('log_handler' in _runtime_context) if _runtime_context else False}"
+            f"[AGENT_CREATION] Agent '{temporary_agent_name}': runtime_context={bool(_runtime_context)}, has_log_handler={('log_handler' in _runtime_context) if _runtime_context else False}"
         )
 
         if _runtime_context:
             from tactus.dspy.agent import create_dspy_agent
 
-            logger.debug(f"[AGENT_CREATION] Attempting immediate creation for agent '{temp_name}'")
+            logger.debug(
+                f"[AGENT_CREATION] Attempting immediate creation for agent '{temporary_agent_name}'"
+            )
 
             try:
                 # Create the actual agent primitive NOW
@@ -1935,10 +1970,10 @@ def create_dsl_stubs(
                     agent_config["log_handler"] = _runtime_context["log_handler"]
 
                 logger.debug(
-                    f"[AGENT_CREATION] Creating agent immediately: name={temp_name}, has_log_handler={'log_handler' in agent_config}"
+                    f"[AGENT_CREATION] Creating agent immediately: name={temporary_agent_name}, has_log_handler={'log_handler' in agent_config}"
                 )
                 agent_primitive = create_dspy_agent(
-                    temp_name,
+                    temporary_agent_name,
                     agent_config,
                     registry=builder.registry,
                     mock_manager=_runtime_context.get("mock_manager"),
@@ -1954,27 +1989,29 @@ def create_dsl_stubs(
                     agent_primitive, execution_context=_runtime_context.get("execution_context")
                 )
                 logger.debug(
-                    f"[AGENT_CREATION] Agent '{temp_name}' created immediately during declaration, has_log_handler={hasattr(agent_primitive, 'log_handler') and agent_primitive.log_handler is not None}"
+                    f"[AGENT_CREATION] Agent '{temporary_agent_name}' created immediately during declaration, has_log_handler={hasattr(agent_primitive, 'log_handler') and agent_primitive.log_handler is not None}"
                 )
 
                 # Store primitive in a dict so runtime can access it later
                 if "_created_agents" not in _runtime_context:
                     _runtime_context["_created_agents"] = {}
-                _runtime_context["_created_agents"][temp_name] = agent_primitive
-                logger.debug(f"[AGENT_CREATION] Stored agent '{temp_name}' in _created_agents dict")
+                _runtime_context["_created_agents"][temporary_agent_name] = agent_primitive
+                logger.debug(
+                    f"[AGENT_CREATION] Stored agent '{temporary_agent_name}' in _created_agents dict"
+                )
 
-            except Exception as e:
+            except Exception as error:
                 import traceback
 
                 logger.error(
-                    f"[AGENT_CREATION] Failed to create agent '{temp_name}' immediately: {e}",
+                    f"[AGENT_CREATION] Failed to create agent '{temporary_agent_name}' immediately: {error}",
                     exc_info=True,
                 )
                 logger.debug(f"Full traceback: {traceback.format_exc()}")
                 # Fall back to two-phase initialization if immediate creation fails
 
         # Register handle for lookup
-        _agent_registry[temp_name] = handle
+        _agent_registry[temporary_agent_name] = handle
 
         return handle
 

@@ -22,11 +22,20 @@ class ProcedureWaitingForHuman(Exception):
     4. Wait for resume trigger
     """
 
+    message_template = (
+        "Procedure {procedure_id} waiting for human response to message {pending_message_id}"
+    )
+
+    procedure_id: str
+    pending_message_id: str
+
     def __init__(self, procedure_id: str, pending_message_id: str):
         self.procedure_id = procedure_id
         self.pending_message_id = pending_message_id
         super().__init__(
-            f"Procedure {procedure_id} waiting for human response to message {pending_message_id}"
+            self.message_template.format(
+                procedure_id=procedure_id, pending_message_id=pending_message_id
+            )
         )
 
 

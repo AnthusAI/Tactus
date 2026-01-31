@@ -6,9 +6,8 @@ Collects log events in a queue for streaming to IDE frontend.
 
 import logging
 import queue
-from typing import List
 
-from tactus.protocols.models import LogEvent
+from tactus.protocols.models import CostEvent, LogEvent
 
 logger = logging.getLogger(__name__)
 
@@ -25,8 +24,8 @@ class IDELogHandler:
 
     def __init__(self):
         """Initialize IDE log handler."""
-        self.events = queue.Queue()
-        self.cost_events = []  # Track cost events for aggregation
+        self.events: queue.Queue[LogEvent] = queue.Queue()
+        self.cost_events: list[CostEvent] = []  # Track cost events for aggregation
         logger.debug("IDELogHandler initialized")
 
     def log(self, event: LogEvent) -> None:
@@ -37,7 +36,10 @@ class IDELogHandler:
             event: Structured log event
         """
         # CRITICAL DEBUG: Log every call to this method
-        logger.info(f"[IDE_LOG] log() called with event type: {type(event).__name__}")
+        logger.info(
+            "[IDE_LOG] log() called with event type: %s",
+            type(event).__name__,
+        )
 
         # Track cost events for aggregation
         from tactus.protocols.models import CostEvent, AgentStreamChunkEvent
@@ -48,16 +50,22 @@ class IDELogHandler:
         # Debug logging for streaming events
         if isinstance(event, AgentStreamChunkEvent):
             logger.info(
-                f"[IDE_LOG] Received AgentStreamChunkEvent: agent={event.agent_name}, chunk_len={len(event.chunk_text)}, accumulated_len={len(event.accumulated_text)}"
+                "[IDE_LOG] Received AgentStreamChunkEvent: agent=%s, "
+                "chunk_len=%s, accumulated_len=%s",
+                event.agent_name,
+                len(event.chunk_text),
+                len(event.accumulated_text),
             )
 
         self.events.put(event)
         # Use INFO level to ensure we see this in logs
         logger.info(
-            f"[IDE_LOG] Event queued: type={type(event).__name__}, queue_size={self.events.qsize()}"
+            "[IDE_LOG] Event queued: type=%s, queue_size=%s",
+            type(event).__name__,
+            self.events.qsize(),
         )
 
-    def get_events(self, timeout: float = 0.1) -> List[LogEvent]:
+    def get_events(self, timeout: float = 0.1) -> list[LogEvent]:
         """
         Get all available events from the queue.
 
@@ -67,7 +75,7 @@ class IDELogHandler:
         Returns:
             List of LogEvent objects
         """
-        events = []
+        events: list[LogEvent] = []
         while True:
             try:
                 event = self.events.get(timeout=timeout)

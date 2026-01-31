@@ -85,25 +85,25 @@ class PluginLoader:
         all_tools = []
 
         for path_str in paths:
-            path = Path(path_str).resolve()
+            resolved_path = Path(path_str).resolve()
 
-            if not path.exists():
-                logger.warning(f"Tool path does not exist: {path}")
+            if not resolved_path.exists():
+                logger.warning(f"Tool path does not exist: {resolved_path}")
                 continue
 
-            if path.is_file():
+            if resolved_path.is_file():
                 # Load tools from single file
-                if path.suffix == ".py":
-                    tools = self._load_tools_from_file(path)
+                if resolved_path.suffix == ".py":
+                    tools = self._load_tools_from_file(resolved_path)
                     all_tools.extend(tools)
                 else:
-                    logger.warning(f"Skipping non-Python file: {path}")
-            elif path.is_dir():
+                    logger.warning(f"Skipping non-Python file: {resolved_path}")
+            elif resolved_path.is_dir():
                 # Scan directory for Python files
-                tools = self._load_tools_from_directory(path)
+                tools = self._load_tools_from_directory(resolved_path)
                 all_tools.extend(tools)
             else:
-                logger.warning(f"Path is neither file nor directory: {path}")
+                logger.warning(f"Path is neither file nor directory: {resolved_path}")
 
         logger.info(f"Loaded {len(all_tools)} tools from {len(paths)} path(s)")
         return all_tools
@@ -121,23 +121,23 @@ class PluginLoader:
         all_functions = []
 
         for path_str in paths:
-            path = Path(path_str).resolve()
+            resolved_path = Path(path_str).resolve()
 
-            if not path.exists():
-                logger.warning(f"Tool path does not exist: {path}")
+            if not resolved_path.exists():
+                logger.warning(f"Tool path does not exist: {resolved_path}")
                 continue
 
-            if path.is_file():
-                if path.suffix == ".py":
-                    functions = self._load_functions_from_file(path)
+            if resolved_path.is_file():
+                if resolved_path.suffix == ".py":
+                    functions = self._load_functions_from_file(resolved_path)
                     all_functions.extend(functions)
                 else:
-                    logger.warning(f"Skipping non-Python file: {path}")
-            elif path.is_dir():
-                functions = self._load_functions_from_directory(path)
+                    logger.warning(f"Skipping non-Python file: {resolved_path}")
+            elif resolved_path.is_dir():
+                functions = self._load_functions_from_directory(resolved_path)
                 all_functions.extend(functions)
             else:
-                logger.warning(f"Path is neither file nor directory: {path}")
+                logger.warning(f"Path is neither file nor directory: {resolved_path}")
 
         logger.debug(f"Loaded {len(all_functions)} function(s) from {len(paths)} path(s)")
         return all_functions
@@ -200,8 +200,8 @@ class PluginLoader:
                     functions.append(obj)
                     logger.debug(f"Found function '{name}' in {file_path.name}")
 
-        except Exception as e:
-            logger.error(f"Failed to load functions from {file_path}: {e}", exc_info=True)
+        except Exception as error:
+            logger.error(f"Failed to load functions from {file_path}: {error}", exc_info=True)
 
         return functions
 
@@ -216,14 +216,14 @@ class PluginLoader:
             Async callback function for process_tool_call
         """
 
-        async def trace_tool_call(ctx, next_call, tool_name, tool_args):
+        async def trace_tool_call(execution_context, invoke_next, tool_name, tool_args):
             """Middleware to record tool calls in Tactus ToolPrimitive."""
             logger.debug(
                 f"Toolset '{toolset_name}' calling tool '{tool_name}' with args: {tool_args}"
             )
 
             try:
-                result = await next_call(tool_name, tool_args)
+                result = await invoke_next(tool_name, tool_args)
 
                 # Record in ToolPrimitive if available
                 if self.tool_primitive:
@@ -232,11 +232,11 @@ class PluginLoader:
 
                 logger.debug(f"Tool '{tool_name}' completed successfully")
                 return result
-            except Exception as e:
-                logger.error(f"Tool '{tool_name}' failed: {e}", exc_info=True)
+            except Exception as error:
+                logger.error(f"Tool '{tool_name}' failed: {error}", exc_info=True)
                 # Still record the failed call
                 if self.tool_primitive:
-                    error_msg = f"Error: {str(e)}"
+                    error_msg = f"Error: {str(error)}"
                     self.tool_primitive.record_call(tool_name, tool_args, error_msg)
                 raise
 
@@ -308,8 +308,8 @@ class PluginLoader:
                         tools.append(tool)
                         logger.info(f"Loaded tool '{name}' from {file_path.name}")
 
-        except Exception as e:
-            logger.error(f"Failed to load tools from {file_path}: {e}", exc_info=True)
+        except Exception as error:
+            logger.error(f"Failed to load tools from {file_path}: {error}", exc_info=True)
 
         return tools
 
@@ -352,8 +352,8 @@ class PluginLoader:
         """
         try:
             # Get function signature and docstring
-            sig = inspect.signature(func)
-            doc = inspect.getdoc(func) or f"Tool: {name}"
+            signature = inspect.signature(func)
+            docstring = inspect.getdoc(func) or f"Tool: {name}"
 
             # Check if function is async
             is_async = inspect.iscoroutinefunction(func)
@@ -371,9 +371,9 @@ class PluginLoader:
                             self.tool_primitive.record_call(name, kwargs, str(result))
 
                         return result
-                    except Exception as e:
-                        logger.error(f"Tool '{name}' execution failed: {e}", exc_info=True)
-                        error_msg = f"Error executing tool '{name}': {str(e)}"
+                    except Exception as error:
+                        logger.error(f"Tool '{name}' execution failed: {error}", exc_info=True)
+                        error_msg = f"Error executing tool '{name}': {str(error)}"
 
                         # Record failed call
                         if self.tool_primitive:
@@ -393,9 +393,9 @@ class PluginLoader:
                             self.tool_primitive.record_call(name, kwargs, str(result))
 
                         return result
-                    except Exception as e:
-                        logger.error(f"Tool '{name}' execution failed: {e}", exc_info=True)
-                        error_msg = f"Error executing tool '{name}': {str(e)}"
+                    except Exception as error:
+                        logger.error(f"Tool '{name}' execution failed: {error}", exc_info=True)
+                        error_msg = f"Error executing tool '{name}': {str(error)}"
 
                         # Record failed call
                         if self.tool_primitive:
@@ -404,16 +404,16 @@ class PluginLoader:
                         raise
 
             # Copy signature and docstring to wrapper
-            tool_wrapper.__signature__ = sig
-            tool_wrapper.__doc__ = doc
+            tool_wrapper.__signature__ = signature
+            tool_wrapper.__doc__ = docstring
             tool_wrapper.__name__ = name
             tool_wrapper.__annotations__ = func.__annotations__
 
             # Create Pydantic AI Tool
-            tool = Tool(tool_wrapper, name=name, description=doc)
+            tool = Tool(tool_wrapper, name=name, description=docstring)
 
             return tool
 
-        except Exception as e:
-            logger.error(f"Failed to create tool from function '{name}': {e}", exc_info=True)
+        except Exception as error:
+            logger.error(f"Failed to create tool from function '{name}': {error}", exc_info=True)
             return None

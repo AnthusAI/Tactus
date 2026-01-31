@@ -9,7 +9,7 @@ Provides:
 """
 
 import logging
-from typing import Any, Dict, Optional, TYPE_CHECKING
+from typing import Any, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover
     from tactus.protocols.log_handler import LogHandler
@@ -38,32 +38,32 @@ class LogPrimitive:
         self.logger = logging.getLogger(f"procedure.{procedure_id}")
         self.log_handler = log_handler
 
-    def _format_message(self, message: str, context: Optional[Dict[str, Any]] = None) -> str:
+    def _format_message(self, message: str, context: Optional[dict[str, Any]] = None) -> str:
         """Format log message with context."""
         if context:
             import json
 
             # Convert Lua tables to Python dicts
-            context_dict = self._lua_to_python(context)
-            context_str = json.dumps(context_dict, indent=2)
-            return f"{message}\nContext: {context_str}"
+            context_payload = self._lua_to_python(context)
+            context_json = json.dumps(context_payload, indent=2)
+            return f"{message}\nContext: {context_json}"
         return message
 
-    def _lua_to_python(self, obj: Any) -> Any:
+    def _lua_to_python(self, value: Any) -> Any:
         """Convert Lua objects to Python equivalents recursively."""
         # Check if it's a Lua table
-        if hasattr(obj, "items"):  # Lua table with dict-like interface
-            return {self._lua_to_python(k): self._lua_to_python(v) for k, v in obj.items()}
-        elif hasattr(obj, "__iter__") and not isinstance(obj, (str, bytes)):  # Lua array
+        if hasattr(value, "items"):  # Lua table with dict-like interface
+            return {self._lua_to_python(k): self._lua_to_python(v) for k, v in value.items()}
+        elif hasattr(value, "__iter__") and not isinstance(value, (str, bytes)):  # Lua array
             try:
-                return [self._lua_to_python(v) for v in obj]
+                return [self._lua_to_python(v) for v in value]
             except Exception:  # noqa: E722
                 # If iteration fails, return as-is
-                return obj
+                return value
         else:
-            return obj
+            return value
 
-    def debug(self, message: str, context: Optional[Dict[str, Any]] = None) -> None:
+    def debug(self, message: str, context: Optional[dict[str, Any]] = None) -> None:
         """
         Log debug message.
 
@@ -78,11 +78,11 @@ class LogPrimitive:
         if self.log_handler:
             from tactus.protocols.models import LogEvent
 
-            context_dict = self._lua_to_python(context) if context else None
+            context_payload = self._lua_to_python(context) if context else None
             event = LogEvent(
                 level="DEBUG",
                 message=message,
-                context=context_dict,
+                context=context_payload,
                 logger_name=self.logger.name,
                 procedure_id=self.procedure_id,
             )
@@ -92,7 +92,7 @@ class LogPrimitive:
             formatted = self._format_message(message, context)
             self.logger.debug(formatted)
 
-    def info(self, message: str, context: Optional[Dict[str, Any]] = None) -> None:
+    def info(self, message: str, context: Optional[dict[str, Any]] = None) -> None:
         """
         Log info message.
 
@@ -107,11 +107,11 @@ class LogPrimitive:
         if self.log_handler:
             from tactus.protocols.models import LogEvent
 
-            context_dict = self._lua_to_python(context) if context else None
+            context_payload = self._lua_to_python(context) if context else None
             event = LogEvent(
                 level="INFO",
                 message=message,
-                context=context_dict,
+                context=context_payload,
                 logger_name=self.logger.name,
                 procedure_id=self.procedure_id,
             )
@@ -121,7 +121,7 @@ class LogPrimitive:
             formatted = self._format_message(message, context)
             self.logger.info(formatted)
 
-    def warn(self, message: str, context: Optional[Dict[str, Any]] = None) -> None:
+    def warn(self, message: str, context: Optional[dict[str, Any]] = None) -> None:
         """
         Log warning message.
 
@@ -136,11 +136,11 @@ class LogPrimitive:
         if self.log_handler:
             from tactus.protocols.models import LogEvent
 
-            context_dict = self._lua_to_python(context) if context else None
+            context_payload = self._lua_to_python(context) if context else None
             event = LogEvent(
                 level="WARNING",
                 message=message,
-                context=context_dict,
+                context=context_payload,
                 logger_name=self.logger.name,
                 procedure_id=self.procedure_id,
             )
@@ -150,11 +150,11 @@ class LogPrimitive:
             formatted = self._format_message(message, context)
             self.logger.warning(formatted)
 
-    def warning(self, message: str, context: Optional[Dict[str, Any]] = None) -> None:
+    def warning(self, message: str, context: Optional[dict[str, Any]] = None) -> None:
         """Alias for warn(), matching common logging APIs."""
         self.warn(message, context)
 
-    def error(self, message: str, context: Optional[Dict[str, Any]] = None) -> None:
+    def error(self, message: str, context: Optional[dict[str, Any]] = None) -> None:
         """
         Log error message.
 
@@ -169,11 +169,11 @@ class LogPrimitive:
         if self.log_handler:
             from tactus.protocols.models import LogEvent
 
-            context_dict = self._lua_to_python(context) if context else None
+            context_payload = self._lua_to_python(context) if context else None
             event = LogEvent(
                 level="ERROR",
                 message=message,
-                context=context_dict,
+                context=context_payload,
                 logger_name=self.logger.name,
                 procedure_id=self.procedure_id,
             )

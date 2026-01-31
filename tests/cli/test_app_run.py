@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 
 import pytest
@@ -220,6 +221,42 @@ def test_run_missing_required_prompts(tmp_path, monkeypatch):
     )
 
 
+def test_run_missing_required_prints_warning(tmp_path, monkeypatch):
+    workflow = tmp_path / "workflow.tac"
+    workflow.write_text("print('hi')")
+
+    registry = type("Registry", (), {"input_schema": {"name": {"required": True}}})()
+    _patch_runtime_dependencies(
+        monkeypatch,
+        validator_factory=lambda: DummyValidator(registry),
+    )
+
+    messages = []
+
+    def fake_print(message, *args, **kwargs):
+        messages.append(message)
+
+    monkeypatch.setattr(cli_app.console, "print", fake_print)
+    monkeypatch.setattr(cli_app, "_prompt_for_inputs", lambda *_args: {"name": "ok"})
+
+    DummyRuntime.next_exception = None
+    cli_app.run(
+        workflow,
+        sandbox=False,
+        storage="memory",
+        param=None,
+        interactive=False,
+        mock_all=False,
+        real_all=False,
+        mock=None,
+        real=None,
+        log_level=None,
+        log_format="rich",
+    )
+
+    assert any("Missing required inputs" in str(msg) for msg in messages)
+
+
 def test_run_prompts_for_inputs_when_interactive(tmp_path, monkeypatch):
     workflow = tmp_path / "workflow.tac"
     workflow.write_text("print('hi')")
@@ -257,6 +294,377 @@ def test_run_prompts_for_inputs_when_interactive(tmp_path, monkeypatch):
     assert prompts.get("called") is True
 
 
+def test_run_schema_validation_warning_verbose(tmp_path, monkeypatch):
+    workflow = tmp_path / "workflow.tac"
+    workflow.write_text("print('hi')")
+
+    _patch_runtime_dependencies(
+        monkeypatch,
+        validator_factory=lambda: DummyValidator(should_raise=True),
+    )
+
+    messages = []
+
+    def fake_print(message, *args, **kwargs):
+        messages.append(message)
+
+    monkeypatch.setattr(cli_app.console, "print", fake_print)
+
+    DummyRuntime.next_exception = None
+    cli_app.run(
+        workflow,
+        sandbox=False,
+        storage="memory",
+        param=None,
+        interactive=False,
+        verbose=True,
+        mock_all=False,
+        real_all=False,
+        mock=None,
+        real=None,
+        log_level=None,
+        log_format="rich",
+    )
+
+    assert any("Could not extract input schema" in str(msg) for msg in messages)
+
+
+def test_run_schema_validation_warning_nonverbose(tmp_path, monkeypatch):
+    workflow = tmp_path / "workflow.tac"
+    workflow.write_text("print('hi')")
+
+    _patch_runtime_dependencies(
+        monkeypatch,
+        validator_factory=lambda: DummyValidator(should_raise=True),
+    )
+    monkeypatch.setattr(cli_app.console, "print", lambda *_args, **_kwargs: None)
+
+    DummyRuntime.next_exception = None
+    cli_app.run(
+        workflow,
+        sandbox=False,
+        storage="memory",
+        param=None,
+        interactive=False,
+        verbose=False,
+        mock_all=False,
+        real_all=False,
+        mock=None,
+        real=None,
+        log_level=None,
+        log_format="rich",
+    )
+
+
+def test_run_real_all_prints_notice(tmp_path, monkeypatch):
+    workflow = tmp_path / "workflow.tac"
+    workflow.write_text("print('hi')")
+
+    _patch_runtime_dependencies(monkeypatch)
+
+    messages = []
+    monkeypatch.setattr(cli_app.console, "print", lambda msg, *args, **kwargs: messages.append(msg))
+
+    DummyRuntime.next_exception = None
+    cli_app.run(
+        workflow,
+        sandbox=False,
+        storage="memory",
+        param=None,
+        real_all=True,
+        mock_all=False,
+        mock=None,
+        real=None,
+        log_level=None,
+        log_format="rich",
+    )
+
+    assert any("Using real implementations for all tools" in str(msg) for msg in messages)
+
+
+def test_run_formats_tactus_result_output(tmp_path, monkeypatch):
+    from tactus.protocols.result import TactusResult
+
+    workflow = tmp_path / "workflow.tac"
+    workflow.write_text("print('hi')")
+
+    _patch_runtime_dependencies(monkeypatch)
+
+    messages = []
+    monkeypatch.setattr(cli_app.console, "print", lambda msg, *args, **kwargs: messages.append(msg))
+
+    DummyRuntime.next_exception = None
+    DummyRuntime.next_result = {
+        "success": True,
+        "result": TactusResult(output="payload"),
+        "state": {"k": "v"},
+        "iterations": 1,
+        "tools_used": [],
+    }
+
+    cli_app.run(
+        workflow,
+        sandbox=False,
+        storage="memory",
+        param=None,
+        mock_all=False,
+        real_all=False,
+        mock=None,
+        real=None,
+        log_level=None,
+        log_format="rich",
+    )
+
+    assert any("payload" in str(msg) for msg in messages)
+
+
+def test_run_skips_result_display_when_empty(tmp_path, monkeypatch):
+    workflow = tmp_path / "workflow.tac"
+    workflow.write_text("print('hi')")
+
+    _patch_runtime_dependencies(monkeypatch)
+
+    messages = []
+    monkeypatch.setattr(cli_app.console, "print", lambda msg, *args, **kwargs: messages.append(msg))
+
+    DummyRuntime.next_exception = None
+    DummyRuntime.next_result = {
+        "success": True,
+        "result": None,
+        "state": {},
+        "iterations": 0,
+        "tools_used": [],
+    }
+
+    cli_app.run(
+        workflow,
+        sandbox=False,
+        storage="memory",
+        param=None,
+        mock_all=False,
+        real_all=False,
+        mock=None,
+        real=None,
+        log_level=None,
+        log_format="rich",
+    )
+
+    assert not any("Result:" in str(msg) for msg in messages)
+
+
+def test_run_tactus_result_import_error(tmp_path, monkeypatch):
+    workflow = tmp_path / "workflow.tac"
+    workflow.write_text("print('hi')")
+
+    _patch_runtime_dependencies(monkeypatch)
+    monkeypatch.setattr(cli_app.console, "print", lambda *_args, **_kwargs: None)
+
+    DummyRuntime.next_exception = None
+    DummyRuntime.next_result = {
+        "success": True,
+        "result": "plain",
+        "state": {},
+        "iterations": 0,
+        "tools_used": [],
+    }
+
+    class BrokenModule:
+        def __getattr__(self, _name):
+            raise RuntimeError("boom")
+
+    monkeypatch.setitem(sys.modules, "tactus.protocols.result", BrokenModule())
+
+    cli_app.run(
+        workflow,
+        sandbox=False,
+        storage="memory",
+        param=None,
+        mock_all=False,
+        real_all=False,
+        mock=None,
+        real=None,
+        log_level=None,
+        log_format="rich",
+    )
+
+
+def test_run_mock_list_registers_tool(tmp_path, monkeypatch):
+    workflow = tmp_path / "workflow.tac"
+    workflow.write_text("print('hi')")
+
+    _patch_runtime_dependencies(monkeypatch)
+    monkeypatch.setattr(cli_app.console, "print", lambda *_args, **_kwargs: None)
+
+    DummyRuntime.next_exception = None
+    cli_app.run(
+        workflow,
+        sandbox=False,
+        storage="memory",
+        param=None,
+        mock_all=False,
+        real_all=False,
+        mock=["tool_a"],
+        real=None,
+        log_level=None,
+        log_format="rich",
+    )
+
+
+def test_run_sandbox_sets_openai_key(tmp_path, monkeypatch):
+    workflow = tmp_path / "workflow.tac"
+    workflow.write_text("print('hi')")
+
+    class CaptureSandboxConfig(DummySandboxConfig):
+        def __init__(self, **kwargs):
+            super().__init__(should_use=True, explicit_disabled=False, error_if_unavailable=False)
+            self.kwargs = kwargs
+
+    class DummyRunner:
+        def __init__(self, _config):
+            pass
+
+        async def run(self, **_kwargs):
+            return ExecutionResult(
+                status=ExecutionStatus.SUCCESS,
+                result={"ok": True},
+                metadata={"state": {}, "iterations": 1, "tools_used": []},
+            )
+
+    _patch_runtime_dependencies(monkeypatch, sandbox_config=CaptureSandboxConfig)
+    monkeypatch.setattr("tactus.sandbox.ContainerRunner", DummyRunner)
+    monkeypatch.setattr(cli_app.console, "print", lambda *_args, **_kwargs: None)
+    monkeypatch.setenv("OPENAI_API_KEY", "")
+
+    DummyRuntime.next_exception = None
+    cli_app.run(
+        workflow,
+        sandbox=None,
+        storage="memory",
+        param=None,
+        openai_api_key="test-key",
+        mock_all=False,
+        real_all=False,
+        mock=None,
+        real=None,
+        log_level=None,
+        log_format="rich",
+    )
+
+    assert os.environ.get("OPENAI_API_KEY") == "test-key"
+
+
+def test_run_sandbox_defaults_enabled(tmp_path, monkeypatch):
+    workflow = tmp_path / "workflow.tac"
+    workflow.write_text("print('hi')")
+
+    captured = {}
+
+    class CaptureSandboxConfig(DummySandboxConfig):
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+            super().__init__(should_use=False, explicit_disabled=False, error_if_unavailable=False)
+
+    _patch_runtime_dependencies(monkeypatch, sandbox_config=CaptureSandboxConfig)
+    monkeypatch.setattr(
+        "tactus.core.config_manager.ConfigManager",
+        lambda: type("Cfg", (), {"load_cascade": lambda *_args: {"sandbox": {}}})(),
+    )
+    monkeypatch.setattr(cli_app.console, "print", lambda *_args, **_kwargs: None)
+
+    DummyRuntime.next_exception = None
+    cli_app.run(
+        workflow,
+        sandbox=None,
+        storage="memory",
+        param=None,
+        mock_all=False,
+        real_all=False,
+        mock=None,
+        real=None,
+        log_level=None,
+        log_format="rich",
+    )
+
+    assert captured.get("enabled") is True
+
+
+def test_run_sandbox_uses_configured_enabled_value(tmp_path, monkeypatch):
+    workflow = tmp_path / "workflow.tac"
+    workflow.write_text("print('hi')")
+
+    captured = {}
+
+    class CaptureSandboxConfig(DummySandboxConfig):
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+            super().__init__(should_use=False, explicit_disabled=True, error_if_unavailable=False)
+
+    _patch_runtime_dependencies(monkeypatch, sandbox_config=CaptureSandboxConfig)
+    monkeypatch.setattr(
+        "tactus.core.config_manager.ConfigManager",
+        lambda: type("Cfg", (), {"load_cascade": lambda *_args: {"sandbox": {"enabled": False}}})(),
+    )
+    monkeypatch.setattr(cli_app.console, "print", lambda *_args, **_kwargs: None)
+
+    DummyRuntime.next_exception = None
+    cli_app.run(
+        workflow,
+        sandbox=None,
+        storage="memory",
+        param=None,
+        mock_all=False,
+        real_all=False,
+        mock=None,
+        real=None,
+        log_level=None,
+        log_format="rich",
+    )
+
+    assert captured.get("enabled") is False
+
+
+def test_run_sandbox_skips_api_key_when_unset(tmp_path, monkeypatch):
+    workflow = tmp_path / "workflow.tac"
+    workflow.write_text("print('hi')")
+
+    class CaptureSandboxConfig(DummySandboxConfig):
+        def __init__(self, **kwargs):
+            super().__init__(should_use=True, explicit_disabled=False, error_if_unavailable=False)
+
+    class DummyRunner:
+        def __init__(self, _config):
+            pass
+
+        async def run(self, **_kwargs):
+            return ExecutionResult(
+                status=ExecutionStatus.SUCCESS,
+                result={"ok": True},
+                metadata={"state": {}, "iterations": 1, "tools_used": []},
+            )
+
+    _patch_runtime_dependencies(monkeypatch, sandbox_config=CaptureSandboxConfig)
+    monkeypatch.setattr("tactus.sandbox.ContainerRunner", DummyRunner)
+    monkeypatch.setattr(cli_app.console, "print", lambda *_args, **_kwargs: None)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+    DummyRuntime.next_exception = None
+    cli_app.run(
+        workflow,
+        sandbox=None,
+        storage="memory",
+        param=None,
+        openai_api_key=None,
+        mock_all=False,
+        real_all=False,
+        mock=None,
+        real=None,
+        log_level=None,
+        log_format="rich",
+    )
+
+    assert os.environ.get("OPENAI_API_KEY") is None
+
+
 def test_run_docker_required_unavailable(tmp_path, monkeypatch):
     workflow = tmp_path / "workflow.tac"
     workflow.write_text("print('hi')")
@@ -292,6 +700,36 @@ def test_run_param_parsing_with_schema_dict(tmp_path, monkeypatch):
         param=["count=3.5"],
         interactive=False,
         verbose=True,
+        mock_all=False,
+        real_all=False,
+        mock=None,
+        real=None,
+        log_level=None,
+        log_format="rich",
+    )
+
+    assert DummyRuntime.last_context["count"] == 3.5
+
+
+def test_run_param_parsing_with_schema_dict_nonverbose(tmp_path, monkeypatch):
+    workflow = tmp_path / "workflow.tac"
+    workflow.write_text("print('hi')")
+
+    registry = type("Registry", (), {"input_schema": {"count": {"type": "number"}}})()
+    _patch_runtime_dependencies(
+        monkeypatch,
+        validator_factory=lambda: DummyValidator(registry),
+    )
+    monkeypatch.setattr(cli_app.console, "print", lambda *_args, **_kwargs: None)
+
+    DummyRuntime.next_exception = None
+    cli_app.run(
+        workflow,
+        sandbox=False,
+        storage="memory",
+        param=["count=3.5"],
+        interactive=False,
+        verbose=False,
         mock_all=False,
         real_all=False,
         mock=None,

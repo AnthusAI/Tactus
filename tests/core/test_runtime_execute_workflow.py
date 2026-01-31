@@ -78,6 +78,38 @@ def test_execute_workflow_named_main(monkeypatch):
     assert main_callable.calls == [{"x": 1, "y": 3}]
 
 
+def test_execute_workflow_named_main_without_execution_context(monkeypatch):
+    runtime = runtime_module.TactusRuntime(procedure_id="proc", hitl_handler=object())
+    runtime.execution_context = None
+    runtime.lua_sandbox = object()
+    runtime.context = {}
+
+    main_callable = DummyCallable(result={"ok": True})
+
+    monkeypatch.setattr(
+        "tactus.primitives.procedure_callable.ProcedureCallable",
+        lambda **_kwargs: main_callable,
+    )
+
+    runtime.registry = type(
+        "Registry",
+        (),
+        {
+            "named_procedures": {
+                "main": {
+                    "function": lambda _params: None,
+                    "input_schema": {},
+                    "output_schema": {},
+                    "state_schema": {},
+                    "name": "main",
+                }
+            }
+        },
+    )()
+
+    assert runtime._execute_workflow() == {"ok": True}
+
+
 def test_execute_workflow_named_main_error(monkeypatch):
     runtime = runtime_module.TactusRuntime(procedure_id="proc", hitl_handler=object())
     runtime.execution_context = object()
@@ -110,6 +142,40 @@ def test_execute_workflow_named_main_error(monkeypatch):
         runtime._execute_workflow()
 
 
+def test_execute_workflow_named_main_waits(monkeypatch):
+    runtime = runtime_module.TactusRuntime(procedure_id="proc", hitl_handler=object())
+    runtime.execution_context = DummyExecutionContext()
+    runtime.lua_sandbox = object()
+
+    main_callable = DummyCallable(
+        error=runtime_module.ProcedureWaitingForHuman("wait", pending_message_id="msg-1")
+    )
+
+    monkeypatch.setattr(
+        "tactus.primitives.procedure_callable.ProcedureCallable",
+        lambda **_kwargs: main_callable,
+    )
+
+    runtime.registry = type(
+        "Registry",
+        (),
+        {
+            "named_procedures": {
+                "main": {
+                    "function": lambda _params: None,
+                    "input_schema": {},
+                    "output_schema": {},
+                    "state_schema": {},
+                    "name": "main",
+                }
+            }
+        },
+    )()
+
+    with pytest.raises(runtime_module.ProcedureWaitingForHuman):
+        runtime._execute_workflow()
+
+
 def test_execute_workflow_top_level_result():
     runtime = runtime_module.TactusRuntime(procedure_id="proc", hitl_handler=object())
     runtime.registry = type("Registry", (), {"named_procedures": {}})()
@@ -135,3 +201,18 @@ def test_execute_workflow_legacy_yaml():
     result = runtime._execute_workflow()
 
     assert result == {"ran": True}
+
+
+def test_execute_workflow_legacy_yaml_errors():
+    runtime = runtime_module.TactusRuntime(procedure_id="proc", hitl_handler=object())
+    runtime.registry = None
+    runtime.config = {"procedure": "print('hi')"}
+
+    class ErrorSandbox:
+        def execute(self, _code):
+            raise LuaSandboxError("boom")
+
+    runtime.lua_sandbox = ErrorSandbox()
+
+    with pytest.raises(LuaSandboxError):
+        runtime._execute_workflow()

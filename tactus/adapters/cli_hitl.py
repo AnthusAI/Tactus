@@ -55,7 +55,7 @@ class CLIHITLHandler:
         Returns:
             HITLResponse with user's response
         """
-        logger.debug(f"HITL request: {request.request_type} - {request.message}")
+        logger.debug("HITL request: %s - %s", request.request_type, request.message)
 
         # Display the request in a panel
         self.console.print()
@@ -101,10 +101,10 @@ class CLIHITLHandler:
         if request.options:
             # Display options
             self.console.print("\n[bold]Options:[/bold]")
-            for i, option in enumerate(request.options, 1):
-                label = option.get("label", f"Option {i}")
+            for index, option in enumerate(request.options, 1):
+                label = option.get("label", f"Option {index}")
                 description = option.get("description", "")
-                self.console.print(f"  {i}. [cyan]{label}[/cyan]")
+                self.console.print(f"  {index}. [cyan]{label}[/cyan]")
                 if description:
                     self.console.print(f"     [dim]{description}[/dim]")
 
@@ -195,19 +195,19 @@ class CLIHITLHandler:
 
         # Display summary
         self.console.print(f"\n[bold cyan]Collecting {len(items)} inputs:[/bold cyan]")
-        for idx, item in enumerate(items, 1):
-            label = item.get("label", f"Item {idx}")
+        for index, item in enumerate(items, 1):
+            label = item.get("label", f"Item {index}")
             required = item.get("required", True)
             req_marker = "*" if required else ""
-            self.console.print(f"  {idx}. [cyan]{label}[/cyan]{req_marker}")
+            self.console.print(f"  {index}. [cyan]{label}[/cyan]{req_marker}")
         self.console.print()
 
         # Collect responses for each item
         responses = {}
 
-        for idx, item in enumerate(items, 1):
+        for index, item in enumerate(items, 1):
             item_id = item.get("item_id")
-            label = item.get("label", f"Item {idx}")
+            label = item.get("label", f"Item {index}")
             request_type = item.get("request_type", "input")
             message = item.get("message", "")
             required = item.get("required", True)
@@ -219,7 +219,7 @@ class CLIHITLHandler:
             self.console.print(
                 Panel(
                     message,
-                    title=f"[bold]{idx}/{len(items)}: {label}[/bold]",
+                    title=f"[bold]{index}/{len(items)}: {label}[/bold]",
                     style="cyan" if required else "blue",
                 )
             )
@@ -237,13 +237,13 @@ class CLIHITLHandler:
                     self.console.print(
                         "\n[bold]Select multiple options (comma-separated numbers):[/bold]"
                     )
-                    for i, option in enumerate(options, 1):
+                    for index, option in enumerate(options, 1):
                         label_text = (
-                            option.get("label", f"Option {i}")
+                            option.get("label", f"Option {index}")
                             if isinstance(option, dict)
                             else option
                         )
-                        self.console.print(f"  {i}. [cyan]{label_text}[/cyan]")
+                        self.console.print(f"  {index}. [cyan]{label_text}[/cyan]")
 
                     min_selections = metadata.get("min", 0)
                     max_selections = metadata.get("max", len(options))
@@ -288,15 +288,15 @@ class CLIHITLHandler:
                 else:
                     # Single selection
                     self.console.print("\n[bold]Options:[/bold]")
-                    for i, option in enumerate(options, 1):
+                    for index, option in enumerate(options, 1):
                         if isinstance(option, dict):
-                            label_text = option.get("label", f"Option {i}")
+                            label_text = option.get("label", f"Option {index}")
                             description = option.get("description", "")
-                            self.console.print(f"  {i}. [cyan]{label_text}[/cyan]")
+                            self.console.print(f"  {index}. [cyan]{label_text}[/cyan]")
                             if description:
                                 self.console.print(f"     [dim]{description}[/dim]")
                         else:
-                            self.console.print(f"  {i}. [cyan]{option}[/cyan]")
+                            self.console.print(f"  {index}. [cyan]{option}[/cyan]")
 
                     while True:
                         choice_str = Prompt.ask("Select option (number)", console=self.console)
@@ -394,7 +394,7 @@ class CLIHITLHandler:
             value=responses, responded_at=datetime.now(timezone.utc), timed_out=False
         )
 
-    def check_pending_response(self, procedure_id: str, message_id: str) -> Optional[HITLResponse]:
+    def check_pending_response(self, procedure_id: str, request_id: str) -> Optional[HITLResponse]:
         """
         Check for pending response (not used in CLI mode).
 
@@ -402,7 +402,7 @@ class CLIHITLHandler:
         """
         return None
 
-    def cancel_pending_request(self, procedure_id: str, message_id: str) -> None:
+    def cancel_pending_request(self, procedure_id: str, request_id: str) -> None:
         """
         Cancel pending request (not used in CLI mode).
 

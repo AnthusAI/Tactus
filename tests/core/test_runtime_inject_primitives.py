@@ -78,3 +78,101 @@ def test_inject_primitives_enum_invalid_raises():
 
     with pytest.raises(ValueError):
         runtime._inject_primitives()
+
+
+def test_inject_primitives_without_optional_primitives():
+    runtime = runtime_module.TactusRuntime(procedure_id="proc", hitl_handler=object())
+    runtime.lua_sandbox = DummyLuaSandbox()
+    runtime.context = {}
+    runtime.config = {}
+    runtime.state_primitive = None
+    runtime.iterations_primitive = None
+    runtime.stop_primitive = None
+    runtime.tool_primitive = None
+    runtime.toolset_primitive = None
+    runtime.step_primitive = None
+    runtime.checkpoint_primitive = None
+    runtime.human_primitive = None
+    runtime.log_primitive = None
+    runtime.message_history_primitive = None
+    runtime.json_primitive = None
+    runtime.retry_primitive = None
+    runtime.file_primitive = None
+    runtime.procedure_primitive = None
+    runtime.system_primitive = None
+    runtime.host_primitive = None
+
+    runtime._inject_primitives()
+
+    assert "input" not in runtime.lua_sandbox.globals
+
+
+def test_inject_primitives_skips_enum_when_key_missing():
+    runtime = runtime_module.TactusRuntime(procedure_id="proc", hitl_handler=object())
+    runtime.lua_sandbox = DummyLuaSandbox()
+
+    class WeirdInputConfig:
+        def items(self):
+            return [("color", {"default": "red", "enum": ["red"]})]
+
+        def keys(self):
+            return ["color"]
+
+        def __contains__(self, _key):
+            return False
+
+    runtime.context = {}
+    runtime.config = {"input": WeirdInputConfig()}
+    runtime.state_primitive = None
+    runtime.iterations_primitive = None
+    runtime.stop_primitive = None
+    runtime.tool_primitive = None
+    runtime.toolset_primitive = None
+    runtime.step_primitive = None
+    runtime.checkpoint_primitive = None
+    runtime.human_primitive = None
+    runtime.log_primitive = None
+    runtime.message_history_primitive = None
+    runtime.json_primitive = None
+    runtime.retry_primitive = None
+    runtime.file_primitive = None
+    runtime.procedure_primitive = None
+    runtime.system_primitive = None
+    runtime.host_primitive = None
+
+    runtime._inject_primitives()
+
+
+def test_inject_primitives_sleep_wrapper_calls_time(monkeypatch):
+    runtime = runtime_module.TactusRuntime(procedure_id="proc", hitl_handler=object())
+    runtime.lua_sandbox = DummyLuaSandbox()
+    runtime.context = {}
+    runtime.config = {}
+    runtime.state_primitive = None
+    runtime.iterations_primitive = None
+    runtime.stop_primitive = None
+    runtime.tool_primitive = None
+    runtime.toolset_primitive = None
+    runtime.step_primitive = None
+    runtime.checkpoint_primitive = None
+    runtime.human_primitive = None
+    runtime.log_primitive = None
+    runtime.message_history_primitive = None
+    runtime.json_primitive = None
+    runtime.retry_primitive = None
+    runtime.file_primitive = None
+    runtime.procedure_primitive = None
+    runtime.system_primitive = None
+    runtime.host_primitive = None
+
+    calls = {}
+
+    def fake_sleep(seconds):
+        calls["seconds"] = seconds
+
+    monkeypatch.setattr(runtime_module.time, "sleep", fake_sleep)
+
+    runtime._inject_primitives()
+    runtime.lua_sandbox.globals["Sleep"](0)
+
+    assert calls["seconds"] == 0

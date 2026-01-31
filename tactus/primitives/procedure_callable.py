@@ -5,7 +5,7 @@ This module provides the ProcedureCallable class that enables direct function
 call syntax for named procedures with automatic checkpointing and replay support.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 
 class ProcedureCallable:
@@ -31,9 +31,9 @@ class ProcedureCallable:
         self,
         name: str,
         procedure_function: Any,  # Lua function reference
-        input_schema: Dict[str, Any],
-        output_schema: Dict[str, Any],
-        state_schema: Dict[str, Any],
+        input_schema: dict[str, Any],
+        output_schema: dict[str, Any],
+        state_schema: dict[str, Any],
         execution_context,  # ExecutionContext instance
         lua_sandbox,  # LuaSandbox instance
         is_main: bool = False,  # Whether this is the main entry procedure
@@ -60,7 +60,7 @@ class ProcedureCallable:
         self.lua_sandbox = lua_sandbox
         self.is_main = is_main
 
-    def __call__(self, params: Optional[Dict[str, Any]] = None) -> Any:
+    def __call__(self, params: Optional[dict[str, Any]] = None) -> Any:
         """
         Execute the sub-procedure when called from Lua.
 
@@ -75,57 +75,57 @@ class ProcedureCallable:
         Raises:
             ValueError: If input validation fails or output is missing required fields
         """
-        params = params or {}
+        input_params = params or {}
 
         # Convert Lua table to dict if needed
-        if hasattr(params, "items"):
+        if hasattr(input_params, "items"):
             from tactus.core.dsl_stubs import lua_table_to_dict
 
-            params = lua_table_to_dict(params)
+            input_params = lua_table_to_dict(input_params)
 
         # Handle empty list case (lua_table_to_dict converts empty {} to [])
-        if isinstance(params, list) and len(params) == 0:
-            params = {}
+        if isinstance(input_params, list) and len(input_params) == 0:
+            input_params = {}
 
         # Validate input against schema
-        self._validate_input(params)
+        self._validate_input(input_params)
 
         # Wrap execution in checkpoint for automatic replay
         def execute_procedure():
             # Convert Python lists/dicts to Lua tables before setting as input
-            def convert_to_lua(value):
+            def convert_python_value_to_lua(value):
                 """Recursively convert Python lists and dicts to Lua tables."""
                 if isinstance(value, list):
                     # Convert Python list to Lua table (1-indexed)
                     lua_table = self.lua_sandbox.lua.table()
                     for i, item in enumerate(value, 1):
-                        lua_table[i] = convert_to_lua(item)
+                        lua_table[i] = convert_python_value_to_lua(item)
                     return lua_table
                 elif isinstance(value, dict):
                     # Convert Python dict to Lua table
                     lua_table = self.lua_sandbox.lua.table()
                     for k, v in value.items():
-                        lua_table[k] = convert_to_lua(v)
+                        lua_table[k] = convert_python_value_to_lua(v)
                     return lua_table
                 else:
                     return value
 
             # Convert params to Lua-compatible format
-            lua_params = self.lua_sandbox.lua.table()
-            for key, value in params.items():
-                lua_params[key] = convert_to_lua(value)
+            lua_input_table = self.lua_sandbox.lua.table()
+            for key, value in input_params.items():
+                lua_input_table[key] = convert_python_value_to_lua(value)
 
             # Initialize state defaults WITHOUT replacing the state table
             # (preserving the metatable setup)
-            state_defaults = self._initialize_state()
-            if state_defaults:
+            state_default_values = self._initialize_state()
+            if state_default_values:
                 # Access state via globals and assign - this will trigger the metatable
                 state_table = self.lua_sandbox.lua.globals()["state"]
-                for key, value in state_defaults.items():
-                    state_table[key] = convert_to_lua(value)
+                for key, value in state_default_values.items():
+                    state_table[key] = convert_python_value_to_lua(value)
 
             # Execute the procedure function with input as explicit parameter
-            result = self.procedure_function(lua_params)
+            result = self.procedure_function(lua_input_table)
 
             # Convert Lua table result to Python dict
             # Check for lupa table (not Python dict/list)
@@ -157,29 +157,33 @@ class ProcedureCallable:
                 if hasattr(lua_globals, "debug") and hasattr(lua_globals.debug, "getinfo"):
                     # Try different stack levels to find the Lua caller
                     debug_info = None
-                    with open("/tmp/tactus-debug.log", "a") as f:
-                        f.write(f"DEBUG: Trying debug.getinfo for {self.name}\n")
-                    for level in [1, 2, 3, 4, 5, 6, 7, 8]:
+                    self._write_debug_line(f"DEBUG: Trying debug.getinfo for {self.name}")
+                    for stack_level in [1, 2, 3, 4, 5, 6, 7, 8]:
                         try:
-                            info = lua_globals.debug.getinfo(level, "Sl")
+                            info = lua_globals.debug.getinfo(stack_level, "Sl")
                             if info:
-                                lua_dict = dict(info.items()) if hasattr(info, "items") else {}
-                                source = lua_dict.get("source", "")
-                                line = lua_dict.get("currentline", -1)
-                                with open("/tmp/tactus-debug.log", "a") as f:
-                                    f.write(f"DEBUG: Level {level}: source={source}, line={line}\n")
+                                lua_debug_info = (
+                                    dict(info.items()) if hasattr(info, "items") else {}
+                                )
+                                source = lua_debug_info.get("source", "")
+                                line = lua_debug_info.get("currentline", -1)
+                                self._write_debug_line(
+                                    f"DEBUG: Level {stack_level}: source={source}, line={line}"
+                                )
                                 # Look for a valid source location (not -1, not C function)
                                 # Accept [string "<python>"] sources since that's our Lua code
                                 if line > 0 and source:
                                     if source.startswith("=[C]"):
                                         continue  # Skip C functions
-                                    debug_info = lua_dict
-                                    with open("/tmp/tactus-debug.log", "a") as f:
-                                        f.write(f"DEBUG: Found valid source at level {level}\n")
+                                    debug_info = lua_debug_info
+                                    self._write_debug_line(
+                                        f"DEBUG: Found valid source at level {stack_level}"
+                                    )
                                     break
-                        except Exception as inner_e:
-                            with open("/tmp/tactus-debug.log", "a") as f:
-                                f.write(f"DEBUG: Level {level} error: {inner_e}\n")
+                        except Exception as debug_error:
+                            self._write_debug_line(
+                                f"DEBUG: Level {stack_level} error: {debug_error}"
+                            )
                             continue
 
                     if debug_info:
@@ -189,26 +193,24 @@ class ProcedureCallable:
                             "line": debug_info.get("currentline", 0),
                             "function": debug_info.get("name", self.name),
                         }
-                        with open("/tmp/tactus-debug.log", "a") as f:
-                            f.write(f"DEBUG: Final source_info: {source_info}\n")
-            except Exception as e:
-                with open("/tmp/tactus-debug.log", "a") as f:
-                    f.write(f"DEBUG: Exception getting Lua debug info: {e}\n")
+                        self._write_debug_line(f"DEBUG: Final source_info: {source_info}")
+            except Exception as error:
+                self._write_debug_line(f"DEBUG: Exception getting Lua debug info: {error}")
 
             # If we still don't have source_info, use fallback
             if not source_info:
                 import inspect
 
-                frame = inspect.currentframe()
-                if frame and frame.f_back:
-                    caller_frame = frame.f_back
+                current_frame = inspect.currentframe()
+                if current_frame and current_frame.f_back:
+                    caller_frame = current_frame.f_back
                     # Use .tac file if available, otherwise use Python file
                     tac_file = self.execution_context.current_tac_file
                     python_file = caller_frame.f_code.co_filename
-                    with open("/tmp/tactus-debug.log", "a") as f:
-                        f.write(
-                            f"DEBUG: Fallback - current_tac_file={tac_file}, python_file={python_file}\n"
-                        )
+                    self._write_debug_line(
+                        "DEBUG: Fallback - current_tac_file=%s, python_file=%s"
+                        % (tac_file, python_file)
+                    )
                     source_info = {
                         "file": tac_file or python_file,
                         "line": 0,  # Line number unknown without Lua debug
@@ -219,7 +221,7 @@ class ProcedureCallable:
                 execute_procedure, checkpoint_type="procedure_call", source_info=source_info
             )
 
-    def _validate_input(self, params: Dict[str, Any]) -> None:
+    def _validate_input(self, params: dict[str, Any]) -> None:
         """
         Validate input parameters against input schema.
 
@@ -304,7 +306,7 @@ class ProcedureCallable:
                         f"Procedure '{self.name}' missing required output: {field_name}"
                     )
 
-    def _initialize_state(self) -> Dict[str, Any]:
+    def _initialize_state(self) -> dict[str, Any]:
         """
         Initialize state with default values from state schema.
 
@@ -316,3 +318,8 @@ class ProcedureCallable:
             if isinstance(field_def, dict) and "default" in field_def:
                 state[field_name] = field_def["default"]
         return state
+
+    def _write_debug_line(self, message: str) -> None:
+        """Write a debug line to the temporary debug log."""
+        with open("/tmp/tactus-debug.log", "a") as debug_file:
+            debug_file.write(f"{message}\n")

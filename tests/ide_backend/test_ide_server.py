@@ -1,3 +1,5 @@
+import os
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -12,6 +14,17 @@ def test_clear_runtime_caches_warns_when_unset(caplog):
     assert any(
         "clear_runtime_caches called but no implementation set" in msg for msg in caplog.messages
     )
+
+
+def test_clear_runtime_caches_calls_callback():
+    called = []
+
+    def _clear():
+        called.append(True)
+
+    ide_server._clear_runtime_caches_fn = _clear
+    ide_server.clear_runtime_caches()
+    assert called == [True]
 
 
 def test_resolve_workspace_path_errors(tmp_path, monkeypatch):
@@ -40,6 +53,48 @@ def test_lsp_handler_validates_and_tracks_registry():
     assert len(diagnostics) == 2
     assert handler.registries["file://test"] == {"ok": True}
     assert diagnostics[0]["range"]["start"]["line"] == 1
+
+
+def test_lsp_handler_skips_missing_registry_and_diagnostics():
+    handler = ide_server.TactusLSPHandler()
+
+    result = SimpleNamespace(
+        errors=[ValidationMessage(level="error", message="bad", location=None)],
+        warnings=[],
+        registry=None,
+    )
+
+    class FakeValidator:
+        def validate(self, text, mode):
+            return result
+
+    handler.validator = FakeValidator()
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(handler, "_convert_to_diagnostic", lambda *_args, **_kwargs: None)
+    diagnostics = handler.validate_document("file://test", "text")
+    monkeypatch.undo()
+
+    assert diagnostics == []
+    assert "file://test" not in handler.registries
+
+
+def test_lsp_handler_skips_warning_diagnostic():
+    handler = ide_server.TactusLSPHandler()
+
+    warnings = [ValidationMessage(level="warning", message="warn", location=None)]
+    result = SimpleNamespace(errors=[], warnings=warnings, registry=None)
+
+    class FakeValidator:
+        def validate(self, text, mode):
+            return result
+
+    handler.validator = FakeValidator()
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(handler, "_convert_to_diagnostic", lambda *_args, **_kwargs: None)
+    diagnostics = handler.validate_document("file://warn", "text")
+    monkeypatch.undo()
+
+    assert diagnostics == []
 
 
 def test_lsp_handler_handles_validation_exception(caplog):
@@ -96,6 +151,24 @@ def test_basic_workspace_and_file_endpoints(tmp_path, monkeypatch):
     assert response.status_code == 400
 
 
+def test_file_post_missing_and_write_error(tmp_path, monkeypatch):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+
+    app = ide_server.create_app(initial_workspace=str(workspace))
+    client = app.test_client()
+
+    response = client.post("/api/file", json={"path": "sample.tac"})
+    assert response.status_code == 400
+
+    def _write_text(_self, _content):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(ide_server.Path, "write_text", _write_text)
+    response = client.post("/api/file", json={"path": "sample.tac", "content": "data"})
+    assert response.status_code == 500
+
+
 def test_workspace_cwd_and_about(tmp_path):
     app = ide_server.create_app(initial_workspace=str(tmp_path))
     client = app.test_client()
@@ -116,6 +189,45 @@ def test_workspace_get_no_root(monkeypatch):
 
     response = client.get("/api/workspace")
     assert response.get_json()["root"] is None
+
+
+def test_workspace_post_errors(tmp_path, monkeypatch):
+    app = ide_server.create_app(initial_workspace=str(tmp_path))
+    client = app.test_client()
+
+    response = client.post("/api/workspace", json={})
+    assert response.status_code == 400
+
+    response = client.post("/api/workspace", json={"root": str(tmp_path / "missing")})
+    assert response.status_code == 404
+
+    file_path = tmp_path / "file.txt"
+    file_path.write_text("ok")
+    response = client.post("/api/workspace", json={"root": str(file_path)})
+    assert response.status_code == 400
+
+    monkeypatch.setattr(
+        ide_server.os, "chdir", lambda _path: (_ for _ in ()).throw(RuntimeError("boom"))
+    )
+    response = client.post("/api/workspace", json={"root": str(tmp_path)})
+    assert response.status_code == 500
+
+
+def test_workspace_post_success(tmp_path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+
+    original_cwd = Path.cwd()
+    app = ide_server.create_app()
+    client = app.test_client()
+
+    try:
+        response = client.post("/api/workspace", json={"root": str(workspace)})
+        payload = response.get_json()
+        assert payload["success"] is True
+        assert payload["name"] == "workspace"
+    finally:
+        os.chdir(original_cwd)
 
 
 def test_validate_endpoints(tmp_path, monkeypatch):
@@ -180,6 +292,92 @@ def test_procedure_metadata_success(tmp_path, monkeypatch):
     assert payload["metadata"]["description"] == "desc"
     assert payload["metadata"]["specifications"]["scenario_count"] == 1
     assert "custom_tool" in payload["metadata"]["tools"]
+
+
+def test_procedure_metadata_toolsets_and_evals_variants(tmp_path, monkeypatch):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    file_path = workspace / "sample.tac"
+    file_path.write_text("content")
+
+    class FakeAgent:
+        def __init__(self, name):
+            self.name = name
+            self.provider = "openai"
+            self.model = "gpt-4o"
+            self.system_prompt = "prompt"
+            self.tools = []
+
+    registry = SimpleNamespace(
+        description=None,
+        input_schema=None,
+        output_schema=None,
+        agents={"agent": FakeAgent("agent")},
+        toolsets={"default": "not-a-dict"},
+        gherkin_specifications=None,
+        pydantic_evaluations=["not-a-dict"],
+        lua_tools=None,
+    )
+
+    class FakeValidator:
+        def validate_file(self, path, mode):
+            return SimpleNamespace(errors=[], registry=registry)
+
+    monkeypatch.setattr(ide_server, "TactusValidator", FakeValidator)
+
+    app = ide_server.create_app(initial_workspace=str(workspace))
+    client = app.test_client()
+
+    response = client.get("/api/procedure/metadata", query_string={"path": "sample.tac"})
+    payload = response.get_json()
+    assert payload["success"] is True
+    assert payload["metadata"]["specifications"] is None
+    assert payload["metadata"]["evaluations"]["runs"] == 1
+
+
+def test_procedure_metadata_evaluations_counts(tmp_path, monkeypatch):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    file_path = workspace / "sample.tac"
+    file_path.write_text("content")
+
+    class FakeAgent:
+        def __init__(self, name):
+            self.name = name
+            self.provider = "openai"
+            self.model = "gpt-4o"
+            self.system_prompt = "prompt"
+            self.tools = ["done"]
+
+    registry = SimpleNamespace(
+        description="desc",
+        input_schema={},
+        output_schema={},
+        agents={"agent": FakeAgent("agent")},
+        toolsets={"default": {"tools": ["search"]}, "empty": {}},
+        gherkin_specifications="Feature: Demo\nScenario: A",
+        pydantic_evaluations={
+            "dataset": [{"x": 1}],
+            "evaluators": ["a", "b"],
+            "runs": 3,
+            "parallel": True,
+        },
+        lua_tools={},
+    )
+
+    class FakeValidator:
+        def validate_file(self, path, mode):
+            return SimpleNamespace(errors=[], registry=registry)
+
+    monkeypatch.setattr(ide_server, "TactusValidator", FakeValidator)
+
+    app = ide_server.create_app(initial_workspace=str(workspace))
+    client = app.test_client()
+
+    response = client.get("/api/procedure/metadata", query_string={"path": "sample.tac"})
+    payload = response.get_json()
+    assert payload["metadata"]["evaluations"]["dataset_count"] == 1
+    assert payload["metadata"]["evaluations"]["evaluator_count"] == 2
 
 
 def test_procedure_metadata_missing_registry(tmp_path, monkeypatch):

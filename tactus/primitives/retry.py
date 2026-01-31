@@ -7,7 +7,7 @@ Provides:
 
 import logging
 import time
-from typing import Callable, Any, Optional, Dict
+from typing import Any, Callable, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -27,12 +27,14 @@ class RetryPrimitive:
         """Initialize Retry primitive."""
         logger.debug("RetryPrimitive initialized")
 
-    def with_backoff(self, fn: Callable, options: Optional[Dict[str, Any]] = None) -> Any:
+    def with_backoff(
+        self, function_to_retry: Callable, options: Optional[dict[str, Any]] = None
+    ) -> Any:
         """
         Retry a function with exponential backoff.
 
         Args:
-            fn: Function to retry (Lua function)
+            function_to_retry: Function to retry (Lua function)
             options: Dict with:
                 - max_attempts: Maximum retry attempts (default: 3)
                 - initial_delay: Initial delay in seconds (default: 1)
@@ -61,58 +63,58 @@ class RetryPrimitive:
             })
         """
         # Convert Lua tables to Python dicts if needed
-        opts = self._convert_lua_to_python(options) or {}
+        options_dict = self._convert_lua_to_python(options) or {}
 
-        max_attempts = opts.get("max_attempts", 3)
-        initial_delay = opts.get("initial_delay", 1.0)
-        max_delay = opts.get("max_delay", 60.0)
-        backoff_factor = opts.get("backoff_factor", 2.0)
-        on_error = opts.get("on_error")
+        max_attempts = options_dict.get("max_attempts", 3)
+        initial_delay = options_dict.get("initial_delay", 1.0)
+        max_delay = options_dict.get("max_delay", 60.0)
+        backoff_factor = options_dict.get("backoff_factor", 2.0)
+        on_error = options_dict.get("on_error")
 
-        attempt = 0
-        delay = initial_delay
+        attempt_number = 0
+        current_delay = initial_delay
         last_error = None
 
-        logger.info(f"Starting retry with_backoff (max_attempts={max_attempts})")
+        logger.info("Starting retry with_backoff (max_attempts=%s)", max_attempts)
 
-        while attempt < max_attempts:
-            attempt += 1
+        while attempt_number < max_attempts:
+            attempt_number += 1
 
             try:
-                logger.debug(f"Retry attempt {attempt}/{max_attempts}")
-                result = fn()
-                logger.info(f"Success on attempt {attempt}/{max_attempts}")
+                logger.debug("Retry attempt %s/%s", attempt_number, max_attempts)
+                result = function_to_retry()
+                logger.info("Success on attempt %s/%s", attempt_number, max_attempts)
                 return result
 
-            except Exception as e:
-                last_error = e
-                logger.warning(f"Attempt {attempt}/{max_attempts} failed: {e}")
+            except Exception as error:
+                last_error = error
+                logger.warning("Attempt %s/%s failed: %s", attempt_number, max_attempts, error)
 
                 # Call error callback if provided
                 if on_error and callable(on_error):
                     try:
                         on_error(
                             {
-                                "attempt": attempt,
+                                "attempt": attempt_number,
                                 "max_attempts": max_attempts,
-                                "error": str(e),
-                                "delay": delay,
+                                "error": str(error),
+                                "delay": current_delay,
                             }
                         )
                     except Exception as callback_error:
-                        logger.error(f"Error callback failed: {callback_error}")
+                        logger.error("Error callback failed: %s", callback_error)
 
                 # Check if we should retry
-                if attempt >= max_attempts:
-                    logger.error(f"All {max_attempts} attempts failed")
+                if attempt_number >= max_attempts:
+                    logger.error("All %s attempts failed", max_attempts)
                     raise Exception(f"Retry failed after {max_attempts} attempts: {last_error}")
 
                 # Wait with exponential backoff
-                logger.info(f"Waiting {delay:.2f}s before retry...")
-                time.sleep(delay)
+                logger.info("Waiting %.2fs before retry...", current_delay)
+                time.sleep(current_delay)
 
                 # Increase delay for next attempt (exponential backoff)
-                delay = min(delay * backoff_factor, max_delay)
+                current_delay = min(current_delay * backoff_factor, max_delay)
 
         # Should not reach here, but handle it
         raise Exception(f"Retry logic error: {last_error}")

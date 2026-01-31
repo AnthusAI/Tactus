@@ -8,7 +8,7 @@ and receives responses via HTTP POST callbacks.
 import asyncio
 import logging
 import queue
-from typing import Optional, Any
+from typing import Any, Optional
 from datetime import datetime, timezone
 
 from tactus.adapters.channels.base import InProcessChannel
@@ -46,7 +46,7 @@ class SSEControlChannel(InProcessChannel):
         super().__init__()
         self._event_emitter = event_emitter
         # Use thread-safe queue.Queue for sync access from Flask SSE stream
-        self._event_queue: queue.Queue[dict] = queue.Queue()
+        self._event_queue: queue.Queue[dict[str, Any]] = queue.Queue()
 
     @property
     def channel_id(self) -> str:
@@ -68,9 +68,9 @@ class SSEControlChannel(InProcessChannel):
 
     async def initialize(self) -> None:
         """Initialize SSE channel (no-op, Flask SSE already running)."""
-        logger.info(f"{self.channel_id}: initializing...")
+        logger.info("%s: initializing...", self.channel_id)
         # No auth or connection needed - Flask SSE already set up
-        logger.info(f"{self.channel_id}: ready")
+        logger.info("%s: ready", self.channel_id)
 
     async def send(self, request: ControlRequest) -> DeliveryResult:
         """
@@ -78,18 +78,22 @@ class SSEControlChannel(InProcessChannel):
 
         Creates a hitl.request event with rich context and pushes to SSE stream.
         """
-        logger.info(f"{self.channel_id}: sending notification for {request.request_id}")
+        logger.info(
+            "%s: sending notification for %s",
+            self.channel_id,
+            request.request_id,
+        )
 
         try:
             # Build SSE event payload
-            event = self._build_hitl_event(request)
+            event_payload = self._build_hitl_event(request)
 
             # Emit event to SSE stream
             if self._event_emitter:
-                await self._event_emitter(event)
+                await self._event_emitter(event_payload)
             else:
                 # Queue for external consumption if no emitter (thread-safe)
-                self._event_queue.put(event)
+                self._event_queue.put(event_payload)
 
             return DeliveryResult(
                 channel_id=self.channel_id,
@@ -98,14 +102,18 @@ class SSEControlChannel(InProcessChannel):
                 success=True,
             )
 
-        except Exception as e:
-            logger.error(f"{self.channel_id}: failed to send notification: {e}")
+        except Exception as error:
+            logger.error(
+                "%s: failed to send notification: %s",
+                self.channel_id,
+                error,
+            )
             return DeliveryResult(
                 channel_id=self.channel_id,
                 external_message_id=request.request_id,
                 delivered_at=datetime.now(timezone.utc),
                 success=False,
-                error_message=str(e),
+                error_message=str(error),
             )
 
     def _build_hitl_event(self, request: ControlRequest) -> dict:
@@ -114,7 +122,7 @@ class SSEControlChannel(InProcessChannel):
 
         Returns dict that will be serialized to JSON and sent as SSE event.
         """
-        event = {
+        event_payload = {
             "event_type": "hitl.request",  # Frontend expects event_type, not type
             "request_id": request.request_id,
             # Identity
@@ -195,7 +203,7 @@ class SSEControlChannel(InProcessChannel):
             "metadata": request.metadata,
         }
 
-        return event
+        return event_payload
 
     def _serialize_runtime_context(self, runtime_context) -> Optional[dict]:
         """Serialize RuntimeContext to dict for SSE payload."""
@@ -238,7 +246,7 @@ class SSEControlChannel(InProcessChannel):
             request_id: The request being responded to
             value: The response value from the IDE
         """
-        logger.info(f"{self.channel_id}: received response for {request_id}")
+        logger.info("%s: received response for %s", self.channel_id, request_id)
 
         response = ControlResponse(
             request_id=request_id,
@@ -251,15 +259,20 @@ class SSEControlChannel(InProcessChannel):
         # Push to queue from sync context (Flask thread)
         # Get the running event loop and schedule the put operation
         try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
+            event_loop = asyncio.get_event_loop()
+            if event_loop.is_running():
                 # Schedule the coroutine in the running loop
-                asyncio.run_coroutine_threadsafe(self._response_queue.put(response), loop)
+                asyncio.run_coroutine_threadsafe(self._response_queue.put(response), event_loop)
             else:
                 # If no loop is running, use put_nowait (shouldn't happen)
                 self._response_queue.put_nowait(response)
-        except Exception as e:
-            logger.error(f"{self.channel_id}: failed to queue response for {request_id}: {e}")
+        except Exception as error:
+            logger.error(
+                "%s: failed to queue response for %s: %s",
+                self.channel_id,
+                request_id,
+                error,
+            )
 
     def get_next_event(self, timeout: float = 0.001) -> Optional[dict]:
         """
@@ -275,8 +288,8 @@ class SSEControlChannel(InProcessChannel):
             Event dict or None if queue is empty
         """
         try:
-            event = self._event_queue.get(timeout=timeout)
-            return event
+            event_payload = self._event_queue.get(timeout=timeout)
+            return event_payload
         except queue.Empty:
             return None
 
@@ -286,7 +299,12 @@ class SSEControlChannel(InProcessChannel):
 
         Sends a hitl.cancel event to dismiss the prompt.
         """
-        logger.debug(f"{self.channel_id}: cancelling {external_message_id}: {reason}")
+        logger.debug(
+            "%s: cancelling %s: %s",
+            self.channel_id,
+            external_message_id,
+            reason,
+        )
 
         cancel_event = {
             "event_type": "hitl.cancel",  # Frontend expects event_type, not type
@@ -301,5 +319,5 @@ class SSEControlChannel(InProcessChannel):
 
     async def shutdown(self) -> None:
         """Shutdown SSE channel."""
-        logger.info(f"{self.channel_id}: shutting down")
+        logger.info("%s: shutting down", self.channel_id)
         self._shutdown_event.set()

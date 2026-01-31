@@ -61,6 +61,8 @@ def test_parse_toolset_expressions_simple_and_transformations():
     assert toolset.filtered_with is not None
     assert toolset.prefixed_with == "x_"
     assert toolset.renamed_with == {"a": "b"}
+    assert toolset.filtered_with(None, type("Tool", (), {"name": "a"})()) is True
+    assert toolset.filtered_with(None, type("Tool", (), {"name": "b"})()) is False
 
 
 def test_parse_toolset_expressions_unknown_name_raises():
@@ -89,6 +91,30 @@ def test_parse_toolset_expressions_invalid_type():
 
     with pytest.raises(ValueError, match="Invalid toolset expression"):
         runtime._parse_toolset_expressions([123])
+
+
+def test_parse_toolset_expressions_include_filter_predicate():
+    runtime = _runtime()
+    toolset = DummyToolset("tools")
+    runtime.toolset_registry["tools"] = toolset
+
+    result = runtime._parse_toolset_expressions([{"name": "tools", "include": ["a"]}])
+
+    assert result[0] is toolset
+    assert toolset.filtered_with(None, type("Tool", (), {"name": "a"})()) is True
+    assert toolset.filtered_with(None, type("Tool", (), {"name": "b"})()) is False
+
+
+def test_parse_toolset_expressions_exclude_filter_predicate():
+    runtime = _runtime()
+    toolset = DummyToolset("tools")
+    runtime.toolset_registry["tools"] = toolset
+
+    result = runtime._parse_toolset_expressions([{"name": "tools", "exclude": ["a"]}])
+
+    assert result[0] is toolset
+    assert toolset.filtered_with(None, type("Tool", (), {"name": "a"})()) is False
+    assert toolset.filtered_with(None, type("Tool", (), {"name": "b"})()) is True
 
 
 @pytest.mark.asyncio
@@ -121,6 +147,31 @@ async def test_initialize_toolsets_registers_config_toolset(monkeypatch):
     await runtime._initialize_toolsets()
 
     assert "good" in runtime.toolset_registry
+
+
+@pytest.mark.asyncio
+async def test_initialize_toolsets_skips_none_toolset(monkeypatch):
+    runtime = _runtime()
+    runtime.config = {"toolsets": {"empty": {"type": "test"}}}
+    runtime.registry = type("Registry", (), {"lua_tools": {}, "toolsets": {}})()
+
+    async def create_toolset(_name, _definition):
+        return None
+
+    monkeypatch.setattr(runtime, "_create_toolset_from_config", create_toolset)
+
+    await runtime._initialize_toolsets()
+
+    assert "empty" not in runtime.toolset_registry
+
+
+@pytest.mark.asyncio
+async def test_initialize_toolsets_without_registry_toolsets(monkeypatch):
+    runtime = _runtime()
+    runtime.config = {}
+    runtime.registry = type("Registry", (), {"lua_tools": {}})()
+
+    await runtime._initialize_toolsets()
 
 
 @pytest.mark.asyncio
@@ -173,6 +224,89 @@ async def test_initialize_toolsets_mcp_toolset_missing(monkeypatch):
     await runtime._initialize_toolsets()
 
     assert "server" not in runtime.toolset_registry
+
+
+@pytest.mark.asyncio
+async def test_create_toolset_from_config_inline_tools(monkeypatch):
+    runtime = _runtime()
+    runtime.tool_primitive = object()
+    runtime.mock_manager = object()
+
+    class FakeLuaAdapter:
+        def __init__(self, tool_primitive=None, mock_manager=None):
+            self.tool_primitive = tool_primitive
+            self.mock_manager = mock_manager
+
+        def create_inline_toolset(self, name, tools_list):
+            return {"name": name, "tools": tools_list}
+
+    module = ModuleType("tactus.adapters.lua_tools")
+    module.LuaToolsAdapter = FakeLuaAdapter
+    monkeypatch.setitem(sys.modules, "tactus.adapters.lua_tools", module)
+
+    toolset = await runtime._create_toolset_from_config(
+        "inline", {"tools": [{"handler": lambda: "ok"}]}
+    )
+
+    assert toolset["name"] == "inline"
+
+
+@pytest.mark.asyncio
+async def test_create_toolset_from_config_tools_list_without_inline(monkeypatch):
+    runtime = _runtime()
+    runtime.toolset_registry = {"existing": DummyToolset("existing")}
+
+    monkeypatch.setattr("pydantic_ai.toolsets.CombinedToolset", DummyCombinedToolset)
+    toolset = await runtime._create_toolset_from_config("named", {"tools": ["existing"]})
+
+    assert isinstance(toolset, DummyCombinedToolset)
+
+
+@pytest.mark.asyncio
+async def test_create_toolset_from_config_tools_tuple(monkeypatch):
+    runtime = _runtime()
+    runtime.toolset_registry = {"existing": DummyToolset("existing")}
+
+    monkeypatch.setattr("pydantic_ai.toolsets.CombinedToolset", DummyCombinedToolset)
+    toolset = await runtime._create_toolset_from_config("named", {"tools": ("existing",)})
+
+    assert isinstance(toolset, DummyCombinedToolset)
+
+
+@pytest.mark.asyncio
+async def test_create_toolset_from_config_dict_tools_without_handlers(monkeypatch):
+    runtime = _runtime()
+    runtime.toolset_registry = {"existing": DummyToolset("existing")}
+
+    monkeypatch.setattr("pydantic_ai.toolsets.CombinedToolset", DummyCombinedToolset)
+    toolset = await runtime._create_toolset_from_config("named", {"tools": ["missing", "existing"]})
+
+    assert isinstance(toolset, DummyCombinedToolset)
+
+
+@pytest.mark.asyncio
+async def test_create_toolset_from_config_inline_tools_with_non_handler(monkeypatch):
+    runtime = _runtime()
+    runtime.tool_primitive = object()
+    runtime.mock_manager = object()
+
+    class FakeLuaAdapter:
+        def __init__(self, tool_primitive=None, mock_manager=None):
+            self.tool_primitive = tool_primitive
+            self.mock_manager = mock_manager
+
+        def create_inline_toolset(self, name, tools_list):
+            return {"name": name, "tools": tools_list}
+
+    module = ModuleType("tactus.adapters.lua_tools")
+    module.LuaToolsAdapter = FakeLuaAdapter
+    monkeypatch.setitem(sys.modules, "tactus.adapters.lua_tools", module)
+
+    toolset = await runtime._create_toolset_from_config(
+        "inline", {"tools": [{"name": "noop"}, {"handler": lambda: "ok"}]}
+    )
+
+    assert toolset["name"] == "inline"
 
 
 @pytest.mark.asyncio
@@ -248,6 +382,68 @@ async def test_initialize_toolsets_lua_tools_import_error(monkeypatch):
         return original_import(name, *args, **kwargs)
 
     monkeypatch.setattr(builtins, "__import__", fake_import)
+
+    await runtime._initialize_toolsets()
+
+
+@pytest.mark.asyncio
+async def test_initialize_toolsets_lua_tool_create_error(monkeypatch):
+    runtime = _runtime()
+    runtime.config = {}
+    runtime.registry = type("Registry", (), {"lua_tools": {"tool": {}}, "toolsets": {}})()
+
+    class DummyLuaAdapter:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def create_single_tool_toolset(self, name, definition):
+            raise RuntimeError("boom")
+
+    module = ModuleType("tactus.adapters.lua_tools")
+    module.LuaToolsAdapter = DummyLuaAdapter
+    monkeypatch.setitem(sys.modules, "tactus.adapters.lua_tools", module)
+
+    await runtime._initialize_toolsets()
+
+
+@pytest.mark.asyncio
+async def test_initialize_toolsets_without_registry():
+    runtime = _runtime()
+    runtime.config = {}
+    runtime.registry = None
+
+    await runtime._initialize_toolsets()
+
+
+@pytest.mark.asyncio
+async def test_initialize_toolsets_dsl_toolset_returns_none(monkeypatch):
+    runtime = _runtime()
+    runtime.config = {}
+    runtime.registry = type(
+        "Registry", (), {"lua_tools": {}, "toolsets": {"dsl": {"type": "test"}}}
+    )()
+
+    async def create_toolset(_name, _definition):
+        return None
+
+    monkeypatch.setattr(runtime, "_create_toolset_from_config", create_toolset)
+
+    await runtime._initialize_toolsets()
+    assert "dsl" not in runtime.toolset_registry
+
+
+@pytest.mark.asyncio
+async def test_initialize_toolsets_dsl_toolset_raises(monkeypatch):
+    runtime = _runtime()
+    runtime.config = {}
+    runtime.registry = type(
+        "Registry", (), {"lua_tools": {}, "toolsets": {"dsl": {"type": "test"}}}
+    )()
+
+    async def create_toolset(_name, _definition):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(runtime, "_create_toolset_from_config", create_toolset)
 
     await runtime._initialize_toolsets()
 
@@ -370,6 +566,8 @@ def test_create_toolset_from_config_filtered_with_pattern():
 
     assert toolset is runtime.toolset_registry["base"]
     assert toolset.filtered_with is not None
+    assert toolset.filtered_with(None, type("Tool", (), {"name": "ok_tool"})())
+    assert toolset.filtered_with(None, type("Tool", (), {"name": "nope"})()) is None
 
 
 def test_create_toolset_from_config_filtered_without_pattern():
@@ -450,7 +648,7 @@ def test_create_toolset_from_config_builtin_unimplemented():
     assert toolset is None
 
 
-def test_create_toolset_from_config_inline_tools(monkeypatch):
+def test_create_toolset_from_config_inline_tools(monkeypatch):  # noqa: F811
     runtime = _runtime()
     runtime.tool_primitive = object()
 

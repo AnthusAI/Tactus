@@ -17,7 +17,7 @@ Usage:
 """
 
 import logging
-from typing import Any, Optional, Dict, TYPE_CHECKING
+from typing import Any, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from tactus.dspy.agent import DSPyAgentHandle
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def _convert_lua_table(lua_table):
+def _convert_lua_table(lua_table: Any) -> Any:
     """
     Convert a lupa Lua table to a Python dict or list.
 
@@ -87,7 +87,7 @@ class AgentHandle:
         self._execution_context: Optional[Any] = None
         logger.debug(f"AgentHandle created for '{name}'")
 
-    def __call__(self, inputs=None):
+    def __call__(self, inputs: Any = None) -> Any:
         """
         Execute an agent turn using the callable interface.
 
@@ -109,7 +109,11 @@ class AgentHandle:
             print(result.response)
         """
         logger.debug(
-            f"[CHECKPOINT] AgentHandle '{self.name}'.__call__ invoked, _primitive={self._primitive is not None}, _execution_context={self._execution_context is not None}"
+            "[CHECKPOINT] AgentHandle '%s'.__call__ invoked, _primitive=%s, "
+            "_execution_context=%s",
+            self.name,
+            self._primitive is not None,
+            self._execution_context is not None,
         )
         if self._primitive is None:
             raise RuntimeError(
@@ -127,7 +131,9 @@ class AgentHandle:
 
         # If we have an execution context, checkpoint the agent call
         logger.debug(
-            f"[CHECKPOINT] AgentHandle '{self.name}' called, has_execution_context={self._execution_context is not None}"
+            "[CHECKPOINT] AgentHandle '%s' called, has_execution_context=%s",
+            self.name,
+            self._execution_context is not None,
         )
         if self._execution_context is not None:
 
@@ -148,11 +154,13 @@ class AgentHandle:
                             "file": info.get("source", "unknown"),
                             "line": info.get("currentline", 0),
                         }
-                except Exception as e:
-                    logger.debug(f"Could not capture source location: {e}")
+                except Exception as error:
+                    logger.debug("Could not capture source location: %s", error)
 
             logger.debug(
-                f"[CHECKPOINT] Creating checkpoint for agent '{self.name}', type=agent_turn, source_info={source_info}"
+                "[CHECKPOINT] Creating checkpoint for agent '%s', type=agent_turn, source_info=%s",
+                self.name,
+                source_info,
             )
             result = self._execution_context.checkpoint(
                 agent_call, checkpoint_type="agent_turn", source_info=source_info
@@ -202,7 +210,11 @@ class AgentHandle:
         self._primitive = primitive
         self._execution_context = execution_context
         logger.debug(
-            f"[CHECKPOINT] AgentHandle '{self.name}' connected to primitive (checkpointing={'enabled' if execution_context else 'disabled'}, execution_context={execution_context})"
+            "[CHECKPOINT] AgentHandle '%s' connected to primitive (checkpointing=%s, "
+            "execution_context=%s)",
+            self.name,
+            "enabled" if execution_context else "disabled",
+            execution_context,
         )
 
     def __repr__(self) -> str:
@@ -227,7 +239,7 @@ class ModelHandle:
         """
         self.name = name
         self._primitive: Optional["ModelPrimitive"] = None
-        logger.debug(f"ModelHandle created for '{name}'")
+        logger.debug("ModelHandle created for '%s'", name)
 
     def predict(self, data: Any) -> Any:
         """
@@ -289,7 +301,7 @@ class ModelHandle:
             primitive: The ModelPrimitive to delegate to
         """
         self._primitive = primitive
-        logger.debug(f"ModelHandle '{self.name}' connected to primitive")
+        logger.debug("ModelHandle '%s' connected to primitive", self.name)
 
     def __repr__(self) -> str:
         connected = "connected" if self._primitive else "disconnected"
@@ -303,7 +315,7 @@ class AgentLookup:
     Injected into Lua as 'Agent'. Callable to look up agents by name.
     """
 
-    def __init__(self, registry: Dict[str, AgentHandle]):
+    def __init__(self, registry: dict[str, AgentHandle]):
         """
         Initialize with reference to the agent registry.
 
@@ -344,7 +356,7 @@ class ModelLookup:
     Injected into Lua as 'Model'. Callable to look up models by name.
     """
 
-    def __init__(self, registry: Dict[str, ModelHandle]):
+    def __init__(self, registry: dict[str, ModelHandle]):
         """
         Initialize with reference to the model registry.
 

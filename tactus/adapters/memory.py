@@ -36,18 +36,18 @@ class MemoryStorage:
         self, procedure_id: str, status: str, waiting_on_message_id: Optional[str] = None
     ) -> None:
         """Update procedure status."""
-        metadata = self.load_procedure_metadata(procedure_id)
-        metadata.status = status
-        metadata.waiting_on_message_id = waiting_on_message_id
-        self.save_procedure_metadata(procedure_id, metadata)
+        procedure_metadata = self.load_procedure_metadata(procedure_id)
+        procedure_metadata.status = status
+        procedure_metadata.waiting_on_message_id = waiting_on_message_id
+        self.save_procedure_metadata(procedure_id, procedure_metadata)
 
     def get_state(self, procedure_id: str) -> Dict[str, Any]:
         """Get mutable state dictionary."""
-        metadata = self.load_procedure_metadata(procedure_id)
-        return metadata.state
+        procedure_metadata = self.load_procedure_metadata(procedure_id)
+        return procedure_metadata.state
 
     def set_state(self, procedure_id: str, state: Dict[str, Any]) -> None:
         """Set mutable state dictionary."""
-        metadata = self.load_procedure_metadata(procedure_id)
-        metadata.state = state
-        self.save_procedure_metadata(procedure_id, metadata)
+        procedure_metadata = self.load_procedure_metadata(procedure_id)
+        procedure_metadata.state = state
+        self.save_procedure_metadata(procedure_id, procedure_metadata)

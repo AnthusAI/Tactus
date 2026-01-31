@@ -9,7 +9,7 @@ Provides:
 """
 
 import logging
-from typing import Any, Optional, Dict, List, TYPE_CHECKING
+from typing import Any, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from tactus.primitives.tool_handle import ToolHandle
@@ -20,13 +20,13 @@ logger = logging.getLogger(__name__)
 class ToolCall:
     """Represents a single tool call with arguments and result."""
 
-    def __init__(self, name: str, args: Dict[str, Any], result: Any):
+    def __init__(self, name: str, args: dict[str, Any], result: Any):
         self.name = name
         self.args = args
         self.result = result
         self.timestamp = None  # Could add timestamp tracking
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for Lua access."""
         return {"name": self.name, "args": self.args, "result": self.result}
 
@@ -47,19 +47,22 @@ class ToolPrimitive:
     """
 
     def __init__(
-        self, log_handler=None, agent_name: Optional[str] = None, procedure_id: Optional[str] = None
+        self,
+        log_handler=None,
+        agent_name: Optional[str] = None,
+        procedure_id: Optional[str] = None,
     ):
         """Initialize tool tracking."""
-        self._tool_calls: List[ToolCall] = []
-        self._last_calls: Dict[str, ToolCall] = {}  # name -> last call
+        self._tool_calls: list[ToolCall] = []
+        self._last_calls: dict[str, ToolCall] = {}  # name -> last call
         self.log_handler = log_handler
         self.agent_name = agent_name
         self.procedure_id = procedure_id
         self._runtime = None  # Will be set by runtime for Tool.get() support
-        self._tool_registry: Dict[str, "ToolHandle"] = {}  # For Tool("name") lookup
+        self._tool_registry: dict[str, "ToolHandle"] = {}  # For Tool("name") lookup
         logger.debug("ToolPrimitive initialized")
 
-    def set_tool_registry(self, registry: Dict[str, "ToolHandle"]) -> None:
+    def set_tool_registry(self, registry: dict[str, "ToolHandle"]) -> None:
         """
         Set the tool registry for Tool("name") lookup.
 
@@ -69,7 +72,7 @@ class ToolPrimitive:
             registry: Dict mapping tool names to ToolHandle instances
         """
         self._tool_registry = registry
-        logger.debug(f"ToolPrimitive tool registry set with {len(registry)} tools")
+        logger.debug("ToolPrimitive tool registry set with %s tools", len(registry))
 
     def __call__(self, tool_name: str) -> "ToolHandle":
         """
@@ -132,7 +135,7 @@ class ToolPrimitive:
         """
         from tactus.primitives.tool_handle import ToolHandle
 
-        logger.debug(f"Tool.get('{tool_name}') called")
+        logger.debug("Tool.get('%s') called", tool_name)
 
         # Look up toolset from runtime registry
         toolset = self._get_toolset(tool_name)
@@ -143,10 +146,10 @@ class ToolPrimitive:
             )
 
         # Extract the callable function from the toolset
-        tool_fn = self._extract_tool_function(toolset, tool_name)
+        tool_function = self._extract_tool_function(toolset, tool_name)
 
-        logger.debug(f"Tool.get('{tool_name}') returning ToolHandle")
-        return ToolHandle(tool_name, tool_fn, self)
+        logger.debug("Tool.get('%s') returning ToolHandle", tool_name)
+        return ToolHandle(tool_name, tool_function, self)
 
     def _get_toolset(self, name: str) -> Optional[Any]:
         """
@@ -226,7 +229,9 @@ class ToolPrimitive:
 
         # Fallback: assume the toolset itself contains tool functions
         logger.warning(
-            f"Could not extract tool function for '{tool_name}' from toolset type {type(toolset)}"
+            "Could not extract tool function for '%s' from toolset type %s",
+            tool_name,
+            type(toolset),
         )
 
         # Return a wrapper that attempts to call through the toolset
@@ -252,9 +257,9 @@ class ToolPrimitive:
                 Log.info("Done tool was called")
             end
         """
-        called = tool_name in self._last_calls
-        logger.debug(f"Tool.called('{tool_name}') = {called}")
-        return called
+        was_called = tool_name in self._last_calls
+        logger.debug("Tool.called('%s') = %s", tool_name, was_called)
+        return was_called
 
     def last_result(self, tool_name: str) -> Any:
         """
@@ -273,14 +278,14 @@ class ToolPrimitive:
             end
         """
         if tool_name not in self._last_calls:
-            logger.debug(f"Tool.last_result('{tool_name}') = None (never called)")
+            logger.debug("Tool.last_result('%s') = None (never called)", tool_name)
             return None
 
         result = self._last_calls[tool_name].result
-        logger.debug(f"Tool.last_result('{tool_name}') = {result}")
+        logger.debug("Tool.last_result('%s') = %s", tool_name, result)
         return result
 
-    def last_call(self, tool_name: str) -> Optional[Dict[str, Any]]:
+    def last_call(self, tool_name: str) -> Optional[dict[str, Any]]:
         """
         Get full information about the last call to a tool.
 
@@ -298,15 +303,19 @@ class ToolPrimitive:
             end
         """
         if tool_name not in self._last_calls:
-            logger.debug(f"Tool.last_call('{tool_name}') = None (never called)")
+            logger.debug("Tool.last_call('%s') = None (never called)", tool_name)
             return None
 
         call_dict = self._last_calls[tool_name].to_dict()
-        logger.debug(f"Tool.last_call('{tool_name}') = {call_dict}")
+        logger.debug("Tool.last_call('%s') = %s", tool_name, call_dict)
         return call_dict
 
     def record_call(
-        self, tool_name: str, args: Dict[str, Any], result: Any, agent_name: Optional[str] = None
+        self,
+        tool_name: str,
+        args: dict[str, Any],
+        result: Any,
+        agent_name: Optional[str] = None,
     ) -> None:
         """
         Record a tool call (called by runtime after tool execution).
@@ -319,11 +328,15 @@ class ToolPrimitive:
 
         Note: This is called internally by the runtime, not from Lua
         """
-        call = ToolCall(tool_name, args, result)
-        self._tool_calls.append(call)
-        self._last_calls[tool_name] = call
+        tool_call = ToolCall(tool_name, args, result)
+        self._tool_calls.append(tool_call)
+        self._last_calls[tool_name] = tool_call
 
-        logger.debug(f"Tool call recorded: {tool_name} -> {len(self._tool_calls)} total calls")
+        logger.debug(
+            "Tool call recorded: %s -> %s total calls",
+            tool_name,
+            len(self._tool_calls),
+        )
 
         # Emit ToolCallEvent if we have a log handler
         if self.log_handler:
@@ -338,10 +351,10 @@ class ToolPrimitive:
                     procedure_id=self.procedure_id,
                 )
                 self.log_handler.log(event)
-            except Exception as e:
-                logger.warning(f"Failed to log tool call event: {e}")
+            except Exception as error:
+                logger.warning("Failed to log tool call event: %s", error)
 
-    def get_all_calls(self) -> List[ToolCall]:
+    def get_all_calls(self) -> list[ToolCall]:
         """
         Get all tool calls (for debugging/logging).
 

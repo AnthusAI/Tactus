@@ -1987,7 +1987,7 @@ def ide(
         sock.close()
         return assigned_port
 
-    backend_port = find_available_port(port or 5001)
+    backend_port = find_available_port(port if port is not None else 5001)
     console.print(f"Server port: [cyan]{backend_port}[/cyan]")
 
     # Get paths - handle both development and PyInstaller frozen environments

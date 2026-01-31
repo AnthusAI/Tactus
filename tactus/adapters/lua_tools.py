@@ -220,8 +220,8 @@ class LuaToolsAdapter:
                 logger.debug(f"Lua tool '{tool_name}' executed successfully")
                 return result_str
 
-            except Exception as e:
-                error_msg = f"Error executing Lua tool '{tool_name}': {str(e)}"
+            except Exception as error:
+                error_msg = f"Error executing Lua tool '{tool_name}': {str(error)}"
                 logger.error(error_msg, exc_info=True)
 
                 # Record failed call
@@ -229,7 +229,7 @@ class LuaToolsAdapter:
                     self.tool_primitive.record_call(tool_name, kwargs, error_msg)
 
                 # Re-raise to let agent handle it
-                raise RuntimeError(error_msg) from e
+                raise RuntimeError(error_msg) from error
 
         # Build proper signature for Pydantic AI tool discovery
         sig_params = []

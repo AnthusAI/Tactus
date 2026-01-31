@@ -4,7 +4,7 @@ Cost calculator for LLM usage.
 Calculates costs based on token usage and model pricing.
 """
 
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 from .model_pricing import get_model_pricing, normalize_model_name
 
 
@@ -44,20 +44,20 @@ class CostCalculator:
                 - pricing_found: Whether pricing was found (False = using defaults)
         """
         # Normalize model name and get provider
-        normalized_model, detected_provider = normalize_model_name(model_name, provider)
+        normalized_model_name, detected_provider = normalize_model_name(model_name, provider)
 
         # Get pricing
-        pricing = get_model_pricing(model_name, provider)
+        model_pricing = get_model_pricing(model_name, provider)
 
         # Calculate costs (pricing is per million tokens)
-        prompt_cost = (prompt_tokens / 1_000_000) * pricing["input"]
-        completion_cost = (completion_tokens / 1_000_000) * pricing["output"]
+        prompt_cost = (prompt_tokens / 1_000_000) * model_pricing["input"]
+        completion_cost = (completion_tokens / 1_000_000) * model_pricing["output"]
 
         # Calculate cache savings if applicable
         cache_cost = None
         if cache_tokens and cache_tokens > 0:
             # Cached tokens typically cost 10% of input tokens
-            cache_cost = (cache_tokens / 1_000_000) * pricing["input"] * 0.9
+            cache_cost = (cache_tokens / 1_000_000) * model_pricing["input"] * 0.9
 
         total_cost = prompt_cost + completion_cost
 
@@ -66,7 +66,7 @@ class CostCalculator:
             "completion_cost": completion_cost,
             "cache_cost": cache_cost,
             "total_cost": total_cost,
-            "model": normalized_model,
+            "model": normalized_model_name,
             "provider": detected_provider,
             "pricing_found": True,  # Could track if we used DEFAULT_PRICING
         }

@@ -51,29 +51,32 @@ class TactusValidator:
         Returns:
             ValidationResult with errors, warnings, and registry
         """
-        errors: List[ValidationMessage] = []
-        warnings: List[ValidationMessage] = []
-        registry = None
+        validation_errors: List[ValidationMessage] = []
+        validation_warnings: List[ValidationMessage] = []
+        validation_registry = None
 
         try:
             # Phase 1: Lexical and syntactic analysis via ANTLR
-            input_stream = InputStream(source)
-            lexer = LuaLexer(input_stream)
+            source_stream = InputStream(source)
+            lexer = LuaLexer(source_stream)
             token_stream = CommonTokenStream(lexer)
             parser = LuaParser(token_stream)
 
             # Attach error listener to collect syntax errors
-            error_listener = TactusErrorListener()
+            syntax_error_collector = TactusErrorListener()
             parser.removeErrorListeners()
-            parser.addErrorListener(error_listener)
+            parser.addErrorListener(syntax_error_collector)
 
             # Parse (start rule is 'start_' which expects chunk + EOF)
-            tree = parser.start_()
+            lua_parse_tree = parser.start_()
 
             # Check for syntax errors
-            if error_listener.errors:
+            if syntax_error_collector.syntax_errors:
                 return ValidationResult(
-                    valid=False, errors=error_listener.errors, warnings=[], registry=None
+                    valid=False,
+                    errors=syntax_error_collector.syntax_errors,
+                    warnings=[],
+                    registry=None,
                 )
 
             # Quick mode: just syntax check
@@ -81,35 +84,51 @@ class TactusValidator:
                 return ValidationResult(valid=True, errors=[], warnings=[], registry=None)
 
             # Phase 2: Semantic analysis (DSL validation)
-            visitor = TactusDSLVisitor()
-            visitor.visit(tree)
+            dsl_semantic_visitor = TactusDSLVisitor()
+            dsl_semantic_visitor.visit(lua_parse_tree)
 
             # Combine visitor errors
-            errors = visitor.errors
-            warnings = visitor.warnings
+            validation_errors = dsl_semantic_visitor.errors
+            validation_warnings = dsl_semantic_visitor.warnings
 
             # Phase 3: Registry validation
-            if not errors:
-                result = visitor.builder.validate()
-                errors.extend(result.errors)
-                warnings.extend(result.warnings)
-                registry = result.registry if result.valid else None
+            if not validation_errors:
+                registry_validation_result = dsl_semantic_visitor.builder.validate()
+                validation_errors.extend(registry_validation_result.errors)
+                validation_warnings.extend(registry_validation_result.warnings)
+                validation_registry = (
+                    registry_validation_result.registry
+                    if registry_validation_result.valid
+                    else None
+                )
             else:
-                registry = None
+                validation_registry = None
 
             return ValidationResult(
-                valid=len(errors) == 0, errors=errors, warnings=warnings, registry=registry
+                valid=len(validation_errors) == 0,
+                errors=validation_errors,
+                warnings=validation_warnings,
+                registry=validation_registry,
             )
 
-        except Exception as e:
-            logger.error(f"Validation failed with unexpected error: {e}", exc_info=True)
-            errors.append(
+        except Exception as unexpected_exception:
+            logger.error(
+                "Validation failed with unexpected error: %s",
+                unexpected_exception,
+                exc_info=True,
+            )
+            validation_errors.append(
                 ValidationMessage(
                     level="error",
-                    message=f"Validation error: {e}",
+                    message=f"Validation error: {unexpected_exception}",
                 )
             )
-            return ValidationResult(valid=False, errors=errors, warnings=warnings, registry=None)
+            return ValidationResult(
+                valid=False,
+                errors=validation_errors,
+                warnings=validation_warnings,
+                registry=None,
+            )
 
     def validate_file(
         self,
@@ -127,9 +146,9 @@ class TactusValidator:
             ValidationResult
         """
         try:
-            with open(file_path, "r") as f:
-                source = f.read()
-            return self.validate(source, mode)
+            with open(file_path, "r") as source_file_handle:
+                source_text = source_file_handle.read()
+            return self.validate(source_text, mode)
         except FileNotFoundError:
             return ValidationResult(
                 valid=False,
@@ -142,13 +161,13 @@ class TactusValidator:
                 warnings=[],
                 registry=None,
             )
-        except Exception as e:
+        except Exception as exception:
             return ValidationResult(
                 valid=False,
                 errors=[
                     ValidationMessage(
                         level="error",
-                        message=f"Error reading file: {e}",
+                        message=f"Error reading file: {exception}",
                     )
                 ],
                 warnings=[],

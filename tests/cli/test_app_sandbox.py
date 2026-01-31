@@ -98,6 +98,25 @@ def test_sandbox_rebuild_success(monkeypatch, tmp_path):
     cli_app.sandbox_rebuild(verbose=True, force=True)
 
 
+def test_sandbox_rebuild_version_mismatch(monkeypatch, tmp_path):
+    dummy_file = tmp_path / "Dockerfile"
+    dummy_file.write_text("FROM scratch")
+
+    dummy_manager = DummyDockerManager(image_exists=True, version="1.0.0", build_success=True)
+
+    monkeypatch.setattr("tactus.sandbox.is_docker_available", lambda: (True, ""))
+    monkeypatch.setattr("tactus.sandbox.DockerManager", lambda: dummy_manager)
+    monkeypatch.setattr(
+        "tactus.sandbox.docker_manager.resolve_dockerfile_path",
+        lambda _path: (dummy_file, "dev"),
+    )
+    monkeypatch.setattr(cli_app.console, "print", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr("tactus.__version__", "2.0.0")
+    monkeypatch.setattr("tactus.__file__", str(tmp_path / "__init__.py"))
+
+    cli_app.sandbox_rebuild(verbose=False, force=False)
+
+
 def test_sandbox_rebuild_failure(monkeypatch, tmp_path):
     dummy_file = tmp_path / "Dockerfile"
     dummy_file.write_text("FROM scratch")

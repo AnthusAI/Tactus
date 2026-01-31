@@ -38,6 +38,23 @@ class DummyMockManager:
         self.calls.append((name, kwargs, result))
 
 
+class ToggleMockManager:
+    def __init__(self, response=None):
+        self.response = response
+        self.calls = []
+        self._bool_calls = 0
+
+    def __bool__(self):
+        self._bool_calls += 1
+        return self._bool_calls == 1
+
+    def get_mock_response(self, name, kwargs):
+        return self.response
+
+    def record_call(self, name, kwargs, result):
+        self.calls.append((name, kwargs, result))
+
+
 class DummyHostPrimitive:
     def __init__(self):
         self.calls = []
@@ -161,6 +178,25 @@ async def test_resolve_tool_source_plugin_function_missing(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_resolve_tool_source_plugin_tool_error(monkeypatch):
+    runtime = TactusRuntime(procedure_id="proc", hitl_handler=object())
+
+    module = ModuleType("sample_plugin_error")
+    module.do_it = lambda value: {"ok": value}
+    monkeypatch.setitem(sys.modules, "sample_plugin_error", module)
+
+    class BoomTool:
+        def __init__(self, *args, **kwargs):
+            raise RuntimeError("boom")
+
+    monkeypatch.setattr("pydantic_ai.toolsets.FunctionToolset", DummyToolset)
+    monkeypatch.setattr("pydantic_ai.Tool", BoomTool)
+
+    toolset = await runtime._resolve_tool_source("my_tool", "plugin.sample_plugin_error.do_it")
+    assert toolset is None
+
+
+@pytest.mark.asyncio
 async def test_resolve_tool_source_plugin_success(monkeypatch):
     runtime = TactusRuntime(procedure_id="proc", hitl_handler=object())
     runtime.tool_primitive = DummyToolPrimitive()
@@ -201,10 +237,69 @@ async def test_resolve_tool_source_plugin_no_tracking(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_resolve_tool_source_plugin_mock_response(monkeypatch):
+    runtime = TactusRuntime(procedure_id="proc", hitl_handler=object())
+    runtime.tool_primitive = DummyToolPrimitive()
+    runtime.mock_manager = DummyMockManager(response={"mock": True})
+
+    module = ModuleType("sample_plugin_mock")
+    module.do_it = lambda value: {"ok": value}
+    monkeypatch.setitem(sys.modules, "sample_plugin_mock", module)
+
+    monkeypatch.setattr("pydantic_ai.toolsets.FunctionToolset", DummyToolset)
+    monkeypatch.setattr("pydantic_ai.Tool", DummyTool)
+
+    toolset = await runtime._resolve_tool_source("my_tool", "plugin.sample_plugin_mock.do_it")
+
+    result = toolset.tools[0].func(value=7)
+    assert result == {"mock": True}
+    assert runtime.tool_primitive.calls[0][0] == "my_tool"
+    assert runtime.mock_manager.calls[0][0] == "my_tool"
+
+
+@pytest.mark.asyncio
+async def test_resolve_tool_source_plugin_mock_response_without_tracking(monkeypatch):
+    runtime = TactusRuntime(procedure_id="proc", hitl_handler=object())
+    runtime.tool_primitive = None
+    runtime.mock_manager = ToggleMockManager(response={"mock": True})
+
+    module = ModuleType("sample_plugin_mock_toggle")
+    module.do_it = lambda value: {"ok": value}
+    monkeypatch.setitem(sys.modules, "sample_plugin_mock_toggle", module)
+
+    monkeypatch.setattr("pydantic_ai.toolsets.FunctionToolset", DummyToolset)
+    monkeypatch.setattr("pydantic_ai.Tool", DummyTool)
+
+    toolset = await runtime._resolve_tool_source(
+        "my_tool", "plugin.sample_plugin_mock_toggle.do_it"
+    )
+
+    result = toolset.tools[0].func(value=7)
+    assert result == {"mock": True}
+
+
+@pytest.mark.asyncio
 async def test_resolve_tool_source_cli_mock_response(monkeypatch):
     runtime = TactusRuntime(procedure_id="proc", hitl_handler=object())
     runtime.tool_primitive = DummyToolPrimitive()
     runtime.mock_manager = DummyMockManager(response={"mock": True})
+
+    monkeypatch.setattr("pydantic_ai.toolsets.FunctionToolset", DummyToolset)
+    monkeypatch.setattr("pydantic_ai.Tool", DummyTool)
+
+    toolset = await runtime._resolve_tool_source("cli_tool", "cli.echo")
+
+    result = toolset.tools[0].func(message="hi")
+    assert result == {"mock": True}
+    assert runtime.tool_primitive.calls[0][0] == "cli_tool"
+    assert runtime.mock_manager.calls[0][0] == "cli_tool"
+
+
+@pytest.mark.asyncio
+async def test_resolve_tool_source_cli_mock_response_without_tracking(monkeypatch):
+    runtime = TactusRuntime(procedure_id="proc", hitl_handler=object())
+    runtime.tool_primitive = None
+    runtime.mock_manager = ToggleMockManager(response={"mock": True})
 
     monkeypatch.setattr("pydantic_ai.toolsets.FunctionToolset", DummyToolset)
     monkeypatch.setattr("pydantic_ai.Tool", DummyTool)
@@ -256,6 +351,36 @@ async def test_resolve_tool_source_cli_success_json(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_resolve_tool_source_cli_builds_flags(monkeypatch):
+    import subprocess
+
+    runtime = TactusRuntime(procedure_id="proc", hitl_handler=object())
+    runtime.tool_primitive = None
+    runtime.mock_manager = None
+
+    captured = {}
+
+    class DummyResult:
+        def __init__(self):
+            self.stdout = "ok"
+            self.stderr = ""
+            self.returncode = 0
+
+    def fake_run(cmd, **_kwargs):
+        captured["cmd"] = cmd
+        return DummyResult()
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr("pydantic_ai.toolsets.FunctionToolset", DummyToolset)
+    monkeypatch.setattr("pydantic_ai.Tool", DummyTool)
+
+    toolset = await runtime._resolve_tool_source("cli_tool", "cli.echo")
+    toolset.tools[0].func(verbose=False, file=None, args=["one"])
+
+    assert captured["cmd"] == ["echo", "one"]
+
+
+@pytest.mark.asyncio
 async def test_resolve_tool_source_cli_mock_manager_falls_through(monkeypatch):
     import subprocess
 
@@ -301,6 +426,25 @@ async def test_resolve_tool_source_cli_timeout(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_resolve_tool_source_cli_timeout_without_tool_primitive(monkeypatch):
+    import subprocess
+
+    runtime = TactusRuntime(procedure_id="proc", hitl_handler=object())
+    runtime.tool_primitive = None
+
+    def raise_timeout(*_args, **_kwargs):
+        raise subprocess.TimeoutExpired(cmd=["cli"], timeout=30)
+
+    monkeypatch.setattr(subprocess, "run", raise_timeout)
+    monkeypatch.setattr("pydantic_ai.toolsets.FunctionToolset", DummyToolset)
+    monkeypatch.setattr("pydantic_ai.Tool", DummyTool)
+
+    toolset = await runtime._resolve_tool_source("cli_tool", "cli.echo")
+    result = toolset.tools[0].func()
+    assert result["success"] is False
+
+
+@pytest.mark.asyncio
 async def test_resolve_tool_source_cli_error(monkeypatch):
     import subprocess
 
@@ -316,6 +460,25 @@ async def test_resolve_tool_source_cli_error(monkeypatch):
 
     toolset = await runtime._resolve_tool_source("cli_tool", "cli.echo")
 
+    result = toolset.tools[0].func()
+    assert result["success"] is False
+
+
+@pytest.mark.asyncio
+async def test_resolve_tool_source_cli_error_without_tool_primitive(monkeypatch):
+    import subprocess
+
+    runtime = TactusRuntime(procedure_id="proc", hitl_handler=object())
+    runtime.tool_primitive = None
+
+    def raise_error(*_args, **_kwargs):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(subprocess, "run", raise_error)
+    monkeypatch.setattr("pydantic_ai.toolsets.FunctionToolset", DummyToolset)
+    monkeypatch.setattr("pydantic_ai.Tool", DummyTool)
+
+    toolset = await runtime._resolve_tool_source("cli_tool", "cli.echo")
     result = toolset.tools[0].func()
     assert result["success"] is False
     assert "boom" in result["error"]
@@ -386,6 +549,24 @@ async def test_resolve_tool_source_broker_mock_response(monkeypatch):
 
     result = toolset.tools[0].func(value=1)
     assert result == {"mock": True}
+    assert runtime.tool_primitive.calls[0][0] == "broker_tool"
+    assert runtime.mock_manager.calls[0][0] == "broker_tool"
+
+
+@pytest.mark.asyncio
+async def test_resolve_tool_source_broker_mock_response_without_tool_primitive(monkeypatch):
+    runtime = TactusRuntime(procedure_id="proc", hitl_handler=object())
+    runtime.tool_primitive = None
+    runtime.mock_manager = DummyMockManager(response={"mock": True})
+    runtime.host_primitive = DummyHostPrimitive()
+
+    monkeypatch.setattr("pydantic_ai.toolsets.FunctionToolset", DummyToolset)
+    monkeypatch.setattr("pydantic_ai.Tool", DummyTool)
+
+    toolset = await runtime._resolve_tool_source("broker_tool", "broker.ping")
+
+    result = toolset.tools[0].func(value=1)
+    assert result == {"mock": True}
 
 
 @pytest.mark.asyncio
@@ -405,6 +586,22 @@ async def test_resolve_tool_source_broker_mock_manager_falls_through(monkeypatch
 
 
 @pytest.mark.asyncio
+async def test_resolve_tool_source_broker_success_without_tool_primitive(monkeypatch):
+    runtime = TactusRuntime(procedure_id="proc", hitl_handler=object())
+    runtime.tool_primitive = None
+    runtime.mock_manager = None
+    runtime.host_primitive = DummyHostPrimitive()
+
+    monkeypatch.setattr("pydantic_ai.toolsets.FunctionToolset", DummyToolset)
+    monkeypatch.setattr("pydantic_ai.Tool", DummyTool)
+
+    toolset = await runtime._resolve_tool_source("broker_tool", "broker.ping")
+
+    result = toolset.tools[0].func(value=2)
+    assert result["ok"] is True
+
+
+@pytest.mark.asyncio
 async def test_resolve_tool_source_broker_success(monkeypatch):
     runtime = TactusRuntime(procedure_id="proc", hitl_handler=object())
     runtime.tool_primitive = DummyToolPrimitive()
@@ -419,6 +616,7 @@ async def test_resolve_tool_source_broker_success(monkeypatch):
     result = toolset.tools[0].func(value=2)
     assert result["ok"] is True
     assert runtime.host_primitive.calls[0][0] == "ping"
+    assert runtime.tool_primitive.calls[0][0] == "broker_tool"
 
 
 @pytest.mark.asyncio
@@ -448,7 +646,7 @@ async def test_resolve_tool_source_unknown_source():
 
 
 @pytest.mark.asyncio
-async def test_resolve_tool_source_plugin_mock_response(monkeypatch):
+async def test_resolve_tool_source_plugin_mock_response(monkeypatch):  # noqa: F811
     runtime = TactusRuntime(procedure_id="proc", hitl_handler=object())
     runtime.tool_primitive = DummyToolPrimitive()
     runtime.mock_manager = DummyMockManager(response={"mock": True})

@@ -10,7 +10,7 @@ import logging
 import os
 import uuid
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Optional
 
 from tactus.broker.protocol import read_message, write_message
 from tactus.protocols.control import (
@@ -45,9 +45,9 @@ class IPCControlChannel:
         self.channel_id = "ipc"
 
         self._server: Optional[asyncio.Server] = None
-        self._clients: Dict[str, asyncio.StreamWriter] = {}  # client_id -> writer
+        self._clients: dict[str, asyncio.StreamWriter] = {}  # client_id -> writer
         self._response_queue: asyncio.Queue[ControlResponse] = asyncio.Queue()
-        self._pending_requests: Dict[str, ControlRequest] = {}  # request_id -> request
+        self._pending_requests: dict[str, ControlRequest] = {}  # request_id -> request
         self._initialized = False
 
     @property
@@ -67,7 +67,7 @@ class IPCControlChannel:
         if self._initialized:
             return
 
-        logger.info(f"{self.channel_id}: initializing...")
+        logger.info("%s: initializing...", self.channel_id)
 
         # Remove old socket file if it exists
         if os.path.exists(self.socket_path):
@@ -84,7 +84,11 @@ class IPCControlChannel:
         os.chmod(self.socket_path, 0o600)
 
         self._initialized = True
-        logger.info(f"{self.channel_id}: ready (listening on {self.socket_path})")
+        logger.info(
+            "%s: ready (listening on %s)",
+            self.channel_id,
+            self.socket_path,
+        )
 
     async def send(self, request: ControlRequest) -> DeliveryResult:
         """
@@ -96,10 +100,14 @@ class IPCControlChannel:
         Returns:
             DeliveryResult with success/failure info
         """
-        logger.info(f"{self.channel_id}: sending notification for {request.request_id}")
+        logger.info(
+            "%s: sending notification for %s",
+            self.channel_id,
+            request.request_id,
+        )
 
         # Create control request message from ControlRequest object
-        request_data = {
+        request_payload = {
             "type": "control.request",
             "request_id": request.request_id,
             "procedure_id": request.procedure_id,
@@ -120,7 +128,7 @@ class IPCControlChannel:
         }
 
         # Store pending request
-        self._pending_requests[request.request_id] = request_data
+        self._pending_requests[request.request_id] = request_payload
 
         # Send to all connected clients
         successful = 0
@@ -128,16 +136,21 @@ class IPCControlChannel:
 
         for client_id, writer in list(self._clients.items()):
             try:
-                await write_message(writer, request_data)
+                await write_message(writer, request_payload)
                 successful += 1
-            except Exception as e:
-                logger.error(f"{self.channel_id}: failed to send to client {client_id}: {e}")
+            except Exception as error:
+                logger.error(
+                    "%s: failed to send to client %s: %s",
+                    self.channel_id,
+                    client_id,
+                    error,
+                )
                 failed += 1
                 # Remove dead client
                 self._clients.pop(client_id, None)
 
         if successful == 0 and len(self._clients) == 0:
-            logger.warning(f"{self.channel_id}: no clients connected")
+            logger.warning("%s: no clients connected", self.channel_id)
 
         # Return DeliveryResult
         return DeliveryResult(
@@ -157,7 +170,11 @@ class IPCControlChannel:
         """
         while True:
             response = await self._response_queue.get()
-            logger.info(f"{self.channel_id}: received response for {response.request_id}")
+            logger.info(
+                "%s: received response for %s",
+                self.channel_id,
+                response.request_id,
+            )
             yield response
 
     async def cancel(self, request_id: str, reason: str) -> None:
@@ -168,7 +185,12 @@ class IPCControlChannel:
             request_id: Request to cancel
             reason: Cancellation reason
         """
-        logger.debug(f"{self.channel_id}: cancelling {request_id} ({reason})")
+        logger.debug(
+            "%s: cancelling %s (%s)",
+            self.channel_id,
+            request_id,
+            reason,
+        )
 
         # Remove from pending
         self._pending_requests.pop(request_id, None)
@@ -179,20 +201,30 @@ class IPCControlChannel:
         for client_id, writer in list(self._clients.items()):
             try:
                 await write_message(writer, cancel_message)
-            except Exception as e:
-                logger.error(f"{self.channel_id}: failed to send cancellation to {client_id}: {e}")
+            except Exception as error:
+                logger.error(
+                    "%s: failed to send cancellation to %s: %s",
+                    self.channel_id,
+                    client_id,
+                    error,
+                )
 
     async def shutdown(self) -> None:
         """Clean up and close server."""
-        logger.info(f"{self.channel_id}: shutting down")
+        logger.info("%s: shutting down", self.channel_id)
 
         # Close all client connections
         for client_id, writer in list(self._clients.items()):
             try:
                 writer.close()
                 await writer.wait_closed()
-            except Exception as e:
-                logger.error(f"{self.channel_id}: error closing client {client_id}: {e}")
+            except Exception as error:
+                logger.error(
+                    "%s: error closing client %s: %s",
+                    self.channel_id,
+                    client_id,
+                    error,
+                )
 
         self._clients.clear()
 
@@ -205,8 +237,12 @@ class IPCControlChannel:
         if os.path.exists(self.socket_path):
             try:
                 os.unlink(self.socket_path)
-            except Exception as e:
-                logger.error(f"{self.channel_id}: failed to remove socket file: {e}")
+            except Exception as error:
+                logger.error(
+                    "%s: failed to remove socket file: %s",
+                    self.channel_id,
+                    error,
+                )
 
         self._initialized = False
 
@@ -222,7 +258,7 @@ class IPCControlChannel:
         """
         client_id = str(uuid.uuid4())[:8]
 
-        logger.info(f"{self.channel_id}: client connected ({client_id})")
+        logger.info("%s: client connected (%s)", self.channel_id, client_id)
 
         # Register client
         self._clients[client_id] = writer
@@ -232,9 +268,12 @@ class IPCControlChannel:
             for request_id, request_data in self._pending_requests.items():
                 try:
                     await write_message(writer, request_data)
-                except Exception as e:
+                except Exception as error:
                     logger.error(
-                        f"{self.channel_id}: failed to send pending request to {client_id}: {e}"
+                        "%s: failed to send pending request to %s: %s",
+                        self.channel_id,
+                        client_id,
+                        error,
                     )
 
             # Read messages from client
@@ -264,7 +303,11 @@ class IPCControlChannel:
                         channel_id=self.channel_id,
                     )
                     await self._response_queue.put(response)
-                    logger.info(f"{self.channel_id}: received response for {response.request_id}")
+                    logger.info(
+                        "%s: received response for %s",
+                        self.channel_id,
+                        response.request_id,
+                    )
 
                     # Remove from pending
                     self._pending_requests.pop(response.request_id, None)
@@ -279,16 +322,24 @@ class IPCControlChannel:
 
                 else:
                     logger.warning(
-                        f"{self.channel_id}: unknown message type from {client_id}: {msg_type}"
+                        "%s: unknown message type from %s: %s",
+                        self.channel_id,
+                        client_id,
+                        msg_type,
                     )
 
-        except Exception as e:
-            logger.error(f"{self.channel_id}: error handling client {client_id}: {e}")
+        except Exception as error:
+            logger.error(
+                "%s: error handling client %s: %s",
+                self.channel_id,
+                client_id,
+                error,
+            )
 
         finally:
             # Clean up
             self._clients.pop(client_id, None)
-            logger.info(f"{self.channel_id}: client disconnected ({client_id})")
+            logger.info("%s: client disconnected (%s)", self.channel_id, client_id)
 
             try:
                 writer.close()

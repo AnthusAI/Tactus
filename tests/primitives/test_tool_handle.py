@@ -39,6 +39,11 @@ def test_tool_handle_helpers_without_primitive():
     handle.reset()
 
 
+def test_tool_handle_normalizes_none_arguments():
+    handle = ToolHandle("noop", lambda args: args)
+    assert handle.call(None) == {}
+
+
 def test_tool_handle_call_count_and_reset():
     primitive = ToolPrimitive()
     handle = ToolHandle("count", lambda args: args["x"], tool_primitive=primitive)

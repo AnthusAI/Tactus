@@ -141,6 +141,46 @@ def test_handle_inputs_collects_values(monkeypatch):
     }
 
 
+def test_handle_inputs_summary_handles_list_values_and_missing_labels(monkeypatch):
+    class SummaryEmptyItems(list):
+        def __init__(self, items):
+            super().__init__(items)
+            self._iteration_count = 0
+
+        def __iter__(self):
+            self._iteration_count += 1
+            if self._iteration_count >= 3:
+                return iter([])
+            return super().__iter__()
+
+    console = Console(file=io.StringIO(), force_terminal=False)
+    handler = CLIHITLHandler(console=console)
+
+    monkeypatch.setattr("tactus.adapters.cli_hitl.Prompt.ask", lambda *_a, **_k: "1,2")
+
+    items = SummaryEmptyItems(
+        [
+            {
+                "item_id": "choices",
+                "label": "Choices",
+                "request_type": "select",
+                "options": [{"label": "A", "value": "a"}, {"label": "B", "value": "b"}],
+                "metadata": {"mode": "multiple"},
+            }
+        ]
+    )
+
+    request = HITLRequest(
+        request_type="inputs",
+        message="Batch",
+        metadata={"items": items},
+    )
+    response = handler.request_interaction("proc", request)
+
+    assert response.value["choices"] == ["a", "b"]
+    assert "choices" in console.file.getvalue()
+
+
 def test_handle_inputs_missing_items_returns_empty():
     console = Console(file=io.StringIO(), force_terminal=False)
     handler = CLIHITLHandler(console=console)

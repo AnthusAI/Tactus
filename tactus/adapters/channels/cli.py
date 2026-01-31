@@ -26,10 +26,14 @@ from tactus.adapters.channels.host import HostControlChannel
 logger = logging.getLogger(__name__)
 
 
-def format_time_ago(dt: datetime) -> str:
+def format_time_ago(timestamp: datetime) -> str:
     """Format datetime as human-readable time ago string."""
     now = datetime.now(timezone.utc)
-    delta = now - dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else now - dt
+    delta = (
+        now - timestamp.replace(tzinfo=timezone.utc)
+        if timestamp.tzinfo is None
+        else now - timestamp
+    )
 
     seconds = int(delta.total_seconds())
     if seconds < 60:
@@ -90,11 +94,11 @@ class CLIControlChannel(HostControlChannel):
 
     async def initialize(self) -> None:
         """Initialize the CLI channel."""
-        logger.info(f"{self.channel_id}: initializing...")
+        logger.info("%s: initializing...", self.channel_id)
         # Check if stdin is a tty
         if not sys.stdin.isatty():
-            logger.warning(f"{self.channel_id}: stdin is not a tty, prompts may not work")
-        logger.info(f"{self.channel_id}: ready")
+            logger.warning("%s: stdin is not a tty, prompts may not work", self.channel_id)
+        logger.info("%s: ready", self.channel_id)
 
     def _display_request(self, request: ControlRequest) -> None:
         """
@@ -163,13 +167,13 @@ class CLIControlChannel(HostControlChannel):
         request_type = request.request_type
         if request_type == ControlRequestType.APPROVAL:
             return self._handle_approval(request)
-        elif request_type == ControlRequestType.INPUT:
+        if request_type == ControlRequestType.INPUT:
             return self._handle_input(request)
-        elif request_type == ControlRequestType.REVIEW:
+        if request_type == ControlRequestType.REVIEW:
             return self._handle_review(request)
-        elif request_type == ControlRequestType.ESCALATION:
+        if request_type == ControlRequestType.ESCALATION:
             return self._handle_escalation(request)
-        elif request_type == ControlRequestType.INPUTS:
+        if request_type == ControlRequestType.INPUTS:
             return self._handle_inputs(request)
         else:
             # Default: treat as input
@@ -212,8 +216,8 @@ class CLIControlChannel(HostControlChannel):
         """Handle options selection."""
         # Display options
         self.console.print("\n[bold]Options:[/bold]")
-        for i, option in enumerate(options, 1):
-            self.console.print(f"  {i}. [cyan]{option.label}[/cyan]")
+        for index, option in enumerate(options, 1):
+            self.console.print(f"  {index}. [cyan]{option.label}[/cyan]")
             if option.description:
                 self.console.print(f"     [dim]{option.description}[/dim]")
 
@@ -309,15 +313,15 @@ class CLIControlChannel(HostControlChannel):
 
         # Display summary
         self.console.print(f"\n[bold cyan]Collecting {len(items)} inputs:[/bold cyan]")
-        for idx, item in enumerate(items, 1):
+        for index, item in enumerate(items, 1):
             req_marker = "*" if item.required else ""
-            self.console.print(f"  {idx}. [cyan]{item.label}[/cyan]{req_marker}")
+            self.console.print(f"  {index}. [cyan]{item.label}[/cyan]{req_marker}")
         self.console.print()
 
         # Collect responses for each item
         responses = {}
 
-        for idx, item in enumerate(items, 1):
+        for index, item in enumerate(items, 1):
             if self.is_cancelled():
                 return None
 
@@ -325,7 +329,7 @@ class CLIControlChannel(HostControlChannel):
             self.console.print(
                 Panel(
                     item.message,
-                    title=f"[bold]{idx}/{len(items)}: {item.label}[/bold]",
+                    title=f"[bold]{index}/{len(items)}: {item.label}[/bold]",
                     style="cyan" if item.required else "blue",
                 )
             )

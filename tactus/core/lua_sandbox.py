@@ -12,7 +12,7 @@ Provides a sandboxed Lua runtime with:
 
 import logging
 import os
-from typing import Dict, Any, Optional
+from typing import Any, Optional
 
 try:
     import lupa
@@ -59,10 +59,13 @@ class LuaSandbox:
         # Fix base_path at initialization time to prevent security boundary expansion
         # This ensures file I/O libraries and require() always use the same base path,
         # even if the working directory changes later
-        self.base_path = base_path if base_path else os.getcwd()
+        self.base_path = base_path or os.getcwd()
 
         # Create Lua runtime with safety restrictions
-        self.lua = LuaRuntime(unpack_returned_tuples=True, attribute_filter=self._attribute_filter)
+        self.lua = LuaRuntime(
+            unpack_returned_tuples=True,
+            attribute_filter=self._attribute_filter,
+        )
 
         # Remove dangerous modules
         self._remove_dangerous_modules()
@@ -75,7 +78,7 @@ class LuaSandbox:
 
         logger.debug("Lua sandbox initialized successfully")
 
-    def _attribute_filter(self, obj, attr_name, is_setting):
+    def _attribute_filter(self, obj: Any, attr_name: str, is_setting: bool) -> str:
         """
         Filter attribute access to prevent dangerous operations.
 
@@ -86,7 +89,7 @@ class LuaSandbox:
             raise AttributeError(f"Access to private attribute '{attr_name}' is not allowed")
 
         # Block access to certain dangerous methods
-        blocked_methods = {
+        blocked_attributes = {
             "__import__",
             "__loader__",
             "__spec__",
@@ -98,12 +101,12 @@ class LuaSandbox:
             "__subclasses__",
         }
 
-        if attr_name in blocked_methods:
+        if attr_name in blocked_attributes:
             raise AttributeError(f"Access to '{attr_name}' is not allowed in sandbox")
 
         return attr_name
 
-    def _remove_dangerous_modules(self):
+    def _remove_dangerous_modules(self) -> None:
         """Remove dangerous Lua standard library modules."""
         # Remove modules that provide file system or system access
         # Note: 'package' and 'require' are kept but restricted in _setup_safe_require()
@@ -125,17 +128,19 @@ class LuaSandbox:
         # Whitelist only safe debug functions for source location tracking
         # Keep debug.getinfo but remove dangerous debug functions
         if "debug" in lua_globals:
-            self.lua.execute("""
+            self.lua.execute(
+                """
                 if debug then
                     local safe_debug = {
                         getinfo = debug.getinfo
                     }
                     debug = safe_debug
                 end
-            """)
+                """
+            )
             logger.debug("Replaced debug module with safe_debug (only getinfo allowed)")
 
-    def _setup_safe_require(self):
+    def _setup_safe_require(self) -> None:
         """Configure require/package to search user's project and stdlib.
 
         This allows using Lua's require() mechanism while restricting module
@@ -157,17 +162,22 @@ class LuaSandbox:
         # 1. User's project directory (existing behavior)
         # 2. Tactus stdlib .tac files
         # Both single-file modules (?.tac) and directory modules (?/init.tac) are supported
-        user_path = os.path.join(self.base_path, "?.tac")
+        user_module_path = os.path.join(self.base_path, "?.tac")
         user_init_path = os.path.join(self.base_path, "?", "init.tac")
-        stdlib_path = os.path.join(stdlib_tac_path, "?.tac")
+        stdlib_module_path = os.path.join(stdlib_tac_path, "?.tac")
         stdlib_init_path = os.path.join(stdlib_tac_path, "?", "init.tac")
 
         # Normalize backslashes for cross-platform compatibility
-        paths = [user_path, user_init_path, stdlib_path, stdlib_init_path]
-        paths = [p.replace("\\", "/") for p in paths]
+        raw_paths = [
+            user_module_path,
+            user_init_path,
+            stdlib_module_path,
+            stdlib_init_path,
+        ]
+        normalized_paths = [path.replace("\\", "/") for path in raw_paths]
 
         # Join with Lua's path separator (semicolon)
-        safe_path = ";".join(paths)
+        safe_path = ";".join(normalized_paths)
 
         lua_globals = self.lua.globals()
         package = lua_globals["package"]
@@ -186,11 +196,11 @@ class LuaSandbox:
             # Add Python stdlib loader
             self._setup_python_stdlib_loader()
 
-            logger.debug(f"Configured safe require with paths: {safe_path}")
+            logger.debug("Configured safe require with paths: %s", safe_path)
         else:
             logger.warning("package module not available - require will not work")
 
-    def _setup_python_stdlib_loader(self):
+    def _setup_python_stdlib_loader(self) -> None:
         """Add custom loader for Python stdlib modules."""
         from tactus.stdlib.loader import StdlibModuleLoader
 
@@ -203,7 +213,8 @@ class LuaSandbox:
 
         # Add to package.loaders (Lua 5.1) or package.searchers (Lua 5.2+)
         # Lupa uses LuaJIT which follows Lua 5.1 conventions
-        self.lua.execute("""
+        self.lua.execute(
+            """
             -- Add Python stdlib loader to package.loaders
             -- Insert after the preload loader but before path loader
             local loaders = package.loaders or package.searchers
@@ -221,11 +232,12 @@ class LuaSandbox:
                 -- Insert at position 2 (after preload, before path)
                 table.insert(loaders, 2, python_searcher)
             end
-        """)
+            """
+        )
 
         logger.debug("Python stdlib loader installed")
 
-    def _setup_safe_globals(self):
+    def _setup_safe_globals(self) -> None:
         """Setup safe global functions and utilities."""
         # Keep safe standard library functions
         # (These are already available by default, just documenting them)
@@ -252,7 +264,7 @@ class LuaSandbox:
         }
 
         # Just log what's available - no need to explicitly set
-        logger.debug(f"Safe Lua functions available: {', '.join(safe_functions)}")
+        logger.debug("Safe Lua functions available: %s", ", ".join(safe_functions))
 
         # Replace math and os libraries with safe versions if context available
         if self.execution_context is not None:
@@ -301,7 +313,7 @@ class LuaSandbox:
         self.lua.globals()["os"] = safe_os
         logger.debug("Added safe os.date() function")
 
-    def setup_assignment_interception(self, callback: Any):
+    def setup_assignment_interception(self, callback: Any) -> None:
         """
         Setup assignment interception on global scope to capture variable definitions.
 
@@ -337,11 +349,15 @@ class LuaSandbox:
         try:
             self.lua.execute(lua_code)
             logger.debug("Assignment interception enabled with metatable on _G")
-        except Exception as e:
-            logger.error(f"Failed to setup assignment interception: {e}", exc_info=True)
-            raise LuaSandboxError(f"Could not setup assignment interception: {e}")
+        except Exception as exception:
+            logger.error(
+                "Failed to setup assignment interception: %s",
+                exception,
+                exc_info=True,
+            )
+            raise LuaSandboxError(f"Could not setup assignment interception: {exception}")
 
-    def set_execution_context(self, context: Any):
+    def set_execution_context(self, context: Any) -> None:
         """
         Set or update execution context and refresh safe libraries.
 
@@ -353,7 +369,7 @@ class LuaSandbox:
         self._setup_safe_globals()
         logger.debug("ExecutionContext attached to LuaSandbox")
 
-    def inject_primitive(self, name: str, primitive_obj: Any):
+    def inject_primitive(self, name: str, primitive_obj: Any) -> None:
         """
         Inject a Python primitive object into Lua globals.
 
@@ -362,9 +378,9 @@ class LuaSandbox:
             primitive_obj: Python object to expose to Lua
         """
         self.lua.globals()[name] = primitive_obj
-        logger.debug(f"Injected primitive '{name}' into Lua sandbox")
+        logger.debug("Injected primitive '%s' into Lua sandbox", name)
 
-    def set_global(self, name: str, value: Any):
+    def set_global(self, name: str, value: Any) -> None:
         """
         Set a global variable in Lua.
 
@@ -375,25 +391,25 @@ class LuaSandbox:
         # Convert Python dicts to Lua tables if needed
         if isinstance(value, dict):
             lua_table = self.lua.table()
-            for k, v in value.items():
-                if isinstance(v, dict):
+            for key, item in value.items():
+                if isinstance(item, dict):
                     # Recursively convert nested dicts
-                    lua_table[k] = self._dict_to_lua_table(v)
+                    lua_table[key] = self._dict_to_lua_table(item)
                 else:
-                    lua_table[k] = v
+                    lua_table[key] = item
             self.lua.globals()[name] = lua_table
         else:
             self.lua.globals()[name] = value
-        logger.debug(f"Set global '{name}' in Lua sandbox")
+        logger.debug("Set global '%s' in Lua sandbox", name)
 
-    def _dict_to_lua_table(self, d: dict):
+    def _dict_to_lua_table(self, python_dict: dict) -> Any:
         """Convert Python dict to Lua table recursively."""
         lua_table = self.lua.table()
-        for k, v in d.items():
-            if isinstance(v, dict):
-                lua_table[k] = self._dict_to_lua_table(v)
+        for key, value in python_dict.items():
+            if isinstance(value, dict):
+                lua_table[key] = self._dict_to_lua_table(value)
             else:
-                lua_table[k] = v
+                lua_table[key] = value
         return lua_table
 
     def execute(self, lua_code: str) -> Any:
@@ -410,21 +426,21 @@ class LuaSandbox:
             LuaSandboxError: If execution fails
         """
         try:
-            logger.debug(f"Executing Lua code ({len(lua_code)} bytes)")
+            logger.debug("Executing Lua code (%s bytes)", len(lua_code))
             result = self.lua.execute(lua_code)
             logger.debug("Lua execution completed successfully")
             return result
 
-        except lupa.LuaError as e:
+        except lupa.LuaError as exception:
             # Lua runtime error
-            error_msg = str(e)
-            logger.error(f"Lua execution error: {error_msg}")
-            raise LuaSandboxError(f"Lua runtime error: {error_msg}")
+            error_message = str(exception)
+            logger.error("Lua execution error: %s", error_message)
+            raise LuaSandboxError(f"Lua runtime error: {error_message}")
 
-        except Exception as e:
+        except Exception as exception:
             # Other Python exceptions
-            logger.error(f"Sandbox execution error: {e}")
-            raise LuaSandboxError(f"Sandbox error: {e}")
+            logger.error("Sandbox execution error: %s", exception)
+            raise LuaSandboxError(f"Sandbox error: {exception}")
 
     def eval(self, lua_expression: str) -> Any:
         """
@@ -443,16 +459,16 @@ class LuaSandbox:
             result = self.lua.eval(lua_expression)
             return result
 
-        except lupa.LuaError as e:
-            error_msg = str(e)
-            logger.error(f"Lua eval error: {error_msg}")
-            raise LuaSandboxError(f"Lua eval error: {error_msg}")
+        except lupa.LuaError as exception:
+            error_message = str(exception)
+            logger.error("Lua eval error: %s", error_message)
+            raise LuaSandboxError(f"Lua eval error: {error_message}")
 
     def get_global(self, name: str) -> Any:
         """Get a value from Lua global scope."""
         return self.lua.globals()[name]
 
-    def create_lua_table(self, python_dict: Optional[Dict[str, Any]] = None) -> Any:
+    def create_lua_table(self, python_dict: Optional[dict[str, Any]] = None) -> Any:
         """
         Create a Lua table from a Python dictionary.
 
@@ -473,7 +489,7 @@ class LuaSandbox:
 
         return lua_table
 
-    def lua_table_to_dict(self, lua_table: Any) -> Dict[str, Any]:
+    def lua_table_to_dict(self, lua_table: Any) -> dict[str, Any]:
         """
         Convert a Lua table to a Python dictionary.
 
@@ -495,8 +511,8 @@ class LuaSandbox:
                 else:
                     result[key] = value
 
-        except Exception as e:
-            logger.warning(f"Error converting Lua table to dict: {e}")
+        except Exception as exception:
+            logger.warning("Error converting Lua table to dict: %s", exception)
             # Fallback: try direct iteration
             try:
                 for key in lua_table:

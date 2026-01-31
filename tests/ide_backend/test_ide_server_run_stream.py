@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from types import SimpleNamespace
 
 import pytest
@@ -22,6 +22,34 @@ class FakeIDELogHandler:
 
     def get_events(self, timeout=0.1):
         return [FakeEvent(event_type="summary_event")]
+
+
+class FakeIDELogHandlerTz(FakeIDELogHandler):
+    def get_events(self, timeout=0.1):
+        return [FakeEvent(event_type="summary_event", timestamp=datetime.now(timezone.utc))]
+
+
+class FakeIDELogHandlerQueueTz:
+    def __init__(self):
+        self.events = ide_server.queue.Queue()
+        self.events.put(FakeEvent(timestamp=datetime.now(timezone.utc)))
+
+    def get_events(self, timeout=0.1):
+        return [FakeEvent(event_type="summary_event")]
+
+
+class ErrorLogHandler(FakeIDELogHandler):
+    def get_events(self, timeout=0.1):
+        raise RuntimeError("log-fail")
+
+
+class QueueOnlyLogHandler:
+    def __init__(self):
+        self.events = ide_server.queue.Queue()
+        self.events.put(FakeEvent(event_type="agent_event"))
+
+    def get_events(self, timeout=0.1):
+        return []
 
 
 class FakeRuntime:
@@ -100,6 +128,114 @@ def test_run_stream_direct_execution(monkeypatch, tmp_path):
     assert '"lifecycle_stage": "start"' in data
     assert '"lifecycle_stage": "complete"' in data
     assert '"event_type": "summary_event"' in data
+    assert "Z" in data
+
+
+def test_run_stream_direct_execution_timezone_timestamp(monkeypatch, tmp_path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    file_path = workspace / "demo.tac"
+    file_path.write_text('Procedure "demo" {}')
+
+    _register_common_fakes(monkeypatch)
+    monkeypatch.setattr("tactus.adapters.ide_log.IDELogHandler", FakeIDELogHandlerTz)
+    monkeypatch.setattr("tactus.sandbox.is_docker_available", lambda: (False, "no docker"))
+    monkeypatch.setattr(
+        "tactus.sandbox.SandboxConfig",
+        lambda **_kwargs: SimpleNamespace(is_explicitly_disabled=lambda: False),
+    )
+
+    app = ide_server.create_app(initial_workspace=str(workspace))
+    client = app.test_client()
+
+    response = client.get("/api/run/stream", query_string={"path": "demo.tac"})
+    data = response.data.decode("utf-8")
+
+    assert '"event_type": "summary_event"' in data
+
+
+def test_run_stream_direct_execution_queue_timezone_timestamp(monkeypatch, tmp_path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    file_path = workspace / "demo.tac"
+    file_path.write_text('Procedure "demo" {}')
+
+    _register_common_fakes(monkeypatch)
+    monkeypatch.setattr("tactus.adapters.ide_log.IDELogHandler", FakeIDELogHandlerQueueTz)
+    monkeypatch.setattr("tactus.sandbox.is_docker_available", lambda: (False, "no docker"))
+    monkeypatch.setattr(
+        "tactus.sandbox.SandboxConfig",
+        lambda **_kwargs: SimpleNamespace(is_explicitly_disabled=lambda: False),
+    )
+
+    app = ide_server.create_app(initial_workspace=str(workspace))
+    client = app.test_client()
+
+    response = client.get("/api/run/stream", query_string={"path": "demo.tac"})
+    data = response.data.decode("utf-8")
+
+    assert '"event_type": "summary_event"' in data
+    assert "+00:00" in data
+
+
+def test_run_stream_direct_execution_queue_events(monkeypatch, tmp_path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    file_path = workspace / "demo.tac"
+    file_path.write_text('Procedure "demo" {}')
+
+    _register_common_fakes(monkeypatch)
+    monkeypatch.setattr("tactus.adapters.ide_log.IDELogHandler", QueueOnlyLogHandler)
+    monkeypatch.setattr("tactus.sandbox.is_docker_available", lambda: (False, "no docker"))
+    monkeypatch.setattr(
+        "tactus.sandbox.SandboxConfig",
+        lambda **_kwargs: SimpleNamespace(is_explicitly_disabled=lambda: False),
+    )
+
+    app = ide_server.create_app(initial_workspace=str(workspace))
+    client = app.test_client()
+
+    response = client.get("/api/run/stream", query_string={"path": "demo.tac"})
+    data = response.data.decode("utf-8")
+
+    assert '"event_type": "agent_event"' in data
+
+
+def test_run_stream_sandbox_success(monkeypatch, tmp_path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    file_path = workspace / "demo.tac"
+    file_path.write_text('Procedure "demo" {}')
+
+    _register_common_fakes(monkeypatch)
+    monkeypatch.setattr("tactus.sandbox.is_docker_available", lambda: (True, "ok"))
+    monkeypatch.setattr(
+        "tactus.sandbox.SandboxConfig",
+        lambda **_kwargs: SimpleNamespace(is_explicitly_disabled=lambda: False),
+    )
+
+    class FakeExecResult:
+        def __init__(self):
+            self.status = SimpleNamespace(value="success")
+            self.result = {"ok": True}
+            self.error = None
+
+    class FakeRunner:
+        def __init__(self, _config):
+            pass
+
+        async def run(self, **_kwargs):
+            return FakeExecResult()
+
+    monkeypatch.setattr("tactus.sandbox.ContainerRunner", FakeRunner)
+
+    app = ide_server.create_app(initial_workspace=str(workspace))
+    client = app.test_client()
+
+    response = client.get("/api/run/stream", query_string={"path": "demo.tac"})
+    data = response.data.decode("utf-8")
+
+    assert '"event_type": "container_status"' in data
 
 
 def test_run_stream_post_writes_content(monkeypatch, tmp_path):
@@ -191,6 +327,114 @@ def test_run_stream_sandbox_execution(monkeypatch, tmp_path, docker_available):
     assert '"lifecycle_stage": "complete"' in data
 
 
+def test_run_stream_sandbox_event_queue_drain(monkeypatch, tmp_path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    file_path = workspace / "demo.tac"
+    file_path.write_text('Procedure "demo" {}')
+
+    _register_common_fakes(monkeypatch)
+    monkeypatch.setenv("OPENAI_API_KEY", "key")
+
+    class FakeQueue:
+        def __init__(self):
+            self._items = []
+
+        def put(self, item):
+            self._items.append(item)
+
+        def get(self, timeout=None):
+            if timeout == 0.01:
+                raise ide_server.queue.Empty()
+            if self._items:
+                return self._items.pop(0)
+            raise ide_server.queue.Empty()
+
+    class FakeStatus:
+        value = "success"
+
+    class FakeResult:
+        status = FakeStatus()
+        result = {"ok": True}
+        error = None
+
+    captured = {}
+
+    class FakeRunner:
+        def __init__(self, _config):
+            self.config = _config
+
+        async def run(self, **kwargs):
+            captured["llm_backend_config"] = kwargs.get("llm_backend_config")
+            event_handler = kwargs.get("event_handler")
+            if event_handler:
+                event_handler({"event_type": "late_event"})
+            return FakeResult()
+
+    monkeypatch.setattr(ide_server.queue, "Queue", FakeQueue)
+    monkeypatch.setattr("tactus.sandbox.is_docker_available", lambda: (True, "ok"))
+    monkeypatch.setattr(
+        "tactus.sandbox.SandboxConfig",
+        lambda **_kwargs: SimpleNamespace(is_explicitly_disabled=lambda: False),
+    )
+    monkeypatch.setattr("tactus.sandbox.ContainerRunner", FakeRunner)
+    monkeypatch.setattr("tactus.sandbox.container_runner.ContainerRunner", FakeRunner)
+
+    app = ide_server.create_app(initial_workspace=str(workspace))
+    client = app.test_client()
+
+    response = client.get("/api/run/stream", query_string={"path": "demo.tac"})
+    data = response.data.decode("utf-8")
+
+    assert '"event_type": "late_event"' in data
+    assert captured["llm_backend_config"]["openai_api_key"] == "key"
+
+
+def test_run_stream_sandbox_no_openai_key(monkeypatch, tmp_path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    file_path = workspace / "demo.tac"
+    file_path.write_text('Procedure "demo" {}')
+
+    _register_common_fakes(monkeypatch)
+
+    class FakeStatus:
+        value = "success"
+
+    class FakeResult:
+        status = FakeStatus()
+        result = {"ok": True}
+        error = None
+
+    captured = {}
+
+    class FakeRunner:
+        def __init__(self, _config):
+            self.config = _config
+
+        async def run(self, **kwargs):
+            captured["llm_backend_config"] = kwargs.get("llm_backend_config")
+            return FakeResult()
+
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setattr("tactus.sandbox.is_docker_available", lambda: (True, "ok"))
+    monkeypatch.setattr(
+        "tactus.sandbox.SandboxConfig",
+        lambda **_kwargs: SimpleNamespace(is_explicitly_disabled=lambda: False),
+    )
+    monkeypatch.setattr("tactus.sandbox.ContainerRunner", FakeRunner)
+    monkeypatch.setattr("tactus.sandbox.container_runner.ContainerRunner", FakeRunner)
+
+    app = ide_server.create_app(initial_workspace=str(workspace))
+    client = app.test_client()
+
+    response = client.get("/api/run/stream", query_string={"path": "demo.tac"})
+    data = response.data.decode("utf-8")
+
+    assert '"lifecycle_stage": "complete"' in data
+    assert captured["llm_backend_config"] == {}
+
+
 def test_run_stream_container_hitl_success(monkeypatch, tmp_path):
     workspace = tmp_path / "workspace"
     workspace.mkdir()
@@ -246,6 +490,131 @@ def test_run_stream_container_hitl_success(monkeypatch, tmp_path):
     data = response.data.decode("utf-8")
 
     assert '"lifecycle_stage": "complete"' in data
+
+
+def test_run_stream_sandbox_openai_key(monkeypatch, tmp_path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    file_path = workspace / "demo.tac"
+    file_path.write_text('Procedure "demo" {}')
+
+    _register_common_fakes(monkeypatch)
+    monkeypatch.setenv("OPENAI_API_KEY", "key")
+    captured = {}
+
+    class FakeStatus:
+        value = "success"
+
+    class FakeResult:
+        status = FakeStatus()
+        result = {"ok": True}
+        error = None
+
+    class FakeRunner:
+        def __init__(self, _config):
+            self.config = _config
+
+        async def run(self, **kwargs):
+            captured["called"] = True
+            captured["llm_backend_config"] = kwargs.get("llm_backend_config")
+            return FakeResult()
+
+    monkeypatch.setattr("tactus.sandbox.is_docker_available", lambda: (True, "ok"))
+    monkeypatch.setattr(
+        "tactus.sandbox.SandboxConfig",
+        lambda **_kwargs: SimpleNamespace(is_explicitly_disabled=lambda: False),
+    )
+    monkeypatch.setattr("tactus.sandbox.ContainerRunner", FakeRunner)
+    monkeypatch.setattr(
+        "tactus.core.config_manager.ConfigManager",
+        lambda: SimpleNamespace(load_cascade=lambda _path: {"openai": {"api_key": "key"}}),
+    )
+    monkeypatch.setattr(
+        ide_server.os.environ,
+        "get",
+        lambda key, default=None: "key" if key == "OPENAI_API_KEY" else default,
+    )
+
+    app = ide_server.create_app(initial_workspace=str(workspace))
+    client = app.test_client()
+
+    response = client.get("/api/run/stream", query_string={"path": "demo.tac"})
+    data = response.data.decode("utf-8")
+
+    assert '"event_type": "container_status"' in data
+    assert captured["called"] is True
+    assert captured["llm_backend_config"]["openai_api_key"] == "key"
+
+
+def test_run_stream_streaming_error_event(monkeypatch, tmp_path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    file_path = workspace / "demo.tac"
+    file_path.write_text('Procedure "demo" {}')
+
+    _register_common_fakes(monkeypatch)
+    monkeypatch.setattr("tactus.adapters.ide_log.IDELogHandler", ErrorLogHandler)
+    monkeypatch.setattr("tactus.sandbox.is_docker_available", lambda: (False, "no docker"))
+    monkeypatch.setattr(
+        "tactus.sandbox.SandboxConfig",
+        lambda **_kwargs: SimpleNamespace(is_explicitly_disabled=lambda: False),
+    )
+
+    app = ide_server.create_app(initial_workspace=str(workspace))
+    client = app.test_client()
+
+    response = client.get("/api/run/stream", query_string={"path": "demo.tac"})
+    data = response.data.decode("utf-8")
+
+    assert '"lifecycle_stage": "error"' in data
+
+
+def test_run_stream_setup_value_error(monkeypatch, tmp_path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+
+    _register_common_fakes(monkeypatch)
+    monkeypatch.setattr("tactus.sandbox.is_docker_available", lambda: (False, "no docker"))
+    monkeypatch.setattr(
+        "tactus.sandbox.SandboxConfig",
+        lambda **_kwargs: SimpleNamespace(is_explicitly_disabled=lambda: False),
+    )
+    monkeypatch.setattr(
+        ide_server,
+        "_resolve_workspace_path",
+        lambda _path: (_ for _ in ()).throw(ValueError("bad")),
+    )
+
+    app = ide_server.create_app(initial_workspace=str(workspace))
+    client = app.test_client()
+
+    response = client.get("/api/run/stream", query_string={"path": "demo.tac"})
+    assert response.status_code == 400
+
+
+def test_run_stream_setup_unexpected_error(monkeypatch, tmp_path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    file_path = workspace / "demo.tac"
+    file_path.write_text("content")
+
+    _register_common_fakes(monkeypatch)
+    monkeypatch.setattr("tactus.sandbox.is_docker_available", lambda: (False, "no docker"))
+    monkeypatch.setattr(
+        "tactus.sandbox.SandboxConfig",
+        lambda **_kwargs: SimpleNamespace(is_explicitly_disabled=lambda: False),
+    )
+    monkeypatch.setattr(
+        ide_server,
+        "_resolve_workspace_path",
+        lambda _path: (_ for _ in ()).throw(RuntimeError("boom")),
+    )
+
+    app = ide_server.create_app(initial_workspace=str(workspace))
+    client = app.test_client()
+
+    response = client.get("/api/run/stream", query_string={"path": "demo.tac"})
+    assert response.status_code == 500
 
 
 def test_run_stream_container_hitl_delivery_failure(monkeypatch, tmp_path):

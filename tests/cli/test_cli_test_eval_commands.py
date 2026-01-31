@@ -2,6 +2,7 @@ from types import SimpleNamespace
 import os
 
 import pytest
+import typer
 from typer.testing import CliRunner
 
 from tactus.cli import app as cli_app
@@ -421,6 +422,50 @@ def test_cli_test_command_parses_params(monkeypatch, tmp_path, cli_runner):
     assert captured["a"] == "1"
 
 
+def test_cli_test_command_ignores_bad_param(monkeypatch, tmp_path, cli_runner):
+    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose: None)
+
+    class FakeConfigManager:
+        def load_cascade(self, path):
+            return {}
+
+    monkeypatch.setattr("tactus.core.config_manager.ConfigManager", lambda: FakeConfigManager())
+
+    registry = SimpleNamespace(gherkin_specifications="Feature: A\nScenario: B", custom_steps={})
+    result = SimpleNamespace(valid=True, registry=registry, errors=[])
+    monkeypatch.setattr("tactus.validation.TactusValidator", lambda: FakeValidator(result))
+
+    class FakeRunner:
+        def __init__(self, _path, mock_tools, params):
+            self.params = params
+
+        def setup(self, *args, **kwargs):
+            return None
+
+        def run_tests(self, *args, **kwargs):
+            return SimpleNamespace(
+                features=[],
+                total_scenarios=1,
+                passed_scenarios=1,
+                failed_scenarios=0,
+                total_cost=0,
+                total_llm_calls=0,
+                total_iterations=0,
+                unique_tools_used=[],
+            )
+
+        def cleanup(self):
+            return None
+
+    monkeypatch.setattr("tactus.testing.test_runner.TactusTestRunner", FakeRunner)
+
+    path = tmp_path / "sample.tac"
+    path.write_text("content")
+
+    result = cli_runner.invoke(cli_app.app, ["test", str(path), "--param", "oops"])
+    assert result.exit_code == 0
+
+
 def test_cli_test_command_runner_error_verbose(monkeypatch, tmp_path, cli_runner):
     monkeypatch.setattr(cli_app, "setup_logging", lambda verbose: None)
 
@@ -558,6 +603,8 @@ def test_display_helpers(monkeypatch):
         "fail", "failed", 0.5, total_cost=1.0, llm_calls=2, iterations=1, tools_used=["x"]
     )
     failed.steps.append(DummyStep("Given", "a failure", error_message="boom"))
+    failed.steps.append(DummyStep("When", "another failure", error_message=None))
+    failed.steps.append(DummyStep("Then", "a success", status="passed"))
     passed = DummyScenario("pass", "passed", 0.2)
     features = [DummyFeature("Feature A", [failed, passed])]
 
@@ -576,6 +623,66 @@ def test_display_helpers(monkeypatch):
     )
 
     cli_app._display_evaluation_results([DummyEvalResult("scenario")])
+
+
+def test_display_eval_results_multirun(monkeypatch):
+    console = DummyConsole()
+    monkeypatch.setattr(cli_app, "console", console)
+
+    class DummyAssertion:
+        def __init__(self, value, reason=None):
+            self.value = value
+            self.reason = reason
+
+    long_text = "x" * 240
+    report = SimpleNamespace(
+        cases=[
+            SimpleNamespace(
+                name="task_run1",
+                inputs={"x": 1},
+                output={"a": "b"},
+                assertions={"eval1": DummyAssertion(True, reason="first\n\nsecond\nthird\nfourth")},
+            ),
+            SimpleNamespace(
+                name="task_run2",
+                inputs={"x": 2},
+                output=long_text,
+                assertions={"eval1": DummyAssertion(False)},
+            ),
+            SimpleNamespace(
+                name="task_run3",
+                inputs={"x": 3},
+                output="ok",
+                assertions={"eval1": DummyAssertion(True)},
+            ),
+            SimpleNamespace(
+                name="task",
+                inputs={"x": 4},
+                output="ok",
+                assertions={"eval1": DummyAssertion(True)},
+            ),
+        ]
+    )
+
+    cli_app._display_eval_results(report, runs=2, console=console)
+
+    assert any("Evaluation Results by Task" in line for line in console.lines)
+
+
+def test_display_eval_results_single_run(monkeypatch):
+    console = DummyConsole()
+    monkeypatch.setattr(cli_app, "console", console)
+
+    called = {}
+
+    def fake_print(**_kwargs):
+        called["printed"] = True
+
+    report = SimpleNamespace(cases=[], print=fake_print)
+
+    cli_app._display_eval_results(report, runs=1, console=console)
+
+    assert called.get("printed") is True
 
 
 def test_cli_eval_command_requires_evaluations(monkeypatch, tmp_path, cli_runner):
@@ -713,7 +820,13 @@ def test_cli_eval_command_threshold_failure(monkeypatch, tmp_path, cli_runner):
             pass
 
         def run_evaluation(self):
-            return SimpleNamespace(cases=[])
+            case = SimpleNamespace(
+                name="case_run1",
+                assertions={"eval": SimpleNamespace(value=True)},
+                inputs={"x": 1},
+                output={"y": 2},
+            )
+            return SimpleNamespace(cases=[case])
 
         def check_thresholds(self, _report):
             return False, ["too low"]
@@ -725,6 +838,108 @@ def test_cli_eval_command_threshold_failure(monkeypatch, tmp_path, cli_runner):
     path.write_text("content")
 
     result = cli_runner.invoke(cli_app.app, ["eval", str(path)])
+    assert result.exit_code == 1
+
+
+def test_cli_eval_command_threshold_failure_with_config(monkeypatch, tmp_path, cli_runner):
+    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose: None)
+    monkeypatch.setattr(cli_app, "load_tactus_config", lambda: None)
+
+    registry = SimpleNamespace(
+        pydantic_evaluations={
+            "dataset": [{"name": "case", "inputs": {"x": 1}}],
+            "evaluators": [{"type": "contains", "field": "output", "value": "ok"}],
+            "thresholds": {"min_success_rate": 0.5},
+        }
+    )
+    result = SimpleNamespace(valid=True, registry=registry, errors=[])
+    monkeypatch.setattr("tactus.validation.TactusValidator", lambda: FakeValidator(result))
+
+    class FakeRunner:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def run_evaluation(self):
+            return SimpleNamespace(cases=[])
+
+        def check_thresholds(self, _report):
+            return False, ["too low"]
+
+    monkeypatch.setattr("tactus.testing.pydantic_eval_runner.TactusPydanticEvalRunner", FakeRunner)
+    console = DummyConsole()
+    monkeypatch.setattr(cli_app, "console", console)
+
+    path = tmp_path / "eval.tac"
+    path.write_text("content")
+
+    result = cli_runner.invoke(cli_app.app, ["eval", str(path)])
+    assert result.exit_code == 1
+
+
+def test_eval_direct_threshold_failure(monkeypatch, tmp_path):
+    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose: None)
+    monkeypatch.setattr(cli_app, "load_tactus_config", lambda: None)
+
+    registry = SimpleNamespace(
+        pydantic_evaluations={
+            "dataset": [{"name": "case", "inputs": {"x": 1}}],
+            "evaluators": [{"type": "contains", "field": "output", "value": "ok"}],
+            "thresholds": {"min_success_rate": 0.5},
+        }
+    )
+    result = SimpleNamespace(valid=True, registry=registry, errors=[])
+    monkeypatch.setattr("tactus.validation.TactusValidator", lambda: FakeValidator(result))
+
+    class FakeRunner:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def run_evaluation(self):
+            return SimpleNamespace(cases=[])
+
+        def check_thresholds(self, _report):
+            return False, ["too low"]
+
+    monkeypatch.setattr("tactus.testing.pydantic_eval_runner.TactusPydanticEvalRunner", FakeRunner)
+    monkeypatch.setattr(cli_app, "console", DummyConsole())
+
+    path = tmp_path / "eval.tac"
+    path.write_text("content")
+
+    with pytest.raises(typer.Exit):
+        cli_app.eval(path, runs=2, parallel=True, verbose=False)
+
+
+def test_cli_eval_command_runner_error_verbose(monkeypatch, tmp_path, cli_runner):
+    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose: None)
+    monkeypatch.setattr(cli_app, "load_tactus_config", lambda: None)
+
+    registry = SimpleNamespace(
+        pydantic_evaluations={
+            "dataset": [{"name": "case", "inputs": {"x": 1}}],
+            "evaluators": [{"type": "contains", "field": "output", "value": "ok"}],
+        }
+    )
+    result = SimpleNamespace(valid=True, registry=registry, errors=[])
+    monkeypatch.setattr("tactus.validation.TactusValidator", lambda: FakeValidator(result))
+
+    class FakeRunner:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def run_evaluation(self):
+            raise RuntimeError("boom")
+
+        def check_thresholds(self, _report):
+            return True, []
+
+    monkeypatch.setattr("tactus.testing.pydantic_eval_runner.TactusPydanticEvalRunner", FakeRunner)
+    monkeypatch.setattr(cli_app.console, "print_exception", lambda *_args, **_kwargs: None)
+
+    path = tmp_path / "eval.tac"
+    path.write_text("content")
+
+    result = cli_runner.invoke(cli_app.app, ["eval", str(path), "--verbose"])
     assert result.exit_code == 1
 
 
@@ -768,6 +983,39 @@ def test_display_pydantic_eval_results(monkeypatch):
                 scores={"score": 0.5},
                 labels={"label": "ok"},
                 task_duration=1.0,
+            )
+        ],
+    )
+    cli_app._display_pydantic_eval_results(report)
+
+    report = SimpleNamespace(
+        cases=[
+            SimpleNamespace(
+                name="case",
+                assertions={"a": True},
+                scores={"score": 1.0},
+                labels={},
+                task_duration=2.0,
+            ),
+            SimpleNamespace(
+                name="case2",
+                assertions={"a": False},
+                scores={"score": 3.0},
+                labels={},
+                task_duration=4.0,
+            ),
+        ]
+    )
+    cli_app._display_pydantic_eval_results(report)
+
+    report = SimpleNamespace(
+        cases=[
+            SimpleNamespace(
+                name="case3",
+                assertions={},
+                scores={"score": 2.0},
+                labels=None,
+                task_duration=1.5,
             )
         ]
     )

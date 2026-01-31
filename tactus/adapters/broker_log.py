@@ -12,7 +12,7 @@ import logging
 import os
 import queue
 import threading
-from typing import Optional
+from typing import Any, Optional
 
 from tactus.protocols.models import LogEvent, CostEvent
 
@@ -35,7 +35,7 @@ class BrokerLogHandler:
         self.cost_events: list[CostEvent] = []
 
         # Thread-safe queue for events to send
-        self._queue: queue.Queue = queue.Queue()
+        self._queue: queue.Queue[dict[str, Any]] = queue.Queue()
 
         # Background worker thread
         self._worker_thread: Optional[threading.Thread] = None
@@ -79,31 +79,31 @@ class BrokerLogHandler:
         from tactus.broker.client import BrokerClient
 
         # Create fresh client in this thread's event loop
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+        event_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(event_loop)
         client = BrokerClient(self._socket_path)
 
         try:
             while not self._shutdown.is_set():
                 try:
                     # Wait for event with timeout to check shutdown flag
-                    event_dict = self._queue.get(timeout=0.05)
+                    event_payload = self._queue.get(timeout=0.05)
 
                     # Send event to broker
-                    loop.run_until_complete(client.emit_event(event_dict))
+                    event_loop.run_until_complete(client.emit_event(event_payload))
                     self._queue.task_done()
 
                 except queue.Empty:
                     continue
-                except Exception as e:
+                except Exception as error:
                     # Best effort - don't crash worker on individual failures
-                    logger.debug(f"[BROKER_LOG] Failed to emit event: {e}")
+                    logger.debug("[BROKER_LOG] Failed to emit event: %s", error)
                     try:
                         self._queue.task_done()
                     except ValueError:
                         pass
         finally:
-            loop.close()
+            event_loop.close()
             logger.debug("[BROKER_LOG] Background worker stopped")
 
     def log(self, event: LogEvent) -> None:
@@ -118,20 +118,23 @@ class BrokerLogHandler:
             self.cost_events.append(event)
 
         # Serialize to JSON-friendly dict
-        event_dict = event.model_dump(mode="json")
+        event_payload = event.model_dump(mode="json")
 
         # Normalize timestamp formatting for downstream consumers.
         iso_string = event.timestamp.isoformat()
-        if not (iso_string.endswith("Z") or "+" in iso_string or iso_string.count("-") > 2):
+        has_timezone_marker = (
+            iso_string.endswith("Z") or "+" in iso_string or iso_string.count("-") > 2
+        )
+        if not has_timezone_marker:
             iso_string += "Z"
-        event_dict["timestamp"] = iso_string
+        event_payload["timestamp"] = iso_string
 
         # Ensure worker is running
         self._ensure_worker_started()
 
         # Queue event for background sending (non-blocking)
         try:
-            self._queue.put_nowait(event_dict)
+            self._queue.put_nowait(event_payload)
         except queue.Full:
             # Drop event if queue is full (shouldn't happen with unlimited queue)
             logger.debug("[BROKER_LOG] Queue full, dropping event")
@@ -157,7 +160,7 @@ class BrokerLogHandler:
 
         if not self._queue.empty():
             remaining = self._queue.qsize()
-            logger.warning(f"[BROKER_LOG] Flush timeout with {remaining} events remaining")
+            logger.warning("[BROKER_LOG] Flush timeout with %s events remaining", remaining)
 
         # Signal worker to shutdown
         self._shutdown.set()

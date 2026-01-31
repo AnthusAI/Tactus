@@ -18,7 +18,7 @@ import os
 import sys
 import time
 import traceback
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from tactus.sandbox.protocol import ExecutionResult
 
@@ -32,8 +32,8 @@ _LOG_LEVELS = {
     "critical": logging.CRITICAL,
 }
 
-_log_level_str = os.environ.get("TACTUS_LOG_LEVEL", "info").strip().lower()
-_log_level = _LOG_LEVELS.get(_log_level_str, logging.INFO)
+_log_level_name = os.environ.get("TACTUS_LOG_LEVEL", "info").strip().lower()
+_log_level = _LOG_LEVELS.get(_log_level_name, logging.INFO)
 
 # CloudWatch-friendly, one line per record.
 _log_fmt = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
@@ -53,21 +53,21 @@ if _log_level > logging.DEBUG:
     logging.getLogger("tactus.stdlib").setLevel(logging.WARNING)
 
 
-def read_request_from_stdin() -> Optional[Dict[str, Any]]:
+def read_request_from_stdin() -> Optional[dict[str, Any]]:
     """Read the execution request from stdin as JSON."""
     import json
 
     try:
         # Read exactly one JSON message (the initial ExecutionRequest).
         # Keep stdin open for broker responses during execution.
-        input_data = sys.stdin.readline()
-        if not input_data.strip():
+        input_line = sys.stdin.readline()
+        if not input_line.strip():
             logger.error("No input received on stdin")
             return None
 
-        return json.loads(input_data)
-    except json.JSONDecodeError as e:
-        logger.error(f"Failed to parse JSON from stdin: {e}")
+        return json.loads(input_line)
+    except json.JSONDecodeError as error:
+        logger.error("Failed to parse JSON from stdin: %s", error)
         return None
 
 
@@ -82,7 +82,7 @@ def write_result_to_stdout(result: ExecutionResult) -> None:
 
 async def execute_procedure(
     source: str,
-    params: Dict[str, Any],
+    params: dict[str, Any],
     source_file_path: Optional[str] = None,
     format: str = "lua",
     run_id: Optional[str] = None,
@@ -118,14 +118,16 @@ async def execute_procedure(
     log_handler = HTTPCallbackLogHandler.from_environment()
     if log_handler:
         logger.info(
-            f"[SANDBOX] Using HTTP callback log handler: {os.environ.get('TACTUS_CALLBACK_URL')}"
+            "[SANDBOX] Using HTTP callback log handler: %s",
+            os.environ.get("TACTUS_CALLBACK_URL"),
         )
     else:
         # Otherwise, try broker socket streaming (works without container networking, e.g. stdio/UDS).
         log_handler = BrokerLogHandler.from_environment()
         if log_handler:
             logger.info(
-                f"[SANDBOX] Using broker log handler: {os.environ.get('TACTUS_BROKER_SOCKET')}"
+                "[SANDBOX] Using broker log handler: %s",
+                os.environ.get("TACTUS_BROKER_SOCKET"),
             )
         else:
             # Provide cost collection + checkpoint event handling even without IDE callbacks.
@@ -196,7 +198,7 @@ async def main_async() -> int:
     try:
         # Parse request
         request = ExecutionRequest(**request_data)
-        logger.info(f"Executing procedure (id={request.execution_id})")
+        logger.info("Executing procedure (id=%s)", request.execution_id)
 
         # Execute procedure
         proc_result = await execute_procedure(
@@ -218,7 +220,7 @@ async def main_async() -> int:
         return 0
 
     except Exception as e:
-        logger.exception(f"Procedure execution failed: {e}")
+        logger.exception("Procedure execution failed: %s", e)
 
         duration = time.time() - start_time
         result = ExecutionResult.failure(

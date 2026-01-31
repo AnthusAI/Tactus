@@ -42,12 +42,12 @@ class MessageHistoryPrimitive:
         self.message_history_manager = message_history_manager
         self.agent_name = agent_name
 
-    def append(self, message_data: dict) -> None:
+    def append(self, message_payload: dict[str, Any]) -> None:
         """
         Append a message to the message history.
 
         Args:
-            message_data: Dict with 'role' and 'content' keys
+            message_payload: dict with 'role' and 'content' keys
                          role: 'user', 'assistant', 'system'
                          content: message text
 
@@ -57,16 +57,16 @@ class MessageHistoryPrimitive:
         if not self.message_history_manager:
             return
 
-        message_data = self._normalize_message_data(message_data)
-        role = message_data.get("role", "user")
-        content = message_data.get("content", "")
+        message_payload = self._normalize_message_payload(message_payload)
+        role = message_payload.get("role", "user")
+        content = message_payload.get("content", "")
 
         # Create a message dict and preserve extra fields
-        message = dict(message_data)
-        message["role"] = role
-        message["content"] = content
+        message_entry = dict(message_payload)
+        message_entry["role"] = role
+        message_entry["content"] = content
 
-        self.message_history_manager.add_message(self.agent_name, message)
+        self.message_history_manager.add_message(self.agent_name, message_entry)
 
     def inject_system(self, text: str) -> None:
         """
@@ -97,7 +97,7 @@ class MessageHistoryPrimitive:
         else:
             self.message_history_manager.clear_shared_history()
 
-    def get(self) -> list:
+    def get(self) -> list[dict[str, Any]]:
         """
         Get the full message history for this agent.
 
@@ -117,33 +117,14 @@ class MessageHistoryPrimitive:
         messages = self._get_history_ref()
 
         # Convert to Lua-friendly format
-        result = []
-        for msg in messages:
-            if isinstance(msg, dict):
-                msg = self.message_history_manager._ensure_message_metadata(msg)
-                serialized = dict(msg)
-                serialized["role"] = str(serialized.get("role", ""))
-                serialized["content"] = str(serialized.get("content", ""))
-                result.append(serialized)
-            else:
-                # Handle pydantic_ai ModelMessage objects
-                try:
-                    serialized = {"role": getattr(msg, "role", "")}
-                    serialized["content"] = str(getattr(msg, "content", ""))
-                    msg_id = getattr(msg, "id", None)
-                    if msg_id is not None:
-                        serialized["id"] = msg_id
-                    created_at = getattr(msg, "created_at", None)
-                    if created_at is not None:
-                        serialized["created_at"] = created_at
-                    result.append(serialized)
-                except Exception:
-                    # Fallback: convert to string
-                    result.append({"role": "unknown", "content": str(msg)})
+        result: list[dict[str, Any]] = []
+        for message in messages:
+            serialized_message = self._serialize_message(message)
+            result.append(serialized_message)
 
         return result
 
-    def replace(self, messages: list) -> None:
+    def replace(self, messages: list[Any]) -> None:
         """
         Replace the current message history with a new list.
 
@@ -153,17 +134,18 @@ class MessageHistoryPrimitive:
         if not self.message_history_manager:
             return
 
-        normalized = self._normalize_messages(messages)
-        normalized = [
-            self.message_history_manager._ensure_message_metadata(msg) for msg in normalized
+        normalized_messages = self._normalize_messages(messages)
+        normalized_messages = [
+            self.message_history_manager._ensure_message_metadata(message)
+            for message in normalized_messages
         ]
 
         if self.agent_name:
-            self.message_history_manager.histories[self.agent_name] = normalized
+            self.message_history_manager.histories[self.agent_name] = normalized_messages
         else:
-            self.message_history_manager.shared_history = normalized
+            self.message_history_manager.shared_history = normalized_messages
 
-    def reset(self, options: Optional[dict] = None) -> None:
+    def reset(self, options: Optional[dict[str, Any]] = None) -> None:
         """
         Reset history while optionally keeping leading system messages.
 
@@ -176,43 +158,43 @@ class MessageHistoryPrimitive:
         if not self.message_history_manager:
             return
 
-        keep = "system_prefix"
+        keep_mode = "system_prefix"
         normalized_options = self._normalize_options(options)
         if normalized_options:
-            keep = normalized_options.get("keep", keep)
+            keep_mode = normalized_options.get("keep", keep_mode)
         elif isinstance(options, str):
-            keep = options
+            keep_mode = options
 
         messages = self._get_history_ref()
 
-        if keep == "none":
+        if keep_mode == "none":
             self.replace([])
             return
-        if keep == "system_all":
-            filtered = self.message_history_manager._filter_by_role(messages, "system")
-            self.replace(filtered)
+        if keep_mode == "system_all":
+            system_messages = self.message_history_manager._filter_by_role(messages, "system")
+            self.replace(system_messages)
             return
 
-        filtered = self.message_history_manager._filter_system_prefix(messages)
-        self.replace(filtered)
+        system_prefix_messages = self.message_history_manager._filter_system_prefix(messages)
+        self.replace(system_prefix_messages)
 
-    def head(self, n: int) -> list:
+    def head(self, n: int) -> list[dict[str, Any]]:
         """Return the first N messages without mutating history."""
         if not self.message_history_manager:
             return []
         messages = self._get_history_ref()
-        n = max(int(n or 0), 0)
-        return self._serialize_messages(messages[:n])
+        limit = max(int(n or 0), 0)
+        return self._serialize_messages(messages[:limit])
 
-    def tail(self, n: int) -> list:
+    def tail(self, n: int) -> list[dict[str, Any]]:
         """Return the last N messages without mutating history."""
         if not self.message_history_manager:
             return []
         messages = self._get_history_ref()
-        n = max(int(n or 0), 0)
-        return self._serialize_messages(messages[-n:] if n > 0 else [])
+        limit = max(int(n or 0), 0)
+        return self._serialize_messages(messages[-limit:] if limit > 0 else [])
 
-    def slice(self, options: dict) -> list:
+    def slice(self, options: dict[str, Any]) -> list[dict[str, Any]]:
         """Return a slice of messages using 1-based start/stop indices."""
         if not self.message_history_manager:
             return []
@@ -222,73 +204,81 @@ class MessageHistoryPrimitive:
         messages = self._get_history_ref()
         start = normalized_options.get("start")
         stop = normalized_options.get("stop")
-        start_idx = max(int(start or 1) - 1, 0)
-        stop_idx = int(stop) if stop is not None else None
-        sliced = messages[start_idx:stop_idx]
+        start_index = max(int(start or 1) - 1, 0)
+        stop_index = int(stop) if stop is not None else None
+        sliced = messages[start_index:stop_index]
         return self._serialize_messages(sliced)
 
-    def tail_tokens(self, max_tokens: int, options: Optional[dict] = None) -> list:
+    def tail_tokens(
+        self, max_tokens: int, options: Optional[dict[str, Any]] = None
+    ) -> list[dict[str, Any]]:
         """Return the last messages that fit within the token budget."""
         if not self.message_history_manager:
             return []
         messages = self._get_history_ref()
-        filtered = self.message_history_manager._filter_tail_tokens(messages, max_tokens)
-        return self._serialize_messages(filtered)
+        token_filtered_messages = self.message_history_manager._filter_tail_tokens(
+            messages, max_tokens
+        )
+        return self._serialize_messages(token_filtered_messages)
 
     def keep_head(self, n: int) -> None:
         """Keep only the first N messages."""
         if not self.message_history_manager:
             return
         messages = self._get_history_ref()
-        n = max(int(n or 0), 0)
-        self.replace(messages[:n])
+        limit = max(int(n or 0), 0)
+        self.replace(messages[:limit])
 
     def keep_tail(self, n: int) -> None:
         """Keep only the last N messages."""
         if not self.message_history_manager:
             return
         messages = self._get_history_ref()
-        n = max(int(n or 0), 0)
-        self.replace(messages[-n:] if n > 0 else [])
+        limit = max(int(n or 0), 0)
+        self.replace(messages[-limit:] if limit > 0 else [])
 
-    def keep_tail_tokens(self, max_tokens: int, options: Optional[dict] = None) -> None:
+    def keep_tail_tokens(self, max_tokens: int, options: Optional[dict[str, Any]] = None) -> None:
         """Keep only the last messages that fit within the token budget."""
         if not self.message_history_manager:
             return
         messages = self._get_history_ref()
-        filtered = self.message_history_manager._filter_tail_tokens(messages, max_tokens)
-        self.replace(filtered)
+        token_filtered_messages = self.message_history_manager._filter_tail_tokens(
+            messages, max_tokens
+        )
+        self.replace(token_filtered_messages)
 
     def rewind(self, n: int) -> None:
         """Remove the last N messages from history."""
         if not self.message_history_manager:
             return
         messages = self._get_history_ref()
-        n = max(int(n or 0), 0)
-        if n <= 0:
+        count = max(int(n or 0), 0)
+        if count <= 0:
             return
-        self.replace(messages[:-n])
+        self.replace(messages[:-count])
 
     def rewind_to(self, message_id: Any) -> None:
         """Rewind history back to a message id or checkpoint name."""
         if not self.message_history_manager:
             return
 
-        target_id = message_id
+        target_message_id = message_id
         if isinstance(message_id, str):
             checkpoint_id = self.message_history_manager.get_checkpoint(message_id)
-            target_id = checkpoint_id if checkpoint_id is not None else message_id
+            target_message_id = checkpoint_id if checkpoint_id is not None else message_id
 
         try:
-            target_id = int(target_id)
+            target_message_id = int(target_message_id)
         except (TypeError, ValueError):
             return
 
         messages = self._get_history_ref()
-        for idx, msg in enumerate(messages):
-            msg_id = msg.get("id") if isinstance(msg, dict) else getattr(msg, "id", None)
-            if msg_id == target_id:
-                self.replace(messages[: idx + 1])
+        for index, message in enumerate(messages):
+            message_id_value = (
+                message.get("id") if isinstance(message, dict) else getattr(message, "id", None)
+            )
+            if message_id_value == target_message_id:
+                self.replace(messages[: index + 1])
                 return
 
     def checkpoint(self, name: Optional[str] = None) -> Optional[int]:
@@ -300,19 +290,19 @@ class MessageHistoryPrimitive:
         if not messages:
             return None
 
-        last = messages[-1]
-        if isinstance(last, dict):
-            last = self.message_history_manager._ensure_message_metadata(last)
-            message_id = last.get("id")
+        last_message = messages[-1]
+        if isinstance(last_message, dict):
+            last_message = self.message_history_manager._ensure_message_metadata(last_message)
+            message_id = last_message.get("id")
         else:
-            message_id = getattr(last, "id", None)
+            message_id = getattr(last_message, "id", None)
 
         if isinstance(name, str) and message_id is not None:
             self.message_history_manager.record_checkpoint(name, message_id)
 
         return message_id
 
-    def _get_history_ref(self) -> list:
+    def _get_history_ref(self) -> list[Any]:
         """Get a direct reference to the underlying history list."""
         if not self.message_history_manager:
             return []
@@ -320,32 +310,14 @@ class MessageHistoryPrimitive:
             return self.message_history_manager.histories.setdefault(self.agent_name, [])
         return self.message_history_manager.shared_history
 
-    def _serialize_messages(self, messages: list) -> list:
+    def _serialize_messages(self, messages: list[Any]) -> list[dict[str, Any]]:
         """Serialize message objects to Lua-friendly dicts."""
-        result = []
-        for msg in messages:
-            if isinstance(msg, dict):
-                msg = self.message_history_manager._ensure_message_metadata(msg)
-                serialized = dict(msg)
-                serialized["role"] = str(serialized.get("role", ""))
-                serialized["content"] = str(serialized.get("content", ""))
-                result.append(serialized)
-            else:
-                try:
-                    serialized = {"role": getattr(msg, "role", "")}
-                    serialized["content"] = str(getattr(msg, "content", ""))
-                    msg_id = getattr(msg, "id", None)
-                    if msg_id is not None:
-                        serialized["id"] = msg_id
-                    created_at = getattr(msg, "created_at", None)
-                    if created_at is not None:
-                        serialized["created_at"] = created_at
-                    result.append(serialized)
-                except Exception:
-                    result.append({"role": "unknown", "content": str(msg)})
+        result: list[dict[str, Any]] = []
+        for message in messages:
+            result.append(self._serialize_message(message))
         return result
 
-    def _normalize_messages(self, messages: Any) -> list:
+    def _normalize_messages(self, messages: Any) -> list[Any]:
         """Normalize Python lists or Lua tables into a list of message dicts."""
         if messages is None:
             return []
@@ -355,25 +327,29 @@ class MessageHistoryPrimitive:
             return list(messages)
         if hasattr(messages, "items"):
             items = list(messages.items())
-            if items and all(isinstance(k, int) for k, _ in items):
+            if items and all(isinstance(key, int) for key, _ in items):
                 items.sort(key=lambda pair: pair[0])
             return [value for _, value in items]
         return list(messages)
 
-    def _normalize_message_data(self, message_data: Any) -> dict:
+    def _normalize_message_payload(self, message_payload: Any) -> dict[str, Any]:
         """Normalize a single message payload into a dict."""
-        if message_data is None:
+        if message_payload is None:
             return {}
-        if isinstance(message_data, dict):
-            return message_data
-        if hasattr(message_data, "items"):
+        if isinstance(message_payload, dict):
+            return message_payload
+        if hasattr(message_payload, "items"):
             try:
-                return dict(message_data.items())
+                return dict(message_payload.items())
             except Exception:
                 pass
-        return {"role": "user", "content": str(message_data)}
+        return {"role": "user", "content": str(message_payload)}
 
-    def _normalize_options(self, options: Any) -> dict:
+    def _normalize_message_data(self, message_data: Any) -> dict[str, Any]:
+        """Compatibility alias for existing tests and external callers."""
+        return self._normalize_message_payload(message_data)
+
+    def _normalize_options(self, options: Any) -> dict[str, Any]:
         """Normalize options from Lua tables or dicts."""
         if options is None:
             return {}
@@ -385,6 +361,30 @@ class MessageHistoryPrimitive:
             except Exception:
                 return {}
         return {}
+
+    def _serialize_message(self, message: Any) -> dict[str, Any]:
+        """Serialize a single message into a Lua-friendly dict."""
+        if isinstance(message, dict):
+            message = self.message_history_manager._ensure_message_metadata(message)
+            serialized = dict(message)
+            serialized["role"] = str(serialized.get("role", ""))
+            serialized["content"] = str(serialized.get("content", ""))
+            return serialized
+
+        # Handle pydantic_ai ModelMessage objects
+        try:
+            serialized = {"role": getattr(message, "role", "")}
+            serialized["content"] = str(getattr(message, "content", ""))
+            message_id = getattr(message, "id", None)
+            if message_id is not None:
+                serialized["id"] = message_id
+            created_at = getattr(message, "created_at", None)
+            if created_at is not None:
+                serialized["created_at"] = created_at
+            return serialized
+        except Exception:
+            # Fallback: convert to string
+            return {"role": "unknown", "content": str(message)}
 
     def load_from_node(self, node: Any) -> None:
         """

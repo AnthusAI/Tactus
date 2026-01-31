@@ -1036,6 +1036,34 @@ class TestStreamingBranches:
 
         assert result.output == "ok"
 
+    def test_streaming_unknown_chunk_type_skips(self, monkeypatch):
+        handler = DummyLogHandler()
+        agent = _make_agent(monkeypatch, log_handler=handler)
+
+        final_prediction = dspy.Prediction(response="ok")
+
+        async def fake_stream():
+            yield final_prediction
+
+        monkeypatch.setattr(dspy, "streamify", lambda _module: lambda **_kw: fake_stream())
+        monkeypatch.setattr(agent, "_extract_last_call_stats", lambda: (UsageStats(), CostStats()))
+        monkeypatch.setattr(agent, "_emit_cost_event", lambda: None)
+
+        import queue
+
+        results = [("noop", "data"), ("done", None)]
+
+        def fake_get(self, *args, **kwargs):
+            return results.pop(0)
+
+        monkeypatch.setattr(queue.Queue, "get", fake_get)
+
+        result = agent._turn_with_streaming(
+            {}, {"history": [], "system_prompt": "", "user_message": ""}
+        )
+
+        assert result.output == "ok"
+
     def test_streaming_exception_group_without_exceptions(self, monkeypatch):
         handler = DummyLogHandler()
         agent = _make_agent(monkeypatch, log_handler=handler)

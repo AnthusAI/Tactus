@@ -6,12 +6,12 @@ warn when used outside checkpoint boundaries to prevent replay bugs in
 Tactus's checkpoint-and-replay execution system.
 """
 
-import warnings
-import time
-import random
 import math
+import random
+import time
+import warnings
 from datetime import datetime
-from typing import Callable, Any, Optional
+from typing import Any, Callable, Optional
 from functools import wraps
 
 
@@ -27,7 +27,7 @@ class NonDeterministicError(Exception):
     pass
 
 
-def warn_if_unsafe(operation_name: str, get_context: Callable[[], Optional[Any]]):
+def warn_if_unsafe(operation_label: str, get_context: Callable[[], Optional[Any]]):
     """
     Decorator that warns when non-deterministic operation used outside checkpoint.
 
@@ -43,31 +43,31 @@ def warn_if_unsafe(operation_name: str, get_context: Callable[[], Optional[Any]]
         @wraps(func)
         def wrapper(*args, **kwargs):
             # Get context via callback
-            context = get_context()
+            execution_context = get_context()
 
             # If no context, can't enforce (allow silently for REPL/testing)
-            if context is None:
+            if execution_context is None:
                 return func(*args, **kwargs)
 
             # Check if inside checkpoint
-            inside_checkpoint = getattr(context, "_inside_checkpoint", False)
+            inside_checkpoint = getattr(execution_context, "_inside_checkpoint", False)
 
             if not inside_checkpoint:
                 message = (
                     f"\n{'=' * 70}\n"
-                    f"DETERMINISM WARNING: {operation_name} called outside checkpoint\n"
+                    f"DETERMINISM WARNING: {operation_label} called outside checkpoint\n"
                     f"{'=' * 70}\n\n"
                     f"Non-deterministic operations must be wrapped in checkpoints "
                     f"for durability.\n\n"
                     f"To fix, wrap your code in a checkpoint:\n\n"
                     f"  -- Lua example:\n"
                     f"  local random_value = Step.checkpoint(function()\n"
-                    f"    return {operation_name}\n"
+                    f"    return {operation_label}\n"
                     f"  end)\n\n"
                     f"Or use checkpoint() directly:\n\n"
                     f"  local result = checkpoint(function()\n"
                     f"    -- Your non-deterministic code here\n"
-                    f"    return {operation_name}\n"
+                    f"    return {operation_label}\n"
                     f"  end)\n\n"
                     f"Why: Tactus uses checkpointing for durable execution. "
                     f"Operations outside\n"
@@ -77,7 +77,7 @@ def warn_if_unsafe(operation_name: str, get_context: Callable[[], Optional[Any]]
                 )
 
                 # Check strict mode
-                strict_mode = getattr(context, "strict_determinism", False)
+                strict_mode = getattr(execution_context, "strict_determinism", False)
 
                 if strict_mode:
                     raise NonDeterministicError(message)
@@ -105,7 +105,7 @@ def create_safe_math_library(get_context: Callable, strict_mode: bool = False):
     """
 
     @warn_if_unsafe("math.random()", get_context)
-    def safe_random(m=None, n=None):
+    def safe_random(minimum_inclusive=None, maximum_inclusive=None):
         """
         Safe math.random() with checkpoint warning.
 
@@ -114,20 +114,20 @@ def create_safe_math_library(get_context: Callable, strict_mode: bool = False):
         - math.random(n): returns integer in [1, n]
         - math.random(m, n): returns integer in [m, n]
         """
-        if m is None and n is None:
+        if minimum_inclusive is None and maximum_inclusive is None:
             # No arguments: return float [0, 1)
             return random.random()
-        elif n is None:
+        elif maximum_inclusive is None:
             # One argument: return integer [1, m]
-            return random.randint(1, int(m))
+            return random.randint(1, int(minimum_inclusive))
         else:
             # Two arguments: return integer [m, n]
-            return random.randint(int(m), int(n))
+            return random.randint(int(minimum_inclusive), int(maximum_inclusive))
 
     @warn_if_unsafe("math.randomseed()", get_context)
-    def safe_randomseed(seed):
+    def safe_randomseed(seed_value):
         """Safe math.randomseed() with checkpoint warning."""
-        random.seed(int(seed))
+        random.seed(int(seed_value))
         return None
 
     # Standard math functions (deterministic - pass through)
@@ -178,9 +178,9 @@ def create_safe_os_library(get_context: Callable, strict_mode: bool = False):
     """
 
     @warn_if_unsafe("os.time()", get_context)
-    def safe_time(date_table=None):
+    def safe_time(lua_date_table=None):
         """Safe os.time() with checkpoint warning."""
-        if date_table is None:
+        if lua_date_table is None:
             return int(time.time())
         else:
             # Lua date table format: {year, month, day, hour, min, sec}
@@ -189,20 +189,20 @@ def create_safe_os_library(get_context: Callable, strict_mode: bool = False):
             return int(time.time())
 
     @warn_if_unsafe("os.date()", get_context)
-    def safe_date(format_str=None):
+    def safe_date(format_string=None):
         """Safe os.date() with checkpoint warning."""
         now = datetime.utcnow()
 
-        if format_str is None:
+        if format_string is None:
             # Default format like Lua's os.date()
             return now.strftime("%a %b %d %H:%M:%S %Y")
-        elif format_str == "%Y-%m-%dT%H:%M:%SZ":
+        elif format_string == "%Y-%m-%dT%H:%M:%SZ":
             # ISO 8601 format
             return now.strftime("%Y-%m-%dT%H:%M:%SZ")
         else:
             # Support Python strftime formats
             try:
-                return now.strftime(format_str)
+                return now.strftime(format_string)
             except Exception:
                 return now.strftime("%a %b %d %H:%M:%S %Y")
 
@@ -212,11 +212,11 @@ def create_safe_os_library(get_context: Callable, strict_mode: bool = False):
         return time.process_time()
 
     @warn_if_unsafe("os.getenv()", get_context)
-    def safe_getenv(varname):
+    def safe_getenv(variable_name):
         """Safe os.getenv() with checkpoint warning - environment variables can change."""
         import os
 
-        return os.getenv(varname)
+        return os.getenv(variable_name)
 
     @warn_if_unsafe("os.tmpname()", get_context)
     def safe_tmpname():

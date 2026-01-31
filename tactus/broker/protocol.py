@@ -12,10 +12,10 @@ Example:
     {"id":"abc","method":"llm.chat","params":{...}}
 """
 
-import json
 import asyncio
 import logging
-from typing import Any, Dict, AsyncIterator
+import json
+from typing import Any, AsyncIterator
 
 import anyio
 from anyio.streams.buffered import BufferedByteReceiveStream
@@ -27,7 +27,33 @@ LENGTH_PREFIX_SIZE = 11  # "0000000123\n"
 MAX_MESSAGE_SIZE = 100 * 1024 * 1024  # 100MB safety limit
 
 
-async def write_message(writer: asyncio.StreamWriter, message: Dict[str, Any]) -> None:
+def _parse_length_prefix(length_prefix_bytes: bytes) -> int:
+    try:
+        length_text = length_prefix_bytes[:10].decode("ascii")
+        payload_length = int(length_text)
+    except (ValueError, UnicodeDecodeError) as error:
+        raise ValueError(f"Invalid length prefix: {length_prefix_bytes!r}") from error
+
+    if payload_length > MAX_MESSAGE_SIZE:
+        raise ValueError(f"Message size {payload_length} exceeds maximum {MAX_MESSAGE_SIZE}")
+
+    if payload_length == 0:
+        raise ValueError("Zero-length message not allowed")
+
+    return payload_length
+
+
+def _serialize_json_payload(message: dict[str, Any]) -> bytes:
+    json_payload_bytes = json.dumps(message).encode("utf-8")
+    payload_length = len(json_payload_bytes)
+
+    if payload_length > MAX_MESSAGE_SIZE:
+        raise ValueError(f"Message size {payload_length} exceeds maximum {MAX_MESSAGE_SIZE}")
+
+    return json_payload_bytes
+
+
+async def write_message(writer: asyncio.StreamWriter, message: dict[str, Any]) -> None:
     """
     Write a JSON message with length prefix.
 
@@ -38,20 +64,17 @@ async def write_message(writer: asyncio.StreamWriter, message: Dict[str, Any]) -
     Raises:
         ValueError: If message is too large
     """
-    json_bytes = json.dumps(message).encode("utf-8")
-    length = len(json_bytes)
-
-    if length > MAX_MESSAGE_SIZE:
-        raise ValueError(f"Message size {length} exceeds maximum {MAX_MESSAGE_SIZE}")
+    json_payload_bytes = _serialize_json_payload(message)
+    payload_length = len(json_payload_bytes)
 
     # Write 10-digit length prefix + newline
-    length_prefix = f"{length:010d}\n".encode("ascii")
+    length_prefix = f"{payload_length:010d}\n".encode("ascii")
     writer.write(length_prefix)
-    writer.write(json_bytes)
+    writer.write(json_payload_bytes)
     await writer.drain()
 
 
-async def read_message(reader: asyncio.StreamReader) -> Dict[str, Any]:
+async def read_message(reader: asyncio.StreamReader) -> dict[str, Any]:
     """
     Read a JSON message with length prefix.
 
@@ -66,35 +89,25 @@ async def read_message(reader: asyncio.StreamReader) -> Dict[str, Any]:
         ValueError: If message is invalid or too large
     """
     # Read exactly 11 bytes for length prefix
-    length_bytes = await reader.readexactly(LENGTH_PREFIX_SIZE)
+    length_prefix_bytes = await reader.readexactly(LENGTH_PREFIX_SIZE)
 
-    if not length_bytes:
+    if not length_prefix_bytes:
         raise EOFError("Connection closed")
 
-    try:
-        length_str = length_bytes[:10].decode("ascii")
-        length = int(length_str)
-    except (ValueError, UnicodeDecodeError) as e:
-        raise ValueError(f"Invalid length prefix: {length_bytes!r}") from e
-
-    if length > MAX_MESSAGE_SIZE:
-        raise ValueError(f"Message size {length} exceeds maximum {MAX_MESSAGE_SIZE}")
-
-    if length == 0:
-        raise ValueError("Zero-length message not allowed")
+    payload_length = _parse_length_prefix(length_prefix_bytes)
 
     # Read exactly that many bytes for the JSON payload
-    json_bytes = await reader.readexactly(length)
+    json_payload_bytes = await reader.readexactly(payload_length)
 
     try:
-        message = json.loads(json_bytes.decode("utf-8"))
-    except (json.JSONDecodeError, UnicodeDecodeError) as e:
-        raise ValueError("Invalid JSON payload") from e
+        message = json.loads(json_payload_bytes.decode("utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError) as error:
+        raise ValueError("Invalid JSON payload") from error
 
     return message
 
 
-async def read_messages(reader: asyncio.StreamReader) -> AsyncIterator[Dict[str, Any]]:
+async def read_messages(reader: asyncio.StreamReader) -> AsyncIterator[dict[str, Any]]:
     """
     Read a stream of length-prefixed JSON messages.
 
@@ -117,7 +130,7 @@ async def read_messages(reader: asyncio.StreamReader) -> AsyncIterator[Dict[str,
 
 
 # AnyIO-compatible versions for broker server
-async def write_message_anyio(stream: anyio.abc.ByteStream, message: Dict[str, Any]) -> None:
+async def write_message_anyio(stream: anyio.abc.ByteStream, message: dict[str, Any]) -> None:
     """
     Write a JSON message with length prefix using AnyIO streams.
 
@@ -128,19 +141,16 @@ async def write_message_anyio(stream: anyio.abc.ByteStream, message: Dict[str, A
     Raises:
         ValueError: If message is too large
     """
-    json_bytes = json.dumps(message).encode("utf-8")
-    length = len(json_bytes)
-
-    if length > MAX_MESSAGE_SIZE:
-        raise ValueError(f"Message size {length} exceeds maximum {MAX_MESSAGE_SIZE}")
+    json_payload_bytes = _serialize_json_payload(message)
+    payload_length = len(json_payload_bytes)
 
     # Write 10-digit length prefix + newline
-    length_prefix = f"{length:010d}\n".encode("ascii")
+    length_prefix = f"{payload_length:010d}\n".encode("ascii")
     await stream.send(length_prefix)
-    await stream.send(json_bytes)
+    await stream.send(json_payload_bytes)
 
 
-async def read_message_anyio(stream: BufferedByteReceiveStream) -> Dict[str, Any]:
+async def read_message_anyio(stream: BufferedByteReceiveStream) -> dict[str, Any]:
     """
     Read a JSON message with length prefix using AnyIO streams.
 
@@ -155,29 +165,19 @@ async def read_message_anyio(stream: BufferedByteReceiveStream) -> Dict[str, Any
         ValueError: If message is invalid or too large
     """
     # Read exactly 11 bytes for length prefix
-    length_bytes = await stream.receive_exactly(LENGTH_PREFIX_SIZE)
+    length_prefix_bytes = await stream.receive_exactly(LENGTH_PREFIX_SIZE)
 
-    if not length_bytes:
+    if not length_prefix_bytes:
         raise EOFError("Connection closed")
 
-    try:
-        length_str = length_bytes[:10].decode("ascii")
-        length = int(length_str)
-    except (ValueError, UnicodeDecodeError) as e:
-        raise ValueError(f"Invalid length prefix: {length_bytes!r}") from e
-
-    if length > MAX_MESSAGE_SIZE:
-        raise ValueError(f"Message size {length} exceeds maximum {MAX_MESSAGE_SIZE}")
-
-    if length == 0:
-        raise ValueError("Zero-length message not allowed")
+    payload_length = _parse_length_prefix(length_prefix_bytes)
 
     # Read exactly that many bytes for the JSON payload
-    json_bytes = await stream.receive_exactly(length)
+    json_payload_bytes = await stream.receive_exactly(payload_length)
 
     try:
-        message = json.loads(json_bytes.decode("utf-8"))
-    except (json.JSONDecodeError, UnicodeDecodeError) as e:
-        raise ValueError("Invalid JSON payload") from e
+        message = json.loads(json_payload_bytes.decode("utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError) as error:
+        raise ValueError("Invalid JSON payload") from error
 
     return message

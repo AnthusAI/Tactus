@@ -62,3 +62,27 @@ def test_enhance_handles_non_handle_entries():
     runtime.models = {"model": object()}
 
     runtime._enhance_handles()
+
+
+def test_enhance_handles_model_already_connected():
+    runtime = runtime_module.TactusRuntime(procedure_id="proc", hitl_handler=object())
+    runtime.lua_sandbox = DummyLuaSandbox()
+
+    model_handle = ModelHandle("model")
+    model_handle._primitive = object()
+
+    runtime._dsl_registries = {"agent": {}, "model": {"model": model_handle}}
+    runtime.models = {"model": model_handle._primitive}
+
+    runtime._enhance_handles()
+
+
+def test_enhance_handles_missing_registry_entries():
+    runtime = runtime_module.TactusRuntime(procedure_id="proc", hitl_handler=object())
+    runtime.lua_sandbox = DummyLuaSandbox()
+
+    runtime._dsl_registries = {"agent": {}, "model": {}}
+    runtime.agents = {"agent": object()}
+    runtime.models = {"model": object()}
+
+    runtime._enhance_handles()

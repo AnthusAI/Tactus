@@ -4,9 +4,9 @@ YAML Parser and Validator for Lua DSL Procedures.
 Parses procedure YAML configurations and validates required structure.
 """
 
-import yaml
 import logging
-from typing import Dict, Any, Optional, List
+from typing import Any, Optional
+import yaml
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ class ProcedureYAMLParser:
     """Parses and validates Lua DSL procedure YAML configurations."""
 
     @staticmethod
-    def parse(yaml_content: str) -> Dict[str, Any]:
+    def parse(yaml_content: str) -> dict[str, Any]:
         """
         Parse YAML content into a validated procedure configuration.
 
@@ -35,50 +35,53 @@ class ProcedureYAMLParser:
             ProcedureConfigError: If YAML is invalid or missing required fields
         """
         try:
-            config = yaml.safe_load(yaml_content)
-        except yaml.YAMLError as e:
-            raise ProcedureConfigError(f"Invalid YAML syntax: {e}")
+            parsed_configuration = yaml.safe_load(yaml_content)
+        except yaml.YAMLError as exception:
+            raise ProcedureConfigError(f"Invalid YAML syntax: {exception}")
 
-        if not isinstance(config, dict):
+        if not isinstance(parsed_configuration, dict):
             raise ProcedureConfigError("YAML root must be a dictionary")
 
         # Validate required top-level fields
-        ProcedureYAMLParser._validate_required_fields(config)
+        ProcedureYAMLParser._validate_required_fields(parsed_configuration)
 
         # Validate specific sections
-        ProcedureYAMLParser._validate_params(config.get("params", {}))
-        ProcedureYAMLParser._validate_outputs(config.get("output", {}))
-        ProcedureYAMLParser._validate_default_model(config.get("default_model"))
-        ProcedureYAMLParser._validate_default_provider(config.get("default_provider"))
-        ProcedureYAMLParser._validate_agents(config.get("agents", {}), config)
-        ProcedureYAMLParser._validate_procedure(config.get("procedure"))
+        ProcedureYAMLParser._validate_params(parsed_configuration.get("params", {}))
+        ProcedureYAMLParser._validate_outputs(parsed_configuration.get("output", {}))
+        ProcedureYAMLParser._validate_default_model(parsed_configuration.get("default_model"))
+        ProcedureYAMLParser._validate_default_provider(parsed_configuration.get("default_provider"))
+        ProcedureYAMLParser._validate_agents(
+            parsed_configuration.get("agents", {}), parsed_configuration
+        )
+        ProcedureYAMLParser._validate_procedure(parsed_configuration.get("procedure"))
 
-        logger.info(f"Successfully parsed procedure: {config.get('name')}")
-        return config
+        logger.info("Successfully parsed procedure: %s", parsed_configuration.get("name"))
+        return parsed_configuration
 
     @staticmethod
-    def _validate_required_fields(config: Dict[str, Any]) -> None:
+    def _validate_required_fields(config: dict[str, Any]) -> None:
         """Validate that required top-level fields are present."""
-        required = ["name", "version", "procedure"]
-        missing = [field for field in required if field not in config]
+        required_fields = ["name", "version", "procedure"]
+        missing_fields = [field for field in required_fields if field not in config]
 
-        if missing:
-            raise ProcedureConfigError(f"Missing required fields: {', '.join(missing)}")
+        if missing_fields:
+            raise ProcedureConfigError(f"Missing required fields: {', '.join(missing_fields)}")
 
         # Validate class field if present (for routing)
         if "class" in config:
             if config["class"] != "LuaDSL":
                 logger.warning(
-                    f"Procedure class '{config['class']}' may not be compatible "
-                    "with Lua DSL runtime"
+                    "Procedure class '%s' may not be compatible with Lua DSL runtime",
+                    config["class"],
                 )
 
     @staticmethod
-    def _validate_params(params: Dict[str, Any]) -> None:
+    def _validate_params(params: dict[str, Any]) -> None:
         """Validate parameter definitions."""
         if not isinstance(params, dict):
             raise ProcedureConfigError("'params' must be a dictionary")
 
+        valid_types = ["string", "number", "boolean", "array", "object"]
         for param_name, param_def in params.items():
             if not isinstance(param_def, dict):
                 raise ProcedureConfigError(
@@ -87,7 +90,6 @@ class ProcedureYAMLParser:
 
             # Validate type field if present
             if "type" in param_def:
-                valid_types = ["string", "number", "boolean", "array", "object"]
                 if param_def["type"] not in valid_types:
                     raise ProcedureConfigError(
                         f"Parameter '{param_name}' has invalid type: {param_def['type']}. "
@@ -95,11 +97,12 @@ class ProcedureYAMLParser:
                     )
 
     @staticmethod
-    def _validate_outputs(outputs: Dict[str, Any]) -> None:
+    def _validate_outputs(outputs: dict[str, Any]) -> None:
         """Validate output definitions."""
         if not isinstance(outputs, dict):
             raise ProcedureConfigError("'output' must be a dictionary")
 
+        valid_types = ["string", "number", "boolean", "array", "object"]
         for output_name, output_def in outputs.items():
             if not isinstance(output_def, dict):
                 raise ProcedureConfigError(
@@ -108,7 +111,6 @@ class ProcedureYAMLParser:
 
             # Validate type field if present
             if "type" in output_def:
-                valid_types = ["string", "number", "boolean", "array", "object"]
                 if output_def["type"] not in valid_types:
                     raise ProcedureConfigError(
                         f"Output '{output_name}' has invalid type: {output_def['type']}. "
@@ -141,7 +143,7 @@ class ProcedureYAMLParser:
                 )
 
     @staticmethod
-    def _validate_agents(agents: Dict[str, Any], config: Dict[str, Any]) -> None:
+    def _validate_agents(agents: dict[str, Any], parsed_configuration: dict[str, Any]) -> None:
         """Validate agent definitions."""
         if not isinstance(agents, dict):
             raise ProcedureConfigError("'agents' must be a dictionary")
@@ -149,17 +151,18 @@ class ProcedureYAMLParser:
         if not agents:
             raise ProcedureConfigError("At least one agent must be defined")
 
+        valid_providers = ["openai", "bedrock"]
         for agent_name, agent_def in agents.items():
             if not isinstance(agent_def, dict):
                 raise ProcedureConfigError(f"Agent '{agent_name}' definition must be a dictionary")
 
             # Validate required agent fields
             required_agent_fields = ["system_prompt", "initial_message"]
-            missing = [field for field in required_agent_fields if field not in agent_def]
+            missing_fields = [field for field in required_agent_fields if field not in agent_def]
 
-            if missing:
+            if missing_fields:
                 raise ProcedureConfigError(
-                    f"Agent '{agent_name}' missing required fields: {', '.join(missing)}"
+                    f"Agent '{agent_name}' missing required fields: {', '.join(missing_fields)}"
                 )
 
             # Validate model field if present
@@ -215,33 +218,41 @@ class ProcedureYAMLParser:
 
                     # Validate specific field types
                     if "temperature" in model_value:
-                        temp = model_value["temperature"]
-                        if not isinstance(temp, (int, float)) or temp < 0 or temp > 2:
+                        temperature = model_value["temperature"]
+                        if (
+                            not isinstance(temperature, (int, float))
+                            or temperature < 0
+                            or temperature > 2
+                        ):
                             raise ProcedureConfigError(
                                 f"Agent '{agent_name}' temperature must be a number between 0 and 2"
                             )
 
                     if "top_p" in model_value:
-                        top_p = model_value["top_p"]
-                        if not isinstance(top_p, (int, float)) or top_p < 0 or top_p > 1:
+                        top_probability = model_value["top_p"]
+                        if (
+                            not isinstance(top_probability, (int, float))
+                            or top_probability < 0
+                            or top_probability > 1
+                        ):
                             raise ProcedureConfigError(
                                 f"Agent '{agent_name}' top_p must be a number between 0 and 1"
                             )
 
                     if "max_tokens" in model_value:
-                        max_tok = model_value["max_tokens"]
-                        if not isinstance(max_tok, int) or max_tok < 1:
+                        max_tokens = model_value["max_tokens"]
+                        if not isinstance(max_tokens, int) or max_tokens < 1:
                             raise ProcedureConfigError(
                                 f"Agent '{agent_name}' max_tokens must be a positive integer"
                             )
 
                     if "openai_reasoning_effort" in model_value:
-                        effort = model_value["openai_reasoning_effort"]
+                        reasoning_effort = model_value["openai_reasoning_effort"]
                         valid_efforts = ["low", "medium", "high"]
-                        if effort not in valid_efforts:
+                        if reasoning_effort not in valid_efforts:
                             raise ProcedureConfigError(
                                 f"Agent '{agent_name}' openai_reasoning_effort must be one of: {', '.join(valid_efforts)}. "
-                                f"Got: {effort}"
+                                f"Got: {reasoning_effort}"
                             )
                 else:
                     raise ProcedureConfigError(
@@ -249,7 +260,7 @@ class ProcedureYAMLParser:
                     )
 
             # Validate provider field - required unless default_provider is set
-            has_default_provider = "default_provider" in config
+            has_default_provider = "default_provider" in parsed_configuration
             if "provider" not in agent_def and not has_default_provider:
                 raise ProcedureConfigError(
                     f"Agent '{agent_name}' must specify 'provider' (or set 'default_provider' at procedure level)"
@@ -261,7 +272,6 @@ class ProcedureYAMLParser:
                 if not agent_def["provider"].strip():
                     raise ProcedureConfigError(f"Agent '{agent_name}' provider cannot be empty")
                 # Validate it's a known provider
-                valid_providers = ["openai", "bedrock"]
                 if agent_def["provider"] not in valid_providers:
                     raise ProcedureConfigError(
                         f"Agent '{agent_name}' provider must be one of: {', '.join(valid_providers)}. "
@@ -291,11 +301,11 @@ class ProcedureYAMLParser:
             logger.warning("Procedure has unmatched parentheses - may have syntax errors")
 
     @staticmethod
-    def extract_agent_names(config: Dict[str, Any]) -> List[str]:
+    def extract_agent_names(config: dict[str, Any]) -> list[str]:
         """Extract list of agent names from configuration."""
         return list(config.get("agents", {}).keys())
 
     @staticmethod
-    def get_agent_config(config: Dict[str, Any], agent_name: str) -> Optional[Dict[str, Any]]:
+    def get_agent_config(config: dict[str, Any], agent_name: str) -> Optional[dict[str, Any]]:
         """Get configuration for a specific agent."""
         return config.get("agents", {}).get(agent_name)

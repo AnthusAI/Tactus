@@ -39,29 +39,31 @@ class FilePrimitive:
         """
         self.base_path = Path(base_path) if base_path else Path.cwd()
         self.execution_context = execution_context
-        logger.debug(f"FilePrimitive initialized with base_path: {self.base_path}")
+        logger.debug("FilePrimitive initialized with base_path: %s", self.base_path)
 
-    def _check_determinism(self, operation: str):
+    def _check_determinism(self, operation: str) -> None:
         """Warn if file operation called outside checkpoint."""
         if self.execution_context and not getattr(
             self.execution_context, "_inside_checkpoint", False
         ):
             import warnings
 
+            warning_banner = "=" * 70
             warnings.warn(
-                f"\n{'=' * 70}\n"
+                "\n"
+                f"{warning_banner}\n"
                 f"DETERMINISM WARNING: File.{operation}() called outside checkpoint\n"
-                f"{'=' * 70}\n\n"
-                f"File operations are non-deterministic - "
-                f"file contents can change between executions.\n\n"
-                f"To fix, wrap in Step.checkpoint():\n\n"
-                f"  state.data = Step.checkpoint(function()\n"
+                f"{warning_banner}\n\n"
+                "File operations are non-deterministic - "
+                "file contents can change between executions.\n\n"
+                "To fix, wrap in Step.checkpoint():\n\n"
+                "  state.data = Step.checkpoint(function()\n"
                 f"    return File.{operation}(...)\n"
-                f"  end)\n\n"
-                f"Why: Files can be modified, deleted, or created "
-                f"between procedure executions,\n"
-                f"causing different behavior on replay.\n"
-                f"\n{'=' * 70}\n",
+                "  end)\n\n"
+                "Why: Files can be modified, deleted, or created "
+                "between procedure executions,\n"
+                "causing different behavior on replay.\n"
+                f"\n{warning_banner}\n",
                 UserWarning,
                 stacklevel=3,
             )
@@ -88,21 +90,21 @@ class FilePrimitive:
         file_path = self._resolve_path(path)
 
         try:
-            logger.debug(f"Reading file: {file_path}")
-            with open(file_path, "r", encoding="utf-8") as f:
-                content = f.read()
-            logger.info(f"Read {len(content)} bytes from {file_path}")
+            logger.debug("Reading file: %s", file_path)
+            with open(file_path, "r", encoding="utf-8") as file_handle:
+                content = file_handle.read()
+            logger.info("Read %s bytes from %s", len(content), file_path)
             return content
 
         except FileNotFoundError:
-            error_msg = f"File not found: {file_path}"
-            logger.error(error_msg)
-            raise FileNotFoundError(error_msg)
+            error_message = f"File not found: {file_path}"
+            logger.error(error_message)
+            raise FileNotFoundError(error_message)
 
-        except Exception as e:
-            error_msg = f"Failed to read file {file_path}: {e}"
-            logger.error(error_msg)
-            raise IOError(error_msg)
+        except Exception as error:
+            error_message = f"Failed to read file {file_path}: {error}"
+            logger.error(error_message)
+            raise IOError(error_message)
 
     def write(self, path: str, content: str) -> bool:
         """
@@ -130,17 +132,17 @@ class FilePrimitive:
             # Create parent directories if needed
             file_path.parent.mkdir(parents=True, exist_ok=True)
 
-            logger.debug(f"Writing to file: {file_path}")
-            with open(file_path, "w", encoding="utf-8") as f:
-                f.write(content)
+            logger.debug("Writing to file: %s", file_path)
+            with open(file_path, "w", encoding="utf-8") as file_handle:
+                file_handle.write(content)
 
-            logger.info(f"Wrote {len(content)} bytes to {file_path}")
+            logger.info("Wrote %s bytes to %s", len(content), file_path)
             return True
 
-        except Exception as e:
-            error_msg = f"Failed to write file {file_path}: {e}"
-            logger.error(error_msg)
-            raise IOError(error_msg)
+        except Exception as error:
+            error_message = f"Failed to write file {file_path}: {error}"
+            logger.error(error_message)
+            raise IOError(error_message)
 
     def exists(self, path: str) -> bool:
         """
@@ -162,9 +164,9 @@ class FilePrimitive:
         """
         self._check_determinism("exists")
         file_path = self._resolve_path(path)
-        exists = file_path.exists() and file_path.is_file()
-        logger.debug(f"File exists check for {file_path}: {exists}")
-        return exists
+        file_exists = file_path.exists() and file_path.is_file()
+        logger.debug("File exists check for %s: %s", file_path, file_exists)
+        return file_exists
 
     def size(self, path: str) -> int:
         """
@@ -187,13 +189,13 @@ class FilePrimitive:
         file_path = self._resolve_path(path)
 
         if not file_path.exists():
-            error_msg = f"File not found: {file_path}"
-            logger.error(error_msg)
-            raise FileNotFoundError(error_msg)
+            error_message = f"File not found: {file_path}"
+            logger.error(error_message)
+            raise FileNotFoundError(error_message)
 
-        size = file_path.stat().st_size
-        logger.debug(f"File size for {file_path}: {size} bytes")
-        return size
+        file_size_bytes = file_path.stat().st_size
+        logger.debug("File size for %s: %s bytes", file_path, file_size_bytes)
+        return file_size_bytes
 
     def _resolve_path(self, path: str) -> Path:
         """
@@ -208,22 +210,22 @@ class FilePrimitive:
         Raises:
             ValueError: If absolute path or path traversal detected
         """
-        path_obj = Path(path)
+        relative_path = Path(path)
 
         # Security: Never allow absolute paths
-        if path_obj.is_absolute():
+        if relative_path.is_absolute():
             raise ValueError(f"Absolute paths not allowed: {path}")
 
         # Resolve relative to base_path
-        resolved = (self.base_path / path_obj).resolve()
+        resolved_path = (self.base_path / relative_path).resolve()
 
         # Security: Verify resolved path is under base_path
         try:
-            resolved.relative_to(self.base_path)
+            resolved_path.relative_to(self.base_path)
         except ValueError:
             raise ValueError(f"Path traversal detected: {path} resolves outside base directory")
 
-        return resolved
+        return resolved_path
 
     def __repr__(self) -> str:
         return f"FilePrimitive(base_path={self.base_path})"

@@ -15,7 +15,7 @@ import asyncio
 import logging
 import threading
 from abc import abstractmethod
-from typing import Optional
+from typing import Any, Optional
 from datetime import datetime, timezone
 
 from tactus.protocols.control import (
@@ -84,7 +84,11 @@ class HostControlChannel(InProcessChannel):
         Returns:
             DeliveryResult indicating successful delivery
         """
-        logger.info(f"{self.channel_id}: sending notification for {request.request_id}")
+        logger.info(
+            "%s: sending notification for %s",
+            self.channel_id,
+            request.request_id,
+        )
 
         # Store for background thread access
         self._current_request = request
@@ -122,7 +126,12 @@ class HostControlChannel(InProcessChannel):
             external_message_id: Request ID (same as sent)
             reason: Reason for cancellation (e.g., "Responded via tactus_cloud")
         """
-        logger.debug(f"{self.channel_id}: cancelling {external_message_id}: {reason}")
+        logger.debug(
+            "%s: cancelling %s: %s",
+            self.channel_id,
+            external_message_id,
+            reason,
+        )
         self._cancel_event.set()
         self._show_cancelled(reason)
 
@@ -167,9 +176,9 @@ class HostControlChannel(InProcessChannel):
                 else:
                     self.push_response(response)
 
-        except Exception as e:
+        except Exception as error:
             if not self._cancel_event.is_set():
-                logger.error(f"{self.channel_id}: input error: {e}")
+                logger.error("%s: input error: %s", self.channel_id, error)
 
     @abstractmethod
     def _display_request(self, request: ControlRequest) -> None:
@@ -185,7 +194,7 @@ class HostControlChannel(InProcessChannel):
         ...
 
     @abstractmethod
-    def _prompt_for_input(self, request: ControlRequest) -> Optional[any]:
+    def _prompt_for_input(self, request: ControlRequest) -> Optional[Any]:
         """
         Collect input from the user.
 

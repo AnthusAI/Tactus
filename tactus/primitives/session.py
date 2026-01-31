@@ -9,7 +9,7 @@ from typing import Any, Optional
 try:
     from pydantic_ai.messages import ModelMessage, ModelRequest, ModelResponse, TextPart
 except ImportError:
-    # Fallback types if pydantic_ai not available
+    # Fallback types when pydantic_ai is not available at runtime.
     ModelMessage = dict
     ModelRequest = dict
     ModelResponse = dict
@@ -39,28 +39,54 @@ class SessionPrimitive:
         self.session_manager = session_manager
         self.agent_name = agent_name
 
-    def append(self, message_data: dict) -> None:
+    def _has_session_context(self) -> bool:
+        """
+        Return True when this primitive is bound to a session manager and agent.
+        """
+        return bool(self.session_manager and self.agent_name)
+
+    def _serialize_message(self, message: Any) -> dict[str, str]:
+        """
+        Convert a stored message into a Lua-friendly dict shape.
+        """
+        if isinstance(message, dict):
+            return {
+                "role": message.get("role", ""),
+                "content": str(message.get("content", "")),
+            }
+
+        # Handle pydantic_ai ModelMessage objects.
+        try:
+            return {
+                "role": getattr(message, "role", ""),
+                "content": str(getattr(message, "content", "")),
+            }
+        except Exception:
+            # Fallback: preserve content as a string with an unknown role.
+            return {"role": "unknown", "content": str(message)}
+
+    def append(self, message_payload: dict[str, Any]) -> None:
         """
         Append a message to the session history.
 
         Args:
-            message_data: Dict with 'role' and 'content' keys
+            message_payload: dict with 'role' and 'content' keys
                          role: 'user', 'assistant', 'system'
                          content: message text
 
         Example:
             Session.append({role = "user", content = "Hello"})
         """
-        if not self.session_manager or not self.agent_name:
+        if not self._has_session_context():
             return
 
-        role = message_data.get("role", "user")
-        content = message_data.get("content", "")
+        message_role = message_payload.get("role", "user")
+        message_content = message_payload.get("content", "")
 
         # Create a simple message dict
-        message = {"role": role, "content": content}
+        message_entry = {"role": message_role, "content": message_content}
 
-        self.session_manager.add_message(self.agent_name, message)
+        self.session_manager.add_message(self.agent_name, message_entry)
 
     def inject_system(self, text: str) -> None:
         """
@@ -84,12 +110,12 @@ class SessionPrimitive:
         Example:
             Session.clear()
         """
-        if not self.session_manager or not self.agent_name:
+        if not self._has_session_context():
             return
 
         self.session_manager.clear_agent_history(self.agent_name)
 
-    def history(self) -> list:
+    def history(self) -> list[dict[str, str]]:
         """
         Get the full conversation history for this agent.
 
@@ -102,30 +128,17 @@ class SessionPrimitive:
                 Log.info(msg.role .. ": " .. msg.content)
             end
         """
-        if not self.session_manager or not self.agent_name:
+        if not self._has_session_context():
             return []
 
         messages = self.session_manager.histories.get(self.agent_name, [])
 
         # Convert to Lua-friendly format
-        result = []
-        for msg in messages:
-            if isinstance(msg, dict):
-                result.append({"role": msg.get("role", ""), "content": str(msg.get("content", ""))})
-            else:
-                # Handle pydantic_ai ModelMessage objects
-                try:
-                    result.append(
-                        {
-                            "role": getattr(msg, "role", ""),
-                            "content": str(getattr(msg, "content", "")),
-                        }
-                    )
-                except Exception:
-                    # Fallback: convert to string
-                    result.append({"role": "unknown", "content": str(msg)})
+        serialized_messages: list[dict[str, str]] = [
+            self._serialize_message(message) for message in messages
+        ]
 
-        return result
+        return serialized_messages
 
     def load_from_node(self, node: Any) -> None:
         """

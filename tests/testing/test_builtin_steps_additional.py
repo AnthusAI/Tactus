@@ -65,6 +65,12 @@ def test_step_tool_called_with_param():
     builtin.step_tool_called_with_param(ctx, "tool", "param", "value")
 
 
+def test_step_tool_called_with_param_missing_raises():
+    ctx = DummyContext()
+    with pytest.raises(AssertionError):
+        builtin.step_tool_called_with_param(ctx, "tool", "param", "missing")
+
+
 def test_step_mock_tool_returns_parses_literal():
     ctx = DummyContext()
     builtin.step_mock_tool_returns(ctx, "tool", "123")

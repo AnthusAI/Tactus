@@ -435,13 +435,49 @@ Tactus has two distinct testing mechanisms that serve different purposes:
 
 **Key principle:** Don't mock LLMs in evaluations—you're testing the model's actual behavior. Do mock them in specifications when you're testing orchestration logic, not intelligence.
 
+## Strict Behavior-Driven Development Policy
+
+- **Specifications first**: every new behavior begins with a failing `features/*.feature` scenario before implementation starts.
+- **Single vocabulary**: use the established domain terms consistently in specs so the language stays stable over time.
+- **No “just tests”**: behavior specifications are architecture; they define what the system *is* rather than merely verifying it.
+- **Specification completeness**: every surface behavior must have a specification. If a behavior cannot be expressed cleanly, it should be removed or treated as a hard error.
+- **100% coverage mandate**: every line of code must be exercised by BDD scenarios. Partial coverage is unacceptable.
+
+## Working Backwards (Product-First Workflow)
+
+- Draft a PR-FAQ for every new feature before coding so the product intent is explicit and the scope is understood.
+- Once the PR-FAQ is approved, author the README/Sphinx docs as if the feature already exists—this drives implementation clarity and discoverability.
+- Write BDD specifications that mirror and reinforce the documentation, then implement to match those scenarios exactly.
+- Finish with rigorous quality gates: documentation, clear naming, validation, and the 100% coverage requirement.
+
+## Documentation as a Runnable Textbook
+
+- Treat documentation as narrative teaching material: explanations must be paired with runnable examples using the ships-included demo data.
+- Prefer elementary, educational examples that build progressively toward advanced techniques.
+- Every documented concept needs an executable walkthrough so users can learn by doing.
+- Keep docs tightly aligned with actual commands, scripts, and outputs.
+
+## One Official Way
+
+- No backwards compatibility baggage or dual APIs—there is a single authoritative approach for each domain concept.
+- Avoid hidden fallbacks; prefer explicit errors that surface misconfiguration or invalid states.
+- Use the shared domain vocabulary across code, documentation, and specifications to keep the model clean and durable.
+
+## Pydantic-First Domain Modeling
+
+- Represent domain constructs that cross boundaries (configs, APIs, tool schemas, CLI output) with Pydantic models.
+- Surface validation errors as user-friendly messages, especially in the CLI and tool contexts.
+
 ## Code Quality
 
-- Follow existing code patterns and style
-- Add appropriate logging for debugging
-- Include docstrings for public APIs
-- Handle errors gracefully with proper exception types
-- Keep implementations simple and maintainable
+- **No line-level comments** unless capturing a high-level idea that cannot be conveyed through naming; avoid running commentary.
+- Use Sphinx-style docstrings with reStructuredText field lists (`:param`, `:type`, `:return`, `:rtype`, `:raises`, `:ivar`, `:vartype`) on public APIs.
+- Keep implementations small, readable, and consistent with existing patterns; add logging judiciously to aid debugging.
+- Emphasize intent through specs, docstrings, validation, and typing rather than through implementation noise.
+- Black and Ruff compliance is mandatory; documentation tooling must support docstring generation.
+- **Readability-first mandate**: prioritize clarity over brevity. Prefer long, descriptive names and explicit structure so code reads like precise pseudocode.
+- **Expert judgment encouraged**: use your best professional knowledge about readability (Python best practices and general software design) to improve clarity, even when it requires structural refactors that preserve behavior.
+- **Over-clarity bias**: if there is a tradeoff, choose the option that improves explicitness, transparency, and maintainability, especially at the cost of extra lines or more verbose naming.
 
 ## Using the CLI for Development
 

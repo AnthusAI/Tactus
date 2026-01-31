@@ -11,7 +11,7 @@ import asyncio
 import logging
 import uuid
 from datetime import datetime, timezone
-from typing import List, Optional, Dict, Any
+from typing import Any, Optional
 
 from tactus.core.exceptions import ProcedureWaitingForHuman
 from tactus.protocols.control import (
@@ -62,7 +62,7 @@ class ControlLoopHandler:
 
     def __init__(
         self,
-        channels: List[ControlChannel],
+        channels: list[ControlChannel],
         storage: Optional[StorageBackend] = None,
         immediate_response_timeout: float = 0.5,
         execution_context=None,
@@ -83,7 +83,11 @@ class ControlLoopHandler:
         self._channels_initialized = False
 
         channel_ids = [c.channel_id for c in channels]
-        logger.info(f"ControlLoopHandler initialized with {len(channels)} channels: {channel_ids}")
+        logger.info(
+            "ControlLoopHandler initialized with %s channels: %s",
+            len(channels),
+            channel_ids,
+        )
 
     async def initialize_channels(self) -> None:
         """
@@ -98,8 +102,8 @@ class ControlLoopHandler:
         if not self.channels:
             return
 
-        tasks = [channel.initialize() for channel in self.channels]
-        await asyncio.gather(*tasks, return_exceptions=True)
+        initialize_tasks = [channel.initialize() for channel in self.channels]
+        await asyncio.gather(*initialize_tasks, return_exceptions=True)
         self._channels_initialized = True
 
     async def shutdown_channels(self) -> None:
@@ -111,30 +115,30 @@ class ControlLoopHandler:
         if not self.channels:
             return
 
-        tasks = [channel.shutdown() for channel in self.channels]
-        await asyncio.gather(*tasks, return_exceptions=True)
+        shutdown_tasks = [channel.shutdown() for channel in self.channels]
+        await asyncio.gather(*shutdown_tasks, return_exceptions=True)
 
     def request_interaction(
         self,
         procedure_id: str,
         request_type: str,
         message: str,
-        options: Optional[List[Dict[str, Any]]] = None,
+        options: Optional[list[dict[str, Any]]] = None,
         timeout_seconds: Optional[int] = None,
         default_value: Any = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: Optional[dict[str, Any]] = None,
         # Rich context
         procedure_name: str = "Unknown Procedure",
         invocation_id: Optional[str] = None,
         namespace: str = "",
         subject: Optional[str] = None,
         started_at: Optional[datetime] = None,
-        input_summary: Optional[Dict[str, Any]] = None,
-        conversation: Optional[List[Dict[str, Any]]] = None,
-        prior_interactions: Optional[List[Dict[str, Any]]] = None,
+        input_summary: Optional[dict[str, Any]] = None,
+        conversation: Optional[list[dict[str, Any]]] = None,
+        prior_interactions: Optional[list[dict[str, Any]]] = None,
         # New context architecture
-        runtime_context: Optional[Dict[str, Any]] = None,
-        application_context: Optional[List[Dict[str, Any]]] = None,
+        runtime_context: Optional[dict[str, Any]] = None,
+        application_context: Optional[list[dict[str, Any]]] = None,
     ) -> ControlResponse:
         """
         Request controller interaction by sending to all channels.
@@ -190,20 +194,23 @@ class ControlLoopHandler:
         )
 
         logger.info(
-            f"Control request {request.request_id} for procedure {procedure_id}: "
-            f"{request_type} - {message[:50]}..."
+            "Control request %s for procedure %s: %s - %s...",
+            request.request_id,
+            procedure_id,
+            request_type,
+            message[:50],
         )
 
         # Run the async request flow
         # Check if we're already in an async context
         try:
-            loop = asyncio.get_running_loop()
+            event_loop = asyncio.get_running_loop()
             # Already in async context - create task and run it
             # This shouldn't normally happen since request_interaction is sync
             import nest_asyncio
 
             nest_asyncio.apply()
-            return loop.run_until_complete(self._request_interaction_async(request))
+            return event_loop.run_until_complete(self._request_interaction_async(request))
         except RuntimeError:
             # Not in async context - create new event loop
             return asyncio.get_event_loop().run_until_complete(
@@ -220,7 +227,7 @@ class ControlLoopHandler:
         if self.storage:
             cached_response = self.check_pending_response(request.procedure_id, request.request_id)
             if cached_response:
-                logger.info(f"RESUME: Using cached response for {request.request_id}")
+                logger.info("RESUME: Using cached response for %s", request.request_id)
                 return cached_response
 
         # Initialize channels on first use
@@ -241,14 +248,20 @@ class ControlLoopHandler:
         deliveries = await self._fanout(request, eligible_channels)
 
         # Log delivery results
-        successful = [d for d in deliveries if d.success]
-        failed = [d for d in deliveries if not d.success]
+        successful = [delivery for delivery in deliveries if delivery.success]
+        failed = [delivery for delivery in deliveries if not delivery.success]
         logger.info(
-            f"Control request {request.request_id}: "
-            f"{len(successful)} successful deliveries, {len(failed)} failed"
+            "Control request %s: %s successful deliveries, %s failed",
+            request.request_id,
+            len(successful),
+            len(failed),
         )
-        for d in failed:
-            logger.warning(f"  Failed delivery to {d.channel_id}: {d.error_message}")
+        for delivery in failed:
+            logger.warning(
+                "  Failed delivery to %s: %s",
+                delivery.channel_id,
+                delivery.error_message,
+            )
 
         if not successful:
             raise RuntimeError("All channel deliveries failed")
@@ -264,7 +277,10 @@ class ControlLoopHandler:
             # Store response for future resume
             if self.storage:
                 self._store_response(request, response)
-                logger.info(f"Stored response for {request.request_id} (enables resume)")
+                logger.info(
+                    "Stored response for %s (enables resume)",
+                    request.request_id,
+                )
 
             # Cancel all other channels
             await self._cancel_other_channels(
@@ -283,8 +299,8 @@ class ControlLoopHandler:
     async def _fanout(
         self,
         request: ControlRequest,
-        channels: List[ControlChannel],
-    ) -> List[DeliveryResult]:
+        channels: list[ControlChannel],
+    ) -> list[DeliveryResult]:
         """
         Send request to all channels concurrently.
 
@@ -295,8 +311,8 @@ class ControlLoopHandler:
         Returns:
             List of delivery results
         """
-        tasks = [self._send_with_error_handling(channel, request) for channel in channels]
-        results = await asyncio.gather(*tasks)
+        send_tasks = [self._send_with_error_handling(channel, request) for channel in channels]
+        results = await asyncio.gather(*send_tasks)
         return list(results)
 
     async def _send_with_error_handling(
@@ -309,21 +325,21 @@ class ControlLoopHandler:
         """
         try:
             return await channel.send(request)
-        except Exception as e:
-            logger.exception(f"Failed to send to {channel.channel_id}")
+        except Exception as error:
+            logger.exception("Failed to send to %s", channel.channel_id)
             return DeliveryResult(
                 channel_id=channel.channel_id,
                 external_message_id="",
                 delivered_at=datetime.now(timezone.utc),
                 success=False,
-                error_message=str(e),
+                error_message=str(error),
             )
 
     async def _wait_for_first_response(
         self,
         request: ControlRequest,
-        channels: List[ControlChannel],
-        deliveries: List[DeliveryResult],
+        channels: list[ControlChannel],
+        deliveries: list[DeliveryResult],
     ) -> Optional[ControlResponse]:
         """
         Wait for first response from any channel.
@@ -346,7 +362,7 @@ class ControlLoopHandler:
         timeout = self.immediate_response_timeout if not has_sync_channel else 30.0
 
         # Create tasks for each channel's receive iterator
-        receive_tasks = []
+        receive_tasks: list[tuple[ControlChannel, asyncio.Task[Optional[ControlResponse]]]] = []
         for channel in channels:
             task = asyncio.create_task(
                 self._get_first_from_channel(channel),
@@ -378,8 +394,8 @@ class ControlLoopHandler:
                         return response
                 except asyncio.CancelledError:
                     pass
-                except Exception as e:
-                    logger.debug(f"Task exception: {e}")
+                except Exception as error:
+                    logger.debug("Task exception: %s", error)
 
             return None
 
@@ -393,19 +409,23 @@ class ControlLoopHandler:
         """Get first response from a channel's receive iterator."""
         try:
             async for response in channel.receive():
-                logger.info(f"Received response from {channel.channel_id}: {response.request_id}")
+                logger.info(
+                    "Received response from %s: %s",
+                    channel.channel_id,
+                    response.request_id,
+                )
                 return response
         except asyncio.CancelledError:
             raise
-        except Exception as e:
-            logger.debug(f"Error receiving from {channel.channel_id}: {e}")
+        except Exception as error:
+            logger.debug("Error receiving from %s: %s", channel.channel_id, error)
             return None
         return None
 
     async def _cancel_other_channels(
         self,
         request: ControlRequest,
-        deliveries: List[DeliveryResult],
+        deliveries: list[DeliveryResult],
         winning_channel: Optional[str],
     ) -> None:
         """
@@ -444,11 +464,11 @@ class ControlLoopHandler:
         try:
             await channel.cancel(external_message_id, reason)
         except Exception:
-            logger.exception(f"Failed to cancel on {channel.channel_id}")
+            logger.exception("Failed to cancel on %s", channel.channel_id)
 
-    def _get_eligible_channels(self, request: ControlRequest) -> List[ControlChannel]:
+    def _get_eligible_channels(self, request: ControlRequest) -> list[ControlChannel]:
         """Get channels that support the given request type."""
-        eligible = []
+        eligible: list[ControlChannel] = []
         for channel in self.channels:
             if self._channel_supports_request(channel, request):
                 eligible.append(channel)
@@ -486,20 +506,20 @@ class ControlLoopHandler:
         procedure_id: str,
         request_type: str,
         message: str,
-        options: Optional[List[Dict[str, Any]]] = None,
+        options: Optional[list[dict[str, Any]]] = None,
         timeout_seconds: Optional[int] = None,
         default_value: Any = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: Optional[dict[str, Any]] = None,
         procedure_name: str = "Unknown Procedure",
         invocation_id: Optional[str] = None,
         namespace: str = "",
         subject: Optional[str] = None,
         started_at: Optional[datetime] = None,
-        input_summary: Optional[Dict[str, Any]] = None,
-        conversation: Optional[List[Dict[str, Any]]] = None,
-        prior_interactions: Optional[List[Dict[str, Any]]] = None,
-        runtime_context: Optional[Dict[str, Any]] = None,
-        application_context: Optional[List[Dict[str, Any]]] = None,
+        input_summary: Optional[dict[str, Any]] = None,
+        conversation: Optional[list[dict[str, Any]]] = None,
+        prior_interactions: Optional[list[dict[str, Any]]] = None,
+        runtime_context: Optional[dict[str, Any]] = None,
+        application_context: Optional[list[dict[str, Any]]] = None,
     ) -> ControlRequest:
         """Build a ControlRequest from the provided parameters."""
         # CRITICAL: Generate deterministic request_id based on checkpoint position AND run_id
@@ -510,21 +530,21 @@ class ControlLoopHandler:
             checkpoint_position = self.execution_context.next_position()
 
         # Get run_id from execution context to ensure cache isolation between runs
-        run_id_part = "unknown"
+        run_id_prefix = "unknown"
         if self.execution_context and hasattr(self.execution_context, "current_run_id"):
             if self.execution_context.current_run_id:
                 # Use first 8 chars of run_id for brevity
-                run_id_part = self.execution_context.current_run_id[:8]
+                run_id_prefix = self.execution_context.current_run_id[:8]
 
         if checkpoint_position is not None:
             # Deterministic ID: procedure_id:run_id:position
-            request_id = f"{procedure_id}:{run_id_part}:pos{checkpoint_position}"
+            request_id = f"{procedure_id}:{run_id_prefix}:pos{checkpoint_position}"
         else:
             # Fallback to random ID (backward compatibility for contexts without position tracking)
-            request_id = f"{procedure_id}:{run_id_part}:{uuid.uuid4().hex[:12]}"
+            request_id = f"{procedure_id}:{run_id_prefix}:{uuid.uuid4().hex[:12]}"
 
         # Convert options to ControlOption objects
-        control_options = []
+        control_options: list[ControlOption] = []
         if options:
             for opt in options:
                 control_options.append(
@@ -540,14 +560,16 @@ class ControlLoopHandler:
         items = []
         if request_type == "inputs":
             logger.debug(
-                f"Processing inputs request, metadata type: {type(metadata)}, value: {metadata}"
+                "Processing inputs request, metadata type: %s, value: %s",
+                type(metadata),
+                metadata,
             )
             if metadata and isinstance(metadata, dict) and "items" in metadata:
                 from tactus.protocols.control import ControlRequestItem
 
-                items_data = metadata.get("items", [])
-                logger.debug(f"Found {len(items_data)} items in metadata")
-                for item_dict in items_data:
+                item_entries = metadata.get("items", [])
+                logger.debug("Found %s items in metadata", len(item_entries))
+                for item_dict in item_entries:
                     # Convert dict to ControlRequestItem
                     items.append(ControlRequestItem(**item_dict))
 
@@ -589,7 +611,7 @@ class ControlLoopHandler:
             )
 
         # Convert application_context dicts to ContextLink objects
-        app_ctx_objs = []
+        app_ctx_objs: list[ContextLink] = []
         if application_context:
             for link in application_context:
                 app_ctx_objs.append(
@@ -631,7 +653,7 @@ class ControlLoopHandler:
             metadata=metadata or {},
         )
 
-    def _store_pending(self, request: ControlRequest, deliveries: List[DeliveryResult]) -> None:
+    def _store_pending(self, request: ControlRequest, deliveries: list[DeliveryResult]) -> None:
         """Store pending request in storage backend."""
         if not self.storage:
             return
@@ -670,7 +692,7 @@ class ControlLoopHandler:
     def check_pending_response(
         self,
         procedure_id: str,
-        message_id: str,
+        request_id: str,
     ) -> Optional[ControlResponse]:
         """
         Check if there's a response to a pending control request.
@@ -679,7 +701,7 @@ class ControlLoopHandler:
 
         Args:
             procedure_id: Unique procedure identifier
-            message_id: Request ID (message_id in this context)
+            request_id: Request ID (message_id in this context)
 
         Returns:
             ControlResponse if response exists, None otherwise
@@ -687,35 +709,35 @@ class ControlLoopHandler:
         if not self.storage:
             return None
 
-        key = f"{self.PENDING_KEY_PREFIX}{message_id}"
+        key = f"{self.PENDING_KEY_PREFIX}{request_id}"
         state = self.storage.get_state(procedure_id) or {}
 
         if key in state:
             pending = state[key]
             if pending.get("response"):
-                logger.info(f"Found response for request {message_id}")
+                logger.info("Found response for request %s", request_id)
                 return ControlResponse.model_validate(pending["response"])
 
         return None
 
-    def cancel_pending_request(self, procedure_id: str, message_id: str) -> None:
+    def cancel_pending_request(self, procedure_id: str, request_id: str) -> None:
         """
         Cancel a pending control request.
 
         Args:
             procedure_id: Unique procedure identifier
-            message_id: Request ID to cancel
+            request_id: Request ID to cancel
         """
         if not self.storage:
             return
 
-        key = f"{self.PENDING_KEY_PREFIX}{message_id}"
+        key = f"{self.PENDING_KEY_PREFIX}{request_id}"
         state = self.storage.get_state(procedure_id) or {}
 
         if key in state:
             del state[key]
             self.storage.set_state(procedure_id, state)
-            logger.info(f"Cancelled control request {message_id}")
+            logger.info("Cancelled control request %s", request_id)
 
 
 class ControlLoopHITLAdapter:
@@ -776,13 +798,13 @@ class ControlLoopHITLAdapter:
             metadata = request.get("metadata", {})
 
         # Use provided execution_context or fall back to instance one
-        ctx = execution_context or self.execution_context
+        execution_context_to_use = execution_context or self.execution_context
 
         # CRITICAL: Pass execution_context to control_handler for deterministic request IDs
         # This allows _build_request to use next_position() for stable request_id generation
-        old_ctx = self.control_handler.execution_context
-        if ctx:
-            self.control_handler.execution_context = ctx
+        previous_execution_context = self.control_handler.execution_context
+        if execution_context_to_use:
+            self.control_handler.execution_context = execution_context_to_use
 
         # Gather rich context from execution context if available
         procedure_name = "Unknown Procedure"
@@ -793,26 +815,28 @@ class ControlLoopHITLAdapter:
         conversation = None
         prior_interactions = None
 
-        if ctx:
-            procedure_name = getattr(ctx, "procedure_name", procedure_name)
-            invocation_id = getattr(ctx, "invocation_id", invocation_id)
+        if execution_context_to_use:
+            procedure_name = getattr(
+                execution_context_to_use, "procedure_name", procedure_name
+            )
+            invocation_id = getattr(execution_context_to_use, "invocation_id", invocation_id)
 
             # Try to get additional context if methods exist
-            if hasattr(ctx, "get_subject"):
-                subject = ctx.get_subject()
-            if hasattr(ctx, "get_started_at"):
-                started_at = ctx.get_started_at()
-            if hasattr(ctx, "get_input_summary"):
-                input_summary = ctx.get_input_summary()
-            if hasattr(ctx, "get_conversation_history"):
-                conversation = ctx.get_conversation_history()
-            if hasattr(ctx, "get_prior_control_interactions"):
-                prior_interactions = ctx.get_prior_control_interactions()
+            if hasattr(execution_context_to_use, "get_subject"):
+                subject = execution_context_to_use.get_subject()
+            if hasattr(execution_context_to_use, "get_started_at"):
+                started_at = execution_context_to_use.get_started_at()
+            if hasattr(execution_context_to_use, "get_input_summary"):
+                input_summary = execution_context_to_use.get_input_summary()
+            if hasattr(execution_context_to_use, "get_conversation_history"):
+                conversation = execution_context_to_use.get_conversation_history()
+            if hasattr(execution_context_to_use, "get_prior_control_interactions"):
+                prior_interactions = execution_context_to_use.get_prior_control_interactions()
 
         # Get runtime context for HITL display (new context architecture)
         runtime_context = None
-        if ctx and hasattr(ctx, "get_runtime_context"):
-            runtime_context = ctx.get_runtime_context()
+        if execution_context_to_use and hasattr(execution_context_to_use, "get_runtime_context"):
+            runtime_context = execution_context_to_use.get_runtime_context()
 
         # Application context would be passed from the host application
         # For now, we don't have a way to pass it through, but the protocol supports it
@@ -852,9 +876,10 @@ class ControlLoopHITLAdapter:
             )
         finally:
             # Restore original execution context
-            self.control_handler.execution_context = old_ctx
+            if execution_context_to_use:
+                self.control_handler.execution_context = previous_execution_context
 
-    def check_pending_response(self, procedure_id: str, message_id: str):
+    def check_pending_response(self, procedure_id: str, request_id: str):
         """
         Check for pending response.
 
@@ -862,7 +887,7 @@ class ControlLoopHITLAdapter:
         """
         from tactus.protocols.models import HITLResponse
 
-        control_response = self.control_handler.check_pending_response(procedure_id, message_id)
+        control_response = self.control_handler.check_pending_response(procedure_id, request_id)
         if control_response is None:
             return None
 
@@ -874,6 +899,6 @@ class ControlLoopHITLAdapter:
             channel=control_response.channel_id,
         )
 
-    def cancel_pending_request(self, procedure_id: str, message_id: str) -> None:
+    def cancel_pending_request(self, procedure_id: str, request_id: str) -> None:
         """Cancel pending request - delegates to ControlLoopHandler."""
-        self.control_handler.cancel_pending_request(procedure_id, message_id)
+        self.control_handler.cancel_pending_request(procedure_id, request_id)

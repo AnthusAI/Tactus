@@ -13,7 +13,7 @@ The control loop uses a publish-subscribe pattern with namespace-based routing:
 - Subscribers can be observers (read-only) or responders (can provide input)
 """
 
-from typing import List, Dict, Any, Optional
+from typing import Any, Optional
 import logging
 import sys
 
@@ -31,7 +31,7 @@ _CHANNEL_LOADERS = {
 }
 
 
-def load_channel(channel_id: str, config: Dict[str, Any]) -> Optional[ControlChannel]:
+def load_channel(channel_id: str, config: dict[str, Any]) -> Optional[ControlChannel]:
     """
     Load a control channel by ID.
 
@@ -43,7 +43,7 @@ def load_channel(channel_id: str, config: Dict[str, Any]) -> Optional[ControlCha
         ControlChannel instance or None if loading fails
     """
     if channel_id not in _CHANNEL_LOADERS:
-        logger.warning(f"Unknown or not yet implemented channel: {channel_id}")
+        logger.warning("Unknown or not yet implemented channel: %s", channel_id)
         return None
 
     module_path = _CHANNEL_LOADERS[channel_id]
@@ -55,19 +55,21 @@ def load_channel(channel_id: str, config: Dict[str, Any]) -> Optional[ControlCha
         module = importlib.import_module(module_name)
         channel_class = getattr(module, class_name)
         return channel_class(**config)
-    except ImportError as e:
+    except ImportError as error:
         logger.warning(
-            f"Failed to load {channel_id} channel. "
-            f"Ensure dependencies are installed. "
-            f"Error: {e}"
+            "Failed to load %s channel. Ensure dependencies are installed. Error: %s",
+            channel_id,
+            error,
         )
         return None
-    except Exception as e:
-        logger.exception(f"Failed to initialize {channel_id} channel: {e}")
+    except Exception as error:
+        logger.exception("Failed to initialize %s channel: %s", channel_id, error)
         return None
 
 
-def load_channels_from_config(config: Optional[ControlLoopConfig] = None) -> List[ControlChannel]:
+def load_channels_from_config(
+    config: Optional[ControlLoopConfig] = None,
+) -> list[ControlChannel]:
     """
     Load control channels based on configuration and context.
 
@@ -81,7 +83,7 @@ def load_channels_from_config(config: Optional[ControlLoopConfig] = None) -> Lis
     Returns:
         List of enabled ControlChannel instances
     """
-    channels: List[ControlChannel] = []
+    channels: list[ControlChannel] = []
 
     if config is None:
         config = ControlLoopConfig()
@@ -101,11 +103,11 @@ def load_channels_from_config(config: Optional[ControlLoopConfig] = None) -> Lis
             continue
 
         # Remove 'enabled' from config before passing to constructor
-        init_config = {k: v for k, v in channel_config.items() if k != "enabled"}
+        init_config = {key: value for key, value in channel_config.items() if key != "enabled"}
         channel = load_channel(channel_id, init_config)
         if channel:
             channels.append(channel)
-            logger.info(f"Loaded control channel: {channel_id}")
+            logger.info("Loaded control channel: %s", channel_id)
 
     # If no channels configured, use defaults
     if not config.channels:
@@ -114,7 +116,7 @@ def load_channels_from_config(config: Optional[ControlLoopConfig] = None) -> Lis
     return channels
 
 
-def load_default_channels(procedure_id: Optional[str] = None) -> List[ControlChannel]:
+def load_default_channels(procedure_id: Optional[str] = None) -> list[ControlChannel]:
     """
     Load default control channels based on context.
 
@@ -128,7 +130,7 @@ def load_default_channels(procedure_id: Optional[str] = None) -> List[ControlCha
     Returns:
         List of enabled ControlChannel instances
     """
-    channels: List[ControlChannel] = []
+    channels: list[ControlChannel] = []
 
     # CLI channel - auto-detect based on tty
     if sys.stdin.isatty():

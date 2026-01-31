@@ -15,7 +15,7 @@ from datetime import datetime
 from pathlib import Path
 from flask import Flask, request, jsonify, Response, stream_with_context
 from flask_cors import CORS
-from typing import Dict, Any, List, Optional
+from typing import Any, Optional
 
 from tactus.validation.validator import TactusValidator, ValidationMode
 from tactus.core.registry import ValidationMessage
@@ -42,10 +42,10 @@ class TactusLSPHandler:
 
     def __init__(self):
         self.validator = TactusValidator()
-        self.documents: Dict[str, str] = {}
-        self.registries: Dict[str, Any] = {}
+        self.documents: dict[str, str] = {}
+        self.registries: dict[str, Any] = {}
 
-    def validate_document(self, uri: str, text: str) -> List[Dict[str, Any]]:
+    def validate_document(self, uri: str, text: str) -> list[dict[str, Any]]:
         """Validate document and return LSP diagnostics."""
         self.documents[uri] = text
 
@@ -55,7 +55,7 @@ class TactusLSPHandler:
             if result.registry:
                 self.registries[uri] = result.registry
 
-            diagnostics = []
+            diagnostics: list[dict[str, Any]] = []
             for error in result.errors:
                 diagnostic = self._convert_to_diagnostic(error, "Error")
                 if diagnostic:
@@ -68,12 +68,12 @@ class TactusLSPHandler:
 
             return diagnostics
         except Exception as e:
-            logger.error(f"Error validating document {uri}: {e}", exc_info=True)
+            logger.error("Error validating document %s: %s", uri, e, exc_info=True)
             return []
 
     def _convert_to_diagnostic(
         self, message: ValidationMessage, severity_str: str
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Optional[dict[str, Any]]:
         """Convert ValidationMessage to LSP diagnostic."""
         severity = 1 if severity_str == "Error" else 2
 
@@ -104,7 +104,7 @@ class LSPServer:
         self.initialized = False
         self.client_capabilities = {}
 
-    def handle_message(self, message: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def handle_message(self, message: dict[str, Any]) -> Optional[dict[str, Any]]:
         """Handle LSP JSON-RPC message."""
         method = message.get("method")
         params = message.get("params", {})
@@ -114,16 +114,16 @@ class LSPServer:
             if method == "initialize":
                 result = self._handle_initialize(params)
             else:
-                logger.warning(f"Unhandled LSP method: {method}")
+                logger.warning("Unhandled LSP method: %s", method)
                 return self._error_response(msg_id, -32601, f"Method not found: {method}")
 
             if msg_id is not None:
                 return {"jsonrpc": "2.0", "id": msg_id, "result": result}
         except Exception as e:
-            logger.error(f"Error handling {method}: {e}", exc_info=True)
+            logger.error("Error handling %s: %s", method, e, exc_info=True)
             return self._error_response(msg_id, -32603, str(e))
 
-    def _handle_initialize(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def _handle_initialize(self, params: dict[str, Any]) -> dict[str, Any]:
         """Handle initialize request."""
         self.client_capabilities = params.get("capabilities", {})
         self.initialized = True
@@ -139,7 +139,7 @@ class LSPServer:
             "serverInfo": {"name": "tactus-lsp-server", "version": "0.1.0"},
         }
 
-    def _error_response(self, msg_id: Optional[int], code: int, message: str) -> Dict[str, Any]:
+    def _error_response(self, msg_id: Optional[int], code: int, message: str) -> dict[str, Any]:
         """Create LSP error response."""
         return {"jsonrpc": "2.0", "id": msg_id, "error": {"code": code, "message": message}}
 
@@ -252,11 +252,11 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                 WORKSPACE_ROOT = str(root_path)
                 os.chdir(WORKSPACE_ROOT)
 
-                logger.info(f"Workspace set to: {WORKSPACE_ROOT}")
+                logger.info("Workspace set to: %s", WORKSPACE_ROOT)
 
                 return jsonify({"success": True, "root": WORKSPACE_ROOT, "name": root_path.name})
             except Exception as e:
-                logger.error(f"Error setting workspace {root}: {e}")
+                logger.error("Error setting workspace %s: %s", root, e)
                 return jsonify({"error": str(e)}), 500
 
     @app.route("/api/tree", methods=["GET"])
@@ -299,7 +299,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
         except ValueError as e:
             return jsonify({"error": str(e)}), 400
         except Exception as e:
-            logger.error(f"Error listing directory {relative_path}: {e}")
+            logger.error("Error listing directory %s: %s", relative_path, e)
             return jsonify({"error": str(e)}), 500
 
     @app.route("/api/file", methods=["GET", "POST"])
@@ -331,7 +331,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             except ValueError as e:
                 return jsonify({"error": str(e)}), 400
             except Exception as e:
-                logger.error(f"Error reading file {file_path}: {e}")
+                logger.error("Error reading file %s: %s", file_path, e)
                 return jsonify({"error": str(e)}), 500
 
         elif request.method == "POST":
@@ -353,7 +353,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             except ValueError as e:
                 return jsonify({"error": str(e)}), 400
             except Exception as e:
-                logger.error(f"Error writing file {file_path}: {e}")
+                logger.error("Error writing file %s: %s", file_path, e)
                 return jsonify({"error": str(e)}), 500
 
     @app.route("/api/procedure/metadata", methods=["GET"])
@@ -496,7 +496,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             return jsonify({"success": True, "metadata": metadata})
 
         except Exception as e:
-            logger.error(f"Error extracting procedure metadata: {e}", exc_info=True)
+            logger.error("Error extracting procedure metadata: %s", e, exc_info=True)
             return jsonify({"error": str(e)}), 500
 
     @app.route("/api/validate", methods=["POST"])
@@ -536,7 +536,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                 }
             )
         except Exception as e:
-            logger.error(f"Error validating code: {e}")
+            logger.error("Error validating code: %s", e)
             return jsonify({"error": str(e)}), 500
 
     @app.route("/api/validate/stream", methods=["GET"])
@@ -593,7 +593,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                     yield f"data: {json.dumps(validation_event)}\n\n"
 
                 except Exception as e:
-                    logger.error(f"Error in validation: {e}", exc_info=True)
+                    logger.error("Error in validation: %s", e, exc_info=True)
                     error_event = {
                         "event_type": "execution",
                         "lifecycle_stage": "error",
@@ -615,7 +615,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
         except ValueError as e:
             return jsonify({"error": str(e)}), 400
         except Exception as e:
-            logger.error(f"Error setting up validation: {e}", exc_info=True)
+            logger.error("Error setting up validation: %s", e, exc_info=True)
             return jsonify({"error": str(e)}), 500
 
     @app.route("/api/run", methods=["POST"])
@@ -663,7 +663,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
         except ValueError as e:
             return jsonify({"error": str(e)}), 400
         except Exception as e:
-            logger.error(f"Error running procedure {file_path}: {e}")
+            logger.error("Error running procedure %s: %s", file_path, e)
             return jsonify({"error": str(e)}), 500
 
     @app.route("/api/run/stream", methods=["GET", "POST"])
@@ -822,7 +822,9 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                         logger.info("[SANDBOX] Docker available, using container execution")
                     else:
                         logger.info(
-                            f"[SANDBOX] Direct execution (Docker: {docker_available}, reason: {docker_reason})"
+                            "[SANDBOX] Direct execution (Docker: %s, reason: %s)",
+                            docker_available,
+                            docker_reason,
                         )
 
                     # Create event queue for sandbox event streaming (if using sandbox)
@@ -868,8 +870,9 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                         # Parse the request
                         request = ControlRequest.model_validate(request_data)
                         logger.info(
-                            f"[HITL] Container control request {request.request_id} "
-                            f"for procedure {request.procedure_id}"
+                            "[HITL] Container control request %s for procedure %s",
+                            request.request_id,
+                            request.procedure_id,
                         )
 
                         # Get SSE channel
@@ -894,28 +897,31 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                                 )
 
                             logger.info(
-                                f"[HITL] Request {request.request_id} delivered to IDE, waiting for response..."
+                                "[HITL] Request %s delivered to IDE, waiting for response...",
+                                request.request_id,
                             )
 
                             # Wait for response (with timeout) - run blocking wait in thread pool
                             timeout_seconds = request.timeout_seconds or 300  # 5 min default
                             logger.info(
-                                f"[HITL] Starting wait for response (timeout={timeout_seconds}s)..."
+                                "[HITL] Starting wait for response (timeout=%ss)...",
+                                timeout_seconds,
                             )
                             result = await asyncio.to_thread(
                                 response_event.wait, timeout=timeout_seconds
                             )
-                            logger.info(f"[HITL] Wait completed, result={result}")
+                            logger.info("[HITL] Wait completed, result=%s", result)
 
                             if result:
                                 logger.info(
-                                    f"[HITL] Received response for {request.request_id}: "
-                                    f"{response_data.get('value')}"
+                                    "[HITL] Received response for %s: %s",
+                                    request.request_id,
+                                    response_data.get("value"),
                                 )
                                 return response_data
                             else:
                                 # Timeout
-                                logger.warning(f"[HITL] Timeout for {request.request_id}")
+                                logger.warning("[HITL] Timeout for %s", request.request_id)
                                 return {
                                     "value": request.default_value,
                                     "timed_out": True,
@@ -957,8 +963,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                                 )
 
                                 # Mark container as ready after first response
-                                if not result_container["container_ready"]:
-                                    result_container["container_ready"] = True
+                                result_container["container_ready"] = True
 
                                 # Extract result from ExecutionResult
                                 if exec_result.status.value == "success":
@@ -1034,8 +1039,16 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                                     yield f"data: {json.dumps(event_dict)}\n\n"
                                     events_sent = True
                                 except Exception as e:
-                                    logger.error(f"Error serializing event: {e}", exc_info=True)
-                                    logger.error(f"Event type: {type(event)}, Event: {event}")
+                                    logger.error(
+                                        "Error serializing event: %s",
+                                        e,
+                                        exc_info=True,
+                                    )
+                                    logger.error(
+                                        "Event type: %s, Event: %s",
+                                        type(event),
+                                        event,
+                                    )
                             except queue.Empty:
                                 pass
 
@@ -1098,8 +1111,16 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                                 all_events.append(event_dict)
                                 yield f"data: {json.dumps(event_dict)}\n\n"
                             except Exception as e:
-                                logger.error(f"Error serializing event: {e}", exc_info=True)
-                                logger.error(f"Event type: {type(event)}, Event: {event}")
+                                logger.error(
+                                    "Error serializing event: %s",
+                                    e,
+                                    exc_info=True,
+                                )
+                                logger.error(
+                                    "Event type: %s, Event: %s",
+                                    type(event),
+                                    event,
+                                )
 
                     # Wait for thread to finish
                     exec_thread.join(timeout=1)
@@ -1152,10 +1173,15 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                         with open(events_file, "w") as f:
                             json.dump(consolidated_events, f, indent=2)
                     except Exception as e:
-                        logger.error(f"Failed to save events for run {run_id}: {e}", exc_info=True)
+                        logger.error(
+                            "Failed to save events for run %s: %s",
+                            run_id,
+                            e,
+                            exc_info=True,
+                        )
 
                 except Exception as e:
-                    logger.error(f"Error in streaming execution: {e}", exc_info=True)
+                    logger.error("Error in streaming execution: %s", e, exc_info=True)
                     error_event = {
                         "event_type": "execution",
                         "lifecycle_stage": "error",
@@ -1178,7 +1204,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
         except ValueError as e:
             return jsonify({"error": str(e)}), 400
         except Exception as e:
-            logger.error(f"Error setting up streaming execution: {e}", exc_info=True)
+            logger.error("Error setting up streaming execution: %s", e, exc_info=True)
             return jsonify({"error": str(e)}), 500
 
     @app.route("/api/test/stream", methods=["GET"])
@@ -1273,7 +1299,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
 
                         setup_step_decorators()
                     except Exception as e:
-                        logger.warning(f"Could not reset Behave step registry: {e}")
+                        logger.warning("Could not reset Behave step registry: %s", e)
 
                     # Setup test runner with mocks from registry
                     mock_tools = None
@@ -1369,7 +1395,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                     runner.cleanup()
 
                 except Exception as e:
-                    logger.error(f"Error in test execution: {e}", exc_info=True)
+                    logger.error("Error in test execution: %s", e, exc_info=True)
                     error_event = {
                         "event_type": "execution",
                         "lifecycle_stage": "error",
@@ -1392,7 +1418,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
         except ValueError as e:
             return jsonify({"error": str(e)}), 400
         except Exception as e:
-            logger.error(f"Error setting up test execution: {e}", exc_info=True)
+            logger.error("Error setting up test execution: %s", e, exc_info=True)
             return jsonify({"error": str(e)}), 500
 
     @app.route("/api/evaluate/stream", methods=["GET"])
@@ -1529,7 +1555,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                     evaluator.cleanup()
 
                 except Exception as e:
-                    logger.error(f"Error in evaluation execution: {e}", exc_info=True)
+                    logger.error("Error in evaluation execution: %s", e, exc_info=True)
                     error_event = {
                         "event_type": "execution",
                         "lifecycle_stage": "error",
@@ -1552,7 +1578,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
         except ValueError as e:
             return jsonify({"error": str(e)}), 400
         except Exception as e:
-            logger.error(f"Error setting up evaluation execution: {e}", exc_info=True)
+            logger.error("Error setting up evaluation execution: %s", e, exc_info=True)
             return jsonify({"error": str(e)}), 500
 
     @app.route("/api/pydantic-eval/stream", methods=["GET"])
@@ -1564,7 +1590,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
         - path: procedure file path (required)
         - runs: number of runs per case (optional, default 1)
         """
-        logger.info(f"Pydantic eval stream request: args={request.args}")
+        logger.info("Pydantic eval stream request: args=%s", request.args)
 
         file_path = request.args.get("path")
         if not file_path:
@@ -1575,9 +1601,9 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
 
         try:
             # Resolve path within workspace
-            logger.info(f"Resolving path: {file_path}")
+            logger.info("Resolving path: %s", file_path)
             path = _resolve_workspace_path(file_path)
-            logger.info(f"Resolved to: {path}")
+            logger.info("Resolved to: %s", path)
 
             if not path.exists():
                 return jsonify({"error": f"File not found: {file_path}"}), 404
@@ -1736,7 +1762,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                     }
                     yield f"data: {json.dumps(error_event)}\n\n"
                 except Exception as e:
-                    logger.error(f"Error running Pydantic Evals: {e}", exc_info=True)
+                    logger.error("Error running Pydantic Evals: %s", e, exc_info=True)
                     error_event = {
                         "event_type": "execution",
                         "lifecycle_stage": "error",
@@ -1757,7 +1783,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             )
 
         except Exception as e:
-            logger.error(f"Error setting up Pydantic Evals: {e}", exc_info=True)
+            logger.error("Error setting up Pydantic Evals: %s", e, exc_info=True)
             return jsonify({"error": str(e)}), 500
 
     @app.route("/api/traces/runs", methods=["GET"])
@@ -1820,7 +1846,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
 
             return jsonify({"runs": runs_data})
         except Exception as e:
-            logger.error(f"Error listing trace runs: {e}", exc_info=True)
+            logger.error("Error listing trace runs: %s", e, exc_info=True)
             return jsonify({"error": str(e)}), 500
 
     @app.route("/api/traces/runs/<run_id>", methods=["GET"])
@@ -1887,7 +1913,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
 
             return jsonify(run_dict)
         except Exception as e:
-            logger.error(f"Error getting trace run {run_id}: {e}", exc_info=True)
+            logger.error("Error getting trace run %s: %s", run_id, e, exc_info=True)
             return jsonify({"error": str(e)}), 500
 
     @app.route("/api/traces/runs/<run_id>/checkpoints", methods=["GET"])
@@ -1941,7 +1967,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
 
             return jsonify({"checkpoints": checkpoints_dict})
         except Exception as e:
-            logger.error(f"Error getting checkpoints for run {run_id}: {e}", exc_info=True)
+            logger.error("Error getting checkpoints for run %s: %s", run_id, e, exc_info=True)
             return jsonify({"error": str(e)}), 500
 
     @app.route("/api/traces/runs/<run_id>/checkpoints/<int:position>", methods=["GET"])
@@ -1998,7 +2024,13 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
 
             return jsonify(cp_dict)
         except Exception as e:
-            logger.error(f"Error getting checkpoint {run_id}@{position}: {e}", exc_info=True)
+            logger.error(
+                "Error getting checkpoint %s@%s: %s",
+                run_id,
+                position,
+                e,
+                exc_info=True,
+            )
             return jsonify({"error": str(e)}), 500
 
     @app.route("/api/procedures/<procedure_id>/checkpoints", methods=["DELETE"])
@@ -2018,7 +2050,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
 
             if checkpoint_file.exists():
                 os.remove(checkpoint_file)
-                logger.info(f"Cleared checkpoints for procedure: {procedure_id}")
+                logger.info("Cleared checkpoints for procedure: %s", procedure_id)
                 return jsonify(
                     {"success": True, "message": f"Checkpoints cleared for {procedure_id}"}
                 )
@@ -2026,7 +2058,12 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                 return jsonify({"success": True, "message": "No checkpoints found"}), 200
 
         except Exception as e:
-            logger.error(f"Error clearing checkpoints for {procedure_id}: {e}", exc_info=True)
+            logger.error(
+                "Error clearing checkpoints for %s: %s",
+                procedure_id,
+                e,
+                exc_info=True,
+            )
             return jsonify({"error": str(e)}), 500
 
     @app.route("/api/traces/runs/<run_id>/statistics", methods=["GET"])
@@ -2076,7 +2113,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
 
             return jsonify(stats)
         except Exception as e:
-            logger.error(f"Error getting statistics for {run_id}: {e}", exc_info=True)
+            logger.error("Error getting statistics for %s: %s", run_id, e, exc_info=True)
             return jsonify({"error": str(e)}), 500
 
     @app.route("/api/traces/runs/<run_id>/events", methods=["GET"])
@@ -2103,7 +2140,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
 
             return jsonify({"events": events})
         except Exception as e:
-            logger.error(f"Error getting events for {run_id}: {e}", exc_info=True)
+            logger.error("Error getting events for %s: %s", run_id, e, exc_info=True)
             return jsonify({"error": str(e)}), 500
 
     # Coding Assistant - persistent agent instance per session
@@ -2133,7 +2170,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                 coding_assistant = CodingAssistantAgent(WORKSPACE_ROOT, config)
                 logger.info("Coding assistant initialized")
             except Exception as e:
-                logger.error(f"Failed to initialize coding assistant: {e}", exc_info=True)
+                logger.error("Failed to initialize coding assistant: %s", e, exc_info=True)
                 raise
         return coding_assistant
 
@@ -2176,7 +2213,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             )
 
         except Exception as e:
-            logger.error(f"Error handling chat message: {e}", exc_info=True)
+            logger.error("Error handling chat message: %s", e, exc_info=True)
             return jsonify({"error": str(e)}), 500
 
     @app.route("/api/chat/stream", methods=["POST"])
@@ -2243,7 +2280,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                             break
 
                 except Exception as e:
-                    logger.error(f"Error streaming message: {e}", exc_info=True)
+                    logger.error("Error streaming message: %s", e, exc_info=True)
                     yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
                 finally:
                     loop.close()
@@ -2259,7 +2296,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             )
 
         except Exception as e:
-            logger.error(f"Error in stream endpoint: {e}", exc_info=True)
+            logger.error("Error in stream endpoint: %s", e, exc_info=True)
             return jsonify({"error": str(e)}), 500
 
     @app.route("/api/chat/reset", methods=["POST"])
@@ -2272,7 +2309,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                 return jsonify({"success": True})
             return jsonify({"error": "Assistant not initialized"}), 400
         except Exception as e:
-            logger.error(f"Error resetting chat: {e}", exc_info=True)
+            logger.error("Error resetting chat: %s", e, exc_info=True)
             return jsonify({"error": str(e)}), 500
 
     @app.route("/api/chat/tools", methods=["GET"])
@@ -2285,7 +2322,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                 return jsonify({"tools": tools})
             return jsonify({"error": "Assistant not initialized"}), 400
         except Exception as e:
-            logger.error(f"Error getting tools: {e}", exc_info=True)
+            logger.error("Error getting tools: %s", e, exc_info=True)
             return jsonify({"error": str(e)}), 500
 
     @app.route("/api/lsp", methods=["POST"])
@@ -2293,14 +2330,14 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
         """Handle LSP requests via HTTP."""
         try:
             message = request.json
-            logger.debug(f"Received LSP message: {message.get('method')}")
+            logger.debug("Received LSP message: %s", message.get("method"))
             response = lsp_server.handle_message(message)
 
             if response:
                 return jsonify(response)
             return jsonify({"jsonrpc": "2.0", "id": message.get("id"), "result": None})
         except Exception as e:
-            logger.error(f"Error handling LSP message: {e}")
+            logger.error("Error handling LSP message: %s", e)
             return (
                 jsonify(
                     {
@@ -2320,7 +2357,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             method = message.get("method")
             params = message.get("params", {})
 
-            logger.debug(f"Received LSP notification: {method}")
+            logger.debug("Received LSP notification: %s", method)
 
             # Handle notifications that produce diagnostics
             diagnostics = []
@@ -2350,7 +2387,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
 
             return jsonify({"status": "ok"})
         except Exception as e:
-            logger.error(f"Error handling LSP notification: {e}")
+            logger.error("Error handling LSP notification: %s", e)
             return jsonify({"error": str(e)}), 500
 
     # Register config API routes
@@ -2359,7 +2396,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
 
         register_config_routes(app)
     except ImportError as e:
-        logger.warning(f"Could not register config routes: {e}")
+        logger.warning("Could not register config routes: %s", e)
 
     # Serve frontend if dist directory is provided
     # =========================================================================
@@ -2395,7 +2432,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             data = request.json or {}
             value = data.get("value")
 
-            logger.info(f"Received HITL response for {request_id}: {value}")
+            logger.info("Received HITL response for %s: %s", request_id, value)
 
             # Check if this is a container HITL request (pending in our dict)
             if request_id in _pending_hitl_requests:
@@ -2403,8 +2440,11 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                 pending["response"]["value"] = value
                 pending["response"]["timed_out"] = False
                 pending["response"]["channel_id"] = "sse"
-                pending["event"].set()  # Signal the waiting thread
-                logger.info(f"[HITL] Signaled container handler for {request_id}")
+                pending_event = pending.get("event")
+                if pending_event is None:
+                    raise ValueError(f"Pending HITL request '{request_id}' missing event handle")
+                pending_event.set()  # Signal the waiting thread
+                logger.info("[HITL] Signaled container handler for %s", request_id)
             else:
                 # Push to SSE channel's response queue (for non-container HITL)
                 channel = get_sse_channel()
@@ -2412,9 +2452,9 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
 
             return jsonify({"status": "ok", "request_id": request_id})
 
-        except Exception as e:
-            logger.exception(f"Error handling HITL response for {request_id}")
-            return jsonify({"status": "error", "message": str(e)}), 400
+        except Exception as exc:
+            logger.exception("Error handling HITL response for %s", request_id)
+            return jsonify({"status": "error", "message": str(exc)}), 400
 
     @app.route("/api/hitl/stream", methods=["GET"])
     def hitl_stream():
@@ -2456,7 +2496,8 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
 
                     if event:
                         logger.info(
-                            f"[HITL-SSE] Sending event to client: {event.get('type', 'unknown')}"
+                            "[HITL-SSE] Sending event to client: %s",
+                            event.get("type", "unknown"),
                         )
                         yield f"data: {json.dumps(event)}\n\n"
                     else:
@@ -2469,7 +2510,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             except GeneratorExit:
                 logger.info("HITL SSE client disconnected")
             except Exception as e:
-                logger.error(f"Error in HITL SSE stream: {e}", exc_info=True)
+                logger.error("Error in HITL SSE stream: %s", e, exc_info=True)
             finally:
                 loop.close()
 
@@ -2535,7 +2576,7 @@ def main() -> None:
     # Get initial workspace from environment or use current directory
     initial_workspace = os.environ.get("TACTUS_IDE_WORKSPACE")
     if initial_workspace:
-        logger.info(f"Setting initial workspace to: {initial_workspace}")
+        logger.info("Setting initial workspace to: %s", initial_workspace)
 
     app = create_app(initial_workspace=initial_workspace)
     # NOTE: We intentionally disable Flask's reloader here; external watchers (e.g. watchdog)

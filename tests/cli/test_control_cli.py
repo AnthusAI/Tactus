@@ -235,6 +235,34 @@ async def test_handle_choice_request_interactive_default_value(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_handle_choice_request_default_value_missing_falls_back(monkeypatch):
+    cli = ControlCLI()
+    cli.console = Console(file=io.StringIO(), force_terminal=False)
+    sent = {}
+    observed = {}
+
+    def fake_prompt(*_a, **kwargs):
+        observed["default"] = kwargs.get("default")
+        return "1"
+
+    monkeypatch.setattr("tactus.cli.control.Prompt.ask", fake_prompt)
+
+    async def fake_send(request_id, value):
+        sent["value"] = value
+
+    cli._send_response = fake_send
+
+    await cli._handle_choice_request(
+        {"request_id": "req"},
+        options=[{"label": "A", "value": "a"}, {"label": "B", "value": "b"}],
+        default_value="missing",
+    )
+
+    assert observed["default"] == "1"
+    assert sent["value"] == "a"
+
+
+@pytest.mark.asyncio
 async def test_handle_input_request_auto_respond():
     cli = ControlCLI(auto_respond="auto")
     cli.console = Console(file=io.StringIO(), force_terminal=False)

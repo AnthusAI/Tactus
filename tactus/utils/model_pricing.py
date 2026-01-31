@@ -79,10 +79,9 @@ def normalize_model_name(model_name: str, provider: Optional[str] = None) -> tup
 
     # Extract provider from model name if present
     if ":" in model_name:
-        parts = model_name.split(":", 1)
-        detected_provider = parts[0].lower()
-        model_only = parts[1]
-        return (model_only, detected_provider)
+        provider_prefix, model_without_prefix = model_name.split(":", 1)
+        detected_provider = provider_prefix.lower()
+        return (model_without_prefix, detected_provider)
 
     # Use provided provider or try to infer
     if provider:
@@ -111,19 +110,19 @@ def get_model_pricing(model_name: str, provider: Optional[str] = None) -> Dict[s
     Returns:
         Dict with 'input' and 'output' pricing per million tokens
     """
-    normalized_model, detected_provider = normalize_model_name(model_name, provider)
+    normalized_model_name, detected_provider = normalize_model_name(model_name, provider)
 
     # Look up pricing
     provider_pricing = MODEL_PRICING.get(detected_provider, {})
-    pricing = provider_pricing.get(normalized_model)
+    pricing = provider_pricing.get(normalized_model_name)
 
     if pricing:
         return pricing
 
     # Try without version suffix (e.g., "gpt-4o-2024-11-20" -> "gpt-4o")
-    base_model = normalized_model.split("-")[0:2]  # Get first two parts
-    if len(base_model) >= 2:
-        base_name = "-".join(base_model)
+    base_name_parts = normalized_model_name.split("-")[0:2]
+    if len(base_name_parts) >= 2:
+        base_name = "-".join(base_name_parts)
         pricing = provider_pricing.get(base_name)
         if pricing:
             return pricing

@@ -102,11 +102,11 @@ class OpenAIChatBackend:
             kwargs["max_tokens"] = max_tokens
         if tools is not None:
             kwargs["tools"] = tools
-            logger.info(f"[LITELLM_BACKEND] Sending {len(tools)} tools to LiteLLM")
-            logger.info(f"[LITELLM_BACKEND] Tool schemas: {tools}")
+            logger.info("[LITELLM_BACKEND] Sending %s tools to LiteLLM", len(tools))
+            logger.info("[LITELLM_BACKEND] Tool schemas: %s", tools)
         if tool_choice is not None:
             kwargs["tool_choice"] = tool_choice
-            logger.info(f"[LITELLM_BACKEND] Setting tool_choice={tool_choice}")
+            logger.info("[LITELLM_BACKEND] Setting tool_choice=%s", tool_choice)
 
         # Always use acompletion for consistency, LiteLLM handles both sync/async
         result = await litellm.acompletion(**kwargs)
@@ -114,8 +114,10 @@ class OpenAIChatBackend:
         if stream:
             logger.info("[LITELLM_BACKEND] LiteLLM streaming response started")
         else:
+            finish_reason = result.choices[0].finish_reason if result.choices else "NO_CHOICES"
             logger.info(
-                f"[LITELLM_BACKEND] LiteLLM response: finish_reason={result.choices[0].finish_reason if result.choices else 'NO_CHOICES'}"
+                "[LITELLM_BACKEND] LiteLLM response: finish_reason=%s",
+                finish_reason,
             )
             if (
                 result.choices
@@ -123,7 +125,8 @@ class OpenAIChatBackend:
                 and result.choices[0].message.tool_calls
             ):
                 logger.info(
-                    f"[LITELLM_BACKEND] LiteLLM returned {len(result.choices[0].message.tool_calls)} tool calls"
+                    "[LITELLM_BACKEND] LiteLLM returned %s tool calls",
+                    len(result.choices[0].message.tool_calls),
                 )
             else:
                 logger.info("[LITELLM_BACKEND] LiteLLM returned NO tool calls")
@@ -226,48 +229,51 @@ class _BaseBrokerServer:
 
         try:
             # Use length-prefixed protocol to handle arbitrarily large messages
-            req = await read_message_anyio(buffered_stream)
-            req_id = req.get("id")
-            method = req.get("method")
-            params = req.get("params") or {}
+            request_payload = await read_message_anyio(buffered_stream)
+            request_id = request_payload.get("id")
+            request_method = request_payload.get("method")
+            request_params = request_payload.get("params") or {}
 
-            if not req_id or not method:
+            if not request_id or not request_method:
                 await _write_event_anyio(
                     byte_stream,
                     {
-                        "id": req_id or "",
+                        "id": request_id or "",
                         "event": "error",
                         "error": {"type": "BadRequest", "message": "Missing id/method"},
                     },
                 )
                 return
 
-            if method == "events.emit":
-                await self._handle_events_emit(req_id, params, byte_stream)
+            if request_method == "events.emit":
+                await self._handle_events_emit(request_id, request_params, byte_stream)
                 return
 
-            if method == "control.request":
-                await self._handle_control_request(req_id, params, byte_stream)
+            if request_method == "control.request":
+                await self._handle_control_request(request_id, request_params, byte_stream)
                 return
 
-            if method == "llm.chat":
-                await self._handle_llm_chat(req_id, params, byte_stream)
+            if request_method == "llm.chat":
+                await self._handle_llm_chat(request_id, request_params, byte_stream)
                 return
 
-            if method == "tool.call":
-                await self._handle_tool_call(req_id, params, byte_stream)
+            if request_method == "tool.call":
+                await self._handle_tool_call(request_id, request_params, byte_stream)
                 return
 
             await _write_event_anyio(
                 byte_stream,
                 {
-                    "id": req_id,
+                    "id": request_id,
                     "event": "error",
-                    "error": {"type": "MethodNotFound", "message": f"Unknown method: {method}"},
+                    "error": {
+                        "type": "MethodNotFound",
+                        "message": f"Unknown method: {request_method}",
+                    },
                 },
             )
 
-        except Exception as e:
+        except Exception as error:
             logger.debug("[BROKER] Connection handler error", exc_info=True)
             try:
                 await _write_event_anyio(
@@ -275,7 +281,7 @@ class _BaseBrokerServer:
                     {
                         "id": "",
                         "event": "error",
-                        "error": {"type": type(e).__name__, "message": str(e)},
+                        "error": {"type": type(error).__name__, "message": str(error)},
                     },
                 )
             except Exception:
@@ -295,43 +301,46 @@ class _BaseBrokerServer:
         UDS uses asyncio's StreamReader/StreamWriter APIs, while TCP uses AnyIO streams.
         """
         try:
-            req = await read_message(reader)
-            req_id = req.get("id")
-            method = req.get("method")
-            params = req.get("params") or {}
+            request_payload = await read_message(reader)
+            request_id = request_payload.get("id")
+            request_method = request_payload.get("method")
+            request_params = request_payload.get("params") or {}
 
-            if not req_id or not method:
+            if not request_id or not request_method:
                 await _write_event_asyncio(
                     writer,
                     {
-                        "id": req_id or "",
+                        "id": request_id or "",
                         "event": "error",
                         "error": {"type": "BadRequest", "message": "Missing id/method"},
                     },
                 )
                 return
 
-            if method == "events.emit":
-                await self._handle_events_emit_asyncio(req_id, params, writer)
+            if request_method == "events.emit":
+                await self._handle_events_emit_asyncio(request_id, request_params, writer)
                 return
 
-            if method == "llm.chat":
-                await self._handle_llm_chat_asyncio(req_id, params, writer)
+            if request_method == "llm.chat":
+                await self._handle_llm_chat_asyncio(request_id, request_params, writer)
                 return
 
-            if method == "tool.call":
-                await self._handle_tool_call_asyncio(req_id, params, writer)
+            if request_method == "tool.call":
+                await self._handle_tool_call_asyncio(request_id, request_params, writer)
                 return
 
             await _write_event_asyncio(
                 writer,
                 {
-                    "id": req_id,
+                    "id": request_id,
                     "event": "error",
-                    "error": {"type": "MethodNotFound", "message": f"Unknown method: {method}"},
+                    "error": {
+                        "type": "MethodNotFound",
+                        "message": f"Unknown method: {request_method}",
+                    },
                 },
             )
-        except Exception as e:
+        except Exception as error:
             logger.debug("[BROKER] asyncio connection handler error", exc_info=True)
             try:
                 await _write_event_asyncio(
@@ -339,7 +348,7 @@ class _BaseBrokerServer:
                     {
                         "id": "",
                         "event": "error",
-                        "error": {"type": type(e).__name__, "message": str(e)},
+                        "error": {"type": type(error).__name__, "message": str(error)},
                     },
                 )
             except Exception:
@@ -354,8 +363,8 @@ class _BaseBrokerServer:
     async def _handle_events_emit_asyncio(
         self, req_id: str, params: dict[str, Any], writer: asyncio.StreamWriter
     ) -> None:
-        event = params.get("event")
-        if not isinstance(event, dict):
+        event_payload = params.get("event")
+        if not isinstance(event_payload, dict):
             await _write_event_asyncio(
                 writer,
                 {
@@ -368,7 +377,7 @@ class _BaseBrokerServer:
 
         try:
             if self._event_handler is not None:
-                self._event_handler(event)
+                self._event_handler(event_payload)
         except Exception:
             logger.debug("[BROKER] event_handler raised", exc_info=True)
 
@@ -377,8 +386,8 @@ class _BaseBrokerServer:
     async def _handle_llm_chat_asyncio(
         self, req_id: str, params: dict[str, Any], writer: asyncio.StreamWriter
     ) -> None:
-        provider = params.get("provider") or "openai"
-        if provider != "openai":
+        provider_name = params.get("provider") or "openai"
+        if provider_name != "openai":
             await _write_event_asyncio(
                 writer,
                 {
@@ -386,7 +395,7 @@ class _BaseBrokerServer:
                     "event": "error",
                     "error": {
                         "type": "UnsupportedProvider",
-                        "message": f"Unsupported provider: {provider}",
+                        "message": f"Unsupported provider: {provider_name}",
                     },
                 },
             )
@@ -423,7 +432,7 @@ class _BaseBrokerServer:
 
         try:
             if stream:
-                stream_iter = await self._openai.chat(
+                stream_iterator = await self._openai.chat(
                     model=model,
                     messages=messages,
                     temperature=temperature,
@@ -433,33 +442,39 @@ class _BaseBrokerServer:
                     tool_choice=tool_choice,
                 )
 
-                full_text = ""
-                tool_calls_data = []
-                async for chunk in stream_iter:
+                accumulated_text = ""
+                tool_calls_accumulator: list[dict[str, Any]] = []
+                async for chunk in stream_iterator:
                     try:
                         delta = chunk.choices[0].delta
-                        text = getattr(delta, "content", None)
+                        delta_text = getattr(delta, "content", None)
                         delta_tool_calls = getattr(delta, "tool_calls", None)
                     except Exception:
-                        text = None
+                        delta_text = None
                         delta_tool_calls = None
 
-                    if text:
-                        full_text += text
+                    if delta_text:
+                        accumulated_text += delta_text
                         await _write_event_asyncio(
-                            writer, {"id": req_id, "event": "delta", "data": {"text": text}}
+                            writer,
+                            {
+                                "id": req_id,
+                                "event": "delta",
+                                "data": {"text": delta_text},
+                            },
                         )
 
                     # Accumulate tool calls from deltas
                     if delta_tool_calls:
                         logger.info(
-                            f"[LITELLM_BACKEND] Received delta_tool_calls: {delta_tool_calls}"
+                            "[LITELLM_BACKEND] Received delta_tool_calls: %s",
+                            delta_tool_calls,
                         )
-                        for tc_delta in delta_tool_calls:
-                            idx = tc_delta.index
+                        for tool_call_delta in delta_tool_calls:
+                            tool_call_index = tool_call_delta.index
                             # Extend tool_calls_data list if needed
-                            while len(tool_calls_data) <= idx:
-                                tool_calls_data.append(
+                            while len(tool_calls_accumulator) <= tool_call_index:
+                                tool_calls_accumulator.append(
                                     {
                                         "id": "",
                                         "type": "function",
@@ -468,34 +483,39 @@ class _BaseBrokerServer:
                                 )
 
                             # Merge delta into accumulated tool call
-                            if tc_delta.id:
-                                tool_calls_data[idx]["id"] = tc_delta.id
-                            if tc_delta.type:
-                                tool_calls_data[idx]["type"] = tc_delta.type
-                            if hasattr(tc_delta, "function") and tc_delta.function:
-                                if tc_delta.function.name:
-                                    tool_calls_data[idx]["function"][
+                            if tool_call_delta.id:
+                                tool_calls_accumulator[tool_call_index]["id"] = tool_call_delta.id
+                            if tool_call_delta.type:
+                                tool_calls_accumulator[tool_call_index][
+                                    "type"
+                                ] = tool_call_delta.type
+                            if hasattr(tool_call_delta, "function") and tool_call_delta.function:
+                                if tool_call_delta.function.name:
+                                    tool_calls_accumulator[tool_call_index]["function"][
                                         "name"
-                                    ] += tc_delta.function.name
-                                if tc_delta.function.arguments:
-                                    tool_calls_data[idx]["function"][
+                                    ] += tool_call_delta.function.name
+                                if tool_call_delta.function.arguments:
+                                    tool_calls_accumulator[tool_call_index]["function"][
                                         "arguments"
-                                    ] += tc_delta.function.arguments
+                                    ] += tool_call_delta.function.arguments
 
                 # Build final response data
                 logger.info(
-                    f"[LITELLM_BACKEND] Streaming complete. tool_calls_data={tool_calls_data}, full_text length={len(full_text)}"
+                    "[LITELLM_BACKEND] Streaming complete. tool_calls_data=%s, "
+                    "full_text length=%s",
+                    tool_calls_accumulator,
+                    len(accumulated_text),
                 )
                 done_data = {
-                    "text": full_text,
+                    "text": accumulated_text,
                     "usage": {
                         "prompt_tokens": 0,
                         "completion_tokens": 0,
                         "total_tokens": 0,
                     },
                 }
-                if tool_calls_data:
-                    done_data["tool_calls"] = tool_calls_data
+                if tool_calls_accumulator:
+                    done_data["tool_calls"] = tool_calls_accumulator
 
                 await _write_event_asyncio(
                     writer,
@@ -556,24 +576,24 @@ class _BaseBrokerServer:
                     "data": done_data,
                 },
             )
-        except Exception as e:
+        except Exception as error:
             logger.debug("[BROKER] llm.chat error", exc_info=True)
             await _write_event_asyncio(
                 writer,
                 {
                     "id": req_id,
                     "event": "error",
-                    "error": {"type": type(e).__name__, "message": str(e)},
+                    "error": {"type": type(error).__name__, "message": str(error)},
                 },
             )
 
     async def _handle_tool_call_asyncio(
         self, req_id: str, params: dict[str, Any], writer: asyncio.StreamWriter
     ) -> None:
-        name = params.get("name")
-        args = params.get("args") or {}
+        tool_name = params.get("name")
+        tool_args = params.get("args") or {}
 
-        if not isinstance(name, str) or not name:
+        if not isinstance(tool_name, str) or not tool_name:
             await _write_event_asyncio(
                 writer,
                 {
@@ -583,7 +603,7 @@ class _BaseBrokerServer:
                 },
             )
             return
-        if not isinstance(args, dict):
+        if not isinstance(tool_args, dict):
             await _write_event_asyncio(
                 writer,
                 {
@@ -595,7 +615,7 @@ class _BaseBrokerServer:
             return
 
         try:
-            result = self._tools.call(name, args)
+            result = self._tools.call(tool_name, tool_args)
         except KeyError:
             await _write_event_asyncio(
                 writer,
@@ -604,19 +624,19 @@ class _BaseBrokerServer:
                     "event": "error",
                     "error": {
                         "type": "ToolNotAllowed",
-                        "message": f"Tool not allowlisted: {name}",
+                        "message": f"Tool not allowlisted: {tool_name}",
                     },
                 },
             )
             return
-        except Exception as e:
+        except Exception as error:
             logger.debug("[BROKER] tool.call error", exc_info=True)
             await _write_event_asyncio(
                 writer,
                 {
                     "id": req_id,
                     "event": "error",
-                    "error": {"type": type(e).__name__, "message": str(e)},
+                    "error": {"type": type(error).__name__, "message": str(error)},
                 },
             )
             return
@@ -628,8 +648,8 @@ class _BaseBrokerServer:
     async def _handle_events_emit(
         self, req_id: str, params: dict[str, Any], byte_stream: anyio.abc.ByteStream
     ) -> None:
-        event = params.get("event")
-        if not isinstance(event, dict):
+        event_payload = params.get("event")
+        if not isinstance(event_payload, dict):
             await _write_event_anyio(
                 byte_stream,
                 {
@@ -642,7 +662,7 @@ class _BaseBrokerServer:
 
         try:
             if self._event_handler is not None:
-                self._event_handler(event)
+                self._event_handler(event_payload)
         except Exception:
             logger.debug("[BROKER] event_handler raised", exc_info=True)
 
@@ -693,22 +713,22 @@ class _BaseBrokerServer:
             await _write_event_anyio(
                 byte_stream, {"id": req_id, "event": "timeout", "data": {"timed_out": True}}
             )
-        except Exception as e:
+        except Exception as error:
             logger.debug("[BROKER] control.request handler raised", exc_info=True)
             await _write_event_anyio(
                 byte_stream,
                 {
                     "id": req_id,
                     "event": "error",
-                    "error": {"type": type(e).__name__, "message": str(e)},
+                    "error": {"type": type(error).__name__, "message": str(error)},
                 },
             )
 
     async def _handle_llm_chat(
         self, req_id: str, params: dict[str, Any], byte_stream: anyio.abc.ByteStream
     ) -> None:
-        provider = params.get("provider") or "openai"
-        if provider != "openai":
+        provider_name = params.get("provider") or "openai"
+        if provider_name != "openai":
             await _write_event_anyio(
                 byte_stream,
                 {
@@ -716,7 +736,7 @@ class _BaseBrokerServer:
                     "event": "error",
                     "error": {
                         "type": "UnsupportedProvider",
-                        "message": f"Unsupported provider: {provider}",
+                        "message": f"Unsupported provider: {provider_name}",
                     },
                 },
             )
@@ -753,7 +773,7 @@ class _BaseBrokerServer:
 
         try:
             if stream:
-                stream_iter = await self._openai.chat(
+                stream_iterator = await self._openai.chat(
                     model=model,
                     messages=messages,
                     temperature=temperature,
@@ -763,33 +783,39 @@ class _BaseBrokerServer:
                     tool_choice=tool_choice,
                 )
 
-                full_text = ""
-                tool_calls_data = []
-                async for chunk in stream_iter:
+                accumulated_text = ""
+                tool_calls_accumulator: list[dict[str, Any]] = []
+                async for chunk in stream_iterator:
                     try:
                         delta = chunk.choices[0].delta
-                        text = getattr(delta, "content", None)
+                        delta_text = getattr(delta, "content", None)
                         delta_tool_calls = getattr(delta, "tool_calls", None)
                     except Exception:
-                        text = None
+                        delta_text = None
                         delta_tool_calls = None
 
-                    if text:
-                        full_text += text
+                    if delta_text:
+                        accumulated_text += delta_text
                         await _write_event_anyio(
-                            byte_stream, {"id": req_id, "event": "delta", "data": {"text": text}}
+                            byte_stream,
+                            {
+                                "id": req_id,
+                                "event": "delta",
+                                "data": {"text": delta_text},
+                            },
                         )
 
                     # Accumulate tool calls from deltas
                     if delta_tool_calls:
                         logger.info(
-                            f"[LITELLM_BACKEND] Received delta_tool_calls: {delta_tool_calls}"
+                            "[LITELLM_BACKEND] Received delta_tool_calls: %s",
+                            delta_tool_calls,
                         )
-                        for tc_delta in delta_tool_calls:
-                            idx = tc_delta.index
+                        for tool_call_delta in delta_tool_calls:
+                            tool_call_index = tool_call_delta.index
                             # Extend tool_calls_data list if needed
-                            while len(tool_calls_data) <= idx:
-                                tool_calls_data.append(
+                            while len(tool_calls_accumulator) <= tool_call_index:
+                                tool_calls_accumulator.append(
                                     {
                                         "id": "",
                                         "type": "function",
@@ -798,34 +824,39 @@ class _BaseBrokerServer:
                                 )
 
                             # Merge delta into accumulated tool call
-                            if tc_delta.id:
-                                tool_calls_data[idx]["id"] = tc_delta.id
-                            if tc_delta.type:
-                                tool_calls_data[idx]["type"] = tc_delta.type
-                            if hasattr(tc_delta, "function") and tc_delta.function:
-                                if tc_delta.function.name:
-                                    tool_calls_data[idx]["function"][
+                            if tool_call_delta.id:
+                                tool_calls_accumulator[tool_call_index]["id"] = tool_call_delta.id
+                            if tool_call_delta.type:
+                                tool_calls_accumulator[tool_call_index][
+                                    "type"
+                                ] = tool_call_delta.type
+                            if hasattr(tool_call_delta, "function") and tool_call_delta.function:
+                                if tool_call_delta.function.name:
+                                    tool_calls_accumulator[tool_call_index]["function"][
                                         "name"
-                                    ] += tc_delta.function.name
-                                if tc_delta.function.arguments:
-                                    tool_calls_data[idx]["function"][
+                                    ] += tool_call_delta.function.name
+                                if tool_call_delta.function.arguments:
+                                    tool_calls_accumulator[tool_call_index]["function"][
                                         "arguments"
-                                    ] += tc_delta.function.arguments
+                                    ] += tool_call_delta.function.arguments
 
                 # Build final response data
                 logger.info(
-                    f"[LITELLM_BACKEND] Streaming complete. tool_calls_data={tool_calls_data}, full_text length={len(full_text)}"
+                    "[LITELLM_BACKEND] Streaming complete. tool_calls_data=%s, "
+                    "full_text length=%s",
+                    tool_calls_accumulator,
+                    len(accumulated_text),
                 )
                 done_data = {
-                    "text": full_text,
+                    "text": accumulated_text,
                     "usage": {
                         "prompt_tokens": 0,
                         "completion_tokens": 0,
                         "total_tokens": 0,
                     },
                 }
-                if tool_calls_data:
-                    done_data["tool_calls"] = tool_calls_data
+                if tool_calls_accumulator:
+                    done_data["tool_calls"] = tool_calls_accumulator
 
                 await _write_event_anyio(
                     byte_stream,
@@ -886,24 +917,24 @@ class _BaseBrokerServer:
                     "data": done_data,
                 },
             )
-        except Exception as e:
+        except Exception as error:
             logger.debug("[BROKER] llm.chat error", exc_info=True)
             await _write_event_anyio(
                 byte_stream,
                 {
                     "id": req_id,
                     "event": "error",
-                    "error": {"type": type(e).__name__, "message": str(e)},
+                    "error": {"type": type(error).__name__, "message": str(error)},
                 },
             )
 
     async def _handle_tool_call(
         self, req_id: str, params: dict[str, Any], byte_stream: anyio.abc.ByteStream
     ) -> None:
-        name = params.get("name")
-        args = params.get("args") or {}
+        tool_name = params.get("name")
+        tool_args = params.get("args") or {}
 
-        if not isinstance(name, str) or not name:
+        if not isinstance(tool_name, str) or not tool_name:
             await _write_event_anyio(
                 byte_stream,
                 {
@@ -913,7 +944,7 @@ class _BaseBrokerServer:
                 },
             )
             return
-        if not isinstance(args, dict):
+        if not isinstance(tool_args, dict):
             await _write_event_anyio(
                 byte_stream,
                 {
@@ -925,7 +956,7 @@ class _BaseBrokerServer:
             return
 
         try:
-            result = self._tools.call(name, args)
+            result = self._tools.call(tool_name, tool_args)
         except KeyError:
             await _write_event_anyio(
                 byte_stream,
@@ -934,19 +965,19 @@ class _BaseBrokerServer:
                     "event": "error",
                     "error": {
                         "type": "ToolNotAllowed",
-                        "message": f"Tool not allowlisted: {name}",
+                        "message": f"Tool not allowlisted: {tool_name}",
                     },
                 },
             )
             return
-        except Exception as e:
+        except Exception as error:
             logger.debug("[BROKER] tool.call error", exc_info=True)
             await _write_event_anyio(
                 byte_stream,
                 {
                     "id": req_id,
                     "event": "error",
-                    "error": {"type": type(e).__name__, "message": str(e)},
+                    "error": {"type": type(error).__name__, "message": str(error)},
                 },
             )
             return
@@ -999,7 +1030,7 @@ class BrokerServer(_BaseBrokerServer):
         self._server = await asyncio.start_unix_server(
             self._handle_connection_asyncio, path=str(self.socket_path)
         )
-        logger.info(f"[BROKER] Listening on UDS: {self.socket_path}")
+        logger.info("[BROKER] Listening on UDS: %s", self.socket_path)
 
     async def aclose(self) -> None:
         server = getattr(self, "_server", None)
@@ -1031,45 +1062,48 @@ class BrokerServer(_BaseBrokerServer):
         self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
     ) -> None:
         try:
-            req = await read_message(reader)
-            req_id = req.get("id")
-            method = req.get("method")
-            params = req.get("params") or {}
+            request_payload = await read_message(reader)
+            request_id = request_payload.get("id")
+            request_method = request_payload.get("method")
+            request_params = request_payload.get("params") or {}
 
             async def write_event(event: dict[str, Any]) -> None:
                 await write_message(writer, event)
 
-            if not req_id or not method:
+            if not request_id or not request_method:
                 await write_event(
                     {
-                        "id": req_id or "",
+                        "id": request_id or "",
                         "event": "error",
                         "error": {"type": "BadRequest", "message": "Missing id/method"},
                     }
                 )
                 return
 
-            if method == "events.emit":
-                await self._handle_events_emit_asyncio(req_id, params, write_event)
+            if request_method == "events.emit":
+                await self._handle_events_emit_asyncio(request_id, request_params, write_event)
                 return
 
-            if method == "llm.chat":
-                await self._handle_llm_chat_asyncio(req_id, params, write_event)
+            if request_method == "llm.chat":
+                await self._handle_llm_chat_asyncio(request_id, request_params, write_event)
                 return
 
-            if method == "tool.call":
-                await self._handle_tool_call_asyncio(req_id, params, write_event)
+            if request_method == "tool.call":
+                await self._handle_tool_call_asyncio(request_id, request_params, write_event)
                 return
 
             await write_event(
                 {
-                    "id": req_id,
+                    "id": request_id,
                     "event": "error",
-                    "error": {"type": "MethodNotFound", "message": f"Unknown method: {method}"},
+                    "error": {
+                        "type": "MethodNotFound",
+                        "message": f"Unknown method: {request_method}",
+                    },
                 }
             )
 
-        except Exception as e:
+        except Exception as error:
             logger.debug("[BROKER] Connection handler error", exc_info=True)
             try:
                 await write_message(
@@ -1077,7 +1111,7 @@ class BrokerServer(_BaseBrokerServer):
                     {
                         "id": "",
                         "event": "error",
-                        "error": {"type": type(e).__name__, "message": str(e)},
+                        "error": {"type": type(error).__name__, "message": str(error)},
                     },
                 )
             except Exception:
@@ -1095,8 +1129,8 @@ class BrokerServer(_BaseBrokerServer):
         params: dict[str, Any],
         write_event: Callable[[dict[str, Any]], Awaitable[None]],
     ) -> None:
-        event = params.get("event")
-        if not isinstance(event, dict):
+        event_payload = params.get("event")
+        if not isinstance(event_payload, dict):
             await write_event(
                 {
                     "id": req_id,
@@ -1108,7 +1142,7 @@ class BrokerServer(_BaseBrokerServer):
 
         try:
             if self._event_handler is not None:
-                self._event_handler(event)
+                self._event_handler(event_payload)
         except Exception:
             logger.debug("[BROKER] event_handler raised", exc_info=True)
 
@@ -1120,10 +1154,10 @@ class BrokerServer(_BaseBrokerServer):
         params: dict[str, Any],
         write_event: Callable[[dict[str, Any]], Awaitable[None]],
     ) -> None:
-        name = params.get("name")
-        args = params.get("args") or {}
+        tool_name = params.get("name")
+        tool_args = params.get("args") or {}
 
-        if not isinstance(name, str) or not name:
+        if not isinstance(tool_name, str) or not tool_name:
             await write_event(
                 {
                     "id": req_id,
@@ -1132,7 +1166,7 @@ class BrokerServer(_BaseBrokerServer):
                 }
             )
             return
-        if not isinstance(args, dict):
+        if not isinstance(tool_args, dict):
             await write_event(
                 {
                     "id": req_id,
@@ -1143,7 +1177,7 @@ class BrokerServer(_BaseBrokerServer):
             return
 
         try:
-            result = self._tools.call(name, args)
+            result = self._tools.call(tool_name, tool_args)
         except KeyError:
             await write_event(
                 {
@@ -1151,18 +1185,18 @@ class BrokerServer(_BaseBrokerServer):
                     "event": "error",
                     "error": {
                         "type": "ToolNotAllowed",
-                        "message": f"Tool not allowlisted: {name}",
+                        "message": f"Tool not allowlisted: {tool_name}",
                     },
                 }
             )
             return
-        except Exception as e:
+        except Exception as error:
             logger.debug("[BROKER] tool.call error", exc_info=True)
             await write_event(
                 {
                     "id": req_id,
                     "event": "error",
-                    "error": {"type": type(e).__name__, "message": str(e)},
+                    "error": {"type": type(error).__name__, "message": str(error)},
                 }
             )
             return
@@ -1175,15 +1209,15 @@ class BrokerServer(_BaseBrokerServer):
         params: dict[str, Any],
         write_event: Callable[[dict[str, Any]], Awaitable[None]],
     ) -> None:
-        provider = params.get("provider") or "openai"
-        if provider != "openai":
+        provider_name = params.get("provider") or "openai"
+        if provider_name != "openai":
             await write_event(
                 {
                     "id": req_id,
                     "event": "error",
                     "error": {
                         "type": "UnsupportedProvider",
-                        "message": f"Unsupported provider: {provider}",
+                        "message": f"Unsupported provider: {provider_name}",
                     },
                 }
             )
@@ -1230,45 +1264,57 @@ class BrokerServer(_BaseBrokerServer):
                     chat_kwargs["max_tokens"] = max_tokens
                 if tools is not None:
                     chat_kwargs["tools"] = tools
-                    logger.info(f"[BROKER_SERVER] Added {len(tools)} tools to chat_kwargs")
+                    logger.info("[BROKER_SERVER] Added %s tools to chat_kwargs", len(tools))
                 else:
                     logger.warning("[BROKER_SERVER] No tools to add to chat_kwargs")
                 if tool_choice is not None:
                     chat_kwargs["tool_choice"] = tool_choice
-                    logger.info(f"[BROKER_SERVER] Added tool_choice={tool_choice} to chat_kwargs")
+                    logger.info(
+                        "[BROKER_SERVER] Added tool_choice=%s to chat_kwargs",
+                        tool_choice,
+                    )
                 else:
                     logger.warning("[BROKER_SERVER] No tool_choice to add")
 
                 logger.info(
-                    f"[BROKER_SERVER] Calling backend.chat() with {len(chat_kwargs)} kwargs: {list(chat_kwargs.keys())}"
+                    "[BROKER_SERVER] Calling backend.chat() with %s kwargs: %s",
+                    len(chat_kwargs),
+                    list(chat_kwargs.keys()),
                 )
-                stream_iter = await self._openai.chat(**chat_kwargs)
+                stream_iterator = await self._openai.chat(**chat_kwargs)
 
-                full_text = ""
-                tool_calls_data = []
-                async for chunk in stream_iter:
+                accumulated_text = ""
+                tool_calls_accumulator: list[dict[str, Any]] = []
+                async for chunk in stream_iterator:
                     try:
                         delta = chunk.choices[0].delta
-                        text = getattr(delta, "content", None)
+                        delta_text = getattr(delta, "content", None)
                         delta_tool_calls = getattr(delta, "tool_calls", None)
                     except Exception:
-                        text = None
+                        delta_text = None
                         delta_tool_calls = None
 
-                    if text:
-                        full_text += text
-                        await write_event({"id": req_id, "event": "delta", "data": {"text": text}})
+                    if delta_text:
+                        accumulated_text += delta_text
+                        await write_event(
+                            {
+                                "id": req_id,
+                                "event": "delta",
+                                "data": {"text": delta_text},
+                            }
+                        )
 
                     # Accumulate tool calls from deltas
                     if delta_tool_calls:
                         logger.info(
-                            f"[LITELLM_BACKEND] Received delta_tool_calls: {delta_tool_calls}"
+                            "[LITELLM_BACKEND] Received delta_tool_calls: %s",
+                            delta_tool_calls,
                         )
-                        for tc_delta in delta_tool_calls:
-                            idx = tc_delta.index
+                        for tool_call_delta in delta_tool_calls:
+                            tool_call_index = tool_call_delta.index
                             # Extend tool_calls_data list if needed
-                            while len(tool_calls_data) <= idx:
-                                tool_calls_data.append(
+                            while len(tool_calls_accumulator) <= tool_call_index:
+                                tool_calls_accumulator.append(
                                     {
                                         "id": "",
                                         "type": "function",
@@ -1277,34 +1323,39 @@ class BrokerServer(_BaseBrokerServer):
                                 )
 
                             # Merge delta into accumulated tool call
-                            if tc_delta.id:
-                                tool_calls_data[idx]["id"] = tc_delta.id
-                            if tc_delta.type:
-                                tool_calls_data[idx]["type"] = tc_delta.type
-                            if hasattr(tc_delta, "function") and tc_delta.function:
-                                if tc_delta.function.name:
-                                    tool_calls_data[idx]["function"][
+                            if tool_call_delta.id:
+                                tool_calls_accumulator[tool_call_index]["id"] = tool_call_delta.id
+                            if tool_call_delta.type:
+                                tool_calls_accumulator[tool_call_index][
+                                    "type"
+                                ] = tool_call_delta.type
+                            if hasattr(tool_call_delta, "function") and tool_call_delta.function:
+                                if tool_call_delta.function.name:
+                                    tool_calls_accumulator[tool_call_index]["function"][
                                         "name"
-                                    ] += tc_delta.function.name
-                                if tc_delta.function.arguments:
-                                    tool_calls_data[idx]["function"][
+                                    ] += tool_call_delta.function.name
+                                if tool_call_delta.function.arguments:
+                                    tool_calls_accumulator[tool_call_index]["function"][
                                         "arguments"
-                                    ] += tc_delta.function.arguments
+                                    ] += tool_call_delta.function.arguments
 
                 # Build final response data
                 logger.info(
-                    f"[LITELLM_BACKEND] Streaming complete. tool_calls_data={tool_calls_data}, full_text length={len(full_text)}"
+                    "[LITELLM_BACKEND] Streaming complete. tool_calls_data=%s, "
+                    "full_text length=%s",
+                    tool_calls_accumulator,
+                    len(accumulated_text),
                 )
                 done_data = {
-                    "text": full_text,
+                    "text": accumulated_text,
                     "usage": {
                         "prompt_tokens": 0,
                         "completion_tokens": 0,
                         "total_tokens": 0,
                     },
                 }
-                if tool_calls_data:
-                    done_data["tool_calls"] = tool_calls_data
+                if tool_calls_accumulator:
+                    done_data["tool_calls"] = tool_calls_accumulator
 
                 await write_event(
                     {
@@ -1371,13 +1422,13 @@ class BrokerServer(_BaseBrokerServer):
                     "data": done_data,
                 }
             )
-        except Exception as e:
+        except Exception as error:
             logger.debug("[BROKER] llm.chat error", exc_info=True)
             await write_event(
                 {
                     "id": req_id,
                     "event": "error",
-                    "error": {"type": type(e).__name__, "message": str(e)},
+                    "error": {"type": type(error).__name__, "message": str(error)},
                 }
             )
 
@@ -1424,8 +1475,12 @@ class TcpBrokerServer(_BaseBrokerServer):
             self.bound_port = None
 
         scheme = "tls" if self.ssl_context is not None else "tcp"
+        listen_port = self.bound_port if self.bound_port is not None else self.port
         logger.info(
-            f"[BROKER] Listening on {scheme}: {self.host}:{self.bound_port if self.bound_port is not None else self.port}"
+            "[BROKER] Listening on %s: %s:%s",
+            scheme,
+            self.host,
+            listen_port,
         )
 
         # Unlike asyncio's start_server(), AnyIO listeners don't automatically start

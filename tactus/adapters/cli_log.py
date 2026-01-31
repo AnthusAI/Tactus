@@ -126,12 +126,12 @@ class CLILogHandler:
         # Format result if available
         result_str = ""
         if event.tool_result is not None:
-            result_value = str(event.tool_result)
-            if len(result_value) < 60:
-                result_str = f"\n  Result: {result_value}"
+            result_text = str(event.tool_result)
+            if len(result_text) < 60:
+                result_str = f"\n  Result: {result_text}"
             else:
                 # Truncate long results
-                result_str = f"\n  Result: {result_value[:57]}..."
+                result_str = f"\n  Result: {result_text[:57]}..."
 
         duration_str = f" ({event.duration_ms:.0f}ms)" if event.duration_ms else ""
 

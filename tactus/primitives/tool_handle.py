@@ -7,7 +7,7 @@ that can be invoked directly without going through an agent.
 
 import asyncio
 import logging
-from typing import Any, Callable, Dict, Optional, TYPE_CHECKING
+from typing import Any, Callable, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from tactus.primitives.tool import ToolPrimitive
@@ -30,7 +30,7 @@ class ToolHandle:
     def __init__(
         self,
         name: str,
-        impl_fn: Callable,
+        implementation_function: Callable,
         tool_primitive: Optional["ToolPrimitive"] = None,
         is_async: bool = False,
         record_calls: bool = True,
@@ -40,19 +40,34 @@ class ToolHandle:
 
         Args:
             name: Tool name for tracking/logging
-            impl_fn: The actual function to execute
+            implementation_function: The actual function to execute
             tool_primitive: Optional ToolPrimitive for call recording
-            is_async: Whether impl_fn is async (for MCP tools)
+            is_async: Whether the implementation function is async (for MCP tools)
         """
         self.name = name
-        self.impl_fn = impl_fn
+        self.implementation_function = implementation_function
         self.tool_primitive = tool_primitive
         self.is_async = is_async
         self.record_calls = record_calls
 
-        logger.debug(f"ToolHandle created for '{name}' (async={is_async})")
+        logger.debug("ToolHandle created for '%s' (async=%s)", name, is_async)
 
-    def call(self, args: Dict[str, Any]) -> Any:
+    def _has_tool_primitive(self) -> bool:
+        return self.tool_primitive is not None
+
+    def _normalize_tool_arguments(self, tool_arguments: Any) -> Any:
+        """
+        Convert a Lua table or mapping-like input to a plain Python dict when possible.
+        """
+        if tool_arguments is None:
+            return {}
+
+        if hasattr(tool_arguments, "items"):
+            return self._lua_table_to_dict(tool_arguments)
+
+        return tool_arguments
+
+    def call(self, args: dict[str, Any]) -> Any:
         """
         Execute the tool with given arguments.
 
@@ -65,31 +80,35 @@ class ToolHandle:
         Example (Lua):
             local result = my_tool:call({arg1 = "value"})
         """
-        logger.debug(f"ToolHandle.call('{self.name}') with args: {args}")
+        logger.debug("ToolHandle.call('%s') with args: %s", self.name, args)
 
         try:
             # Convert Lua table to Python dict if needed
-            if hasattr(args, "items"):
-                args = self._lua_table_to_dict(args)
+            normalized_arguments = self._normalize_tool_arguments(args)
 
             # Execute the implementation
-            if self.is_async or asyncio.iscoroutinefunction(self.impl_fn):
-                result = self._run_async(args)
+            if self.is_async or asyncio.iscoroutinefunction(self.implementation_function):
+                result = self._run_async(normalized_arguments)
             else:
-                result = self.impl_fn(args)
+                result = self.implementation_function(normalized_arguments)
 
             # Record the call for tracking
             if self.tool_primitive and self.record_calls:
-                self.tool_primitive.record_call(self.name, args, result)
+                self.tool_primitive.record_call(self.name, normalized_arguments, result)
 
-            logger.debug(f"ToolHandle.call('{self.name}') returned: {result}")
+            logger.debug("ToolHandle.call('%s') returned: %s", self.name, result)
             return result
 
-        except Exception as e:
-            logger.error(f"ToolHandle.call('{self.name}') failed: {e}", exc_info=True)
+        except Exception as error:
+            logger.error(
+                "ToolHandle.call('%s') failed: %s",
+                self.name,
+                error,
+                exc_info=True,
+            )
             raise
 
-    def __call__(self, args: Dict[str, Any]) -> Any:
+    def __call__(self, args: dict[str, Any]) -> Any:
         """
         Make handle callable for shorthand syntax.
 
@@ -110,15 +129,15 @@ class ToolHandle:
                 Log.info("Task completed!")
             end
         """
-        if not self.tool_primitive:
-            logger.warning(f"ToolHandle.called('{self.name}'): No tool_primitive attached")
+        if not self._has_tool_primitive():
+            logger.warning("ToolHandle.called('%s'): No tool_primitive attached", self.name)
             return False
 
         result = self.tool_primitive.called(self.name)
-        logger.debug(f"ToolHandle.called('{self.name}') = {result}")
+        logger.debug("ToolHandle.called('%s') = %s", self.name, result)
         return result
 
-    def last_call(self) -> Optional[Dict[str, Any]]:
+    def last_call(self) -> Optional[dict[str, Any]]:
         """
         Get the last call record for this tool.
 
@@ -131,12 +150,12 @@ class ToolHandle:
                 Log.info("Last multiply: " .. call.args.a .. " * " .. call.args.b)
             end
         """
-        if not self.tool_primitive:
-            logger.warning(f"ToolHandle.last_call('{self.name}'): No tool_primitive attached")
+        if not self._has_tool_primitive():
+            logger.warning("ToolHandle.last_call('%s'): No tool_primitive attached", self.name)
             return None
 
         result = self.tool_primitive.last_call(self.name)
-        logger.debug(f"ToolHandle.last_call('{self.name}') = {result}")
+        logger.debug("ToolHandle.last_call('%s') = %s", self.name, result)
         return result
 
     def last_result(self) -> Any:
@@ -150,12 +169,12 @@ class ToolHandle:
             local answer = done.last_result()
             return { result = answer }
         """
-        if not self.tool_primitive:
-            logger.warning(f"ToolHandle.last_result('{self.name}'): No tool_primitive attached")
+        if not self._has_tool_primitive():
+            logger.warning("ToolHandle.last_result('%s'): No tool_primitive attached", self.name)
             return None
 
         result = self.tool_primitive.last_result(self.name)
-        logger.debug(f"ToolHandle.last_result('{self.name}') = {result}")
+        logger.debug("ToolHandle.last_result('%s') = %s", self.name, result)
         return result
 
     def call_count(self) -> int:
@@ -169,13 +188,13 @@ class ToolHandle:
             local count = multiply.call_count()
             Log.info("Multiply was called " .. count .. " times")
         """
-        if not self.tool_primitive:
-            logger.warning(f"ToolHandle.call_count('{self.name}'): No tool_primitive attached")
+        if not self._has_tool_primitive():
+            logger.warning("ToolHandle.call_count('%s'): No tool_primitive attached", self.name)
             return 0
 
         # Count all calls with this tool name
         count = sum(1 for call in self.tool_primitive._tool_calls if call.name == self.name)
-        logger.debug(f"ToolHandle.call_count('{self.name}') = {count}")
+        logger.debug("ToolHandle.call_count('%s') = %s", self.name, count)
         return count
 
     def reset(self) -> None:
@@ -202,17 +221,17 @@ class ToolHandle:
                 Log.info("Agent 2 completed")
             end
         """
-        if not self.tool_primitive:
-            logger.warning(f"ToolHandle.reset('{self.name}'): No tool_primitive attached")
+        if not self._has_tool_primitive():
+            logger.warning("ToolHandle.reset('%s'): No tool_primitive attached", self.name)
             return
 
         # Remove all calls for this tool
         self.tool_primitive._tool_calls = [
             call for call in self.tool_primitive._tool_calls if call.name != self.name
         ]
-        logger.debug(f"ToolHandle.reset('{self.name}'): Cleared all call records")
+        logger.debug("ToolHandle.reset('%s'): Cleared all call records", self.name)
 
-    def _run_async(self, args: Dict[str, Any]) -> Any:
+    def _run_async(self, args: dict[str, Any]) -> Any:
         """
         Run async function from sync context.
 
@@ -220,46 +239,46 @@ class ToolHandle:
         """
         try:
             # Try to get a running event loop
-            loop = asyncio.get_running_loop()
+            running_loop = asyncio.get_running_loop()
 
             # We're in an async context - use nest_asyncio if available
             try:
                 import nest_asyncio
 
-                nest_asyncio.apply(loop)
-                return asyncio.run(self.impl_fn(args))
+                nest_asyncio.apply(running_loop)
+                return asyncio.run(self.implementation_function(args))
             except ImportError:
                 # nest_asyncio not available, fall back to threading
                 import threading
 
-                result_container = {"value": None, "exception": None}
+                async_result = {"value": None, "exception": None}
 
                 def run_in_thread():
                     try:
-                        new_loop = asyncio.new_event_loop()
-                        asyncio.set_event_loop(new_loop)
+                        thread_event_loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(thread_event_loop)
                         try:
-                            result_container["value"] = new_loop.run_until_complete(
-                                self.impl_fn(args)
+                            async_result["value"] = thread_event_loop.run_until_complete(
+                                self.implementation_function(args)
                             )
                         finally:
-                            new_loop.close()
-                    except Exception as e:
-                        result_container["exception"] = e
+                            thread_event_loop.close()
+                    except Exception as error:
+                        async_result["exception"] = error
 
-                thread = threading.Thread(target=run_in_thread)
-                thread.start()
-                thread.join()
+                worker_thread = threading.Thread(target=run_in_thread)
+                worker_thread.start()
+                worker_thread.join()
 
-                if result_container["exception"]:
-                    raise result_container["exception"]
-                return result_container["value"]
+                if async_result["exception"]:
+                    raise async_result["exception"]
+                return async_result["value"]
 
         except RuntimeError:
             # No event loop running - safe to use asyncio.run()
-            return asyncio.run(self.impl_fn(args))
+            return asyncio.run(self.implementation_function(args))
 
-    def _lua_table_to_dict(self, lua_table) -> Dict[str, Any]:
+    def _lua_table_to_dict(self, lua_table: Any) -> Any:
         """Convert a Lua table to Python dict recursively."""
         if lua_table is None:
             return {}

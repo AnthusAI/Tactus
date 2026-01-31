@@ -54,8 +54,8 @@ class PydanticAIMCPAdapter:
                     "MCP client doesn't have list_tools() or get_tools(), trying direct call"
                 )
                 mcp_tools = await self.mcp_client() if callable(self.mcp_client) else []
-        except Exception as e:
-            logger.error(f"Failed to load tools from MCP server: {e}", exc_info=True)
+        except Exception as error:
+            logger.error(f"Failed to load tools from MCP server: {error}", exc_info=True)
             return []
 
         if not mcp_tools:
@@ -71,9 +71,9 @@ class PydanticAIMCPAdapter:
                 tool = self._convert_mcp_tool_to_pydantic_ai(mcp_tool)
                 if tool:
                     pydantic_tools.append(tool)
-            except Exception as e:
+            except Exception as error:
                 logger.error(
-                    f"Failed to convert MCP tool {getattr(mcp_tool, 'name', 'unknown')}: {e}",
+                    f"Failed to convert MCP tool {getattr(mcp_tool, 'name', 'unknown')}: {error}",
                     exc_info=True,
                 )
 
@@ -116,9 +116,10 @@ class PydanticAIMCPAdapter:
         if input_schema:
             try:
                 args_model = self._json_schema_to_pydantic_model(input_schema, tool_name)
-            except Exception as e:
+            except Exception as error:
                 logger.error(
-                    f"Failed to create Pydantic model for tool '{tool_name}': {e}", exc_info=True
+                    f"Failed to create Pydantic model for tool '{tool_name}': {error}",
+                    exc_info=True,
                 )
                 # Fallback: create a simple model that accepts any dict
                 args_model = create_model(
@@ -182,9 +183,9 @@ class PydanticAIMCPAdapter:
                 logger.debug(f"Tool '{tool_name}' returned: {result_str[:100]}...")
                 return result_str
 
-            except Exception as e:
-                logger.error(f"MCP tool '{tool_name}' execution failed: {e}", exc_info=True)
-                error_msg = f"Error executing tool '{tool_name}': {str(e)}"
+            except Exception as error:
+                logger.error(f"MCP tool '{tool_name}' execution failed: {error}", exc_info=True)
+                error_msg = f"Error executing tool '{tool_name}': {str(error)}"
                 # Still record the failed call
                 if self.tool_primitive:
                     self.tool_primitive.record_call(tool_name, args_dict, error_msg)

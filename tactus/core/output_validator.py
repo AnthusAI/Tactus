@@ -6,7 +6,7 @@ Enables type safety and composability for sub-agent workflows.
 """
 
 import logging
-from typing import Any, Optional, List
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +74,7 @@ class OutputValidator:
                 field_count = len(self.schema)
             except TypeError:
                 field_count = 0
-            logger.debug(f"OutputValidator initialized with {field_count} output fields")
+            logger.debug("OutputValidator initialized with %s output fields", field_count)
 
     def validate(self, output: Any) -> Any:
         """
@@ -151,13 +151,13 @@ class OutputValidator:
                 f"Output must be an object/table, got {type(output).__name__}"
             )
 
-        errors = []
-        validated_output = {}
+        validation_errors: list[str] = []
+        validated_output: dict[str, Any] = {}
 
         # Check required fields and validate types
         for field_name, field_def in self.schema.items():
             if not isinstance(field_def, dict) or "type" not in field_def:
-                errors.append(
+                validation_errors.append(
                     f"Field '{field_name}' uses old type syntax. "
                     f"Use field.{field_def.get('type', 'string')}{{}} instead."
                 )
@@ -165,7 +165,7 @@ class OutputValidator:
             is_required = bool(field_def.get("required", False))
 
             if is_required and field_name not in output:
-                errors.append(f"Required field '{field_name}' is missing")
+                validation_errors.append(f"Required field '{field_name}' is missing")
                 continue
 
             # Skip validation if field not present and not required
@@ -179,7 +179,7 @@ class OutputValidator:
             if expected_type:
                 if not self._check_type(value, expected_type):
                     actual_type = type(value).__name__
-                    errors.append(
+                    validation_errors.append(
                         f"Field '{field_name}' should be {expected_type}, got {actual_type}"
                     )
 
@@ -187,7 +187,7 @@ class OutputValidator:
             if "enum" in field_def and field_def["enum"]:
                 allowed_values = field_def["enum"]
                 if value not in allowed_values:
-                    errors.append(
+                    validation_errors.append(
                         f"Field '{field_name}' has invalid value '{value}'. "
                         f"Allowed values: {allowed_values}"
                     )
@@ -198,13 +198,13 @@ class OutputValidator:
         # Filter undeclared fields (only return declared fields)
         for field_name in output:
             if field_name not in self.schema:
-                logger.debug(f"Filtering undeclared field '{field_name}' from output")
+                logger.debug("Filtering undeclared field '%s' from output", field_name)
 
-        if errors:
-            error_msg = "Output validation failed:\n  " + "\n  ".join(errors)
-            raise OutputValidationError(error_msg)
+        if validation_errors:
+            error_message = "Output validation failed:\n  " + "\n  ".join(validation_errors)
+            raise OutputValidationError(error_message)
 
-        logger.info(f"Output validation passed for {len(validated_output)} fields")
+        logger.info("Output validation passed for %s fields", len(validated_output))
         if wrapped_result is not None:
             return wrapped_result.model_copy(update={"output": validated_output})
         return validated_output
@@ -226,7 +226,7 @@ class OutputValidator:
 
         python_type = self.TYPE_MAP.get(expected_type)
         if not python_type:
-            logger.warning(f"Unknown type '{expected_type}', skipping validation")
+            logger.warning("Unknown type '%s', skipping validation", expected_type)
             return True
 
         # Handle Lua tables as dicts/arrays
@@ -248,7 +248,7 @@ class OutputValidator:
         """
         # Handle Lua tables (have .items() method)
         if hasattr(obj, "items") and not isinstance(obj, dict):
-            return {k: self._convert_lua_tables(v) for k, v in obj.items()}
+            return {key: self._convert_lua_tables(value) for key, value in obj.items()}
 
         # Handle lists
         elif isinstance(obj, (list, tuple)):
@@ -256,7 +256,7 @@ class OutputValidator:
 
         # Handle dicts
         elif isinstance(obj, dict):
-            return {k: self._convert_lua_tables(v) for k, v in obj.items()}
+            return {key: self._convert_lua_tables(value) for key, value in obj.items()}
 
         # Return as-is for primitives
         else:
@@ -270,22 +270,24 @@ class OutputValidator:
                 return field_def.get("description")
         return None
 
-    def get_required_fields(self) -> List[str]:
+    def get_required_fields(self) -> list[str]:
         """Get list of required output fields."""
         from tactus.core.dsl_stubs import FieldDefinition
 
         return [
-            name
-            for name, def_ in self.schema.items()
-            if isinstance(def_, FieldDefinition) and def_.get("required", False)
+            field_name
+            for field_name, field_definition in self.schema.items()
+            if isinstance(field_definition, FieldDefinition)
+            and field_definition.get("required", False)
         ]
 
-    def get_optional_fields(self) -> List[str]:
+    def get_optional_fields(self) -> list[str]:
         """Get list of optional output fields."""
         from tactus.core.dsl_stubs import FieldDefinition
 
         return [
-            name
-            for name, def_ in self.schema.items()
-            if isinstance(def_, FieldDefinition) and not def_.get("required", False)
+            field_name
+            for field_name, field_definition in self.schema.items()
+            if isinstance(field_definition, FieldDefinition)
+            and not field_definition.get("required", False)
         ]

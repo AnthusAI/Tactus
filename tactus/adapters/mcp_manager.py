@@ -10,7 +10,7 @@ import os
 import re
 import asyncio
 from contextlib import AsyncExitStack
-from typing import Dict, Any, List
+from typing import Any
 
 from pydantic_ai.mcp import MCPServerStdio
 
@@ -29,10 +29,10 @@ def substitute_env_vars(value: Any) -> Any:
     """
     if isinstance(value, str):
         # Replace ${VAR} or $VAR with environment variable value
-        return re.sub(r"\$\{(\w+)\}", lambda m: os.getenv(m.group(1), ""), value)
-    elif isinstance(value, dict):
+        return re.sub(r"\$\{(\w+)\}", lambda match: os.getenv(match.group(1), ""), value)
+    if isinstance(value, dict):
         return {k: substitute_env_vars(v) for k, v in value.items()}
-    elif isinstance(value, list):
+    if isinstance(value, list):
         return [substitute_env_vars(v) for v in value]
     return value
 
@@ -45,7 +45,7 @@ class MCPServerManager:
     tool prefixing. Handles connection lifecycle and tool call tracking.
     """
 
-    def __init__(self, server_configs: Dict[str, Dict[str, Any]], tool_primitive=None):
+    def __init__(self, server_configs: dict[str, dict[str, Any]], tool_primitive=None):
         """
         Initialize MCP server manager.
 
@@ -55,10 +55,10 @@ class MCPServerManager:
         """
         self.configs = server_configs
         self.tool_primitive = tool_primitive
-        self.servers: List[MCPServerStdio] = []
-        self.server_toolsets: Dict[str, MCPServerStdio] = {}  # Map server names to toolsets
+        self.servers: list[MCPServerStdio] = []
+        self.server_toolsets: dict[str, MCPServerStdio] = {}  # Map server names to toolsets
         self._exit_stack = AsyncExitStack()
-        logger.info(f"MCPServerManager initialized with {len(server_configs)} server(s)")
+        logger.info("MCPServerManager initialized with %s server(s)", len(server_configs))
 
     async def __aenter__(self):
         """Connect to all configured MCP servers."""
@@ -67,17 +67,21 @@ class MCPServerManager:
             last_error: Exception | None = None
             for attempt in range(1, 4):
                 try:
-                    logger.info(f"Connecting to MCP server '{name}' (attempt {attempt}/3)...")
+                    logger.info(
+                        "Connecting to MCP server '%s' (attempt %s/3)...",
+                        name,
+                        attempt,
+                    )
 
                     # Substitute environment variables in config
-                    config = substitute_env_vars(config)
+                    resolved_config = substitute_env_vars(config)
 
                     # Create base server
                     server = MCPServerStdio(
-                        command=config["command"],
-                        args=config.get("args", []),
-                        env=config.get("env"),
-                        cwd=config.get("cwd"),
+                        command=resolved_config["command"],
+                        args=resolved_config.get("args", []),
+                        env=resolved_config.get("env"),
+                        cwd=resolved_config.get("cwd"),
                         process_tool_call=self._create_trace_callback(name),  # Tracking hook
                     )
 
@@ -93,17 +97,19 @@ class MCPServerManager:
                     )
                     last_error = None
                     break
-                except Exception as e:
-                    last_error = e
+                except Exception as error:
+                    last_error = error
 
                     # Check if this is a fileno error (common in test environments)
                     import io
 
-                    error_str = str(e)
-                    if "fileno" in error_str or isinstance(e, io.UnsupportedOperation):
+                    error_str = str(error)
+                    if "fileno" in error_str or isinstance(error, io.UnsupportedOperation):
                         logger.warning(
-                            f"Failed to connect to MCP server '{name}': {e} "
-                            f"(test environment with redirected streams)"
+                            "Failed to connect to MCP server '%s': %s "
+                            "(test environment with redirected streams)",
+                            name,
+                            error,
                         )
                         # Allow procedures to continue without MCP in this environment.
                         last_error = None
@@ -115,12 +121,19 @@ class MCPServerManager:
                         or "unhandled errors in a TaskGroup" in error_str
                     ):
                         logger.warning(
-                            f"Transient MCP connection failure for '{name}': {e} (retrying)"
+                            "Transient MCP connection failure for '%s': %s (retrying)",
+                            name,
+                            error,
                         )
                         await asyncio.sleep(0.05 * attempt)
                         continue
 
-                    logger.error(f"Failed to connect to MCP server '{name}': {e}", exc_info=True)
+                    logger.error(
+                        "Failed to connect to MCP server '%s': %s",
+                        name,
+                        error,
+                        exc_info=True,
+                    )
                     break
 
             if last_error is not None:
@@ -146,14 +159,17 @@ class MCPServerManager:
             Async callback function for process_tool_call
         """
 
-        async def trace_tool_call(ctx, next_call, tool_name, tool_args):
+        async def trace_tool_call(execution_context, invoke_next, tool_name, tool_args):
             """Middleware to record tool calls in Tactus ToolPrimitive."""
             logger.debug(
-                f"MCP server '{server_name}' calling tool '{tool_name}' with args: {tool_args}"
+                "MCP server '%s' calling tool '%s' with args: %s",
+                server_name,
+                tool_name,
+                tool_args,
             )
 
             try:
-                result = await next_call(tool_name, tool_args)
+                result = await invoke_next(tool_name, tool_args)
 
                 # Record in ToolPrimitive if available
                 if self.tool_primitive:
@@ -162,19 +178,19 @@ class MCPServerManager:
                     result_str = str(result) if not isinstance(result, str) else result
                     self.tool_primitive.record_call(tool_name, tool_args, result_str)
 
-                logger.debug(f"Tool '{tool_name}' completed successfully")
+                logger.debug("Tool '%s' completed successfully", tool_name)
                 return result
-            except Exception as e:
-                logger.error(f"Tool '{tool_name}' failed: {e}", exc_info=True)
+            except Exception as error:
+                logger.error("Tool '%s' failed: %s", tool_name, error, exc_info=True)
                 # Still record the failed call
                 if self.tool_primitive:
-                    error_msg = f"Error: {str(e)}"
+                    error_msg = f"Error: {str(error)}"
                     self.tool_primitive.record_call(tool_name, tool_args, error_msg)
                 raise
 
         return trace_tool_call
 
-    def get_toolsets(self) -> List[MCPServerStdio]:
+    def get_toolsets(self) -> list[MCPServerStdio]:
         """
         Return list of connected servers as toolsets.
 

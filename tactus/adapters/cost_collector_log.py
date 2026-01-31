@@ -7,9 +7,8 @@ without enabling streaming UI behavior.
 
 from __future__ import annotations
 
-import logging
 import json
-from typing import List
+import logging
 
 from tactus.protocols.models import CostEvent, LogEvent
 
@@ -29,7 +28,7 @@ class CostCollectorLogHandler:
     supports_streaming = False
 
     def __init__(self):
-        self.cost_events: List[CostEvent] = []
+        self.cost_events: list[CostEvent] = []
         logger.debug("CostCollectorLogHandler initialized")
 
     def log(self, event: LogEvent) -> None:
@@ -41,16 +40,17 @@ class CostCollectorLogHandler:
         if isinstance(event, LogEvent):
             event_logger = logging.getLogger(event.logger_name or "procedure")
 
-            msg = event.message
+            message_text = event.message
             if event.context:
-                msg = f"{msg}\nContext: {json.dumps(event.context, indent=2, default=str)}"
+                context_json = json.dumps(event.context, indent=2, default=str)
+                message_text = f"{message_text}\nContext: {context_json}"
 
             level = (event.level or "INFO").upper()
             if level == "DEBUG":
-                event_logger.debug(msg)
+                event_logger.debug(message_text)
             elif level in ("WARN", "WARNING"):
-                event_logger.warning(msg)
+                event_logger.warning(message_text)
             elif level == "ERROR":
-                event_logger.error(msg)
+                event_logger.error(message_text)
             else:
-                event_logger.info(msg)
+                event_logger.info(message_text)

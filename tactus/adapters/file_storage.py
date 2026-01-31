@@ -6,7 +6,7 @@ Stores procedure metadata and execution log as JSON files on disk.
 
 import json
 from pathlib import Path
-from typing import Any, Optional, Dict, List
+from typing import Any, Optional
 from datetime import datetime
 
 from tactus.protocols.models import (
@@ -67,20 +67,20 @@ class FileStorage:
             return {}
 
         try:
-            with open(file_path, "r") as f:
-                return json.load(f)
-        except (json.JSONDecodeError, IOError) as e:
-            raise RuntimeError(f"Failed to read procedure file {file_path}: {e}")
+            with open(file_path, "r") as file_handle:
+                return json.load(file_handle)
+        except (json.JSONDecodeError, IOError) as error:
+            raise RuntimeError(f"Failed to read procedure file {file_path}: {error}")
 
     def _write_file(self, procedure_id: str, data: dict) -> None:
         """Write procedure data to file."""
         file_path = self._get_file_path(procedure_id)
 
         try:
-            with open(file_path, "w") as f:
-                json.dump(data, f, indent=2, default=str)
-        except (IOError, OSError) as e:
-            raise RuntimeError(f"Failed to write procedure file {file_path}: {e}")
+            with open(file_path, "w") as file_handle:
+                json.dump(data, file_handle, indent=2, default=str)
+        except (IOError, OSError) as error:
+            raise RuntimeError(f"Failed to write procedure file {file_path}: {error}")
 
     def _deserialize_result(self, result: Any) -> Any:
         """Deserialize checkpoint result, reconstructing Pydantic models."""
@@ -189,25 +189,25 @@ class FileStorage:
         self, procedure_id: str, status: str, waiting_on_message_id: Optional[str] = None
     ) -> None:
         """Update procedure status."""
-        metadata = self.load_procedure_metadata(procedure_id)
-        metadata.status = status
-        metadata.waiting_on_message_id = waiting_on_message_id
-        self.save_procedure_metadata(procedure_id, metadata)
+        procedure_metadata = self.load_procedure_metadata(procedure_id)
+        procedure_metadata.status = status
+        procedure_metadata.waiting_on_message_id = waiting_on_message_id
+        self.save_procedure_metadata(procedure_id, procedure_metadata)
 
-    def get_state(self, procedure_id: str) -> Dict[str, Any]:
+    def get_state(self, procedure_id: str) -> dict[str, Any]:
         """Get mutable state dictionary."""
-        metadata = self.load_procedure_metadata(procedure_id)
-        return metadata.state
+        procedure_metadata = self.load_procedure_metadata(procedure_id)
+        return procedure_metadata.state
 
-    def set_state(self, procedure_id: str, state: Dict[str, Any]) -> None:
+    def set_state(self, procedure_id: str, state: dict[str, Any]) -> None:
         """Set mutable state dictionary."""
-        metadata = self.load_procedure_metadata(procedure_id)
-        metadata.state = state
-        self.save_procedure_metadata(procedure_id, metadata)
+        procedure_metadata = self.load_procedure_metadata(procedure_id)
+        procedure_metadata.state = state
+        self.save_procedure_metadata(procedure_id, procedure_metadata)
 
     # Tracing & Debugging Methods
 
-    def _load_index(self) -> Dict[str, Any]:
+    def _load_index(self) -> dict[str, Any]:
         """Load the run index."""
         if not self.index_file.exists():
             return {}
@@ -218,13 +218,13 @@ class FileStorage:
         except (json.JSONDecodeError, IOError):
             return {}
 
-    def _save_index(self, index: Dict[str, Any]) -> None:
+    def _save_index(self, index: dict[str, Any]) -> None:
         """Save the run index."""
         try:
-            with open(self.index_file, "w") as f:
-                json.dump(index, f, indent=2, default=str)
-        except (IOError, OSError) as e:
-            raise RuntimeError(f"Failed to write index file: {e}")
+            with open(self.index_file, "w") as file_handle:
+                json.dump(index, file_handle, indent=2, default=str)
+        except (IOError, OSError) as error:
+            raise RuntimeError(f"Failed to write index file: {error}")
 
     def _update_index(self, run: ExecutionRun) -> None:
         """Update index with run metadata."""
@@ -263,10 +263,10 @@ class FileStorage:
                 checkpoint["timestamp"] = checkpoint["timestamp"].isoformat()
 
         try:
-            with open(run_path, "w") as f:
-                json.dump(data, f, indent=2, default=str)
-        except (IOError, OSError) as e:
-            raise RuntimeError(f"Failed to save run {run.run_id}: {e}")
+            with open(run_path, "w") as file_handle:
+                json.dump(data, file_handle, indent=2, default=str)
+        except (IOError, OSError) as error:
+            raise RuntimeError(f"Failed to save run {run.run_id}: {error}")
 
         # Update index
         self._update_index(run)
@@ -290,10 +290,10 @@ class FileStorage:
             raise FileNotFoundError(f"Run {run_id} not found")
 
         try:
-            with open(run_path, "r") as f:
-                data = json.load(f)
-        except (json.JSONDecodeError, IOError) as e:
-            raise RuntimeError(f"Failed to load run {run_id}: {e}")
+            with open(run_path, "r") as file_handle:
+                data = json.load(file_handle)
+        except (json.JSONDecodeError, IOError) as error:
+            raise RuntimeError(f"Failed to load run {run_id}: {error}")
 
         # Convert timestamps back to datetime objects
         if data.get("start_time"):
@@ -303,28 +303,30 @@ class FileStorage:
 
         # Convert checkpoint timestamps and rebuild CheckpointEntry objects
         execution_log = []
-        for cp_data in data.get("execution_log", []):
-            if cp_data.get("timestamp"):
-                cp_data["timestamp"] = datetime.fromisoformat(cp_data["timestamp"])
+        for checkpoint_data in data.get("execution_log", []):
+            if checkpoint_data.get("timestamp"):
+                checkpoint_data["timestamp"] = datetime.fromisoformat(checkpoint_data["timestamp"])
 
             # Rebuild SourceLocation if present
-            if cp_data.get("source_location"):
-                cp_data["source_location"] = SourceLocation(**cp_data["source_location"])
+            if checkpoint_data.get("source_location"):
+                checkpoint_data["source_location"] = SourceLocation(
+                    **checkpoint_data["source_location"]
+                )
 
-            execution_log.append(CheckpointEntry(**cp_data))
+            execution_log.append(CheckpointEntry(**checkpoint_data))
 
         data["execution_log"] = execution_log
 
         # Rebuild Breakpoint objects
         breakpoints = []
-        for bp_data in data.get("breakpoints", []):
-            breakpoints.append(Breakpoint(**bp_data))
+        for breakpoint_data in data.get("breakpoints", []):
+            breakpoints.append(Breakpoint(**breakpoint_data))
 
         data["breakpoints"] = breakpoints
 
         return ExecutionRun(**data)
 
-    def list_runs(self, procedure_name: Optional[str] = None) -> List[ExecutionRun]:
+    def list_runs(self, procedure_name: Optional[str] = None) -> list[ExecutionRun]:
         """
         List all runs, optionally filtered by procedure name.
 
@@ -339,7 +341,9 @@ class FileStorage:
         # Filter by procedure name if specified
         if procedure_name:
             run_ids = [
-                rid for rid, info in index.items() if info.get("procedure_name") == procedure_name
+                run_id
+                for run_id, info in index.items()
+                if info.get("procedure_name") == procedure_name
             ]
         else:
             run_ids = list(index.keys())
@@ -358,7 +362,7 @@ class FileStorage:
 
         return runs
 
-    def save_breakpoints(self, procedure_name: str, breakpoints: List[Breakpoint]) -> None:
+    def save_breakpoints(self, procedure_name: str, breakpoints: list[Breakpoint]) -> None:
         """
         Save breakpoints for a procedure.
 
@@ -371,12 +375,12 @@ class FileStorage:
         data = [bp.model_dump() for bp in breakpoints]
 
         try:
-            with open(bp_path, "w") as f:
-                json.dump(data, f, indent=2)
-        except (IOError, OSError) as e:
-            raise RuntimeError(f"Failed to save breakpoints for {procedure_name}: {e}")
+            with open(bp_path, "w") as file_handle:
+                json.dump(data, file_handle, indent=2)
+        except (IOError, OSError) as error:
+            raise RuntimeError(f"Failed to save breakpoints for {procedure_name}: {error}")
 
-    def load_breakpoints(self, procedure_name: str) -> List[Breakpoint]:
+    def load_breakpoints(self, procedure_name: str) -> list[Breakpoint]:
         """
         Load breakpoints for a procedure.
 
@@ -392,8 +396,8 @@ class FileStorage:
             return []
 
         try:
-            with open(bp_path, "r") as f:
-                data = json.load(f)
+            with open(bp_path, "r") as file_handle:
+                data = json.load(file_handle)
         except (json.JSONDecodeError, IOError):
             return []
 

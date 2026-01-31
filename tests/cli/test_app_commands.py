@@ -39,6 +39,7 @@ class DummyRegistry:
             "alpha": DummyAgent("openai", "gpt-4o", "hello", tools=["done"]),
             "beta": DummyAgent("bedrock", {"name": "sonnet"}, "prompt" * 40),
             "gamma": DummyAgent("openai", 123, ""),
+            "delta": DummyAgent("openai", None, "hi"),
         }
         self.output_schema = {
             "out1": {"type": "string", "required": True},
@@ -262,6 +263,24 @@ def test_info_valid(monkeypatch, tmp_path):
     workflow.write_text("print('hi')")
 
     result = DummyValidationResult(valid=True, registry=DummyRegistry())
+    monkeypatch.setattr(cli_app, "TactusValidator", lambda: DummyValidator(result))
+    monkeypatch.setattr(cli_app.console, "print", lambda *_args, **_kwargs: None)
+
+    cli_app.info(workflow)
+
+
+def test_info_valid_without_optional_sections(monkeypatch, tmp_path):
+    workflow = tmp_path / "workflow.tac"
+    workflow.write_text("print('hi')")
+
+    registry = DummyRegistry()
+    registry.description = ""
+    registry.agents = {}
+    registry.input_schema = {}
+    registry.output_schema = {}
+    registry.specifications = []
+
+    result = DummyValidationResult(valid=True, registry=registry)
     monkeypatch.setattr(cli_app, "TactusValidator", lambda: DummyValidator(result))
     monkeypatch.setattr(cli_app.console, "print", lambda *_args, **_kwargs: None)
 

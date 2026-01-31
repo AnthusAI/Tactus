@@ -105,10 +105,10 @@ class ContainerRunner:
         """
         self.config = config
 
-        # Parse image name and tag from config.image (e.g., "tactus-sandbox:local")
-        image_parts = config.image.split(":")
-        image_name = image_parts[0] if len(image_parts) > 0 else "tactus-sandbox"
-        image_tag = image_parts[1] if len(image_parts) > 1 else "local"
+        # Parse image name and tag from config.image (e.g., "tactus-sandbox:local").
+        image_name_parts = config.image.split(":")
+        image_name = image_name_parts[0] if len(image_name_parts) > 0 else "tactus-sandbox"
+        image_tag = image_name_parts[1] if len(image_name_parts) > 1 else "local"
 
         self.docker_manager = DockerManager(
             image_name=image_name,
@@ -138,8 +138,9 @@ class ContainerRunner:
             return
 
         # Check if auto-rebuild is disabled
-        auto_rebuild = os.environ.get("TACTUS_AUTO_REBUILD_SANDBOX", "true").lower()
-        if auto_rebuild not in ("true", "1", "yes"):
+        auto_rebuild_env_value = os.environ.get("TACTUS_AUTO_REBUILD_SANDBOX", "true").lower()
+        auto_rebuild_enabled = auto_rebuild_env_value in ("true", "1", "yes")
+        if not auto_rebuild_enabled:
             logger.debug("Auto-rebuild disabled via TACTUS_AUTO_REBUILD_SANDBOX")
             return
 
@@ -242,7 +243,7 @@ class ContainerRunner:
             else f"tactus-sandbox-{uuid.uuid4().hex[:8]}"
         )
 
-        cmd = [
+        docker_command = [
             "docker",
             "run",
             "--rm",  # Remove container after exit
@@ -251,27 +252,27 @@ class ContainerRunner:
             container_name,
         ]
 
-        cmd.extend(["--network", self.config.network])
+        docker_command.extend(["--network", self.config.network])
 
         # Resource limits
         if self.config.limits.memory:
-            cmd.extend(["--memory", self.config.limits.memory])
+            docker_command.extend(["--memory", self.config.limits.memory])
         if self.config.limits.cpus:
-            cmd.extend(["--cpus", self.config.limits.cpus])
+            docker_command.extend(["--cpus", self.config.limits.cpus])
 
         # Working directory mount is handled by SandboxConfig.add_default_volumes()
         # which adds ".:/workspace:rw" to config.volumes (unless mount_current_dir=False)
 
         # Mount MCP servers if available
         if mcp_servers_path and mcp_servers_path.exists():
-            cmd.extend(["-v", f"{mcp_servers_path}:/mcp-servers:ro"])
+            docker_command.extend(["-v", f"{mcp_servers_path}:/mcp-servers:ro"])
 
         # Development mode: mount live Tactus source code
         if self.config.dev_mode:
             tactus_src_dir = self._find_tactus_source_dir()
             if tactus_src_dir:
-                logger.info(f"[DEV MODE] Mounting live Tactus source from: {tactus_src_dir}")
-                cmd.extend(["-v", f"{tactus_src_dir}/tactus:/app/tactus:ro"])
+                logger.info("[DEV MODE] Mounting live Tactus source from: %s", tactus_src_dir)
+                docker_command.extend(["-v", f"{tactus_src_dir}/tactus:/app/tactus:ro"])
             else:
                 logger.warning(
                     "[DEV MODE] Could not locate Tactus source directory, using baked-in version"
@@ -279,31 +280,36 @@ class ContainerRunner:
 
         # Additional user-configured volumes
         for volume in self.config.volumes:
-            cmd.extend(["-v", self._normalize_volume_spec(volume, base_dir=volume_base_dir)])
+            docker_command.extend(
+                ["-v", self._normalize_volume_spec(volume, base_dir=volume_base_dir)]
+            )
 
         # User-configured additional env vars
         for key, value in self.config.env.items():
             if key in self._BLOCKED_CONTAINER_ENV_KEYS:
-                logger.warning(f"[SANDBOX] Refusing to pass secret env var into container: {key}")
+                logger.warning(
+                    "[SANDBOX] Refusing to pass secret env var into container: %s",
+                    key,
+                )
                 continue
-            cmd.extend(["--env", f"{key}={value}"])
+            docker_command.extend(["--env", f"{key}={value}"])
 
         # Optional per-run callback URL for HTTP event streaming (IDE).
         if callback_url:
-            cmd.extend(["--env", f"TACTUS_CALLBACK_URL={callback_url}"])
+            docker_command.extend(["--env", f"TACTUS_CALLBACK_URL={callback_url}"])
 
         # Extra env vars for this run
         if extra_env:
             for key, value in extra_env.items():
-                cmd.extend(["--env", f"{key}={value}"])
+                docker_command.extend(["--env", f"{key}={value}"])
 
         # Working directory inside container
-        cmd.extend(["-w", "/workspace"])
+        docker_command.extend(["-w", "/workspace"])
 
         # Image name
-        cmd.append(self.config.image)
+        docker_command.append(self.config.image)
 
-        return cmd
+        return docker_command
 
     def _normalize_volume_spec(self, volume: str, base_dir: Optional[Path]) -> str:
         """
@@ -319,27 +325,31 @@ class ContainerRunner:
           - volume_name:/container[:mode]  (left unchanged)
         """
         # Basic split: host:container[:mode]
-        parts = volume.split(":")
-        if len(parts) < 2:
+        volume_parts = volume.split(":")
+        if len(volume_parts) < 2:
             return volume
 
-        host = parts[0]
-        container = parts[1]
-        mode = parts[2] if len(parts) > 2 else None
+        host_path_raw = volume_parts[0]
+        container_path = volume_parts[1]
+        mount_mode = volume_parts[2] if len(volume_parts) > 2 else None
 
-        host_is_path = host.startswith(("/", "./", "../", "~")) or host == "." or host == ".."
+        host_is_path = (
+            host_path_raw.startswith(("/", "./", "../", "~"))
+            or host_path_raw == "."
+            or host_path_raw == ".."
+        )
         if not host_is_path:
             # Named volume (or other special form) - leave unchanged
             return volume
 
-        host_path = Path(host).expanduser()
+        host_path = Path(host_path_raw).expanduser()
         if not host_path.is_absolute():
             host_path = (base_dir or Path.cwd()) / host_path
         host_path = host_path.resolve()
 
-        if mode:
-            return f"{host_path}:{container}:{mode}"
-        return f"{host_path}:{container}"
+        if mount_mode:
+            return f"{host_path}:{container_path}:{mount_mode}"
+        return f"{host_path}:{container_path}"
 
     async def run(
         self,
@@ -374,24 +384,24 @@ class ContainerRunner:
         """
         # Ensure sandbox is up to date (auto-rebuild if code changed)
         # Skip for IDE to avoid blocking UI - IDE has its own rebuild mechanism
-        skip_rebuild_for_ide = (event_handler is not None) or (callback_url is not None)
-        self._ensure_sandbox_up_to_date(skip_for_ide=skip_rebuild_for_ide)
+        skip_rebuild_for_ide_execution = (event_handler is not None) or (callback_url is not None)
+        self._ensure_sandbox_up_to_date(skip_for_ide=skip_rebuild_for_ide_execution)
 
-        execution_id = str(uuid.uuid4())[:8]
-        start_time = time.time()
+        execution_identifier = str(uuid.uuid4())[:8]
+        start_timestamp = time.time()
         broker_server = None
 
         # Create temporary workspace if not provided
-        temp_dir = None
+        temp_workspace_path = None
         if working_dir is None:
-            temp_dir = tempfile.mkdtemp(prefix="tactus-sandbox-")
-            working_dir = Path(temp_dir)
+            temp_workspace_path = tempfile.mkdtemp(prefix="tactus-sandbox-")
+            working_dir = Path(temp_workspace_path)
 
             # If we have a source file, copy its directory contents
             if source_file_path:
-                src_dir = Path(source_file_path).parent
-                if src_dir.exists():
-                    for item in src_dir.iterdir():
+                source_parent_dir = Path(source_file_path).parent
+                if source_parent_dir.exists():
+                    for item in source_parent_dir.iterdir():
                         if item.is_file():
                             shutil.copy2(item, working_dir / item.name)
                         elif item.is_dir() and not item.name.startswith("."):
@@ -459,7 +469,9 @@ class ContainerRunner:
 
                 scheme = "tls" if broker_transport == "tls" else "tcp"
                 broker_env = {
-                    "TACTUS_BROKER_SOCKET": f"{scheme}://{self.config.broker_host}:{broker_server.bound_port}"
+                    "TACTUS_BROKER_SOCKET": (
+                        f"{scheme}://{self.config.broker_host}:" f"{broker_server.bound_port}"
+                    )
                 }
             else:
                 raise SandboxError(
@@ -469,19 +481,19 @@ class ContainerRunner:
                 working_dir=working_dir,
                 mcp_servers_path=mcp_path if mcp_path.exists() else None,
                 extra_env=broker_env,
-                execution_id=execution_id,
+                execution_id=execution_identifier,
                 callback_url=callback_url,
                 volume_base_dir=volume_base_dir,
             )
 
-            logger.debug(f"Docker command: {' '.join(docker_cmd)}")
+            logger.debug("Docker command: %s", " ".join(docker_cmd))
 
             # Create execution request
             request = ExecutionRequest(
                 source=source,
                 working_dir="/workspace",
                 params=params or {},
-                execution_id=execution_id,
+                execution_id=execution_identifier,
                 run_id=run_id,
                 source_file_path=source_file_path,
                 format=format,
@@ -527,19 +539,19 @@ class ContainerRunner:
                     llm_backend_config=llm_backend_config,
                 )
 
-            result.duration_seconds = time.time() - start_time
+            result.duration_seconds = time.time() - start_timestamp
             return result
 
         except asyncio.TimeoutError:
             return ExecutionResult.timeout(
-                duration_seconds=time.time() - start_time,
+                duration_seconds=time.time() - start_timestamp,
             )
         except Exception as e:
-            logger.exception(f"Sandbox execution failed: {e}")
+            logger.exception("Sandbox execution failed: %s", e)
             return ExecutionResult.failure(
                 error=str(e),
                 error_type=type(e).__name__,
-                duration_seconds=time.time() - start_time,
+                duration_seconds=time.time() - start_timestamp,
             )
         finally:
             if broker_server is not None:
@@ -549,11 +561,11 @@ class ContainerRunner:
                     logger.debug("[BROKER] Failed to close broker server", exc_info=True)
 
             # Cleanup temp directory
-            if temp_dir:
+            if temp_workspace_path:
                 try:
-                    shutil.rmtree(temp_dir)
-                except Exception as e:
-                    logger.warning(f"Failed to cleanup temp dir: {e}")
+                    shutil.rmtree(temp_workspace_path)
+                except Exception as e:  # pragma: no cover
+                    logger.warning("Failed to cleanup temp dir: %s", e)  # pragma: no cover
 
     async def _run_container(
         self,
@@ -607,80 +619,104 @@ class ContainerRunner:
                     return
 
             async def handle_broker_request(
-                writer: asyncio.StreamWriter, req: dict[str, Any]
+                writer: asyncio.StreamWriter, request_payload: dict[str, Any]
             ) -> None:
-                req_id = req.get("id") or ""
-                method = req.get("method")
-                params = req.get("params") or {}
+                request_id = request_payload.get("id") or ""
+                request_method = request_payload.get("method")
+                request_params = request_payload.get("params") or {}
 
-                if not isinstance(req_id, str) or not isinstance(method, str):
+                if not isinstance(request_id, str) or not isinstance(request_method, str):
                     await send_event(
                         writer,
                         {
-                            "id": str(req_id) if req_id else "",
+                            "id": str(request_id) if request_id else "",
                             "event": "error",
                             "error": {"type": "BadRequest", "message": "Missing id/method"},
                         },
                     )
                     return
 
-                if method == "events.emit":
-                    event = params.get("event") if isinstance(params, dict) else None
+                if request_method == "events.emit":
+                    event = (
+                        request_params.get("event") if isinstance(request_params, dict) else None
+                    )
                     if isinstance(event, dict) and event_handler is not None:
                         try:
                             event_handler(event)
                         except Exception:
                             logger.debug("[BROKER] event_handler raised", exc_info=True)
-                    await send_event(writer, {"id": req_id, "event": "done", "data": {"ok": True}})
+                    await send_event(
+                        writer,
+                        {"id": request_id, "event": "done", "data": {"ok": True}},
+                    )
                     return
 
-                if method == "control.request":
-                    request_data = params.get("request") if isinstance(params, dict) else None
+                if request_method == "control.request":
+                    request_data = (
+                        request_params.get("request") if isinstance(request_params, dict) else None
+                    )
                     if control_handler is not None:
                         try:
                             # Send delivered event
-                            await send_event(writer, {"id": req_id, "event": "delivered"})
+                            await send_event(writer, {"id": request_id, "event": "delivered"})
 
                             # Call control handler and await response
                             response_data = await control_handler(request_data)
 
                             # Send response event
                             await send_event(
-                                writer, {"id": req_id, "event": "response", "data": response_data}
+                                writer,
+                                {
+                                    "id": request_id,
+                                    "event": "response",
+                                    "data": response_data,
+                                },
                             )
                         except asyncio.TimeoutError:
                             await send_event(
                                 writer,
-                                {"id": req_id, "event": "timeout", "data": {"timed_out": True}},
+                                {
+                                    "id": request_id,
+                                    "event": "timeout",
+                                    "data": {"timed_out": True},
+                                },
                             )
                         except Exception as e:
                             logger.debug("[BROKER] control.request handler raised", exc_info=True)
                             await send_event(
                                 writer,
-                                {"id": req_id, "event": "error", "error": {"message": str(e)}},
+                                {
+                                    "id": request_id,
+                                    "event": "error",
+                                    "error": {"message": str(e)},
+                                },
                             )
                     else:
                         await send_event(
                             writer,
                             {
-                                "id": req_id,
+                                "id": request_id,
                                 "event": "error",
                                 "error": {"message": "No control handler configured"},
                             },
                         )
                     return
 
-                if method == "tool.call":
-                    name = params.get("name") if isinstance(params, dict) else None
-                    args = params.get("args") if isinstance(params, dict) else None
-                    if args is None:
-                        args = {}
+                if request_method == "tool.call":
+                    tool_name = (
+                        request_params.get("name") if isinstance(request_params, dict) else None
+                    )
+                    tool_args = (
+                        request_params.get("args") if isinstance(request_params, dict) else None
+                    )
+                    if tool_args is None:
+                        tool_args = {}
 
-                    if not isinstance(name, str) or not name:
+                    if not isinstance(tool_name, str) or not tool_name:
                         await send_event(
                             writer,
                             {
-                                "id": req_id,
+                                "id": request_id,
                                 "event": "error",
                                 "error": {
                                     "type": "BadRequest",
@@ -689,11 +725,11 @@ class ContainerRunner:
                             },
                         )
                         return
-                    if not isinstance(args, dict):
+                    if not isinstance(tool_args, dict):
                         await send_event(
                             writer,
                             {
-                                "id": req_id,
+                                "id": request_id,
                                 "event": "error",
                                 "error": {
                                     "type": "BadRequest",
@@ -704,16 +740,16 @@ class ContainerRunner:
                         return
 
                     try:
-                        result = tool_registry.call(name, args)
+                        result = tool_registry.call(tool_name, tool_args)
                     except KeyError:
                         await send_event(
                             writer,
                             {
-                                "id": req_id,
+                                "id": request_id,
                                 "event": "error",
                                 "error": {
                                     "type": "ToolNotAllowed",
-                                    "message": f"Tool not allowlisted: {name}",
+                                    "message": f"Tool not allowlisted: {tool_name}",
                                 },
                             },
                         )
@@ -723,7 +759,7 @@ class ContainerRunner:
                         await send_event(
                             writer,
                             {
-                                "id": req_id,
+                                "id": request_id,
                                 "event": "error",
                                 "error": {"type": type(e).__name__, "message": str(e)},
                             },
@@ -731,32 +767,33 @@ class ContainerRunner:
                         return
 
                     await send_event(
-                        writer, {"id": req_id, "event": "done", "data": {"result": result}}
+                        writer,
+                        {"id": request_id, "event": "done", "data": {"result": result}},
                     )
                     return
 
-                if method != "llm.chat":
+                if request_method != "llm.chat":
                     await send_event(
                         writer,
                         {
-                            "id": req_id,
+                            "id": request_id,
                             "event": "error",
                             "error": {
                                 "type": "MethodNotFound",
-                                "message": f"Unknown method: {method}",
+                                "message": f"Unknown method: {request_method}",
                             },
                         },
                     )
                     return
 
                 provider = (
-                    params.get("provider") if isinstance(params, dict) else None
+                    request_params.get("provider") if isinstance(request_params, dict) else None
                 ) or "openai"
                 if provider != "openai":
                     await send_event(
                         writer,
                         {
-                            "id": req_id,
+                            "id": request_id,
                             "event": "error",
                             "error": {
                                 "type": "UnsupportedProvider",
@@ -766,17 +803,27 @@ class ContainerRunner:
                     )
                     return
 
-                model = params.get("model") if isinstance(params, dict) else None
-                messages = params.get("messages") if isinstance(params, dict) else None
-                stream = bool(params.get("stream", False)) if isinstance(params, dict) else False
-                temperature = params.get("temperature") if isinstance(params, dict) else None
-                max_tokens = params.get("max_tokens") if isinstance(params, dict) else None
+                model = request_params.get("model") if isinstance(request_params, dict) else None
+                messages = (
+                    request_params.get("messages") if isinstance(request_params, dict) else None
+                )
+                stream = (
+                    bool(request_params.get("stream", False))
+                    if isinstance(request_params, dict)
+                    else False
+                )
+                temperature = (
+                    request_params.get("temperature") if isinstance(request_params, dict) else None
+                )
+                max_tokens = (
+                    request_params.get("max_tokens") if isinstance(request_params, dict) else None
+                )
 
                 if not isinstance(model, str) or not model:
                     await send_event(
                         writer,
                         {
-                            "id": req_id,
+                            "id": request_id,
                             "event": "error",
                             "error": {
                                 "type": "BadRequest",
@@ -789,7 +836,7 @@ class ContainerRunner:
                     await send_event(
                         writer,
                         {
-                            "id": req_id,
+                            "id": request_id,
                             "event": "error",
                             "error": {
                                 "type": "BadRequest",
@@ -808,7 +855,7 @@ class ContainerRunner:
                             max_tokens=max_tokens,
                             stream=True,
                         )
-                        full_text = ""
+                        accumulated_text = ""
                         async for chunk in stream_iter:
                             try:
                                 delta = chunk.choices[0].delta
@@ -819,18 +866,23 @@ class ContainerRunner:
                             if not text:
                                 continue
 
-                            full_text += text
+                            accumulated_text += text
                             await send_event(
-                                writer, {"id": req_id, "event": "delta", "data": {"text": text}}
+                                writer,
+                                {
+                                    "id": request_id,
+                                    "event": "delta",
+                                    "data": {"text": text},
+                                },
                             )
 
                         await send_event(
                             writer,
                             {
-                                "id": req_id,
+                                "id": request_id,
                                 "event": "done",
                                 "data": {
-                                    "text": full_text,
+                                    "text": accumulated_text,
                                     "usage": {
                                         "prompt_tokens": 0,
                                         "completion_tokens": 0,
@@ -857,7 +909,7 @@ class ContainerRunner:
                     await send_event(
                         writer,
                         {
-                            "id": req_id,
+                            "id": request_id,
                             "event": "done",
                             "data": {
                                 "text": text,
@@ -874,7 +926,7 @@ class ContainerRunner:
                     await send_event(
                         writer,
                         {
-                            "id": req_id,
+                            "id": request_id,
                             "event": "error",
                             "error": {"type": type(e).__name__, "message": str(e)},
                         },
@@ -896,7 +948,7 @@ class ContainerRunner:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        logger.debug(f"[SANDBOX] Spawned container process pid={process.pid}")
+        logger.debug("[SANDBOX] Spawned container process pid=%s", process.pid)
 
         stdout_task: asyncio.Task[None] | None = None
         stderr_task: asyncio.Task[None] | None = None
@@ -911,7 +963,7 @@ class ContainerRunner:
             request_line = (request.to_json() + "\n").encode("utf-8")
             process.stdin.write(request_line)
             await process.stdin.drain()
-            logger.debug(f"[SANDBOX] Sent ExecutionRequest bytes={len(request_line)}")
+            logger.debug("[SANDBOX] Sent ExecutionRequest bytes=%s", len(request_line))
 
             stdout_bytes = bytearray()
             result_future: asyncio.Future[ExecutionResult] = (
@@ -970,7 +1022,7 @@ class ContainerRunner:
                         continue
 
                     if line:
-                        logger.info(f"[container] {line}")
+                        logger.info("[container] %s", line)
 
             stdout_task = asyncio.create_task(stdout_loop())
             stderr_task = asyncio.create_task(stderr_loop())

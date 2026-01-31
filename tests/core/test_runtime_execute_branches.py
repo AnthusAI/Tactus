@@ -78,6 +78,33 @@ class DummyExecutionContext:
         self._input_data = input_data
 
 
+class DummyExecutionContextNoMetadata:
+    def __init__(
+        self,
+        procedure_id,
+        storage_backend,
+        hitl_handler=None,
+        strict_determinism=False,
+        log_handler=None,
+    ):
+        self.procedure_id = procedure_id
+        self.storage = storage_backend
+        self.hitl = hitl_handler
+        self.strict_determinism = strict_determinism
+        self.log_handler = log_handler
+        self.current_tac_file = None
+
+    def set_run_id(self, run_id):
+        self.current_run_id = run_id
+
+    def set_lua_sandbox(self, lua_sandbox):
+        self.lua_sandbox = lua_sandbox
+
+    def set_tac_file(self, file_path, content=None):
+        self.current_tac_file = file_path
+        self.current_tac_content = content
+
+
 class DummyLogHandler:
     def __init__(self):
         self.cost_events = [
@@ -213,6 +240,38 @@ async def test_execute_success_with_summary(monkeypatch, tmp_path):
     assert result["state"] == {"ok": True}
     assert result["stop_requested"] is True
     assert os.environ.get("OPENAI_API_KEY") == "key"
+
+
+@pytest.mark.asyncio
+async def test_execute_success_with_summary_no_metadata(monkeypatch, tmp_path):
+    runtime = runtime_module.TactusRuntime(
+        procedure_id="proc",
+        storage_backend=None,
+        hitl_handler=object(),
+        source_file_path=str(tmp_path / "workflow.tac"),
+    )
+    runtime.toolset_primitive = None
+
+    monkeypatch.setattr(runtime_module, "LuaSandbox", DummyLuaSandbox)
+    monkeypatch.setattr(runtime_module, "BaseExecutionContext", DummyExecutionContextNoMetadata)
+    monkeypatch.setattr(runtime, "_parse_declarations", lambda *_args, **_kwargs: DummyRegistry())
+    monkeypatch.setattr(
+        runtime,
+        "_registry_to_config",
+        lambda _registry: {"output": {"out": {"type": "string"}}, "hitl": {}},
+    )
+    monkeypatch.setattr(runtime, "_initialize_primitives", _noop_async)
+    monkeypatch.setattr(runtime, "_initialize_toolsets", _noop_async)
+    monkeypatch.setattr(runtime, "_initialize_named_procedures", _noop_async)
+    monkeypatch.setattr(runtime, "_setup_agents", _noop_async)
+    monkeypatch.setattr(runtime, "_setup_models", _noop_async)
+    monkeypatch.setattr(runtime, "_execute_workflow", lambda: {"result": "ok"})
+
+    runtime.log_handler = DummyLogHandler()
+
+    result = await runtime.execute("return {}", context=None, format="lua")
+
+    assert result["success"] is True
 
 
 @pytest.mark.asyncio

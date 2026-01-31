@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import sys
 import textwrap
 from pathlib import Path
@@ -109,7 +110,8 @@ async def test_run_container_closes_stdin_after_result() -> None:
         format="lua",
     )
 
-    script = textwrap.dedent("""
+    script = textwrap.dedent(
+        """
         import sys
         from tactus.sandbox.protocol import ExecutionResult, RESULT_START_MARKER, RESULT_END_MARKER
 
@@ -122,7 +124,8 @@ async def test_run_container_closes_stdin_after_result() -> None:
         # Keep the process alive until stdin is closed to simulate Docker attach behavior.
         while sys.stdin.readline():
             pass
-        """).strip()
+        """
+    ).strip()
 
     result = await runner._run_container(
         docker_cmd=[sys.executable, "-c", script],
@@ -781,3 +784,32 @@ async def test_run_cleans_up_temp_dir_failure(monkeypatch, tmp_path: Path):
     result = await runner.run(source="main = Procedure { function() end }")
 
     assert result.status.value == "success"
+
+
+@pytest.mark.asyncio
+async def test_run_logs_cleanup_failure(monkeypatch, tmp_path: Path, caplog):
+    runner = ContainerRunner(SandboxConfig())
+
+    temp_dir = tmp_path / "workspace"
+    temp_dir.mkdir()
+    cleanup_called = {"value": False}
+
+    async def fake_run_container(*_args, **_kwargs):
+        return ExecutionResult.success(result={"ok": True})
+
+    def boom(*_args, **_kwargs):
+        cleanup_called["value"] = True
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(runner, "_ensure_sandbox_up_to_date", lambda **_kwargs: None)
+    monkeypatch.setattr(container_runner_module.tempfile, "mkdtemp", lambda prefix: str(temp_dir))
+    monkeypatch.setattr(runner, "_build_docker_command", lambda **_kwargs: ["docker"])
+    monkeypatch.setattr(runner, "_run_container", fake_run_container)
+    monkeypatch.setattr(container_runner_module.shutil, "rmtree", boom)
+
+    with caplog.at_level(logging.WARNING, logger="tactus.sandbox.container_runner"):
+        result = await runner.run(source="main = Procedure { function() end }")
+
+    assert result.status.value == "success"
+    assert cleanup_called["value"] is True
+    assert any("Failed to cleanup temp dir" in record.message for record in caplog.records)
