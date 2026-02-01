@@ -12,9 +12,19 @@ class DummyLoop:
         func(*args)
 
 
+def _make_queue_for_sync_test():
+    try:
+        previous_loop = asyncio.get_event_loop()
+    except RuntimeError:
+        previous_loop = None
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    return previous_loop, loop, asyncio.Queue()
+
+
 def test_read_loop_puts_events(monkeypatch):
     transport = _StdioBrokerTransport()
-    queue = asyncio.Queue()
+    previous_loop, loop, queue = _make_queue_for_sync_test()
     transport._pending["req"] = (DummyLoop(), queue)
 
     lines = iter(
@@ -27,7 +37,11 @@ def test_read_loop_puts_events(monkeypatch):
 
     monkeypatch.setattr(sys.stdin.buffer, "readline", lambda: next(lines))
 
-    transport._read_loop()
+    try:
+        transport._read_loop()
+    finally:
+        asyncio.set_event_loop(previous_loop)
+        loop.close()
 
     event = queue.get_nowait()
     assert event["event"] == "done"
@@ -35,7 +49,7 @@ def test_read_loop_puts_events(monkeypatch):
 
 def test_read_loop_ignores_closed_loop(monkeypatch):
     transport = _StdioBrokerTransport()
-    queue = asyncio.Queue()
+    previous_loop, loop, queue = _make_queue_for_sync_test()
 
     class ClosedLoop:
         def call_soon_threadsafe(self, *_args, **_kwargs):
@@ -45,7 +59,11 @@ def test_read_loop_ignores_closed_loop(monkeypatch):
     lines = iter([b'{"id":"req","event":"done"}\n', b""])
     monkeypatch.setattr(sys.stdin.buffer, "readline", lambda: next(lines))
 
-    transport._read_loop()
+    try:
+        transport._read_loop()
+    finally:
+        asyncio.set_event_loop(previous_loop)
+        loop.close()
 
     assert queue.empty()
 

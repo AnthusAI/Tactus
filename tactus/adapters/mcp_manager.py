@@ -17,6 +17,9 @@ from typing import Any, Optional
 logger = logging.getLogger(__name__)
 
 
+MCPServerStdio: Optional[Any] = None
+
+
 def _require_mcp_server_stdio():
     try:
         from pydantic_ai.mcp import MCPServerStdio
@@ -88,7 +91,9 @@ class MCPServerManager:
                     resolved_config = substitute_env_vars(config)
 
                     # Create base server
-                    MCPServerStdio = _require_mcp_server_stdio()
+                    MCPServerStdio = globals().get("MCPServerStdio")
+                    if MCPServerStdio is None:
+                        MCPServerStdio = _require_mcp_server_stdio()
                     server = MCPServerStdio(
                         command=resolved_config["command"],
                         args=resolved_config.get("args", []),
