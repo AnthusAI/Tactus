@@ -2,6 +2,22 @@
 
 <!-- version list -->
 
+## v0.37.0 (2026-02-01)
+
+### Bug Fixes
+
+- Export BaseExceptionGroup
+  ([`6391e98`](https://github.com/AnthusAI/Tactus/commit/6391e98eca65b359994970820e04b68a5c16a295))
+
+- Stabilize mcp manager tests
+  ([`4d9a695`](https://github.com/AnthusAI/Tactus/commit/4d9a695163ca62478994a1de27a186c98be09cd2))
+
+### Features
+
+- Support python 3.9
+  ([`bcbdd60`](https://github.com/AnthusAI/Tactus/commit/bcbdd606b1c12abad0337fbe15b44c801a0c67b8))
+
+
 ## v0.36.0 (2026-01-31)
 
 ### Features
