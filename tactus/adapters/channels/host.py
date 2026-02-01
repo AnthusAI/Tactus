@@ -90,12 +90,14 @@ class HostControlChannel(InProcessChannel):
             request.request_id,
         )
 
+        self._ensure_asyncio_primitives()
+
         # Store for background thread access
         self._current_request = request
         self._cancel_event.clear()
 
         # Capture event loop for thread-safe response pushing
-        self._event_loop = asyncio.get_event_loop()
+        self._event_loop = asyncio.get_running_loop()
 
         # Display the request (synchronous, before starting thread)
         self._display_request(request)

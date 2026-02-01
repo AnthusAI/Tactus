@@ -46,9 +46,21 @@ class IPCControlChannel:
 
         self._server: Optional[asyncio.Server] = None
         self._clients: dict[str, asyncio.StreamWriter] = {}  # client_id -> writer
-        self._response_queue: asyncio.Queue[ControlResponse] = asyncio.Queue()
+        self._response_queue: Optional[asyncio.Queue[ControlResponse]] = None
         self._pending_requests: dict[str, ControlRequest] = {}  # request_id -> request
         self._initialized = False
+
+    def _ensure_response_queue(self) -> asyncio.Queue[ControlResponse]:
+        if self._response_queue is None:
+            try:
+                asyncio.get_running_loop()
+            except RuntimeError as error:
+                raise RuntimeError(
+                    "IPCControlChannel requires a running event loop before use. "
+                    "Initialize it from within an async context."
+                ) from error
+            self._response_queue = asyncio.Queue()
+        return self._response_queue
 
     @property
     def capabilities(self) -> ChannelCapabilities:
@@ -68,6 +80,7 @@ class IPCControlChannel:
             return
 
         logger.info("%s: initializing...", self.channel_id)
+        self._ensure_response_queue()
 
         # Remove old socket file if it exists
         if os.path.exists(self.socket_path):
@@ -168,8 +181,9 @@ class IPCControlChannel:
         Yields:
             ControlResponse objects
         """
+        response_queue = self._ensure_response_queue()
         while True:
-            response = await self._response_queue.get()
+            response = await response_queue.get()
             logger.info(
                 "%s: received response for %s",
                 self.channel_id,
@@ -264,6 +278,7 @@ class IPCControlChannel:
         self._clients[client_id] = writer
 
         try:
+            response_queue = self._ensure_response_queue()
             # Send any pending requests to the new client
             for request_id, request_data in self._pending_requests.items():
                 try:
@@ -302,7 +317,7 @@ class IPCControlChannel:
                         timed_out=message.get("timed_out", False),
                         channel_id=self.channel_id,
                     )
-                    await self._response_queue.put(response)
+                    await response_queue.put(response)
                     logger.info(
                         "%s: received response for %s",
                         self.channel_id,

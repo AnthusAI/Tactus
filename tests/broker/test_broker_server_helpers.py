@@ -15,14 +15,14 @@ def test_json_dumps_compact():
 
 def test_flatten_exceptions_handles_groups():
     try:
-        raise ExceptionGroup(
+        raise broker_server.BaseExceptionGroup(
             "top",
             [
                 ValueError("first"),
-                ExceptionGroup("nested", [RuntimeError("second")]),
+                broker_server.BaseExceptionGroup("nested", [RuntimeError("second")]),
             ],
         )
-    except ExceptionGroup as exc:
+    except broker_server.BaseExceptionGroup as exc:
         leaves = broker_server._flatten_exceptions(exc)
 
     assert [type(e) for e in leaves] == [ValueError, RuntimeError]

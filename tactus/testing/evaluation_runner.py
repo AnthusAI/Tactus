@@ -94,6 +94,9 @@ class TactusEvaluationRunner(TactusTestRunner):
             EvaluationResult with all metrics
         """
         logger.info(f"Evaluating scenario '{scenario_name}' with {runs} runs")
+        run_iteration = self._run_single_iteration
+        if isinstance(run_iteration, staticmethod):
+            run_iteration = run_iteration.__func__
 
         # Run scenario N times
         if parallel:
@@ -102,12 +105,9 @@ class TactusEvaluationRunner(TactusTestRunner):
             ctx = multiprocessing.get_context("spawn")
             with ctx.Pool(processes=workers) as pool:
                 iteration_args = [(scenario_name, str(self.work_dir), i) for i in range(runs)]
-                results = pool.starmap(self._run_single_iteration, iteration_args)
+                results = pool.starmap(run_iteration, iteration_args)
         else:
-            results = [
-                self._run_single_iteration(scenario_name, str(self.work_dir), i)
-                for i in range(runs)
-            ]
+            results = [run_iteration(scenario_name, str(self.work_dir), i) for i in range(runs)]
 
         # Calculate metrics
         return self._calculate_metrics(scenario_name, results)

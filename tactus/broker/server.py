@@ -32,6 +32,7 @@ logger = logging.getLogger(__name__)
 try:
     BaseExceptionGroup
 except NameError:  # pragma: no cover - Python < 3.11 fallback
+
     class BaseExceptionGroup(Exception):
         """Minimal BaseExceptionGroup fallback for Python < 3.11."""
 

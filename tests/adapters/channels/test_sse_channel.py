@@ -70,16 +70,14 @@ async def test_send_handles_emitter_error():
 
 def test_handle_ide_response_queues():
     channel = SSEControlChannel()
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
+
+    async def run():
         channel.handle_ide_response("req-1", "ok")
-    finally:
-        loop.close()
-        asyncio.set_event_loop(None)
-    response = channel._response_queue.get_nowait()
-    assert response.request_id == "req-1"
-    assert response.value == "ok"
+        response = await asyncio.wait_for(channel._response_queue.get(), timeout=1.0)
+        assert response.request_id == "req-1"
+        assert response.value == "ok"
+
+    asyncio.run(run())
 
 
 def test_get_next_event_empty_returns_none():
@@ -173,18 +171,18 @@ async def test_handle_ide_response_with_running_loop():
 
 def test_handle_ide_response_put_error():
     channel = SSEControlChannel()
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
+
+    async def run():
+        channel._ensure_asyncio_primitives()
 
         def raise_error(_response):
             raise RuntimeError("queue failed")
 
         channel._response_queue.put_nowait = raise_error
         channel.handle_ide_response("req-3", "ok")
-    finally:
-        loop.close()
-        asyncio.set_event_loop(None)
+        await asyncio.sleep(0)
+
+    asyncio.run(run())
 
 
 @pytest.mark.asyncio

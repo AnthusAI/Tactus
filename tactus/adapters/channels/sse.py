@@ -267,6 +267,7 @@ class SSEControlChannel(InProcessChannel):
         self, request_id: str, response: ControlResponse
     ) -> None:
         try:
+            self._ensure_asyncio_primitives()
             event_loop = asyncio.get_event_loop()
             if event_loop.is_running():
                 asyncio.run_coroutine_threadsafe(self._response_queue.put(response), event_loop)
@@ -326,4 +327,5 @@ class SSEControlChannel(InProcessChannel):
     async def shutdown(self) -> None:
         """Shutdown SSE channel."""
         logger.info("%s: shutting down", self.channel_id)
+        self._ensure_asyncio_primitives()
         self._shutdown_event.set()

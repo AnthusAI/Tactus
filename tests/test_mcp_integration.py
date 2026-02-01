@@ -9,6 +9,8 @@ import pytest
 from tactus.core.runtime import TactusRuntime
 from tactus.adapters.file_storage import FileStorage
 
+pytest.importorskip("mcp")
+
 
 @pytest.mark.asyncio
 async def test_mcp_server_connection():

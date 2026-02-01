@@ -523,6 +523,11 @@ class ContainerRunner:
                         llm_backend_config=llm_backend_config,
                     )
                 finally:
+                    try:
+                        await broker_server.aclose()
+                        broker_server = None
+                    except Exception:
+                        logger.debug("[BROKER] Failed to close broker server", exc_info=True)
                     # Cancel broker task when container finishes
                     broker_task.cancel()
                     try:

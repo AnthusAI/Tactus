@@ -99,6 +99,11 @@ def test_receive_cancellation_breaks_loop():
 def test_push_response_handles_queue_error(monkeypatch):
     channel = DummyChannel()
 
+    async def setup_queue():
+        channel._ensure_asyncio_primitives()
+
+    asyncio.run(setup_queue())
+
     def raise_error(_):
         raise RuntimeError("queue failed")
 

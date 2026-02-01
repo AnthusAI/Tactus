@@ -1,5 +1,7 @@
 import pytest
 
+pytest.importorskip("mcp")
+
 from tactus.adapters.mcp_manager import MCPServerManager, substitute_env_vars
 
 

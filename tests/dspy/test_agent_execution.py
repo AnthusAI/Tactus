@@ -10,6 +10,11 @@ from tactus.dspy.agent import DSPyAgentHandle, create_dspy_agent
 from tactus.protocols.cost import CostStats, UsageStats
 from tactus.protocols.models import AgentStreamChunkEvent, AgentTurnEvent, CostEvent
 
+try:
+    ExceptionGroup
+except NameError:  # pragma: no cover - Python < 3.11
+    from tactus.broker.server import BaseExceptionGroup as ExceptionGroup
+
 
 class DummyLogHandler:
     def __init__(self, supports_streaming=True):

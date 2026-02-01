@@ -17,7 +17,7 @@ def test_create_dataset_duplicates_cases_for_runs(monkeypatch, tmp_path: Path):
     dataset = runner._create_dataset()
 
     assert [case.name for case in dataset.cases] == ["case_run1", "case_run2"]
-    assert dataset.name is None
+    assert getattr(dataset, "name", None) is None
 
 
 def test_create_dataset_uses_case_name_for_single_run(monkeypatch, tmp_path: Path):

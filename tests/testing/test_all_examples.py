@@ -181,6 +181,14 @@ def get_mcp_servers_for_example(example: Dict[str, Any]) -> Dict[str, Any]:
     return {}
 
 
+def _mcp_available() -> bool:
+    try:
+        __import__("mcp")
+    except ImportError:
+        return False
+    return True
+
+
 def get_mock_tools_for_example(example: Dict[str, Any]) -> Dict[str, Any]:
     """Get appropriate mock tools for an example."""
     # Default mock tools that work for most examples
@@ -300,6 +308,8 @@ class TestAllExamples:
                 pytest.skip(f"OpenAI API key not configured for {example['id']}")
             if not os.getenv("AWS_ACCESS_KEY_ID") and "bedrock" in example["id"].lower():
                 pytest.skip(f"AWS credentials not configured for {example['id']}")
+        if example["requires_mcp"] and not _mcp_available():
+            pytest.skip(f"MCP not installed for {example['id']}")
 
         # Validate first
         validator = TactusValidator()

@@ -190,6 +190,7 @@ async def test_cancel_logs_error_when_write_fails(monkeypatch):
 @pytest.mark.asyncio
 async def test_receive_yields_response():
     channel = IPCControlChannel(socket_path="/tmp/unused.sock", procedure_id="proc")
+    channel._ensure_response_queue()
     response_task = asyncio.create_task(channel.receive().__anext__())
     await channel._response_queue.put(
         ControlResponse(
@@ -204,6 +205,7 @@ async def test_receive_yields_response():
 @pytest.mark.asyncio
 async def test_handle_client_accepts_responses(monkeypatch):
     channel = IPCControlChannel(socket_path="/tmp/unused.sock", procedure_id="proc")
+    channel._ensure_response_queue()
     writer = DummyWriter()
 
     messages = [

@@ -91,6 +91,7 @@ class BrokerControlChannel(InProcessChannel):
         )
 
         try:
+            self._ensure_asyncio_primitives()
             # Serialize request to JSON-compatible dict
             request_data = request.model_dump(mode="json")
 

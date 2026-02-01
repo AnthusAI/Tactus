@@ -8,9 +8,9 @@ def test_json_dumps_is_compact():
 
 
 def test_flatten_exceptions_handles_groups():
-    group = ExceptionGroup(
+    group = server.BaseExceptionGroup(
         "root",
-        [ValueError("one"), ExceptionGroup("nested", [RuntimeError("two")])],
+        [ValueError("one"), server.BaseExceptionGroup("nested", [RuntimeError("two")])],
     )
     leaves = server._flatten_exceptions(group)
     assert [type(exc) for exc in leaves] == [ValueError, RuntimeError]

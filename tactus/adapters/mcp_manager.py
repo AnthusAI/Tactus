@@ -5,6 +5,8 @@ Manages multiple MCP server connections using Pydantic AI's native MCPServerStdi
 Handles lifecycle, tool prefixing, and tool call tracking.
 """
 
+from __future__ import annotations
+
 import logging
 import os
 import re
@@ -12,9 +14,18 @@ import asyncio
 from contextlib import AsyncExitStack
 from typing import Any, Optional
 
-from pydantic_ai.mcp import MCPServerStdio
-
 logger = logging.getLogger(__name__)
+
+
+def _require_mcp_server_stdio():
+    try:
+        from pydantic_ai.mcp import MCPServerStdio
+    except ImportError as import_error:
+        raise RuntimeError(
+            "MCP support requires optional dependencies. "
+            'Install with `pip install "pydantic-ai-slim[mcp]"`.'
+        ) from import_error
+    return MCPServerStdio
 
 
 def substitute_env_vars(value: Any) -> Any:
@@ -55,8 +66,8 @@ class MCPServerManager:
         """
         self.configs = server_configs
         self.tool_primitive = tool_primitive
-        self.servers: list[MCPServerStdio] = []
-        self.server_toolsets: dict[str, MCPServerStdio] = {}  # Map server names to toolsets
+        self.servers: list[Any] = []
+        self.server_toolsets: dict[str, Any] = {}  # Map server names to toolsets
         self._exit_stack = AsyncExitStack()
         logger.info("MCPServerManager initialized with %s server(s)", len(server_configs))
 
@@ -77,6 +88,7 @@ class MCPServerManager:
                     resolved_config = substitute_env_vars(config)
 
                     # Create base server
+                    MCPServerStdio = _require_mcp_server_stdio()
                     server = MCPServerStdio(
                         command=resolved_config["command"],
                         args=resolved_config.get("args", []),
@@ -190,7 +202,7 @@ class MCPServerManager:
 
         return trace_tool_call
 
-    def get_toolsets(self) -> list[MCPServerStdio]:
+    def get_toolsets(self) -> list[Any]:
         """
         Return list of connected servers as toolsets.
 

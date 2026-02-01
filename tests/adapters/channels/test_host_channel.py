@@ -50,6 +50,13 @@ def _make_request():
     )
 
 
+def _initialize_channel_primitives(channel: DummyHostChannel) -> None:
+    async def _init():
+        channel._ensure_asyncio_primitives()
+
+    asyncio.run(_init())
+
+
 @pytest.mark.asyncio
 async def test_send_pushes_response():
     channel = DummyHostChannel()
@@ -122,6 +129,7 @@ async def test_shutdown_skips_join_when_thread_not_alive():
 
 def test_input_thread_skips_response_when_cancelled():
     channel = DummyHostChannel()
+    _initialize_channel_primitives(channel)
     channel._current_request = _make_request()
     channel._cancel_event.set()
     channel._input_thread_main(channel._current_request)
@@ -130,6 +138,7 @@ def test_input_thread_skips_response_when_cancelled():
 
 def test_input_thread_pushes_response_without_event_loop():
     channel = DummyHostChannel()
+    _initialize_channel_primitives(channel)
     request = _make_request()
     channel._event_loop = None
     channel._input_thread_main(request)
@@ -139,6 +148,7 @@ def test_input_thread_pushes_response_without_event_loop():
 
 def test_input_thread_logs_error_when_prompt_fails():
     channel = ErrorHostChannel()
+    _initialize_channel_primitives(channel)
     channel._current_request = _make_request()
     channel._input_thread_main(channel._current_request)
     assert channel._response_queue.empty() is True
@@ -146,6 +156,7 @@ def test_input_thread_logs_error_when_prompt_fails():
 
 def test_input_thread_skips_response_when_none_returned():
     channel = NoneHostChannel()
+    _initialize_channel_primitives(channel)
     channel._current_request = _make_request()
     channel._input_thread_main(channel._current_request)
     assert channel._response_queue.empty() is True
@@ -153,6 +164,7 @@ def test_input_thread_skips_response_when_none_returned():
 
 def test_input_thread_error_skips_logging_when_cancelled():
     channel = ErrorHostChannel()
+    _initialize_channel_primitives(channel)
     channel._current_request = _make_request()
     channel._cancel_event.set()
     channel._input_thread_main(channel._current_request)

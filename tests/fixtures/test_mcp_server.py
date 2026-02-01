@@ -5,7 +5,10 @@ A simple MCP server using FastMCP that provides basic tools for testing
 the MCP integration functionality.
 """
 
-from fastmcp import FastMCP
+import pytest
+
+fastmcp = pytest.importorskip("fastmcp")
+FastMCP = fastmcp.FastMCP
 
 # Create the MCP server
 mcp = FastMCP("TactusTestServer")

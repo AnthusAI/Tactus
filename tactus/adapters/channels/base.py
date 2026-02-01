@@ -9,7 +9,7 @@ requiring separate processes (e.g., Discord WebSocket gateway).
 import asyncio
 import logging
 from abc import ABC, abstractmethod
-from typing import AsyncIterator
+from typing import AsyncIterator, Optional
 
 from tactus.protocols.control import (
     ControlRequest,
@@ -54,7 +54,20 @@ class InProcessChannel(ABC):
 
     def __init__(self):
         """Initialize the channel with an internal response queue."""
-        self._response_queue: asyncio.Queue[ControlResponse] = asyncio.Queue()
+        self._response_queue: Optional[asyncio.Queue[ControlResponse]] = None
+        self._shutdown_event: Optional[asyncio.Event] = None
+
+    def _ensure_asyncio_primitives(self) -> None:
+        if self._response_queue is not None and self._shutdown_event is not None:
+            return
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError as error:
+            raise RuntimeError(
+                "InProcessChannel requires a running event loop before use. "
+                "Initialize it from within an async context."
+            ) from error
+        self._response_queue = asyncio.Queue()
         self._shutdown_event = asyncio.Event()
 
     @property
@@ -105,6 +118,7 @@ class InProcessChannel(ABC):
         Yields:
             ControlResponse as they are received
         """
+        self._ensure_asyncio_primitives()
         while not self._shutdown_event.is_set():
             try:
                 # Use wait_for with timeout to check shutdown periodically
@@ -149,6 +163,7 @@ class InProcessChannel(ABC):
         Override for additional cleanup (close connections, etc.).
         """
         logger.info("%s: shutting down", self.channel_id)
+        self._ensure_asyncio_primitives()
         self._shutdown_event.set()
 
     def push_response(self, response: ControlResponse) -> None:
@@ -164,6 +179,7 @@ class InProcessChannel(ABC):
             response: ControlResponse to add to queue
         """
         try:
+            self._ensure_asyncio_primitives()
             self._response_queue.put_nowait(response)
         except Exception as error:
             logger.error("%s: failed to queue response: %s", self.channel_id, error)
@@ -180,4 +196,6 @@ class InProcessChannel(ABC):
             response: ControlResponse to add to queue
             loop: The event loop to use for thread-safe call
         """
+        if self._response_queue is None:
+            loop.call_soon_threadsafe(self._ensure_asyncio_primitives)
         loop.call_soon_threadsafe(self._response_queue.put_nowait, response)

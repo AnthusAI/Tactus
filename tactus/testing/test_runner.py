@@ -128,6 +128,10 @@ class TactusTestRunner:
             if not scenarios:
                 raise ValueError(f"Scenario not found: {scenario_filter}")
 
+        run_scenario = self._run_single_scenario
+        if isinstance(run_scenario, staticmethod):
+            run_scenario = run_scenario.__func__
+
         # Run scenarios
         if parallel and len(scenarios) > 1:
             # Run in parallel using 'spawn' to avoid Behave global state conflicts
@@ -135,13 +139,11 @@ class TactusTestRunner:
             ctx = multiprocessing.get_context("spawn")
             with ctx.Pool(processes=min(len(scenarios), os.cpu_count() or 1)) as pool:
                 scenario_results = pool.starmap(
-                    self._run_single_scenario, [(s.name, str(self.work_dir)) for s in scenarios]
+                    run_scenario, [(s.name, str(self.work_dir)) for s in scenarios]
                 )
         else:
             # Run sequentially
-            scenario_results = [
-                self._run_single_scenario(s.name, str(self.work_dir)) for s in scenarios
-            ]
+            scenario_results = [run_scenario(s.name, str(self.work_dir)) for s in scenarios]
 
         # Build feature result
         feature_result = self._build_feature_result(scenario_results)

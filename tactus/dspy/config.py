@@ -103,10 +103,13 @@ def configure_lm(
 
     logger = logging.getLogger(__name__)
 
-    adapter = ChatAdapter(use_native_function_calling=True)
-    logger.info(
-        f"[ADAPTER] Created ChatAdapter with use_native_function_calling={adapter.use_native_function_calling}"
-    )
+    try:
+        adapter = ChatAdapter(use_native_function_calling=True)
+    except TypeError:
+        adapter = ChatAdapter()
+
+    use_native = getattr(adapter, "use_native_function_calling", None)
+    logger.info(f"[ADAPTER] Created ChatAdapter with use_native_function_calling={use_native}")
 
     # Set as global default with adapter
     dspy.configure(lm=lm, adapter=adapter)
