@@ -481,3 +481,20 @@ tactus validate examples/01-basics-hello-world.tac
 ```
 
 This uses the ANTLR-generated parser to check syntax and DSL structure, but doesn't verify runtime behavior like tests do.
+
+### Biblicus Text Utilities (68-76)
+
+These examples demonstrate Biblicus-backed text utilities using deterministic
+mock markup (no external API calls required):
+
+- 68-biblicus-text-extract.tac
+- 69-biblicus-text-annotate.tac
+- 73-biblicus-text-link.tac
+- 74-biblicus-text-redact.tac
+- 75-biblicus-text-slice.tac
+- 76-biblicus-text-markup-helpers.tac
+
+**Run:**
+```bash
+tactus run examples/68-biblicus-text-extract.tac
+```

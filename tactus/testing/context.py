@@ -171,6 +171,7 @@ class TactusTestContext:
         from tactus.testing.mock_registry import UnifiedMockRegistry
         from tactus.adapters.cli_log import CLILogHandler
 
+        os.environ["TACTUS_MOCK_MODE"] = "1" if self.mocked else "0"
         storage = MemoryStorage()
 
         # Setup mock registry if in mocked mode
@@ -209,6 +210,8 @@ class TactusTestContext:
             from tactus.core.mocking import MockManager
 
             self.runtime.mock_manager = MockManager()
+            from tactus.core.mocking import set_current_mock_manager
+            set_current_mock_manager(self.runtime.mock_manager)
             logger.info("Created MockManager for Mocks {} block support")
             # Mocked-mode tests should never call real LLMs by default.
             self.runtime.mock_all_agents = True

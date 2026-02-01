@@ -22,6 +22,14 @@ tactus/stdlib/
 │   └── fuzzy.py               # Fuzzy string matching
 ```
 
+## Available Modules
+
+- `tactus.classify` - LLM and fuzzy classification
+- `tactus.extract` - Structured extraction utilities
+- `tactus.generate` - LLM-based generation helpers
+- `tactus.io.*` - File I/O helpers (json, csv, tsv, file)
+- `biblicus.text` - Biblicus-backed text utilities
+
 ## Testing
 
 Run all stdlib specs:

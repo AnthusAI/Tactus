@@ -413,6 +413,7 @@ class BehaveEnvironmentGenerator:
             f.write('"""\n\n')
 
             f.write("import sys\n")
+            f.write("import os\n")
             f.write("import json\n")
             f.write("from pathlib import Path\n\n")
 
@@ -440,6 +441,7 @@ class BehaveEnvironmentGenerator:
             f.write(f"    context.mcp_servers = json.loads('{mcp_servers_json}')\n")
             f.write(f"    context.tool_paths = json.loads('{tool_paths_json}')\n")
             f.write(f"    context.mocked = {mocked}\n\n")
+            f.write("    os.environ['TACTUS_MOCK_MODE'] = '1' if context.mocked else '0'\n\n")
 
             f.write("def before_scenario(context, scenario):\n")
             f.write('    """Setup before each scenario."""\n')

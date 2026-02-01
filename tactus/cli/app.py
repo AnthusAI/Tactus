@@ -500,6 +500,13 @@ def run(
         tactus run workflow.tac --mock-all --real done
     """
     setup_logging(verbose=verbose, log_level=log_level, log_format=log_format)
+    import warnings
+    warnings.filterwarnings(
+        "ignore",
+        message="Pydantic serializer warnings:",
+        category=UserWarning,
+        module="pydantic.main",
+    )
 
     # Check if file exists
     if not workflow_file.exists():
@@ -733,14 +740,15 @@ def run(
         source_file_path=str(workflow_file),
     )
 
+    # Always create a mock manager so Mocks {} blocks can register tool mocks.
+    from tactus.core.mocking import MockManager, set_current_mock_manager
+
+    mock_manager = MockManager()
+    runtime.mock_manager = mock_manager
+    set_current_mock_manager(mock_manager)
+
     # Set up mocking based on CLI flags
     if mock_all or real_all or mock or real:
-        from tactus.core.mocking import MockManager
-
-        # Create and configure mock manager
-        mock_manager = MockManager()
-        runtime.mock_manager = mock_manager
-
         # Handle global flags
         if mock_all:
             mock_manager.enable_mock()
@@ -1489,7 +1497,10 @@ def test(
         if runs > 1:
             # Run consistency evaluation
             evaluator = TactusEvaluationRunner(
-                procedure_file, mock_tools=mock_tools, params=test_params
+                procedure_file,
+                mock_tools=mock_tools,
+                params=test_params,
+                mocked=bool(mock or mock_config),
             )
             evaluator.setup(
                 result.registry.gherkin_specifications,
@@ -1506,7 +1517,12 @@ def test(
 
         else:
             # Run standard test
-            runner = TactusTestRunner(procedure_file, mock_tools=mock_tools, params=test_params)
+            runner = TactusTestRunner(
+                procedure_file,
+                mock_tools=mock_tools,
+                params=test_params,
+                mocked=bool(mock or mock_config),
+            )
             runner.setup(
                 result.registry.gherkin_specifications,
                 custom_steps_dict=result.registry.custom_steps,
@@ -2362,7 +2378,7 @@ def stdlib_test(
 
         # Run tests
         try:
-            runner = TactusTestRunner(spec_file, mock_tools={}, params={})
+            runner = TactusTestRunner(spec_file, mock_tools={}, params={}, mocked=True)
             runner.setup(
                 result.registry.gherkin_specifications,
                 custom_steps_dict=result.registry.custom_steps,

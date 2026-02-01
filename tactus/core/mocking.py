@@ -13,6 +13,18 @@ import logging
 from typing import Any, Optional, Union
 
 logger = logging.getLogger(__name__)
+_CURRENT_MOCK_MANAGER: Optional["MockManager"] = None
+
+
+def set_current_mock_manager(manager: Optional["MockManager"]) -> None:
+    """Set the globally accessible mock manager for stdlib helpers."""
+    global _CURRENT_MOCK_MANAGER
+    _CURRENT_MOCK_MANAGER = manager
+
+
+def get_current_mock_manager() -> Optional["MockManager"]:
+    """Get the globally accessible mock manager for stdlib helpers."""
+    return _CURRENT_MOCK_MANAGER
 
 
 @dataclass
