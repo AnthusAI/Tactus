@@ -29,6 +29,7 @@ tactus/stdlib/
 - `tactus.generate` - LLM-based generation helpers
 - `tactus.io.*` - File I/O helpers (json, csv, tsv, file)
 - `biblicus.text` - Biblicus-backed text utilities
+- `tactus.retrievers.*` - Biblicus-backed retrieval backends
 
 ## Testing
 

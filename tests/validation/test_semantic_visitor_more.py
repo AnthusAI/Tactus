@@ -111,6 +111,37 @@ def test_evaluation_with_dataset_registers_evaluations():
     assert "dataset" in result.registry.pydantic_evaluations
 
 
+def test_dotted_corpus_retriever_declarations_register():
+    source = """
+    local vector = require("tactus.retrievers.embedding_index_file")
+    notes = vector.Corpus { root = "corpora/notes" }
+    search = vector.Retriever { corpus = notes, query = "cats", limit = 1 }
+    """
+    result = TactusValidator().validate(source, mode=ValidationMode.FULL)
+
+    assert result.valid is True
+    assert result.registry is not None
+    assert "notes" in result.registry.corpora
+    assert "search" in result.registry.retrievers
+
+
+def test_direct_corpus_retriever_declarations_are_disallowed():
+    source = """
+    notes = Corpus { root = "corpora/notes" }
+    search = Retriever { corpus = notes, query = "cats", limit = 1 }
+    """
+    result = TactusValidator().validate(source, mode=ValidationMode.FULL)
+
+    assert result.valid is False
+    assert result.errors is not None
+    assert any(
+        "Direct Corpus declarations are not supported" in err.message for err in result.errors
+    )
+    assert any(
+        "Direct Retriever declarations are not supported" in err.message for err in result.errors
+    )
+
+
 def test_default_settings_function_calls():
     source = """
     default_provider("openai")

@@ -34,7 +34,16 @@ Agent/Tool calls use direct variable access:
 from typing import Any, Callable, Dict, Optional
 
 from .registry import RegistryBuilder
-from tactus.primitives.handles import AgentHandle, ModelHandle, AgentLookup, ModelLookup
+from tactus.primitives.handles import (
+    AgentHandle,
+    AgentLookup,
+    CompactorHandle,
+    ContextHandle,
+    CorpusHandle,
+    ModelHandle,
+    ModelLookup,
+    RetrieverHandle,
+)
 from tactus.stdlib.classify import ClassifyPrimitive
 
 
@@ -108,6 +117,30 @@ def _normalize_schema(schema):
     return schema
 
 
+def _normalize_handle_name(value: Any) -> Any:
+    """Normalize handle references to their names when possible."""
+    if hasattr(value, "name"):
+        return value.name
+    return value
+
+
+def _normalize_context_pack_entry(entry: Any) -> dict[str, Any]:
+    """Normalize Context pack entries into a name-based dict."""
+    if isinstance(entry, dict):
+        normalized = dict(entry)
+        if "name" in normalized:
+            normalized["name"] = _normalize_handle_name(normalized["name"])
+        return normalized
+    return {"name": _normalize_handle_name(entry)}
+
+
+def _normalize_template_vars(vars_dict: Any) -> Any:
+    """Normalize template vars coming from Lua tables."""
+    if isinstance(vars_dict, list) and len(vars_dict) == 0:
+        return {}
+    return vars_dict
+
+
 def create_dsl_stubs(
     builder: RegistryBuilder,
     tool_primitive: Any = None,
@@ -136,6 +169,10 @@ def create_dsl_stubs(
     _agent_registry: dict[str, AgentHandle] = {}
     _tool_registry: dict[str, Any] = {}  # ToolHandle instances
     _model_registry: dict[str, ModelHandle] = {}
+    _context_registry: dict[str, ContextHandle] = {}
+    _corpus_registry: dict[str, CorpusHandle] = {}
+    _retriever_registry: dict[str, RetrieverHandle] = {}
+    _compactor_registry: dict[str, CompactorHandle] = {}
 
     # Store runtime context for immediate agent creation
     _runtime_context = runtime_context or {}
@@ -476,6 +513,67 @@ def create_dsl_stubs(
             return handle
 
         return accept_config
+
+    def _template(template_text: str, vars_table: Any = None) -> dict[str, Any]:
+        """
+        Create a template directive for context messages.
+
+        Args:
+            template_text: Template string with {input.*} or {context.*} markers
+            vars_table: Optional vars table for template values
+
+        Returns:
+            Dict describing the template directive
+        """
+        if not isinstance(template_text, str):
+            raise TypeError("template() expects a string")
+        vars_dict = lua_table_to_dict(vars_table) if vars_table is not None else {}
+        vars_dict = _normalize_template_vars(vars_dict)
+        return {"template": template_text, "vars": vars_dict}
+
+    def _message_from_arg(message_type: str, arg: Any) -> dict[str, Any]:
+        """Create a message directive from a literal or template directive."""
+        if isinstance(arg, dict) and "template" in arg:
+            return {
+                "type": message_type,
+                "template": arg.get("template"),
+                "vars": arg.get("vars", {}),
+            }
+        if isinstance(arg, str):
+            return {"type": message_type, "content": arg}
+        raise TypeError(f"{message_type}() expects a string or template(...) directive")
+
+    def _system(arg: Any) -> dict[str, Any]:
+        """System message directive for Context messages."""
+        return _message_from_arg("system", arg)
+
+    def _user(arg: Any) -> dict[str, Any]:
+        """User message directive for Context messages."""
+        return _message_from_arg("user", arg)
+
+    def _assistant(arg: Any) -> dict[str, Any]:
+        """Assistant message directive for Context messages."""
+        return _message_from_arg("assistant", arg)
+
+    def _context_insert(pack: Any, budget: Any = None) -> dict[str, Any]:
+        """Context pack insertion directive for Context messages."""
+        if hasattr(pack, "name"):
+            pack_name = pack.name
+        else:
+            pack_name = pack
+        if not isinstance(pack_name, str):
+            raise TypeError("context() expects a context or retriever reference")
+        budget_dict = lua_table_to_dict(budget) if budget is not None else None
+        if isinstance(budget_dict, list) and len(budget_dict) == 0:
+            budget_dict = None
+        directive = {"type": "context", "name": pack_name}
+        if budget_dict is not None:
+            directive["budget"] = budget_dict
+        return directive
+
+    def _context_history() -> dict[str, Any]:
+        """History insertion directive for Context messages."""
+        return {"type": "history"}
 
     def _specification(*args) -> None:
         """Register BDD specs.
@@ -1044,7 +1142,7 @@ def create_dsl_stubs(
             # Otherwise, ignore unknown mock config.
             continue
 
-    def _history(messages=None):
+    def _dspy_history(messages=None):
         """
         Create a History for managing conversation messages.
 
@@ -1666,6 +1764,192 @@ def create_dsl_stubs(
 
         return handle
 
+    def _new_context(name_or_config=None) -> ContextHandle:
+        """
+        New Context factory for assignment-based syntax.
+
+        Syntax:
+            support_context = Context {
+                policy = { ... },
+                messages = { ... }
+            }
+        """
+        if isinstance(name_or_config, str):
+            raise TypeError(
+                "Curried Context syntax is not supported. Use assignment syntax: "
+                "my_context = Context { ... }."
+            )
+
+        config = name_or_config
+        if config is None:
+            raise TypeError("Context requires a configuration table")
+
+        config_dict = lua_table_to_dict(config)
+        if isinstance(config_dict, list) and len(config_dict) == 0:
+            config_dict = {}
+
+        explicit_name = None
+        if isinstance(config_dict, dict):
+            explicit_name = config_dict.pop("name", None)
+            if explicit_name is not None and not isinstance(explicit_name, str):
+                raise TypeError("Context 'name' must be a string")
+            if isinstance(explicit_name, str) and not explicit_name.strip():
+                raise TypeError("Context 'name' cannot be empty")
+
+            packs = config_dict.get("packs")
+
+            if isinstance(packs, list):
+                config_dict["packs"] = [_normalize_context_pack_entry(pack) for pack in packs]
+            elif packs is not None:
+                config_dict["packs"] = [_normalize_context_pack_entry(packs)]
+
+            policy = config_dict.get("policy")
+            if isinstance(policy, dict):
+                compactor_value = policy.get("compactor")
+                if hasattr(compactor_value, "name"):
+                    policy["compactor"] = compactor_value.name
+
+        import uuid
+
+        temporary_name = (
+            explicit_name.strip()
+            if isinstance(explicit_name, str)
+            else f"_temp_context_{uuid.uuid4().hex[:8]}"
+        )
+
+        builder.register_context(temporary_name, config_dict)
+        handle = ContextHandle(temporary_name)
+        _context_registry[temporary_name] = handle
+        return handle
+
+    def _new_corpus(name_or_config=None) -> CorpusHandle:
+        """
+        New Corpus factory for assignment-based syntax.
+        """
+        if isinstance(name_or_config, str):
+            raise TypeError(
+                "Curried Corpus syntax is not supported. Use assignment syntax: "
+                "my_corpus = Corpus { ... }."
+            )
+
+        config = name_or_config
+        if config is None:
+            raise TypeError("Corpus requires a configuration table")
+
+        config_dict = lua_table_to_dict(config)
+        if isinstance(config_dict, list) and len(config_dict) == 0:
+            config_dict = {}
+
+        if isinstance(config_dict, dict):
+            if "backend" in config_dict and "backend_id" not in config_dict:
+                config_dict["backend_id"] = config_dict.pop("backend")
+            if "root" in config_dict and "corpus_root" not in config_dict:
+                config_dict["corpus_root"] = config_dict.pop("root")
+            if "recipe" in config_dict and "recipe_config" not in config_dict:
+                config_dict["recipe_config"] = config_dict.pop("recipe")
+
+        explicit_name = None
+        if isinstance(config_dict, dict):
+            explicit_name = config_dict.pop("name", None)
+            if explicit_name is not None and not isinstance(explicit_name, str):
+                raise TypeError("Corpus 'name' must be a string")
+            if isinstance(explicit_name, str) and not explicit_name.strip():
+                raise TypeError("Corpus 'name' cannot be empty")
+
+        import uuid
+
+        temporary_name = (
+            explicit_name.strip()
+            if isinstance(explicit_name, str)
+            else f"_temp_corpus_{uuid.uuid4().hex[:8]}"
+        )
+
+        builder.register_corpus(temporary_name, config_dict)
+        handle = CorpusHandle(temporary_name)
+        _corpus_registry[temporary_name] = handle
+        return handle
+
+    def _new_retriever(name_or_config=None) -> RetrieverHandle:
+        """
+        New Retriever factory for assignment-based syntax.
+        """
+        if isinstance(name_or_config, str):
+            raise TypeError(
+                "Curried Retriever syntax is not supported. Use assignment syntax: "
+                "my_retriever = Retriever { ... }."
+            )
+
+        config = name_or_config
+        if config is None:
+            raise TypeError("Retriever requires a configuration table")
+
+        config_dict = lua_table_to_dict(config)
+        if isinstance(config_dict, list) and len(config_dict) == 0:
+            config_dict = {}
+
+        if isinstance(config_dict, dict):
+            config_dict["corpus"] = _normalize_handle_name(config_dict.get("corpus"))
+
+        explicit_name = None
+        if isinstance(config_dict, dict):
+            explicit_name = config_dict.pop("name", None)
+            if explicit_name is not None and not isinstance(explicit_name, str):
+                raise TypeError("Retriever 'name' must be a string")
+            if isinstance(explicit_name, str) and not explicit_name.strip():
+                raise TypeError("Retriever 'name' cannot be empty")
+
+        import uuid
+
+        temporary_name = (
+            explicit_name.strip()
+            if isinstance(explicit_name, str)
+            else f"_temp_retriever_{uuid.uuid4().hex[:8]}"
+        )
+
+        builder.register_retriever(temporary_name, config_dict)
+        handle = RetrieverHandle(temporary_name)
+        _retriever_registry[temporary_name] = handle
+        return handle
+
+    def _new_compactor(name_or_config=None) -> CompactorHandle:
+        """
+        New Compactor factory for assignment-based syntax.
+        """
+        if isinstance(name_or_config, str):
+            raise TypeError(
+                "Curried Compactor syntax is not supported. Use assignment syntax: "
+                "my_compactor = Compactor { ... }."
+            )
+
+        config = name_or_config
+        if config is None:
+            raise TypeError("Compactor requires a configuration table")
+
+        config_dict = lua_table_to_dict(config)
+        if isinstance(config_dict, list) and len(config_dict) == 0:
+            config_dict = {}
+
+        explicit_name = None
+        if isinstance(config_dict, dict):
+            explicit_name = config_dict.pop("name", None)
+            if explicit_name is not None and not isinstance(explicit_name, str):
+                raise TypeError("Compactor 'name' must be a string")
+            if isinstance(explicit_name, str) and not explicit_name.strip():
+                raise TypeError("Compactor 'name' cannot be empty")
+
+        import uuid
+
+        temporary_name = (
+            explicit_name.strip()
+            if isinstance(explicit_name, str)
+            else f"_temp_compactor_{uuid.uuid4().hex[:8]}"
+        )
+
+        builder.register_compactor(temporary_name, config_dict)
+        handle = CompactorHandle(temporary_name)
+        _compactor_registry[temporary_name] = handle
+        return handle
+
     def _process_agent_config(agent_name, config):
         """
         Process agent configuration for both curried and direct syntax.
@@ -1717,6 +2001,11 @@ def create_dsl_stubs(
                     else:
                         normalized.append(tool_entry)
                 config_dict["tools"] = normalized
+
+        if "context" in config_dict:
+            context_value = config_dict["context"]
+            if hasattr(context_value, "name"):
+                config_dict["context"] = context_value.name
 
         # Extract input schema if present
         input_schema = None
@@ -1903,6 +2192,11 @@ def create_dsl_stubs(
                         normalized.append(tool_entry)
                 config_dict["tools"] = normalized
 
+        if "context" in config_dict:
+            context_value = config_dict["context"]
+            if hasattr(context_value, "name"):
+                config_dict["context"] = context_value.name
+
         # Extract input schema if present
         input_schema = None
         if "input" in config_dict:
@@ -2086,7 +2380,14 @@ def create_dsl_stubs(
         return classify_primitive(lua_table_to_dict(config))
 
     binding_callback = _make_binding_callback(
-        builder, _tool_registry, _agent_registry, _runtime_context
+        builder,
+        _tool_registry,
+        _agent_registry,
+        _context_registry,
+        _corpus_registry,
+        _retriever_registry,
+        _compactor_registry,
+        _runtime_context,
     )
 
     return {
@@ -2100,6 +2401,8 @@ def create_dsl_stubs(
         "Prompt": _prompt,
         "Toolset": _toolset,
         "Tool": _new_tool,  # NEW syntax - assignment based
+        "Context": _new_context,
+        "Compactor": _new_compactor,
         "Classify": _new_classify,  # NEW stdlib: smart classification with retry
         "Hitl": _hitl,
         "Specification": _specification,
@@ -2116,9 +2419,11 @@ def create_dsl_stubs(
         "get_current_lm": _get_current_lm,
         "Signature": _signature,
         "Module": _module,
-        "History": _history,
+        "History": _dspy_history,
         "Message": _message,
         "DSPyAgent": _dspy_agent,
+        "_tactus_internal_corpus": _new_corpus,
+        "_tactus_internal_retriever": _new_retriever,
         # Script mode (top-level declarations)
         "input": _input,
         "output": _output,
@@ -2131,6 +2436,13 @@ def create_dsl_stubs(
         "async": _async,
         "max_depth": _max_depth,
         "max_turns": _max_turns,
+        # Context message directives
+        "system": _system,
+        "user": _user,
+        "assistant": _assistant,
+        "context": _context_insert,
+        "history": _context_history,
+        "template": _template,
         # Built-in filters (exposed as a table)
         "filters": {
             "last_n": _last_n,
@@ -2155,6 +2467,10 @@ def create_dsl_stubs(
             "agent": _agent_registry,
             "tool": _tool_registry,
             "model": _model_registry,
+            "context": _context_registry,
+            "corpus": _corpus_registry,
+            "retriever": _retriever_registry,
+            "compactor": _compactor_registry,
         },
         # Assignment interception callback
         "_tactus_register_binding": binding_callback,
@@ -2162,7 +2478,14 @@ def create_dsl_stubs(
 
 
 def _make_binding_callback(
-    builder: RegistryBuilder, tool_registry: dict, agent_registry: dict, runtime_context: dict
+    builder: RegistryBuilder,
+    tool_registry: dict,
+    agent_registry: dict,
+    context_registry: dict,
+    corpus_registry: dict,
+    retriever_registry: dict,
+    compactor_registry: dict,
+    runtime_context: dict,
 ):
     """
     Factory to create the binding callback with closure over builder/registries/runtime_context.
@@ -2170,6 +2493,12 @@ def _make_binding_callback(
     This callback is called by Lua's __newindex metatable when assignments happen.
     """
     import logging
+    from tactus.primitives.handles import (
+        CompactorHandle,
+        ContextHandle,
+        CorpusHandle,
+        RetrieverHandle,
+    )
     from tactus.primitives.tool_handle import ToolHandle
 
     callback_logger = logging.getLogger(__name__)
@@ -2253,6 +2582,74 @@ def _make_binding_callback(
                         callback_logger.debug(
                             f"[AGENT_RENAME] Updated _created_agents dict: '{old_name}' -> '{name}'"
                         )
+
+        if isinstance(value, ContextHandle):
+            old_name = value.name
+            if old_name.startswith("_temp_context_"):
+                callback_logger.debug(f"Renaming context '{old_name}' to '{name}'")
+                value.name = name
+                if old_name in context_registry:
+                    del context_registry[old_name]
+                context_registry[name] = value
+                if hasattr(builder, "registry") and old_name in builder.registry.contexts:
+                    context_data = builder.registry.contexts.pop(old_name)
+                    builder.registry.contexts[name] = context_data
+            elif old_name != name:
+                raise RuntimeError(
+                    f"Context name mismatch: assigned to '{name}' but context is named '{old_name}'. "
+                    "Remove the Context config 'name' field or make it match the assigned variable."
+                )
+
+        if isinstance(value, CorpusHandle):
+            old_name = value.name
+            if old_name.startswith("_temp_corpus_"):
+                callback_logger.debug(f"Renaming corpus '{old_name}' to '{name}'")
+                value.name = name
+                if old_name in corpus_registry:
+                    del corpus_registry[old_name]
+                corpus_registry[name] = value
+                if hasattr(builder, "registry") and old_name in builder.registry.corpora:
+                    corpus_data = builder.registry.corpora.pop(old_name)
+                    builder.registry.corpora[name] = corpus_data
+            elif old_name != name:
+                raise RuntimeError(
+                    f"Corpus name mismatch: assigned to '{name}' but corpus is named '{old_name}'. "
+                    "Remove the Corpus config 'name' field or make it match the assigned variable."
+                )
+
+        if isinstance(value, RetrieverHandle):
+            old_name = value.name
+            if old_name.startswith("_temp_retriever_"):
+                callback_logger.debug(f"Renaming retriever '{old_name}' to '{name}'")
+                value.name = name
+                if old_name in retriever_registry:
+                    del retriever_registry[old_name]
+                retriever_registry[name] = value
+                if hasattr(builder, "registry") and old_name in builder.registry.retrievers:
+                    retriever_data = builder.registry.retrievers.pop(old_name)
+                    builder.registry.retrievers[name] = retriever_data
+            elif old_name != name:
+                raise RuntimeError(
+                    f"Retriever name mismatch: assigned to '{name}' but retriever is named '{old_name}'. "
+                    "Remove the Retriever config 'name' field or make it match the assigned variable."
+                )
+
+        if isinstance(value, CompactorHandle):
+            old_name = value.name
+            if old_name.startswith("_temp_compactor_"):
+                callback_logger.debug(f"Renaming compactor '{old_name}' to '{name}'")
+                value.name = name
+                if old_name in compactor_registry:
+                    del compactor_registry[old_name]
+                compactor_registry[name] = value
+                if hasattr(builder, "registry") and old_name in builder.registry.compactors:
+                    compactor_data = builder.registry.compactors.pop(old_name)
+                    builder.registry.compactors[name] = compactor_data
+            elif old_name != name:
+                raise RuntimeError(
+                    f"Compactor name mismatch: assigned to '{name}' but compactor is named '{old_name}'. "
+                    "Remove the Compactor config 'name' field or make it match the assigned variable."
+                )
 
         # Log all assignments for debugging (only at trace level to avoid noise)
         callback_logger.debug(f"Assignment captured: {name} = {type(value).__name__}")

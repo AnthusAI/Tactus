@@ -198,4 +198,6 @@ class InProcessChannel(ABC):
         """
         if self._response_queue is None:
             loop.call_soon_threadsafe(self._ensure_asyncio_primitives)
+            loop.call_soon_threadsafe(lambda: self._response_queue.put_nowait(response))
+            return
         loop.call_soon_threadsafe(self._response_queue.put_nowait, response)

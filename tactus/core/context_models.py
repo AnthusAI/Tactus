@@ -1,0 +1,41 @@
+"""Re-export Biblicus Context Engine models for Tactus."""
+
+from biblicus.context_engine import (
+    AssistantMessageSpec,
+    CompactorDeclaration,
+    ContextBudgetSpec,
+    ContextDeclaration,
+    ContextExpansionSpec,
+    ContextInsertSpec,
+    ContextMessageSpec,
+    ContextPackBudgetSpec,
+    ContextPackSpec,
+    ContextPolicySpec,
+    ContextRetrieverRequest,
+    ContextTemplateSpec,
+    CorpusDeclaration,
+    HistoryInsertSpec,
+    RetrieverDeclaration,
+    SystemMessageSpec,
+    UserMessageSpec,
+)
+
+__all__ = [
+    "AssistantMessageSpec",
+    "CompactorDeclaration",
+    "ContextBudgetSpec",
+    "ContextDeclaration",
+    "ContextExpansionSpec",
+    "ContextInsertSpec",
+    "ContextMessageSpec",
+    "ContextPackBudgetSpec",
+    "ContextPackSpec",
+    "ContextPolicySpec",
+    "ContextRetrieverRequest",
+    "ContextTemplateSpec",
+    "CorpusDeclaration",
+    "HistoryInsertSpec",
+    "RetrieverDeclaration",
+    "SystemMessageSpec",
+    "UserMessageSpec",
+]

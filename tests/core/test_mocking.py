@@ -2,7 +2,12 @@
 
 import pytest
 
-from tactus.core.mocking import MockManager, MockConfig
+from tactus.core.mocking import (
+    MockManager,
+    MockConfig,
+    get_current_mock_manager,
+    set_current_mock_manager,
+)
 
 
 def test_register_and_static_mock():
@@ -121,3 +126,10 @@ def test_disabled_mock_config_returns_none():
     manager.register_mock("tool", MockConfig(tool_name="tool", static_result="ok", enabled=False))
 
     assert manager.get_mock_response("tool", {}) is None
+
+
+def test_get_current_mock_manager_round_trip():
+    manager = MockManager()
+    set_current_mock_manager(manager)
+    assert get_current_mock_manager() is manager
+    set_current_mock_manager(None)

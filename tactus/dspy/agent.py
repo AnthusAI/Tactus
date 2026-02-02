@@ -64,6 +64,7 @@ class DSPyAgentHandle:
         log_handler: Any = None,
         disable_streaming: bool = False,
         execution_context: Any = None,
+        context_name: Optional[str] = None,
         **kwargs: Any,
     ):
         """
@@ -100,6 +101,7 @@ class DSPyAgentHandle:
         self.tools = tools or []
         self.toolsets = toolsets or []
         self.execution_context = execution_context
+        self.context_name = context_name
         self._dspy_tools_cache = None  # Cache for converted DSPy tools
         # Default input schema: {message: string}
         self.input_schema = input_schema or {"message": {"type": "string", "required": False}}
@@ -514,37 +516,44 @@ class DSPyAgentHandle:
             True if streaming should be enabled
         """
         # CRITICAL DEBUG: Always log entry
-        logger.info(f"[STREAMING] Agent '{self.name}': _should_stream() called")
+        # logger.info(f"[STREAMING] Agent '{self.name}': _should_stream() called")
 
         # Must have log_handler to emit streaming events
         if self.log_handler is None:
-            logger.info(f"[STREAMING] Agent '{self.name}': no log_handler, streaming disabled")
+            # logger.info(
+            #     f"[STREAMING] Agent '{self.name}': no log_handler, streaming disabled"
+            # )
             return False
 
         # Allow log handlers to opt out of streaming (e.g., cost-only collectors)
         supports_streaming = getattr(self.log_handler, "supports_streaming", True)
-        logger.info(
-            f"[STREAMING] Agent '{self.name}': log_handler.supports_streaming={supports_streaming}"
-        )
+        # logger.info(
+        #     f"[STREAMING] Agent '{self.name}': "
+        #     f"log_handler.supports_streaming={supports_streaming}"
+        # )
         if not supports_streaming:
-            logger.info(
-                f"[STREAMING] Agent '{self.name}': log_handler supports_streaming=False, streaming disabled"
-            )
+            # logger.info(
+            #     f"[STREAMING] Agent '{self.name}': "
+            #     "log_handler supports_streaming=False, streaming disabled"
+            # )
             return False
 
         # Respect explicit disable flag
-        logger.info(f"[STREAMING] Agent '{self.name}': disable_streaming={self.disable_streaming}")
+        # logger.info(
+        #     f"[STREAMING] Agent '{self.name}': disable_streaming={self.disable_streaming}"
+        # )
         if self.disable_streaming:
-            logger.info(
-                f"[STREAMING] Agent '{self.name}': disable_streaming=True, streaming disabled"
-            )
+            # logger.info(
+            #     f"[STREAMING] Agent '{self.name}': "
+            #     "disable_streaming=True, streaming disabled"
+            # )
             return False
 
         # Note: We intentionally allow streaming even with output_schema.
         # Streaming (UI feedback) and validation (post-processing) are orthogonal.
         # Stream raw text to UI during generation, then validate after completion.
 
-        logger.info(f"[STREAMING] Agent '{self.name}': streaming ENABLED")
+        # logger.info(f"[STREAMING] Agent '{self.name}': streaming ENABLED")
         return True
 
     def _emit_cost_event(self) -> None:
@@ -664,7 +673,7 @@ class DSPyAgentHandle:
         import queue
         from tactus.protocols.models import AgentTurnEvent, AgentStreamChunkEvent
 
-        logger.info(f"[STREAMING] Agent '{self.name}' starting streaming turn")
+        # logger.info(f"[STREAMING] Agent '{self.name}' starting streaming turn")
 
         # Emit turn started event so the UI shows a loading indicator
         self.log_handler.log(
@@ -673,7 +682,7 @@ class DSPyAgentHandle:
                 stage="started",
             )
         )
-        logger.info(f"[STREAMING] Agent '{self.name}' emitted AgentTurnEvent(started)")
+        # logger.info(f"[STREAMING] Agent '{self.name}' emitted AgentTurnEvent(started)")
 
         # Queue for passing chunks from streaming thread to main thread
         chunk_queue = queue.Queue()
@@ -690,7 +699,9 @@ class DSPyAgentHandle:
                     # NOTE: streamify() automatically enables streaming on the LM
                     # We do NOT need to use settings.context(stream=True) - that actually breaks it!
                     streaming_module = dspy_thread.streamify(self._module.module)
-                    logger.info(f"[STREAMING] Agent '{self.name}' created streaming module")
+                    # logger.info(
+                    #     f"[STREAMING] Agent '{self.name}' created streaming module"
+                    # )
 
                     # Call the streaming module - it returns an async generator
                     stream = streaming_module(**prompt_context)
@@ -698,41 +709,43 @@ class DSPyAgentHandle:
                     chunk_count = 0
                     async for value in stream:
                         chunk_count += 1
-                        value_type = type(value).__name__
-
                         # Check for final Prediction first
                         if isinstance(value, dspy_thread.Prediction):
                             # Final prediction - this is the result
-                            logger.info(
-                                f"[STREAMING] Agent '{self.name}' received final Prediction"
-                            )
+                            # logger.info(
+                            #     f"[STREAMING] Agent '{self.name}' received final Prediction"
+                            # )
                             result_holder["result"] = value
                         # Check for ModelResponseStream (the actual streaming chunks!)
                         elif hasattr(value, "choices") and value.choices:
                             delta = value.choices[0].delta
                             if hasattr(delta, "content") and delta.content:
-                                logger.info(
-                                    f"[STREAMING] Agent '{self.name}' chunk #{chunk_count}: '{delta.content}'"
-                                )
+                                # logger.info(
+                                #     f"[STREAMING] Agent '{self.name}' "
+                                #     f"chunk #{chunk_count}: '{delta.content}'"
+                                # )
                                 chunk_queue.put(("chunk", delta.content))
                         # String chunks (shouldn't happen with DSPy but handle it anyway)
                         elif isinstance(value, str):
-                            logger.info(
-                                f"[STREAMING] Agent '{self.name}' got STRING chunk, len={len(value)}"
-                            )
+                            # logger.info(
+                            #     f"[STREAMING] Agent '{self.name}' "
+                            #     f"got STRING chunk, len={len(value)}"
+                            # )
                             if value:
                                 chunk_queue.put(("chunk", value))
                         else:
-                            logger.warning(
-                                f"[STREAMING] Agent '{self.name}' got unexpected type: {value_type}"
-                            )
+                            pass
 
-                    logger.info(
-                        f"[STREAMING] Agent '{self.name}' stream finished, processed {chunk_count} values"
-                    )
+                    # logger.info(
+                    #     f"[STREAMING] Agent '{self.name}' "
+                    #     f"stream finished, processed {chunk_count} values"
+                    # )
 
                 except Exception as e:
-                    logger.error(f"[STREAMING] Agent '{self.name}' error: {e}", exc_info=True)
+                    # logger.error(
+                    #     f"[STREAMING] Agent '{self.name}' error: {e}",
+                    #     exc_info=True,
+                    # )
                     result_holder["error"] = e
                 finally:
                     # Signal end of stream
@@ -748,7 +761,7 @@ class DSPyAgentHandle:
         # Consume chunks from the queue and emit events in the main thread
         accumulated_text = ""
         emitted_count = 0
-        logger.info(f"[STREAMING] Agent '{self.name}' consuming chunks from queue")
+        # logger.info(f"[STREAMING] Agent '{self.name}' consuming chunks from queue")
 
         while True:
             try:
@@ -763,18 +776,23 @@ class DSPyAgentHandle:
                         chunk_text=msg_data,
                         accumulated_text=accumulated_text,
                     )
-                    logger.info(
-                        f"[STREAMING] Agent '{self.name}' emitting chunk {emitted_count}, len={len(msg_data)}"
-                    )
+                    # logger.info(
+                    #     f"[STREAMING] Agent '{self.name}' emitting chunk "
+                    #     f"{emitted_count}, len={len(msg_data)}"
+                    # )
                     self.log_handler.log(event)
             except queue.Empty:
-                logger.warning(f"[STREAMING] Agent '{self.name}' timeout waiting for chunks")
+                # logger.warning(
+                #     f"[STREAMING] Agent '{self.name}' timeout waiting for chunks"
+                # )
                 break
 
         # Wait for thread to complete
         streaming_thread.join(timeout=5.0)
 
-        logger.info(f"[STREAMING] Agent '{self.name}' finished, emitted {emitted_count} events")
+        # logger.info(
+        #     f"[STREAMING] Agent '{self.name}' finished, emitted {emitted_count} events"
+        # )
 
         # Check for errors
         if result_holder["error"] is not None:
@@ -825,31 +843,22 @@ class DSPyAgentHandle:
             assistant_msg = {"role": "assistant", "content": result_holder["result"].response}
 
             # Include tool calls in the message if present (before wrapping)
-            has_tc = hasattr(result_holder["result"], "tool_calls")
-            tc_value = getattr(result_holder["result"], "tool_calls", None)
-            logger.info(
-                f"[ASYNC_STREAMING] Agent '{self.name}' result: has_tool_calls={has_tc}, tool_calls={tc_value}"
-            )
             if (
                 hasattr(result_holder["result"], "tool_calls")
                 and result_holder["result"].tool_calls
             ):
                 # Convert tool calls to JSON-serializable format
-                logger.info("[ASYNC_STREAMING] Converting tool_calls to dict format")
+                # logger.info("[ASYNC_STREAMING] Converting tool_calls to dict format")
                 tool_calls_list = []
-                tc_obj = result_holder["result"].tool_calls
-                has_tc_attr = hasattr(tc_obj, "tool_calls")
-                logger.info(
-                    f"[ASYNC_STREAMING] tool_calls object: type={type(tc_obj)}, has_tool_calls_attr={has_tc_attr}"
-                )
                 for tc in (
                     result_holder["result"].tool_calls.tool_calls
                     if hasattr(result_holder["result"].tool_calls, "tool_calls")
                     else []
                 ):
-                    logger.info(
-                        f"[ASYNC_STREAMING] Processing tool call: name={tc.name} args={tc.args}"
-                    )
+                    # logger.info(
+                    #     f"[ASYNC_STREAMING] Processing tool call: "
+                    #     f"name={tc.name} args={tc.args}"
+                    # )
                     tool_calls_list.append(
                         {
                             "id": f"call_{tc.name}",  # Generate a simple ID
@@ -862,21 +871,23 @@ class DSPyAgentHandle:
                             },
                         }
                     )
-                logger.info(
-                    f"[ASYNC_STREAMING] Built tool_calls_list with {len(tool_calls_list)} items"
-                )
+                # logger.info(
+                #     f"[ASYNC_STREAMING] Built tool_calls_list with "
+                #     f"{len(tool_calls_list)} items"
+                # )
                 if tool_calls_list:
                     assistant_msg["tool_calls"] = tool_calls_list
-                    logger.info("[ASYNC_STREAMING] Added tool_calls to assistant_msg")
+                    # logger.info("[ASYNC_STREAMING] Added tool_calls to assistant_msg")
 
             new_messages.append(assistant_msg)
             self._history.add(assistant_msg)
 
             # Execute tool calls and add tool result messages to history
             if assistant_msg.get("tool_calls"):
-                logger.info(
-                    f"[ASYNC_STREAMING] Agent '{self.name}' executing {len(assistant_msg['tool_calls'])} tool calls"
-                )
+                # logger.info(
+                #     f"[ASYNC_STREAMING] Agent '{self.name}' executing "
+                #     f"{len(assistant_msg['tool_calls'])} tool calls"
+                # )
                 for tc in assistant_msg["tool_calls"]:
                     tool_name = tc["function"]["name"]
                     tool_args_str = tc["function"]["arguments"]
@@ -887,13 +898,16 @@ class DSPyAgentHandle:
                     )
                     tool_id = tc["id"]
 
-                    logger.info(
-                        f"[ASYNC_STREAMING] Executing tool: {tool_name} with args: {tool_args}"
-                    )
+                    # logger.info(
+                    #     f"[ASYNC_STREAMING] Executing tool: {tool_name} "
+                    #     f"with args: {tool_args}"
+                    # )
 
                     # Execute the tool using toolsets
                     tool_result = self._execute_tool(tool_name, tool_args)
-                    logger.info(f"[ASYNC_STREAMING] Tool executed successfully: {tool_result}")
+                    # logger.info(
+                    #     f"[ASYNC_STREAMING] Tool executed successfully: {tool_result}"
+                    # )
 
                     # Record the tool call so Lua can check if it was called
                     tool_primitive = getattr(self, "_tool_primitive", None)
@@ -904,7 +918,9 @@ class DSPyAgentHandle:
                         tool_primitive.record_call(
                             clean_tool_name, tool_args, tool_result, agent_name=self.name
                         )
-                        logger.info(f"[ASYNC_STREAMING] Recorded tool call: {clean_tool_name}")
+                        # logger.info(
+                        #     f"[ASYNC_STREAMING] Recorded tool call: {clean_tool_name}"
+                        # )
 
                     # Add tool result to history in OpenAI's expected format
                     # OpenAI requires: role="tool", tool_call_id=<id>, content=<result>
@@ -919,15 +935,19 @@ class DSPyAgentHandle:
                         "name": tool_name,
                         "content": tool_result_str,
                     }
-                    logger.info(f"[ASYNC_STREAMING] Created tool result message: {tool_result_msg}")
+                    # logger.info(
+                    #     f"[ASYNC_STREAMING] Created tool result message: {tool_result_msg}"
+                    # )
                     new_messages.append(tool_result_msg)
-                    logger.info(
-                        f"[ASYNC_STREAMING] Added tool result to new_messages, count={len(new_messages)}"
-                    )
+                    # logger.info(
+                    #     f"[ASYNC_STREAMING] Added tool result to new_messages, "
+                    #     f"count={len(new_messages)}"
+                    # )
                     self._history.add(tool_result_msg)
-                    logger.info(
-                        f"[ASYNC_STREAMING] Added tool result to history for tool_call_id={tool_id}, history size={len(self._history)}"
-                    )
+                    # logger.info(
+                    #     f"[ASYNC_STREAMING] Added tool result to history for "
+                    #     f"tool_call_id={tool_id}, history size={len(self._history)}"
+                    # )
 
         # Wrap the result with message tracking
         wrapped_result = wrap_prediction(
@@ -960,7 +980,9 @@ class DSPyAgentHandle:
                 stage="completed",
             )
         )
-        logger.info(f"[STREAMING] Agent '{self.name}' emitted AgentTurnEvent(completed)")
+        # logger.info(
+        #     f"[STREAMING] Agent '{self.name}' emitted AgentTurnEvent(completed)"
+        # )
 
         # Extract usage and cost stats
         usage_stats, cost_stats = self._extract_last_call_stats()
@@ -1223,14 +1245,49 @@ class DSPyAgentHandle:
         if self._turn_count == 1 and not user_message and self.initial_message:
             user_message = self.initial_message
 
-        context = opts.get("context")
+        context = opts.get("context") or {}
 
-        # Build the prompt context
-        prompt_context = {
-            "system_prompt": self.system_prompt,
-            "history": self._history.to_dspy(),
-            "user_message": user_message or "",
-        }
+        if self.context_name:
+            if not self.registry or not hasattr(self.registry, "contexts"):
+                raise RuntimeError("Context assembly requires a registry with contexts")
+
+            from tactus.core.context_assembler import ContextAssembler
+            from tactus.dspy.history import TactusHistory
+
+            template_context = {
+                "input": context,
+                "context": getattr(self, "_context", {}) or {},
+            }
+            template_context.setdefault("input", {})
+            if user_message:
+                template_context["input"].setdefault("message", user_message)
+                template_context["input"].setdefault("question", user_message)
+            assembler = ContextAssembler(
+                self.registry.contexts,
+                retriever_registry=getattr(self.registry, "retrievers", None),
+                corpus_registry=getattr(self.registry, "corpora", None),
+                compactor_registry=getattr(self.registry, "compactors", None),
+            )
+            assembly = assembler.assemble(
+                context_name=self.context_name,
+                base_system_prompt=self.system_prompt,
+                history_messages=self._history.get(),
+                user_message=user_message or "",
+                template_context=template_context,
+            )
+
+            prompt_context = {
+                "system_prompt": assembly.system_prompt,
+                "history": TactusHistory(messages=assembly.history).to_dspy(),
+                "user_message": assembly.user_message,
+            }
+        else:
+            # Build the prompt context
+            prompt_context = {
+                "system_prompt": self.system_prompt,
+                "history": self._history.to_dspy(),
+                "user_message": user_message or "",
+            }
 
         # Add tools as structured DSPy Tool objects if agent has them
         # DSPy's adapter will convert these to OpenAI function call format
@@ -1488,6 +1545,7 @@ def create_dspy_agent(
         system_prompt=config.get("system_prompt", ""),
         model=config.get("model"),
         provider=config.get("provider"),
+        context_name=config.get("context"),
         tools=config.get("tools", []),
         toolsets=config.get("toolsets", []),
         output_schema=config.get("output_schema") or config.get("output"),
@@ -1509,6 +1567,7 @@ def create_dspy_agent(
                 "system_prompt",
                 "model",
                 "provider",
+                "context",
                 "tools",
                 "toolsets",
                 "output_schema",

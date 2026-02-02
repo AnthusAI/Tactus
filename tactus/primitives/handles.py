@@ -308,6 +308,78 @@ class ModelHandle:
         return f"ModelHandle('{self.name}', {connected})"
 
 
+class ContextHandle:
+    """
+    Lightweight handle returned by Context DSL declarations.
+    """
+
+    def __init__(self, name: str):
+        """
+        Initialize context handle.
+
+        Args:
+            name: Context name (string identifier)
+        """
+        self.name = name
+
+    def __repr__(self) -> str:
+        return f"ContextHandle('{self.name}')"
+
+
+class CorpusHandle:
+    """
+    Lightweight handle returned by Corpus DSL declarations.
+    """
+
+    def __init__(self, name: str):
+        """
+        Initialize corpus handle.
+
+        Args:
+            name: Corpus name (string identifier)
+        """
+        self.name = name
+
+    def __repr__(self) -> str:
+        return f"CorpusHandle('{self.name}')"
+
+
+class RetrieverHandle:
+    """
+    Lightweight handle returned by Retriever DSL declarations.
+    """
+
+    def __init__(self, name: str):
+        """
+        Initialize retriever handle.
+
+        Args:
+            name: Retriever name (string identifier)
+        """
+        self.name = name
+
+    def __repr__(self) -> str:
+        return f"RetrieverHandle('{self.name}')"
+
+
+class CompactorHandle:
+    """
+    Lightweight handle returned by Compactor DSL declarations.
+    """
+
+    def __init__(self, name: str):
+        """
+        Initialize compactor handle.
+
+        Args:
+            name: Compactor name (string identifier)
+        """
+        self.name = name
+
+    def __repr__(self) -> str:
+        return f"CompactorHandle('{self.name}')"
+
+
 class AgentLookup:
     """
     Agent lookup primitive - provides Agent("name") lookup functionality.

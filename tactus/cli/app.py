@@ -179,10 +179,11 @@ def setup_logging(
     verbose: bool = False,
     log_level: Optional[str] = None,
     log_format: str = "rich",
+    debug: bool = False,
 ) -> None:
     """Setup CLI logging (level + format)."""
     if log_level is None:
-        level = logging.DEBUG if verbose else logging.INFO
+        level = logging.DEBUG if (verbose or debug) else logging.INFO
     else:
         key = str(log_level).strip().lower()
         if key not in _LOG_LEVELS:
@@ -197,6 +198,10 @@ def setup_logging(
         raise typer.BadParameter(
             f"Invalid --log-format '{log_format}'. Use one of: {', '.join(sorted(_LOG_FORMATS))}"
         )
+
+    if debug:
+        os.environ["TACTUS_TRACE_LLM_MESSAGES"] = "1"
+        os.environ["TACTUS_TRACE_CONTEXT"] = "1"
 
     # Default: rich logs (group repeated timestamps).
     if fmt == "rich":
@@ -431,6 +436,7 @@ def run(
         None, envvar="OPENAI_API_KEY", help="OpenAI API key"
     ),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose logging"),
+    debug: bool = typer.Option(False, "--debug", help="Enable debug logging + context tracing"),
     log_level: Optional[str] = typer.Option(
         None, "--log-level", help="Log level: debug, info, warning, error, critical"
     ),
@@ -499,8 +505,9 @@ def run(
         # Use real implementation for specific tools while mocking others
         tactus run workflow.tac --mock-all --real done
     """
-    setup_logging(verbose=verbose, log_level=log_level, log_format=log_format)
+    setup_logging(verbose=verbose, log_level=log_level, log_format=log_format, debug=debug)
     import warnings
+
     warnings.filterwarnings(
         "ignore",
         message="Pydantic serializer warnings:",
@@ -656,9 +663,12 @@ def run(
 
     # Pass logging preferences through to the sandbox container so container stderr matches CLI UX.
     sandbox_config.env.setdefault(
-        "TACTUS_LOG_LEVEL", str(log_level or ("debug" if verbose else "info"))
+        "TACTUS_LOG_LEVEL", str(log_level or ("debug" if (verbose or debug) else "info"))
     )
     sandbox_config.env.setdefault("TACTUS_LOG_FORMAT", str(log_format))
+    if debug:
+        sandbox_config.env.setdefault("TACTUS_TRACE_LLM_MESSAGES", "1")
+        sandbox_config.env.setdefault("TACTUS_TRACE_CONTEXT", "1")
 
     # Check Docker availability
     docker_available, docker_reason = is_docker_available()
@@ -1388,6 +1398,7 @@ def test(
     mock_config: Optional[Path] = typer.Option(None, help="Path to mock config JSON"),
     param: Optional[list[str]] = typer.Option(None, help="Parameters in format key=value"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose logging"),
+    debug: bool = typer.Option(False, "--debug", help="Enable debug logging + context tracing"),
 ):
     """
     Run BDD specifications for a procedure.
@@ -1408,7 +1419,7 @@ def test(
         # Run specific scenario
         tactus test procedure.tac --scenario "Agent completes research"
     """
-    setup_logging(verbose)
+    setup_logging(verbose=verbose, debug=debug)
 
     if not procedure_file.exists():
         console.print(f"[red]Error:[/red] File not found: {procedure_file}")
@@ -1738,6 +1749,7 @@ def eval(
     runs: int = typer.Option(1, help="Number of runs per case"),
     parallel: bool = typer.Option(True, help="Run cases in parallel"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose logging"),
+    debug: bool = typer.Option(False, "--debug", help="Enable debug logging + context tracing"),
 ):
     """
     Run Pydantic Evals evaluation on procedure.
@@ -1757,7 +1769,7 @@ def eval(
         # Run sequentially (for debugging)
         tactus eval procedure.tac --no-parallel
     """
-    setup_logging(verbose)
+    setup_logging(verbose=verbose, debug=debug)
     load_tactus_config()
 
     if not procedure_file.exists():

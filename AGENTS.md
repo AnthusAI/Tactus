@@ -476,6 +476,7 @@ Tactus has two distinct testing mechanisms that serve different purposes:
 - Emphasize intent through specs, docstrings, validation, and typing rather than through implementation noise.
 - Black and Ruff compliance is mandatory; documentation tooling must support docstring generation.
 - **Readability-first mandate**: prioritize clarity over brevity. Prefer long, descriptive names and explicit structure so code reads like precise pseudocode.
+- **Spell out words in public names**: avoid abbreviations in user-facing configuration keys, schema fields, and API parameters (e.g., prefer `maximum_total_characters` over `max_total_characters`).
 - **Expert judgment encouraged**: use your best professional knowledge about readability (Python best practices and general software design) to improve clarity, even when it requires structural refactors that preserve behavior.
 - **Over-clarity bias**: if there is a tradeoff, choose the option that improves explicitness, transparency, and maintainability, especially at the cost of extra lines or more verbose naming.
 

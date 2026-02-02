@@ -70,7 +70,7 @@ class DummyEvalResult:
 
 
 def test_cli_test_command_requires_specs(monkeypatch, tmp_path, cli_runner):
-    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose: None)
+    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose, debug=False: None)
 
     class FakeConfigManager:
         def load_cascade(self, path):
@@ -91,7 +91,7 @@ def test_cli_test_command_requires_specs(monkeypatch, tmp_path, cli_runner):
 
 
 def test_cli_test_command_runs_runner(monkeypatch, tmp_path, cli_runner):
-    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose: None)
+    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose, debug=False: None)
 
     class FakeConfigManager:
         def load_cascade(self, path):
@@ -140,7 +140,7 @@ def test_cli_test_command_missing_file(cli_runner):
 
 
 def test_cli_test_command_validation_failure(monkeypatch, tmp_path, cli_runner):
-    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose: None)
+    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose, debug=False: None)
 
     class FakeConfigManager:
         def load_cascade(self, path):
@@ -159,7 +159,7 @@ def test_cli_test_command_validation_failure(monkeypatch, tmp_path, cli_runner):
 
 
 def test_cli_test_command_no_specifications(monkeypatch, tmp_path, cli_runner):
-    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose: None)
+    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose, debug=False: None)
 
     class FakeConfigManager:
         def load_cascade(self, path):
@@ -180,7 +180,7 @@ def test_cli_test_command_no_specifications(monkeypatch, tmp_path, cli_runner):
 
 
 def test_cli_test_command_runs_evaluation(monkeypatch, tmp_path, cli_runner):
-    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose: None)
+    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose, debug=False: None)
 
     class FakeConfigManager:
         def load_cascade(self, path):
@@ -230,7 +230,7 @@ def test_cli_test_command_runs_evaluation(monkeypatch, tmp_path, cli_runner):
 
 
 def test_cli_test_command_sets_env_from_config(monkeypatch, tmp_path, cli_runner):
-    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose: None)
+    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose, debug=False: None)
 
     class FakeConfigManager:
         def load_cascade(self, path):
@@ -276,7 +276,7 @@ def test_cli_test_command_sets_env_from_config(monkeypatch, tmp_path, cli_runner
 
 
 def test_cli_test_command_mock_config(monkeypatch, tmp_path, cli_runner):
-    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose: None)
+    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose, debug=False: None)
 
     class FakeConfigManager:
         def load_cascade(self, path):
@@ -323,7 +323,7 @@ def test_cli_test_command_mock_config(monkeypatch, tmp_path, cli_runner):
 
 
 def test_cli_test_command_default_mocks(monkeypatch, tmp_path, cli_runner):
-    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose: None)
+    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose, debug=False: None)
 
     class FakeConfigManager:
         def load_cascade(self, path):
@@ -376,7 +376,7 @@ def test_cli_test_command_default_mocks(monkeypatch, tmp_path, cli_runner):
 
 
 def test_cli_test_command_parses_params(monkeypatch, tmp_path, cli_runner):
-    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose: None)
+    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose, debug=False: None)
 
     class FakeConfigManager:
         def load_cascade(self, path):
@@ -391,7 +391,7 @@ def test_cli_test_command_parses_params(monkeypatch, tmp_path, cli_runner):
     captured = {}
 
     class FakeRunner:
-        def __init__(self, _path, mock_tools, params):
+        def __init__(self, _path, mock_tools, params, mocked=False):
             captured.update(params)
 
         def setup(self, *args, **kwargs):
@@ -423,7 +423,7 @@ def test_cli_test_command_parses_params(monkeypatch, tmp_path, cli_runner):
 
 
 def test_cli_test_command_ignores_bad_param(monkeypatch, tmp_path, cli_runner):
-    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose: None)
+    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose, debug=False: None)
 
     class FakeConfigManager:
         def load_cascade(self, path):
@@ -436,7 +436,7 @@ def test_cli_test_command_ignores_bad_param(monkeypatch, tmp_path, cli_runner):
     monkeypatch.setattr("tactus.validation.TactusValidator", lambda: FakeValidator(result))
 
     class FakeRunner:
-        def __init__(self, _path, mock_tools, params):
+        def __init__(self, _path, mock_tools, params, mocked=False):
             self.params = params
 
         def setup(self, *args, **kwargs):
@@ -467,7 +467,7 @@ def test_cli_test_command_ignores_bad_param(monkeypatch, tmp_path, cli_runner):
 
 
 def test_cli_test_command_runner_error_verbose(monkeypatch, tmp_path, cli_runner):
-    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose: None)
+    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose, debug=False: None)
 
     class FakeConfigManager:
         def load_cascade(self, path):
@@ -503,7 +503,7 @@ def test_cli_test_command_runner_error_verbose(monkeypatch, tmp_path, cli_runner
 
 
 def test_cli_test_command_failed_scenarios(monkeypatch, tmp_path, cli_runner):
-    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose: None)
+    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose, debug=False: None)
 
     class FakeConfigManager:
         def load_cascade(self, path):
@@ -547,7 +547,7 @@ def test_cli_test_command_failed_scenarios(monkeypatch, tmp_path, cli_runner):
 
 
 def test_cli_test_command_runs_evaluation_with_scenario(monkeypatch, tmp_path, cli_runner):
-    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose: None)
+    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose, debug=False: None)
 
     class FakeConfigManager:
         def load_cascade(self, path):
@@ -686,7 +686,7 @@ def test_display_eval_results_single_run(monkeypatch):
 
 
 def test_cli_eval_command_requires_evaluations(monkeypatch, tmp_path, cli_runner):
-    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose: None)
+    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose, debug=False: None)
     monkeypatch.setattr(cli_app, "load_tactus_config", lambda: None)
 
     registry = SimpleNamespace(pydantic_evaluations=None)
@@ -707,7 +707,7 @@ def test_cli_eval_command_missing_file(cli_runner):
 
 
 def test_cli_eval_command_validation_failure(monkeypatch, tmp_path, cli_runner):
-    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose: None)
+    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose, debug=False: None)
     monkeypatch.setattr(cli_app, "load_tactus_config", lambda: None)
 
     result = SimpleNamespace(valid=False, registry=None, errors=[SimpleNamespace(message="bad")])
@@ -722,7 +722,7 @@ def test_cli_eval_command_validation_failure(monkeypatch, tmp_path, cli_runner):
 
 
 def test_cli_eval_command_runs(monkeypatch, tmp_path, cli_runner):
-    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose: None)
+    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose, debug=False: None)
     monkeypatch.setattr(cli_app, "load_tactus_config", lambda: None)
 
     registry = SimpleNamespace(
@@ -767,7 +767,7 @@ def test_cli_eval_command_runs(monkeypatch, tmp_path, cli_runner):
 
 
 def test_cli_eval_command_warns_without_openai_key(monkeypatch, tmp_path, cli_runner):
-    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose: None)
+    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose, debug=False: None)
     monkeypatch.setattr(cli_app, "load_tactus_config", lambda: None)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
@@ -803,7 +803,7 @@ def test_cli_eval_command_warns_without_openai_key(monkeypatch, tmp_path, cli_ru
 
 
 def test_cli_eval_command_threshold_failure(monkeypatch, tmp_path, cli_runner):
-    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose: None)
+    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose, debug=False: None)
     monkeypatch.setattr(cli_app, "load_tactus_config", lambda: None)
 
     registry = SimpleNamespace(
@@ -842,7 +842,7 @@ def test_cli_eval_command_threshold_failure(monkeypatch, tmp_path, cli_runner):
 
 
 def test_cli_eval_command_threshold_failure_with_config(monkeypatch, tmp_path, cli_runner):
-    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose: None)
+    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose, debug=False: None)
     monkeypatch.setattr(cli_app, "load_tactus_config", lambda: None)
 
     registry = SimpleNamespace(
@@ -877,7 +877,7 @@ def test_cli_eval_command_threshold_failure_with_config(monkeypatch, tmp_path, c
 
 
 def test_eval_direct_threshold_failure(monkeypatch, tmp_path):
-    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose: None)
+    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose, debug=False: None)
     monkeypatch.setattr(cli_app, "load_tactus_config", lambda: None)
 
     registry = SimpleNamespace(
@@ -911,7 +911,7 @@ def test_eval_direct_threshold_failure(monkeypatch, tmp_path):
 
 
 def test_cli_eval_command_runner_error_verbose(monkeypatch, tmp_path, cli_runner):
-    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose: None)
+    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose, debug=False: None)
     monkeypatch.setattr(cli_app, "load_tactus_config", lambda: None)
 
     registry = SimpleNamespace(
@@ -946,7 +946,7 @@ def test_cli_eval_command_runner_error_verbose(monkeypatch, tmp_path, cli_runner
 def test_cli_eval_command_import_error(monkeypatch, tmp_path, cli_runner):
     import builtins
 
-    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose: None)
+    monkeypatch.setattr(cli_app, "setup_logging", lambda verbose, debug=False: None)
     monkeypatch.setattr(cli_app, "load_tactus_config", lambda: None)
 
     registry = SimpleNamespace(pydantic_evaluations={"dataset": [], "evaluators": []})

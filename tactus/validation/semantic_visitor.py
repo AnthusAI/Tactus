@@ -144,12 +144,40 @@ class TactusDSLVisitor(LuaParserVisitor):
             if prefix_expression.functioncall():
                 function_call = prefix_expression.functioncall()
                 function_name = self._extract_function_name(function_call)
+                if function_name not in {
+                    "Agent",
+                    "Tool",
+                    "Toolset",
+                    "Context",
+                    "Corpus",
+                    "Retriever",
+                    "Compactor",
+                }:
+                    dotted_name = self._extract_dotted_dsl_name(function_call)
+                    if dotted_name:
+                        function_name = dotted_name
+                elif function_name in {"Corpus", "Retriever"}:
+                    function_call_text = function_call.getText()
+                    has_dot = "." in function_call_text.split("{", 1)[0].split("(", 1)[0]
+                    if not has_dot:
+                        self._record_error(
+                            message=(
+                                f"Direct {function_name} declarations are not supported. "
+                                "Use a retriever module via require(), e.g. "
+                                'local vector = require("tactus.retrievers.embedding_index_file"); '
+                                f"{assignment_target_name} = vector.{function_name} {{ ... }}."
+                            ),
+                            declaration=function_name,
+                        )
+                        return None
 
-                # Check if this is a chained method call (e.g., Agent('name').turn())
-                # Chained calls have structure: func_name args . method_name args
-                # Simple declarations have: func_name args or func_name table
-                # If there are more than 2 children, it's a chained call, not a declaration
-                is_chained_method_call = function_call.getChildCount() > 2
+                # Check if this is a chained method call (e.g., Agent('name').turn()).
+                # Dotted module calls like vector.Corpus { ... } are not chained.
+                get_text = getattr(function_call, "getText", None)
+                function_call_text = get_text() if callable(get_text) else ""
+                is_chained_method_call = (
+                    re.search(r"[)}\\]]\\s*\\.", function_call_text) is not None
+                )
 
                 if function_name == "Agent" and not is_chained_method_call:
                     # Extract config from Agent {...}
@@ -191,6 +219,30 @@ class TactusDSLVisitor(LuaParserVisitor):
                     # Extract config from Toolset {...}
                     declaration_config = self._extract_single_table_arg(function_call)
                     self.builder.register_toolset(
+                        assignment_target_name,
+                        declaration_config if declaration_config else {},
+                    )
+                elif function_name == "Context":
+                    declaration_config = self._extract_single_table_arg(function_call)
+                    self.builder.register_context(
+                        assignment_target_name,
+                        declaration_config if declaration_config else {},
+                    )
+                elif function_name == "Corpus":
+                    declaration_config = self._extract_single_table_arg(function_call)
+                    self.builder.register_corpus(
+                        assignment_target_name,
+                        declaration_config if declaration_config else {},
+                    )
+                elif function_name == "Retriever":
+                    declaration_config = self._extract_single_table_arg(function_call)
+                    self.builder.register_retriever(
+                        assignment_target_name,
+                        declaration_config if declaration_config else {},
+                    )
+                elif function_name == "Compactor":
+                    declaration_config = self._extract_single_table_arg(function_call)
+                    self.builder.register_compactor(
                         assignment_target_name,
                         declaration_config if declaration_config else {},
                     )
@@ -370,6 +422,70 @@ class TactusDSLVisitor(LuaParserVisitor):
                 # var: (NAME | '(' exp ')' varSuffix) varSuffix*
                 if var_ctx.NAME():
                     return var_ctx.NAME().getText()
+
+        return None
+
+    def _extract_dotted_dsl_name(
+        self, function_call_context: LuaParser.FunctioncallContext
+    ) -> Optional[str]:
+        """Extract DSL names from dotted calls like module.Corpus {...}."""
+        function_call_text = function_call_context.getText()
+        match = re.match(
+            r"(?:[A-Za-z_][A-Za-z0-9_]*\.)+(Agent|Tool|Toolset|Context|Corpus|Retriever|Compactor)\b",
+            function_call_text,
+        )
+        if match:
+            return match.group(1)
+        return None
+
+    def _parse_functioncall_expression(
+        self, function_call_context: LuaParser.FunctioncallContext
+    ) -> Any:
+        """Parse function calls used inside DSL expressions (e.g., context messages)."""
+        function_name = self._extract_function_name(function_call_context)
+        if not function_name:
+            return None
+
+        args = self._extract_arguments(function_call_context)
+
+        if function_name == "template":
+            template_text = args[0] if args else ""
+            vars_dict = args[1] if len(args) > 1 else {}
+            if not isinstance(template_text, str):
+                return None
+            if not isinstance(vars_dict, dict):
+                vars_dict = {}
+            return {"template": template_text, "vars": vars_dict}
+
+        if function_name in {"system", "user", "assistant"}:
+            if not args:
+                return None
+            arg = args[0]
+            if isinstance(arg, dict) and "template" in arg:
+                return {
+                    "type": function_name,
+                    "template": arg.get("template"),
+                    "vars": arg.get("vars", {}),
+                }
+            if isinstance(arg, str):
+                return {"type": function_name, "content": arg}
+            return {"type": function_name, "content": str(arg)}
+
+        if function_name == "context":
+            if not args:
+                return None
+            pack_name = args[0]
+            budget = args[1] if len(args) > 1 else None
+            directive: dict[str, Any] = {
+                "type": "context",
+                "name": pack_name if isinstance(pack_name, str) else str(pack_name),
+            }
+            if isinstance(budget, dict):
+                directive["budget"] = budget
+            return directive
+
+        if function_name == "history":
+            return {"type": "history"}
 
         return None
 
@@ -742,6 +858,9 @@ class TactusDSLVisitor(LuaParserVisitor):
             return True
         elif ctx.tableconstructor():
             return self._parse_table_constructor(ctx.tableconstructor())
+        function_call = getattr(ctx, "functioncall", None)
+        if callable(function_call):
+            return self._parse_functioncall_expression(function_call())
 
         # For other expressions, return None (can't evaluate without execution)
         return None

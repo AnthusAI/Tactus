@@ -251,9 +251,11 @@ class TestAllExamples:
 
         # Inject DSL stubs into sandbox
         lua_globals = sandbox.lua.globals()
+        internal_allowlist = {"_tactus_internal_corpus", "_tactus_internal_retriever"}
         for name, value in dsl_stubs.items():
-            if not name.startswith("_"):  # Skip internal items like _registries
-                lua_globals[name] = value
+            if name.startswith("_") and name not in internal_allowlist:
+                continue
+            lua_globals[name] = value
 
         # Add strict global checking - error on undefined variable access
         # This catches issues like using 'done' without requiring it

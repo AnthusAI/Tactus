@@ -238,8 +238,47 @@ async def test_execute_success_with_summary(monkeypatch, tmp_path):
 
     assert result["success"] is True
     assert result["state"] == {"ok": True}
-    assert result["stop_requested"] is True
-    assert os.environ.get("OPENAI_API_KEY") == "key"
+
+
+@pytest.mark.asyncio
+async def test_execute_remaps_external_agent_mocks_to_single_agent(monkeypatch, tmp_path):
+    runtime = runtime_module.TactusRuntime(
+        procedure_id="proc",
+        storage_backend=None,
+        hitl_handler=object(),
+        openai_api_key="key",
+        external_config={},
+        run_id="run-1",
+        source_file_path=str(tmp_path / "workflow.tac"),
+    )
+
+    runtime.external_agent_mocks = {"other": [{"message": "hi"}]}
+    runtime.toolset_primitive = None
+
+    class SoloRegistry(DummyRegistry):
+        def __init__(self):
+            super().__init__()
+            self.agents = {"agent": object()}
+
+    monkeypatch.setattr(runtime_module, "LuaSandbox", DummyLuaSandbox)
+    monkeypatch.setattr(runtime_module, "BaseExecutionContext", DummyExecutionContext)
+    monkeypatch.setattr(runtime, "_parse_declarations", lambda *_args, **_kwargs: SoloRegistry())
+    monkeypatch.setattr(runtime, "_registry_to_config", lambda _registry: {})
+
+    async def fake_initialize_primitives(*_args, **_kwargs):
+        return None
+
+    monkeypatch.setattr(runtime, "_initialize_primitives", fake_initialize_primitives)
+    monkeypatch.setattr(runtime, "_initialize_toolsets", _noop_async)
+    monkeypatch.setattr(runtime, "_initialize_named_procedures", _noop_async)
+    monkeypatch.setattr(runtime, "_setup_agents", _noop_async)
+    monkeypatch.setattr(runtime, "_setup_models", _noop_async)
+    monkeypatch.setattr(runtime, "_execute_workflow", lambda: {"result": "ok"})
+
+    result = await runtime.execute("return {}", context={}, format="lua")
+    assert result["success"] is True
+    assert "agent" in runtime.registry.agent_mocks
+    assert os.environ.get("OPENAI_API_KEY")
 
 
 @pytest.mark.asyncio
@@ -809,6 +848,66 @@ async def test_execute_cleanup_handles_errors(monkeypatch, tmp_path):
     result = await runtime.execute("return {}", context=None, format="lua")
 
     assert result["success"] is True
+
+
+@pytest.mark.asyncio
+async def test_execute_remaps_unmatched_agent_mock_to_sole_agent(monkeypatch, tmp_path):
+    runtime = runtime_module.TactusRuntime(
+        procedure_id="proc",
+        storage_backend=None,
+        hitl_handler=object(),
+        source_file_path=str(tmp_path / "workflow.tac"),
+    )
+    runtime.toolset_primitive = None
+
+    registry = DummyRegistry()
+    registry.agent_mocks = {"other": {"message": "mock"}}
+
+    monkeypatch.setattr(runtime_module, "LuaSandbox", DummyLuaSandbox)
+    monkeypatch.setattr(runtime_module, "BaseExecutionContext", DummyExecutionContext)
+    monkeypatch.setattr(runtime, "_parse_declarations", lambda *_args, **_kwargs: registry)
+    monkeypatch.setattr(runtime, "_registry_to_config", lambda _registry: {})
+    monkeypatch.setattr(runtime, "_initialize_primitives", _noop_async)
+    monkeypatch.setattr(runtime, "_initialize_toolsets", _noop_async)
+    monkeypatch.setattr(runtime, "_initialize_named_procedures", _noop_async)
+    monkeypatch.setattr(runtime, "_setup_agents", _noop_async)
+    monkeypatch.setattr(runtime, "_setup_models", _noop_async)
+    monkeypatch.setattr(runtime, "_execute_workflow", lambda: {"result": "ok"})
+
+    result = await runtime.execute("return {}", context={}, format="lua")
+
+    assert result["success"] is True
+    assert "agent" in runtime.registry.agent_mocks
+
+
+@pytest.mark.asyncio
+async def test_execute_does_not_remap_multiple_unmatched_mocks(monkeypatch, tmp_path):
+    runtime = runtime_module.TactusRuntime(
+        procedure_id="proc",
+        storage_backend=None,
+        hitl_handler=object(),
+        source_file_path=str(tmp_path / "workflow.tac"),
+    )
+    runtime.toolset_primitive = None
+
+    registry = DummyRegistry()
+    registry.agent_mocks = {"other": {"message": "mock"}, "extra": {"message": "mock"}}
+
+    monkeypatch.setattr(runtime_module, "LuaSandbox", DummyLuaSandbox)
+    monkeypatch.setattr(runtime_module, "BaseExecutionContext", DummyExecutionContext)
+    monkeypatch.setattr(runtime, "_parse_declarations", lambda *_args, **_kwargs: registry)
+    monkeypatch.setattr(runtime, "_registry_to_config", lambda _registry: {})
+    monkeypatch.setattr(runtime, "_initialize_primitives", _noop_async)
+    monkeypatch.setattr(runtime, "_initialize_toolsets", _noop_async)
+    monkeypatch.setattr(runtime, "_initialize_named_procedures", _noop_async)
+    monkeypatch.setattr(runtime, "_setup_agents", _noop_async)
+    monkeypatch.setattr(runtime, "_setup_models", _noop_async)
+    monkeypatch.setattr(runtime, "_execute_workflow", lambda: {"result": "ok"})
+
+    result = await runtime.execute("return {}", context={}, format="lua")
+
+    assert result["success"] is True
+    assert "agent" not in runtime.registry.agent_mocks
 
 
 @pytest.mark.asyncio

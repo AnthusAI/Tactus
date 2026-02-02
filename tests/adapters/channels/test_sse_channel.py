@@ -10,6 +10,7 @@ from tactus.protocols.control import (
     ControlRequestItem,
     ControlRequestType,
     ControlOption,
+    ControlResponse,
     RuntimeContext,
     BacktraceEntry,
 )
@@ -190,3 +191,32 @@ async def test_shutdown_sets_event():
     channel = SSEControlChannel()
     await channel.shutdown()
     assert channel._shutdown_event.is_set() is True
+
+
+def test_enqueue_response_from_sync_context_puts_nowait(monkeypatch):
+    channel = SSEControlChannel()
+    channel._response_queue = asyncio.Queue()
+
+    class DummyLoop:
+        def is_running(self):
+            return False
+
+    monkeypatch.setattr(asyncio, "get_event_loop", lambda: DummyLoop())
+    monkeypatch.setattr(channel, "_ensure_asyncio_primitives", lambda: None)
+
+    channel._enqueue_response_from_sync_context(
+        "req", ControlResponse(request_id="req", value="ok")
+    )
+
+    queued = channel._response_queue.get_nowait()
+    assert queued.request_id == "req"
+
+
+def test_enqueue_response_from_sync_context_logs_error(monkeypatch):
+    channel = SSEControlChannel()
+    monkeypatch.setattr(
+        channel, "_ensure_asyncio_primitives", lambda: (_ for _ in ()).throw(RuntimeError("boom"))
+    )
+    channel._enqueue_response_from_sync_context(
+        "req", ControlResponse(request_id="req", value="ok")
+    )

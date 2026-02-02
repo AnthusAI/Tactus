@@ -46,6 +46,7 @@ tmp/
 examples/output/
 _recovery/
 .tactus-broker/
+tests/fixtures/wikitext-2-raw-v1/
 
 *storybook.log
 storybook-static

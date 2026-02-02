@@ -10,6 +10,13 @@ from typing import Any, Dict, Optional, Union
 
 from pydantic import BaseModel, Field, ValidationError, ConfigDict
 
+from tactus.core.context_models import (
+    CompactorDeclaration,
+    ContextDeclaration,
+    CorpusDeclaration,
+    RetrieverDeclaration,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -149,6 +156,10 @@ class ProcedureRegistry(BaseModel):
     dependencies: dict[str, DependencyDeclaration] = Field(default_factory=dict)
     mocks: dict[str, dict[str, Any]] = Field(default_factory=dict)  # Mock configurations
     agent_mocks: dict[str, AgentMockConfig] = Field(default_factory=dict)  # Agent mock configs
+    contexts: dict[str, ContextDeclaration] = Field(default_factory=dict)
+    corpora: dict[str, CorpusDeclaration] = Field(default_factory=dict)
+    retrievers: dict[str, RetrieverDeclaration] = Field(default_factory=dict)
+    compactors: dict[str, CompactorDeclaration] = Field(default_factory=dict)
 
     # Message history configuration (aligned with pydantic-ai)
     message_history_config: dict[str, Any] = Field(default_factory=dict)
@@ -333,6 +344,53 @@ class RegistryBuilder:
             self.registry.agent_mocks[agent_name] = AgentMockConfig(**config)
         except Exception as exception:
             self._add_error(f"Invalid agent mock config for '{agent_name}': {exception}")
+
+    def register_context(self, name: str, config: dict) -> None:
+        """Register a context declaration."""
+        context_config = dict(config)
+        context_config["name"] = name
+        try:
+            self.registry.contexts[name] = ContextDeclaration(**context_config)
+        except ValidationError as exception:
+            self._add_error(f"Invalid context '{name}': {exception}")
+
+    def register_corpus(self, name: str, config: dict) -> None:
+        """Register a corpus declaration."""
+        corpus_config = dict(config)
+        if "backend" in corpus_config and "backend_id" not in corpus_config:
+            corpus_config["backend_id"] = corpus_config.pop("backend")
+        if "root" in corpus_config and "corpus_root" not in corpus_config:
+            corpus_config["corpus_root"] = corpus_config.pop("root")
+        if "recipe" in corpus_config and "recipe_config" not in corpus_config:
+            corpus_config["recipe_config"] = corpus_config.pop("recipe")
+        try:
+            self.registry.corpora[name] = CorpusDeclaration(name=name, config=corpus_config)
+        except ValidationError as exception:
+            self._add_error(f"Invalid corpus '{name}': {exception}")
+
+    def register_retriever(self, name: str, config: dict) -> None:
+        """Register a retriever declaration."""
+        retriever_config = dict(config)
+        corpus_name = retriever_config.pop("corpus", None)
+        try:
+            self.registry.retrievers[name] = RetrieverDeclaration(
+                name=name,
+                corpus=corpus_name,
+                config=retriever_config,
+            )
+        except ValidationError as exception:
+            self._add_error(f"Invalid retriever '{name}': {exception}")
+
+    def register_compactor(self, name: str, config: dict) -> None:
+        """Register a compactor declaration."""
+        compactor_config = dict(config)
+        try:
+            self.registry.compactors[name] = CompactorDeclaration(
+                name=name,
+                config=compactor_config,
+            )
+        except ValidationError as exception:
+            self._add_error(f"Invalid compactor '{name}': {exception}")
 
     def register_specification(self, name: str, scenarios: list) -> None:
         """Register a BDD specification."""

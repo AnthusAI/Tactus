@@ -211,6 +211,7 @@ class TactusTestContext:
 
             self.runtime.mock_manager = MockManager()
             from tactus.core.mocking import set_current_mock_manager
+
             set_current_mock_manager(self.runtime.mock_manager)
             logger.info("Created MockManager for Mocks {} block support")
             # Mocked-mode tests should never call real LLMs by default.

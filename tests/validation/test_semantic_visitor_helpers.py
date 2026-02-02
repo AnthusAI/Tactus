@@ -2103,6 +2103,34 @@ def test_check_assignment_based_declaration_tools_non_list():
     assert calls["agent"][1]["tools"] == "not-a-list"
 
 
+def test_check_assignment_based_declaration_registers_context():
+    calls = {}
+
+    class Builder:
+        def register_context(self, name, config):
+            calls["context"] = (name, config)
+
+    visitor = TactusDSLVisitor()
+    visitor.builder = Builder()
+    visitor._extract_function_name = lambda _ctx: "Context"
+    visitor._extract_single_table_arg = lambda _ctx: {"messages": []}
+
+    class FakeFuncCall:
+        def getChildCount(self):
+            return 1
+
+    class FakePrefixExp:
+        def functioncall(self):
+            return FakeFuncCall()
+
+    class FakeExp:
+        def prefixexp(self):
+            return FakePrefixExp()
+
+    visitor._check_assignment_based_declaration("support_context", FakeExp())
+    assert calls["context"][0] == "support_context"
+
+
 def test_extract_single_table_arg_with_non_table_args():
     visitor = TactusDSLVisitor()
 

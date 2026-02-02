@@ -5,7 +5,9 @@ This module provides the Module primitive that maps to DSPy modules,
 supporting various prediction strategies like Predict, ChainOfThought, etc.
 """
 
+import json
 import logging
+import os
 from typing import Any, Dict, Optional, Union
 
 import dspy
@@ -188,6 +190,16 @@ class RawModule(dspy.Module):
 
         # Log summary of messages being sent
         logger.debug(f"[RAWMODULE] Sending {len(messages)} messages to LM")
+        if os.environ.get("TACTUS_TRACE_LLM_MESSAGES") == "1":
+            try:
+                payload = json.dumps(messages, indent=2, ensure_ascii=False)
+                logger.debug("[RAWMODULE] LLM messages payload:\n%s", payload)
+            except TypeError:
+                logger.debug(
+                    "[RAWMODULE] LLM messages payload (non-JSON serializable): %r", messages
+                )
+
+        kwargs.pop("context", None)
 
         # Call LM directly - streamify() will intercept this call if streaming is enabled
         response = lm(messages=messages, **kwargs)
@@ -223,7 +235,6 @@ class RawModule(dspy.Module):
                 # Convert to DSPy ToolCalls format
                 # tool_calls_from_lm is a list of ChatCompletionMessageToolCall objects from LiteLLM
                 from dspy.adapters.types.tool import ToolCalls
-                import json
 
                 tool_calls_list = []
                 for tc in tool_calls_from_lm:

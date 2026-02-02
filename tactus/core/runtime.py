@@ -353,9 +353,30 @@ class TactusRuntime:
                             raise TactusRuntimeError(
                                 f"External agent mocks for '{agent_name}' must be a list of turns"
                             )
-                        self.registry.agent_mocks[agent_name] = AgentMockConfig(
+                        target_name = agent_name
+                        if (
+                            agent_name not in self.registry.agents
+                            and len(self.registry.agents) == 1
+                        ):
+                            target_name = next(iter(self.registry.agents))
+                        self.registry.agent_mocks[target_name] = AgentMockConfig(
                             temporal=temporal_turns
                         )
+
+                # If agent mocks exist but use a non-matching name and there is only one agent,
+                # remap the mock to the sole agent name.
+                if self.registry and self.registry.agent_mocks and len(self.registry.agents) == 1:
+                    sole_agent = next(iter(self.registry.agents))
+                    if sole_agent not in self.registry.agent_mocks:
+                        unmatched = [
+                            name
+                            for name in self.registry.agent_mocks
+                            if name not in self.registry.agents
+                        ]
+                        if len(unmatched) == 1:
+                            self.registry.agent_mocks[sole_agent] = self.registry.agent_mocks.pop(
+                                unmatched[0]
+                            )
 
                 # If we're in mocked mode, ensure agents are mocked deterministically even if
                 # the .tac file doesn't declare `Mocks { ... }` for them.
@@ -2065,6 +2086,7 @@ class TactusRuntime:
                 "system_prompt": system_prompt_template,
                 "model": model_name,
                 "provider": agent_config.get("provider"),
+                "context": agent_config.get("context"),
                 "tools": filtered_tools,
                 "toolsets": filtered_toolsets,
                 "output_schema": output_schema,

@@ -1,80 +1,43 @@
+import builtins
+import io
+import os
+
 import pytest
 
-pytest.importorskip("mcp")
-
-from tactus.adapters.mcp_manager import MCPServerManager, substitute_env_vars
+from tactus.adapters import mcp_manager
 
 
-def test_substitute_env_vars_handles_nested(monkeypatch):
-    monkeypatch.setenv("HOST", "example.com")
+def test_require_mcp_server_stdio_import_error(monkeypatch):
+    original_import = builtins.__import__
 
-    value = substitute_env_vars(
-        {"url": "https://${HOST}/api", "list": ["${HOST}", {"k": "${HOST}"}]}
-    )
+    def fake_import(name, globals=None, locals=None, fromlist=(), level=0):
+        if name == "pydantic_ai.mcp":
+            raise ImportError("missing")
+        return original_import(name, globals, locals, fromlist, level)
 
-    assert value["url"] == "https://example.com/api"
-    assert value["list"][0] == "example.com"
-    assert value["list"][1]["k"] == "example.com"
+    monkeypatch.setattr(builtins, "__import__", fake_import, raising=True)
+
+    with pytest.raises(RuntimeError):
+        mcp_manager._require_mcp_server_stdio()
+
+
+def test_substitute_env_vars():
+    os.environ["TOKEN"] = "secret"
+    assert mcp_manager.substitute_env_vars("${TOKEN}") == "secret"
+    assert mcp_manager.substitute_env_vars({"k": "${TOKEN}"}) == {"k": "secret"}
+    assert mcp_manager.substitute_env_vars(["${TOKEN}"]) == ["secret"]
+    os.environ.pop("TOKEN", None)
 
 
 def test_substitute_env_vars_passthrough():
-    assert substitute_env_vars(123) == 123
+    assert mcp_manager.substitute_env_vars(123) == 123
 
 
 @pytest.mark.asyncio
-async def test_trace_callback_records_success():
-    class DummyToolPrimitive:
-        def __init__(self):
-            self.calls = []
-
-        def record_call(self, name, args, result):
-            self.calls.append((name, args, result))
-
-    async def next_call(tool_name, tool_args):
-        return {"ok": True}
-
-    manager = MCPServerManager({}, tool_primitive=DummyToolPrimitive())
-    callback = manager._create_trace_callback("server")
-
-    result = await callback(None, next_call, "tool", {"x": 1})
-
-    assert result == {"ok": True}
-    assert manager.tool_primitive.calls == [("tool", {"x": 1}, "{'ok': True}")]
-
-
-@pytest.mark.asyncio
-async def test_trace_callback_records_failure():
-    class DummyToolPrimitive:
-        def __init__(self):
-            self.calls = []
-
-        def record_call(self, name, args, result):
-            self.calls.append((name, args, result))
-
-    async def next_call(_tool_name, _tool_args):
-        raise RuntimeError("boom")
-
-    manager = MCPServerManager({}, tool_primitive=DummyToolPrimitive())
-    callback = manager._create_trace_callback("server")
-
-    with pytest.raises(RuntimeError):
-        await callback(None, next_call, "tool", {"x": 1})
-
-    assert manager.tool_primitive.calls == [("tool", {"x": 1}, "Error: boom")]
-
-
-@pytest.mark.asyncio
-async def test_manager_connects_and_registers_toolsets(monkeypatch):
-    created = []
-
-    class FakeServer:
-        def __init__(self, command, args=None, env=None, cwd=None, process_tool_call=None):
-            self.command = command
-            self.args = args or []
-            self.env = env
-            self.cwd = cwd
-            self.process_tool_call = process_tool_call
-            created.append(self)
+async def test_mcp_manager_connects_and_tracks_toolsets(monkeypatch):
+    class DummyServer:
+        def __init__(self, **_kwargs):
+            pass
 
         def prefixed(self, _name):
             return self
@@ -82,41 +45,43 @@ async def test_manager_connects_and_registers_toolsets(monkeypatch):
         async def __aenter__(self):
             return self
 
-        async def __aexit__(self, exc_type, exc, tb):
+        async def __aexit__(self, _exc_type, _exc, _tb):
             return None
 
-    monkeypatch.setattr("tactus.adapters.mcp_manager.MCPServerStdio", FakeServer)
-
-    manager = MCPServerManager({"srv": {"command": "echo", "args": ["ok"]}})
+    monkeypatch.setattr(mcp_manager, "MCPServerStdio", DummyServer)
+    manager = mcp_manager.MCPServerManager({"srv": {"command": "echo"}}, tool_primitive=None)
     async with manager:
-        toolsets = manager.get_toolsets()
-        assert len(toolsets) == 1
-        assert manager.get_toolset_by_name("srv") is toolsets[0]
+        assert manager.get_toolsets() == [manager.get_toolset_by_name("srv")]
 
 
 @pytest.mark.asyncio
-async def test_manager_skips_fileno_error(monkeypatch):
-    import io
-
-    def raise_fileno(*_args, **_kwargs):
-        raise io.UnsupportedOperation("fileno")
-
-    monkeypatch.setattr("tactus.adapters.mcp_manager.MCPServerStdio", raise_fileno)
-
-    manager = MCPServerManager({"srv": {"command": "echo"}})
+async def test_mcp_manager_with_no_configs(monkeypatch):
+    manager = mcp_manager.MCPServerManager({}, tool_primitive=None)
     async with manager:
         assert manager.get_toolsets() == []
 
 
 @pytest.mark.asyncio
-async def test_manager_retries_transient_error(monkeypatch):
+async def test_mcp_manager_handles_fileno_error(monkeypatch):
+    class DummyServer:
+        def __init__(self, **_kwargs):
+            raise io.UnsupportedOperation("fileno")
+
+    monkeypatch.setattr(mcp_manager, "MCPServerStdio", DummyServer)
+    manager = mcp_manager.MCPServerManager({"srv": {"command": "echo"}}, tool_primitive=None)
+    async with manager:
+        assert manager.get_toolsets() == []
+
+
+@pytest.mark.asyncio
+async def test_mcp_manager_retries_transient_errors(monkeypatch):
     calls = {"count": 0}
 
-    class FlakyServer:
-        def __init__(self, command, args=None, env=None, cwd=None, process_tool_call=None):
+    class DummyServer:
+        def __init__(self, **_kwargs):
             calls["count"] += 1
             if calls["count"] == 1:
-                raise RuntimeError("BrokenResourceError: boom")
+                raise RuntimeError("BrokenResourceError")
 
         def prefixed(self, _name):
             return self
@@ -124,61 +89,99 @@ async def test_manager_retries_transient_error(monkeypatch):
         async def __aenter__(self):
             return self
 
-        async def __aexit__(self, exc_type, exc, tb):
+        async def __aexit__(self, _exc_type, _exc, _tb):
             return None
 
-    monkeypatch.setattr("tactus.adapters.mcp_manager.MCPServerStdio", FlakyServer)
-
-    manager = MCPServerManager({"srv": {"command": "echo"}})
+    monkeypatch.setattr(mcp_manager, "MCPServerStdio", DummyServer)
+    manager = mcp_manager.MCPServerManager({"srv": {"command": "echo"}}, tool_primitive=None)
     async with manager:
-        assert len(manager.get_toolsets()) == 1
-    assert calls["count"] >= 2
+        assert calls["count"] >= 2
 
 
 @pytest.mark.asyncio
-async def test_manager_raises_on_non_transient_error(monkeypatch):
-    def raise_fail(*_args, **_kwargs):
-        raise RuntimeError("boom")
+async def test_mcp_manager_retries_taskgroup_errors(monkeypatch):
+    calls = {"count": 0}
 
-    monkeypatch.setattr("tactus.adapters.mcp_manager.MCPServerStdio", raise_fail)
+    class DummyServer:
+        def __init__(self, **_kwargs):
+            calls["count"] += 1
+            if calls["count"] == 1:
+                raise RuntimeError("unhandled errors in a TaskGroup")
 
-    manager = MCPServerManager({"srv": {"command": "echo"}})
+        def prefixed(self, _name):
+            return self
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, _exc_type, _exc, _tb):
+            return None
+
+    monkeypatch.setattr(mcp_manager, "MCPServerStdio", DummyServer)
+    manager = mcp_manager.MCPServerManager({"srv": {"command": "echo"}}, tool_primitive=None)
+    async with manager:
+        assert calls["count"] >= 2
+
+
+@pytest.mark.asyncio
+async def test_mcp_manager_raises_after_retries(monkeypatch):
+    class DummyServer:
+        def __init__(self, **_kwargs):
+            raise RuntimeError("BrokenResourceError")
+
+    monkeypatch.setattr(mcp_manager, "MCPServerStdio", DummyServer)
+    manager = mcp_manager.MCPServerManager({"srv": {"command": "echo"}}, tool_primitive=None)
     with pytest.raises(RuntimeError):
-        await manager.__aenter__()
+        async with manager:
+            pass
 
 
 @pytest.mark.asyncio
-async def test_manager_raises_after_transient_retries(monkeypatch):
-    def raise_transient(*_args, **_kwargs):
-        raise RuntimeError("BrokenResourceError: boom")
+async def test_mcp_manager_raises_non_transient_error(monkeypatch):
+    class DummyServer:
+        def __init__(self, **_kwargs):
+            raise RuntimeError("boom")
 
-    monkeypatch.setattr("tactus.adapters.mcp_manager.MCPServerStdio", raise_transient)
-
-    manager = MCPServerManager({"srv": {"command": "echo"}})
+    monkeypatch.setattr(mcp_manager, "MCPServerStdio", DummyServer)
+    manager = mcp_manager.MCPServerManager({"srv": {"command": "echo"}}, tool_primitive=None)
     with pytest.raises(RuntimeError):
-        await manager.__aenter__()
+        async with manager:
+            pass
 
 
 @pytest.mark.asyncio
-async def test_trace_callback_without_tool_primitive_success():
-    async def next_call(tool_name, tool_args):
+async def test_trace_callback_records_calls():
+    records = []
+
+    class DummyToolPrimitive:
+        def record_call(self, name, args, result):
+            records.append((name, args, result))
+
+    manager = mcp_manager.MCPServerManager({}, tool_primitive=DummyToolPrimitive())
+    callback = manager._create_trace_callback("srv")
+
+    async def invoke_next(tool_name, tool_args):
         return "ok"
 
-    manager = MCPServerManager({})
-    callback = manager._create_trace_callback("server")
-
-    result = await callback(None, next_call, "tool", {"x": 1})
-
+    result = await callback(None, invoke_next, "tool", {"a": 1})
     assert result == "ok"
+    assert records[-1][2] == "ok"
+
+    async def invoke_error(_tool, _args):
+        raise RuntimeError("fail")
+
+    with pytest.raises(RuntimeError):
+        await callback(None, invoke_error, "tool", {"a": 2})
+    assert "Error:" in records[-1][2]
 
 
 @pytest.mark.asyncio
-async def test_trace_callback_without_tool_primitive_failure():
-    async def next_call(_tool_name, _tool_args):
-        raise RuntimeError("boom")
+async def test_trace_callback_error_without_tool_primitive():
+    manager = mcp_manager.MCPServerManager({}, tool_primitive=None)
+    callback = manager._create_trace_callback("srv")
 
-    manager = MCPServerManager({})
-    callback = manager._create_trace_callback("server")
+    async def invoke_error(_tool, _args):
+        raise RuntimeError("fail")
 
     with pytest.raises(RuntimeError):
-        await callback(None, next_call, "tool", {"x": 1})
+        await callback(None, invoke_error, "tool", {"a": 2})

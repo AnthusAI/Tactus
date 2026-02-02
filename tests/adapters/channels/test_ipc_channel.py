@@ -372,3 +372,9 @@ async def test_shutdown_closes_clients_and_server(monkeypatch):
     assert writer.waited is True
     assert server.closed is True
     assert channel._clients == {}
+
+
+def test_ensure_response_queue_requires_running_loop():
+    channel = IPCControlChannel(socket_path="/tmp/unused.sock", procedure_id="proc")
+    with pytest.raises(RuntimeError):
+        channel._ensure_response_queue()

@@ -133,3 +133,32 @@ def test_cancel_noop_does_not_raise():
         await channel.cancel("req", "done")
 
     asyncio.run(run())
+
+
+def test_ensure_asyncio_primitives_requires_running_loop():
+    channel = DummyChannel()
+    with pytest.raises(RuntimeError):
+        channel._ensure_asyncio_primitives()
+
+
+def test_push_response_threadsafe_initializes_queue():
+    channel = DummyChannel()
+    loop = asyncio.new_event_loop()
+
+    called = {"count": 0}
+
+    def fake_ensure():
+        if channel._response_queue is None:
+            channel._response_queue = asyncio.Queue()
+
+    def fake_call_soon_threadsafe(fn, *args):
+        called["count"] += 1
+        fn(*args)
+
+    loop.call_soon_threadsafe = fake_call_soon_threadsafe  # type: ignore[assignment]
+    channel._ensure_asyncio_primitives = fake_ensure  # type: ignore[assignment]
+    channel.push_response_threadsafe(ControlResponse(request_id="req", value="ok"), loop)
+
+    assert channel._response_queue is not None
+    assert called["count"] == 2
+    loop.close()
