@@ -53,7 +53,7 @@ dependencies = [
     # DSPy for prompt optimization and LLM abstraction
     "dspy>=2.5",
     # Biblicus text utilities
-    "biblicus>=0.16.1",
+    "biblicus>=1.0.0",
     # IDE server dependencies
     "flask>=3.0.0",
     "flask-cors>=4.0.0",
