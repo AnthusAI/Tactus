@@ -2457,9 +2457,13 @@ def stdlib_test(
         tactus stdlib test classify     # Run only classify tests
         tactus stdlib test extract      # Run only extract tests
     """
+    import os
     import tactus
     from tactus.validation import TactusValidator
     from tactus.testing.test_runner import TactusTestRunner
+
+    # Force deterministic mocks for stdlib tests (CI-safe, offline).
+    os.environ["TACTUS_MOCK_MODE"] = "1"
 
     # Find stdlib spec files
     package_root = Path(tactus.__file__).parent
