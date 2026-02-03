@@ -5,6 +5,9 @@ Main entry point for the Tactus command-line interface.
 Provides commands for running, validating, and testing workflows.
 """
 
+# Future annotations prevent runtime evaluation of PEP 604 unions on Python 3.9.
+from __future__ import annotations
+
 # Disable Pydantic plugins for PyInstaller builds
 # This prevents logfire (and other plugins) from being loaded via Pydantic's plugin system
 # which causes errors when trying to inspect source code in frozen apps
