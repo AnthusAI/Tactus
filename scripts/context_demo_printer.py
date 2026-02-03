@@ -42,7 +42,9 @@ def print_context_pack_snapshot(pack_name: str, blocks: list[str]) -> None:
         print(f"{idx}. {shorten(block, 180)}")
 
 
-def print_demo_result(label: str, system_prompt: str, history: list[dict], user_message: str, token_count: int) -> None:
+def print_demo_result(
+    label: str, system_prompt: str, history: list[dict], user_message: str, token_count: int
+) -> None:
     print(f"Context: {label}")
     print(f"Token estimate: {token_count}")
     print("System prompt:")

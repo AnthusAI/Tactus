@@ -36,10 +36,10 @@ Procedure {
         local color = Human.select(
             "What is your favorite color?",
             {
-                {label = "🔴 Red", value = "red"},
-                {label = "🔵 Blue", value = "blue"},
-                {label = "🟢 Green", value = "green"},
-                {label = "🟡 Yellow", value = "yellow"}
+                {label = "Red", value = "red"},
+                {label = "Blue", value = "blue"},
+                {label = "Green", value = "green"},
+                {label = "Yellow", value = "yellow"}
             }
         )
         print("✓ User selected color: " .. tostring(color))

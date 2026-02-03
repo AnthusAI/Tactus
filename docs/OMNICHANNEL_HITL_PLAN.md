@@ -1075,15 +1075,15 @@ When a human opens the app, they see a list of pending HITL requests:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  📋 Pending Requests (3)                                │
+│   Pending Requests (3)                                │
 ├─────────────────────────────────────────────────────────┤
-│  🔴 Customer Intake: John Doe                           │
+│  [HIGH] Customer Intake: John Doe                           │
 │      Started 2m ago • Waiting on you                    │
 │                                                         │
-│  🟡 Credit Review: Acme Corp                            │
+│  [MED] Credit Review: Acme Corp                            │
 │      Started 15m ago • Sarah is viewing                 │
 │                                                         │
-│  🟢 Data Export: Q4 Report                              │
+│  [LOW] Data Export: Q4 Report                              │
 │      Started 1h ago • Approved by Mike                  │
 └─────────────────────────────────────────────────────────┘
 ```

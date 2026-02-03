@@ -68,6 +68,11 @@ def main() -> None:
         corpus = Corpus.init(corpus_dir, force=True)
 
     corpus.import_tree(source_dir)
+    # Corpus.import_tree copies sidecar metadata files (e.g. *.biblicus.yml). Biblicus will
+    # then generate import-metadata for those sidecars as if they were primary documents,
+    # creating noisy *.biblicus.yml.biblicus.yml artifacts in the corpus tree.
+    for path in (corpus_dir / "raw").rglob("*.biblicus.yml.biblicus.yml"):
+        path.unlink(missing_ok=True)
 
     configuration: dict[str, object] = {}
     if args.retriever in {"embedding-index-file", "embedding-index-inmemory"}:

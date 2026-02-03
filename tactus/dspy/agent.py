@@ -1311,7 +1311,9 @@ class DSPyAgentHandle:
         try:
             return self._turn_without_streaming(opts, prompt_context)
         except Exception as e:
-            logger.error(f"Agent '{self.name}' turn failed: {e}")
+            # Avoid double-logging provider/auth errors in test runs; callers already get the
+            # raised exception and can decide how to surface it.
+            logger.debug("Agent '%s' turn failed: %s", self.name, e, exc_info=True)
             raise
 
     def _get_mock_response(self, opts: Dict[str, Any]) -> Optional[TactusPrediction]:

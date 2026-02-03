@@ -273,10 +273,10 @@ class CodingAssistantAgent:
             entries = []
             for item in sorted(target_path.iterdir(), key=lambda x: (not x.is_dir(), x.name)):
                 if item.is_dir():
-                    entries.append(f"📁 {item.name}/")
+                    entries.append(f"[DIR] {item.name}/")
                 else:
                     size = item.stat().st_size
-                    entries.append(f"📄 {item.name} ({size} bytes)")
+                    entries.append(f"[FILE] {item.name} ({size} bytes)")
 
             if not entries:
                 return f"Directory is empty: {path}"

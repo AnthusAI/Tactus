@@ -43,7 +43,9 @@ Internal-only (Biblicus):
 
 ### Corpus
 ```lua
-miami_afd = Corpus {
+local FilesystemCorpus = require("tactus.corpora.filesystem")
+
+miami_afd = FilesystemCorpus.Corpus {
   root = "tests/fixtures/noaa_afd_corpus/MFL",
   configuration = {
     pipeline = {
@@ -57,7 +59,9 @@ miami_afd = Corpus {
 
 ### Retriever
 ```lua
-miami_search = TfVectorRetriever {
+local TfVector = require("tactus.retrievers.tf_vector")
+
+miami_search = TfVector.Retriever {
   corpus = miami_afd,
   configuration = {
     pipeline = {
@@ -74,7 +78,9 @@ miami_search = TfVectorRetriever {
 ```lua
 Task "fetch" {
   Task "NOAA" {
-    entry = FetchNoaaAfd { wfo = "MFL", max_items = 5, corpus = miami_afd }
+    entry = function()
+      return FetchNoaaAfd { wfo = "MFL", max_items = 5, corpus = miami_afd }
+    end
   }
 }
 ```
@@ -83,7 +89,9 @@ Task "fetch" {
 ```lua
 fetch = Task {
   NOAA = Task {
-    entry = FetchNoaaAfd { wfo = "MFL", max_items = 5, corpus = miami_afd }
+    entry = function()
+      return FetchNoaaAfd { wfo = "MFL", max_items = 5, corpus = miami_afd }
+    end
   }
 }
 ```
@@ -215,9 +223,10 @@ Biblicus and Tactus terminology:
 ## Example (New Way)
 ```lua
 -- NOAA AFD retrieval example
-local TfVectorRetriever = require("tactus.retrievers.tf_vector")
+local FilesystemCorpus = require("tactus.corpora.filesystem")
+local TfVector = require("tactus.retrievers.tf_vector")
 
-miami_afd = Corpus {
+miami_afd = FilesystemCorpus.Corpus {
   root = "tests/fixtures/noaa_afd_corpus/MFL",
   configuration = {
     pipeline = {
@@ -228,7 +237,7 @@ miami_afd = Corpus {
   }
 }
 
-miami_search = TfVectorRetriever {
+miami_search = TfVector.Retriever {
   corpus = miami_afd,
   configuration = {
     pipeline = {
@@ -244,11 +253,12 @@ miami_search = TfVectorRetriever {
 
 fetch = Task {
   NOAA = Task {
-    entry = FetchNoaaAfd { wfo = "MFL", max_items = 5, corpus = miami_afd }
+    entry = function()
+      return FetchNoaaAfd { wfo = "MFL", max_items = 5, corpus = miami_afd }
+    end
   }
 }
 
-run = Task {
-  entry = Miami("Summarize the recent Miami AFD.")
-}
+-- Script-mode entrypoint remains valid for simple workflows:
+return Miami("Summarize the recent Miami AFD.")
 ```

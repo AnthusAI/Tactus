@@ -183,6 +183,7 @@ async def main_async() -> int:
     from tactus.sandbox.protocol import (
         ExecutionRequest,
         ExecutionResult,
+        ExecutionStatus,
     )
 
     start_time = time.time()
@@ -202,15 +203,54 @@ async def main_async() -> int:
         request = ExecutionRequest(**request_data)
         logger.info("Executing procedure (id=%s)", request.execution_id)
 
-        # Execute procedure
-        proc_result = await execute_procedure(
-            source=request.source,
-            params=request.params,
-            source_file_path=request.source_file_path,
-            format=request.format,
-            run_id=request.run_id,
-            task_name=request.task_name,
-        )
+        try:
+            # Execute procedure
+            proc_result = await execute_procedure(
+                source=request.source,
+                params=request.params,
+                source_file_path=request.source_file_path,
+                format=request.format,
+                run_id=request.run_id,
+                task_name=request.task_name,
+            )
+        except Exception as exc:
+            # Provide structured results for common control-flow exceptions.
+            from tactus.core.exceptions import ProcedureWaitingForHuman, TaskSelectionRequired
+
+            duration = time.time() - start_time
+
+            if isinstance(exc, TaskSelectionRequired):
+                result = ExecutionResult.failure(
+                    error=str(exc),
+                    error_type=type(exc).__name__,
+                    traceback=None,
+                    duration_seconds=duration,
+                    exit_code=2,
+                    metadata={"tasks": list(exc.tasks)},
+                )
+                write_result_to_stdout(result)
+                return 2
+
+            if isinstance(exc, ProcedureWaitingForHuman):
+                result = ExecutionResult(
+                    status=ExecutionStatus.CANCELLED,
+                    result=None,
+                    error=str(exc),
+                    error_type=type(exc).__name__,
+                    traceback=None,
+                    duration_seconds=duration,
+                    exit_code=0,
+                    logs=[],
+                    metadata={
+                        "waiting_for_human": True,
+                        "procedure_id": exc.procedure_id,
+                        "pending_message_id": exc.pending_message_id,
+                    },
+                )
+                write_result_to_stdout(result)
+                return 0
+
+            raise
 
         # Create success result
         duration = time.time() - start_time

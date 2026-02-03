@@ -170,9 +170,7 @@ def main() -> None:
     for wfo in args.wfo:
         candidates = _discover_afd_url(wfo)
         if not candidates:
-            candidates = [
-                template.format(wfo=wfo.lower()) for template in RSS_TEMPLATES
-            ] + [
+            candidates = [template.format(wfo=wfo.lower()) for template in RSS_TEMPLATES] + [
                 template.format(wfo=wfo.upper()) for template in RSS_TEMPLATES
             ]
         items = []

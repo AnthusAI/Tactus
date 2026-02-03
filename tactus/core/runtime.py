@@ -1006,66 +1006,29 @@ class TactusRuntime:
                 )
 
         # 6. Register DSL-defined toolsets from registry (after individual tools are registered)
-        # DEBUG: Write to stderr which should show up in logs
-        import sys
-
-        sys.stderr.write("\n\n===  DSL TOOLSET REGISTRATION START ===\n")
-        sys.stderr.write(f"Has registry: {hasattr(self, 'registry')}\n")
-        if hasattr(self, "registry") and self.registry:
-            sys.stderr.write("Registry is not None: True\n")
-            sys.stderr.write(f"Registry has toolsets attr: {hasattr(self.registry, 'toolsets')}\n")
-            if hasattr(self.registry, "toolsets"):
-                sys.stderr.write(f"Registry toolsets: {list(self.registry.toolsets.keys())}\n")
-                sys.stderr.write(f"Registry toolsets count: {len(self.registry.toolsets)}\n")
-        else:
-            sys.stderr.write("Registry is None or doesn't exist\n")
-        sys.stderr.flush()
-
-        logger.info("=== DSL TOOLSET REGISTRATION START ===")
-        logger.info(f"Has registry: {hasattr(self, 'registry')}")
-        logger.info(
-            f"Registry is not None: {self.registry is not None if hasattr(self, 'registry') else False}"
-        )
-        if hasattr(self, "registry") and self.registry:
-            logger.info(f"Registry has toolsets attr: {hasattr(self.registry, 'toolsets')}")
-            if hasattr(self.registry, "toolsets"):
-                logger.info(f"Registry toolsets: {list(self.registry.toolsets.keys())}")
-                logger.info(f"Registry toolsets count: {len(self.registry.toolsets)}")
-
         if hasattr(self, "registry") and self.registry and hasattr(self.registry, "toolsets"):
-            sys.stderr.write(f"Processing {len(self.registry.toolsets)} DSL toolsets\n")
-            sys.stderr.flush()
-            logger.info(f"Processing {len(self.registry.toolsets)} DSL toolsets")
+            logger.debug(
+                "Registering %s DSL toolset(s): %s",
+                len(self.registry.toolsets),
+                list(self.registry.toolsets.keys()),
+            )
             for name, definition in self.registry.toolsets.items():
-                sys.stderr.write(
-                    f"Creating DSL toolset '{name}' with config keys: {list(definition.keys())}\n"
-                )
-                sys.stderr.flush()
-                logger.info(
-                    f"Creating DSL toolset '{name}' with config keys: {list(definition.keys())}"
-                )
                 try:
+                    logger.debug(
+                        "Creating DSL toolset %r with config keys: %s",
+                        name,
+                        list(definition.keys()),
+                    )
                     toolset = await self._create_toolset_from_config(name, definition)
                     if toolset:
                         self.toolset_registry[name] = toolset
-                        sys.stderr.write(f"✓ Registered DSL-defined toolset '{name}'\n")
-                        sys.stderr.flush()
-                        logger.info(f"✓ Registered DSL-defined toolset '{name}'")
                     else:
-                        sys.stderr.write(f"✗ Toolset '{name}' creation returned None\n")
-                        sys.stderr.flush()
-                        logger.error(f"✗ Toolset '{name}' creation returned None")
-                except Exception as e:
-                    sys.stderr.write(f"✗ Failed to create DSL toolset '{name}': {e}\n")
-                    sys.stderr.flush()
-                    logger.error(f"✗ Failed to create DSL toolset '{name}': {e}", exc_info=True)
+                        logger.error("DSL toolset %r creation returned None", name)
+                except Exception as exc:
+                    # Toolset creation failures should not crash the whole runtime initialization.
+                    logger.error("Failed to create DSL toolset %r: %s", name, exc, exc_info=True)
         else:
-            sys.stderr.write("No DSL toolsets to register (registry.toolsets not available)\n")
-            sys.stderr.flush()
-            logger.warning("No DSL toolsets to register (registry.toolsets not available)")
-        sys.stderr.write("=== DSL TOOLSET REGISTRATION END ===\n")
-        sys.stderr.flush()
-        logger.info("=== DSL TOOLSET REGISTRATION END ===")
+            logger.debug("No DSL toolsets to register")
 
         logger.info(
             f"Toolset registry initialized with {len(self.toolset_registry)} toolset(s): {list(self.toolset_registry.keys())}"
@@ -1825,8 +1788,6 @@ class TactusRuntime:
         Args:
             context: Procedure context with pre-loaded data
         """
-        import sys  # For debug output
-
         logger.info(
             f"_setup_agents called. Toolset registry has {len(self.toolset_registry)} toolsets: {list(self.toolset_registry.keys())}"
         )
@@ -2008,20 +1969,14 @@ class TactusRuntime:
                 logger.info(f"Agent '{agent_name}' has NO tools (explicitly empty - passing None)")
             else:
                 # Parse toolset expressions
-                sys.stderr.write(
-                    f"\n[AGENT_SETUP] Agent '{agent_name}' raw tools config: {agent_tools_config}\n"
+                logger.debug(
+                    "Agent %r raw tools config: %s (available toolsets: %s)",
+                    agent_name,
+                    agent_tools_config,
+                    list(self.toolset_registry.keys()),
                 )
-                sys.stderr.write(
-                    f"[AGENT_SETUP] toolset_registry has: {list(self.toolset_registry.keys())}\n"
-                )
-                sys.stderr.flush()
-                logger.info(f"Agent '{agent_name}' raw tools config: {agent_tools_config}")
                 filtered_toolsets = self._parse_toolset_expressions(agent_tools_config)
-                sys.stderr.write(
-                    f"[AGENT_SETUP] Agent '{agent_name}' parsed toolsets: {filtered_toolsets}\n"
-                )
-                sys.stderr.flush()
-                logger.info(f"Agent '{agent_name}' parsed toolsets: {filtered_toolsets}")
+                logger.debug("Agent %r parsed toolsets: %s", agent_name, filtered_toolsets)
 
             # Append inline tools toolset if present
             if inline_tools_toolset:
@@ -2141,10 +2096,7 @@ class TactusRuntime:
             # The agent was created during parsing WITHOUT toolsets, now we update it
             # to the new agent that HAS toolsets
             self.lua_sandbox.lua.globals()[agent_name] = agent_primitive
-            sys.stderr.write(
-                f"[AGENT_FIX] Updated Lua global '{agent_name}' to new agent with toolsets\n"
-            )
-            sys.stderr.flush()
+            logger.debug("Updated Lua global %r to new agent with toolsets", agent_name)
 
             logger.info(f"Agent '{agent_name}' configured successfully with model '{model_name}'")
 

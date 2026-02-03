@@ -397,7 +397,7 @@ class BaseExecutionContext(ExecutionContext):
             except Exception as exception:
                 logger.warning("Failed to emit checkpoint event: %s", exception)
         else:
-            logger.warning("[CHECKPOINT] No log_handler available to emit checkpoint event")
+            logger.debug("[CHECKPOINT] No log_handler available to emit checkpoint event")
 
         # Persist metadata
         self.storage.save_procedure_metadata(self.procedure_id, self.metadata)

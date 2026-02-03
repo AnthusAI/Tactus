@@ -5,9 +5,10 @@ Tactus exposes Biblicus-backed retrievers as Lua modules so you can select a ret
 ## Embedding index (file-backed)
 
 ```lua
+local FilesystemCorpus = require("tactus.corpora.filesystem")
 local vector = require("tactus.retrievers.embedding_index_file")
 
-support_notes = vector.Corpus {
+support_notes = FilesystemCorpus.Corpus {
   root = "corpora/support-notes",
   configuration = {
     pipeline = {
@@ -37,9 +38,10 @@ support_search = vector.Retriever {
 ## Embedding index (in-memory)
 
 ```lua
+local FilesystemCorpus = require("tactus.corpora.filesystem")
 local vector = require("tactus.retrievers.embedding_index_inmemory")
 
-notes = vector.Corpus {
+notes = FilesystemCorpus.Corpus {
   root = "corpora/notes",
   configuration = {
     pipeline = {
@@ -69,9 +71,10 @@ search = vector.Retriever {
 ## SQLite full-text search
 
 ```lua
+local FilesystemCorpus = require("tactus.corpora.filesystem")
 local vector = require("tactus.retrievers.sqlite_full_text_search")
 
-notes = vector.Corpus {
+notes = FilesystemCorpus.Corpus {
   root = "corpora/notes",
   configuration = {
     pipeline = {
@@ -103,9 +106,10 @@ search = vector.Retriever {
 ## TF vector (term-frequency)
 
 ```lua
+local FilesystemCorpus = require("tactus.corpora.filesystem")
 local vector = require("tactus.retrievers.tf_vector")
 
-notes = vector.Corpus {
+notes = FilesystemCorpus.Corpus {
   root = "corpora/notes",
   configuration = {
     pipeline = {

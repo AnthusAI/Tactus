@@ -63,7 +63,7 @@ The Classify primitive demonstrates the stdlib pattern:
 **Current Status**:
 - ✅ Specs pass with Python implementation
 - ✅ Tactus reference implementation exists
-- 🔜 Module loading system needed to use Tactus impl
+- Next: Module loading system needed to use Tactus impl
 
 ## Adding New Primitives
 

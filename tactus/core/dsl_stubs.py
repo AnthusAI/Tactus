@@ -2394,13 +2394,21 @@ def create_dsl_stubs(
                 )
 
             except Exception as error:
-                import traceback
-
-                logger.error(
-                    f"[AGENT_CREATION] Failed to create agent '{temporary_agent_name}' immediately: {error}",
-                    exc_info=True,
-                )
-                logger.debug(f"Full traceback: {traceback.format_exc()}")
+                if isinstance(error, ValueError) and str(error).startswith("LM not configured"):
+                    # Two-phase initialization supports late LM setup (common in tests and
+                    # simple scripts). Treat this as an expected fallback rather than a hard error.
+                    logger.debug(
+                        "[AGENT_CREATION] Delayed creation for agent '%s': %s",
+                        temporary_agent_name,
+                        error,
+                    )
+                else:
+                    logger.error(
+                        "[AGENT_CREATION] Failed to create agent '%s' immediately: %s",
+                        temporary_agent_name,
+                        error,
+                        exc_info=True,
+                    )
                 # Fall back to two-phase initialization if immediate creation fails
 
         # Register handle for lookup

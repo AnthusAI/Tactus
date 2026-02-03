@@ -36,7 +36,9 @@ from scripts.context_demo_printer import (
 )
 
 
-def _build_registry(context_name: str, messages: list[dict], query: str, wfo: str) -> RegistryBuilder:
+def _build_registry(
+    context_name: str, messages: list[dict], query: str, wfo: str
+) -> RegistryBuilder:
     builder = RegistryBuilder()
     builder.register_corpus(
         "noaa_afd",
@@ -167,10 +169,10 @@ def main() -> None:
             {"type": "user", "template": "Question: {input.question}"},
         ],
         plan_lines=[
-            "system(\"Use only the provided forecast discussion text as your source.\")",
+            'system("Use only the provided forecast discussion text as your source.")',
             "context(noaa_search)",
             "history()",
-            "user(template(\"Question: {input.question}\"))",
+            'user(template("Question: {input.question}"))',
         ],
         user_message=user_message,
         query=query,
@@ -195,10 +197,10 @@ def main() -> None:
             },
         ],
         plan_lines=[
-            "system(\"Use only the provided forecast discussion text.\")",
+            'system("Use only the provided forecast discussion text.")',
             "context(noaa_search)",
             "history()",
-            "user(template(\"Forecast discussion:\\n{context.noaa_search}\\n\\nQuestion: {input.question}\"))",
+            'user(template("Forecast discussion:\\n{context.noaa_search}\\n\\nQuestion: {input.question}"))',
         ],
         user_message=user_message,
         query=query,
@@ -226,10 +228,10 @@ def main() -> None:
             },
         ],
         plan_lines=[
-            "system(\"Return only KEY MESSAGES bullets or NOT FOUND.\")",
+            'system("Return only KEY MESSAGES bullets or NOT FOUND.")',
             "context(noaa_search)",
             "history()",
-            "user(template(\"Forecast discussion:\\n{context.noaa_search}\\n\\nExtract KEY MESSAGES bullets verbatim.\"))",
+            'user(template("Forecast discussion:\\n{context.noaa_search}\\n\\nExtract KEY MESSAGES bullets verbatim."))',
         ],
         user_message=user_message,
         query=query,

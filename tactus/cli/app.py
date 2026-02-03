@@ -434,6 +434,41 @@ def _check_missing_required_inputs(input_schema: dict, provided_params: dict) ->
     return missing
 
 
+def _print_available_tasks(
+    console: Console,
+    *,
+    workflow_filename: str,
+    tasks: list[str],
+    show_example_when_empty: bool,
+) -> None:
+    console.print("\n[cyan]Available tasks:[/cyan]")
+    for task_name in tasks:
+        console.print(f"  [bold]{task_name}[/bold]")
+
+    if tasks:
+        example_task = tasks[0]
+    elif show_example_when_empty:
+        example_task = "run"
+    else:
+        return
+
+    console.print(
+        "\n[dim]Run a task explicitly, e.g.:[/dim] "
+        f"[bold]tactus {workflow_filename} {example_task}[/bold]"
+    )
+
+
+def _print_waiting_for_human(console: Console, *, pending_message_id: str | None) -> None:
+    console.print("\n[yellow]Procedure paused - waiting for human response[/yellow]")
+    if pending_message_id:
+        console.print(f"[dim]Message ID: {pending_message_id}[/dim]")
+
+    console.print("\n[cyan]The procedure has been paused and is waiting for input.[/cyan]")
+    console.print(
+        "[cyan]To resume, run the procedure again or provide a response via another channel.[/cyan]\n"
+    )
+
+
 @app.command()
 def run(
     workflow_file: Path = typer.Argument(..., help="Path to workflow file (.tac)"),
@@ -854,6 +889,25 @@ def run(
                     "tools_used": sandbox_result.metadata.get("tools_used", []),
                 }
             else:
+                # Special-case: sandbox task selection (avoid a scary error dump).
+                if sandbox_result.error_type == "TaskSelectionRequired":
+                    tasks = sandbox_result.metadata.get("tasks", [])
+                    _print_available_tasks(
+                        console,
+                        workflow_filename=workflow_file.name,
+                        tasks=tasks,
+                        show_example_when_empty=False,
+                    )
+                    return
+
+                # Special-case: sandbox waiting for human (treat as a pause, not a failure).
+                if sandbox_result.metadata.get("waiting_for_human"):
+                    _print_waiting_for_human(
+                        console,
+                        pending_message_id=sandbox_result.metadata.get("pending_message_id"),
+                    )
+                    return
+
                 result = {
                     "success": False,
                     "error": sandbox_result.error,
@@ -869,48 +923,23 @@ def run(
             except Exception as e:
                 from tactus.core.exceptions import ProcedureWaitingForHuman, TaskSelectionRequired
 
-                # Check both the exception itself and its __cause__
-                console.print(f"[dim]DEBUG: Caught exception type: {type(e).__name__}[/dim]")
-                console.print(
-                    f"[dim]DEBUG: Exception __cause__ type: {type(e.__cause__).__name__ if e.__cause__ else 'None'}[/dim]"
-                )
-                console.print(
-                    f"[dim]DEBUG: Is ProcedureWaitingForHuman: {isinstance(e, ProcedureWaitingForHuman)}[/dim]"
-                )
-                console.print(
-                    f"[dim]DEBUG: __cause__ is ProcedureWaitingForHuman: {isinstance(e.__cause__, ProcedureWaitingForHuman) if e.__cause__ else False}[/dim]"
-                )
-
                 task_error = e.__cause__ if isinstance(e.__cause__, TaskSelectionRequired) else e
                 if isinstance(task_error, TaskSelectionRequired):
-                    console.print("\n[cyan]Available tasks:[/cyan]")
-                    for task_name in task_error.tasks:
-                        console.print(f"  [bold]{task_name}[/bold]")
-                    console.print(
-                        "\n[dim]Run a task explicitly, e.g.:[/dim] "
-                        f"[bold]tactus {workflow_file.name} {task_error.tasks[0] if task_error.tasks else 'run'}[/bold]"
+                    _print_available_tasks(
+                        console,
+                        workflow_filename=workflow_file.name,
+                        tasks=task_error.tasks,
+                        show_example_when_empty=True,
                     )
                     return
                 if isinstance(e, ProcedureWaitingForHuman):
                     # Direct exception
-                    console.print(
-                        "\n[yellow]⏸ Procedure paused - waiting for human response[/yellow]"
-                    )
-                    console.print(f"[dim]Message ID: {e.pending_message_id}[/dim]")
-                    console.print("\n[cyan]The procedure has been paused and is waiting for input.")
-                    console.print(
-                        "To resume, run the procedure again or provide a response via another channel.[/cyan]\n"
-                    )
+                    _print_waiting_for_human(console, pending_message_id=e.pending_message_id)
                     return
                 elif e.__cause__ and isinstance(e.__cause__, ProcedureWaitingForHuman):
                     # Wrapped exception
-                    console.print(
-                        "\n[yellow]⏸ Procedure paused - waiting for human response[/yellow]"
-                    )
-                    console.print(f"[dim]Message ID: {e.__cause__.pending_message_id}[/dim]")
-                    console.print("\n[cyan]The procedure has been paused and is waiting for input.")
-                    console.print(
-                        "To resume, run the procedure again or provide a response via another channel.[/cyan]\n"
+                    _print_waiting_for_human(
+                        console, pending_message_id=e.__cause__.pending_message_id
                     )
                     return
                 else:
@@ -1658,13 +1687,13 @@ def _display_test_results(test_result):
             # Include execution metrics in scenario display
             metrics_parts = []
             if scenario.total_cost > 0:
-                metrics_parts.append(f"💰 ${scenario.total_cost:.6f}")
+                metrics_parts.append(f"$ {scenario.total_cost:.6f}")
             if scenario.llm_calls > 0:
-                metrics_parts.append(f"🤖 {scenario.llm_calls} LLM calls")
+                metrics_parts.append(f"{scenario.llm_calls} LLM calls")
             if scenario.iterations > 0:
-                metrics_parts.append(f"🔄 {scenario.iterations} iterations")
+                metrics_parts.append(f"{scenario.iterations} iterations")
             if scenario.tools_used:
-                metrics_parts.append(f"🔧 {len(scenario.tools_used)} tools")
+                metrics_parts.append(f"{len(scenario.tools_used)} tools")
 
             metrics_str = f" ({', '.join(metrics_parts)})" if metrics_parts else ""
             console.print(
@@ -1691,14 +1720,14 @@ def _display_test_results(test_result):
         console.print("\n[bold]Execution Metrics:[/bold]")
         if test_result.total_cost > 0:
             console.print(
-                f"  💰 Cost: ${test_result.total_cost:.6f} ({test_result.total_tokens:,} tokens)"
+                f"  $ Cost: ${test_result.total_cost:.6f} ({test_result.total_tokens:,} tokens)"
             )
         if test_result.total_llm_calls > 0:
-            console.print(f"  🤖 LLM Calls: {test_result.total_llm_calls}")
+            console.print(f"  LLM Calls: {test_result.total_llm_calls}")
         if test_result.total_iterations > 0:
-            console.print(f"  🔄 Iterations: {test_result.total_iterations}")
+            console.print(f"  Iterations: {test_result.total_iterations}")
         if test_result.unique_tools_used:
-            console.print(f"  🔧 Tools: {', '.join(test_result.unique_tools_used)}")
+            console.print(f"  Tools: {', '.join(test_result.unique_tools_used)}")
 
 
 def _display_evaluation_results(eval_results):
@@ -1727,7 +1756,7 @@ def _display_evaluation_results(eval_results):
 
         # Flakiness warning
         if eval_result.is_flaky:
-            console.print("  [yellow]⚠️  FLAKY - Inconsistent results detected[/yellow]")
+            console.print("  [yellow]! FLAKY - Inconsistent results detected[/yellow]")
 
 
 def _display_eval_results(report, runs: int, console):

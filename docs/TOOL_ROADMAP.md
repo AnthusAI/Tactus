@@ -297,12 +297,12 @@ end
 
 **Implementation**: `ToolPrimitive` ([`tactus/primitives/tool.py`](../tactus/primitives/tool.py))
 
-### 🚧 Implemented but Needs Manual Testing
+### WIP Implemented but Needs Manual Testing
 
 **Status Note**: The following features have been implemented with automated unit tests, but require manual testing and user validation in real-world scenarios.
 
 #### 3. Local Python Plugin Tools
-**Status**: 🚧 Implemented, Needs Manual Testing  
+**Status**: WIP Implemented, Needs Manual Testing  
 **Priority**: High
 
 Enable loading Python functions from local directories as tools without requiring MCP servers.
@@ -360,9 +360,9 @@ agent("financial_advisor", {
 - ✅ Unit tests: `tests/adapters/test_plugins.py` (10 tests, all passing)
 - ✅ Example tools: `examples/tools/` (search, calculations, data_analysis)
 - ✅ Example procedure: `examples/15-feature-local-tools.tac`
-- 🚧 **Needs**: Manual end-to-end testing with real LLM calls
-- 🚧 **Needs**: User validation with real-world tool definitions
-- 🚧 **Needs**: Testing with complex tool signatures (async, optional params, etc.)
+- WIP **Needs**: Manual end-to-end testing with real LLM calls
+- WIP **Needs**: User validation with real-world tool definitions
+- WIP **Needs**: Testing with complex tool signatures (async, optional params, etc.)
 
 **Benefits**:
 - Zero boilerplate - just write a Python function
@@ -377,7 +377,7 @@ agent("financial_advisor", {
 - **MCP Servers**: Heavyweight, reusable across projects, good for shared tool ecosystems
 
 #### 4. Configuration Cascade System
-**Status**: 🚧 Implemented, Needs Manual Testing  
+**Status**: WIP Implemented, Needs Manual Testing  
 **Priority**: High
 
 Cascading configuration system that supports sidecar config files, directory-level configs, and root config with clear priority ordering.
@@ -409,14 +409,14 @@ default_model: "gpt-4o-mini"
 - ✅ Unit tests: `tests/core/test_config_manager.py` (17 tests, all passing)
 - ✅ Example sidecar: `examples/15-feature-local-tools.tac.yml`
 - ✅ Documentation: `docs/CONFIGURATION.md`
-- 🚧 **Needs**: Manual testing with real procedures
-- 🚧 **Needs**: Validation of merge behavior in complex scenarios
-- 🚧 **Needs**: User feedback on configuration ergonomics
+- WIP **Needs**: Manual testing with real procedures
+- WIP **Needs**: Validation of merge behavior in complex scenarios
+- WIP **Needs**: User feedback on configuration ergonomics
 
 **Security Note**: Sidecar configs are NOT sandboxed - they can contain file paths and command execution. Only use trusted sidecar files.
 
 #### 5. Basic Function Tools (Legacy)
-**Status**: 🚧 Code exists, never tested
+**Status**: WIP Code exists, never tested
 
 Tools are registered in agent definitions and automatically converted to Pydantic AI `Tool` instances:
 
@@ -453,7 +453,7 @@ agent("worker", {
 - Unknown: Does JSON Schema conversion work correctly?
 
 #### 3. MCP Server Integration
-**Status**: 🚧 Implemented, Needs Real-World Validation  
+**Status**: WIP Implemented, Needs Real-World Validation  
 **Priority**: Critical
 
 Tactus loads tools from MCP servers and makes them available to agents using Pydantic AI's native `MCPServerStdio`:
@@ -505,7 +505,7 @@ mcp_servers:
 - ✅ Environment variable substitution tested
 - ✅ Connection lifecycle management verified
 
-**🚨 Critical: Real-World Validation Needed**:
+**Critical Critical: Real-World Validation Needed**:
 - ❌ **NOT YET TESTED** with real Plexus MCP server
 - ❌ **NOT YET TESTED** with other production MCP servers (filesystem, github, etc.)
 - ❌ **NOT YET TESTED** with multiple real MCP servers simultaneously
@@ -547,7 +547,7 @@ mcp_servers:
 
 ## Testing Priorities
 
-### 🧪 Manual Testing Needed
+### Manual testing Manual Testing Needed
 
 The following features have automated unit tests but require **real-world validation** with actual tools, servers, and user workflows:
 
@@ -575,10 +575,10 @@ The following features have automated unit tests but require **real-world valida
 
 ## Planned Features
 
-### 🚧 High Priority
+### WIP High Priority
 
 #### 1. Manual Testing and Validation
-**Status**: 🚧 In Progress  
+**Status**: WIP In Progress  
 **Priority**: Critical
 
 Complete manual testing and user validation of implemented features before adding new functionality.
@@ -612,7 +612,7 @@ Complete manual testing and user validation of implemented features before addin
 - Performance benchmarks
 
 #### 2. Real-World MCP Server Validation
-**Status**: 🚧 In Progress (Automated Tests Complete, Real Servers Pending)  
+**Status**: WIP In Progress (Automated Tests Complete, Real Servers Pending)  
 **Priority**: Critical
 
 **Current State**: MCP integration is implemented and passes all automated tests with a test MCP server. However, it has **NOT been validated** with real production MCP servers.
@@ -830,7 +830,7 @@ agent("worker", {
 
 ---
 
-### 🔮 Medium Priority
+### Future Medium Priority
 
 #### 6. Tool Retries and Validation
 **Status**: ❌ Not Started  
@@ -998,7 +998,7 @@ agent("worker", {
 
 ---
 
-### 🌙 Future Considerations
+### Future Future Considerations
 
 #### 11. Deferred Tools (Human-in-the-Loop Tool Approval)
 **Status**: ❌ Not Started  
@@ -1256,11 +1256,11 @@ sequenceDiagram
 - ✅ Single MCP server support
 
 ### Planned
-- 🚧 LangChain tool integration
-- 🚧 Built-in tool support
-- 🚧 Common tool library
-- 🚧 Multiple MCP server support
-- 🔮 Tool retries and validation
-- 🔮 Sequential vs parallel execution
-- 🔮 Advanced tool returns
-- 🔮 Dynamic tool preparation
+- WIP LangChain tool integration
+- WIP Built-in tool support
+- WIP Common tool library
+- WIP Multiple MCP server support
+- Future Tool retries and validation
+- Future Sequential vs parallel execution
+- Future Advanced tool returns
+- Future Dynamic tool preparation

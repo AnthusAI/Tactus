@@ -148,10 +148,10 @@ def main() -> None:
     print_context_plan(
         "Default context",
         [
-            "system(\"You are a support agent.\")",
+            'system("You are a support agent.")',
             "context(wikitext_search)",
             "history()",
-            "user(\"<none>\")",
+            'user("<none>")',
         ],
     )
     default_pack = retrieve_wikitext2(
@@ -199,10 +199,10 @@ def main() -> None:
     print_context_plan(
         "Explicit context with history",
         [
-            "system(\"You are a researcher.\")",
+            'system("You are a researcher.")',
             "context(wikitext_search)",
             "history()",
-            "user(\"Summarize the evidence.\")",
+            'user("Summarize the evidence.")',
         ],
     )
     print_context_pack_snapshot(
@@ -246,9 +246,9 @@ def main() -> None:
     print_context_plan(
         "Expansion and pagination",
         [
-            "system(\"Evidence:\")",
+            'system("Evidence:")',
             "context(paged_retriever)",
-            "user(\"Give highlights.\")",
+            'user("Give highlights.")',
         ],
     )
     builder.register_retriever(
@@ -327,9 +327,9 @@ def main() -> None:
     print_context_plan(
         "Regeneration and compaction",
         [
-            "system(\"Evidence: Please summarize the evidence with precision.\")",
+            'system("Evidence: Please summarize the evidence with precision.")',
             "context(wikitext_search)",
-            "user(\"Summarize quickly and focus on the key facts.\")",
+            'user("Summarize quickly and focus on the key facts.")',
         ],
     )
     builder.register_context(

@@ -151,6 +151,7 @@ class ExecutionResult:
         duration_seconds: float = 0.0,
         exit_code: int = 1,
         logs: Optional[list[dict[str, Any]]] = None,
+        metadata: Optional[dict[str, Any]] = None,
     ) -> "ExecutionResult":
         """Create a failed result."""
         return cls(
@@ -161,6 +162,7 @@ class ExecutionResult:
             duration_seconds=duration_seconds,
             exit_code=exit_code,
             logs=logs or [],
+            metadata=metadata or {},
         )
 
     @classmethod
