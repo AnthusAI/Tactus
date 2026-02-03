@@ -1,0 +1,8 @@
+{
+  "schema_version": 2,
+  "created_at": "2026-02-02T23:10:04.519520+00:00",
+  "corpus_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd_corpus/MFL",
+  "raw_dir": "raw",
+  "notes": null,
+  "hooks": null
+}

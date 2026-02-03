@@ -9,14 +9,13 @@ def test_register_context_validation_error_records():
 
 def test_register_corpus_maps_aliases():
     builder = RegistryBuilder()
-    builder.register_corpus("corp", {"backend": "b1", "recipe": {"x": 1}})
-    assert builder.registry.corpora["corp"].config["backend_id"] == "b1"
-    assert builder.registry.corpora["corp"].config["recipe_config"] == {"x": 1}
+    builder.register_corpus("corp", {"root": "/tmp"})
+    assert builder.registry.corpora["corp"].config["corpus_root"] == "/tmp"
 
 
 def test_register_corpus_validation_error_records():
     builder = RegistryBuilder()
-    builder.register_corpus(123, {"backend_id": 123})
+    builder.register_corpus(123, {"root": "/tmp"})
     assert builder.validation_messages
 
 

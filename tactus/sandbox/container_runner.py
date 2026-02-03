@@ -358,6 +358,7 @@ class ContainerRunner:
         source_file_path: Optional[str] = None,
         working_dir: Optional[Path] = None,
         format: str = "lua",
+        task_name: Optional[str] = None,
         event_handler: Optional[Callable[[Dict[str, Any]], None]] = None,
         callback_url: Optional[str] = None,
         run_id: Optional[str] = None,
@@ -497,6 +498,7 @@ class ContainerRunner:
                 run_id=run_id,
                 source_file_path=source_file_path,
                 format=format,
+                task_name=task_name,
             )
 
             # Run container

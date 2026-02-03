@@ -29,6 +29,8 @@ class TactusDSLVisitor(LuaParserVisitor):
         "Agent",  # CamelCase
         "Model",  # CamelCase
         "Procedure",  # CamelCase
+        "Task",  # CamelCase
+        "IncludeTasks",  # CamelCase
         "Prompt",  # CamelCase
         "Hitl",  # CamelCase
         "Specification",  # CamelCase
@@ -57,6 +59,9 @@ class TactusDSLVisitor(LuaParserVisitor):
         self.current_line = 0
         self.current_col = 0
         self.in_function_body = False  # Track if we're inside a function body
+        self._processed_task_calls: set[int] = set()
+        self._retriever_aliases: dict[str, str] = {}
+        self._retriever_modules: dict[str, str] = {}
 
     def _record_error(
         self,
@@ -90,6 +95,27 @@ class TactusDSLVisitor(LuaParserVisitor):
             self.in_function_body = previous_in_function_body
         return child_visit_result
 
+    def visitChunk(self, context: LuaParser.ChunkContext):
+        """Enforce IncludeTasks file task-only constraint when used."""
+        result = self.visitChildren(context)
+        if self.builder.registry.include_tasks:
+            # If any non-task declarations exist, error out.
+            if (
+                self.builder.registry.agents
+                or self.builder.registry.toolsets
+                or self.builder.registry.lua_tools
+                or self.builder.registry.contexts
+                or self.builder.registry.corpora
+                or self.builder.registry.retrievers
+                or self.builder.registry.compactors
+                or self.builder.registry.named_procedures
+            ):
+                self._record_error(
+                    "IncludeTasks files must only contain Task declarations.",
+                    declaration="IncludeTasks",
+                )
+        return result
+
     def visitStat(self, context: LuaParser.StatContext):
         """Handle statement nodes including assignments."""
         # Check if this is an assignment statement
@@ -103,6 +129,7 @@ class TactusDSLVisitor(LuaParserVisitor):
                 assignment_target_node = variable_list.var()[0]
                 if assignment_target_node.NAME():
                     assignment_target_name = assignment_target_node.NAME().getText()
+                    self._track_retriever_alias(assignment_target_name, expression_list)
 
                     # Check if this is a DSL setting assignment
                     setting_handlers_by_name = {
@@ -131,6 +158,16 @@ class TactusDSLVisitor(LuaParserVisitor):
                                 assignment_target_name, first_expression
                             )
 
+        attname_list = getattr(context, "attnamelist", None)
+        exp_list = getattr(context, "explist", None)
+        if callable(attname_list) and callable(exp_list):
+            attname_nodes = attname_list()
+            exp_nodes = exp_list()
+            if attname_nodes and exp_nodes:
+                name_nodes = attname_nodes.NAME()
+                if name_nodes:
+                    self._track_retriever_alias(name_nodes[0].getText(), exp_nodes)
+
         # Continue visiting children
         return self.visitChildren(context)
 
@@ -144,6 +181,7 @@ class TactusDSLVisitor(LuaParserVisitor):
             if prefix_expression.functioncall():
                 function_call = prefix_expression.functioncall()
                 function_name = self._extract_function_name(function_call)
+                dotted_name = None
                 if function_name not in {
                     "Agent",
                     "Tool",
@@ -156,20 +194,8 @@ class TactusDSLVisitor(LuaParserVisitor):
                     dotted_name = self._extract_dotted_dsl_name(function_call)
                     if dotted_name:
                         function_name = dotted_name
-                elif function_name in {"Corpus", "Retriever"}:
-                    function_call_text = function_call.getText()
-                    has_dot = "." in function_call_text.split("{", 1)[0].split("(", 1)[0]
-                    if not has_dot:
-                        self._record_error(
-                            message=(
-                                f"Direct {function_name} declarations are not supported. "
-                                "Use a retriever module via require(), e.g. "
-                                'local vector = require("tactus.retrievers.embedding_index_file"); '
-                                f"{assignment_target_name} = vector.{function_name} {{ ... }}."
-                            ),
-                            declaration=function_name,
-                        )
-                        return None
+                else:
+                    dotted_name = self._extract_dotted_dsl_name(function_call)
 
                 # Check if this is a chained method call (e.g., Agent('name').turn()).
                 # Dotted module calls like vector.Corpus { ... } are not chained.
@@ -178,6 +204,20 @@ class TactusDSLVisitor(LuaParserVisitor):
                 is_chained_method_call = (
                     re.search(r"[)}\\]]\\s*\\.", function_call_text) is not None
                 )
+
+                if function_name in {"Corpus", "Retriever"}:
+                    has_namespace = dotted_name is not None or re.match(
+                        r"[A-Za-z_][A-Za-z0-9_]*\\.", function_call_text
+                    )
+                    if not has_namespace:
+                        self._record_error(
+                            message=(
+                                f"Direct {function_name} declarations are not supported. "
+                                "Use module.Corpus { ... } instead."
+                            ),
+                            declaration=function_name,
+                        )
+                        return
 
                 if function_name == "Agent" and not is_chained_method_call:
                     # Extract config from Agent {...}
@@ -236,6 +276,13 @@ class TactusDSLVisitor(LuaParserVisitor):
                     )
                 elif function_name == "Retriever":
                     declaration_config = self._extract_single_table_arg(function_call)
+                    retriever_id = self._resolve_retriever_id_from_call(function_call)
+                    if (
+                        isinstance(declaration_config, dict)
+                        and retriever_id
+                        and "retriever_id" not in declaration_config
+                    ):
+                        declaration_config["retriever_id"] = retriever_id
                     self.builder.register_retriever(
                         assignment_target_name,
                         declaration_config if declaration_config else {},
@@ -256,10 +303,29 @@ class TactusDSLVisitor(LuaParserVisitor):
                         {},  # Output schema will be extracted from top-level output {}
                         {},  # State schema
                     )
+                elif function_name == "Task":
+                    # Assignment-based task declaration: name = Task { ... }
+                    self._processed_task_calls.add(id(function_call))
+                    self._register_task_declaration(assignment_target_name, function_call)
+                else:
+                    # Heuristic: treat any assignment-based call with a 'corpus' field as a retriever.
+                    declaration_config = self._extract_single_table_arg(function_call)
+                    if isinstance(declaration_config, dict) and "corpus" in declaration_config:
+                        retriever_id = self._resolve_retriever_id_from_call(function_call)
+                        if retriever_id and "retriever_id" not in declaration_config:
+                            declaration_config["retriever_id"] = retriever_id
+                        self.builder.register_retriever(
+                            assignment_target_name,
+                            declaration_config,
+                        )
 
     def _extract_single_table_arg(self, function_call) -> dict:
         """Extract a single table argument from a function call like Agent {...}."""
-        argument_list_nodes = function_call.args()
+        args_method = getattr(function_call, "args", None)
+        if args_method is None:
+            return {}
+
+        argument_list_nodes = args_method()
         if not argument_list_nodes:
             return {}
 
@@ -291,6 +357,14 @@ class TactusDSLVisitor(LuaParserVisitor):
             if function_name in self.DSL_FUNCTIONS and not is_method_access_call:
                 # Process the DSL call (but skip method calls like Tool.called())
                 try:
+                    if function_name == "Task":
+                        if id(context) in self._processed_task_calls:
+                            return None
+                        self._register_task_declaration(None, context)
+                        return None
+                    if function_name == "IncludeTasks":
+                        self._register_include_tasks(context)
+                        return None
                     self._process_dsl_call(function_name, context)
                 except Exception as processing_exception:
                     self.errors.append(
@@ -305,6 +379,122 @@ class TactusDSLVisitor(LuaParserVisitor):
             logger.debug("Error in visitFunctioncall: %s", visit_exception)
 
         return self.visitChildren(context)
+
+    def _register_task_declaration(
+        self,
+        assignment_name: Optional[str],
+        function_call_context: LuaParser.FunctioncallContext,
+        parent_task: Optional[str] = None,
+    ) -> None:
+        args = self._extract_arguments(function_call_context)
+        task_name = None
+        task_config: dict[str, Any] = {}
+
+        if args:
+            if isinstance(args[0], str):
+                task_name = args[0]
+            elif isinstance(args[0], dict):
+                task_config = args[0]
+
+        if len(args) >= 2 and isinstance(args[1], dict):
+            task_config = args[1]
+
+        if assignment_name and task_name and assignment_name != task_name:
+            self._record_error(
+                message=(
+                    f"Task name mismatch: '{assignment_name} = Task \"{task_name}\" {{ ... }}'. "
+                    f"Remove the string name or set it to '{assignment_name}'."
+                ),
+                declaration="Task",
+            )
+            task_name = assignment_name
+
+        if assignment_name and not task_name:
+            task_name = assignment_name
+
+        if not task_name:
+            self._record_error("Task name is required.", declaration="Task")
+            return
+
+        children = self._extract_nested_tasks(function_call_context)
+        for child in children:
+            child_name = child["name"]
+            self.builder.register_task(child_name, child.get("config", {}), parent=task_name)
+
+        self.builder.register_task(task_name, task_config, parent=parent_task)
+
+    def _extract_nested_tasks(
+        self, function_call_context: LuaParser.FunctioncallContext
+    ) -> list[dict[str, Any]]:
+        """Extract nested Task calls from a Task { ... } table constructor."""
+        nested_tasks: list[dict[str, Any]] = []
+        argument_list_nodes = function_call_context.args()
+        if not argument_list_nodes:
+            return nested_tasks
+
+        for args_ctx in argument_list_nodes:
+            table_ctx = args_ctx.tableconstructor()
+            if not table_ctx or not table_ctx.fieldlist():
+                continue
+            for field in table_ctx.fieldlist().field():
+                if len(field.exp()) != 1:
+                    continue
+                child_exp = field.exp(0)
+                child_call = None
+                if hasattr(child_exp, "functioncall") and child_exp.functioncall():
+                    child_call = child_exp.functioncall()
+                elif child_exp.prefixexp() and child_exp.prefixexp().functioncall():
+                    child_call = child_exp.prefixexp().functioncall()
+                if not child_call:
+                    continue
+                child_name = self._extract_function_name(child_call)
+                if child_name != "Task":
+                    continue
+                child_args = self._extract_arguments(child_call)
+                child_task_name = None
+                if field.NAME():
+                    child_task_name = field.NAME().getText()
+                if not child_task_name and child_args:
+                    child_task_name = child_args[0] if isinstance(child_args[0], str) else None
+                child_task_config = {}
+                if len(child_args) >= 2 and isinstance(child_args[1], dict):
+                    child_task_config = child_args[1]
+                if field.NAME() and child_args and isinstance(child_args[0], str):
+                    if field.NAME().getText() != child_args[0]:
+                        self._record_error(
+                            message=(
+                                f"Task name mismatch: '{field.NAME().getText()} = Task \"{child_args[0]}\" {{ ... }}'. "
+                                f"Remove the string name or set it to '{field.NAME().getText()}'."
+                            ),
+                            declaration="Task",
+                        )
+                if child_task_name:
+                    nested_tasks.append(
+                        {
+                            "name": child_task_name,
+                            "config": child_task_config,
+                        }
+                    )
+        return nested_tasks
+
+    def _register_include_tasks(self, context: LuaParser.FunctioncallContext) -> None:
+        args = self._extract_arguments(context)
+        if not args:
+            self._record_error("IncludeTasks requires a path string.", declaration="IncludeTasks")
+            return
+        if not isinstance(args[0], str):
+            self._record_error(
+                "IncludeTasks path must be a string literal.",
+                declaration="IncludeTasks",
+            )
+            return
+        namespace = None
+        if len(args) >= 2:
+            if isinstance(args[1], str):
+                namespace = args[1]
+            elif isinstance(args[1], dict):
+                namespace = args[1].get("namespace")
+        self.builder.register_include_tasks(args[0], namespace)
 
     def _check_deprecated_method_calls(self, ctx: LuaParser.FunctioncallContext):
         """Check for deprecated method calls like .turn() or .run()."""
@@ -429,13 +619,55 @@ class TactusDSLVisitor(LuaParserVisitor):
         self, function_call_context: LuaParser.FunctioncallContext
     ) -> Optional[str]:
         """Extract DSL names from dotted calls like module.Corpus {...}."""
-        function_call_text = function_call_context.getText()
+        get_text = getattr(function_call_context, "getText", None)
+        if not callable(get_text):
+            return None
+        function_call_text = get_text()
         match = re.match(
             r"(?:[A-Za-z_][A-Za-z0-9_]*\.)+(Agent|Tool|Toolset|Context|Corpus|Retriever|Compactor)\b",
             function_call_text,
         )
         if match:
             return match.group(1)
+        return None
+
+    def _track_retriever_alias(self, assignment_name: str, expression_list) -> None:
+        """Track retriever constructor aliases from require(...) assignments."""
+        try:
+            expressions = expression_list.exp()
+        except Exception:
+            return
+        if not expressions:
+            return
+        expression_node = expressions[0]
+        get_text = getattr(expression_node, "getText", None)
+        if not callable(get_text):
+            return
+        expression_text = get_text()
+        match = re.match(
+            r'require\("tactus\.retrievers\.([A-Za-z0-9_]+)"\)(?:\.Retriever)?$',
+            expression_text,
+        )
+        if not match:
+            return
+        module_name = match.group(1)
+        retriever_id = module_name.replace("_", "-")
+        if expression_text.endswith(".Retriever"):
+            self._retriever_aliases[assignment_name] = retriever_id
+        else:
+            self._retriever_modules[assignment_name] = retriever_id
+
+    def _resolve_retriever_id_from_call(
+        self, function_call_context: LuaParser.FunctioncallContext
+    ) -> Optional[str]:
+        function_name = self._extract_function_name(function_call_context)
+        if function_name and function_name in self._retriever_aliases:
+            return self._retriever_aliases[function_name]
+        call_text = function_call_context.getText()
+        dotted_match = re.match(r"([A-Za-z_][A-Za-z0-9_]*)\.Retriever\b", call_text)
+        if dotted_match:
+            module_name = dotted_match.group(1)
+            return self._retriever_modules.get(module_name)
         return None
 
     def _parse_functioncall_expression(

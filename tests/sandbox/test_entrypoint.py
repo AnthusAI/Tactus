@@ -49,7 +49,7 @@ async def test_execute_procedure_uses_log_handler(monkeypatch):
         def __init__(self, **kwargs):
             self.log_handler = kwargs.get("log_handler")
 
-        async def execute(self, source, context, format):
+        async def execute(self, source, context, format, task_name=None):
             return {"result": "ok"}
 
     class FakeLogHandler:
@@ -91,7 +91,7 @@ async def test_execute_procedure_skips_flush_without_method(monkeypatch):
         def __init__(self, **_kwargs):
             pass
 
-        async def execute(self, source, context, format):
+        async def execute(self, source, context, format, task_name=None):
             return {"result": "ok"}
 
     class FakeLogHandler:
@@ -132,7 +132,7 @@ async def test_execute_procedure_prefers_http_callback(monkeypatch):
             captured["log_handler"] = kwargs.get("log_handler")
             captured["hitl_handler"] = kwargs.get("hitl_handler")
 
-        async def execute(self, source, context, format):
+        async def execute(self, source, context, format, task_name=None):
             return {"result": "ok"}
 
     class FakeLogHandler:
@@ -170,7 +170,7 @@ async def test_execute_procedure_uses_broker_log_handler(monkeypatch):
         def __init__(self, **kwargs):
             captured["log_handler"] = kwargs.get("log_handler")
 
-        async def execute(self, source, context, format):
+        async def execute(self, source, context, format, task_name=None):
             return {"result": "ok"}
 
     class FakeLogHandler:
@@ -207,7 +207,7 @@ async def test_execute_procedure_sets_hitl_handler(monkeypatch):
         def __init__(self, **kwargs):
             captured["hitl_handler"] = kwargs.get("hitl_handler")
 
-        async def execute(self, source, context, format):
+        async def execute(self, source, context, format, task_name=None):
             return {"result": "ok"}
 
     class FakeChannel:

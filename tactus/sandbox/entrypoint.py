@@ -86,6 +86,7 @@ async def execute_procedure(
     source_file_path: Optional[str] = None,
     format: str = "lua",
     run_id: Optional[str] = None,
+    task_name: Optional[str] = None,
 ) -> Any:
     """
     Execute a procedure using TactusRuntime.
@@ -163,6 +164,7 @@ async def execute_procedure(
         source=source,
         context=params,
         format=format,
+        task_name=task_name,
     )
 
     # CRITICAL: Flush pending log events before returning
@@ -207,6 +209,7 @@ async def main_async() -> int:
             source_file_path=request.source_file_path,
             format=request.format,
             run_id=request.run_id,
+            task_name=request.task_name,
         )
 
         # Create success result

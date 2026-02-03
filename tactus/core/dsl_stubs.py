@@ -390,12 +390,89 @@ def create_dsl_stubs(
             _procedure_registry[name] = stub  # Store stub temporarily
             return stub
 
-        # New curried syntax - return a function that accepts config
-        def accept_config(config):
-            """Accept config (with function as last unnamed element) and register procedure."""
-            return _process_procedure_config(name, config, _procedure_registry)
+        if name is not None:
 
-        return accept_config
+            def _curried(config_table=None):
+                if config_table is None or not hasattr(config_table, "items"):
+                    raise TypeError(
+                        f"procedure '{name}' requires a configuration table. "
+                        'Use: Procedure "name" { ... } or name = Procedure { ... }.'
+                    )
+                return _process_procedure_config(name, config_table, _procedure_registry)
+
+            return _curried
+
+    def _task(name_or_config=None, config=None):
+        """
+        Task declaration stub.
+
+        Supports:
+          Task "name" { ... }
+          name = Task { ... }  (name not available at runtime)
+        """
+        # Task "name" { ... }
+        if isinstance(name_or_config, str):
+            task_name = name_or_config
+            task_config = config or {}
+            if hasattr(task_config, "__setitem__"):
+                try:
+                    task_config["__task_name"] = task_name
+                    task_config["__tactus_task_config"] = True
+                except Exception:
+                    pass
+            task_config_dict = lua_table_to_dict(task_config)
+            if "entry" in task_config_dict and not callable(task_config_dict["entry"]):
+                raise TypeError(f"Task '{task_name}' entry must be a function")
+            builder.register_task(task_name, task_config_dict)
+
+            if hasattr(task_config, "items"):
+                for key, value in task_config.items():
+                    child_name = None
+                    if isinstance(key, str):
+                        child_name = key
+                    if not hasattr(value, "items"):
+                        continue
+                    child_config = lua_table_to_dict(value)
+                    if not child_name and isinstance(child_config, dict):
+                        child_name = child_config.get("__task_name")
+                    if child_name and isinstance(child_config, dict) and "entry" in child_config:
+                        builder.register_task(child_name, child_config, parent=task_name)
+            return task_config
+
+        # Assignment-based: name = Task { ... }
+        if name_or_config is not None and hasattr(name_or_config, "items"):
+            task_config = name_or_config
+            if hasattr(task_config, "__setitem__"):
+                try:
+                    task_config["__tactus_task_config"] = True
+                except Exception:
+                    pass
+            if hasattr(task_config, "items"):
+                child_tasks = {}
+                for key, value in task_config.items():
+                    if isinstance(key, str) and hasattr(value, "items"):
+                        child_tasks[key] = value
+                if child_tasks:
+                    try:
+                        task_config["__tactus_child_tasks"] = child_tasks
+                    except Exception:
+                        pass
+            return task_config
+
+        return {}
+
+    def _include_tasks(path=None, namespace=None):
+        """IncludeTasks stub (records include for runtime)."""
+        if hasattr(path, "items"):
+            include_config = lua_table_to_dict(path)
+            include_path = include_config.get("path")
+            include_namespace = include_config.get("namespace")
+            if isinstance(include_path, str):
+                builder.register_include_tasks(include_path, include_namespace)
+            return None
+        if isinstance(path, str):
+            builder.register_include_tasks(path, namespace if isinstance(namespace, str) else None)
+        return None
 
     def _prompt(prompt_name: str, content: str) -> None:
         """Register a prompt template."""
@@ -1841,12 +1918,15 @@ def create_dsl_stubs(
             config_dict = {}
 
         if isinstance(config_dict, dict):
-            if "backend" in config_dict and "backend_id" not in config_dict:
-                config_dict["backend_id"] = config_dict.pop("backend")
             if "root" in config_dict and "corpus_root" not in config_dict:
                 config_dict["corpus_root"] = config_dict.pop("root")
-            if "recipe" in config_dict and "recipe_config" not in config_dict:
-                config_dict["recipe_config"] = config_dict.pop("recipe")
+
+        if isinstance(config_dict, dict):
+            configuration = config_dict.get("configuration")
+            if isinstance(configuration, dict):
+                pipeline = configuration.get("pipeline")
+                if isinstance(pipeline, list) and len(pipeline) == 0:
+                    configuration["pipeline"] = {}
 
         explicit_name = None
         if isinstance(config_dict, dict):
@@ -1910,6 +1990,25 @@ def create_dsl_stubs(
         handle = RetrieverHandle(temporary_name)
         _retriever_registry[temporary_name] = handle
         return handle
+
+    def _task_function(function):
+        """
+        Wrap a callable so Task entries can use call-style syntax without executing immediately.
+        """
+        if not callable(function):
+            raise TypeError("TaskFunction expects a callable")
+
+        def _deferred(args):
+            def _runner():
+                if hasattr(args, "items"):
+                    args_dict = lua_table_to_dict(args)
+                else:
+                    args_dict = args
+                return function(args_dict)
+
+            return _runner
+
+        return _deferred
 
     def _new_compactor(name_or_config=None) -> CompactorHandle:
         """
@@ -2398,11 +2497,16 @@ def create_dsl_stubs(
         "Agent": _new_agent,  # NEW syntax - assignment based
         "Model": HybridModel(_model, _Model),
         "Procedure": _procedure,
+        "Task": _task,
+        "IncludeTasks": _include_tasks,
         "Prompt": _prompt,
         "Toolset": _toolset,
         "Tool": _new_tool,  # NEW syntax - assignment based
         "Context": _new_context,
+        "Corpus": _new_corpus,
+        "Retriever": _new_retriever,
         "Compactor": _new_compactor,
+        "TaskFunction": _task_function,
         "Classify": _new_classify,  # NEW stdlib: smart classification with retry
         "Hitl": _hitl,
         "Specification": _specification,
@@ -2650,6 +2754,37 @@ def _make_binding_callback(
                     f"Compactor name mismatch: assigned to '{name}' but compactor is named '{old_name}'. "
                     "Remove the Compactor config 'name' field or make it match the assigned variable."
                 )
+
+        if hasattr(value, "items"):
+            try:
+                task_config = lua_table_to_dict(value)
+            except Exception:
+                task_config = None
+            if isinstance(task_config, dict) and task_config.get("__tactus_task_config"):
+                if hasattr(builder, "registry") and name not in builder.registry.tasks:
+                    if "entry" in task_config and not callable(task_config["entry"]):
+                        raise TypeError(f"Task '{name}' entry must be a function")
+                    builder.register_task(name, task_config)
+
+                    child_sources = task_config.get("__tactus_child_tasks")
+                    if isinstance(child_sources, dict):
+                        child_iter = child_sources.items()
+                    else:
+                        child_iter = value.items()
+
+                    for key, child_value in child_iter:
+                        child_name = key if isinstance(key, str) else None
+                        if not hasattr(child_value, "items"):
+                            continue
+                        child_config = lua_table_to_dict(child_value)
+                        if not child_name and isinstance(child_config, dict):
+                            child_name = child_config.get("__task_name")
+                        if child_name and isinstance(child_config, dict):
+                            if "entry" in child_config and not callable(child_config["entry"]):
+                                raise TypeError(
+                                    f"Task '{name}:{child_name}' entry must be a function"
+                                )
+                            builder.register_task(child_name, child_config, parent=name)
 
         # Log all assignments for debugging (only at trace level to avoid noise)
         callback_logger.debug(f"Assignment captured: {name} = {type(value).__name__}")

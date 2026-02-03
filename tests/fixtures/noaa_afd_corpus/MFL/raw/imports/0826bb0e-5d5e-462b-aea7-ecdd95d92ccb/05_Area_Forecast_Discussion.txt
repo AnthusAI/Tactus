@@ -1,0 +1,219 @@
+000
+FXUS62 KMFL 012352
+AFDMFL
+
+Area Forecast Discussion
+National Weather Service Miami FL
+652 PM EST Sun Feb 1 2026
+
+...New AVIATION...
+
+.KEY MESSAGES...
+Updated at 651 PM EST Sun Feb 1 2026
+
+    - Dangerously cold temperatures and apparent temperatures are
+      expected again tonight into Monday morning. Members of the
+      general public and agricultural interests are advised to
+      prepare accordingly. 
+
+    - Hazardous marine conditions continue today. Mariners should
+      stay up to date with the latest marine forecast over the
+      next several days. 
+
+&&
+
+.UPDATE...
+Issued at 214 PM EST Sun Feb 1 2026
+
+The strong winds from overnight and this morning continue to
+decrease, although it remains breezy across the region through the
+rest of today. Breezy conditions will continue to cease tomorrow
+as the deep low pressure in the western Atlantic continues to
+depart further eastward.
+
+Until this low gets far enough away from the general vicinity,
+winds will remain out of the NNW and keep this colder air mass in
+place tonight through tomorrow. Low temperatures got into the 30s
+along the coastal areas and metro areas, with temperatures in the
+20s closer to the Lake O area. This is expected to happen again
+tonight, although coastal locations might perhaps be a couple of
+degrees warmer. 
+
+With cold temperatures expected again tonight, a Cold Weather
+Advisory has been issued again for the entire region tonight until
+10AM Monday. Additionally, a Freeze Warning has been issued for
+tonight until 9AM Monday for inland locations. The metro locations
+are not included in the Freeze Warning for tonight. Any further
+updates to the forecast will continue to be communicated, but in
+general it will be another anomalously cold night tonight across 
+South Florida.
+
+&&
+
+.SHORT TERM...
+(Today through Monday)
+Issued at 106 AM EST Sun Feb 1 2026
+
+Strong cold front has crossed South FL and one of the coldest 
+airmasses South FL has experienced since at least 2010 is filtering 
+into the region early this morning. The back-trajectory of this 
+airmass can be traced back to Hudson Bay in Canada. Latest ACARS 
+sounding for MIA shows a PWAT value of 0.5 inches, and guidance 
+suggests that should drop further to around 0.2 inches by daybreak. 
+The 540 thickness line is all the way down to Lake Okeechobee and 
+some guidance suggests it may drop south of the lake by the end of 
+the day. Temperatures continue to plummet early this morning and low 
+temps will bottom out in the mid to upper 20s around the lake and 
+lower 30s across the metro areas. The temperatures will feel even 
+colder though thanks to a tight pressure gradient between the 
+quickly deepening low off the Mid Atlantic coast and strong high 
+pressure over the Southern US. Wind gusts of 40-45 mph are expected 
+through daybreak, which will result in dangerous apparent temps in 
+the teens around the lake region and 20s over the rest of South FL. 
+
+As for current headlines, We have Extreme Cold Warning and Freeze 
+Warnings for Glades, Hendry, and Palm Beach. Freeze Warnings and 
+Cold Weather Advisories for metro/inland Broward, metro/inland Miami-
+Dade, and inland Collier. Cold Weather Advisory for coastal Broward, 
+coastal Miami-Dade, coastal Collier, Mainland Monroe, and far south 
+Miami-Dade. All of the cold weather products are in effect until 10 
+AM this morning. In addition, the entire area is under a Wind 
+Advisory for wind gusts up to 45 mph until 7 AM. 
+
+Despite plenty of sunshine expected today, temperatures will 
+struggle to rebound as the cold airmass continues to filter into the 
+region. High temps will barely reach 50 north of Alligator Alley, 
+and will reach the low to mid 50s over the far southern peninsula. 
+The pressure gradient will start to relax as the day progresses, 
+however wind gusts of 20-30 mph are still expected through sunset 
+tonight.
+
+Tonight will be another extremely cold night across the region. With 
+mainly clear skies and winds continuing to relax, temperatures will 
+plummet quickly tonight and many inland locations will again fall 
+below freezing. Low temps will range from the mid to upper 20s 
+around the lake, to low and mid 30s across the metro. With the 
+lighter winds in place, especially west of the lake, frost will 
+become more of an issue tonight. Frost may even be observed over 
+western portions of the metro, especially in sheltered locations. 
+While the apparent temps won't be as low tonight, they will still 
+fall into the 20s over most of South FL. Cold weather headlines will 
+be issued later today after the current headlines are expired. 
+
+While daytime temperatures on Monday will be "warmer" than Sunday, 
+they will still remain well below normal only reaching the upper 50s 
+to around 60.
+
+&&
+
+.LONG TERM...
+(Monday night through Saturday)
+Issued at 106 AM EST Sun Feb 1 2026
+
+As high pressure slowly shifts over the area on Tuesday and 
+Wednesday, we'll start a slow warm up across South FL. Cold weather 
+headlines will likely be needed again Tuesday morning especially 
+over inland South FL where lows will be in the low to mid 30s. As 
+the high shifts east of the area mid week, the low level winds will 
+become south to southwesterly which will bring temperatures up to 
+near normal for Wednesday. This warmup will be short-lived however 
+as another cold front is expected to cross the area on Thursday, and 
+this will reinforce cooler air into the region for the remainder of 
+the week and into at least the first half of next weekend. The only 
+real rainfall chances in the extended period will be late Wednesday 
+into early Thursday ahead of the approaching front, however QPF 
+values appear to be a tenth of an inch or less so there will be 
+little to no relief for the ongoing drought.
+
+Temperatures overall this upcoming week will remain below normal. 
+Besides Tuesday morning as mentioned above, the only other day this 
+week with potential cold weather headlines will be Friday morning, 
+and that may just end up being over inland SW FL. 
+
+&&
+
+.AVIATION...
+(00Z TAFS)
+Issued at 651 PM EST Sun Feb 1 2026
+
+Light and variable winds are forecast overnight with clear skies
+and VFR conditions prevailing. Breezy NWrly flow returns tomorrow
+morning at all terminals before becoming light after sunset. 
+
+&&
+
+.MARINE...
+Issued at 106 AM EST Sun Feb 1 2026
+
+Dangerous marine conditions today for all South FL waters. NW winds 
+30-40 kts with gusts around 45 kts expected through at least early 
+this afternoon. Seas 10-15 ft in the both the Atlantic and Gulf 
+waters today. Gale Warnings are in effect for all area waters. Winds 
+begin to subside this evening although Small Craft winds are likely 
+to remain in the Atlantic through Monday evening. Hazardous seas in 
+the Gulf are expected until late tonight and in the Atlantic until 
+early Tuesday.
+
+&&
+
+.BEACHES...
+Issued at 106 AM EST Sun Feb 1 2026
+
+Increasing swell will result in a high risk of rip currents for all 
+area beaches today. In addition, a high surf advisory is in effect 
+until this afternoon for Collier county beaches for surf heights of 
+5-8 ft in the surf zone. A high surf advisory may be needed for the 
+Palm Beaches on Monday.
+
+&&
+
+.FIRE WEATHER...
+Issued at 106 AM EST Sun Feb 1 2026
+
+A very cold and dry airmass is expected today into early this 
+upcoming week. Critically low RH values are expected over much of 
+South FL today and Monday and over SW FL on Tuesday. The min RH 
+values today will coincide with decreasing wind values so fire 
+weather headlines are not expected, however an elevated threat will 
+still exist especially with dry fuels across the area from the 
+prolonged drought.
+
+&&
+
+.PRELIMINARY POINT TEMPS/POPS...
+Miami            36  59  42  68 /   0   0   0   0 
+West Kendall     31  60  36  69 /   0   0   0   0 
+Opa-Locka        34  60  42  69 /   0   0   0   0 
+Homestead        34  60  41  68 /   0   0   0   0 
+Fort Lauderdale  34  59  42  67 /   0   0   0   0 
+N Ft Lauderdale  35  58  42  67 /   0   0   0   0 
+Pembroke Pines   34  60  41  69 /   0   0   0   0 
+West Palm Beach  33  58  41  67 /   0   0   0   0 
+Boca Raton       34  60  42  68 /   0   0   0   0 
+Naples           36  60  39  68 /   0   0   0   0 
+
+&&
+
+.MFL WATCHES/WARNINGS/ADVISORIES...
+FL...Cold Weather Advisory until 10 AM EST Monday for FLZ063-066>075-
+     168-172>174.
+
+     Freeze Warning until 9 AM EST Monday for FLZ063-066-067-070-071-
+     073.
+
+     High Rip Current Risk until 7 PM EST this evening for FLZ069.
+
+     High Rip Current Risk through Monday evening for FLZ168-172-173.
+
+AM...Small Craft Advisory until 7 PM EST Monday for AMZ650-651-670-
+     671.
+
+GM...Small Craft Advisory until 7 AM EST Monday for GMZ656-657-676.
+
+&&
+
+$$
+
+SHORT TERM...CMF
+LONG TERM....CMF
+AVIATION...Hadi

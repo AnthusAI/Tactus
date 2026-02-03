@@ -489,61 +489,77 @@ def test_retrieve_noaa_afd_truncates(monkeypatch):
     assert result.text.endswith("...")
 
 
-def test_make_retriever_router_prefers_registry_backend(monkeypatch):
-    class DummyCorpus:
+def test_make_retriever_router_prefers_registry_retriever(monkeypatch):
+    class DummyRetriever:
         def __init__(self):
-            self.config = {"backend_id": "wikitext2"}
+            self.config = {"retriever_id": "wikitext2"}
 
-    router = retrieval.make_retriever_router({"docs": DummyCorpus()})
+    router = retrieval.make_retriever_router({}, {"search": DummyRetriever()})
     monkeypatch.setattr(retrieval, "retrieve_wikitext2", lambda _req: "ok")
     request = ContextRetrieverRequest(
         query="alpha",
         limit=1,
         maximum_total_characters=10,
-        metadata={"corpus": "docs"},
+        metadata={"retriever": "search"},
     )
     assert router(request) == "ok"
 
 
-def test_make_retriever_router_uses_registry_backend_override(monkeypatch):
-    class DummyCorpus:
+def test_make_retriever_router_uses_registry_retriever_override(monkeypatch):
+    class DummyRetriever:
         def __init__(self):
-            self.config = {"backend_id": "noaa_afd"}
+            self.config = {"retriever_id": "noaa_afd"}
 
-    router = retrieval.make_retriever_router({"docs": DummyCorpus()})
-    monkeypatch.setattr(retrieval, "retrieve_noaa_afd", lambda _req: "ok")
-    request = ContextRetrieverRequest(
-        query="alpha",
-        limit=1,
-        maximum_total_characters=10,
-        metadata={"corpus": "docs", "backend_id": "wikitext2"},
-    )
-    assert router(request) == "ok"
-
-
-def test_make_retriever_router_ignores_non_dict_corpus_config(monkeypatch):
-    class DummyCorpus:
-        def __init__(self):
-            self.config = ["backend_id", "noaa_afd"]
-
-    router = retrieval.make_retriever_router({"docs": DummyCorpus()})
+    router = retrieval.make_retriever_router({}, {"search": DummyRetriever()})
     monkeypatch.setattr(retrieval, "retrieve_wikitext2", lambda _req: "ok")
     request = ContextRetrieverRequest(
         query="alpha",
         limit=1,
         maximum_total_characters=10,
-        metadata={"corpus": "docs", "backend_id": "wikitext2"},
+        metadata={"retriever": "search", "retriever_id": "wikitext2"},
     )
     assert router(request) == "ok"
 
 
-def test_make_retriever_router_missing_backend_id():
-    router = retrieval.make_retriever_router({})
+def test_make_retriever_router_ignores_non_dict_retriever_config(monkeypatch):
+    class DummyRetriever:
+        def __init__(self):
+            self.config = ["retriever_id", "noaa_afd"]
+
+    router = retrieval.make_retriever_router({}, {"search": DummyRetriever()})
+    monkeypatch.setattr(retrieval, "retrieve_wikitext2", lambda _req: "ok")
     request = ContextRetrieverRequest(
         query="alpha",
         limit=1,
         maximum_total_characters=10,
-        metadata={"corpus": "docs"},
+        metadata={"retriever": "search", "retriever_id": "wikitext2"},
+    )
+    assert router(request) == "ok"
+
+
+def test_make_retriever_router_missing_retriever_id():
+    router = retrieval.make_retriever_router({}, {})
+    request = ContextRetrieverRequest(
+        query="alpha",
+        limit=1,
+        maximum_total_characters=10,
+        metadata={"retriever": "docs"},
+    )
+    with pytest.raises(ValueError):
+        router(request)
+
+
+def test_make_retriever_router_missing_retriever_id_with_non_dict_config():
+    class DummyRetriever:
+        def __init__(self):
+            self.config = ["retriever_id", "noaa_afd"]
+
+    router = retrieval.make_retriever_router({}, {"search": DummyRetriever()})
+    request = ContextRetrieverRequest(
+        query="alpha",
+        limit=1,
+        maximum_total_characters=10,
+        metadata={"retriever": "search"},
     )
     with pytest.raises(ValueError):
         router(request)
@@ -581,51 +597,55 @@ def test_retrieve_noaa_afd_stops_when_remaining_zero(monkeypatch):
     assert result.evidence_count == 1
 
 
-def test_retrieve_biblicus_context_pack_requires_backend():
+def test_retrieve_biblicus_context_pack_requires_retriever_id():
     request = ContextRetrieverRequest(query="cats", limit=1, metadata={"corpus_root": "/tmp"})
     with pytest.raises(ValueError):
         retrieval.retrieve_biblicus_context_pack(request)
 
 
 def test_retrieve_biblicus_context_pack_requires_corpus_root():
-    request = ContextRetrieverRequest(query="cats", limit=1, metadata={"backend_id": "backend"})
+    request = ContextRetrieverRequest(query="cats", limit=1, metadata={"retriever_id": "tf"})
     with pytest.raises(ValueError):
         retrieval.retrieve_biblicus_context_pack(request)
 
 
-def test_make_retriever_router_resolves_backend(monkeypatch):
-    request = ContextRetrieverRequest(query="alpha", limit=1, metadata={"backend_id": "noaa_afd"})
-    router = retrieval.make_retriever_router({})
+def test_make_retriever_router_resolves_retriever(monkeypatch):
+    request = ContextRetrieverRequest(query="alpha", limit=1, metadata={"retriever_id": "noaa_afd"})
+    router = retrieval.make_retriever_router({}, {})
     monkeypatch.setattr(retrieval, "retrieve_noaa_afd", lambda _req: "noaa")
     assert router(request) == "noaa"
 
 
-def test_make_retriever_router_uses_corpus_registry_override(monkeypatch):
+def test_make_retriever_router_uses_retriever_registry_fallback(monkeypatch):
     class DummySpec:
         def __init__(self):
-            self.config = {"backend_id": "wikitext2"}
+            self.config = {"retriever_id": "wikitext2"}
 
-    router = retrieval.make_retriever_router({"corp": DummySpec()})
+    router = retrieval.make_retriever_router({}, {"search": DummySpec()})
     monkeypatch.setattr(retrieval, "retrieve_wikitext2", lambda _req: "wiki")
-    request = ContextRetrieverRequest(query="alpha", limit=1, metadata={"corpus": "corp"})
+    request = ContextRetrieverRequest(query="alpha", limit=1, metadata={"retriever": "search"})
     assert router(request) == "wiki"
 
 
-def test_make_retriever_router_missing_backend():
-    request = ContextRetrieverRequest(query="alpha", limit=1, metadata={"corpus": "c1"})
-    router = retrieval.make_retriever_router({})
-    with pytest.raises(ValueError):
-        router(request)
+def test_make_retriever_router_uses_retriever_type_fallback(monkeypatch):
+    class DummySpec:
+        def __init__(self):
+            self.config = {"retriever_type": "wikitext2"}
+
+    router = retrieval.make_retriever_router({}, {"search": DummySpec()})
+    monkeypatch.setattr(retrieval, "retrieve_wikitext2", lambda _req: "wiki")
+    request = ContextRetrieverRequest(query="alpha", limit=1, metadata={"retriever": "search"})
+    assert router(request) == "wiki"
 
 
 def test_make_retriever_router_biblicus_fallback(monkeypatch):
-    router = retrieval.make_retriever_router({})
+    router = retrieval.make_retriever_router({}, {})
     monkeypatch.setattr(retrieval, "retrieve_biblicus_context_pack", lambda _req: "biblicus")
-    request = ContextRetrieverRequest(query="alpha", limit=1, metadata={"backend_id": "other"})
+    request = ContextRetrieverRequest(query="alpha", limit=1, metadata={"retriever_id": "other"})
     assert router(request) == "biblicus"
 
 
-def test_retrieve_biblicus_context_pack_builds_run(tmp_path: Path):
+def test_retrieve_biblicus_context_pack_builds_snapshot(tmp_path: Path):
     corpus_root = tmp_path / "corpus"
     corpus = Corpus.init(corpus_root)
     source_dir = tmp_path / "source"
@@ -639,9 +659,9 @@ def test_retrieve_biblicus_context_pack_builds_run(tmp_path: Path):
         limit=1,
         maximum_total_characters=200,
         metadata={
-            "backend_id": "embedding-index-inmemory",
+            "retriever_id": "embedding-index-inmemory",
             "corpus_root": str(corpus_root),
-            "recipe_config": {
+            "configuration": {
                 "embedding_provider": {"provider_id": "hash-embedding", "dimensions": 32},
                 "maximum_cache_total_items": 100,
             },
@@ -651,7 +671,7 @@ def test_retrieve_biblicus_context_pack_builds_run(tmp_path: Path):
 
     assert result.evidence_count == 1
     assert "cats" in result.text.lower() or "dogs" in result.text.lower()
-    assert Corpus.open(corpus_root).latest_run_id is not None
+    assert Corpus.open(corpus_root).latest_snapshot_id is not None
 
 
 def test_download_file_writes_bytes(monkeypatch, tmp_path: Path):

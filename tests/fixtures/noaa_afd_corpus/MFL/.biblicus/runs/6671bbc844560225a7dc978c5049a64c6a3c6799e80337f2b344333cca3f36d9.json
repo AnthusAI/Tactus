@@ -1,0 +1,22 @@
+{
+  "run_id": "6671bbc844560225a7dc978c5049a64c6a3c6799e80337f2b344333cca3f36d9",
+  "recipe": {
+    "recipe_id": "3dee35f31dd70c17d2181165c7638eafd306861d5d4ffaf3b7f1f738b8f0d42e",
+    "backend_id": "tf-vector",
+    "name": "miami_search",
+    "created_at": "2026-02-03T00:25:32.267931+00:00",
+    "config": {
+      "extraction_run": null,
+      "snippet_characters": null
+    },
+    "description": null
+  },
+  "corpus_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd_corpus/MFL",
+  "catalog_generated_at": "2026-02-02T23:10:04.581857+00:00",
+  "created_at": "2026-02-03T00:25:32.268274+00:00",
+  "artifact_paths": [],
+  "stats": {
+    "items": 60,
+    "text_items": 20
+  }
+}

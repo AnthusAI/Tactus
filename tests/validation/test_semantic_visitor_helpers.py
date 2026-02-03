@@ -3167,6 +3167,228 @@ def test_extract_single_table_arg_without_table_returns_empty():  # noqa: F811
     assert visitor._extract_single_table_arg(FakeFuncCall()) == {}
 
 
+def test_extract_nested_tasks_returns_empty_without_args():
+    visitor = TactusDSLVisitor()
+
+    class FakeCall:
+        def args(self):
+            return None
+
+    assert visitor._extract_nested_tasks(FakeCall()) == []
+
+
+def test_extract_nested_tasks_skips_non_task_calls():
+    visitor = TactusDSLVisitor()
+
+    class FakeField:
+        def __init__(self):
+            self._items = [SimpleNamespace(functioncall=lambda: SimpleNamespace())]
+
+        def exp(self, _index=None):
+            if _index is None:
+                return list(self._items)
+            return self._items[_index]
+
+        def NAME(self):
+            return None
+
+    class FakeArgsCtx:
+        def tableconstructor(self):
+            return SimpleNamespace(fieldlist=lambda: SimpleNamespace(field=lambda: [FakeField()]))
+
+    class FakeCall:
+        def args(self):
+            return [FakeArgsCtx()]
+
+    visitor._extract_function_name = lambda _ctx: "Agent"
+
+    assert visitor._extract_nested_tasks(FakeCall()) == []
+
+
+def test_extract_nested_tasks_skips_fields_with_multiple_exps():
+    visitor = TactusDSLVisitor()
+
+    class FakeField:
+        def __init__(self):
+            self._items = [SimpleNamespace(), SimpleNamespace()]
+
+        def exp(self, _index=None):
+            if _index is None:
+                return list(self._items)
+            return self._items[_index]
+
+        def NAME(self):
+            return None
+
+    class FakeArgsCtx:
+        def tableconstructor(self):
+            return SimpleNamespace(fieldlist=lambda: SimpleNamespace(field=lambda: [FakeField()]))
+
+    class FakeCall:
+        def args(self):
+            return [FakeArgsCtx()]
+
+    assert visitor._extract_nested_tasks(FakeCall()) == []
+
+
+def test_extract_nested_tasks_reads_name_from_args():
+    visitor = TactusDSLVisitor()
+
+    class FakeField:
+        def __init__(self):
+            self._items = [SimpleNamespace(functioncall=lambda: SimpleNamespace())]
+
+        def exp(self, _index=None):
+            if _index is None:
+                return list(self._items)
+            return self._items[_index]
+
+        def NAME(self):
+            return None
+
+    class FakeArgsCtx:
+        def tableconstructor(self):
+            return SimpleNamespace(fieldlist=lambda: SimpleNamespace(field=lambda: [FakeField()]))
+
+    class FakeCall:
+        def args(self):
+            return [FakeArgsCtx()]
+
+    visitor._extract_function_name = lambda _ctx: "Task"
+    visitor._extract_arguments = lambda _ctx: ["child"]
+
+    nested = visitor._extract_nested_tasks(FakeCall())
+    assert nested == [{"name": "child", "config": {}}]
+
+
+def test_extract_nested_tasks_reports_name_mismatch():
+    visitor = TactusDSLVisitor()
+
+    class FakeField:
+        def __init__(self):
+            self._items = [SimpleNamespace(functioncall=lambda: SimpleNamespace())]
+
+        def exp(self, _index=None):
+            if _index is None:
+                return list(self._items)
+            return self._items[_index]
+
+        def NAME(self):
+            return SimpleNamespace(getText=lambda: "outer")
+
+    class FakeArgsCtx:
+        def tableconstructor(self):
+            return SimpleNamespace(fieldlist=lambda: SimpleNamespace(field=lambda: [FakeField()]))
+
+    class FakeCall:
+        def args(self):
+            return [FakeArgsCtx()]
+
+    visitor._extract_function_name = lambda _ctx: "Task"
+    visitor._extract_arguments = lambda _ctx: ["inner", {}]
+
+    nested = visitor._extract_nested_tasks(FakeCall())
+
+    assert nested == [{"name": "outer", "config": {}}]
+    assert any("Task name mismatch" in msg.message for msg in visitor.errors)
+
+
+def test_extract_nested_tasks_skips_missing_child_name():
+    visitor = TactusDSLVisitor()
+
+    class FakeField:
+        def __init__(self):
+            self._items = [SimpleNamespace(functioncall=lambda: SimpleNamespace())]
+
+        def exp(self, _index=None):
+            if _index is None:
+                return list(self._items)
+            return self._items[_index]
+
+        def NAME(self):
+            return None
+
+    class FakeArgsCtx:
+        def tableconstructor(self):
+            return SimpleNamespace(fieldlist=lambda: SimpleNamespace(field=lambda: [FakeField()]))
+
+    class FakeCall:
+        def args(self):
+            return [FakeArgsCtx()]
+
+    visitor._extract_function_name = lambda _ctx: "Task"
+    visitor._extract_arguments = lambda _ctx: [{}]
+
+    nested = visitor._extract_nested_tasks(FakeCall())
+
+    assert nested == []
+
+
+def test_extract_nested_tasks_accepts_matching_name():
+    visitor = TactusDSLVisitor()
+
+    class FakeField:
+        def __init__(self):
+            self._items = [SimpleNamespace(functioncall=lambda: SimpleNamespace())]
+
+        def exp(self, _index=None):
+            if _index is None:
+                return list(self._items)
+            return self._items[_index]
+
+        def NAME(self):
+            return SimpleNamespace(getText=lambda: "child")
+
+    class FakeArgsCtx:
+        def tableconstructor(self):
+            return SimpleNamespace(fieldlist=lambda: SimpleNamespace(field=lambda: [FakeField()]))
+
+    class FakeCall:
+        def args(self):
+            return [FakeArgsCtx()]
+
+    visitor._extract_function_name = lambda _ctx: "Task"
+    visitor._extract_arguments = lambda _ctx: ["child", {}]
+
+    nested = visitor._extract_nested_tasks(FakeCall())
+
+    assert nested == [{"name": "child", "config": {}}]
+
+
+def test_track_retriever_alias_handles_exp_failure():
+    visitor = TactusDSLVisitor()
+
+    class FakeExprList:
+        def exp(self):
+            raise ValueError("no exp")
+
+    visitor._track_retriever_alias("alias", FakeExprList())
+
+
+def test_resolve_retriever_id_from_call_uses_alias_and_fallback():
+    visitor = TactusDSLVisitor()
+    visitor._retriever_aliases["alias"] = "tf-vector"
+
+    class FakeCall:
+        def getText(self):
+            return "alias()"
+
+    visitor._extract_function_name = lambda _ctx: "alias"
+    assert visitor._resolve_retriever_id_from_call(FakeCall()) == "tf-vector"
+
+    visitor._extract_function_name = lambda _ctx: None
+    assert visitor._resolve_retriever_id_from_call(FakeCall()) is None
+
+
+def test_extract_single_table_arg_handles_missing_args_method():
+    visitor = TactusDSLVisitor()
+
+    class FakeCall:
+        pass
+
+    assert visitor._extract_single_table_arg(FakeCall()) == {}
+
+
 def test_extract_literal_value_charstring_unquoted_returns_text():
     visitor = TactusDSLVisitor()
 
@@ -3949,3 +4171,269 @@ def test_parse_table_constructor_empty_exp_field_returns_empty_list():
             return FakeFieldList()
 
     assert visitor._parse_table_constructor(FakeTable()) == []
+
+
+def test_visit_stat_tracks_retriever_alias(monkeypatch):
+    visitor = TactusDSLVisitor()
+    captured = {}
+
+    def _track(name, exp_nodes):
+        captured["name"] = name
+        captured["exp_nodes"] = exp_nodes
+
+    monkeypatch.setattr(visitor, "_track_retriever_alias", _track)
+    monkeypatch.setattr(visitor, "visitChildren", lambda _ctx: "ok")
+
+    class FakeNameNode:
+        def getText(self):
+            return "alias"
+
+    class FakeAttNameList:
+        def NAME(self):
+            return [FakeNameNode()]
+
+    class FakeContext:
+        def varlist(self):
+            return SimpleNamespace(var=lambda: [])
+
+        def attnamelist(self):
+            return FakeAttNameList()
+
+        def explist(self):
+            return ["exp"]
+
+    assert visitor.visitStat(FakeContext()) == "ok"
+    assert captured["name"] == "alias"
+    assert captured["exp_nodes"] == ["exp"]
+
+
+def test_register_task_declaration_uses_string_name(monkeypatch):
+    visitor = TactusDSLVisitor()
+    monkeypatch.setattr(
+        visitor, "_extract_arguments", lambda _ctx: ["fetch", {"entry": lambda: None}]
+    )
+    monkeypatch.setattr(visitor, "_extract_nested_tasks", lambda _ctx: [])
+
+    visitor._register_task_declaration(None, SimpleNamespace())
+
+    assert "fetch" in visitor.builder.registry.tasks
+
+
+def test_register_task_declaration_uses_assignment_name(monkeypatch):
+    visitor = TactusDSLVisitor()
+    monkeypatch.setattr(visitor, "_extract_arguments", lambda _ctx: [{"entry": lambda: None}])
+    monkeypatch.setattr(visitor, "_extract_nested_tasks", lambda _ctx: [])
+
+    visitor._register_task_declaration("fetch", SimpleNamespace())
+
+    assert "fetch" in visitor.builder.registry.tasks
+
+
+def test_register_task_declaration_rejects_non_string_name(monkeypatch):
+    visitor = TactusDSLVisitor()
+    monkeypatch.setattr(visitor, "_extract_arguments", lambda _ctx: [123, {"entry": lambda: None}])
+    monkeypatch.setattr(visitor, "_extract_nested_tasks", lambda _ctx: [])
+
+    visitor._register_task_declaration(None, SimpleNamespace())
+
+    assert any("Task name is required" in msg.message for msg in visitor.errors)
+
+
+def test_register_task_declaration_requires_args(monkeypatch):
+    visitor = TactusDSLVisitor()
+    monkeypatch.setattr(visitor, "_extract_arguments", lambda _ctx: [])
+    monkeypatch.setattr(visitor, "_extract_nested_tasks", lambda _ctx: [])
+
+    visitor._register_task_declaration(None, SimpleNamespace())
+
+    assert any("Task name is required" in msg.message for msg in visitor.errors)
+
+
+def test_register_task_declaration_uses_dict_config(monkeypatch):
+    visitor = TactusDSLVisitor()
+    monkeypatch.setattr(visitor, "_extract_arguments", lambda _ctx: [{"entry": lambda: None}])
+    monkeypatch.setattr(visitor, "_extract_nested_tasks", lambda _ctx: [])
+
+    visitor._register_task_declaration("fetch", SimpleNamespace())
+
+    assert "fetch" in visitor.builder.registry.tasks
+
+
+def test_register_include_tasks_with_namespace_dict(monkeypatch):
+    visitor = TactusDSLVisitor()
+    monkeypatch.setattr(
+        visitor,
+        "_extract_arguments",
+        lambda _ctx: ["tasks.tac", {"namespace": "extras"}],
+    )
+
+    visitor._register_include_tasks(SimpleNamespace())
+
+    assert visitor.builder.registry.include_tasks == [{"path": "tasks.tac", "namespace": "extras"}]
+
+
+def test_register_include_tasks_with_namespace_payload(monkeypatch):
+    visitor = TactusDSLVisitor()
+    monkeypatch.setattr(
+        visitor,
+        "_extract_arguments",
+        lambda _ctx: ["tasks.tac", {"note": "no-namespace"}],
+    )
+
+    visitor._register_include_tasks(SimpleNamespace())
+
+    assert visitor.builder.registry.include_tasks == [{"path": "tasks.tac"}]
+
+
+def test_register_include_tasks_with_non_dict_namespace(monkeypatch):
+    visitor = TactusDSLVisitor()
+    monkeypatch.setattr(visitor, "_extract_arguments", lambda _ctx: ["tasks.tac", 123])
+
+    visitor._register_include_tasks(SimpleNamespace())
+
+    assert visitor.builder.registry.include_tasks == [{"path": "tasks.tac"}]
+
+
+def test_visit_stat_skips_retriever_alias_when_name_nodes_empty(monkeypatch):
+    visitor = TactusDSLVisitor()
+    captured = {}
+
+    def fake_track(_name, _exp):
+        captured["called"] = True
+
+    monkeypatch.setattr(visitor, "_track_retriever_alias", fake_track)
+
+    class FakeAttnameList:
+        def NAME(self):
+            return []
+
+    class FakeExpList:
+        def exp(self):
+            return ["exp"]
+
+    class FakeContext:
+        def varlist(self):
+            return None
+
+        def attnamelist(self):
+            return FakeAttnameList()
+
+        def explist(self):
+            return FakeExpList()
+
+        def getChildCount(self):
+            return 0
+
+    visitor.visitStat(FakeContext())
+
+    assert captured == {}
+
+
+def test_check_assignment_based_declaration_sets_retriever_id(monkeypatch):
+    visitor = TactusDSLVisitor()
+
+    class FakeCall:
+        def getText(self):
+            return "vector.Retriever{}"
+
+    class FakePrefix:
+        def functioncall(self):
+            return FakeCall()
+
+    class FakeExpr:
+        def prefixexp(self):
+            return FakePrefix()
+
+    monkeypatch.setattr(visitor, "_extract_function_name", lambda _ctx: "Retriever")
+    monkeypatch.setattr(visitor, "_extract_dotted_dsl_name", lambda _ctx: "vector.Retriever")
+    monkeypatch.setattr(visitor, "_extract_single_table_arg", lambda _ctx: {})
+    monkeypatch.setattr(visitor, "_resolve_retriever_id_from_call", lambda _ctx: "tf-vector")
+
+    visitor._check_assignment_based_declaration("search", FakeExpr())
+
+    retriever = visitor.builder.registry.retrievers["search"]
+    assert retriever.config["retriever_id"] == "tf-vector"
+
+
+def test_check_assignment_based_declaration_respects_existing_retriever_id(monkeypatch):
+    visitor = TactusDSLVisitor()
+
+    class FakeCall:
+        def getText(self):
+            return "vector.Retriever{}"
+
+    class FakePrefix:
+        def functioncall(self):
+            return FakeCall()
+
+    class FakeExpr:
+        def prefixexp(self):
+            return FakePrefix()
+
+    monkeypatch.setattr(visitor, "_extract_function_name", lambda _ctx: "Retriever")
+    monkeypatch.setattr(visitor, "_extract_dotted_dsl_name", lambda _ctx: "vector.Retriever")
+    monkeypatch.setattr(
+        visitor, "_extract_single_table_arg", lambda _ctx: {"retriever_id": "fixed"}
+    )
+    monkeypatch.setattr(visitor, "_resolve_retriever_id_from_call", lambda _ctx: "override")
+
+    visitor._check_assignment_based_declaration("search", FakeExpr())
+
+    retriever = visitor.builder.registry.retrievers["search"]
+    assert retriever.config["retriever_id"] == "fixed"
+
+
+def test_check_assignment_based_declaration_heuristic_sets_retriever_id(monkeypatch):
+    visitor = TactusDSLVisitor()
+
+    class FakeCall:
+        def getText(self):
+            return "Custom{}"
+
+    class FakePrefix:
+        def functioncall(self):
+            return FakeCall()
+
+    class FakeExpr:
+        def prefixexp(self):
+            return FakePrefix()
+
+    monkeypatch.setattr(visitor, "_extract_function_name", lambda _ctx: "Custom")
+    monkeypatch.setattr(visitor, "_extract_dotted_dsl_name", lambda _ctx: None)
+    monkeypatch.setattr(visitor, "_extract_single_table_arg", lambda _ctx: {"corpus": "docs"})
+    monkeypatch.setattr(visitor, "_resolve_retriever_id_from_call", lambda _ctx: "tf-vector")
+
+    visitor._check_assignment_based_declaration("search", FakeExpr())
+
+    retriever = visitor.builder.registry.retrievers["search"]
+    assert retriever.config["retriever_id"] == "tf-vector"
+
+
+def test_check_assignment_based_declaration_heuristic_respects_retriever_id(monkeypatch):
+    visitor = TactusDSLVisitor()
+
+    class FakeCall:
+        def getText(self):
+            return "Custom{}"
+
+    class FakePrefix:
+        def functioncall(self):
+            return FakeCall()
+
+    class FakeExpr:
+        def prefixexp(self):
+            return FakePrefix()
+
+    monkeypatch.setattr(visitor, "_extract_function_name", lambda _ctx: "Custom")
+    monkeypatch.setattr(visitor, "_extract_dotted_dsl_name", lambda _ctx: None)
+    monkeypatch.setattr(
+        visitor,
+        "_extract_single_table_arg",
+        lambda _ctx: {"corpus": "docs", "retriever_id": "fixed"},
+    )
+    monkeypatch.setattr(visitor, "_resolve_retriever_id_from_call", lambda _ctx: "override")
+
+    visitor._check_assignment_based_declaration("search", FakeExpr())
+
+    retriever = visitor.builder.registry.retrievers["search"]
+    assert retriever.config["retriever_id"] == "fixed"

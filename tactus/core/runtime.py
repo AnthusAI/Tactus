@@ -13,9 +13,10 @@ import io
 import logging
 import time
 import uuid
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from tactus.core.registry import ProcedureRegistry, RegistryBuilder
+from tactus.core.registry import ProcedureRegistry, RegistryBuilder, TaskDeclaration
 from tactus.core.dsl_stubs import create_dsl_stubs, lua_table_to_dict
 from tactus.core.template_resolver import TemplateResolver
 from tactus.core.message_history_manager import MessageHistoryManager
@@ -137,6 +138,7 @@ class TactusRuntime:
         self.openai_api_key = openai_api_key
         self.log_handler = log_handler
         self._injected_tool_primitive = tool_primitive
+        self.task_name: Optional[str] = None
         self.tool_paths = tool_paths or []
         self.recursion_depth = recursion_depth
         self.external_config = external_config or {}
@@ -191,7 +193,11 @@ class TactusRuntime:
         logger.info("TactusRuntime initialized for procedure %s", procedure_id)
 
     async def execute(
-        self, source: str, context: Optional[Dict[str, Any]] = None, format: str = "yaml"
+        self,
+        source: str,
+        context: Optional[Dict[str, Any]] = None,
+        format: str = "yaml",
+        task_name: Optional[str] = None,
     ) -> dict[str, Any]:
         """
         Execute a workflow (Lua DSL or legacy YAML format).
@@ -215,6 +221,7 @@ class TactusRuntime:
         """
         chat_session_id = None
         self.context = context or {}  # Store context for param merging
+        self.task_name = task_name
 
         try:
             # 0. Setup Lua sandbox FIRST (needed for both YAML and Lua DSL)
@@ -2538,6 +2545,57 @@ class TactusRuntime:
         Returns:
             Result from Lua procedure execution
         """
+        if not self.task_name and self.registry:
+            explicit_tasks = getattr(self.registry, "tasks", {}) or {}
+
+            def _flatten_tasks(task_map: dict, prefix: str = "") -> list[str]:
+                names: list[str] = []
+                for task_name, task in task_map.items():
+                    full_name = f"{prefix}{task_name}" if not prefix else f"{prefix}:{task_name}"
+                    names.append(full_name)
+                    if task.children:
+                        names.extend(_flatten_tasks(task.children, full_name))
+                return names
+
+            implicit_tasks: list[str] = []
+            retrievers = getattr(self.registry, "retrievers", {}) or {}
+            if retrievers:
+                from tactus.core.retriever_tasks import (
+                    resolve_retriever_id,
+                    supported_retriever_tasks,
+                )
+
+                for retriever_name, retriever in retrievers.items():
+                    config = getattr(retriever, "config", {})
+                    retriever_id = resolve_retriever_id(config if isinstance(config, dict) else {})
+                    for task in sorted(supported_retriever_tasks(retriever_id)):
+                        if task in explicit_tasks:
+                            continue
+                        if task not in implicit_tasks:
+                            implicit_tasks.append(task)
+                        implicit_tasks.append(f"{task}:{retriever_name}")
+
+            if explicit_tasks:
+                if len(explicit_tasks) == 1:
+                    self.task_name = next(iter(explicit_tasks.keys()))
+                elif "run" in explicit_tasks:
+                    self.task_name = "run"
+                else:
+                    from tactus.core.exceptions import TaskSelectionRequired
+
+                    raise TaskSelectionRequired(_flatten_tasks(explicit_tasks) + implicit_tasks)
+            elif (
+                implicit_tasks
+                and not getattr(self, "_top_level_result", None)
+                and not getattr(self.registry, "named_procedures", None)
+            ):
+                from tactus.core.exceptions import TaskSelectionRequired
+
+                raise TaskSelectionRequired(implicit_tasks)
+
+        if self.task_name:
+            return self._execute_task(self.task_name)
+
         if self.registry:
             # Check for named 'main' procedure first
             if "main" in self.registry.named_procedures:
@@ -2626,6 +2684,198 @@ class TactusRuntime:
             logger.error(f"Legacy procedure execution failed: {e}")
             raise
 
+    def _execute_task(self, task_name: str) -> Any:
+        if not self.registry:
+            raise RuntimeError("No registry available for task execution")
+
+        task = self._resolve_task(task_name)
+        if task is None:
+            # Allow run fallback to main procedure
+            if task_name == "run":
+                self.task_name = None
+                return self._execute_workflow()
+
+            retriever_tasks = self._resolve_retriever_task_targets(task_name)
+            if retriever_tasks:
+                return self._execute_retriever_tasks(task_name, retriever_tasks)
+
+            raise RuntimeError(f"Task '{task_name}' not found")
+
+        task_payload = task.model_dump()
+        entry = task_payload.get("entry")
+        if entry is None:
+            if task.children:
+                raise RuntimeError(
+                    f"Task '{task_name}' has no entry. Available sub-tasks: "
+                    f"{', '.join(task.children.keys())}"
+                )
+            raise RuntimeError(f"Task '{task_name}' has no entry")
+
+        if not callable(entry):
+            raise RuntimeError(f"Task '{task_name}' entry must be a function")
+        return entry()
+
+    def _execute_retriever_tasks(self, task_name: str, retriever_names: list[str]) -> Any:
+        if not retriever_names:
+            raise RuntimeError(f"No retrievers available for task '{task_name}'")
+
+        base_task = task_name.split(":")[0]
+        if base_task == "index":
+            results = []
+            for retriever_name in retriever_names:
+                results.append(self._execute_retriever_index(retriever_name))
+            return results[0] if len(results) == 1 else results
+
+        raise RuntimeError(f"Retriever task '{base_task}' is not supported")
+
+    def _execute_retriever_index(self, retriever_name: str) -> Any:
+        if not self.registry:
+            raise RuntimeError("No registry available for retriever execution")
+
+        retriever = self.registry.retrievers.get(retriever_name)
+        if retriever is None:
+            raise RuntimeError(f"Retriever '{retriever_name}' not found")
+
+        if not retriever.corpus:
+            raise RuntimeError(f"Retriever '{retriever_name}' has no corpus configured")
+
+        corpus_decl = self.registry.corpora.get(retriever.corpus)
+        if corpus_decl is None:
+            raise RuntimeError(f"Corpus '{retriever.corpus}' not found for '{retriever_name}'")
+
+        corpus_root = corpus_decl.config.get("corpus_root") or corpus_decl.config.get("root")
+        if not corpus_root:
+            raise RuntimeError(f"Corpus '{retriever.corpus}' is missing a root path")
+
+        extraction_pipeline = {}
+        corpus_configuration = (
+            corpus_decl.config.get("configuration", {})
+            if isinstance(corpus_decl.config, dict)
+            else {}
+        )
+        if isinstance(corpus_configuration, dict):
+            pipeline = corpus_configuration.get("pipeline", {}) or {}
+            if isinstance(pipeline, dict):
+                extraction_pipeline = pipeline.get("extract", {}) or {}
+        if isinstance(extraction_pipeline, list):
+            extraction_pipeline = {}
+
+        retriever_id = retriever.config.get("retriever_id") or retriever.config.get(
+            "retriever_type"
+        )
+        if not retriever_id:
+            raise RuntimeError(
+                f"Retriever '{retriever_name}' is missing retriever_id; cannot build snapshot"
+            )
+
+        configuration = retriever.config.get("configuration", {})
+        pipeline = configuration.get("pipeline", {}) if isinstance(configuration, dict) else {}
+        if not pipeline and isinstance(retriever.config.get("pipeline"), dict):
+            pipeline = retriever.config.get("pipeline") or {}
+        index_config = pipeline.get("index", {}) if isinstance(pipeline, dict) else {}
+        if isinstance(index_config, list):
+            index_config = {}
+
+        try:
+            from biblicus.corpus import Corpus
+            from biblicus.extraction import build_extraction_snapshot
+            from biblicus.retrievers import get_retriever
+        except Exception as exc:
+            raise RuntimeError(f"Biblicus retrieval retriever unavailable: {exc}") from exc
+
+        corpus = Corpus(Path(corpus_root))
+        retriever_impl = get_retriever(retriever_id)
+        configuration_name = retriever_name
+
+        if extraction_pipeline and isinstance(extraction_pipeline, dict):
+            extraction_manifest = build_extraction_snapshot(
+                corpus,
+                extractor_id="pipeline",
+                configuration_name=f"{retriever.corpus or retriever_name}-extract",
+                configuration=extraction_pipeline,
+            )
+            if isinstance(index_config, dict) and "extraction_snapshot" not in index_config:
+                index_config["extraction_snapshot"] = (
+                    f"{extraction_manifest.configuration.extractor_id}:"
+                    f"{extraction_manifest.snapshot_id}"
+                )
+        snapshot = retriever_impl.build_snapshot(
+            corpus, configuration_name=configuration_name, configuration=index_config
+        )
+
+        return snapshot.model_dump()
+
+    def _resolve_task(self, task_name: str) -> Optional[TaskDeclaration]:
+        if not self.registry:
+            return None
+        segments = [segment for segment in task_name.split(":") if segment]
+        if not segments:
+            return None
+        current = self.registry.tasks.get(segments[0])
+        for segment in segments[1:]:
+            if current is None:
+                return None
+            child = current.children.get(segment)
+            if child is None:
+                payload = current.model_dump(exclude={"name", "children"})
+                inline_child = payload.get(segment)
+                if isinstance(inline_child, dict):
+                    task_payload = dict(inline_child)
+                    task_payload["name"] = segment
+                    try:
+                        return TaskDeclaration(**task_payload)
+                    except Exception:
+                        return None
+                return None
+            current = child
+        return current
+
+    def _resolve_retriever_task_targets(self, task_name: str) -> list[str]:
+        if not self.registry or not self.registry.retrievers:
+            return []
+        segments = [segment for segment in task_name.split(":") if segment]
+        if not segments:
+            return []
+        task = segments[0]
+        target = segments[1] if len(segments) > 1 else None
+        from tactus.core.retriever_tasks import resolve_retriever_id, supported_retriever_tasks
+
+        targets: list[str] = []
+        for retriever_name, retriever in self.registry.retrievers.items():
+            config = getattr(retriever, "config", {})
+            retriever_id = resolve_retriever_id(config if isinstance(config, dict) else {})
+            if task in supported_retriever_tasks(retriever_id):
+                targets.append(retriever_name)
+
+        if target:
+            return [name for name in targets if name == target]
+        return targets
+
+    def _expand_inline_task_children(self, registry: ProcedureRegistry) -> None:
+        if not registry or not registry.tasks:
+            return
+
+        def add_children(parent: TaskDeclaration) -> None:
+            payload = parent.model_dump(exclude={"name", "children"})
+            for key, value in payload.items():
+                if not isinstance(key, str) or not isinstance(value, dict):
+                    continue
+                if not value.get("__tactus_task_config"):
+                    continue
+                if key in parent.children:
+                    continue
+                task_payload = dict(value)
+                task_payload["name"] = key
+                try:
+                    child = TaskDeclaration(**task_payload)
+                except Exception:
+                    continue
+                parent.children[key] = child
+                add_children(child)
+
+        for task in registry.tasks.values():
+            add_children(task)
+
     def _maybe_transform_script_mode_source(self, source: str) -> str:
         """
         Transform "script mode" source into an implicit Procedure wrapper.
@@ -2679,6 +2929,7 @@ class TactusRuntime:
         decl_start = re.compile(
             r"^\s*(?:"
             r"input|output|Mocks|Agent|Toolset|Tool|Model|Module|Signature|LM|Dependency|Prompt|"
+            r"Task|IncludeTasks|Context|Corpus|Retriever|Compactor|"
             r"Specifications|Evaluation|Evaluations|"
             r"default_provider|default_model|return_prompt|error_prompt|status_prompt|async|"
             r"max_depth|max_turns"
@@ -2687,7 +2938,9 @@ class TactusRuntime:
         require_stmt = re.compile(r"^\s*(?:local\s+)?[A-Za-z_][A-Za-z0-9_]*\s*=\s*require\(")
         assignment_decl = re.compile(
             r"^\s*[A-Za-z_][A-Za-z0-9_]*\s*=\s*(?:"
-            r"Agent|Toolset|Tool|Model|Module|Signature|LM|Dependency|Prompt"
+            r"Agent|Toolset|Tool|Model|Module|Signature|LM|Dependency|Prompt|"
+            r"Task|TaskFunction|Context|Corpus|Retriever|Compactor|function|"
+            r"[A-Za-z_][A-Za-z0-9_]*Retriever|[A-Za-z_][A-Za-z0-9_]*\.Retriever"
             r")\b"
         )
         # Match function definitions: function name() or local function name()
@@ -2961,6 +3214,93 @@ class TactusRuntime:
             self._top_level_result = execution_result
         except LuaSandboxError as e:
             raise TactusRuntimeError(f"Failed to parse DSL: {e}")
+
+        self._expand_inline_task_children(builder.registry)
+
+        # Execute IncludeTasks files to register additional tasks
+        if builder.registry.include_tasks:
+            base_path = Path(self.source_file_path).parent if self.source_file_path else Path.cwd()
+            include_queue = [
+                {
+                    "path": include.get("path"),
+                    "namespace": include.get("namespace"),
+                    "base": base_path,
+                }
+                for include in builder.registry.include_tasks
+            ]
+            seen_includes: set[Path] = set()
+
+            while include_queue:
+                include = include_queue.pop(0)
+                include_path = include.get("path")
+                if not include_path:
+                    continue
+                include_base = include.get("base") or base_path
+                include_file = (include_base / include_path).resolve()
+                if include_file in seen_includes:
+                    raise TactusRuntimeError(f"IncludeTasks cycle detected: {include_file}")
+                seen_includes.add(include_file)
+                if not include_file.exists():
+                    raise TactusRuntimeError(f"Included tasks file not found: {include_file}")
+
+                pre_task_names = set(builder.registry.tasks.keys())
+                pre_include_count = len(builder.registry.include_tasks)
+                pre_counts = {
+                    "agents": len(builder.registry.agents),
+                    "toolsets": len(builder.registry.toolsets),
+                    "lua_tools": len(builder.registry.lua_tools),
+                    "contexts": len(builder.registry.contexts),
+                    "corpora": len(builder.registry.corpora),
+                    "retrievers": len(builder.registry.retrievers),
+                    "compactors": len(builder.registry.compactors),
+                    "named_procedures": len(builder.registry.named_procedures),
+                }
+                include_source = include_file.read_text()
+                try:
+                    sandbox.execute(include_source)
+                except LuaSandboxError as e:
+                    raise TactusRuntimeError(f"Failed to execute IncludeTasks file: {e}")
+
+                post_counts = {
+                    "agents": len(builder.registry.agents),
+                    "toolsets": len(builder.registry.toolsets),
+                    "lua_tools": len(builder.registry.lua_tools),
+                    "contexts": len(builder.registry.contexts),
+                    "corpora": len(builder.registry.corpora),
+                    "retrievers": len(builder.registry.retrievers),
+                    "compactors": len(builder.registry.compactors),
+                    "named_procedures": len(builder.registry.named_procedures),
+                }
+                if any(post_counts[key] != pre_counts[key] for key in post_counts):
+                    raise TactusRuntimeError(
+                        f"IncludeTasks files must only contain Task declarations: {include_file}"
+                    )
+
+                new_task_names = set(builder.registry.tasks.keys()) - pre_task_names
+                namespace = include.get("namespace")
+                if namespace and new_task_names:
+                    if namespace in builder.registry.tasks:
+                        raise TactusRuntimeError(f"Duplicate task namespace '{namespace}'")
+                    namespaced_children = {
+                        name: builder.registry.tasks.pop(name) for name in new_task_names
+                    }
+                    builder.registry.tasks[namespace] = TaskDeclaration(
+                        name=namespace,
+                        children=namespaced_children,
+                    )
+
+                new_includes = builder.registry.include_tasks[pre_include_count:]
+                if new_includes:
+                    include_queue.extend(
+                        [
+                            {
+                                "path": nested.get("path"),
+                                "namespace": nested.get("namespace"),
+                                "base": include_file.parent,
+                            }
+                            for nested in new_includes
+                        ]
+                    )
 
         # Auto-register plain function main() if it exists
         #

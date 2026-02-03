@@ -40,12 +40,13 @@ def _build_registry(pack_max_tokens: int, query: str, wfo: str) -> RegistryBuild
     builder = RegistryBuilder()
     builder.register_corpus(
         "noaa_afd",
-        {"backend_id": "noaa_afd", "wfo": wfo, "maximum_cache_total_items": 20},
+        {"wfo": wfo, "maximum_cache_total_items": 20},
     )
     builder.register_retriever(
         "noaa_search",
         {
             "corpus": "noaa_afd",
+            "retriever_id": "noaa_afd",
             "query": query,
             "limit": 6,
             "maximum_total_characters": 6000,

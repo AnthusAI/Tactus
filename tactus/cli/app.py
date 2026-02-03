@@ -61,6 +61,13 @@ def main_callback(
 
     # If no subcommand was invoked and version flag not set, show help
     if ctx.invoked_subcommand is None:
+        if getattr(ctx, "args", None) and ctx.args[0].endswith((".tac", ".lua")):
+            workflow_file = Path(ctx.args[0])
+            task_name = None
+            if len(ctx.args) >= 2 and not ctx.args[1].startswith("-"):
+                task_name = ctx.args[1]
+            ctx.invoke(run, workflow_file=workflow_file, task=task_name)
+            raise typer.Exit()
         console.print(ctx.get_help())
         raise typer.Exit()
 
@@ -430,6 +437,9 @@ def _check_missing_required_inputs(input_schema: dict, provided_params: dict) ->
 @app.command()
 def run(
     workflow_file: Path = typer.Argument(..., help="Path to workflow file (.tac)"),
+    task: Optional[str] = typer.Argument(
+        None, help="Optional task name (e.g., run, index, fetch:NOAA)"
+    ),
     storage: str = typer.Option("memory", help="Storage backend: memory, file"),
     storage_path: Optional[Path] = typer.Option(None, help="Path for file storage"),
     openai_api_key: Optional[str] = typer.Option(
@@ -651,6 +661,17 @@ def run(
     if sandbox_broker_host is not None:
         sandbox_config_dict["broker_host"] = sandbox_broker_host
 
+    if "dev_mode" not in sandbox_config_dict:
+        try:
+            import tactus
+
+            tactus_module_path = Path(tactus.__file__).resolve()
+            repo_root = tactus_module_path.parent.parent
+            if (repo_root / "tactus").is_dir() and (repo_root / "pyproject.toml").exists():
+                sandbox_config_dict["dev_mode"] = True
+        except Exception:
+            pass
+
     sandbox_config_dict["broker_transport"] = sandbox_broker
     if (
         sandbox_network is None
@@ -819,6 +840,7 @@ def run(
                     params=context,
                     source_file_path=str(workflow_file),
                     format=file_format,
+                    task_name=task,
                 )
             )
 
@@ -841,9 +863,11 @@ def run(
         else:
             # Execute directly (non-sandboxed)
             try:
-                result = asyncio.run(runtime.execute(source_content, context, format=file_format))
+                result = asyncio.run(
+                    runtime.execute(source_content, context, format=file_format, task_name=task)
+                )
             except Exception as e:
-                from tactus.core.exceptions import ProcedureWaitingForHuman
+                from tactus.core.exceptions import ProcedureWaitingForHuman, TaskSelectionRequired
 
                 # Check both the exception itself and its __cause__
                 console.print(f"[dim]DEBUG: Caught exception type: {type(e).__name__}[/dim]")
@@ -857,6 +881,16 @@ def run(
                     f"[dim]DEBUG: __cause__ is ProcedureWaitingForHuman: {isinstance(e.__cause__, ProcedureWaitingForHuman) if e.__cause__ else False}[/dim]"
                 )
 
+                task_error = e.__cause__ if isinstance(e.__cause__, TaskSelectionRequired) else e
+                if isinstance(task_error, TaskSelectionRequired):
+                    console.print("\n[cyan]Available tasks:[/cyan]")
+                    for task_name in task_error.tasks:
+                        console.print(f"  [bold]{task_name}[/bold]")
+                    console.print(
+                        "\n[dim]Run a task explicitly, e.g.:[/dim] "
+                        f"[bold]tactus {workflow_file.name} {task_error.tasks[0] if task_error.tasks else 'run'}[/bold]"
+                    )
+                    return
                 if isinstance(e, ProcedureWaitingForHuman):
                     # Direct exception
                     console.print(
@@ -928,6 +962,24 @@ def run(
         if verbose:
             console.print_exception()
         raise typer.Exit(1)
+    finally:
+        try:
+            import litellm
+
+            close_clients = getattr(litellm, "close_litellm_async_clients", None)
+            if close_clients:
+                close_result = close_clients()
+                if asyncio.iscoroutine(close_result):
+                    asyncio.run(close_result)
+        except Exception:
+            pass
+        try:
+            asyncio.run(control_handler.shutdown_channels())
+        except RuntimeError:
+            # Best-effort cleanup if an event loop is already running.
+            pass
+        except Exception:
+            pass
 
 
 # Sandbox subcommand group
@@ -1282,16 +1334,13 @@ def info(
     # Determine format based on extension
     file_format = "lua" if workflow_file.suffix in [".tac", ".lua"] else "yaml"
 
-    # Read workflow file
-    source_content = workflow_file.read_text()
-
     console.print(f"[blue]Procedure info:[/blue] [bold]{workflow_file.name}[/bold]\n")
 
     try:
         if file_format == "lua":
             # Use validator to parse procedure
             validator = TactusValidator()
-            result = validator.validate(source_content, ValidationMode.FULL)
+            result = validator.validate_file(str(workflow_file), ValidationMode.FULL)
 
             if not result.valid:
                 console.print("[red]✗ Invalid procedure - cannot display info[/red]\n")
@@ -1343,6 +1392,48 @@ def info(
                     else:
                         # Handle other types (shouldn't happen, but be safe)
                         console.print(f"  [bold]{name}[/bold]: {type(field_config).__name__}")
+                console.print()
+
+            # Show tasks (including nested tasks + implicit retriever tasks)
+            implicit_task_targets: dict[str, list[str]] = {}
+            if registry.retrievers:
+                from tactus.core.retriever_tasks import (
+                    resolve_retriever_id,
+                    supported_retriever_tasks,
+                )
+
+                for retriever_name, retriever in registry.retrievers.items():
+                    config = getattr(retriever, "config", {})
+                    retriever_id = resolve_retriever_id(config if isinstance(config, dict) else {})
+                    for task_name in sorted(supported_retriever_tasks(retriever_id)):
+                        implicit_task_targets.setdefault(task_name, []).append(retriever_name)
+
+            if registry.tasks or implicit_task_targets:
+                console.print("[cyan]Tasks:[/cyan]")
+
+                def _emit_tasks(task_map: dict, prefix: str = "") -> None:
+                    for task_name, task in task_map.items():
+                        full_name = (
+                            f"{prefix}{task_name}" if not prefix else f"{prefix}:{task_name}"
+                        )
+                        console.print(f"  [bold]{full_name}[/bold]")
+                        if task.children:
+                            _emit_tasks(task.children, full_name)
+
+                if registry.tasks:
+                    _emit_tasks(registry.tasks)
+
+                for task_name, retriever_names in implicit_task_targets.items():
+                    if task_name in registry.tasks:
+                        continue
+                    console.print(
+                        f"  [bold]{task_name}[/bold] [dim](implicit from retrievers)[/dim]"
+                    )
+                    for retriever_name in retriever_names:
+                        console.print(
+                            f"  [bold]{task_name}:{retriever_name}[/bold] [dim](implicit)[/dim]"
+                        )
+
                 console.print()
 
             # Show agents

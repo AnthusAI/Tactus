@@ -1,0 +1,1151 @@
+{
+  "schema_version": 2,
+  "generated_at": "2026-02-03T00:46:11.907792+00:00",
+  "corpus_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd_corpus/MFL",
+  "raw_dir": "raw",
+  "latest_run_id": "836bb0d7326c574fa553b5d03537b0b42e8fc103c6d1ed369034ebb11857a49f",
+  "items": {
+    "f57ee0cb-e389-4671-b727-b4004e7b4e16": {
+      "id": "f57ee0cb-e389-4671-b727-b4004e7b4e16",
+      "relpath": "raw/imports/0826bb0e-5d5e-462b-aea7-ecdd95d92ccb/01_Area_Forecast_Discussion.json",
+      "sha256": "1f66f296f2469f847d3f7a25a6fed8a61fb66ec6c7cdc09d9375e0f8701f47cb",
+      "bytes": 169,
+      "media_type": "application/json",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "f57ee0cb-e389-4671-b727-b4004e7b4e16",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/01_Area_Forecast_Discussion.json"
+        },
+        "media_type": "application/json"
+      },
+      "created_at": "2026-02-02T21:25:51.721740+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/01_Area_Forecast_Discussion.json"
+    },
+    "fe0a1c93-44ae-4323-8b6b-740f2016e742": {
+      "id": "fe0a1c93-44ae-4323-8b6b-740f2016e742",
+      "relpath": "raw/imports/0826bb0e-5d5e-462b-aea7-ecdd95d92ccb/01_Area_Forecast_Discussion.txt",
+      "sha256": "4364db5152d2ae2592912d2ebc3876f4ef0a5d96afaaf3432ccf7c2ef2a505f2",
+      "bytes": 6562,
+      "media_type": "text/plain",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "fe0a1c93-44ae-4323-8b6b-740f2016e742",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/01_Area_Forecast_Discussion.txt"
+        },
+        "media_type": "text/plain"
+      },
+      "created_at": "2026-02-02T21:25:51.727681+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/01_Area_Forecast_Discussion.txt"
+    },
+    "1118322c-ad52-49f4-b4db-57a7d367ee4a": {
+      "id": "1118322c-ad52-49f4-b4db-57a7d367ee4a",
+      "relpath": "raw/imports/0826bb0e-5d5e-462b-aea7-ecdd95d92ccb/01_Area_Forecast_Discussion.txt.biblicus.yml",
+      "sha256": "2144367e9295f414e651a94b29ec8e89eea429f7cbd3b061af27560b129a4975",
+      "bytes": 147,
+      "media_type": "application/octet-stream",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "1118322c-ad52-49f4-b4db-57a7d367ee4a",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/01_Area_Forecast_Discussion.txt.biblicus.yml"
+        },
+        "media_type": "application/octet-stream"
+      },
+      "created_at": "2026-02-02T21:25:51.738250+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/01_Area_Forecast_Discussion.txt.biblicus.yml"
+    },
+    "9fab725c-9b77-425a-b50d-3adf4352f9fd": {
+      "id": "9fab725c-9b77-425a-b50d-3adf4352f9fd",
+      "relpath": "raw/imports/0826bb0e-5d5e-462b-aea7-ecdd95d92ccb/02_Area_Forecast_Discussion.json",
+      "sha256": "dd55830640f918eadbf133520b673da99fe395302fff40717bfba03a3f660011",
+      "bytes": 169,
+      "media_type": "application/json",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "9fab725c-9b77-425a-b50d-3adf4352f9fd",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/02_Area_Forecast_Discussion.json"
+        },
+        "media_type": "application/json"
+      },
+      "created_at": "2026-02-02T21:25:51.741667+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/02_Area_Forecast_Discussion.json"
+    },
+    "76158e9b-98f0-461e-a5dd-4b7e8ee74e6f": {
+      "id": "76158e9b-98f0-461e-a5dd-4b7e8ee74e6f",
+      "relpath": "raw/imports/0826bb0e-5d5e-462b-aea7-ecdd95d92ccb/02_Area_Forecast_Discussion.txt",
+      "sha256": "d5e5ed04eb9c0f3793e6b90ae7d3ea15018f032065ea54da4c47a2f8ff790bfd",
+      "bytes": 6688,
+      "media_type": "text/plain",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "76158e9b-98f0-461e-a5dd-4b7e8ee74e6f",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/02_Area_Forecast_Discussion.txt"
+        },
+        "media_type": "text/plain"
+      },
+      "created_at": "2026-02-02T21:25:51.752083+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/02_Area_Forecast_Discussion.txt"
+    },
+    "db516d50-1e36-48d4-8a16-43ae1d1947d9": {
+      "id": "db516d50-1e36-48d4-8a16-43ae1d1947d9",
+      "relpath": "raw/imports/0826bb0e-5d5e-462b-aea7-ecdd95d92ccb/02_Area_Forecast_Discussion.txt.biblicus.yml",
+      "sha256": "8ff0521061dcfed6163b0fd2a9ad9e72bd5e0eec22c8a724b84f419cb601876a",
+      "bytes": 147,
+      "media_type": "application/octet-stream",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "db516d50-1e36-48d4-8a16-43ae1d1947d9",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/02_Area_Forecast_Discussion.txt.biblicus.yml"
+        },
+        "media_type": "application/octet-stream"
+      },
+      "created_at": "2026-02-02T21:25:51.760374+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/02_Area_Forecast_Discussion.txt.biblicus.yml"
+    },
+    "5e10555d-b465-4480-be6c-ec521388b118": {
+      "id": "5e10555d-b465-4480-be6c-ec521388b118",
+      "relpath": "raw/imports/0826bb0e-5d5e-462b-aea7-ecdd95d92ccb/03_Area_Forecast_Discussion.json",
+      "sha256": "d7a1debe3c9ffe432525cf6bf48c21b5895a0e185d89a2a96dd753635c0cd559",
+      "bytes": 169,
+      "media_type": "application/json",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "5e10555d-b465-4480-be6c-ec521388b118",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/03_Area_Forecast_Discussion.json"
+        },
+        "media_type": "application/json"
+      },
+      "created_at": "2026-02-02T21:25:51.774893+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/03_Area_Forecast_Discussion.json"
+    },
+    "66812b07-5d92-44d0-85a0-50ea85a08d79": {
+      "id": "66812b07-5d92-44d0-85a0-50ea85a08d79",
+      "relpath": "raw/imports/0826bb0e-5d5e-462b-aea7-ecdd95d92ccb/03_Area_Forecast_Discussion.txt",
+      "sha256": "e1584e4ff3ea835f5006d0862926dc2f2408a7c1d00583b42ec7faa2a1738879",
+      "bytes": 6702,
+      "media_type": "text/plain",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "66812b07-5d92-44d0-85a0-50ea85a08d79",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/03_Area_Forecast_Discussion.txt"
+        },
+        "media_type": "text/plain"
+      },
+      "created_at": "2026-02-02T21:25:51.807847+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/03_Area_Forecast_Discussion.txt"
+    },
+    "4bc89374-b5d4-4659-be82-a3cec713b4da": {
+      "id": "4bc89374-b5d4-4659-be82-a3cec713b4da",
+      "relpath": "raw/imports/0826bb0e-5d5e-462b-aea7-ecdd95d92ccb/03_Area_Forecast_Discussion.txt.biblicus.yml",
+      "sha256": "9c9c6504470a9483290144f600ec26541cea511f086558c5964b373b209a5490",
+      "bytes": 147,
+      "media_type": "application/octet-stream",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "4bc89374-b5d4-4659-be82-a3cec713b4da",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/03_Area_Forecast_Discussion.txt.biblicus.yml"
+        },
+        "media_type": "application/octet-stream"
+      },
+      "created_at": "2026-02-02T21:25:51.811349+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/03_Area_Forecast_Discussion.txt.biblicus.yml"
+    },
+    "2a9a08d1-63fe-40a5-8ba8-15533c6aa576": {
+      "id": "2a9a08d1-63fe-40a5-8ba8-15533c6aa576",
+      "relpath": "raw/imports/0826bb0e-5d5e-462b-aea7-ecdd95d92ccb/04_Area_Forecast_Discussion.json",
+      "sha256": "6861a647189ddfc1d22415e4f2a996f6c261c2d367bd84568f543c1351f60e52",
+      "bytes": 169,
+      "media_type": "application/json",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "2a9a08d1-63fe-40a5-8ba8-15533c6aa576",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/04_Area_Forecast_Discussion.json"
+        },
+        "media_type": "application/json"
+      },
+      "created_at": "2026-02-02T21:25:51.813784+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/04_Area_Forecast_Discussion.json"
+    },
+    "a67c30fc-aa3b-47cd-b3d7-fc575bdfef3c": {
+      "id": "a67c30fc-aa3b-47cd-b3d7-fc575bdfef3c",
+      "relpath": "raw/imports/0826bb0e-5d5e-462b-aea7-ecdd95d92ccb/04_Area_Forecast_Discussion.txt",
+      "sha256": "fa62270548fce57b0aaff0af4b6191145dfc4d91183f9482c21b771d0093be20",
+      "bytes": 8756,
+      "media_type": "text/plain",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "a67c30fc-aa3b-47cd-b3d7-fc575bdfef3c",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/04_Area_Forecast_Discussion.txt"
+        },
+        "media_type": "text/plain"
+      },
+      "created_at": "2026-02-02T21:25:51.815569+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/04_Area_Forecast_Discussion.txt"
+    },
+    "5bbf1fa6-f829-49a1-ac76-d5e60d9bb264": {
+      "id": "5bbf1fa6-f829-49a1-ac76-d5e60d9bb264",
+      "relpath": "raw/imports/0826bb0e-5d5e-462b-aea7-ecdd95d92ccb/04_Area_Forecast_Discussion.txt.biblicus.yml",
+      "sha256": "9c22ac6b486dc9eac255f79ac1fa431388e54362ca815a6552ada163f62ed633",
+      "bytes": 147,
+      "media_type": "application/octet-stream",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "5bbf1fa6-f829-49a1-ac76-d5e60d9bb264",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/04_Area_Forecast_Discussion.txt.biblicus.yml"
+        },
+        "media_type": "application/octet-stream"
+      },
+      "created_at": "2026-02-02T21:25:51.816698+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/04_Area_Forecast_Discussion.txt.biblicus.yml"
+    },
+    "631d168b-a851-4298-b765-32d80395e789": {
+      "id": "631d168b-a851-4298-b765-32d80395e789",
+      "relpath": "raw/imports/0826bb0e-5d5e-462b-aea7-ecdd95d92ccb/05_Area_Forecast_Discussion.json",
+      "sha256": "8f3fabd964d99926ddcf747f7a20cea82501955d06a962f6134735c1b9ae8e6c",
+      "bytes": 169,
+      "media_type": "application/json",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "631d168b-a851-4298-b765-32d80395e789",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/05_Area_Forecast_Discussion.json"
+        },
+        "media_type": "application/json"
+      },
+      "created_at": "2026-02-02T21:25:51.817817+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/05_Area_Forecast_Discussion.json"
+    },
+    "e39ea973-14e9-4a71-8cb4-3c5664665f62": {
+      "id": "e39ea973-14e9-4a71-8cb4-3c5664665f62",
+      "relpath": "raw/imports/0826bb0e-5d5e-462b-aea7-ecdd95d92ccb/05_Area_Forecast_Discussion.txt",
+      "sha256": "e65093412a996492c354c3ddf715c82d07b553f0c10b24222ed43bb8d91957c9",
+      "bytes": 8750,
+      "media_type": "text/plain",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "e39ea973-14e9-4a71-8cb4-3c5664665f62",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/05_Area_Forecast_Discussion.txt"
+        },
+        "media_type": "text/plain"
+      },
+      "created_at": "2026-02-02T21:25:51.818994+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/05_Area_Forecast_Discussion.txt"
+    },
+    "248e7b7e-02ba-4d65-b886-dbc1731ee983": {
+      "id": "248e7b7e-02ba-4d65-b886-dbc1731ee983",
+      "relpath": "raw/imports/0826bb0e-5d5e-462b-aea7-ecdd95d92ccb/05_Area_Forecast_Discussion.txt.biblicus.yml",
+      "sha256": "46052b5fe7bb9c002dff9bbf5f7cd75040e36a251f09482b59b6b9b5cae4279e",
+      "bytes": 147,
+      "media_type": "application/octet-stream",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "248e7b7e-02ba-4d65-b886-dbc1731ee983",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/05_Area_Forecast_Discussion.txt.biblicus.yml"
+        },
+        "media_type": "application/octet-stream"
+      },
+      "created_at": "2026-02-02T21:25:51.820293+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/05_Area_Forecast_Discussion.txt.biblicus.yml"
+    },
+    "f3fa8c96-6646-4f87-a985-aba8c274eba5": {
+      "id": "f3fa8c96-6646-4f87-a985-aba8c274eba5",
+      "relpath": "raw/imports/12c86d9d-710c-4eb6-bc49-18f32b92536e/01_Area_Forecast_Discussion.json",
+      "sha256": "1f66f296f2469f847d3f7a25a6fed8a61fb66ec6c7cdc09d9375e0f8701f47cb",
+      "bytes": 169,
+      "media_type": "application/json",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "f3fa8c96-6646-4f87-a985-aba8c274eba5",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/01_Area_Forecast_Discussion.json"
+        },
+        "media_type": "application/json"
+      },
+      "created_at": "2026-02-02T22:15:09.413123+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/01_Area_Forecast_Discussion.json"
+    },
+    "53022385-31f6-4270-99da-3087a5d188ff": {
+      "id": "53022385-31f6-4270-99da-3087a5d188ff",
+      "relpath": "raw/imports/12c86d9d-710c-4eb6-bc49-18f32b92536e/01_Area_Forecast_Discussion.txt",
+      "sha256": "4364db5152d2ae2592912d2ebc3876f4ef0a5d96afaaf3432ccf7c2ef2a505f2",
+      "bytes": 6562,
+      "media_type": "text/plain",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "53022385-31f6-4270-99da-3087a5d188ff",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/01_Area_Forecast_Discussion.txt"
+        },
+        "media_type": "text/plain"
+      },
+      "created_at": "2026-02-02T22:15:09.415014+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/01_Area_Forecast_Discussion.txt"
+    },
+    "c2138fdd-fb3e-45e3-b2f2-d6be786003df": {
+      "id": "c2138fdd-fb3e-45e3-b2f2-d6be786003df",
+      "relpath": "raw/imports/12c86d9d-710c-4eb6-bc49-18f32b92536e/01_Area_Forecast_Discussion.txt.biblicus.yml",
+      "sha256": "2144367e9295f414e651a94b29ec8e89eea429f7cbd3b061af27560b129a4975",
+      "bytes": 147,
+      "media_type": "application/octet-stream",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "c2138fdd-fb3e-45e3-b2f2-d6be786003df",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/01_Area_Forecast_Discussion.txt.biblicus.yml"
+        },
+        "media_type": "application/octet-stream"
+      },
+      "created_at": "2026-02-02T22:15:09.415990+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/01_Area_Forecast_Discussion.txt.biblicus.yml"
+    },
+    "8e2897ff-4467-4ba7-9770-0f149f1b00b3": {
+      "id": "8e2897ff-4467-4ba7-9770-0f149f1b00b3",
+      "relpath": "raw/imports/12c86d9d-710c-4eb6-bc49-18f32b92536e/02_Area_Forecast_Discussion.json",
+      "sha256": "dd55830640f918eadbf133520b673da99fe395302fff40717bfba03a3f660011",
+      "bytes": 169,
+      "media_type": "application/json",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "8e2897ff-4467-4ba7-9770-0f149f1b00b3",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/02_Area_Forecast_Discussion.json"
+        },
+        "media_type": "application/json"
+      },
+      "created_at": "2026-02-02T22:15:09.416909+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/02_Area_Forecast_Discussion.json"
+    },
+    "51d193f9-9c89-4ae5-acf2-9dc40541e2b5": {
+      "id": "51d193f9-9c89-4ae5-acf2-9dc40541e2b5",
+      "relpath": "raw/imports/12c86d9d-710c-4eb6-bc49-18f32b92536e/02_Area_Forecast_Discussion.txt",
+      "sha256": "d5e5ed04eb9c0f3793e6b90ae7d3ea15018f032065ea54da4c47a2f8ff790bfd",
+      "bytes": 6688,
+      "media_type": "text/plain",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "51d193f9-9c89-4ae5-acf2-9dc40541e2b5",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/02_Area_Forecast_Discussion.txt"
+        },
+        "media_type": "text/plain"
+      },
+      "created_at": "2026-02-02T22:15:09.418828+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/02_Area_Forecast_Discussion.txt"
+    },
+    "efea9a32-f340-4236-bf18-cc9b30161189": {
+      "id": "efea9a32-f340-4236-bf18-cc9b30161189",
+      "relpath": "raw/imports/12c86d9d-710c-4eb6-bc49-18f32b92536e/02_Area_Forecast_Discussion.txt.biblicus.yml",
+      "sha256": "8ff0521061dcfed6163b0fd2a9ad9e72bd5e0eec22c8a724b84f419cb601876a",
+      "bytes": 147,
+      "media_type": "application/octet-stream",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "efea9a32-f340-4236-bf18-cc9b30161189",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/02_Area_Forecast_Discussion.txt.biblicus.yml"
+        },
+        "media_type": "application/octet-stream"
+      },
+      "created_at": "2026-02-02T22:15:09.419906+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/02_Area_Forecast_Discussion.txt.biblicus.yml"
+    },
+    "b99e7313-19ca-4747-a363-77299aa2f62e": {
+      "id": "b99e7313-19ca-4747-a363-77299aa2f62e",
+      "relpath": "raw/imports/12c86d9d-710c-4eb6-bc49-18f32b92536e/03_Area_Forecast_Discussion.json",
+      "sha256": "d7a1debe3c9ffe432525cf6bf48c21b5895a0e185d89a2a96dd753635c0cd559",
+      "bytes": 169,
+      "media_type": "application/json",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "b99e7313-19ca-4747-a363-77299aa2f62e",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/03_Area_Forecast_Discussion.json"
+        },
+        "media_type": "application/json"
+      },
+      "created_at": "2026-02-02T22:15:09.421073+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/03_Area_Forecast_Discussion.json"
+    },
+    "50d0a439-7b1e-48ff-8cbc-715e59373696": {
+      "id": "50d0a439-7b1e-48ff-8cbc-715e59373696",
+      "relpath": "raw/imports/12c86d9d-710c-4eb6-bc49-18f32b92536e/03_Area_Forecast_Discussion.txt",
+      "sha256": "e1584e4ff3ea835f5006d0862926dc2f2408a7c1d00583b42ec7faa2a1738879",
+      "bytes": 6702,
+      "media_type": "text/plain",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "50d0a439-7b1e-48ff-8cbc-715e59373696",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/03_Area_Forecast_Discussion.txt"
+        },
+        "media_type": "text/plain"
+      },
+      "created_at": "2026-02-02T22:15:09.422272+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/03_Area_Forecast_Discussion.txt"
+    },
+    "12070960-d9c3-4cae-a0cc-8737e03b6115": {
+      "id": "12070960-d9c3-4cae-a0cc-8737e03b6115",
+      "relpath": "raw/imports/12c86d9d-710c-4eb6-bc49-18f32b92536e/03_Area_Forecast_Discussion.txt.biblicus.yml",
+      "sha256": "9c9c6504470a9483290144f600ec26541cea511f086558c5964b373b209a5490",
+      "bytes": 147,
+      "media_type": "application/octet-stream",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "12070960-d9c3-4cae-a0cc-8737e03b6115",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/03_Area_Forecast_Discussion.txt.biblicus.yml"
+        },
+        "media_type": "application/octet-stream"
+      },
+      "created_at": "2026-02-02T22:15:09.423698+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/03_Area_Forecast_Discussion.txt.biblicus.yml"
+    },
+    "e86810da-7733-4553-a89d-869f2eb99dfd": {
+      "id": "e86810da-7733-4553-a89d-869f2eb99dfd",
+      "relpath": "raw/imports/12c86d9d-710c-4eb6-bc49-18f32b92536e/04_Area_Forecast_Discussion.json",
+      "sha256": "6861a647189ddfc1d22415e4f2a996f6c261c2d367bd84568f543c1351f60e52",
+      "bytes": 169,
+      "media_type": "application/json",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "e86810da-7733-4553-a89d-869f2eb99dfd",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/04_Area_Forecast_Discussion.json"
+        },
+        "media_type": "application/json"
+      },
+      "created_at": "2026-02-02T22:15:09.424716+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/04_Area_Forecast_Discussion.json"
+    },
+    "46e11536-c32d-4656-ac78-d2753a163c26": {
+      "id": "46e11536-c32d-4656-ac78-d2753a163c26",
+      "relpath": "raw/imports/12c86d9d-710c-4eb6-bc49-18f32b92536e/04_Area_Forecast_Discussion.txt",
+      "sha256": "fa62270548fce57b0aaff0af4b6191145dfc4d91183f9482c21b771d0093be20",
+      "bytes": 8756,
+      "media_type": "text/plain",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "46e11536-c32d-4656-ac78-d2753a163c26",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/04_Area_Forecast_Discussion.txt"
+        },
+        "media_type": "text/plain"
+      },
+      "created_at": "2026-02-02T22:15:09.425845+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/04_Area_Forecast_Discussion.txt"
+    },
+    "4bbe2f4a-8770-48cc-b998-d9412e3e02be": {
+      "id": "4bbe2f4a-8770-48cc-b998-d9412e3e02be",
+      "relpath": "raw/imports/12c86d9d-710c-4eb6-bc49-18f32b92536e/04_Area_Forecast_Discussion.txt.biblicus.yml",
+      "sha256": "9c22ac6b486dc9eac255f79ac1fa431388e54362ca815a6552ada163f62ed633",
+      "bytes": 147,
+      "media_type": "application/octet-stream",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "4bbe2f4a-8770-48cc-b998-d9412e3e02be",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/04_Area_Forecast_Discussion.txt.biblicus.yml"
+        },
+        "media_type": "application/octet-stream"
+      },
+      "created_at": "2026-02-02T22:15:09.427048+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/04_Area_Forecast_Discussion.txt.biblicus.yml"
+    },
+    "ba7c3b67-4841-462c-abaa-84d499715b9f": {
+      "id": "ba7c3b67-4841-462c-abaa-84d499715b9f",
+      "relpath": "raw/imports/12c86d9d-710c-4eb6-bc49-18f32b92536e/05_Area_Forecast_Discussion.json",
+      "sha256": "8f3fabd964d99926ddcf747f7a20cea82501955d06a962f6134735c1b9ae8e6c",
+      "bytes": 169,
+      "media_type": "application/json",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "ba7c3b67-4841-462c-abaa-84d499715b9f",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/05_Area_Forecast_Discussion.json"
+        },
+        "media_type": "application/json"
+      },
+      "created_at": "2026-02-02T22:15:09.428283+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/05_Area_Forecast_Discussion.json"
+    },
+    "75388f74-4b8e-4cf2-aeb3-a2aeeb2b74dc": {
+      "id": "75388f74-4b8e-4cf2-aeb3-a2aeeb2b74dc",
+      "relpath": "raw/imports/12c86d9d-710c-4eb6-bc49-18f32b92536e/05_Area_Forecast_Discussion.txt",
+      "sha256": "e65093412a996492c354c3ddf715c82d07b553f0c10b24222ed43bb8d91957c9",
+      "bytes": 8750,
+      "media_type": "text/plain",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "75388f74-4b8e-4cf2-aeb3-a2aeeb2b74dc",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/05_Area_Forecast_Discussion.txt"
+        },
+        "media_type": "text/plain"
+      },
+      "created_at": "2026-02-02T22:15:09.429530+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/05_Area_Forecast_Discussion.txt"
+    },
+    "1bd9ae60-9b0e-4f17-a30c-deb62865a982": {
+      "id": "1bd9ae60-9b0e-4f17-a30c-deb62865a982",
+      "relpath": "raw/imports/12c86d9d-710c-4eb6-bc49-18f32b92536e/05_Area_Forecast_Discussion.txt.biblicus.yml",
+      "sha256": "46052b5fe7bb9c002dff9bbf5f7cd75040e36a251f09482b59b6b9b5cae4279e",
+      "bytes": 147,
+      "media_type": "application/octet-stream",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "1bd9ae60-9b0e-4f17-a30c-deb62865a982",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/05_Area_Forecast_Discussion.txt.biblicus.yml"
+        },
+        "media_type": "application/octet-stream"
+      },
+      "created_at": "2026-02-02T22:15:09.430836+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/05_Area_Forecast_Discussion.txt.biblicus.yml"
+    },
+    "844bb86a-836c-4bb8-bae2-ac71ec3ac0e6": {
+      "id": "844bb86a-836c-4bb8-bae2-ac71ec3ac0e6",
+      "relpath": "raw/imports/dbd8c9e2-7c3e-4884-a22f-2bf851190356/01_Area_Forecast_Discussion.json",
+      "sha256": "1f66f296f2469f847d3f7a25a6fed8a61fb66ec6c7cdc09d9375e0f8701f47cb",
+      "bytes": 169,
+      "media_type": "application/json",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "844bb86a-836c-4bb8-bae2-ac71ec3ac0e6",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/01_Area_Forecast_Discussion.json"
+        },
+        "media_type": "application/json"
+      },
+      "created_at": "2026-02-02T22:15:21.758757+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/01_Area_Forecast_Discussion.json"
+    },
+    "8ae47a5d-f5dd-4a8b-8b71-bd91cd963947": {
+      "id": "8ae47a5d-f5dd-4a8b-8b71-bd91cd963947",
+      "relpath": "raw/imports/dbd8c9e2-7c3e-4884-a22f-2bf851190356/01_Area_Forecast_Discussion.txt",
+      "sha256": "4364db5152d2ae2592912d2ebc3876f4ef0a5d96afaaf3432ccf7c2ef2a505f2",
+      "bytes": 6562,
+      "media_type": "text/plain",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "8ae47a5d-f5dd-4a8b-8b71-bd91cd963947",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/01_Area_Forecast_Discussion.txt"
+        },
+        "media_type": "text/plain"
+      },
+      "created_at": "2026-02-02T22:15:21.761082+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/01_Area_Forecast_Discussion.txt"
+    },
+    "e4644a27-cb15-46a5-96ab-100459fbe6e4": {
+      "id": "e4644a27-cb15-46a5-96ab-100459fbe6e4",
+      "relpath": "raw/imports/dbd8c9e2-7c3e-4884-a22f-2bf851190356/01_Area_Forecast_Discussion.txt.biblicus.yml",
+      "sha256": "2144367e9295f414e651a94b29ec8e89eea429f7cbd3b061af27560b129a4975",
+      "bytes": 147,
+      "media_type": "application/octet-stream",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "e4644a27-cb15-46a5-96ab-100459fbe6e4",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/01_Area_Forecast_Discussion.txt.biblicus.yml"
+        },
+        "media_type": "application/octet-stream"
+      },
+      "created_at": "2026-02-02T22:15:21.768253+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/01_Area_Forecast_Discussion.txt.biblicus.yml"
+    },
+    "a2483d3d-5f1a-40b6-b0e6-263a9ae2c172": {
+      "id": "a2483d3d-5f1a-40b6-b0e6-263a9ae2c172",
+      "relpath": "raw/imports/dbd8c9e2-7c3e-4884-a22f-2bf851190356/02_Area_Forecast_Discussion.json",
+      "sha256": "dd55830640f918eadbf133520b673da99fe395302fff40717bfba03a3f660011",
+      "bytes": 169,
+      "media_type": "application/json",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "a2483d3d-5f1a-40b6-b0e6-263a9ae2c172",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/02_Area_Forecast_Discussion.json"
+        },
+        "media_type": "application/json"
+      },
+      "created_at": "2026-02-02T22:15:21.773828+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/02_Area_Forecast_Discussion.json"
+    },
+    "765f7455-073a-4896-8bab-323454f51c1a": {
+      "id": "765f7455-073a-4896-8bab-323454f51c1a",
+      "relpath": "raw/imports/dbd8c9e2-7c3e-4884-a22f-2bf851190356/02_Area_Forecast_Discussion.txt",
+      "sha256": "d5e5ed04eb9c0f3793e6b90ae7d3ea15018f032065ea54da4c47a2f8ff790bfd",
+      "bytes": 6688,
+      "media_type": "text/plain",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "765f7455-073a-4896-8bab-323454f51c1a",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/02_Area_Forecast_Discussion.txt"
+        },
+        "media_type": "text/plain"
+      },
+      "created_at": "2026-02-02T22:15:21.782013+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/02_Area_Forecast_Discussion.txt"
+    },
+    "9d10efc8-e40d-41aa-8240-d1fd3a50b6a6": {
+      "id": "9d10efc8-e40d-41aa-8240-d1fd3a50b6a6",
+      "relpath": "raw/imports/dbd8c9e2-7c3e-4884-a22f-2bf851190356/02_Area_Forecast_Discussion.txt.biblicus.yml",
+      "sha256": "8ff0521061dcfed6163b0fd2a9ad9e72bd5e0eec22c8a724b84f419cb601876a",
+      "bytes": 147,
+      "media_type": "application/octet-stream",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "9d10efc8-e40d-41aa-8240-d1fd3a50b6a6",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/02_Area_Forecast_Discussion.txt.biblicus.yml"
+        },
+        "media_type": "application/octet-stream"
+      },
+      "created_at": "2026-02-02T22:15:21.821852+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/02_Area_Forecast_Discussion.txt.biblicus.yml"
+    },
+    "9c2f2dbf-22cd-4851-aaa3-e9f3389b2c0e": {
+      "id": "9c2f2dbf-22cd-4851-aaa3-e9f3389b2c0e",
+      "relpath": "raw/imports/dbd8c9e2-7c3e-4884-a22f-2bf851190356/03_Area_Forecast_Discussion.json",
+      "sha256": "d7a1debe3c9ffe432525cf6bf48c21b5895a0e185d89a2a96dd753635c0cd559",
+      "bytes": 169,
+      "media_type": "application/json",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "9c2f2dbf-22cd-4851-aaa3-e9f3389b2c0e",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/03_Area_Forecast_Discussion.json"
+        },
+        "media_type": "application/json"
+      },
+      "created_at": "2026-02-02T22:15:21.840525+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/03_Area_Forecast_Discussion.json"
+    },
+    "c27a1e5b-7ffd-4e42-a34f-431321972353": {
+      "id": "c27a1e5b-7ffd-4e42-a34f-431321972353",
+      "relpath": "raw/imports/dbd8c9e2-7c3e-4884-a22f-2bf851190356/03_Area_Forecast_Discussion.txt",
+      "sha256": "e1584e4ff3ea835f5006d0862926dc2f2408a7c1d00583b42ec7faa2a1738879",
+      "bytes": 6702,
+      "media_type": "text/plain",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "c27a1e5b-7ffd-4e42-a34f-431321972353",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/03_Area_Forecast_Discussion.txt"
+        },
+        "media_type": "text/plain"
+      },
+      "created_at": "2026-02-02T22:15:21.849373+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/03_Area_Forecast_Discussion.txt"
+    },
+    "1d43451b-e108-41d0-a963-593cba4d64ef": {
+      "id": "1d43451b-e108-41d0-a963-593cba4d64ef",
+      "relpath": "raw/imports/dbd8c9e2-7c3e-4884-a22f-2bf851190356/03_Area_Forecast_Discussion.txt.biblicus.yml",
+      "sha256": "9c9c6504470a9483290144f600ec26541cea511f086558c5964b373b209a5490",
+      "bytes": 147,
+      "media_type": "application/octet-stream",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "1d43451b-e108-41d0-a963-593cba4d64ef",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/03_Area_Forecast_Discussion.txt.biblicus.yml"
+        },
+        "media_type": "application/octet-stream"
+      },
+      "created_at": "2026-02-02T22:15:21.850988+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/03_Area_Forecast_Discussion.txt.biblicus.yml"
+    },
+    "f888b1a7-277b-4332-a16e-658aa61f6aff": {
+      "id": "f888b1a7-277b-4332-a16e-658aa61f6aff",
+      "relpath": "raw/imports/dbd8c9e2-7c3e-4884-a22f-2bf851190356/04_Area_Forecast_Discussion.json",
+      "sha256": "6861a647189ddfc1d22415e4f2a996f6c261c2d367bd84568f543c1351f60e52",
+      "bytes": 169,
+      "media_type": "application/json",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "f888b1a7-277b-4332-a16e-658aa61f6aff",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/04_Area_Forecast_Discussion.json"
+        },
+        "media_type": "application/json"
+      },
+      "created_at": "2026-02-02T22:15:21.854438+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/04_Area_Forecast_Discussion.json"
+    },
+    "f09b3097-eb34-41c9-88dd-8cb4160e38d4": {
+      "id": "f09b3097-eb34-41c9-88dd-8cb4160e38d4",
+      "relpath": "raw/imports/dbd8c9e2-7c3e-4884-a22f-2bf851190356/04_Area_Forecast_Discussion.txt",
+      "sha256": "fa62270548fce57b0aaff0af4b6191145dfc4d91183f9482c21b771d0093be20",
+      "bytes": 8756,
+      "media_type": "text/plain",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "f09b3097-eb34-41c9-88dd-8cb4160e38d4",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/04_Area_Forecast_Discussion.txt"
+        },
+        "media_type": "text/plain"
+      },
+      "created_at": "2026-02-02T22:15:21.858726+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/04_Area_Forecast_Discussion.txt"
+    },
+    "47ac807f-b2d5-45f0-93a6-b826b091876e": {
+      "id": "47ac807f-b2d5-45f0-93a6-b826b091876e",
+      "relpath": "raw/imports/dbd8c9e2-7c3e-4884-a22f-2bf851190356/04_Area_Forecast_Discussion.txt.biblicus.yml",
+      "sha256": "9c22ac6b486dc9eac255f79ac1fa431388e54362ca815a6552ada163f62ed633",
+      "bytes": 147,
+      "media_type": "application/octet-stream",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "47ac807f-b2d5-45f0-93a6-b826b091876e",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/04_Area_Forecast_Discussion.txt.biblicus.yml"
+        },
+        "media_type": "application/octet-stream"
+      },
+      "created_at": "2026-02-02T22:15:21.864187+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/04_Area_Forecast_Discussion.txt.biblicus.yml"
+    },
+    "b49e1c53-4fc6-4eb5-a696-35f7927fc342": {
+      "id": "b49e1c53-4fc6-4eb5-a696-35f7927fc342",
+      "relpath": "raw/imports/dbd8c9e2-7c3e-4884-a22f-2bf851190356/05_Area_Forecast_Discussion.json",
+      "sha256": "8f3fabd964d99926ddcf747f7a20cea82501955d06a962f6134735c1b9ae8e6c",
+      "bytes": 169,
+      "media_type": "application/json",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "b49e1c53-4fc6-4eb5-a696-35f7927fc342",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/05_Area_Forecast_Discussion.json"
+        },
+        "media_type": "application/json"
+      },
+      "created_at": "2026-02-02T22:15:21.865810+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/05_Area_Forecast_Discussion.json"
+    },
+    "a2e97bea-926c-49e9-96cf-67f3059b97ca": {
+      "id": "a2e97bea-926c-49e9-96cf-67f3059b97ca",
+      "relpath": "raw/imports/dbd8c9e2-7c3e-4884-a22f-2bf851190356/05_Area_Forecast_Discussion.txt",
+      "sha256": "e65093412a996492c354c3ddf715c82d07b553f0c10b24222ed43bb8d91957c9",
+      "bytes": 8750,
+      "media_type": "text/plain",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "a2e97bea-926c-49e9-96cf-67f3059b97ca",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/05_Area_Forecast_Discussion.txt"
+        },
+        "media_type": "text/plain"
+      },
+      "created_at": "2026-02-02T22:15:21.867473+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/05_Area_Forecast_Discussion.txt"
+    },
+    "53ff26ea-56c9-4e97-a035-4d1dd1466d54": {
+      "id": "53ff26ea-56c9-4e97-a035-4d1dd1466d54",
+      "relpath": "raw/imports/dbd8c9e2-7c3e-4884-a22f-2bf851190356/05_Area_Forecast_Discussion.txt.biblicus.yml",
+      "sha256": "46052b5fe7bb9c002dff9bbf5f7cd75040e36a251f09482b59b6b9b5cae4279e",
+      "bytes": 147,
+      "media_type": "application/octet-stream",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "53ff26ea-56c9-4e97-a035-4d1dd1466d54",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/05_Area_Forecast_Discussion.txt.biblicus.yml"
+        },
+        "media_type": "application/octet-stream"
+      },
+      "created_at": "2026-02-02T22:15:21.868907+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/05_Area_Forecast_Discussion.txt.biblicus.yml"
+    },
+    "fae8afab-c60a-4bf0-9cdd-a0442620fec6": {
+      "id": "fae8afab-c60a-4bf0-9cdd-a0442620fec6",
+      "relpath": "raw/imports/3ae212e2-3723-47df-9e2f-dd460fd84299/01_Area_Forecast_Discussion.json",
+      "sha256": "21fb6116ed8c721dff4d725671a7f0a27593428eaef79916da20f313590e736e",
+      "bytes": 169,
+      "media_type": "application/json",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "fae8afab-c60a-4bf0-9cdd-a0442620fec6",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/01_Area_Forecast_Discussion.json"
+        },
+        "media_type": "application/json"
+      },
+      "created_at": "2026-02-02T23:10:04.525664+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/01_Area_Forecast_Discussion.json"
+    },
+    "de310d91-ce44-4e21-b5fa-91c0dde95616": {
+      "id": "de310d91-ce44-4e21-b5fa-91c0dde95616",
+      "relpath": "raw/imports/3ae212e2-3723-47df-9e2f-dd460fd84299/01_Area_Forecast_Discussion.txt",
+      "sha256": "d9822dc76e5ba45cda6df1aaad0254964c65dd89cc6d3ac2a29872eb12d5faf9",
+      "bytes": 6828,
+      "media_type": "text/plain",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "de310d91-ce44-4e21-b5fa-91c0dde95616",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/01_Area_Forecast_Discussion.txt"
+        },
+        "media_type": "text/plain"
+      },
+      "created_at": "2026-02-02T23:10:04.528805+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/01_Area_Forecast_Discussion.txt"
+    },
+    "38460cc1-4253-486f-ba74-b12ceba10bb8": {
+      "id": "38460cc1-4253-486f-ba74-b12ceba10bb8",
+      "relpath": "raw/imports/3ae212e2-3723-47df-9e2f-dd460fd84299/01_Area_Forecast_Discussion.txt.biblicus.yml",
+      "sha256": "8bbab17c4de1e637fb2fc9b7a4382c71a55efa4d2ded4820d35aafcffd9e414a",
+      "bytes": 147,
+      "media_type": "application/octet-stream",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "38460cc1-4253-486f-ba74-b12ceba10bb8",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/01_Area_Forecast_Discussion.txt.biblicus.yml"
+        },
+        "media_type": "application/octet-stream"
+      },
+      "created_at": "2026-02-02T23:10:04.537057+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/01_Area_Forecast_Discussion.txt.biblicus.yml"
+    },
+    "32fb4980-562d-495b-b415-207813859cfc": {
+      "id": "32fb4980-562d-495b-b415-207813859cfc",
+      "relpath": "raw/imports/3ae212e2-3723-47df-9e2f-dd460fd84299/02_Area_Forecast_Discussion.json",
+      "sha256": "1f66f296f2469f847d3f7a25a6fed8a61fb66ec6c7cdc09d9375e0f8701f47cb",
+      "bytes": 169,
+      "media_type": "application/json",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "32fb4980-562d-495b-b415-207813859cfc",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/02_Area_Forecast_Discussion.json"
+        },
+        "media_type": "application/json"
+      },
+      "created_at": "2026-02-02T23:10:04.539338+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/02_Area_Forecast_Discussion.json"
+    },
+    "7ecc850d-af56-4131-916e-f953324212ad": {
+      "id": "7ecc850d-af56-4131-916e-f953324212ad",
+      "relpath": "raw/imports/3ae212e2-3723-47df-9e2f-dd460fd84299/02_Area_Forecast_Discussion.txt",
+      "sha256": "4364db5152d2ae2592912d2ebc3876f4ef0a5d96afaaf3432ccf7c2ef2a505f2",
+      "bytes": 6562,
+      "media_type": "text/plain",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "7ecc850d-af56-4131-916e-f953324212ad",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/02_Area_Forecast_Discussion.txt"
+        },
+        "media_type": "text/plain"
+      },
+      "created_at": "2026-02-02T23:10:04.544819+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/02_Area_Forecast_Discussion.txt"
+    },
+    "016b55ac-479b-4f17-99c1-0b19c4737f41": {
+      "id": "016b55ac-479b-4f17-99c1-0b19c4737f41",
+      "relpath": "raw/imports/3ae212e2-3723-47df-9e2f-dd460fd84299/02_Area_Forecast_Discussion.txt.biblicus.yml",
+      "sha256": "2144367e9295f414e651a94b29ec8e89eea429f7cbd3b061af27560b129a4975",
+      "bytes": 147,
+      "media_type": "application/octet-stream",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "016b55ac-479b-4f17-99c1-0b19c4737f41",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/02_Area_Forecast_Discussion.txt.biblicus.yml"
+        },
+        "media_type": "application/octet-stream"
+      },
+      "created_at": "2026-02-02T23:10:04.546870+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/02_Area_Forecast_Discussion.txt.biblicus.yml"
+    },
+    "3dd7d612-0a5f-44cb-a608-8d54608caa9e": {
+      "id": "3dd7d612-0a5f-44cb-a608-8d54608caa9e",
+      "relpath": "raw/imports/3ae212e2-3723-47df-9e2f-dd460fd84299/03_Area_Forecast_Discussion.json",
+      "sha256": "dd55830640f918eadbf133520b673da99fe395302fff40717bfba03a3f660011",
+      "bytes": 169,
+      "media_type": "application/json",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "3dd7d612-0a5f-44cb-a608-8d54608caa9e",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/03_Area_Forecast_Discussion.json"
+        },
+        "media_type": "application/json"
+      },
+      "created_at": "2026-02-02T23:10:04.550146+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/03_Area_Forecast_Discussion.json"
+    },
+    "8e91bc83-7525-488f-8496-f59ac87201e7": {
+      "id": "8e91bc83-7525-488f-8496-f59ac87201e7",
+      "relpath": "raw/imports/3ae212e2-3723-47df-9e2f-dd460fd84299/03_Area_Forecast_Discussion.txt",
+      "sha256": "d5e5ed04eb9c0f3793e6b90ae7d3ea15018f032065ea54da4c47a2f8ff790bfd",
+      "bytes": 6688,
+      "media_type": "text/plain",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "8e91bc83-7525-488f-8496-f59ac87201e7",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/03_Area_Forecast_Discussion.txt"
+        },
+        "media_type": "text/plain"
+      },
+      "created_at": "2026-02-02T23:10:04.554035+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/03_Area_Forecast_Discussion.txt"
+    },
+    "1b3cedde-9568-46ce-899f-dc6774cd7888": {
+      "id": "1b3cedde-9568-46ce-899f-dc6774cd7888",
+      "relpath": "raw/imports/3ae212e2-3723-47df-9e2f-dd460fd84299/03_Area_Forecast_Discussion.txt.biblicus.yml",
+      "sha256": "8ff0521061dcfed6163b0fd2a9ad9e72bd5e0eec22c8a724b84f419cb601876a",
+      "bytes": 147,
+      "media_type": "application/octet-stream",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "1b3cedde-9568-46ce-899f-dc6774cd7888",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/03_Area_Forecast_Discussion.txt.biblicus.yml"
+        },
+        "media_type": "application/octet-stream"
+      },
+      "created_at": "2026-02-02T23:10:04.560357+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/03_Area_Forecast_Discussion.txt.biblicus.yml"
+    },
+    "bcdcbdab-1edd-476e-b1a7-08549557e4d0": {
+      "id": "bcdcbdab-1edd-476e-b1a7-08549557e4d0",
+      "relpath": "raw/imports/3ae212e2-3723-47df-9e2f-dd460fd84299/04_Area_Forecast_Discussion.json",
+      "sha256": "d7a1debe3c9ffe432525cf6bf48c21b5895a0e185d89a2a96dd753635c0cd559",
+      "bytes": 169,
+      "media_type": "application/json",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "bcdcbdab-1edd-476e-b1a7-08549557e4d0",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/04_Area_Forecast_Discussion.json"
+        },
+        "media_type": "application/json"
+      },
+      "created_at": "2026-02-02T23:10:04.562449+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/04_Area_Forecast_Discussion.json"
+    },
+    "7bc3c88b-d058-47c6-9b4d-6e041c2a5bce": {
+      "id": "7bc3c88b-d058-47c6-9b4d-6e041c2a5bce",
+      "relpath": "raw/imports/3ae212e2-3723-47df-9e2f-dd460fd84299/04_Area_Forecast_Discussion.txt",
+      "sha256": "e1584e4ff3ea835f5006d0862926dc2f2408a7c1d00583b42ec7faa2a1738879",
+      "bytes": 6702,
+      "media_type": "text/plain",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "7bc3c88b-d058-47c6-9b4d-6e041c2a5bce",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/04_Area_Forecast_Discussion.txt"
+        },
+        "media_type": "text/plain"
+      },
+      "created_at": "2026-02-02T23:10:04.568430+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/04_Area_Forecast_Discussion.txt"
+    },
+    "21de6775-cf04-44f8-8297-0f90f4d82f32": {
+      "id": "21de6775-cf04-44f8-8297-0f90f4d82f32",
+      "relpath": "raw/imports/3ae212e2-3723-47df-9e2f-dd460fd84299/04_Area_Forecast_Discussion.txt.biblicus.yml",
+      "sha256": "9c9c6504470a9483290144f600ec26541cea511f086558c5964b373b209a5490",
+      "bytes": 147,
+      "media_type": "application/octet-stream",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "21de6775-cf04-44f8-8297-0f90f4d82f32",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/04_Area_Forecast_Discussion.txt.biblicus.yml"
+        },
+        "media_type": "application/octet-stream"
+      },
+      "created_at": "2026-02-02T23:10:04.569936+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/04_Area_Forecast_Discussion.txt.biblicus.yml"
+    },
+    "c0008894-6b6b-4e60-9b87-cc251d2820e4": {
+      "id": "c0008894-6b6b-4e60-9b87-cc251d2820e4",
+      "relpath": "raw/imports/3ae212e2-3723-47df-9e2f-dd460fd84299/05_Area_Forecast_Discussion.json",
+      "sha256": "6861a647189ddfc1d22415e4f2a996f6c261c2d367bd84568f543c1351f60e52",
+      "bytes": 169,
+      "media_type": "application/json",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "c0008894-6b6b-4e60-9b87-cc251d2820e4",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/05_Area_Forecast_Discussion.json"
+        },
+        "media_type": "application/json"
+      },
+      "created_at": "2026-02-02T23:10:04.571419+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/05_Area_Forecast_Discussion.json"
+    },
+    "5bdb0ef1-9c2e-48a8-91e0-750a44098f79": {
+      "id": "5bdb0ef1-9c2e-48a8-91e0-750a44098f79",
+      "relpath": "raw/imports/3ae212e2-3723-47df-9e2f-dd460fd84299/05_Area_Forecast_Discussion.txt",
+      "sha256": "fa62270548fce57b0aaff0af4b6191145dfc4d91183f9482c21b771d0093be20",
+      "bytes": 8756,
+      "media_type": "text/plain",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "5bdb0ef1-9c2e-48a8-91e0-750a44098f79",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/05_Area_Forecast_Discussion.txt"
+        },
+        "media_type": "text/plain"
+      },
+      "created_at": "2026-02-02T23:10:04.577463+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/05_Area_Forecast_Discussion.txt"
+    },
+    "a1d168ce-5ecf-40bd-ac4c-e04c3d5001cc": {
+      "id": "a1d168ce-5ecf-40bd-ac4c-e04c3d5001cc",
+      "relpath": "raw/imports/3ae212e2-3723-47df-9e2f-dd460fd84299/05_Area_Forecast_Discussion.txt.biblicus.yml",
+      "sha256": "9c22ac6b486dc9eac255f79ac1fa431388e54362ca815a6552ada163f62ed633",
+      "bytes": 147,
+      "media_type": "application/octet-stream",
+      "title": null,
+      "tags": [],
+      "metadata": {
+        "biblicus": {
+          "id": "a1d168ce-5ecf-40bd-ac4c-e04c3d5001cc",
+          "source": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/05_Area_Forecast_Discussion.txt.biblicus.yml"
+        },
+        "media_type": "application/octet-stream"
+      },
+      "created_at": "2026-02-02T23:10:04.579622+00:00",
+      "source_uri": "file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/05_Area_Forecast_Discussion.txt.biblicus.yml"
+    }
+  },
+  "order": [
+    "a1d168ce-5ecf-40bd-ac4c-e04c3d5001cc",
+    "5bdb0ef1-9c2e-48a8-91e0-750a44098f79",
+    "c0008894-6b6b-4e60-9b87-cc251d2820e4",
+    "21de6775-cf04-44f8-8297-0f90f4d82f32",
+    "7bc3c88b-d058-47c6-9b4d-6e041c2a5bce",
+    "bcdcbdab-1edd-476e-b1a7-08549557e4d0",
+    "1b3cedde-9568-46ce-899f-dc6774cd7888",
+    "8e91bc83-7525-488f-8496-f59ac87201e7",
+    "3dd7d612-0a5f-44cb-a608-8d54608caa9e",
+    "016b55ac-479b-4f17-99c1-0b19c4737f41",
+    "7ecc850d-af56-4131-916e-f953324212ad",
+    "32fb4980-562d-495b-b415-207813859cfc",
+    "38460cc1-4253-486f-ba74-b12ceba10bb8",
+    "de310d91-ce44-4e21-b5fa-91c0dde95616",
+    "fae8afab-c60a-4bf0-9cdd-a0442620fec6",
+    "53ff26ea-56c9-4e97-a035-4d1dd1466d54",
+    "a2e97bea-926c-49e9-96cf-67f3059b97ca",
+    "b49e1c53-4fc6-4eb5-a696-35f7927fc342",
+    "47ac807f-b2d5-45f0-93a6-b826b091876e",
+    "f09b3097-eb34-41c9-88dd-8cb4160e38d4",
+    "f888b1a7-277b-4332-a16e-658aa61f6aff",
+    "1d43451b-e108-41d0-a963-593cba4d64ef",
+    "c27a1e5b-7ffd-4e42-a34f-431321972353",
+    "9c2f2dbf-22cd-4851-aaa3-e9f3389b2c0e",
+    "9d10efc8-e40d-41aa-8240-d1fd3a50b6a6",
+    "765f7455-073a-4896-8bab-323454f51c1a",
+    "a2483d3d-5f1a-40b6-b0e6-263a9ae2c172",
+    "e4644a27-cb15-46a5-96ab-100459fbe6e4",
+    "8ae47a5d-f5dd-4a8b-8b71-bd91cd963947",
+    "844bb86a-836c-4bb8-bae2-ac71ec3ac0e6",
+    "1bd9ae60-9b0e-4f17-a30c-deb62865a982",
+    "75388f74-4b8e-4cf2-aeb3-a2aeeb2b74dc",
+    "ba7c3b67-4841-462c-abaa-84d499715b9f",
+    "4bbe2f4a-8770-48cc-b998-d9412e3e02be",
+    "46e11536-c32d-4656-ac78-d2753a163c26",
+    "e86810da-7733-4553-a89d-869f2eb99dfd",
+    "12070960-d9c3-4cae-a0cc-8737e03b6115",
+    "50d0a439-7b1e-48ff-8cbc-715e59373696",
+    "b99e7313-19ca-4747-a363-77299aa2f62e",
+    "efea9a32-f340-4236-bf18-cc9b30161189",
+    "51d193f9-9c89-4ae5-acf2-9dc40541e2b5",
+    "8e2897ff-4467-4ba7-9770-0f149f1b00b3",
+    "c2138fdd-fb3e-45e3-b2f2-d6be786003df",
+    "53022385-31f6-4270-99da-3087a5d188ff",
+    "f3fa8c96-6646-4f87-a985-aba8c274eba5",
+    "248e7b7e-02ba-4d65-b886-dbc1731ee983",
+    "e39ea973-14e9-4a71-8cb4-3c5664665f62",
+    "631d168b-a851-4298-b765-32d80395e789",
+    "5bbf1fa6-f829-49a1-ac76-d5e60d9bb264",
+    "a67c30fc-aa3b-47cd-b3d7-fc575bdfef3c",
+    "2a9a08d1-63fe-40a5-8ba8-15533c6aa576",
+    "4bc89374-b5d4-4659-be82-a3cec713b4da",
+    "66812b07-5d92-44d0-85a0-50ea85a08d79",
+    "5e10555d-b465-4480-be6c-ec521388b118",
+    "db516d50-1e36-48d4-8a16-43ae1d1947d9",
+    "76158e9b-98f0-461e-a5dd-4b7e8ee74e6f",
+    "9fab725c-9b77-425a-b50d-3adf4352f9fd",
+    "1118322c-ad52-49f4-b4db-57a7d367ee4a",
+    "fe0a1c93-44ae-4323-8b6b-740f2016e742",
+    "f57ee0cb-e389-4671-b727-b4004e7b4e16"
+  ]
+}

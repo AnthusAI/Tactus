@@ -1,0 +1,181 @@
+000
+FXUS62 KMFL 022253
+AFDMFL
+
+Area Forecast Discussion
+National Weather Service Miami FL
+553 PM EST Mon Feb 2 2026
+
+...New AVIATION...
+
+.KEY MESSAGES...
+Updated at 551 PM EST Mon Feb 2 2026
+
+    - Very cold temperatures and apparent temperatures are 
+      expected again Tuesday morning. Members of the general 
+      public and agricultural interests are advised to prepare 
+      accordingly. 
+
+    - Hazardous marine conditions continue through Tuesday 
+      morning in the Atlantic waters.
+
+    - High risk of rip currents for the Atlantic beaches early
+      this week, along with a high surf advisory for the Palm
+      Beaches today through early Tuesday.
+
+&&
+
+.SHORT TERM...
+(Today through Tuesday)
+Issued at 111 AM EST Mon Feb 2 2026
+
+Strong high pressure is over the northern Gulf today, which will 
+continue to filter cool and dry air into the region. 00Z MFL 
+sounding last night showed a PWAT value of only 0.17 inches and 
+those values will remain low throughout the day. Our historic cold 
+snap will continue for another morning with lows today ranging from 
+the mid 20s to mid 30s. Freeze Warnings are in place for all of 
+South FL with the exception of coastal Broward, coastal Miami-Dade, 
+coastal Collier, far southern Miami-Dade, and Mainland Monroe. Winds 
+are much lighter this morning so apparent temps won't feel as cold, 
+however they will still drop into the 20s this morning, so a Cold 
+Weather Advisory is in effect for all of South FL. With the much 
+lighter winds, especially over inland areas, frost will likely be 
+observed in many sheltered locations, with heavy frost possible west 
+and south of the lake. 
+
+While 850 mb temps won't be as cold as they were this time 
+yesterday, they are still only projected to be +0 to +2 C this 
+afternoon across South FL. Afternoon high temps will be "warmer" 
+than yesterday however remain well below normal only reaching the 
+upper 50s to around 60. With dewpoints remaining in the 20s, RH 
+values this afternoon will drop to 20-30 percent even with the cool 
+temps. 
+
+There will be another round of cold weather headlines tonight, 
+although the Freeze Warnings will likely be confined to inland SW FL 
+where lows will fall into the upper 20s to lower 30s. Mid to upper 
+30s are expected over the western portions of the east coast metro, 
+and lower 40s are expected along the coast. Despite light winds 
+tonight, Cold Weather Advisory criteria will likely be met in all 
+locations except the Atlantic coastal zones. 
+
+Surface high pressure moves over Florida on Tuesday which will 
+switch our winds around to the NE. This will further moderate 
+temperatures across the area, and also increase cloud cover over the 
+east coast metro during the afternoon hours. Temperatures will still 
+be below normal but will feel much nicer, ranging from the upper 60s 
+to around 70.
+
+&&
+
+.LONG TERM...
+(Tuesday night through Sunday)
+Issued at 111 AM EST Mon Feb 2 2026
+
+The extended period starts on a moderating trend with high pressure 
+moving east of the area which allows a warm S/SW flow ahead of an 
+approaching front associated with a system moving across the Mid 
+Atlantic region. Scattered showers are possible overnight Wednesday 
+into early Thursday before the front crosses the area and brings 
+another round of cooler weather into the region, albeit not nearly 
+as cold as this last airmass. High pressure over the northern Gulf 
+will build into the region and dry and cool conditions are expected 
+for the remainder of the week. Another front associated with a 
+system over northern New England will drop down across the area next 
+weekend, with little to no moisture associated with this front. 
+
+Temperatures Thursday and Friday will be below normal, with near 
+normal temperatures expected next weekend. Only day in the extended 
+that will likely have cold weather headlines will be Friday morning, 
+with the SW FL counties most likely to meet criteria.
+
+&&
+
+.AVIATION...
+(00Z TAFS)
+Issued at 551 PM EST Mon Feb 2 2026
+
+VFR prevails through the next 24 hours at all terminals. Winds 
+subside tonight with light and variable flow likely overnight.
+Winds then first increase after 12Z Tuesday out of the NE around
+7-10 kts and then shift NE in the afternoon. There also will be a
+chance for some light coastal SHRA activity tomorrow afternoon and
+evening, but confidence is too low on timing right now.
+
+&&
+
+.MARINE...
+Issued at 111 AM EST Mon Feb 2 2026
+
+Hazardous seas in the Gulf will continue through early this morning, 
+with cautionary northerly winds remaining through the rest of the 
+day. Hazardous winds and seas will continue in the Atlantic waters 
+through at least Tuesday morning. 4-7 ft seas early today in the 
+Gulf improve to 2-4 ft by late in the day. Atlantic seas will be 6-
+12 ft early today and 5-10 ft this evening and overnight. Northerly 
+winds 10-15 kts in the Gulf today with 20-25 kts in the Atlantic. 
+
+&&
+
+.BEACHES...
+Issued at 111 AM EST Mon Feb 2 2026
+
+Persistent swell will result in a high risk of rip currents for the 
+Atlantic beaches through at least Tuesday. In addition, a high surf 
+advisory is in effect this morning through Tuesday morning for the 
+Palm Beaches for 6-8 ft waves in the surf zone.
+
+&&
+
+.FIRE WEATHER...
+Issued at 111 AM EST Mon Feb 2 2026
+
+A very dry airmass remains over South FL early this week. Min RH 
+values will fall to 20-30 percent this afternoon over all of South 
+FL, and critically low RH values are possible again on Tuesday over 
+interior SW FL. While wind speeds will remain below criteria, the 
+low RH values combined with the ongoing drought conditions will 
+still present an elevated fire risk across the area.
+
+&&
+
+.PRELIMINARY POINT TEMPS/POPS...
+Miami            43  68  56  73 /   0   0   0   0 
+West Kendall     36  68  50  75 /   0   0   0   0 
+Opa-Locka        41  68  54  75 /   0   0   0   0 
+Homestead        41  68  55  74 /   0   0   0   0 
+Fort Lauderdale  43  67  56  73 /   0   0   0   0 
+N Ft Lauderdale  44  68  57  73 /   0   0   0   0 
+Pembroke Pines   41  69  53  75 /   0   0   0   0 
+West Palm Beach  42  68  55  74 /   0   0   0   0 
+Boca Raton       42  68  55  74 /   0   0   0   0 
+Naples           37  68  49  72 /   0   0   0   0 
+
+&&
+
+.MFL WATCHES/WARNINGS/ADVISORIES...
+FL...Cold Weather Advisory from 11 PM this evening to 9 AM EST 
+     Tuesday for FLZ063-066>075-174.
+
+     Freeze Warning from 11 PM this evening to 9 AM EST Tuesday for 
+     FLZ063-066-067-070-071.
+
+     Frost Advisory from 11 PM this evening to 9 AM EST Tuesday for 
+     FLZ073-075-174.
+
+     High Rip Current Risk through Tuesday evening for FLZ168-172-173.
+
+     High Surf Advisory until 7 AM EST Tuesday for FLZ168.
+
+AM...Small Craft Advisory until 7 AM EST Tuesday for AMZ650-651-670-
+     671.
+
+GM...None.
+&&
+
+$$
+
+SHORT TERM...CMF
+LONG TERM....CMF
+AVIATION...Redman

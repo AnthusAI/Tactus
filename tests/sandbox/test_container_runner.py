@@ -252,6 +252,37 @@ def test_build_docker_command_dev_mode_mount(tmp_path: Path, monkeypatch) -> Non
     assert f"{tmp_path}/tactus:/app/tactus:ro" in cmd
 
 
+def test_build_docker_command_dev_mode_warns_when_missing_source(
+    tmp_path: Path, monkeypatch, caplog
+) -> None:
+    runner = ContainerRunner(SandboxConfig(dev_mode=True))
+    monkeypatch.setattr(runner, "_find_tactus_source_dir", lambda: None)
+
+    with caplog.at_level("WARNING"):
+        cmd = runner._build_docker_command(
+            working_dir=tmp_path,
+            mcp_servers_path=None,
+            extra_env={"TACTUS_BROKER_SOCKET": STDIO_TRANSPORT_VALUE},
+            execution_id="abc123",
+        )
+
+    assert cmd
+    assert any("DEV MODE" in record.message for record in caplog.records)
+
+
+def test_build_docker_command_skips_dev_mode_mount_when_disabled(tmp_path: Path) -> None:
+    runner = ContainerRunner(SandboxConfig(dev_mode=False))
+
+    cmd = runner._build_docker_command(
+        working_dir=tmp_path,
+        mcp_servers_path=None,
+        extra_env={"TACTUS_BROKER_SOCKET": STDIO_TRANSPORT_VALUE},
+        execution_id="abc123",
+    )
+
+    assert f"{tmp_path}/tactus:/app/tactus:ro" not in cmd
+
+
 def test_ensure_sandbox_up_to_date_skips_for_ide(monkeypatch) -> None:
     runner = ContainerRunner(SandboxConfig())
     called = {}

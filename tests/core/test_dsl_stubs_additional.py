@@ -91,6 +91,13 @@ def test_procedure_strips_none_entries_from_array_config():
     assert proc["output_schema"] == {}
 
 
+def test_procedure_with_none_name_returns_none():
+    builder = RegistryBuilder()
+    stubs = create_dsl_stubs(builder)
+
+    assert stubs["Procedure"](None) is None
+
+
 def test_procedure_array_config_extracts_run_fn():
     builder = RegistryBuilder()
     stubs = create_dsl_stubs(builder)
@@ -242,6 +249,25 @@ def test_procedure_type_and_missing_function_errors():
 
     with pytest.raises(TypeError, match="requires a function"):
         stubs["Procedure"]({"input": {}})
+
+
+def test_procedure_curried_requires_table_config():
+    builder = RegistryBuilder()
+    stubs = create_dsl_stubs(builder)
+
+    curried = stubs["Procedure"]("helper")
+    with pytest.raises(TypeError, match="requires a configuration table"):
+        curried()
+
+
+def test_procedure_curried_registers_named_procedure():
+    builder = RegistryBuilder()
+    stubs = create_dsl_stubs(builder)
+
+    curried = stubs["Procedure"]("named")
+    curried({"run": lambda: None})
+
+    assert "named" in builder.registry.named_procedures
 
 
 def test_procedure_array_none_values_raise():

@@ -30,7 +30,9 @@ class ContextAssembler(BiblicusContextAssembler):
     ):
         from tactus.core import retrieval as retrieval_module
 
-        retriever_router = retrieval_module.make_retriever_router(corpus_registry)
+        retriever_router = retrieval_module.make_retriever_router(
+            corpus_registry, retriever_registry
+        )
         super().__init__(
             context_registry,
             retriever_registry=retriever_registry,

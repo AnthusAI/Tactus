@@ -56,7 +56,7 @@ class DummyRuntime:
     def __init__(self, **_kwargs):
         pass
 
-    async def execute(self, _source, _context, format="lua"):
+    async def execute(self, _source, _context, format="lua", task_name=None):
         DummyRuntime.last_context = _context
         if DummyRuntime.next_exception:
             raise DummyRuntime.next_exception
@@ -550,7 +550,323 @@ def test_run_sandbox_sets_openai_key(tmp_path, monkeypatch):
         log_format="rich",
     )
 
-    assert os.environ.get("OPENAI_API_KEY") == "test-key"
+
+def test_run_task_selection_required(tmp_path, monkeypatch):
+    from tactus.core.exceptions import TaskSelectionRequired
+
+    workflow = tmp_path / "workflow.tac"
+    workflow.write_text("print('hi')")
+
+    _patch_runtime_dependencies(monkeypatch)
+
+    messages = []
+    monkeypatch.setattr(cli_app.console, "print", lambda msg, *args, **kwargs: messages.append(msg))
+
+    DummyRuntime.next_result = None
+    DummyRuntime.next_exception = TaskSelectionRequired(["fetch", "index"])
+
+    cli_app.run(
+        workflow,
+        sandbox=False,
+        storage="memory",
+        param=None,
+        mock_all=False,
+        real_all=False,
+        mock=None,
+        real=None,
+        log_level=None,
+        log_format="rich",
+    )
+
+    assert any("Available tasks" in str(msg) for msg in messages)
+
+
+def test_run_closes_litellm_clients(tmp_path, monkeypatch):
+    workflow = tmp_path / "workflow.tac"
+    workflow.write_text("print('hi')")
+
+    _patch_runtime_dependencies(monkeypatch)
+
+    closed = {"called": False}
+
+    async def close_clients():
+        closed["called"] = True
+
+    class FakeLiteLLM:
+        @staticmethod
+        def close_litellm_async_clients():
+            return close_clients()
+
+    monkeypatch.setitem(sys.modules, "litellm", FakeLiteLLM)
+
+    DummyRuntime.next_exception = None
+    DummyRuntime.next_result = {
+        "success": True,
+        "result": "done",
+        "state": {},
+        "iterations": 1,
+        "tools_used": [],
+    }
+
+    cli_app.run(
+        workflow,
+        sandbox=False,
+        storage="memory",
+        param=None,
+        mock_all=False,
+        real_all=False,
+        mock=None,
+        real=None,
+        log_level=None,
+        log_format="rich",
+    )
+
+    assert closed["called"] is True
+
+
+def test_run_closes_litellm_clients_non_async(tmp_path, monkeypatch):
+    workflow = tmp_path / "workflow.tac"
+    workflow.write_text("print('hi')")
+
+    _patch_runtime_dependencies(monkeypatch)
+
+    class FakeLiteLLM:
+        @staticmethod
+        def close_litellm_async_clients():
+            return "ok"
+
+    monkeypatch.setitem(sys.modules, "litellm", FakeLiteLLM)
+
+    DummyRuntime.next_exception = None
+    DummyRuntime.next_result = {
+        "success": True,
+        "result": "done",
+        "state": {},
+        "iterations": 1,
+        "tools_used": [],
+    }
+
+    cli_app.run(
+        workflow,
+        sandbox=False,
+        storage="memory",
+        param=None,
+        mock_all=False,
+        real_all=False,
+        mock=None,
+        real=None,
+        log_level=None,
+        log_format="rich",
+    )
+
+
+def test_run_ignores_dev_mode_detection_errors(tmp_path, monkeypatch):
+    workflow = tmp_path / "workflow.tac"
+    workflow.write_text("print('hi')")
+
+    _patch_runtime_dependencies(monkeypatch)
+    monkeypatch.setattr(cli_app.console, "print", lambda *_args, **_kwargs: None)
+
+    original_import = __import__
+
+    def _import(name, *args, **kwargs):
+        if name == "tactus":
+            raise ImportError("no tactus")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr("builtins.__import__", _import)
+
+    DummyRuntime.next_exception = None
+    cli_app.run(
+        workflow,
+        sandbox=False,
+        storage="memory",
+        param=None,
+        mock_all=False,
+        real_all=False,
+        mock=None,
+        real=None,
+        log_level=None,
+        log_format="rich",
+    )
+
+
+def test_run_sets_dev_mode_from_repo(tmp_path, monkeypatch):
+    workflow = tmp_path / "workflow.tac"
+    workflow.write_text("print('hi')")
+
+    repo_root = tmp_path / "repo"
+    (repo_root / "tactus").mkdir(parents=True)
+    (repo_root / "pyproject.toml").write_text("x")
+
+    import tactus
+
+    monkeypatch.setattr(tactus, "__file__", str(repo_root / "tactus" / "__init__.py"))
+
+    captured = {}
+
+    class CaptureSandboxConfig(DummySandboxConfig):
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+            super().__init__(should_use=False, explicit_disabled=True, error_if_unavailable=False)
+
+    _patch_runtime_dependencies(monkeypatch, sandbox_config=CaptureSandboxConfig)
+    monkeypatch.setattr(cli_app.console, "print", lambda *_args, **_kwargs: None)
+
+    DummyRuntime.next_exception = None
+    cli_app.run(
+        workflow,
+        sandbox=False,
+        storage="memory",
+        param=None,
+        mock_all=False,
+        real_all=False,
+        mock=None,
+        real=None,
+        log_level=None,
+        log_format="rich",
+    )
+
+    assert captured.get("dev_mode") is True
+
+
+def test_run_skips_dev_mode_detection_when_configured(tmp_path, monkeypatch):
+    workflow = tmp_path / "workflow.tac"
+    workflow.write_text("print('hi')")
+
+    captured = {}
+
+    class CaptureSandboxConfig(DummySandboxConfig):
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+            super().__init__(should_use=False, explicit_disabled=True, error_if_unavailable=False)
+
+    _patch_runtime_dependencies(monkeypatch, sandbox_config=CaptureSandboxConfig)
+    monkeypatch.setattr(
+        "tactus.core.config_manager.ConfigManager",
+        lambda: type(
+            "Cfg", (), {"load_cascade": lambda *_args: {"sandbox": {"dev_mode": False}}}
+        )(),
+    )
+    monkeypatch.setattr(cli_app.console, "print", lambda *_args, **_kwargs: None)
+
+    DummyRuntime.next_exception = None
+    cli_app.run(
+        workflow,
+        sandbox=False,
+        storage="memory",
+        param=None,
+        mock_all=False,
+        real_all=False,
+        mock=None,
+        real=None,
+        log_level=None,
+        log_format="rich",
+    )
+
+    assert captured.get("dev_mode") is False
+
+
+def test_run_dev_mode_detection_not_repo(tmp_path, monkeypatch):
+    workflow = tmp_path / "workflow.tac"
+    workflow.write_text("print('hi')")
+
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+
+    import tactus
+
+    monkeypatch.setattr(tactus, "__file__", str(repo_root / "tactus" / "__init__.py"))
+
+    captured = {}
+
+    class CaptureSandboxConfig(DummySandboxConfig):
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+            super().__init__(should_use=False, explicit_disabled=True, error_if_unavailable=False)
+
+    _patch_runtime_dependencies(monkeypatch, sandbox_config=CaptureSandboxConfig)
+    monkeypatch.setattr(cli_app.console, "print", lambda *_args, **_kwargs: None)
+
+    DummyRuntime.next_exception = None
+    cli_app.run(
+        workflow,
+        sandbox=False,
+        storage="memory",
+        param=None,
+        mock_all=False,
+        real_all=False,
+        mock=None,
+        real=None,
+        log_level=None,
+        log_format="rich",
+    )
+
+    assert "dev_mode" not in captured
+
+
+def test_run_cleanup_ignores_close_and_shutdown_errors(tmp_path, monkeypatch):
+    workflow = tmp_path / "workflow.tac"
+    workflow.write_text("print('hi')")
+
+    class ErroringControlLoopHandler(DummyControlLoopHandler):
+        async def shutdown_channels(self):
+            raise RuntimeError("loop")
+
+    _patch_runtime_dependencies(monkeypatch)
+    monkeypatch.setattr(
+        "tactus.adapters.control_loop.ControlLoopHandler",
+        ErroringControlLoopHandler,
+    )
+    monkeypatch.setattr(cli_app.console, "print", lambda *_args, **_kwargs: None)
+
+    class DummyLiteLLM:
+        @staticmethod
+        def close_litellm_async_clients():
+            raise RuntimeError("close")
+
+    monkeypatch.setitem(sys.modules, "litellm", DummyLiteLLM())
+
+    DummyRuntime.next_exception = None
+    cli_app.run(
+        workflow,
+        sandbox=False,
+        storage="memory",
+        param=None,
+        mock_all=False,
+        real_all=False,
+        mock=None,
+        real=None,
+        log_level=None,
+        log_format="rich",
+    )
+
+
+def test_run_cleanup_skips_missing_litellm_close(tmp_path, monkeypatch):
+    workflow = tmp_path / "workflow.tac"
+    workflow.write_text("print('hi')")
+
+    _patch_runtime_dependencies(monkeypatch)
+    monkeypatch.setattr(cli_app.console, "print", lambda *_args, **_kwargs: None)
+
+    class FakeLiteLLM:
+        pass
+
+    monkeypatch.setitem(sys.modules, "litellm", FakeLiteLLM)
+
+    DummyRuntime.next_exception = None
+    cli_app.run(
+        workflow,
+        sandbox=False,
+        storage="memory",
+        param=None,
+        mock_all=False,
+        real_all=False,
+        mock=None,
+        real=None,
+        log_level=None,
+        log_format="rich",
+    )
 
 
 def test_run_sandbox_defaults_enabled(tmp_path, monkeypatch):

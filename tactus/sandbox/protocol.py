@@ -60,6 +60,9 @@ class ExecutionRequest:
     # Source format: "lua" for .tac files, "yaml" for legacy YAML format
     format: str = "lua"
 
+    # Optional task name to execute
+    task_name: Optional[str] = None
+
     def to_json(self) -> str:
         """Serialize to JSON string."""
         return json.dumps(asdict(self), indent=None, separators=(",", ":"))

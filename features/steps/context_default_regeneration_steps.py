@@ -10,12 +10,13 @@ def step_default_context_with_budget(context):
     builder = RegistryBuilder()
     builder.register_corpus(
         "wikitext",
-        {"backend_id": "wikitext2", "split": "train", "maximum_cache_total_items": 2000},
+        {"split": "train", "maximum_cache_total_items": 2000},
     )
     builder.register_retriever(
         "wikitext_search",
         {
             "corpus": "wikitext",
+            "retriever_id": "wikitext2",
             "query": "Valkyria Chronicles III",
             "limit": 5,
             "maximum_total_characters": 800,

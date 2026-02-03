@@ -242,12 +242,11 @@ def test_new_corpus_validates_and_maps_fields():
     stubs = create_dsl_stubs(builder)
 
     corpus = stubs["_tactus_internal_corpus"](
-        {"name": "docs", "backend": "b1", "root": "/tmp", "recipe": {"x": 1}}
+        {"name": "docs", "root": "/tmp", "configuration": {"pipeline": {}}}
     )
     declaration = builder.registry.corpora[corpus.name]
-    assert declaration.config["backend_id"] == "b1"
     assert declaration.config["corpus_root"] == "/tmp"
-    assert declaration.config["recipe_config"] == {"x": 1}
+    assert declaration.config["configuration"] == {"pipeline": {}}
 
     with pytest.raises(TypeError):
         stubs["_tactus_internal_corpus"]("bad")

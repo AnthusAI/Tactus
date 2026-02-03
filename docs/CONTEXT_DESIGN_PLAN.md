@@ -97,7 +97,7 @@ support_context = Context {
 - How to expose token measurement utilities in the DSL or runtime API for diagnostics.
 
 ## Non-Goals (for now)
-- High-level analysis recipes (topic modeling, markov, etc.) remain tools, not language primitives.
+- High-level analysis configurations (topic modeling, markov, etc.) remain tools, not language primitives.
 - RAG usage will be built via Context + Retriever + Corpus, not separate DSL syntax.
 
 ## Next Implementation Steps
@@ -106,4 +106,3 @@ support_context = Context {
 3) Implement runtime assembly for Context with implicit/explicit history rules.
 4) Add validation warnings for explicit `messages` missing `history()`.
 5) Add BDD specs for default and explicit behavior, plus compaction plugin wiring.
-

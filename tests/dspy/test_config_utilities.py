@@ -66,6 +66,49 @@ def test_create_lm_allows_unknown_provider_with_slash(monkeypatch):
     assert captured["model"] == "custom/foo"
 
 
+def test_configure_lm_handles_missing_litellm(monkeypatch):
+    monkeypatch.delenv("TACTUS_BROKER_SOCKET", raising=False)
+
+    class FakeLM:
+        def __init__(self, model, **_kwargs):
+            self.model = model
+
+    monkeypatch.setattr(dspy, "LM", FakeLM)
+    monkeypatch.setattr(dspy, "configure", lambda **_kwargs: None)
+
+    original_import = __import__
+
+    def _import(name, *args, **kwargs):
+        if name == "litellm":
+            raise ImportError("missing")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr("builtins.__import__", _import)
+
+    lm = dspy_config.configure_lm("openai/gpt-4o")
+    assert lm.model == "openai/gpt-4o"
+
+
+def test_create_lm_handles_missing_litellm(monkeypatch):
+    class FakeLM:
+        def __init__(self, model, **_kwargs):
+            self.model = model
+
+    monkeypatch.setattr(dspy, "LM", FakeLM)
+
+    original_import = __import__
+
+    def _import(name, *args, **kwargs):
+        if name == "litellm":
+            raise ImportError("missing")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr("builtins.__import__", _import)
+
+    lm = dspy_config.create_lm("openai/gpt-4o")
+    assert lm.model == "openai/gpt-4o"
+
+
 def test_reset_lm_configuration_clears_global(monkeypatch):
     dspy_config._current_lm = SimpleNamespace()
     called = {}

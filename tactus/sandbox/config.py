@@ -113,7 +113,7 @@ class SandboxConfig(BaseModel):
 
     # Development mode: mount live Tactus source code
     dev_mode: bool = Field(
-        default=False,
+        default=True,
         description="Enable development mode: mount live Tactus source code instead of using baked-in version",
     )
 

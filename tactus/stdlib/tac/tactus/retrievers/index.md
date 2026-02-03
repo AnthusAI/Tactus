@@ -1,6 +1,6 @@
 # Retriever Modules
 
-Tactus exposes Biblicus-backed retrievers as Lua modules so you can select a backend explicitly at the top of your `.tac` file.
+Tactus exposes Biblicus-backed retrievers as Lua modules so you can select a retriever explicitly at the top of your `.tac` file.
 
 ## Embedding index (file-backed)
 
@@ -9,16 +9,28 @@ local vector = require("tactus.retrievers.embedding_index_file")
 
 support_notes = vector.Corpus {
   root = "corpora/support-notes",
-  recipe = {
-    embedding_provider = { provider_id = "hash-embedding", dimensions = 64 }
+  configuration = {
+    pipeline = {
+      extract = {
+        -- extraction steps (optional)
+      }
+    }
   }
 }
 
 support_search = vector.Retriever {
   corpus = support_notes,
-  query = "{input.message}",
-  limit = 3,
-  maximum_total_characters = 1200
+  configuration = {
+    pipeline = {
+      index = {
+        embedding_provider = { provider_id = "hash-embedding", dimensions = 64 }
+      },
+      query = {
+        limit = 3,
+        maximum_total_characters = 1200
+      }
+    }
+  }
 }
 ```
 
@@ -29,16 +41,28 @@ local vector = require("tactus.retrievers.embedding_index_inmemory")
 
 notes = vector.Corpus {
   root = "corpora/notes",
-  recipe = {
-    embedding_provider = { provider_id = "hash-embedding", dimensions = 64 },
-    maximum_cache_total_items = 5000
+  configuration = {
+    pipeline = {
+      extract = {
+        -- extraction steps (optional)
+      }
+    }
   }
 }
 
 search = vector.Retriever {
   corpus = notes,
-  query = "{input.message}",
-  limit = 2
+  configuration = {
+    pipeline = {
+      index = {
+        embedding_provider = { provider_id = "hash-embedding", dimensions = 64 },
+        maximum_cache_total_items = 5000
+      },
+      query = {
+        limit = 2
+      }
+    }
+  }
 }
 ```
 
@@ -49,16 +73,30 @@ local vector = require("tactus.retrievers.sqlite_full_text_search")
 
 notes = vector.Corpus {
   root = "corpora/notes",
-  recipe = {
-    snippet_characters = 400
+  configuration = {
+    pipeline = {
+      extract = {
+        -- extraction steps (optional)
+      }
+    }
   }
 }
 
 search = vector.Retriever {
   corpus = notes,
-  query = "{input.message}",
-  limit = 2,
-  maximum_total_characters = 1200
+  configuration = {
+    pipeline = {
+      index = {
+        snippet_characters = 400,
+        chunk_size = 800,
+        chunk_overlap = 200
+      },
+      query = {
+        limit = 2,
+        maximum_total_characters = 1200
+      }
+    }
+  }
 }
 ```
 
@@ -68,13 +106,28 @@ search = vector.Retriever {
 local vector = require("tactus.retrievers.tf_vector")
 
 notes = vector.Corpus {
-  root = "corpora/notes"
+  root = "corpora/notes",
+  configuration = {
+    pipeline = {
+      extract = {
+        -- extraction steps (optional)
+      }
+    }
+  }
 }
 
 search = vector.Retriever {
   corpus = notes,
-  query = "{input.message}",
-  limit = 2,
-  maximum_total_characters = 1200
+  configuration = {
+    pipeline = {
+      index = {
+        -- optional index settings
+      },
+      query = {
+        limit = 2,
+        maximum_total_characters = 1200
+      }
+    }
+  }
 }
 ```

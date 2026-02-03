@@ -65,6 +65,14 @@ def configure_lm(
                 f"Invalid model format: {model}. Expected format like 'provider/model-name'"
             )
 
+    try:
+        import litellm
+
+        litellm.disable_aiohttp_transport = True
+        litellm.use_aiohttp_transport = False
+    except Exception:
+        pass
+
     # Build configuration
     lm_kwargs = {
         "temperature": temperature,
@@ -204,6 +212,14 @@ def create_lm(
             raise ValueError(
                 f"Invalid model format: {model}. Expected format like 'provider/model-name'"
             )
+
+    try:
+        import litellm
+
+        litellm.disable_aiohttp_transport = True
+        litellm.use_aiohttp_transport = False
+    except Exception:
+        pass
 
     # Build configuration
     lm_kwargs = {

@@ -16,7 +16,6 @@ def step_context_with_retriever(context, query):
     builder.register_corpus(
         "wikitext",
         {
-            "backend_id": "wikitext2",
             "split": "train",
             "maximum_cache_total_items": 2000,
         },
@@ -25,6 +24,7 @@ def step_context_with_retriever(context, query):
         "wikitext_search",
         {
             "corpus": "wikitext",
+            "retriever_id": "wikitext2",
             "query": query,
             "limit": 3,
             "maximum_total_characters": 400,

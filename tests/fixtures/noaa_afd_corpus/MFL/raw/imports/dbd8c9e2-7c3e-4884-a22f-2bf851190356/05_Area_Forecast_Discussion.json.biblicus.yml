@@ -1,0 +1,4 @@
+media_type: application/json
+biblicus:
+  id: b49e1c53-4fc6-4eb5-a696-35f7927fc342
+  source: file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/05_Area_Forecast_Discussion.json

@@ -201,7 +201,7 @@ def retrieve_noaa_afd(request: ContextRetrieverRequest) -> ContextPack:
 
 def retrieve_biblicus_context_pack(request: ContextRetrieverRequest) -> ContextPack:
     """
-    Retrieve a context pack using Biblicus retrieval backends.
+    Retrieve a context pack using Biblicus retrievers.
 
     :param request: Context retriever request payload.
     :type request: ContextRetrieverRequest
@@ -210,16 +210,16 @@ def retrieve_biblicus_context_pack(request: ContextRetrieverRequest) -> ContextP
     :raises ValueError: If required metadata is missing.
     """
     metadata = request.metadata or {}
-    backend_id = metadata.get("backend_id")
+    retriever_id = metadata.get("retriever_id") or metadata.get("retriever_type")
     corpus_root = metadata.get("corpus_root") or metadata.get("root")
-    if not backend_id:
-        raise ValueError("Biblicus retrieval requires 'backend_id' in metadata")
+    if not retriever_id:
+        raise ValueError("Biblicus retrieval requires 'retriever_id' in metadata")
     if not corpus_root:
         raise ValueError("Biblicus retrieval requires 'corpus_root' in metadata")
 
-    run_id = metadata.get("run_id")
-    recipe_name = metadata.get("recipe_name")
-    recipe_config = metadata.get("recipe_config")
+    snapshot_id = metadata.get("snapshot_id")
+    configuration_name = metadata.get("configuration_name")
+    configuration = metadata.get("configuration") or {}
     maximum_items_per_source = metadata.get(
         "maximum_items_per_source",
         metadata.get("max_items_per_source"),
@@ -231,42 +231,50 @@ def retrieve_biblicus_context_pack(request: ContextRetrieverRequest) -> ContextP
     return retrieve_context_pack(
         request=request,
         corpus=corpus,
-        backend_id=backend_id,
-        run_id=run_id,
-        recipe_name=recipe_name,
-        recipe_config=recipe_config,
+        retriever_id=retriever_id,
+        snapshot_id=snapshot_id,
+        configuration_name=configuration_name,
+        configuration=configuration,
         max_items_per_source=maximum_items_per_source,
         include_metadata=include_metadata,
         metadata_fields=metadata_fields,
     )
 
 
-def make_retriever_router(corpus_registry) -> callable:
+def make_retriever_router(corpus_registry, retriever_registry=None) -> callable:
     """
-    Build a retriever dispatcher based on corpus registry configuration.
+    Build a retriever dispatcher based on corpus and retriever configuration.
 
-    :param corpus_registry: Corpus registry used to resolve backends.
+    :param corpus_registry: Corpus registry used to resolve corpus metadata.
     :type corpus_registry: dict[str, Any] or None
-    :return: Retriever callable that dispatches by corpus backend.
+    :param retriever_registry: Retriever registry used to resolve retrievers.
+    :type retriever_registry: dict[str, Any] or None
+    :return: Retriever callable that dispatches by retriever id.
     :rtype: callable
     """
 
     def _route(request: ContextRetrieverRequest) -> ContextPack:
         corpus_name = request.metadata.get("corpus")
-        backend_id = request.metadata.get("backend_id")
-        if corpus_registry and corpus_name in corpus_registry:
-            corpus_spec = corpus_registry[corpus_name]
-            corpus_config = corpus_spec.config if hasattr(corpus_spec, "config") else {}
-            if isinstance(corpus_config, dict):
-                backend_id = corpus_config.get("backend_id", backend_id)
+        retriever_name = request.metadata.get("retriever")
+        retriever_id = request.metadata.get("retriever_id") or request.metadata.get(
+            "retriever_type"
+        )
+        if retriever_id is None and retriever_registry and retriever_name in retriever_registry:
+            retriever_spec = retriever_registry[retriever_name]
+            retriever_config = retriever_spec.config if hasattr(retriever_spec, "config") else {}
+            if isinstance(retriever_config, dict):
+                retriever_id = retriever_config.get("retriever_id") or retriever_config.get(
+                    "retriever_type"
+                )
 
-        if backend_id == "noaa_afd":
+        if retriever_id == "noaa_afd":
             return retrieve_noaa_afd(request)
-        if backend_id == "wikitext2":
+        if retriever_id == "wikitext2":
             return retrieve_wikitext2(request)
 
-        if backend_id is None:
-            raise ValueError(f"Missing backend_id for corpus '{corpus_name}'")
+        if retriever_id is None:
+            missing_target = retriever_name or corpus_name or "<unknown>"
+            raise ValueError(f"Missing retriever_id for retriever '{missing_target}'")
 
         return retrieve_biblicus_context_pack(request)
 

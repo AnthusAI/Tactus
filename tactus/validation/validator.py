@@ -9,6 +9,7 @@ Validates .tac files using ANTLR parser:
 
 import logging
 from enum import Enum
+from pathlib import Path
 from typing import Optional
 
 from antlr4 import InputStream, CommonTokenStream
@@ -16,7 +17,7 @@ from .generated.LuaLexer import LuaLexer
 from .generated.LuaParser import LuaParser
 from .semantic_visitor import TactusDSLVisitor
 from .error_listener import TactusErrorListener
-from tactus.core.registry import ValidationResult, ValidationMessage
+from tactus.core.registry import ValidationResult, ValidationMessage, TaskDeclaration
 
 logger = logging.getLogger(__name__)
 
@@ -175,7 +176,101 @@ class TactusValidator:
         try:
             with open(file_path, "r") as source_file_handle:
                 source_text = source_file_handle.read()
-            return self.validate(source_text, mode)
+            primary_result = self.validate(source_text, mode)
+            if not primary_result.valid or mode == ValidationMode.QUICK:
+                return primary_result
+            registry = primary_result.registry
+            if not registry or not registry.include_tasks:
+                return primary_result
+
+            base_path = Path(file_path).parent
+            merged_registry = registry
+            include_queue = [
+                {
+                    "path": include.get("path"),
+                    "namespace": include.get("namespace"),
+                    "base": base_path,
+                }
+                for include in registry.include_tasks
+            ]
+            seen_includes: set[Path] = set()
+
+            while include_queue:
+                include = include_queue.pop(0)
+                include_path = include.get("path")
+                if not include_path:
+                    continue
+                include_base = include.get("base") or base_path
+                include_file = (include_base / include_path).resolve()
+                if include_file in seen_includes:
+                    return self._result_with_errors(
+                        errors=[
+                            ValidationMessage(
+                                level="error",
+                                message=f"IncludeTasks cycle detected: {include_file}",
+                            )
+                        ]
+                    )
+                seen_includes.add(include_file)
+                if not include_file.exists():
+                    return self._result_with_errors(
+                        errors=[
+                            ValidationMessage(
+                                level="error",
+                                message=f"Included tasks file not found: {include_file}",
+                            )
+                        ]
+                    )
+                with open(include_file, "r") as include_handle:
+                    include_source = include_handle.read()
+                include_result = self.validate(include_source, mode)
+                if not include_result.valid or not include_result.registry:
+                    return include_result
+                if self._include_has_non_task_declarations(include_result.registry):
+                    return self._result_with_errors(
+                        errors=[
+                            ValidationMessage(
+                                level="error",
+                                message=(
+                                    "IncludeTasks files must only contain Task declarations: "
+                                    f"{include_file}"
+                                ),
+                            )
+                        ]
+                    )
+                try:
+                    self._merge_tasks(
+                        merged_registry,
+                        include_result.registry,
+                        namespace=include.get("namespace"),
+                    )
+                except ValueError as merge_error:
+                    return self._result_with_errors(
+                        errors=[
+                            ValidationMessage(
+                                level="error",
+                                message=str(merge_error),
+                            )
+                        ]
+                    )
+
+                if include_result.registry.include_tasks:
+                    include_queue.extend(
+                        [
+                            {
+                                "path": nested.get("path"),
+                                "namespace": nested.get("namespace"),
+                                "base": include_file.parent,
+                            }
+                            for nested in include_result.registry.include_tasks
+                        ]
+                    )
+
+            return self._result_success(
+                errors=primary_result.errors,
+                warnings=primary_result.warnings,
+                registry=merged_registry,
+            )
         except FileNotFoundError:
             return self._result_with_errors(
                 errors=[
@@ -194,3 +289,48 @@ class TactusValidator:
                     )
                 ]
             )
+
+    def _include_has_non_task_declarations(self, registry) -> bool:
+        if registry is None:
+            return False
+        return any(
+            [
+                registry.agents,
+                registry.toolsets,
+                registry.lua_tools,
+                registry.contexts,
+                registry.corpora,
+                registry.retrievers,
+                registry.compactors,
+                registry.named_procedures,
+                registry.specifications,
+                registry.dependencies,
+                registry.models,
+                registry.hitl_points,
+                registry.mocks,
+                registry.agent_mocks,
+                registry.prompts,
+            ]
+        )
+
+    def _merge_tasks(
+        self,
+        target_registry,
+        include_registry,
+        namespace: Optional[str] = None,
+    ) -> None:
+        if not include_registry.tasks:
+            return
+        if namespace:
+            if namespace in target_registry.tasks:
+                raise ValueError(f"Duplicate task namespace '{namespace}'")
+            target_registry.tasks[namespace] = TaskDeclaration(
+                name=namespace,
+                children=include_registry.tasks,
+            )
+            return
+
+        for task_name, task in include_registry.tasks.items():
+            if task_name in target_registry.tasks:
+                raise ValueError(f"Duplicate task '{task_name}'")
+            target_registry.tasks[task_name] = task

@@ -7,7 +7,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from biblicus.backends import get_backend
+from biblicus.retrievers import get_retriever
 from biblicus.corpus import Corpus
 
 
@@ -29,9 +29,9 @@ def main() -> None:
     parser.add_argument("--source", default=None, help="Source directory of NOAA AFD text files")
     parser.add_argument("--corpus", default=None, help="Destination corpus directory")
     parser.add_argument(
-        "--backend",
+        "--retriever",
         default="embedding-index-file",
-        help="Biblicus backend id (embedding-index-file or embedding-index-inmemory)",
+        help="Biblicus retriever id (embedding-index-file or embedding-index-inmemory)",
     )
     parser.add_argument(
         "--dimensions",
@@ -69,29 +69,29 @@ def main() -> None:
 
     corpus.import_tree(source_dir)
 
-    recipe_config: dict[str, object] = {}
-    if args.backend in {"embedding-index-file", "embedding-index-inmemory"}:
-        recipe_config["embedding_provider"] = {
+    configuration: dict[str, object] = {}
+    if args.retriever in {"embedding-index-file", "embedding-index-inmemory"}:
+        configuration["embedding_provider"] = {
             "provider_id": "hash-embedding",
             "dimensions": args.dimensions,
         }
         if args.maximum_cache_total_items is not None:
-            recipe_config["maximum_cache_total_items"] = args.maximum_cache_total_items
-    elif args.backend == "tf-vector":
-        recipe_config = {}
-    elif args.backend == "sqlite-full-text-search":
-        recipe_config["snippet_characters"] = args.snippet_characters
-        recipe_config["chunk_size"] = max(args.snippet_characters * 2, 800)
-        recipe_config["chunk_overlap"] = max(args.snippet_characters // 2, 200)
+            configuration["maximum_cache_total_items"] = args.maximum_cache_total_items
+    elif args.retriever == "tf-vector":
+        configuration = {}
+    elif args.retriever == "sqlite-full-text-search":
+        configuration["snippet_characters"] = args.snippet_characters
+        configuration["chunk_size"] = max(args.snippet_characters * 2, 800)
+        configuration["chunk_overlap"] = max(args.snippet_characters // 2, 200)
 
-    backend = get_backend(args.backend)
-    run = backend.build_run(
+    retriever = get_retriever(args.retriever)
+    snapshot = retriever.build_snapshot(
         corpus,
-        recipe_name=f"NOAA AFD ({args.wfo.upper()})",
-        config=recipe_config,
+        configuration_name=f"NOAA AFD ({args.wfo.upper()})",
+        configuration=configuration,
     )
     print(f"Corpus: {corpus_dir}")
-    print(f"Run id: {run.run_id}")
+    print(f"Snapshot id: {snapshot.snapshot_id}")
 
 
 if __name__ == "__main__":

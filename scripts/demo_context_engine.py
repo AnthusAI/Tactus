@@ -103,12 +103,13 @@ def main() -> None:
     builder = RegistryBuilder()
     builder.register_corpus(
         "wikitext",
-        {"backend_id": "wikitext2", "split": "train", "maximum_cache_total_items": 2000},
+        {"split": "train", "maximum_cache_total_items": 2000},
     )
     builder.register_retriever(
         "wikitext_search",
         {
             "corpus": "wikitext",
+            "retriever_id": "wikitext2",
             "query": "Valkyria Chronicles III",
             "limit": 3,
             "maximum_total_characters": 600,

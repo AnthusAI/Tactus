@@ -4,6 +4,7 @@ import pytest
 import typer
 
 from tactus.cli import app as cli_app
+from tactus.core.registry import TaskDeclaration
 
 
 class DummyValidationResult:
@@ -35,6 +36,8 @@ class DummyAgent:
 class DummyRegistry:
     def __init__(self):
         self.description = "demo"
+        self.tasks = {}
+        self.retrievers = {}
         self.agents = {
             "alpha": DummyAgent("openai", "gpt-4o", "hello", tools=["done"]),
             "beta": DummyAgent("bedrock", {"name": "sonnet"}, "prompt" * 40),
@@ -61,7 +64,7 @@ class DummyValidator:
     def validate(self, _source, _mode):
         return self._result
 
-    def validate_file(self, _path):
+    def validate_file(self, _path, _mode=None):
         return self._result
 
 
@@ -279,6 +282,124 @@ def test_info_valid_without_optional_sections(monkeypatch, tmp_path):
     registry.input_schema = {}
     registry.output_schema = {}
     registry.specifications = []
+
+    result = DummyValidationResult(valid=True, registry=registry)
+    monkeypatch.setattr(cli_app, "TactusValidator", lambda: DummyValidator(result))
+    monkeypatch.setattr(cli_app.console, "print", lambda *_args, **_kwargs: None)
+
+    cli_app.info(workflow)
+
+
+def test_info_prints_tasks_and_implicit_retriever_tasks(monkeypatch, tmp_path):
+    workflow = tmp_path / "workflow.tac"
+    workflow.write_text("print('hi')")
+
+    class DummyRetriever:
+        def __init__(self, config):
+            self.config = config
+
+    registry = DummyRegistry()
+    registry.tasks = {
+        "fetch": TaskDeclaration(
+            name="fetch",
+            children={"NOAA": TaskDeclaration(name="NOAA")},
+        )
+    }
+    registry.retrievers = {"miami_search": DummyRetriever({"retriever_id": "tf-vector"})}
+    registry.input_schema = {}
+    registry.output_schema = {}
+
+    result = DummyValidationResult(valid=True, registry=registry)
+    monkeypatch.setattr(cli_app, "TactusValidator", lambda: DummyValidator(result))
+    monkeypatch.setattr(cli_app.console, "print", lambda *_args, **_kwargs: None)
+
+    cli_app.info(workflow)
+
+
+def test_info_prints_implicit_tasks_without_explicit_tasks(monkeypatch, tmp_path):
+    workflow = tmp_path / "workflow.tac"
+    workflow.write_text("print('hi')")
+
+    class DummyRetriever:
+        def __init__(self, config):
+            self.config = config
+
+    registry = DummyRegistry()
+    registry.tasks = {}
+    registry.retrievers = {"miami_search": DummyRetriever({"retriever_id": "tf-vector"})}
+    registry.input_schema = {}
+    registry.output_schema = {}
+
+    result = DummyValidationResult(valid=True, registry=registry)
+    monkeypatch.setattr(cli_app, "TactusValidator", lambda: DummyValidator(result))
+    monkeypatch.setattr(cli_app.console, "print", lambda *_args, **_kwargs: None)
+
+    cli_app.info(workflow)
+
+
+def test_main_callback_invokes_run_for_script_args(monkeypatch):
+    invoked = {}
+
+    class DummyContext:
+        invoked_subcommand = None
+        args = ["workflow.tac", "fetch"]
+
+        def invoke(self, func, **kwargs):
+            invoked["func"] = func
+            invoked["kwargs"] = kwargs
+
+        def get_help(self):
+            return "help"
+
+    monkeypatch.setattr(cli_app, "run", lambda **_kwargs: None)
+
+    with pytest.raises(typer.Exit):
+        cli_app.main_callback(DummyContext(), version=False)
+
+    assert invoked["func"] is cli_app.run
+    assert invoked["kwargs"]["workflow_file"].name == "workflow.tac"
+    assert invoked["kwargs"]["task"] == "fetch"
+
+
+def test_main_callback_invokes_run_without_task(monkeypatch):
+    invoked = {}
+
+    class DummyContext:
+        invoked_subcommand = None
+        args = ["workflow.tac"]
+
+        def invoke(self, func, **kwargs):
+            invoked["func"] = func
+            invoked["kwargs"] = kwargs
+
+        def get_help(self):
+            return "help"
+
+    monkeypatch.setattr(cli_app, "run", lambda **_kwargs: None)
+
+    with pytest.raises(typer.Exit):
+        cli_app.main_callback(DummyContext(), version=False)
+
+    assert invoked["func"] is cli_app.run
+    assert invoked["kwargs"]["workflow_file"].name == "workflow.tac"
+    assert invoked["kwargs"]["task"] is None
+
+
+def test_info_skips_implicit_task_duplicates(monkeypatch, tmp_path):
+    workflow = tmp_path / "workflow.tac"
+    workflow.write_text("print('hi')")
+
+    class DummyRetriever:
+        def __init__(self, config):
+            self.config = config
+
+    registry = DummyRegistry()
+    registry.tasks = {
+        "index": TaskDeclaration(name="index"),
+    }
+    registry.retrievers = {"miami_search": DummyRetriever({"retriever_id": "tf-vector"})}
+    registry.input_schema = {}
+    registry.output_schema = {}
 
     result = DummyValidationResult(valid=True, registry=registry)
     monkeypatch.setattr(cli_app, "TactusValidator", lambda: DummyValidator(result))

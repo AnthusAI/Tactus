@@ -11,6 +11,14 @@ class TactusRuntimeError(Exception):
     pass
 
 
+class TaskSelectionRequired(TactusRuntimeError):
+    """Raised when multiple tasks are available and no default can be chosen."""
+
+    def __init__(self, tasks: list[str]):
+        self.tasks = tasks
+        super().__init__("Multiple tasks available; select one explicitly.")
+
+
 class ProcedureWaitingForHuman(Exception):
     """
     Raised to exit workflow when waiting for human response.

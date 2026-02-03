@@ -1,0 +1,4 @@
+media_type: application/octet-stream
+biblicus:
+  id: 016b55ac-479b-4f17-99c1-0b19c4737f41
+  source: file:///Users/ryan.porter/Projects/Tactus/tests/fixtures/noaa_afd/MFL/02_Area_Forecast_Discussion.txt.biblicus.yml

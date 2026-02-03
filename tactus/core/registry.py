@@ -135,6 +135,18 @@ class AgentMockConfig(BaseModel):
     )
 
 
+class TaskDeclaration(BaseModel):
+    """Task declaration from DSL."""
+
+    name: str
+    children: dict[str, "TaskDeclaration"] = Field(default_factory=dict)
+
+    model_config = ConfigDict(extra="allow")
+
+
+TaskDeclaration.model_rebuild()
+
+
 class ProcedureRegistry(BaseModel):
     """Collects all declarations from a .tac file."""
 
@@ -160,6 +172,8 @@ class ProcedureRegistry(BaseModel):
     corpora: dict[str, CorpusDeclaration] = Field(default_factory=dict)
     retrievers: dict[str, RetrieverDeclaration] = Field(default_factory=dict)
     compactors: dict[str, CompactorDeclaration] = Field(default_factory=dict)
+    tasks: dict[str, TaskDeclaration] = Field(default_factory=dict)
+    include_tasks: list[dict[str, Any]] = Field(default_factory=list)
 
     # Message history configuration (aligned with pydantic-ai)
     message_history_config: dict[str, Any] = Field(default_factory=dict)
@@ -357,12 +371,8 @@ class RegistryBuilder:
     def register_corpus(self, name: str, config: dict) -> None:
         """Register a corpus declaration."""
         corpus_config = dict(config)
-        if "backend" in corpus_config and "backend_id" not in corpus_config:
-            corpus_config["backend_id"] = corpus_config.pop("backend")
         if "root" in corpus_config and "corpus_root" not in corpus_config:
             corpus_config["corpus_root"] = corpus_config.pop("root")
-        if "recipe" in corpus_config and "recipe_config" not in corpus_config:
-            corpus_config["recipe_config"] = corpus_config.pop("recipe")
         try:
             self.registry.corpora[name] = CorpusDeclaration(name=name, config=corpus_config)
         except ValidationError as exception:
@@ -371,6 +381,26 @@ class RegistryBuilder:
     def register_retriever(self, name: str, config: dict) -> None:
         """Register a retriever declaration."""
         retriever_config = dict(config)
+        if "retriever_id" not in retriever_config:
+            candidate = retriever_config.get("retriever_type")
+            if candidate is not None:
+                retriever_config["retriever_id"] = candidate
+        if isinstance(retriever_config.get("configuration"), dict):
+            pipeline = retriever_config["configuration"].get("pipeline", {}) or {}
+            if isinstance(pipeline, dict) and isinstance(pipeline.get("query"), dict):
+                query_config = pipeline.get("query") or {}
+                for key in (
+                    "limit",
+                    "offset",
+                    "maximum_total_characters",
+                    "maximum_items_per_source",
+                    "max_items_per_source",
+                    "include_metadata",
+                    "metadata_fields",
+                    "join_with",
+                ):
+                    if key in query_config and key not in retriever_config:
+                        retriever_config[key] = query_config.get(key)
         corpus_name = retriever_config.pop("corpus", None)
         try:
             self.registry.retrievers[name] = RetrieverDeclaration(
@@ -380,6 +410,60 @@ class RegistryBuilder:
             )
         except ValidationError as exception:
             self._add_error(f"Invalid retriever '{name}': {exception}")
+
+    def register_task(
+        self,
+        name: str,
+        task_config: Optional[dict] = None,
+        parent: Optional[str] = None,
+    ) -> None:
+        """Register a task declaration (optionally nested under a parent task)."""
+        if not name:
+            self._add_error("Task name is required.")
+            return
+
+        if ":" in name:
+            self._add_error(f"Task name '{name}' may not contain ':'")
+            return
+
+        task_payload = dict(task_config or {})
+        task_payload["name"] = name
+
+        try:
+            task = TaskDeclaration(**task_payload)
+        except ValidationError as exception:
+            self._add_error(f"Invalid task '{name}': {exception}")
+            return
+
+        if parent is None:
+            if name in self.registry.tasks:
+                self._add_error(f"Duplicate task '{name}'")
+                return
+            self.registry.tasks[name] = task
+            return
+
+        parent_task = self._find_task(parent)
+        if parent_task is None:
+            self._add_error(f"Parent task '{parent}' not found for '{name}'")
+            return
+
+        if name in parent_task.children:
+            self._add_error(f"Duplicate task '{parent}:{name}'")
+            return
+
+        parent_task.children[name] = task
+
+    def register_include_tasks(self, path: str, namespace: Optional[str] = None) -> None:
+        """Register an IncludeTasks directive for static task discovery."""
+        payload = {"path": path}
+        if namespace:
+            payload["namespace"] = namespace
+        self.registry.include_tasks.append(payload)
+
+    def _find_task(self, name: str) -> Optional[TaskDeclaration]:
+        if name in self.registry.tasks:
+            return self.registry.tasks[name]
+        return None
 
     def register_compactor(self, name: str, config: dict) -> None:
         """Register a compactor declaration."""
