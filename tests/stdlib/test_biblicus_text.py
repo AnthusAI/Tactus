@@ -373,11 +373,11 @@ def test_link_returns_mock(monkeypatch):
     assert biblicus_text.link({"client": {}}) == {"mock": True}
 
 
-def test_mock_marked_up_text_stripped_when_no_mock(monkeypatch):
+def test_mock_marked_up_text_passes_through_in_mock_mode(monkeypatch):
     class DummyRequest:
         def __init__(self, **kwargs):
-            if "mock_marked_up_text" in kwargs:
-                raise AssertionError("mock_marked_up_text should be stripped")
+            if "mock_marked_up_text" not in kwargs:
+                raise AssertionError("mock_marked_up_text should be preserved")
             self.payload = kwargs
 
     class DummyResponse:

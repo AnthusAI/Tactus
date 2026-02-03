@@ -116,7 +116,6 @@ def extract(request: Dict[str, Any]) -> Dict[str, Any]:
     mock_result = _maybe_mock("biblicus.text.extract", payload)
     if mock_result is not None:
         return mock_result
-    payload.pop("mock_marked_up_text", None)
     biblicus = _require_biblicus_text()
     result = biblicus["apply_text_extract"](biblicus["TextExtractRequest"](**payload))
     return result.model_dump()
@@ -127,7 +126,6 @@ def slice(request: Dict[str, Any]) -> Dict[str, Any]:
     mock_result = _maybe_mock("biblicus.text.slice", payload)
     if mock_result is not None:
         return mock_result
-    payload.pop("mock_marked_up_text", None)
     biblicus = _require_biblicus_text()
     result = biblicus["apply_text_slice"](biblicus["TextSliceRequest"](**payload))
     return result.model_dump()
@@ -138,7 +136,6 @@ def annotate(request: Dict[str, Any]) -> Dict[str, Any]:
     mock_result = _maybe_mock("biblicus.text.annotate", payload)
     if mock_result is not None:
         return mock_result
-    payload.pop("mock_marked_up_text", None)
     biblicus = _require_biblicus_text()
     result = biblicus["apply_text_annotate"](biblicus["TextAnnotateRequest"](**payload))
     return result.model_dump()
@@ -149,7 +146,6 @@ def redact(request: Dict[str, Any]) -> Dict[str, Any]:
     mock_result = _maybe_mock("biblicus.text.redact", payload)
     if mock_result is not None:
         return mock_result
-    payload.pop("mock_marked_up_text", None)
     biblicus = _require_biblicus_text()
     result = biblicus["apply_text_redact"](biblicus["TextRedactRequest"](**payload))
     return result.model_dump()
@@ -160,7 +156,6 @@ def link(request: Dict[str, Any]) -> Dict[str, Any]:
     mock_result = _maybe_mock("biblicus.text.link", payload)
     if mock_result is not None:
         return mock_result
-    payload.pop("mock_marked_up_text", None)
     biblicus = _require_biblicus_text()
     result = biblicus["apply_text_link"](biblicus["TextLinkRequest"](**payload))
     return result.model_dump()
