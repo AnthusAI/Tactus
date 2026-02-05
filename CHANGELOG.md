@@ -2,6 +2,54 @@
 
 <!-- version list -->
 
+## v0.38.0 (2026-02-03)
+
+### Bug Fixes
+
+- Bump biblicus to 1.0.0
+  ([`a96e41b`](https://github.com/AnthusAI/Tactus/commit/a96e41b18a8e151913bc7ab42170239e43783a29))
+
+- Force mock mode for stdlib tests
+  ([`0188472`](https://github.com/AnthusAI/Tactus/commit/01884727ca2ce5d666d5fca3d45a31df41489a7f))
+
+- Keep biblicus mock markup in stdlib
+  ([`f292aec`](https://github.com/AnthusAI/Tactus/commit/f292aec23383a7f63f1492903552a4679b3bf2e2))
+
+- Restore event loop setup in channel tests
+  ([`5567064`](https://github.com/AnthusAI/Tactus/commit/556706408ba608040bfe9fcc2b0673885f6fadad))
+
+- Support python 3.9 in cli annotations
+  ([`3cc339e`](https://github.com/AnthusAI/Tactus/commit/3cc339e2a056ddaef8ba53956ccc1810aaf32ec9))
+
+- **deps**: Require biblicus>=0.16.1
+  ([`5089507`](https://github.com/AnthusAI/Tactus/commit/5089507bb22ccdacd5ecb7b5b890c75843c75a6f))
+
+- **deps**: Update pydantic-ai-slim dependency to pydantic-ai
+  ([`53c1fe1`](https://github.com/AnthusAI/Tactus/commit/53c1fe16953caf9bde9ed06b3265c3ac9ec85cb6))
+
+### Chores
+
+- Allow manual release workflow
+  ([`39f85c2`](https://github.com/AnthusAI/Tactus/commit/39f85c25b68dc4f585433364b76d75c56ce7a5dd))
+
+- Trigger ci
+  ([`b99aceb`](https://github.com/AnthusAI/Tactus/commit/b99aceb35214c005620a8651956ba2a1deeb1a71))
+
+### Features
+
+- Add task entrypoints and retriever task routing
+  ([`2309f45`](https://github.com/AnthusAI/Tactus/commit/2309f4597685e1ae6b21d10c16eee8b7898f7999))
+
+- Refine task CLI output and examples
+  ([`15b1d32`](https://github.com/AnthusAI/Tactus/commit/15b1d32684095d0e12c8e8880c6342d55482ddc3))
+
+- **context**: Add composable context engine
+  ([`0c2b03a`](https://github.com/AnthusAI/Tactus/commit/0c2b03aef255944633a57860aefea6bbb63f6e11))
+
+- **stdlib**: Add biblicus text tools
+  ([`0623e22`](https://github.com/AnthusAI/Tactus/commit/0623e22b18e9091afce1fa2eb4e0d35e0d158b5a))
+
+
 ## v0.37.0 (2026-02-01)
 
 ### Bug Fixes
