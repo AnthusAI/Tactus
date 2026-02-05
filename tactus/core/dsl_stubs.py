@@ -413,6 +413,17 @@ def create_dsl_stubs(
         # Task "name" { ... }
         if isinstance(name_or_config, str):
             task_name = name_or_config
+            if config is None:
+
+                def _curried(task_config=None):
+                    if task_config is None or not hasattr(task_config, "items"):
+                        raise TypeError(
+                            f"Task '{task_name}' requires a configuration table. "
+                            'Use: Task "name" { ... } or name = Task { ... }.'
+                        )
+                    return _task(task_name, task_config)
+
+                return _curried
             task_config = config or {}
             if hasattr(task_config, "__setitem__"):
                 try:

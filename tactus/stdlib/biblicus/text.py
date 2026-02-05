@@ -62,10 +62,18 @@ def _normalize_client_config(client: Any) -> Any:
 
     payload = dict(client)
     model = payload.get("model")
-    provider = payload.get("provider")
     if not model:
         raise ValueError("client.model is required")
 
+    provider, model = _resolve_provider_and_model(payload.get("provider"), model)
+    payload["provider"] = provider
+    payload["model"] = model
+
+    biblicus = _require_biblicus_text()
+    return biblicus["LlmClientConfig"](**payload)
+
+
+def _resolve_provider_and_model(provider: str | None, model: Any) -> tuple[str, Any]:
     if provider is None and isinstance(model, str) and "/" in model:
         provider, model = model.split("/", 1)
     elif provider is not None and isinstance(model, str) and model.startswith(f"{provider}/"):
@@ -74,11 +82,7 @@ def _normalize_client_config(client: Any) -> Any:
     if provider is None:
         raise ValueError("client.provider is required when model lacks a provider prefix")
 
-    payload["provider"] = provider
-    payload["model"] = model
-
-    biblicus = _require_biblicus_text()
-    return biblicus["LlmClientConfig"](**payload)
+    return provider, model
 
 
 def _prepare_request(request: Dict[str, Any]) -> Dict[str, Any]:
@@ -97,11 +101,7 @@ def _prepare_request(request: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _maybe_mock(tool_name: str, payload: Dict[str, Any]) -> Dict[str, Any] | None:
-    try:
-        from tactus.core.mocking import get_current_mock_manager
-    except Exception:
-        return None
-    mock_manager = get_current_mock_manager()
+    mock_manager = _get_mock_manager()
     if mock_manager is None:
         return None
     mock_result = mock_manager.get_mock_response(tool_name, payload)
@@ -111,54 +111,73 @@ def _maybe_mock(tool_name: str, payload: Dict[str, Any]) -> Dict[str, Any] | Non
     return mock_result
 
 
-def extract(request: Dict[str, Any]) -> Dict[str, Any]:
+def _get_mock_manager() -> Any | None:
+    try:
+        from tactus.core.mocking import get_current_mock_manager
+    except Exception:
+        return None
+    return get_current_mock_manager()
+
+
+def _run_text_tool(
+    request: Dict[str, Any],
+    *,
+    tool_name: str,
+    request_model_key: str,
+    apply_key: str,
+) -> Dict[str, Any]:
     payload = _prepare_request(request)
-    mock_result = _maybe_mock("biblicus.text.extract", payload)
+    mock_result = _maybe_mock(tool_name, payload)
     if mock_result is not None:
         return mock_result
     biblicus = _require_biblicus_text()
-    result = biblicus["apply_text_extract"](biblicus["TextExtractRequest"](**payload))
+    result = biblicus[apply_key](biblicus[request_model_key](**payload))
     return result.model_dump()
+
+
+def extract(request: Dict[str, Any]) -> Dict[str, Any]:
+    return _run_text_tool(
+        request,
+        tool_name="biblicus.text.extract",
+        request_model_key="TextExtractRequest",
+        apply_key="apply_text_extract",
+    )
 
 
 def slice(request: Dict[str, Any]) -> Dict[str, Any]:
-    payload = _prepare_request(request)
-    mock_result = _maybe_mock("biblicus.text.slice", payload)
-    if mock_result is not None:
-        return mock_result
-    biblicus = _require_biblicus_text()
-    result = biblicus["apply_text_slice"](biblicus["TextSliceRequest"](**payload))
-    return result.model_dump()
+    return _run_text_tool(
+        request,
+        tool_name="biblicus.text.slice",
+        request_model_key="TextSliceRequest",
+        apply_key="apply_text_slice",
+    )
 
 
 def annotate(request: Dict[str, Any]) -> Dict[str, Any]:
-    payload = _prepare_request(request)
-    mock_result = _maybe_mock("biblicus.text.annotate", payload)
-    if mock_result is not None:
-        return mock_result
-    biblicus = _require_biblicus_text()
-    result = biblicus["apply_text_annotate"](biblicus["TextAnnotateRequest"](**payload))
-    return result.model_dump()
+    return _run_text_tool(
+        request,
+        tool_name="biblicus.text.annotate",
+        request_model_key="TextAnnotateRequest",
+        apply_key="apply_text_annotate",
+    )
 
 
 def redact(request: Dict[str, Any]) -> Dict[str, Any]:
-    payload = _prepare_request(request)
-    mock_result = _maybe_mock("biblicus.text.redact", payload)
-    if mock_result is not None:
-        return mock_result
-    biblicus = _require_biblicus_text()
-    result = biblicus["apply_text_redact"](biblicus["TextRedactRequest"](**payload))
-    return result.model_dump()
+    return _run_text_tool(
+        request,
+        tool_name="biblicus.text.redact",
+        request_model_key="TextRedactRequest",
+        apply_key="apply_text_redact",
+    )
 
 
 def link(request: Dict[str, Any]) -> Dict[str, Any]:
-    payload = _prepare_request(request)
-    mock_result = _maybe_mock("biblicus.text.link", payload)
-    if mock_result is not None:
-        return mock_result
-    biblicus = _require_biblicus_text()
-    result = biblicus["apply_text_link"](biblicus["TextLinkRequest"](**payload))
-    return result.model_dump()
+    return _run_text_tool(
+        request,
+        tool_name="biblicus.text.link",
+        request_model_key="TextLinkRequest",
+        apply_key="apply_text_link",
+    )
 
 
 def strip_span_tags(marked_up_text: str) -> str:

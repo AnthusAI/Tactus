@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 
+from tactus.validation import semantic_visitor
 from tactus.validation.semantic_visitor import TactusDSLVisitor
 
 
@@ -3141,6 +3142,70 @@ def test_visit_stat_assignment_based_declaration_calls_checker():
 
     visitor.visitStat(FakeCtx())
     assert called["name"] == "greeter"
+
+
+def test_check_assignment_based_declaration_skips_chained_agent_call(monkeypatch):
+    visitor = TactusDSLVisitor()
+
+    class DummyBuilder:
+        def register_agent(self, *_args, **_kwargs):
+            raise AssertionError("register_agent should not be called for chained Agent calls")
+
+    visitor.builder = DummyBuilder()
+    monkeypatch.setattr(semantic_visitor.re, "search", lambda *_args, **_kwargs: True)
+
+    class FakeTerminal:
+        symbol = True
+
+        def getText(self):
+            return "Agent"
+
+    class FakeFunctionCall:
+        def getChildCount(self):
+            return 1
+
+        def getChild(self, _index):
+            return FakeTerminal()
+
+        def getText(self):
+            return "Agent({}).turn()"
+
+        def varOrExp(self):
+            return None
+
+    class FakePrefixExp:
+        def functioncall(self):
+            return FakeFunctionCall()
+
+    class FakeAssignmentExp:
+        def prefixexp(self):
+            return FakePrefixExp()
+
+    visitor._check_assignment_based_declaration("agent", FakeAssignmentExp())
+
+
+def test_extract_first_expression_handles_missing_exp_list():
+    visitor = TactusDSLVisitor()
+
+    class FakeExpressionList:
+        pass
+
+    assert visitor._extract_first_expression(FakeExpressionList()) is None
+
+
+def test_unescape_basic_string_handles_single_quotes():
+    visitor = TactusDSLVisitor()
+    assert visitor._unescape_basic_string("It\\'s\\nok", "'") == "It's\nok"
+
+
+def test_unescape_basic_string_handles_double_quotes():
+    visitor = TactusDSLVisitor()
+    assert visitor._unescape_basic_string('\\"Hi\\tthere\\"', '"') == '"Hi\tthere"'
+
+
+def test_unescape_basic_string_ignores_unknown_quote_char():
+    visitor = TactusDSLVisitor()
+    assert visitor._unescape_basic_string("\\n\\t", "x") == "\n\t"
 
 
 def test_extract_single_table_arg_empty_args_returns_empty():

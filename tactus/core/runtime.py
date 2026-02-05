@@ -2499,6 +2499,7 @@ class TactusRuntime:
         """
         if not self.task_name and self.registry:
             explicit_tasks = getattr(self.registry, "tasks", {}) or {}
+            named_procedures = getattr(self.registry, "named_procedures", {}) or {}
 
             def _flatten_tasks(task_map: dict, prefix: str = "") -> list[str]:
                 names: list[str] = []
@@ -2528,10 +2529,12 @@ class TactusRuntime:
                         implicit_tasks.append(f"{task}:{retriever_name}")
 
             if explicit_tasks:
-                if len(explicit_tasks) == 1:
-                    self.task_name = next(iter(explicit_tasks.keys()))
-                elif "run" in explicit_tasks:
+                if "run" in explicit_tasks:
                     self.task_name = "run"
+                elif "main" in named_procedures:
+                    self.task_name = None
+                elif len(explicit_tasks) == 1:
+                    self.task_name = next(iter(explicit_tasks.keys()))
                 else:
                     from tactus.core.exceptions import TaskSelectionRequired
 
@@ -2892,7 +2895,11 @@ class TactusRuntime:
             r"^\s*[A-Za-z_][A-Za-z0-9_]*\s*=\s*(?:"
             r"Agent|Toolset|Tool|Model|Module|Signature|LM|Dependency|Prompt|"
             r"Task|TaskFunction|Context|Corpus|Retriever|Compactor|function|"
-            r"[A-Za-z_][A-Za-z0-9_]*Retriever|[A-Za-z_][A-Za-z0-9_]*\.Retriever"
+            r"[A-Za-z_][A-Za-z0-9_]*Retriever|"
+            r"[A-Za-z_][A-Za-z0-9_]*\.Retriever|"
+            r"[A-Za-z_][A-Za-z0-9_]*\.Corpus|"
+            r"[A-Za-z_][A-Za-z0-9_]*\.Context|"
+            r"[A-Za-z_][A-Za-z0-9_]*\.Compactor"
             r")\b"
         )
         # Match function definitions: function name() or local function name()
@@ -3167,6 +3174,9 @@ class TactusRuntime:
         except LuaSandboxError as e:
             raise TactusRuntimeError(f"Failed to parse DSL: {e}")
 
+        lua_globals = sandbox.lua.globals()
+        self._register_assignment_tasks(builder, lua_globals)
+
         self._expand_inline_task_children(builder.registry)
 
         # Execute IncludeTasks files to register additional tasks
@@ -3269,7 +3279,6 @@ class TactusRuntime:
         # The script mode transformation (in _maybe_transform_script_mode_source)
         # is designed to skip files with named function definitions to avoid wrapping
         # them incorrectly.
-        lua_globals = sandbox.lua.globals()
         if "main" in lua_globals:
             main_func = lua_globals["main"]
             # Check if it's a function and not already registered
@@ -3296,6 +3305,49 @@ class TactusRuntime:
 
         logger.debug(f"Registry after parsing: lua_tools={list(result.registry.lua_tools.keys())}")
         return result.registry
+
+    def _register_assignment_tasks(self, builder: RegistryBuilder, lua_globals: Any) -> None:
+        if not lua_globals:
+            return
+
+        for key, value in lua_globals.items():
+            if not isinstance(key, str):
+                continue
+            if not hasattr(value, "items"):
+                continue
+            try:
+                marker = value["__tactus_task_config"]
+            except Exception:
+                continue
+            if not marker:
+                continue
+            task_config = lua_table_to_dict(value)
+            if not isinstance(task_config, dict):
+                continue
+            if key in builder.registry.tasks:
+                continue
+            if "entry" in task_config and not callable(task_config["entry"]):
+                raise TactusRuntimeError(f"Task '{key}' entry must be a function")
+            builder.register_task(key, task_config)
+
+            child_sources = task_config.get("__tactus_child_tasks")
+            if isinstance(child_sources, dict):
+                child_iter = child_sources.items()
+            else:
+                child_iter = value.items()
+            for child_key, child_value in child_iter:
+                child_name = child_key if isinstance(child_key, str) else None
+                if not hasattr(child_value, "items"):
+                    continue
+                child_config = lua_table_to_dict(child_value)
+                if not child_name and isinstance(child_config, dict):
+                    child_name = child_config.get("__task_name")
+                if child_name and isinstance(child_config, dict):
+                    if "entry" in child_config and not callable(child_config["entry"]):
+                        raise TactusRuntimeError(
+                            f"Task '{key}:{child_name}' entry must be a function"
+                        )
+                    builder.register_task(child_name, child_config, parent=key)
 
     def _registry_to_config(self, registry: ProcedureRegistry) -> dict[str, Any]:
         """

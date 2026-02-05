@@ -131,29 +131,9 @@ class TactusDSLVisitor(LuaParserVisitor):
                     assignment_target_name = assignment_target_node.NAME().getText()
                     self._track_retriever_alias(assignment_target_name, expression_list)
 
-                    # Check if this is a DSL setting assignment
-                    setting_handlers_by_name = {
-                        "default_provider": self.builder.set_default_provider,
-                        "default_model": self.builder.set_default_model,
-                        "return_prompt": self.builder.set_return_prompt,
-                        "error_prompt": self.builder.set_error_prompt,
-                        "status_prompt": self.builder.set_status_prompt,
-                        "async": self.builder.set_async,
-                        "max_depth": self.builder.set_max_depth,
-                        "max_turns": self.builder.set_max_turns,
-                    }
-                    if assignment_target_name in setting_handlers_by_name:
-                        # Get the value from explist
-                        if expression_list.exp() and len(expression_list.exp()) > 0:
-                            first_expression = expression_list.exp()[0]
-                            literal_value = self._extract_literal_value(first_expression)
-                            # Process the assignment like a function call
-                            setting_handlers_by_name[assignment_target_name](literal_value)
-                    else:
-                        # Check for assignment-based DSL declarations
-                        # e.g., greeter = Agent {...}, done = Tool {...}
-                        if expression_list.exp() and len(expression_list.exp()) > 0:
-                            first_expression = expression_list.exp()[0]
+                    if not self._apply_setting_assignment(assignment_target_name, expression_list):
+                        first_expression = self._extract_first_expression(expression_list)
+                        if first_expression:
                             self._check_assignment_based_declaration(
                                 assignment_target_name, first_expression
                             )
@@ -219,105 +199,116 @@ class TactusDSLVisitor(LuaParserVisitor):
                         )
                         return
 
-                if function_name == "Agent" and not is_chained_method_call:
-                    # Extract config from Agent {...}
-                    declaration_config = self._extract_single_table_arg(function_call)
-                    # Filter out None values from tools list (variable refs can't be resolved)
-                    if declaration_config and "tools" in declaration_config:
-                        tool_name_list = declaration_config["tools"]
-                        if isinstance(tool_name_list, list):
-                            declaration_config["tools"] = [
-                                tool_name for tool_name in tool_name_list if tool_name is not None
-                            ]
-                    self.builder.register_agent(
-                        assignment_target_name,
-                        declaration_config if declaration_config else {},
-                        None,
-                    )
-                elif function_name == "Tool":
-                    # Extract config from Tool {...}
-                    declaration_config = self._extract_single_table_arg(function_call)
-                    if (
-                        declaration_config
-                        and isinstance(declaration_config, dict)
-                        and isinstance(declaration_config.get("name"), str)
-                        and declaration_config.get("name") != assignment_target_name
-                    ):
-                        self._record_error(
-                            message=(
-                                f"Tool name mismatch: '{assignment_target_name} = Tool {{ name = \"{declaration_config.get('name')}\" }}'. "
-                                f"Remove the 'name' field or set it to '{assignment_target_name}'."
-                            ),
-                            declaration="Tool",
-                        )
-                    self.builder.register_tool(
-                        assignment_target_name,
-                        declaration_config if declaration_config else {},
-                        None,
-                    )
-                elif function_name == "Toolset":
-                    # Extract config from Toolset {...}
-                    declaration_config = self._extract_single_table_arg(function_call)
-                    self.builder.register_toolset(
-                        assignment_target_name,
-                        declaration_config if declaration_config else {},
-                    )
-                elif function_name == "Context":
-                    declaration_config = self._extract_single_table_arg(function_call)
-                    self.builder.register_context(
-                        assignment_target_name,
-                        declaration_config if declaration_config else {},
-                    )
-                elif function_name == "Corpus":
-                    declaration_config = self._extract_single_table_arg(function_call)
-                    self.builder.register_corpus(
-                        assignment_target_name,
-                        declaration_config if declaration_config else {},
-                    )
-                elif function_name == "Retriever":
-                    declaration_config = self._extract_single_table_arg(function_call)
+                if function_name == "Agent" and is_chained_method_call:
+                    return
+                handled = self._register_assignment_based_declaration(
+                    assignment_target_name, function_name, function_call
+                )
+                if handled:
+                    return
+                declaration_config = self._extract_single_table_arg(function_call)
+                if isinstance(declaration_config, dict) and "corpus" in declaration_config:
                     retriever_id = self._resolve_retriever_id_from_call(function_call)
-                    if (
-                        isinstance(declaration_config, dict)
-                        and retriever_id
-                        and "retriever_id" not in declaration_config
-                    ):
+                    if retriever_id and "retriever_id" not in declaration_config:
                         declaration_config["retriever_id"] = retriever_id
                     self.builder.register_retriever(
                         assignment_target_name,
-                        declaration_config if declaration_config else {},
+                        declaration_config,
                     )
-                elif function_name == "Compactor":
-                    declaration_config = self._extract_single_table_arg(function_call)
-                    self.builder.register_compactor(
-                        assignment_target_name,
-                        declaration_config if declaration_config else {},
-                    )
-                elif function_name == "Procedure":
-                    # New assignment syntax: main = Procedure { function(input) ... }
-                    # Register as a named procedure
-                    self.builder.register_named_procedure(
-                        assignment_target_name,
-                        None,  # Function not available during validation
-                        {},  # Input schema will be extracted from top-level input {}
-                        {},  # Output schema will be extracted from top-level output {}
-                        {},  # State schema
-                    )
-                elif function_name == "Task":
-                    # Assignment-based task declaration: name = Task { ... }
-                    self._processed_task_calls.add(id(function_call))
-                    self._register_task_declaration(assignment_target_name, function_call)
-                else:
-                    # Heuristic: treat any assignment-based call with a 'corpus' field as a retriever.
-                    declaration_config = self._extract_single_table_arg(function_call)
-                    if isinstance(declaration_config, dict) and "corpus" in declaration_config:
-                        retriever_id = self._resolve_retriever_id_from_call(function_call)
-                        if retriever_id and "retriever_id" not in declaration_config:
-                            declaration_config["retriever_id"] = retriever_id
-                        self.builder.register_retriever(
-                            assignment_target_name,
-                            declaration_config,
-                        )
+
+    def _apply_setting_assignment(self, assignment_target_name: str, expression_list) -> bool:
+        setting_handlers_by_name = {
+            "default_provider": self.builder.set_default_provider,
+            "default_model": self.builder.set_default_model,
+            "return_prompt": self.builder.set_return_prompt,
+            "error_prompt": self.builder.set_error_prompt,
+            "status_prompt": self.builder.set_status_prompt,
+            "async": self.builder.set_async,
+            "max_depth": self.builder.set_max_depth,
+            "max_turns": self.builder.set_max_turns,
+        }
+        if assignment_target_name not in setting_handlers_by_name:
+            return False
+        first_expression = self._extract_first_expression(expression_list)
+        if not first_expression:
+            return True
+        literal_value = self._extract_literal_value(first_expression)
+        setting_handlers_by_name[assignment_target_name](literal_value)
+        return True
+
+    def _extract_first_expression(self, expression_list):
+        exp_list = getattr(expression_list, "exp", None)
+        if not callable(exp_list):
+            return None
+        expressions = exp_list()
+        if expressions:
+            return expressions[0]
+        return None
+
+    def _register_assignment_based_declaration(
+        self,
+        assignment_target_name: str,
+        function_name: str,
+        function_call,
+    ) -> bool:
+        declaration_config = self._extract_single_table_arg(function_call)
+        normalized_config = declaration_config if declaration_config else {}
+        if function_name == "Agent":
+            if "tools" in normalized_config:
+                tool_name_list = normalized_config["tools"]
+                if isinstance(tool_name_list, list):
+                    normalized_config["tools"] = [
+                        tool_name for tool_name in tool_name_list if tool_name is not None
+                    ]
+            self.builder.register_agent(assignment_target_name, normalized_config, None)
+            return True
+        if function_name == "Tool":
+            if (
+                isinstance(normalized_config, dict)
+                and isinstance(normalized_config.get("name"), str)
+                and normalized_config.get("name") != assignment_target_name
+            ):
+                self._record_error(
+                    message=(
+                        f"Tool name mismatch: '{assignment_target_name} = Tool {{ name = \"{normalized_config.get('name')}\" }}'. "
+                        f"Remove the 'name' field or set it to '{assignment_target_name}'."
+                    ),
+                    declaration="Tool",
+                )
+            self.builder.register_tool(assignment_target_name, normalized_config, None)
+            return True
+        if function_name == "Toolset":
+            self.builder.register_toolset(assignment_target_name, normalized_config)
+            return True
+        if function_name == "Context":
+            self.builder.register_context(assignment_target_name, normalized_config)
+            return True
+        if function_name == "Corpus":
+            self.builder.register_corpus(assignment_target_name, normalized_config)
+            return True
+        if function_name == "Retriever":
+            retriever_id = self._resolve_retriever_id_from_call(function_call)
+            if retriever_id and "retriever_id" not in normalized_config:
+                normalized_config["retriever_id"] = retriever_id
+            self.builder.register_retriever(assignment_target_name, normalized_config)
+            return True
+        if function_name == "Compactor":
+            self.builder.register_compactor(assignment_target_name, normalized_config)
+            return True
+        if function_name == "Procedure":
+            self.builder.register_named_procedure(
+                assignment_target_name,
+                None,
+                {},
+                {},
+                {},
+            )
+            return True
+        if function_name == "Task":
+            self._processed_task_calls.add(id(function_call))
+            self._register_task_declaration(assignment_target_name, function_call)
+            return True
+        return False
 
     def _extract_single_table_arg(self, function_call) -> dict:
         """Extract a single table argument from a function call like Agent {...}."""
@@ -1122,22 +1113,22 @@ class TactusDSLVisitor(LuaParserVisitor):
             return token_text[2:-2]
         elif token_text.startswith('"') and token_text.endswith('"'):
             # Double-quoted string
-            content = token_text[1:-1]
-            content = content.replace("\\n", "\n")
-            content = content.replace("\\t", "\t")
-            content = content.replace('\\"', '"')
-            content = content.replace("\\\\", "\\")
-            return content
+            return self._unescape_basic_string(token_text[1:-1], '"')
         elif token_text.startswith("'") and token_text.endswith("'"):
             # Single-quoted string
-            content = token_text[1:-1]
-            content = content.replace("\\n", "\n")
-            content = content.replace("\\t", "\t")
-            content = content.replace("\\'", "'")
-            content = content.replace("\\\\", "\\")
-            return content
+            return self._unescape_basic_string(token_text[1:-1], "'")
 
         return token_text
+
+    def _unescape_basic_string(self, content: str, quote_char: str) -> str:
+        content = content.replace("\\n", "\n")
+        content = content.replace("\\t", "\t")
+        if quote_char == '"':
+            content = content.replace('\\"', '"')
+        elif quote_char == "'":
+            content = content.replace("\\'", "'")
+        content = content.replace("\\\\", "\\")
+        return content
 
     def _parse_table_constructor(self, ctx: LuaParser.TableconstructorContext) -> Any:
         """Parse Lua table constructor to Python dict."""

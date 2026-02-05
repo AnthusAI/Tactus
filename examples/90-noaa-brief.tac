@@ -6,47 +6,13 @@
 local FilesystemCorpus = require("tactus.corpora.filesystem")
 local TfVector = require("tactus.retrievers.tf_vector")
 
-python = Tool {
-  use = "cli.python3",
-  description = "Run python3 scripts"
+FetchNoaaAfd = Tool {
+  use = "plugin.noaa.fetch_noaa_afd",
+  description = "Fetch NOAA AFD fixtures and import into Biblicus"
 }
 
-FetchNoaaAfd = function(params)
-  Log.info("FetchNoaaAfd: fetching NOAA AFD fixtures")
-  python({
-    args = {
-      "scripts/fetch_noaa_afd_corpus.py",
-      "--wfo", params.wfo,
-      "--max-items", tostring(params.max_items),
-      "--output", "tests/fixtures/noaa_afd",
-    }
-  })
-  Log.info("FetchNoaaAfd: building Biblicus corpus + tf-vector index")
-  python({
-    args = {
-      "scripts/prepare_noaa_afd_biblicus_corpus.py",
-      "--retriever", "tf-vector",
-      "--wfo", params.wfo,
-      "--force",
-    }
-  })
-  return {
-    status = "ok",
-    wfo = params.wfo,
-    max_items = params.max_items,
-  }
-end
-
 miami_afd = FilesystemCorpus.Corpus {
-  root = "tests/fixtures/noaa_afd_corpus/MFL",
-  configuration = {
-    pipeline = {
-      -- Extraction runs automatically on ingest.
-      extract = {
-        -- Placeholder for composed extraction steps.
-      }
-    }
-  }
+  root = "tests/fixtures/noaa_afd_corpus/MFL"
 }
 
 miami_search = TfVector.Retriever {
@@ -77,12 +43,11 @@ Miami = Agent {
   context = miami_context
 }
 
-fetch = Task {
+Task "fetch" {
   entry = function()
     return FetchNoaaAfd({
       wfo = "MFL",
       max_items = 5,
-      corpus = miami_afd
     })
   end
 }

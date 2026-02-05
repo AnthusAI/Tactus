@@ -176,7 +176,8 @@ def test_cli_run_invalid_log_level(cli_runner, example_workflow_file):
         ],
     )
     assert result.exit_code != 0
-    assert "log-level" in result.stdout.lower()
+    combined_output = (result.stdout + result.stderr).lower()
+    assert "log-level" in combined_output
 
 
 def test_cli_run_invalid_log_format(cli_runner, example_workflow_file):
@@ -192,4 +193,5 @@ def test_cli_run_invalid_log_format(cli_runner, example_workflow_file):
         ],
     )
     assert result.exit_code != 0
-    assert "log-format" in result.stdout.lower()
+    combined_output = (result.stdout + result.stderr).lower()
+    assert "log-format" in combined_output

@@ -52,6 +52,11 @@ def main() -> None:
         help="Snippet length budget for evidence text",
     )
     parser.add_argument("--force", action="store_true", help="Recreate the corpus directory")
+    parser.add_argument(
+        "--no-index",
+        action="store_true",
+        help="Only import items into the corpus (skip retriever snapshot build)",
+    )
     args = parser.parse_args()
 
     source_dir = _resolve_source_dir(args.source, args.wfo)
@@ -73,6 +78,11 @@ def main() -> None:
     # creating noisy *.biblicus.yml.biblicus.yml artifacts in the corpus tree.
     for path in (corpus_dir / "raw").rglob("*.biblicus.yml.biblicus.yml"):
         path.unlink(missing_ok=True)
+
+    if args.no_index:
+        print(f"Corpus: {corpus_dir}")
+        print("Snapshot id: (skipped)")
+        return
 
     configuration: dict[str, object] = {}
     if args.retriever in {"embedding-index-file", "embedding-index-inmemory"}:
