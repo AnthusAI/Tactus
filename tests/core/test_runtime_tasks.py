@@ -837,3 +837,91 @@ def test_parse_declarations_rejects_duplicate_namespace(tmp_path):
 
     with pytest.raises(TactusRuntimeError, match="Duplicate task namespace"):
         runtime._parse_declarations('IncludeTasks("tasks.tac", "extras")')
+
+
+class _FakePlan:
+    def __init__(self, *, status="ready", tasks=None):
+        self.status = status
+        self.tasks = tasks or []
+        self.root = SimpleNamespace(reason=None)
+        self.called_with = None
+
+    def execute(self, *, mode="prompt", handler_registry=None, prompt_handler=None):
+        self.called_with = {
+            "mode": mode,
+            "handler_registry": handler_registry or {},
+            "prompt_handler": prompt_handler,
+        }
+        return [{"ok": True}]
+
+
+def test_execute_dependency_plan_returns_empty_when_complete():
+    runtime = TactusRuntime.__new__(TactusRuntime)
+    runtime.dependency_mode = "auto"
+    plan = _FakePlan(status="complete")
+
+    result = runtime._execute_dependency_plan(plan=plan, corpus=object(), label="test")
+
+    assert result == []
+
+
+def test_execute_dependency_plan_rejects_blocked_plan():
+    runtime = TactusRuntime.__new__(TactusRuntime)
+    runtime.dependency_mode = "auto"
+    plan = _FakePlan(status="blocked")
+    plan.root.reason = "blocked"
+
+    with pytest.raises(RuntimeError, match="blocked"):
+        runtime._execute_dependency_plan(plan=plan, corpus=object(), label="test")
+
+
+def test_execute_dependency_plan_rejects_when_no_deps():
+    runtime = TactusRuntime.__new__(TactusRuntime)
+    runtime.dependency_mode = "none"
+    plan = _FakePlan(status="ready")
+
+    with pytest.raises(RuntimeError, match="Dependencies missing"):
+        runtime._execute_dependency_plan(plan=plan, corpus=object(), label="test")
+
+
+def test_execute_dependency_plan_rejects_prompt_decline():
+    runtime = TactusRuntime.__new__(TactusRuntime)
+    runtime.dependency_mode = "prompt"
+    runtime.dependency_prompt_handler = lambda *_args, **_kwargs: False
+    plan = _FakePlan(status="ready")
+
+    with pytest.raises(RuntimeError, match="declined"):
+        runtime._execute_dependency_plan(plan=plan, corpus=object(), label="test")
+
+
+def test_execute_dependency_plan_executes_with_handlers(monkeypatch):
+    runtime = TactusRuntime.__new__(TactusRuntime)
+    runtime.dependency_mode = "auto"
+    plan = _FakePlan(status="ready")
+
+    monkeypatch.setattr("biblicus.workflow.build_default_handler_registry", lambda _corpus: {})
+
+    result = runtime._execute_dependency_plan(
+        plan=plan,
+        corpus=object(),
+        label="test",
+        load_task_name="fetch",
+        extract_task_name="extract",
+        index_task_name="index",
+    )
+
+    assert result == [{"ok": True}]
+    assert plan.called_with is not None
+    assert plan.called_with["mode"] == "auto"
+    assert "load" in plan.called_with["handler_registry"]
+    assert "extract" in plan.called_with["handler_registry"]
+    assert "index" in plan.called_with["handler_registry"]
+
+
+def test_find_task_providing_normalizes_aliases():
+    runtime = TactusRuntime.__new__(TactusRuntime)
+    task = TaskDeclaration(name="fetch", provides={"kind": "fetch", "corpus": "docs"})
+    registry = SimpleNamespace(tasks={"fetch": task}, retrievers={}, corpora={"docs": {}})
+    runtime.registry = registry
+
+    assert runtime._find_task_providing(kind="load", corpus_name="docs") == "fetch"

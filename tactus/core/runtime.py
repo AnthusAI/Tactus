@@ -2713,7 +2713,7 @@ class TactusRuntime:
     def _open_or_init_corpus(self, corpus_root: Path) -> "Corpus":
         from biblicus.corpus import Corpus
 
-        corpus = Corpus(corpus_root)
+        corpus = Corpus(corpus_root.resolve())
         try:
             corpus.load_catalog()
         except FileNotFoundError:

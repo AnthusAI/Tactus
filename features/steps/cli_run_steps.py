@@ -32,7 +32,13 @@ def step_run_tactus_on_file(context, args):
         [sys.executable, "-m", "tactus.cli.app", *cli_args],
         capture_output=True,
         text=True,
+        input=getattr(context, "cli_input", None),
     )
     context.cli_returncode = result.returncode
     context.cli_stdout = result.stdout
     context.cli_stderr = result.stderr
+
+
+@when('I run "tactus run" on the file')
+def step_run_tactus_on_file_no_args(context):
+    step_run_tactus_on_file(context, "")
