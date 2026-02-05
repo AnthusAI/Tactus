@@ -2684,12 +2684,7 @@ class TactusRuntime:
         if not self.registry:
             return None
         matches: list[str] = []
-        try:
-            from biblicus.workflow import normalize_task_kind
-        except Exception:
-
-            def normalize_task_kind(value: str) -> str:
-                return value
+        normalize_task_kind = self._normalize_task_kind
 
         for full_name, task in self._iter_task_declarations():
             payload = task.model_dump()
@@ -2709,6 +2704,19 @@ class TactusRuntime:
             if "load" in tasks:
                 return "load"
         return None
+
+    @staticmethod
+    def _normalize_task_kind(value: str) -> str:
+        if not isinstance(value, str):
+            return ""
+        cleaned = value.strip().lower()
+        aliases = {
+            "fetch": "load",
+            "sync": "load",
+            "build": "index",
+            "run": "query",
+        }
+        return aliases.get(cleaned, cleaned)
 
     def _open_or_init_corpus(self, corpus_root: Path) -> "Corpus":
         from biblicus.corpus import Corpus
