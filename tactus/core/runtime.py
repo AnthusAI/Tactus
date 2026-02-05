@@ -14,7 +14,7 @@ import logging
 import time
 import uuid
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 from tactus.core.registry import ProcedureRegistry, RegistryBuilder, TaskDeclaration
 from tactus.core.dsl_stubs import create_dsl_stubs, lua_table_to_dict
@@ -27,6 +27,9 @@ from tactus.core.exceptions import ProcedureWaitingForHuman, TactusRuntimeError
 from tactus.protocols.storage import StorageBackend
 from tactus.protocols.hitl import HITLHandler
 from tactus.protocols.chat_recorder import ChatRecorder
+
+if TYPE_CHECKING:
+    from biblicus.corpus import Corpus
 
 # For backwards compatibility with YAML
 try:
@@ -142,6 +145,8 @@ class TactusRuntime:
         self.tool_paths = tool_paths or []
         self.recursion_depth = recursion_depth
         self.external_config = external_config or {}
+        self.dependency_mode = self.external_config.get("dependency_mode", "prompt")
+        self.dependency_prompt_handler = None
         self.run_id = run_id
         self.source_file_path = source_file_path
 
@@ -2552,6 +2557,7 @@ class TactusRuntime:
             return self._execute_task(self.task_name)
 
         if self.registry:
+            self._execute_run_dependencies()
             # Check for named 'main' procedure first
             if "main" in self.registry.named_procedures:
                 logger.info("Executing named 'main' procedure")
@@ -2639,16 +2645,172 @@ class TactusRuntime:
             logger.error(f"Legacy procedure execution failed: {e}")
             raise
 
-    def _execute_task(self, task_name: str) -> Any:
+    def _parse_task_dependencies(self, task_payload: dict[str, Any]) -> list[str]:
+        depends_on = task_payload.get("depends_on")
+        if isinstance(depends_on, str):
+            return [depends_on]
+        if isinstance(depends_on, list):
+            return [item for item in depends_on if isinstance(item, str) and item.strip()]
+        return []
+
+    def _parse_task_provides(self, task_payload: dict[str, Any]) -> list[dict[str, Any]]:
+        provides = task_payload.get("provides")
+        if isinstance(provides, dict):
+            return [provides]
+        if isinstance(provides, list):
+            return [item for item in provides if isinstance(item, dict)]
+        return []
+
+    def _iter_task_declarations(self) -> list[tuple[str, TaskDeclaration]]:
+        if not self.registry:
+            return []
+        tasks = getattr(self.registry, "tasks", None) or {}
+        if not tasks:
+            return []
+
+        def walk(task: TaskDeclaration, prefix: str) -> list[tuple[str, TaskDeclaration]]:
+            full_name = f"{prefix}:{task.name}" if prefix else task.name
+            pairs = [(full_name, task)]
+            for child in task.children.values():
+                pairs.extend(walk(child, full_name))
+            return pairs
+
+        pairs: list[tuple[str, TaskDeclaration]] = []
+        for task in tasks.values():
+            pairs.extend(walk(task, ""))
+        return pairs
+
+    def _find_task_providing(self, *, kind: str, corpus_name: Optional[str]) -> Optional[str]:
+        if not self.registry:
+            return None
+        matches: list[str] = []
+        try:
+            from biblicus.workflow import normalize_task_kind
+        except Exception:
+
+            def normalize_task_kind(value: str) -> str:
+                return value
+
+        for full_name, task in self._iter_task_declarations():
+            payload = task.model_dump()
+            for provides in self._parse_task_provides(payload):
+                provided_kind = provides.get("kind")
+                provided_corpus = provides.get("corpus")
+                if not isinstance(provided_kind, str):
+                    continue
+                if normalize_task_kind(provided_kind) != kind:
+                    continue
+                if provided_corpus is None or provided_corpus == corpus_name:
+                    matches.append(full_name)
+        if matches:
+            return matches[0]
+        if kind == "load" and corpus_name and len(self.registry.corpora) == 1:
+            tasks = getattr(self.registry, "tasks", None) or {}
+            if "load" in tasks:
+                return "load"
+        return None
+
+    def _open_or_init_corpus(self, corpus_root: Path) -> "Corpus":
+        from biblicus.corpus import Corpus
+
+        corpus = Corpus(corpus_root)
+        try:
+            corpus.load_catalog()
+        except FileNotFoundError:
+            corpus = Corpus.init(corpus_root, force=False)
+        return corpus
+
+    def _corpus_pipeline_config(self, corpus_decl: Any) -> Optional[dict]:
+        config = corpus_decl.config if isinstance(corpus_decl.config, dict) else {}
+        corpus_configuration = config.get("configuration", {}) if isinstance(config, dict) else {}
+        pipeline = (
+            corpus_configuration.get("pipeline", {})
+            if isinstance(corpus_configuration, dict)
+            else {}
+        )
+        if not isinstance(pipeline, dict):
+            return None
+        if "extract" in pipeline and isinstance(pipeline.get("extract"), dict):
+            return pipeline.get("extract")
+        if "steps" in pipeline:
+            return pipeline
+        return None
+
+    def _retriever_index_config(self, retriever_decl: Any) -> dict:
+        config = retriever_decl.config if isinstance(retriever_decl.config, dict) else {}
+        configuration = config.get("configuration", {}) if isinstance(config, dict) else {}
+        pipeline = configuration.get("pipeline", {}) if isinstance(configuration, dict) else {}
+        if not pipeline and isinstance(config.get("pipeline"), dict):
+            pipeline = config.get("pipeline") or {}
+        index_config = pipeline.get("index", {}) if isinstance(pipeline, dict) else {}
+        if isinstance(index_config, dict):
+            return index_config
+        return {}
+
+    def _prompt_dependency_plan(self, *, plan: Any, label: str) -> bool:
+        prompt_handler = getattr(self, "dependency_prompt_handler", None)
+        if callable(prompt_handler):
+            return bool(prompt_handler(plan, label))
+        pending = [task.kind for task in plan.tasks if task.status != "complete"]
+        prompt = f"Run dependencies for {label}? ({', '.join(pending)}) [y/N]: "
+        response = input(prompt).strip().lower()
+        return response in {"y", "yes"}
+
+    def _execute_dependency_plan(
+        self,
+        *,
+        plan: Any,
+        corpus: Any,
+        label: str,
+        load_task_name: Optional[str] = None,
+        extract_task_name: Optional[str] = None,
+        index_task_name: Optional[str] = None,
+    ) -> list[Any]:
+        mode = self.dependency_mode
+        if plan.status == "complete":
+            return []
+        if plan.status == "blocked":
+            raise RuntimeError(plan.root.reason or f"Dependencies blocked for {label}")
+        if mode == "none":
+            raise RuntimeError(f"Dependencies missing for {label}")
+        if mode not in {"prompt", "auto"}:
+            raise RuntimeError(f"Unsupported dependency mode: {mode}")
+        if mode == "prompt" and not self._prompt_dependency_plan(plan=plan, label=label):
+            raise RuntimeError(f"Dependencies declined for {label}")
+
+        from biblicus.workflow import build_default_handler_registry
+
+        handler_registry = build_default_handler_registry(corpus)
+        if load_task_name:
+            handler_registry["load"] = lambda _: self._execute_task(load_task_name)
+        if extract_task_name:
+            handler_registry["extract"] = lambda _: self._execute_task(extract_task_name)
+        if index_task_name:
+            handler_registry["index"] = lambda _: self._execute_task(index_task_name)
+        return plan.execute(mode="auto", handler_registry=handler_registry)
+
+    def _execute_task(self, task_name: str, *, _stack: Optional[list[str]] = None) -> Any:
         if not self.registry:
             raise RuntimeError("No registry available for task execution")
+
+        stack = list(_stack or [])
+        if task_name in stack:
+            raise RuntimeError(
+                f"Task dependency cycle detected: {' -> '.join(stack + [task_name])}"
+            )
+        stack.append(task_name)
 
         task = self._resolve_task(task_name)
         if task is None:
             # Allow run fallback to main procedure
             if task_name == "run":
+                self._execute_run_dependencies()
                 self.task_name = None
                 return self._execute_workflow()
+
+            corpus_tasks = self._resolve_corpus_task_targets(task_name)
+            if corpus_tasks:
+                return self._execute_corpus_tasks(task_name, corpus_tasks)
 
             retriever_tasks = self._resolve_retriever_task_targets(task_name)
             if retriever_tasks:
@@ -2657,6 +2819,10 @@ class TactusRuntime:
             raise RuntimeError(f"Task '{task_name}' not found")
 
         task_payload = task.model_dump()
+        if task_name == "run":
+            self._execute_run_dependencies()
+        for dependency in self._parse_task_dependencies(task_payload):
+            self._execute_task(dependency, _stack=stack)
         entry = task_payload.get("entry")
         if entry is None:
             if task.children:
@@ -2670,20 +2836,74 @@ class TactusRuntime:
             raise RuntimeError(f"Task '{task_name}' entry must be a function")
         return entry()
 
-    def _execute_retriever_tasks(self, task_name: str, retriever_names: list[str]) -> Any:
-        if not retriever_names:
-            raise RuntimeError(f"No retrievers available for task '{task_name}'")
+    def _execute_run_dependencies(self) -> None:
+        if not self.registry:
+            return
+        retrievers = getattr(self.registry, "retrievers", None) or {}
+        if not retrievers:
+            return
+        for retriever_name in retrievers:
+            self._ensure_retriever_dependencies(retriever_name)
 
+    def _execute_corpus_tasks(self, task_name: str, corpus_names: list[str]) -> Any:
+        if not corpus_names:
+            raise RuntimeError(f"No corpora available for task '{task_name}'")
         base_task = task_name.split(":")[0]
-        if base_task == "index":
+        if base_task == "extract":
             results = []
-            for retriever_name in retriever_names:
-                results.append(self._execute_retriever_index(retriever_name))
+            for corpus_name in corpus_names:
+                results.append(self._execute_corpus_extract(corpus_name))
             return results[0] if len(results) == 1 else results
+        raise RuntimeError(f"Corpus task '{base_task}' is not supported")
 
-        raise RuntimeError(f"Retriever task '{base_task}' is not supported")
+    def _execute_corpus_extract(self, corpus_name: str) -> Any:
+        if not self.registry:
+            raise RuntimeError("No registry available for corpus execution")
+        corpus_decl = self.registry.corpora.get(corpus_name)
+        if corpus_decl is None:
+            raise RuntimeError(f"Corpus '{corpus_name}' not found")
+        corpus_root = corpus_decl.config.get("corpus_root") or corpus_decl.config.get("root")
+        if not corpus_root:
+            raise RuntimeError(f"Corpus '{corpus_name}' is missing a root path")
 
-    def _execute_retriever_index(self, retriever_name: str) -> Any:
+        pipeline_config = self._corpus_pipeline_config(corpus_decl)
+        load_task_name = self._find_task_providing(kind="load", corpus_name=corpus_name)
+        extract_task_name = self._find_task_providing(kind="extract", corpus_name=corpus_name)
+
+        try:
+            from biblicus.workflow import build_plan_for_extract
+        except Exception as exc:
+            raise RuntimeError(f"Biblicus workflow unavailable: {exc}") from exc
+
+        corpus = self._open_or_init_corpus(Path(corpus_root))
+        plan = build_plan_for_extract(
+            corpus,
+            pipeline_config=pipeline_config,
+            load_handler_available=bool(load_task_name),
+        )
+        results = self._execute_dependency_plan(
+            plan=plan,
+            corpus=corpus,
+            label=f"corpus '{corpus_name}'",
+            load_task_name=load_task_name,
+            extract_task_name=extract_task_name,
+        )
+        return results[-1] if results else {"status": "up-to-date"}
+
+    def _ensure_retriever_dependencies(self, retriever_name: str) -> None:
+        plan, corpus, handlers = self._build_retriever_index_plan(retriever_name)
+        self._execute_dependency_plan(
+            plan=plan,
+            corpus=corpus,
+            label=f"retriever '{retriever_name}'",
+            load_task_name=handlers.get("load"),
+            extract_task_name=handlers.get("extract"),
+            index_task_name=handlers.get("index"),
+        )
+
+    def _build_retriever_index_plan(
+        self, retriever_name: str
+    ) -> tuple[Any, Any, dict[str, Optional[str]]]:
         if not self.registry:
             raise RuntimeError("No registry available for retriever execution")
 
@@ -2702,63 +2922,78 @@ class TactusRuntime:
         if not corpus_root:
             raise RuntimeError(f"Corpus '{retriever.corpus}' is missing a root path")
 
-        extraction_pipeline = {}
-        corpus_configuration = (
-            corpus_decl.config.get("configuration", {})
-            if isinstance(corpus_decl.config, dict)
-            else {}
-        )
-        if isinstance(corpus_configuration, dict):
-            pipeline = corpus_configuration.get("pipeline", {}) or {}
-            if isinstance(pipeline, dict):
-                extraction_pipeline = pipeline.get("extract", {}) or {}
-        if isinstance(extraction_pipeline, list):
-            extraction_pipeline = {}
+        from tactus.core.retriever_tasks import resolve_retriever_id
 
-        retriever_id = retriever.config.get("retriever_id") or retriever.config.get(
-            "retriever_type"
+        retriever_id = resolve_retriever_id(
+            retriever.config if isinstance(retriever.config, dict) else {}
         )
         if not retriever_id:
             raise RuntimeError(
-                f"Retriever '{retriever_name}' is missing retriever_id; cannot build snapshot"
+                f"Retriever '{retriever_name}' is missing retriever_id; cannot build plan"
             )
 
-        configuration = retriever.config.get("configuration", {})
-        pipeline = configuration.get("pipeline", {}) if isinstance(configuration, dict) else {}
-        if not pipeline and isinstance(retriever.config.get("pipeline"), dict):
-            pipeline = retriever.config.get("pipeline") or {}
-        index_config = pipeline.get("index", {}) if isinstance(pipeline, dict) else {}
-        if isinstance(index_config, list):
-            index_config = {}
+        pipeline_config = self._corpus_pipeline_config(corpus_decl)
+        index_config = self._retriever_index_config(retriever)
+
+        load_task_name = self._find_task_providing(kind="load", corpus_name=retriever.corpus)
+        extract_task_name = self._find_task_providing(kind="extract", corpus_name=retriever.corpus)
+        index_task_name = None
+        for task_name, task in self._iter_task_declarations():
+            for provides in self._parse_task_provides(task.model_dump()):
+                if provides.get("kind") != "index":
+                    continue
+                provided_retriever = provides.get("retriever")
+                if provided_retriever in {retriever_name, retriever_id}:
+                    index_task_name = task_name
+                    break
+            if index_task_name:
+                break
 
         try:
-            from biblicus.corpus import Corpus
-            from biblicus.extraction import build_extraction_snapshot
-            from biblicus.retrievers import get_retriever
+            from biblicus.workflow import build_plan_for_index
         except Exception as exc:
-            raise RuntimeError(f"Biblicus retrieval retriever unavailable: {exc}") from exc
+            raise RuntimeError(f"Biblicus workflow unavailable: {exc}") from exc
 
-        corpus = Corpus(Path(corpus_root))
-        retriever_impl = get_retriever(retriever_id)
-        configuration_name = retriever_name
-
-        if extraction_pipeline and isinstance(extraction_pipeline, dict):
-            extraction_manifest = build_extraction_snapshot(
-                corpus,
-                extractor_id="pipeline",
-                configuration_name=f"{retriever.corpus or retriever_name}-extract",
-                configuration=extraction_pipeline,
-            )
-            if isinstance(index_config, dict) and "extraction_snapshot" not in index_config:
-                index_config["extraction_snapshot"] = (
-                    f"{extraction_manifest.configuration.extractor_id}:"
-                    f"{extraction_manifest.snapshot_id}"
-                )
-        snapshot = retriever_impl.build_snapshot(
-            corpus, configuration_name=configuration_name, configuration=index_config
+        corpus = self._open_or_init_corpus(Path(corpus_root))
+        plan = build_plan_for_index(
+            corpus,
+            retriever_id,
+            pipeline_config=pipeline_config,
+            index_config=index_config,
+            load_handler_available=bool(load_task_name),
         )
 
-        return snapshot.model_dump()
+        handlers = {
+            "load": load_task_name,
+            "extract": extract_task_name,
+            "index": index_task_name,
+        }
+        return plan, corpus, handlers
+
+    def _execute_retriever_tasks(self, task_name: str, retriever_names: list[str]) -> Any:
+        if not retriever_names:
+            raise RuntimeError(f"No retrievers available for task '{task_name}'")
+
+        base_task = task_name.split(":")[0]
+        if base_task == "index":
+            results = []
+            for retriever_name in retriever_names:
+                results.append(self._execute_retriever_index(retriever_name))
+            return results[0] if len(results) == 1 else results
+
+        raise RuntimeError(f"Retriever task '{base_task}' is not supported")
+
+    def _execute_retriever_index(self, retriever_name: str) -> Any:
+        plan, corpus, handlers = self._build_retriever_index_plan(retriever_name)
+        results = self._execute_dependency_plan(
+            plan=plan,
+            corpus=corpus,
+            label=f"retriever '{retriever_name}'",
+            load_task_name=handlers.get("load"),
+            extract_task_name=handlers.get("extract"),
+            index_task_name=handlers.get("index"),
+        )
+        return results[-1] if results else {"status": "up-to-date"}
 
     def _resolve_task(self, task_name: str) -> Optional[TaskDeclaration]:
         if not self.registry:
@@ -2802,6 +3037,21 @@ class TactusRuntime:
             if task in supported_retriever_tasks(retriever_id):
                 targets.append(retriever_name)
 
+        if target:
+            return [name for name in targets if name == target]
+        return targets
+
+    def _resolve_corpus_task_targets(self, task_name: str) -> list[str]:
+        if not self.registry or not self.registry.corpora:
+            return []
+        segments = [segment for segment in task_name.split(":") if segment]
+        if not segments:
+            return []
+        task = segments[0]
+        target = segments[1] if len(segments) > 1 else None
+        if task != "extract":
+            return []
+        targets = list(self.registry.corpora.keys())
         if target:
             return [name for name in targets if name == target]
         return targets

@@ -30,6 +30,11 @@ This brief is the source of truth for implementation decisions.
 - Evidence
 - Configuration
 - Pipeline
+- Load
+- Ingest
+- Extract
+- Index
+- Query
 
 Removed from user-facing vocabulary:
 - backend
@@ -77,6 +82,7 @@ miami_search = TfVector.Retriever {
 ### Task (explicit)
 ```lua
 Task "fetch" {
+  provides = { kind = "load", corpus = "miami_afd" },
   Task "NOAA" {
     entry = function()
       return FetchNoaaAfd { wfo = "MFL", max_items = 5, corpus = miami_afd }
@@ -88,6 +94,7 @@ Task "fetch" {
 ### Task (assignment sugar)
 ```lua
 fetch = Task {
+  provides = { kind = "load", corpus = "miami_afd" },
   NOAA = Task {
     entry = function()
       return FetchNoaaAfd { wfo = "MFL", max_items = 5, corpus = miami_afd }
@@ -170,6 +177,26 @@ The script-mode transform must treat these as declarations (not executable code)
   - `tactus file.tac index:retriever_name` runs only that retriever.
 - If a user-defined `Task "index"` exists, it overrides auto-aggregation.
 
+## Biblicus-First Task Dependencies (Load → Extract → Index)
+- Biblicus owns dependency planning/execution via `Task` + `Plan` (no TaskSpec).
+- Built-in dependency rules:
+  - `query → index` (if no compatible retrieval snapshot exists)
+  - `index → extract` (always)
+  - `extract → load` (only if corpus empty and a load handler exists)
+  - `ingest` has no dependencies
+- Default extraction pipeline is pass-through text if none configured.
+- Task kind aliases normalize to canonical kinds:
+  - `fetch`/`sync → load`
+  - `build → index`
+  - `run → query`
+
+### Task dependency hooks (Tactus)
+Tasks can plug into Biblicus dependency planning via:
+- `depends_on = {"load", "extract"}`
+- `provides = { kind = "load", corpus = "miami_afd" }`
+
+`provides` lets custom tasks satisfy built-in dependency kinds.
+
 ## Snapshot Semantics
 - Retrieval build artifacts are called **snapshots** (not runs/indexes).
 - Use `snapshot`, `snapshot_id`, `snapshot_manifest`, `snapshot_artifacts`.
@@ -191,6 +218,12 @@ Retriever auto-tasks:
 - If two retrievers support `index`, `tactus file.tac index` runs both in order.
 - `tactus file.tac index:retriever_a` runs only that retriever.
 - User-defined `Task "index"` overrides auto aggregation.
+
+Dependency planning:
+- `tactus file.tac run` prompts when dependencies (load/extract/index) are required.
+- `tactus file.tac run --auto-deps` executes dependency tasks without prompting.
+- `tactus file.tac run --no-deps` fails fast if dependencies are missing.
+- `provides` tasks can satisfy `load` dependencies (e.g. fetch task).
 
 Extraction:
 - `pipeline.extract` runs automatically on ingest.

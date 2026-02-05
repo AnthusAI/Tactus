@@ -505,6 +505,12 @@ def run(
     real: Optional[list[str]] = typer.Option(
         None, "--real", help="Use real implementation for specific tool(s)"
     ),
+    auto_deps: bool = typer.Option(
+        False, "--auto-deps", help="Automatically run dependency tasks without prompting"
+    ),
+    no_deps: bool = typer.Option(
+        False, "--no-deps", help="Fail fast if dependency tasks are required"
+    ),
     sandbox: Optional[bool] = typer.Option(
         None,
         "--sandbox/--no-sandbox",
@@ -566,6 +572,15 @@ def run(
     # Check if file exists
     if not workflow_file.exists():
         console.print(f"[red]Error:[/red] Workflow file not found: {workflow_file}")
+        raise typer.Exit(1)
+
+    if not isinstance(auto_deps, bool):
+        auto_deps = False
+    if not isinstance(no_deps, bool):
+        no_deps = False
+
+    if auto_deps and no_deps:
+        console.print("[red]Error:[/red] --auto-deps and --no-deps cannot be combined")
         raise typer.Exit(1)
 
     # Determine format based on extension
@@ -808,6 +823,15 @@ def run(
         tool_paths=tool_paths,
         source_file_path=str(workflow_file),
     )
+    runtime.dependency_mode = "auto" if auto_deps else "none" if no_deps else "prompt"
+
+    def _dependency_prompt_handler(plan, label: str) -> bool:
+        pending = [task.kind for task in plan.tasks if task.status != "complete"]
+        pending_summary = ", ".join(pending) if pending else "none"
+        console.print(f"[yellow]Dependencies required for {label}: {pending_summary}[/yellow]")
+        return typer.confirm("Run dependencies now?", default=False)
+
+    runtime.dependency_prompt_handler = _dependency_prompt_handler
 
     # Always create a mock manager so Mocks {} blocks can register tool mocks.
     from tactus.core.mocking import MockManager, set_current_mock_manager

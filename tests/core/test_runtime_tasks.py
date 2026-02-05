@@ -1,5 +1,4 @@
 from types import SimpleNamespace
-import types
 
 import pytest
 
@@ -230,68 +229,15 @@ def test_execute_retriever_tasks_rejects_unknown_task():
 
 
 def test_execute_retriever_index_happy_path(monkeypatch, tmp_path):
-    class DummySnapshot:
-        def __init__(self, payload):
-            self._payload = payload
-
-        def model_dump(self):
-            return dict(self._payload)
-
-    class DummyRetrieverImpl:
-        def __init__(self):
-            self.calls = []
-
-        def build_snapshot(self, corpus, configuration_name, configuration):
-            self.calls.append((corpus, configuration_name, configuration))
-            return DummySnapshot({"ok": True, "configuration": configuration})
-
-    class DummyManifest:
-        def __init__(self):
-            self.configuration = SimpleNamespace(extractor_id="pipeline")
-            self.snapshot_id = "snap-1"
-
-    retriever_impl = DummyRetrieverImpl()
-
-    def fake_get_retriever(_retriever_id):
-        return retriever_impl
-
-    def fake_build_extraction_snapshot(_corpus, **_kwargs):
-        return DummyManifest()
-
-    fake_modules = {
-        "biblicus": types.SimpleNamespace(),
-        "biblicus.corpus": types.SimpleNamespace(Corpus=lambda path: ("corpus", path)),
-        "biblicus.extraction": types.SimpleNamespace(
-            build_extraction_snapshot=fake_build_extraction_snapshot
-        ),
-        "biblicus.retrievers": types.SimpleNamespace(get_retriever=fake_get_retriever),
-    }
-    for name, module in fake_modules.items():
-        monkeypatch.setitem(__import__("sys").modules, name, module)
-
-    retriever = SimpleNamespace(
-        corpus="docs",
-        config={
-            "retriever_id": "tf-vector",
-            "configuration": {"pipeline": {"index": {}}},
-        },
-    )
-    corpus_decl = SimpleNamespace(
-        config={
-            "root": str(tmp_path),
-            "configuration": {"pipeline": {"extract": {"stage": "extract"}}},
-        }
-    )
-    registry = SimpleNamespace(retrievers={"r1": retriever}, corpora={"docs": corpus_decl})
+    registry = SimpleNamespace(retrievers={}, corpora={})
     runtime = TactusRuntime.__new__(TactusRuntime)
     runtime.registry = registry
+    runtime._build_retriever_index_plan = lambda _name: ("plan", "corpus", {})
+    runtime._execute_dependency_plan = lambda **_kwargs: [{"ok": True}]
 
     result = runtime._execute_retriever_index("r1")
 
     assert result["ok"] is True
-    assert retriever_impl.calls
-    _, _, config = retriever_impl.calls[0]
-    assert config["extraction_snapshot"] == "pipeline:snap-1"
 
 
 def test_execute_retriever_index_rejects_missing_registry():
@@ -354,249 +300,45 @@ def test_execute_retriever_index_import_error(monkeypatch):
     runtime = TactusRuntime.__new__(TactusRuntime)
     runtime.registry = registry
 
-    monkeypatch.setitem(__import__("sys").modules, "biblicus.corpus", None)
-    monkeypatch.setitem(__import__("sys").modules, "biblicus.extraction", None)
-    monkeypatch.setitem(__import__("sys").modules, "biblicus.retrievers", None)
+    monkeypatch.setitem(__import__("sys").modules, "biblicus.workflow", None)
 
-    with pytest.raises(RuntimeError, match="Biblicus retrieval retriever unavailable"):
-        runtime._execute_retriever_index("r1")
+    with pytest.raises(RuntimeError, match="Biblicus workflow unavailable"):
+        runtime._build_retriever_index_plan("r1")
 
 
-def test_execute_retriever_index_normalizes_pipeline_lists(monkeypatch, tmp_path):
-    class DummySnapshot:
-        def __init__(self, payload):
-            self._payload = payload
+def test_retriever_index_config_normalizes_pipeline_lists():
+    runtime = TactusRuntime.__new__(TactusRuntime)
+    retriever = SimpleNamespace(config={"retriever_id": "tf-vector", "pipeline": {"index": []}})
 
-        def model_dump(self):
-            return dict(self._payload)
+    assert runtime._retriever_index_config(retriever) == {}
 
-    class DummyRetrieverImpl:
-        def build_snapshot(self, _corpus, configuration_name, configuration):
-            return DummySnapshot({"config": configuration, "name": configuration_name})
 
-    fake_modules = {
-        "biblicus": types.SimpleNamespace(),
-        "biblicus.corpus": types.SimpleNamespace(Corpus=lambda path: ("corpus", path)),
-        "biblicus.extraction": types.SimpleNamespace(
-            build_extraction_snapshot=lambda *_a, **_k: None
-        ),
-        "biblicus.retrievers": types.SimpleNamespace(
-            get_retriever=lambda _rid: DummyRetrieverImpl()
-        ),
-    }
-    for name, module in fake_modules.items():
-        monkeypatch.setitem(__import__("sys").modules, name, module)
-
+def test_retriever_index_config_prefers_configuration_pipeline():
+    runtime = TactusRuntime.__new__(TactusRuntime)
     retriever = SimpleNamespace(
-        corpus="docs",
         config={
             "retriever_id": "tf-vector",
-            "pipeline": {"index": []},
-        },
-    )
-    corpus_decl = SimpleNamespace(
-        config={
-            "root": str(tmp_path),
-            "configuration": {"pipeline": {"extract": []}},
+            "configuration": {"pipeline": {"index": {"keep": True}}},
         }
     )
-    registry = SimpleNamespace(retrievers={"r1": retriever}, corpora={"docs": corpus_decl})
+
+    assert runtime._retriever_index_config(retriever) == {"keep": True}
+
+
+def test_corpus_pipeline_config_extract_from_pipeline():
     runtime = TactusRuntime.__new__(TactusRuntime)
-    runtime.registry = registry
-
-    result = runtime._execute_retriever_index("r1")
-
-    assert result["config"] == {}
-
-
-def test_execute_retriever_index_skips_non_dict_corpus_pipeline(monkeypatch, tmp_path):
-    class DummySnapshot:
-        def __init__(self, payload):
-            self._payload = payload
-
-        def model_dump(self):
-            return dict(self._payload)
-
-    class DummyRetrieverImpl:
-        def build_snapshot(self, _corpus, configuration_name, configuration):
-            return DummySnapshot({"config": configuration, "name": configuration_name})
-
-    def fail_snapshot(*_args, **_kwargs):
-        raise AssertionError("extraction snapshot should not be built")
-
-    fake_modules = {
-        "biblicus": types.SimpleNamespace(),
-        "biblicus.corpus": types.SimpleNamespace(Corpus=lambda path: ("corpus", path)),
-        "biblicus.extraction": types.SimpleNamespace(build_extraction_snapshot=fail_snapshot),
-        "biblicus.retrievers": types.SimpleNamespace(
-            get_retriever=lambda _rid: DummyRetrieverImpl()
-        ),
-    }
-    for name, module in fake_modules.items():
-        monkeypatch.setitem(__import__("sys").modules, name, module)
-
-    retriever = SimpleNamespace(
-        corpus="docs",
-        config={"retriever_id": "tf-vector", "pipeline": {"index": {}}},
-    )
     corpus_decl = SimpleNamespace(
-        config={"root": str(tmp_path), "configuration": {"pipeline": ["bad"]}}
+        config={"configuration": {"pipeline": {"extract": {"steps": []}}}}
     )
-    registry = SimpleNamespace(retrievers={"r1": retriever}, corpora={"docs": corpus_decl})
+
+    assert runtime._corpus_pipeline_config(corpus_decl) == {"steps": []}
+
+
+def test_corpus_pipeline_config_skips_non_dict_pipeline():
     runtime = TactusRuntime.__new__(TactusRuntime)
-    runtime.registry = registry
+    corpus_decl = SimpleNamespace(config={"configuration": {"pipeline": ["bad"]}})
 
-    result = runtime._execute_retriever_index("r1")
-
-    assert result["config"] == {}
-
-
-def test_execute_retriever_index_normalizes_extraction_list(monkeypatch, tmp_path):
-    class DummySnapshot:
-        def __init__(self, payload):
-            self._payload = payload
-
-        def model_dump(self):
-            return dict(self._payload)
-
-    class DummyRetrieverImpl:
-        def build_snapshot(self, _corpus, configuration_name, configuration):
-            return DummySnapshot({"config": configuration, "name": configuration_name})
-
-    fake_modules = {
-        "biblicus": types.SimpleNamespace(),
-        "biblicus.corpus": types.SimpleNamespace(Corpus=lambda path: ("corpus", path)),
-        "biblicus.extraction": types.SimpleNamespace(
-            build_extraction_snapshot=lambda *_a, **_k: None
-        ),
-        "biblicus.retrievers": types.SimpleNamespace(
-            get_retriever=lambda _rid: DummyRetrieverImpl()
-        ),
-    }
-    for name, module in fake_modules.items():
-        monkeypatch.setitem(__import__("sys").modules, name, module)
-
-    retriever = SimpleNamespace(
-        corpus="docs",
-        config={
-            "retriever_id": "tf-vector",
-            "configuration": {"pipeline": {"index": {}}},
-        },
-    )
-    corpus_decl = SimpleNamespace(
-        config={
-            "root": str(tmp_path),
-            "configuration": {"pipeline": {"extract": ["step"]}},
-        }
-    )
-    registry = SimpleNamespace(retrievers={"r1": retriever}, corpora={"docs": corpus_decl})
-    runtime = TactusRuntime.__new__(TactusRuntime)
-    runtime.registry = registry
-
-    result = runtime._execute_retriever_index("r1")
-
-    assert result["config"] == {}
-
-
-def test_execute_retriever_index_skips_non_dict_corpus_configuration(monkeypatch, tmp_path):
-    class DummySnapshot:
-        def __init__(self, payload):
-            self._payload = payload
-
-        def model_dump(self):
-            return dict(self._payload)
-
-    class DummyRetrieverImpl:
-        def build_snapshot(self, _corpus, configuration_name, configuration):
-            return DummySnapshot({"config": configuration, "name": configuration_name})
-
-    fake_modules = {
-        "biblicus": types.SimpleNamespace(),
-        "biblicus.corpus": types.SimpleNamespace(Corpus=lambda path: ("corpus", path)),
-        "biblicus.extraction": types.SimpleNamespace(
-            build_extraction_snapshot=lambda *_a, **_k: None
-        ),
-        "biblicus.retrievers": types.SimpleNamespace(
-            get_retriever=lambda _rid: DummyRetrieverImpl()
-        ),
-    }
-    for name, module in fake_modules.items():
-        monkeypatch.setitem(__import__("sys").modules, name, module)
-
-    retriever = SimpleNamespace(
-        corpus="docs",
-        config={
-            "retriever_id": "tf-vector",
-            "configuration": {"pipeline": {"index": {}}},
-        },
-    )
-    corpus_decl = SimpleNamespace(
-        config={
-            "root": str(tmp_path),
-            "configuration": ["nope"],
-        }
-    )
-    registry = SimpleNamespace(retrievers={"r1": retriever}, corpora={"docs": corpus_decl})
-    runtime = TactusRuntime.__new__(TactusRuntime)
-    runtime.registry = registry
-
-    result = runtime._execute_retriever_index("r1")
-
-    assert result["config"] == {}
-
-
-def test_execute_retriever_index_preserves_existing_extraction_snapshot(monkeypatch, tmp_path):
-    class DummySnapshot:
-        def __init__(self, payload):
-            self._payload = payload
-
-        def model_dump(self):
-            return dict(self._payload)
-
-    class DummyRetrieverImpl:
-        def build_snapshot(self, _corpus, configuration_name, configuration):
-            return DummySnapshot({"config": configuration, "name": configuration_name})
-
-    class DummyManifest:
-        def __init__(self):
-            self.configuration = SimpleNamespace(extractor_id="pipeline")
-            self.snapshot_id = "snap-1"
-
-    fake_modules = {
-        "biblicus": types.SimpleNamespace(),
-        "biblicus.corpus": types.SimpleNamespace(Corpus=lambda path: ("corpus", path)),
-        "biblicus.extraction": types.SimpleNamespace(
-            build_extraction_snapshot=lambda *_a, **_k: DummyManifest()
-        ),
-        "biblicus.retrievers": types.SimpleNamespace(
-            get_retriever=lambda _rid: DummyRetrieverImpl()
-        ),
-    }
-    for name, module in fake_modules.items():
-        monkeypatch.setitem(__import__("sys").modules, name, module)
-
-    retriever = SimpleNamespace(
-        corpus="docs",
-        config={
-            "retriever_id": "tf-vector",
-            "configuration": {
-                "pipeline": {"index": {"extraction_snapshot": "keep-me"}},
-            },
-        },
-    )
-    corpus_decl = SimpleNamespace(
-        config={
-            "root": str(tmp_path),
-            "configuration": {"pipeline": {"extract": {"stage": "extract"}}},
-        }
-    )
-    registry = SimpleNamespace(retrievers={"r1": retriever}, corpora={"docs": corpus_decl})
-    runtime = TactusRuntime.__new__(TactusRuntime)
-    runtime.registry = registry
-
-    result = runtime._execute_retriever_index("r1")
-
-    assert result["config"]["extraction_snapshot"] == "keep-me"
+    assert runtime._corpus_pipeline_config(corpus_decl) is None
 
 
 def test_resolve_task_inline_child():

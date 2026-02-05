@@ -461,7 +461,13 @@ def create_dsl_stubs(
             if hasattr(task_config, "items"):
                 child_tasks = {}
                 for key, value in task_config.items():
-                    if isinstance(key, str) and hasattr(value, "items"):
+                    if not (isinstance(key, str) and hasattr(value, "items")):
+                        continue
+                    try:
+                        marker = value["__tactus_task_config"]
+                    except Exception:
+                        marker = False
+                    if marker:
                         child_tasks[key] = value
                 if child_tasks:
                     try:

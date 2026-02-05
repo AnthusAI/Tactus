@@ -95,6 +95,30 @@ All checkpoints are tracked by execution position, not name. This enables:
 }
 ```
 
+---
+
+## Tasks + Dependency Planning
+
+**Status**: ✅ **Implemented (Biblicus-first dependency engine)**
+
+### Task declarations
+- **Registry model**: `tactus/core/registry.py` (`TaskDeclaration`)
+- **DSL stubs**: `tactus/core/dsl_stubs.py` (`Task`, `IncludeTasks`)
+- **Runtime registration**: `tactus/core/runtime.py` (`_register_assignment_tasks`)
+
+### Dependency planning
+- **Biblicus plan builder**: `biblicus.workflow` (`Task`, `Plan`, `build_plan_for_*`)
+- **Runtime execution**: `tactus/core/runtime.py`
+  - `_execute_run_dependencies()` before running main/script mode
+  - `_execute_retriever_index()` uses Biblicus plans + handlers
+  - `depends_on` executed before task entries
+  - `provides` maps custom tasks to dependency kinds (e.g., load)
+
+### CLI UX
+- `tactus/cli/app.py` flags:
+  - `--auto-deps` to run dependencies automatically
+  - `--no-deps` to fail fast when dependencies are missing
+
 **Status**: ✅ **Fully Implemented** (Local execution context)
 
 **Note**: Lambda Durable Execution Context mentioned in spec is **not implemented**. Only local context exists.

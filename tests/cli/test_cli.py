@@ -128,6 +128,8 @@ def test_cli_run_help_includes_logging_options(cli_runner):
     assert result.exit_code == 0
     assert "--log-level" in result.stdout
     assert "--log-format" in result.stdout
+    assert "--auto-deps" in result.stdout
+    assert "--no-deps" in result.stdout
 
 
 def test_cli_run_accepts_log_level_and_format(cli_runner, tmp_path):
@@ -195,3 +197,20 @@ def test_cli_run_invalid_log_format(cli_runner, example_workflow_file):
     assert result.exit_code != 0
     combined_output = (result.stdout + result.stderr).lower()
     assert "log-format" in combined_output
+
+
+def test_cli_run_rejects_conflicting_dependency_flags(cli_runner, example_workflow_file):
+    """Test that run rejects --auto-deps and --no-deps together."""
+    result = cli_runner.invoke(
+        app,
+        [
+            "run",
+            str(example_workflow_file),
+            "--no-sandbox",
+            "--auto-deps",
+            "--no-deps",
+        ],
+    )
+    assert result.exit_code != 0
+    combined_output = (result.stdout + result.stderr).lower()
+    assert "auto-deps" in combined_output and "no-deps" in combined_output

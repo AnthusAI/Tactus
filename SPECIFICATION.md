@@ -101,6 +101,45 @@ Feature: Task Processing
 
 ---
 
+## Tasks and Dependency Planning
+
+Tasks provide statically discoverable entrypoints that complement Procedures and script mode.
+
+### Task syntax
+```lua
+Task "fetch" {
+  provides = { kind = "load", corpus = "miami_afd" },
+  entry = function()
+    return FetchNoaaAfd({ wfo = "MFL", max_items = 5 })
+  end
+}
+
+run = Task {
+  depends_on = {"index"},
+  entry = function()
+    return Miami("Summarize the recent Miami AFD.")
+  end
+}
+```
+
+### Dependency behavior
+- Built-in task kinds: `load`, `ingest`, `extract`, `index`, `query`.
+- Aliases normalize to canonical kinds:
+  - `fetch`/`sync → load`
+  - `build → index`
+  - `run → query`
+- `index` depends on `extract`; `extract` depends on `load` when the corpus is empty.
+- Task `provides` declarations allow custom tasks to satisfy dependency kinds.
+
+### CLI integration
+- `tactus file.tac index` runs all retrievers that support indexing.
+- `tactus file.tac index:retriever_name` runs a single retriever.
+- `tactus file.tac run` prompts before running dependency tasks unless:
+  - `--auto-deps` is set (run dependencies automatically)
+  - `--no-deps` is set (fail fast if dependencies are missing)
+
+---
+
 ## Input
 
 Input schema defines what the procedure accepts. Validated before execution.

@@ -44,6 +44,7 @@ Miami = Agent {
 }
 
 Task "fetch" {
+  provides = { kind = "load", corpus = "miami_afd" },
   entry = function()
     return FetchNoaaAfd({
       wfo = "MFL",

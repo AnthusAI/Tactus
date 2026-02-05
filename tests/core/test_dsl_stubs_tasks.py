@@ -136,7 +136,7 @@ def test_task_stub_assignment_records_child_tasks():
     builder = RegistryBuilder()
     stubs = create_dsl_stubs(builder)
 
-    config = stubs["Task"]({"NOAA": {"entry": lambda: None}})
+    config = stubs["Task"]({"NOAA": {"entry": lambda: None, "__tactus_task_config": True}})
 
     assert config.get("__tactus_child_tasks") is not None
 

@@ -164,6 +164,8 @@ def test_run_non_sandbox_success(tmp_path, monkeypatch):
         real=None,
         log_level=None,
         log_format="rich",
+        auto_deps=False,
+        no_deps=False,
     )
 
 
@@ -190,6 +192,8 @@ def test_run_waiting_for_human(tmp_path, monkeypatch):
         real=None,
         log_level=None,
         log_format="rich",
+        auto_deps=False,
+        no_deps=False,
     )
 
 
