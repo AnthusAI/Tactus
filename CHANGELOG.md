@@ -2,6 +2,17 @@
 
 <!-- version list -->
 
+## v0.40.0 (2026-02-05)
+
+### Bug Fixes
+
+- Avoid duplicate run dependency execution
+  ([`f0ead11`](https://github.com/AnthusAI/Tactus/commit/f0ead110e30a97b9c229dee5efaec7008f486269))
+
+- Normalize task kind aliases without biblicus
+  ([`62296b7`](https://github.com/AnthusAI/Tactus/commit/62296b7528540f0079c73e7f64655a6bc05c1498))
+
+
 ## v0.39.0 (2026-02-05)
 
 
