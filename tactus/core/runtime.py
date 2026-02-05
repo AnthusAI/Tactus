@@ -2804,7 +2804,6 @@ class TactusRuntime:
         if task is None:
             # Allow run fallback to main procedure
             if task_name == "run":
-                self._execute_run_dependencies()
                 self.task_name = None
                 return self._execute_workflow()
 
