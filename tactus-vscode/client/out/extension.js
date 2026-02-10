@@ -35,7 +35,7 @@ async function findPython() {
  */
 async function checkLSPServer(pythonCmd) {
     try {
-        (0, child_process_1.execSync)(`${pythonCmd} -m tactus_lsp_server --version`, { stdio: 'ignore' });
+        (0, child_process_1.execSync)(`${pythonCmd} -c "import tactus_lsp_server"`, { stdio: 'ignore' });
         return true;
     }
     catch {

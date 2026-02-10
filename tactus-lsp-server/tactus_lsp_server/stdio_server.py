@@ -19,8 +19,6 @@ from pygls.lsp.types import (
     SignatureHelpParams,
     SemanticTokensParams,
     SemanticTokens,
-    SemanticTokensLegend,
-    SemanticTokensRegistrationOptions,
     TEXT_DOCUMENT_DID_OPEN,
     TEXT_DOCUMENT_DID_CHANGE,
     TEXT_DOCUMENT_DID_CLOSE,
@@ -31,7 +29,6 @@ from pygls.lsp.types import (
 )
 
 from tactus_lsp_server.handler import TactusLSPHandler
-from tactus_lsp_server.semantic_tokens import get_token_types, get_token_modifiers
 
 # Configure logging to stderr (stdout is used for LSP communication)
 logging.basicConfig(

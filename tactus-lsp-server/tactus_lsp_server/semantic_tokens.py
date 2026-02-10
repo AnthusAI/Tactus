@@ -9,13 +9,17 @@ Provides semantic highlighting by analyzing the registry to identify:
 - Configuration properties
 """
 
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Any, Optional, Tuple
 
 # Token types indices (must match order in server capabilities)
 TOKEN_TYPES = ["keyword", "type", "variable", "property", "function", "parameter"]
 
 # Token modifiers indices
 TOKEN_MODIFIERS = ["declaration", "definition", "readonly"]
+
+
+def _is_identifier_char(char: str) -> bool:
+    return char.isalnum() or char == "_"
 
 
 def encode_semantic_tokens(registry: Any, document_lines: List[str]) -> Optional[List[int]]:
@@ -87,11 +91,23 @@ def encode_semantic_tokens(registry: Any, document_lines: List[str]) -> Optional
         # Look for field builders (field.string, field.number, etc.)
         field_keywords = ["field.string", "field.number", "field.boolean", "field.array", "field.object"]
         for field_kw in field_keywords:
-            col = line.find(field_kw)
-            if col != -1:
+            col = 0
+            while True:
+                col = line.find(field_kw, col)
+                if col == -1:
+                    break
+                before_char = line[col - 1] if col > 0 else ""
+                after_index = col + len(field_kw)
+                after_char = line[after_index] if after_index < len(line) else ""
+                if (before_char and _is_identifier_char(before_char)) or (
+                    after_char and _is_identifier_char(after_char)
+                ):
+                    col += 1
+                    continue
                 token_type = TOKEN_TYPES.index("function")
                 token_mods = 0
                 tokens.append((line_idx, col, len(field_kw), token_type, token_mods))
+                col += 1
 
         # Look for property names in agent/procedure configs (provider, model, etc.)
         properties = ["provider", "model", "system_prompt", "tools", "input", "output",
@@ -102,10 +118,20 @@ def encode_semantic_tokens(registry: Any, document_lines: List[str]) -> Optional
                 col = line.find(prop, col)
                 if col == -1:
                     break
+                before_char = line[col - 1] if col > 0 else ""
+                after_index = col + len(prop)
+                after_char = line[after_index] if after_index < len(line) else ""
+                if (before_char and _is_identifier_char(before_char)) or (
+                    after_char and _is_identifier_char(after_char)
+                ):
+                    col += 1
+                    continue
 
-                # Check if followed by '=' (property assignment)
-                equals_pos = line.find("=", col)
-                if equals_pos != -1 and equals_pos - col < len(prop) + 5:
+                # Check if followed by '=' after optional whitespace
+                scan_index = after_index
+                while scan_index < len(line) and line[scan_index].isspace():
+                    scan_index += 1
+                if scan_index < len(line) and line[scan_index] == "=":
                     token_type = TOKEN_TYPES.index("property")
                     token_mods = 0
                     tokens.append((line_idx, col, len(prop), token_type, token_mods))

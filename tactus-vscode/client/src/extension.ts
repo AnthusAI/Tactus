@@ -40,7 +40,7 @@ async function findPython(): Promise<string> {
  */
 async function checkLSPServer(pythonCmd: string): Promise<boolean> {
   try {
-    execSync(`${pythonCmd} -m tactus_lsp_server --version`, { stdio: 'ignore' });
+    execSync(`${pythonCmd} -c "import tactus_lsp_server"`, { stdio: 'ignore' });
     return true;
   } catch {
     return false;
