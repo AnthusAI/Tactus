@@ -1,0 +1,17 @@
+.vscode/**
+.vscode-test/**
+node_modules/**
+.gitignore
+.gitattributes
+*.vsix
+*.log
+.DS_Store
+.editorconfig
+tsconfig.json
+*.md
+!README.md
+client/src/**
+client/node_modules/**
+client/package.json
+client/tsconfig.json
+src/**

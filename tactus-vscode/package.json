@@ -1,0 +1,71 @@
+{
+  "name": "tactus",
+  "displayName": "Tactus",
+  "description": "Language support for Tactus AI workflow language with syntax highlighting, validation, and code intelligence",
+  "version": "0.1.1",
+  "publisher": "AnthusAISolutions",
+  "author": "Ryan Porter",
+  "license": "MIT",
+  "homepage": "https://tactus.anth.us",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AnthusAI/Tactus"
+  },
+  "bugs": {
+    "url": "https://github.com/AnthusAI/Tactus/issues"
+  },
+  "icon": "icon.png",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "keywords": [
+    "tactus",
+    "lua",
+    "ai",
+    "agent",
+    "workflow",
+    "dsl",
+    "lsp"
+  ],
+  "main": "./client/out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "tactus",
+        "aliases": [
+          "Tactus",
+          "tactus"
+        ],
+        "extensions": [
+          ".tac"
+        ],
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./icon.png",
+          "dark": "./icon.png"
+        }
+      }
+    ],
+    "grammars": [
+      {
+        "language": "tactus",
+        "scopeName": "source.tactus",
+        "path": "./syntaxes/tactus.tmLanguage.json"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "cd client && npm install && npx tsc -b",
+    "watch": "cd client && npx tsc -b -w",
+    "package": "npm install && npm run compile && npx vsce package",
+    "publish": "npm install && npm run compile && npx vsce publish"
+  },
+  "devDependencies": {
+    "@vscode/vsce": "^2.22.0",
+    "typescript": "^5.3.0"
+  }
+}

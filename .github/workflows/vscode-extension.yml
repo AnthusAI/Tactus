@@ -1,0 +1,95 @@
+name: VSCode Extension CI
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'tactus-vscode/**'
+      - 'tactus-lsp-server/**'
+      - '.github/workflows/vscode-extension.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'tactus-vscode/**'
+      - 'tactus-lsp-server/**'
+  workflow_dispatch:
+
+jobs:
+  test-extension:
+    name: Test VSCode Extension
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-js-version: '18'
+
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install Tactus core
+      run: |
+        pip install -e .
+
+    - name: Install LSP server
+      run: |
+        cd tactus-lsp-server
+        pip install -e .
+
+    - name: Test LSP server can start
+      run: |
+        timeout 5s python -m tactus_lsp_server.stdio_server || [ $? -eq 124 ]
+
+    - name: Compile VSCode extension
+      run: |
+        cd tactus-vscode
+        npm run compile
+
+    - name: Package extension
+      run: |
+        cd tactus-vscode
+        npm run package
+
+    - name: Upload VSIX artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: tactus-vscode-extension
+        path: tactus-vscode/*.vsix
+        retention-days: 30
+
+  publish-lsp-server:
+    name: Publish LSP Server to PyPI
+    runs-on: ubuntu-latest
+    needs: test-extension
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install build tools
+      run: |
+        pip install build twine
+
+    - name: Build package
+      run: |
+        cd tactus-lsp-server
+        python -m build
+
+    - name: Publish to PyPI (if version changed)
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+      run: |
+        cd tactus-lsp-server
+        # Only publish if this version doesn't exist on PyPI
+        twine upload --skip-existing dist/*
