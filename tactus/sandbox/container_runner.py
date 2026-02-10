@@ -216,6 +216,41 @@ class ContainerRunner:
 
         return None
 
+    def _find_biblicus_source_dir(self, tactus_src_dir: Optional[Path] = None) -> Optional[Path]:
+        """
+        Find the Biblicus source directory for development mode.
+
+        Searches in order:
+        1. BIBLICUS_DEV_PATH environment variable
+        2. Directory containing the biblicus module (via __file__)
+        3. Sibling repo next to Tactus source (../Biblicus)
+
+        Returns:
+            Path to Biblicus repository root, or None if not found.
+        """
+        env_path = os.environ.get("BIBLICUS_DEV_PATH")
+        if env_path:
+            path = Path(env_path).resolve()
+            if (path / "src" / "biblicus").is_dir():
+                return path
+
+        try:
+            import biblicus
+
+            biblicus_module_path = Path(biblicus.__file__).resolve()
+            repo_root = biblicus_module_path.parents[2]
+            if (repo_root / "src" / "biblicus").is_dir():
+                return repo_root
+        except Exception:
+            pass
+
+        if tactus_src_dir:
+            sibling = tactus_src_dir.parent / "Biblicus"
+            if (sibling / "src" / "biblicus").is_dir():
+                return sibling
+
+        return None
+
     def _build_docker_command(
         self,
         working_dir: Path,
@@ -273,6 +308,18 @@ class ContainerRunner:
             if tactus_src_dir:
                 logger.info("[DEV MODE] Mounting live Tactus source from: %s", tactus_src_dir)
                 docker_command.extend(["-v", f"{tactus_src_dir}/tactus:/app/tactus:ro"])
+                biblicus_src_dir = self._find_biblicus_source_dir(tactus_src_dir)
+                if biblicus_src_dir:
+                    logger.info(
+                        "[DEV MODE] Mounting live Biblicus source from: %s",
+                        biblicus_src_dir,
+                    )
+                    docker_command.extend(["-v", f"{biblicus_src_dir}:/app/biblicus:ro"])
+                    existing_pythonpath = self.config.env.get("PYTHONPATH", "")
+                    pythonpath_entries = ["/app/biblicus/src"]
+                    if existing_pythonpath:
+                        pythonpath_entries.append(existing_pythonpath)
+                    self.config.env["PYTHONPATH"] = ":".join(pythonpath_entries)
             else:
                 logger.warning(
                     "[DEV MODE] Could not locate Tactus source directory, using baked-in version"

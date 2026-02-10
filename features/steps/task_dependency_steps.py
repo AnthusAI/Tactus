@@ -7,6 +7,8 @@ import tempfile
 from pathlib import Path
 
 from behave import given, then
+from biblicus.corpus import Corpus
+from biblicus.migration import migrate_layout
 
 
 @given("a NOAA corpus fixture copy")
@@ -19,6 +21,15 @@ def step_copy_noaa_corpus(context):
     corpus_root = Path(temp_dir) / "MFL"
     shutil.copytree(fixture_root, corpus_root, dirs_exist_ok=True)
     context.corpus_root = corpus_root
+    legacy_meta = corpus_root / ".biblicus"
+    new_meta = corpus_root / "metadata"
+    if legacy_meta.exists() and not new_meta.exists():
+        migrate_layout(corpus_root=corpus_root, force=True)
+    corpus = Corpus.open(corpus_root)
+    if not corpus.has_items():
+        raw_root = corpus.raw_dir
+        if raw_root.exists():
+            corpus.import_tree(raw_root)
 
 
 @given("an empty corpus workspace")
@@ -164,33 +175,46 @@ def step_set_cli_input(context, value):
 @then("an extraction snapshot should exist")
 def step_assert_extraction_snapshot(context):
     corpus_root = Path(context.corpus_root)
-    snapshots_root = corpus_root / ".biblicus" / "snapshots" / "extraction"
-    if not snapshots_root.exists():
+    legacy_snapshots_root = corpus_root / ".biblicus" / "snapshots" / "extraction"
+    extracted_root = corpus_root / "extracted"
+    if legacy_snapshots_root.exists():
+        manifests = list(legacy_snapshots_root.glob("**/manifest.json"))
+        assert manifests, "No extraction snapshot manifests found"
+        return
+    if not extracted_root.exists():
         raise AssertionError("Extraction snapshots directory missing")
-
-    manifests = list(snapshots_root.glob("**/manifest.json"))
+    manifests = list(extracted_root.glob("**/manifest.json"))
     assert manifests, "No extraction snapshot manifests found"
 
 
 @then("a retrieval snapshot should exist")
 def step_assert_retrieval_snapshot(context):
     corpus_root = Path(context.corpus_root)
-    snapshots_root = corpus_root / ".biblicus" / "snapshots"
-    if not snapshots_root.exists():
+    legacy_snapshots_root = corpus_root / ".biblicus" / "snapshots"
+    retrieval_root = corpus_root / "retrieval"
+    if legacy_snapshots_root.exists():
+        snapshot_files = [path for path in legacy_snapshots_root.glob("*.json") if path.is_file()]
+        assert snapshot_files, "No retrieval snapshot manifests found"
+        return
+    if not retrieval_root.exists():
         raise AssertionError("Snapshots directory missing")
-
-    snapshot_files = [path for path in snapshots_root.glob("*.json") if path.is_file()]
+    snapshot_files = [path for path in retrieval_root.glob("**/manifest.json") if path.is_file()]
     assert snapshot_files, "No retrieval snapshot manifests found"
 
 
 @then("at least {count:d} retrieval snapshots should exist")
 def step_assert_retrieval_snapshot_count(context, count):
     corpus_root = Path(context.corpus_root)
-    snapshots_root = corpus_root / ".biblicus" / "snapshots"
-    if not snapshots_root.exists():
-        raise AssertionError("Snapshots directory missing")
-
-    snapshot_files = [path for path in snapshots_root.glob("*.json") if path.is_file()]
+    legacy_snapshots_root = corpus_root / ".biblicus" / "snapshots"
+    retrieval_root = corpus_root / "retrieval"
+    if legacy_snapshots_root.exists():
+        snapshot_files = [path for path in legacy_snapshots_root.glob("*.json") if path.is_file()]
+    else:
+        if not retrieval_root.exists():
+            raise AssertionError("Snapshots directory missing")
+        snapshot_files = [
+            path for path in retrieval_root.glob("**/manifest.json") if path.is_file()
+        ]
     assert (
         len(snapshot_files) >= count
     ), f"Expected at least {count} retrieval snapshots, found {len(snapshot_files)}"

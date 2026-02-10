@@ -178,7 +178,7 @@ def test_cli_run_invalid_log_level(cli_runner, example_workflow_file):
         ],
     )
     assert result.exit_code != 0
-    combined_output = (result.stdout + result.stderr).lower()
+    combined_output = result.output.lower()
     assert "log-level" in combined_output
 
 
@@ -195,7 +195,7 @@ def test_cli_run_invalid_log_format(cli_runner, example_workflow_file):
         ],
     )
     assert result.exit_code != 0
-    combined_output = (result.stdout + result.stderr).lower()
+    combined_output = result.output.lower()
     assert "log-format" in combined_output
 
 
@@ -212,5 +212,5 @@ def test_cli_run_rejects_conflicting_dependency_flags(cli_runner, example_workfl
         ],
     )
     assert result.exit_code != 0
-    combined_output = (result.stdout + result.stderr).lower()
+    combined_output = result.output.lower()
     assert "auto-deps" in combined_output and "no-deps" in combined_output

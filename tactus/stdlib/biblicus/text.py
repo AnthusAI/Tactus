@@ -130,9 +130,50 @@ def _run_text_tool(
     mock_result = _maybe_mock(tool_name, payload)
     if mock_result is not None:
         return mock_result
+    mock_marked_up_text = payload.pop("mock_marked_up_text", None)
+    if mock_marked_up_text is not None:
+        return _build_mock_result(tool_name, mock_marked_up_text)
     biblicus = _require_biblicus_text()
     result = biblicus[apply_key](biblicus[request_model_key](**payload))
     return result.model_dump()
+
+
+def _build_mock_result(tool_name: str, mock_marked_up_text: str) -> Dict[str, Any]:
+    """Build deterministic mock results from mock markup."""
+    biblicus = _require_biblicus_text()
+    if tool_name == "biblicus.text.slice":
+        slices = _build_slices_from_markup(mock_marked_up_text)
+        return {
+            "marked_up_text": mock_marked_up_text,
+            "slices": slices,
+            "warnings": [],
+        }
+    spans = biblicus["parse_span_markup"](mock_marked_up_text)
+    return {
+        "marked_up_text": mock_marked_up_text,
+        "spans": [span.model_dump() for span in spans],
+        "warnings": [],
+    }
+
+
+def _build_slices_from_markup(marked_up_text: str) -> List[Dict[str, Any]]:
+    """Build slice metadata based on mock <slice/> markers."""
+    parts = marked_up_text.split("<slice/>")
+    slices: List[Dict[str, Any]] = []
+    cursor = 0
+    for index, text in enumerate(parts, start=1):
+        start_char = cursor
+        end_char = start_char + len(text)
+        slices.append(
+            {
+                "index": index,
+                "start_char": start_char,
+                "end_char": end_char,
+                "text": text,
+            }
+        )
+        cursor = end_char
+    return slices
 
 
 def extract(request: Dict[str, Any]) -> Dict[str, Any]:

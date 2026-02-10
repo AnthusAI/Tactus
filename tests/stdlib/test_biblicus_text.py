@@ -374,18 +374,12 @@ def test_link_returns_mock(monkeypatch):
 
 
 def test_mock_marked_up_text_passes_through_in_mock_mode(monkeypatch):
-    class DummyRequest:
-        def __init__(self, **kwargs):
-            if "mock_marked_up_text" not in kwargs:
-                raise AssertionError("mock_marked_up_text should be preserved")
-            self.payload = kwargs
+    class DummySpan:
+        def __init__(self, text):
+            self.text = text
 
-    class DummyResponse:
         def model_dump(self):
-            return {"ok": True}
-
-    def fake_apply_text_extract(_request):
-        return DummyResponse()
+            return {"text": self.text}
 
     monkeypatch.setenv("TACTUS_MOCK_MODE", "1")
     monkeypatch.setattr(biblicus_text, "_maybe_mock", lambda *_args, **_kwargs: None)
@@ -394,8 +388,7 @@ def test_mock_marked_up_text_passes_through_in_mock_mode(monkeypatch):
         "_require_biblicus_text",
         lambda: {
             "LlmClientConfig": DummyClientConfig,
-            "TextExtractRequest": DummyRequest,
-            "apply_text_extract": fake_apply_text_extract,
+            "parse_span_markup": lambda text: [DummySpan(text)],
         },
     )
 
@@ -407,5 +400,7 @@ def test_mock_marked_up_text_passes_through_in_mock_mode(monkeypatch):
         }
     )
 
-    assert result == {"ok": True}
+    assert result["marked_up_text"] == "<span>Alice</span> met <span>Bob</span>."
+    assert result["spans"] == [{"text": "<span>Alice</span> met <span>Bob</span>."}]
+    assert result["warnings"] == []
     os.environ.pop("TACTUS_MOCK_MODE", None)

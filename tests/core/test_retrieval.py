@@ -648,7 +648,7 @@ def test_make_retriever_router_biblicus_fallback(monkeypatch):
 def test_retrieve_biblicus_context_pack_builds_snapshot(tmp_path: Path):
     corpus_root = tmp_path / "corpus"
     corpus = Corpus.init(corpus_root)
-    source_dir = tmp_path / "source"
+    source_dir = corpus_root / "source"
     source_dir.mkdir()
     (source_dir / "cats.txt").write_text("Cats love naps.")
     (source_dir / "dogs.txt").write_text("Dogs love walks.")

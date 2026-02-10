@@ -715,15 +715,19 @@ def run(
         sandbox_config_dict["broker_host"] = sandbox_broker_host
 
     if "dev_mode" not in sandbox_config_dict:
+        repo_root = None
         try:
             import tactus
 
             tactus_module_path = Path(tactus.__file__).resolve()
             repo_root = tactus_module_path.parent.parent
-            if (repo_root / "tactus").is_dir() and (repo_root / "pyproject.toml").exists():
-                sandbox_config_dict["dev_mode"] = True
+            if not ((repo_root / "tactus").is_dir() and (repo_root / "pyproject.toml").exists()):
+                repo_root = None
         except Exception:
-            pass
+            repo_root = None
+
+        if repo_root is not None:
+            sandbox_config_dict["dev_mode"] = True
 
     sandbox_config_dict["broker_transport"] = sandbox_broker
     if (

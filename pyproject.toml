@@ -101,6 +101,10 @@ Issues = "https://github.com/AnthusAI/Tactus/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["tactus"]
+include = ["tactus/stdlib/tac/**"]
+
+[tool.hatch.build.targets.sdist]
+include = ["tactus/stdlib/tac/**"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
