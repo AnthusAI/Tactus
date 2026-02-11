@@ -62,7 +62,7 @@ agent("analyst", {
 - ✅ **AWS Bedrock - Meta**: Llama 3.1 8B, Llama 3.2 3B (no tool support, streaming disabled)
 - ✅ **AWS Bedrock - Amazon**: Nova Micro, Nova Lite (no tool support, streaming disabled)
 
-**See**: [examples/07-basics-bedrock.tac](../examples/07-basics-bedrock.tac), [examples/08-basics-models.tac](../examples/08-basics-models.tac)
+**See**: [examples/05-basics-multi-model.tac](../examples/05-basics-multi-model.tac)
 
 ### Implementation
 

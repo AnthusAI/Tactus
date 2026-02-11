@@ -356,7 +356,7 @@ Mocks {
 
 **Note:** Mocks only activate when running in mock mode (`tactus test --mock`). In real mode, actual tools and LMs are used.
 
-See `examples/70-mocking-static.tac`, `examples/71-mocking-temporal.tac`, and `examples/72-mocking-conditional.tac` for tool mocking examples, and `examples/80-dspy-predict-basic.tac` through `examples/87-dspy-history.tac` for DSPy module mocking examples.
+See `examples/70-mocking-static.tac` and `examples/72-mocking-conditional.tac` for tool mocking examples, and `examples/80-dspy-predict-basic.tac` through `examples/87-dspy-history.tac` for DSPy module mocking examples.
 
 ## Quick Example
 
@@ -781,7 +781,6 @@ See `examples/with-bdd-tests.lua` for a complete example demonstrating:
 ## API Reference
 
 See `tactus/testing/README.md` for complete API documentation.
-
 
 
 

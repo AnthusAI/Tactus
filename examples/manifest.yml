@@ -1,0 +1,88 @@
+# Curated testing-only examples for the Tactus spec suite.
+# This manifest is the source of truth for which .tac files live in this repository.
+# Educational/tutorial content now lives in https://github.com/AnthusAI/Tactus-examples.
+
+examples:
+  # Basics
+  - 01-basics-hello-world.tac
+  - 02-basics-simple-logic.tac
+  - 03-basics-parameters.tac
+  - 04-basics-simple-agent.tac
+  - 05-basics-multi-model.tac
+  - 06-basics-streaming.tac
+
+  # Core features
+  - 10-feature-state.tac
+  - 11-feature-message-history.tac
+  - 12-feature-structured-output.tac
+  - 13-feature-session.tac
+  - 14-feature-per-turn-tools.tac
+  - 15-feature-local-tools.tac
+  - 16-feature-toolsets-advanced.tac
+  - 17-feature-toolsets-dsl.tac
+  - 18-feature-lua-tools-inline.tac
+  - 19-feature-direct-tool-calls.tac
+
+  # BDD specifications
+  - 20-bdd-complete.tac
+  - 21-bdd-passing.tac
+  - 22-bdd-fuzzy-matching.tac
+
+  # Evaluation flows
+  - 30-eval-simple.tac
+  - 33-eval-thresholds.tac
+  - 34-eval-dataset.tac
+  - 35-eval-trace.tac
+  - 36-eval-advanced.tac
+
+  # Models & MCP
+  - 39-model-simple.tac
+  - 40-mcp-test.tac
+  - 41-mcp-simple.tac
+
+  # Sub-procedures & durability
+  - 43-sub-procedure-simple.tac
+  - 44-sub-procedure-composition.tac
+  - 46-checkpoint-explicit.tac
+  - 48-script-mode-simple.tac
+
+  # Inputs & file I/O
+  - 50-inputs-showcase.tac
+  - 52-file-io-basics.tac
+  - 54-json-file-io.tac
+  - 55-parquet-file-io.tac
+  - 57-excel-file-io.tac
+
+  # Tools & integrations
+  - 60-tool-sources.tac
+  - 62-mcp-toolset-by-server.tac
+  - 64-require-modules.tac
+  - 66-host-tools-via-broker.tac
+
+  # Domain-specific / mocking
+  - 68-biblicus-text-extract.tac
+  - 70-mocking-static.tac
+  - 72-mocking-conditional.tac
+  - 74-biblicus-text-redact.tac
+
+  # HITL & control loop
+  - 90-hitl-simple.tac
+  - 91-control-loop-demo.tac
+  - 93-test-ide-hitl.tac
+  - 95-agent-hitl.tac
+
+  # Context & dependencies
+  - 96-context-elasticity-min.tac
+  - 97-task-deps-biblicus.tac
+
+  # Checkpoint/resume regression probes
+  - test-resume-basic.tac
+  - test-resume-llm.tac
+  - test-resume-timeout.tac
+
+support:
+  - helpers/math_module.tac
+  - helpers/product.tac
+  - helpers/string_module.tac
+  - helpers/sum.tac
+  - helpers/text_tools.tac

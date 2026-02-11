@@ -634,7 +634,7 @@ end
 Csv.write("results.csv", processed_data)
 ```
 
-See [`docs/FILE_IO.md`](docs/FILE_IO.md) for the complete API reference and [`examples/52-file-io-basics.tac`](examples/52-file-io-basics.tac) through [`examples/58-text-file-io.tac`](examples/58-text-file-io.tac) for working examples.
+See [`docs/FILE_IO.md`](docs/FILE_IO.md) for the complete API reference and [`examples/52-file-io-basics.tac`](examples/52-file-io-basics.tac) through [`examples/57-excel-file-io.tac`](examples/57-excel-file-io.tac) for working examples.
 
 ### Testing & Evaluation: Two Different Concerns
 
@@ -803,7 +803,7 @@ Score 0.0 otherwise.
 - You have complex orchestration AND care about output quality
 - Run BDD tests for fast feedback on logic
 - Run evaluations periodically to measure LLM performance
-- Example: [`examples/37-eval-comprehensive.tac`](examples/37-eval-comprehensive.tac)
+- Example: [`examples/35-eval-trace.tac`](examples/35-eval-trace.tac)
 
 **The key insight:** Behavior specifications test your *code*. Evaluations test your *AI*. Most real-world procedures need both.
 
@@ -961,7 +961,7 @@ When thresholds are not met, `tactus eval` exits with code 1, enabling CI/CD int
 - [`examples/35-eval-trace.tac`](examples/35-eval-trace.tac) - Trace-based evaluators
 - [`examples/36-eval-advanced.tac`](examples/36-eval-advanced.tac) - Regex, JSON schema, range
 - [`examples/33-eval-thresholds.tac`](examples/33-eval-thresholds.tac) - CI/CD quality gates
-- [`examples/37-eval-comprehensive.tac`](examples/37-eval-comprehensive.tac) - All features combined
+- [`examples/35-eval-trace.tac`](examples/35-eval-trace.tac) - Trace-based evaluator stack
 
 ### Multi-Model and Multi-Provider Support
 

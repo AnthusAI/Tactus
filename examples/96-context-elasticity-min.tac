@@ -1,5 +1,5 @@
 -- Minimal Context budget demo with a single pack budget.
--- Requires NOAA fixtures (run: tactus examples/90-noaa-brief.tac fetch).
+-- Requires NOAA fixtures (see tests/fixtures/noaa_afd_corpus for local copy).
 
 local FilesystemCorpus = require("tactus.corpora.filesystem")
 local TfVector = require("tactus.retrievers.tf_vector")

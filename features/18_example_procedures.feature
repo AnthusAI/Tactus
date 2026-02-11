@@ -20,12 +20,10 @@ Feature: Example Procedures
   | 04-basics-simple-agent.tac  |
   | 05-basics-multi-model.tac  |
   | 06-basics-streaming.tac  |
-  | 07-basics-bedrock.tac  |
-  | 08-basics-models.tac  |
   | 10-feature-state.tac  |
   | 11-feature-message-history.tac  |
+  | 12-feature-structured-output.tac  |
   | 13-feature-session.tac  |
-  | 14-feature-per-turn-tools-simple.tac|
   | 14-feature-per-turn-tools.tac  |
   | 15-feature-local-tools.tac  |
   | 16-feature-toolsets-advanced.tac  |
@@ -49,7 +47,6 @@ Feature: Example Procedures
   When I execute the procedure
   Then the execution should succeed
   And the output should contain field "result" with value "Completed default task with 3 iterations"
-
 
 
 

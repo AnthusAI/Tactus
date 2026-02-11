@@ -113,7 +113,7 @@ See commits: 4005ae7, [pending commit for InputComponent fix]
 - `Human.inputs()` now logs deprecation warning on every call
 - Updated module docstring to list `Human.multiple()` and mark `inputs()` as deprecated
 - Created `92-test-multiple.tac` example using the new API
-- Original `92-test-inputs.tac` remains for backward compatibility testing
+- Use `93-test-ide-hitl.tac` for IDE HITL regression coverage
 
 **Rationale:**
 - "multiple" more clearly communicates collecting multiple inputs in one interaction
@@ -1755,7 +1755,7 @@ Replace hard-coded conditionals with `renderFormItem()` helper (same as inline m
 
 ### Verification Steps
 1. **Switch config** to `batched_inputs_mode: modal`
-2. **Run test** - `tactus run examples/92-test-inputs.tac`
+2. **Run test** - `tactus run examples/93-test-ide-hitl.tac`
 3. **Verify all types** render correctly in modal:
    - Approval buttons (Approve/Reject)
    - Input fields (text, placeholder)

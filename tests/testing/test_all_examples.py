@@ -1,32 +1,46 @@
 """
-Comprehensive test suite for all example .tac files.
+Comprehensive test suite for curated example .tac files.
 
-This module automatically discovers and tests all .tac files in the examples/ directory.
-Each example is validated and, if it contains BDD specifications, its tests are executed.
+The list of examples under test is defined in examples/manifest.yml. Each example is
+validated and, if it contains BDD specifications, its tests are executed.
 """
 
-import pytest
-from pathlib import Path
-from typing import List, Dict, Any
 import os
 import re
 import sys
+from pathlib import Path
+from typing import Any, Dict, List
+
+import pytest
+import yaml
 
 from tactus.testing.test_runner import TactusTestRunner
 from tactus.validation import TactusValidator
 
+MANIFEST_PATH = Path("examples/manifest.yml")
 
-def should_skip_example(file_path: Path) -> bool:
-    """Determine if an example should be skipped."""
-    # Skip examples that require external dependencies
-    if "with_dependencies" in str(file_path):
-        return True
 
-    # Skip helper procedures (not meant to run standalone)
-    if "helpers" in str(file_path):
-        return True
+def _normalize_manifest_entry(entry: Any) -> Dict[str, Any]:
+    if isinstance(entry, str):
+        return {"file": entry}
+    return entry or {}
 
-    return False
+
+def load_manifest() -> tuple[list[Dict[str, Any]], list[Dict[str, Any]]]:
+    if not MANIFEST_PATH.exists():
+        raise FileNotFoundError("examples/manifest.yml is missing; the curated example list is required")
+
+    data = yaml.safe_load(MANIFEST_PATH.read_text()) or {}
+    examples = [_normalize_manifest_entry(entry) for entry in data.get("examples", [])]
+    support = [_normalize_manifest_entry(entry) for entry in data.get("support", [])]
+
+    if not examples:
+        raise ValueError("examples/manifest.yml has no entries under 'examples'")
+
+    return examples, support
+
+
+MANIFEST_EXAMPLES, MANIFEST_SUPPORT = load_manifest()
 
 
 def check_for_specifications(file_path: Path) -> bool:
@@ -111,12 +125,14 @@ def collect_example_test_cases() -> List[Dict[str, Any]]:
     if not examples_dir.exists():
         return test_cases
 
-    for tac_file in sorted(examples_dir.glob("**/*.tac")):
-        # Skip directories and certain patterns
-        if tac_file.is_dir() or should_skip_example(tac_file):
+    for entry in MANIFEST_EXAMPLES:
+        rel_path = entry.get("file")
+        if not rel_path:
             continue
+        tac_file = examples_dir / rel_path
+        if not tac_file.exists():
+            raise FileNotFoundError(f"Manifest entry points to missing file: {tac_file}")
 
-        # Categorize the example
         category = categorize_example(tac_file)
         has_specs = check_for_specifications(tac_file)
         requires_mcp = check_requires_mcp(tac_file)
