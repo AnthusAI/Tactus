@@ -105,7 +105,7 @@ Respond to all 10 iterations while procedure is waiting, then restart.
 
 **Purpose:** Verify that timeout/default values work correctly with checkpoint/resume.
 
-**Test Procedure:** `examples/test-resume-timeout.tac`
+**Test Procedure:** `examples/98-test-resume-timeout.tac`
 
 ```lua
 function main()
@@ -130,7 +130,7 @@ rm -rf /tmp/tactus-test-timeout
 mkdir -p /tmp/tactus-test-timeout
 
 # Run procedure - DON'T RESPOND (let it timeout)
-tactus run examples/test-resume-timeout.tac \
+tactus run examples/98-test-resume-timeout.tac \
   --storage file \
   --storage-path /tmp/tactus-test-timeout \
   --no-sandbox
@@ -143,7 +143,7 @@ tactus run examples/test-resume-timeout.tac \
 
 Now restart:
 ```bash
-tactus run examples/test-resume-timeout.tac \
+tactus run examples/98-test-resume-timeout.tac \
   --storage file \
   --storage-path /tmp/tactus-test-timeout \
   --no-sandbox
@@ -161,7 +161,7 @@ rm -rf /tmp/tactus-test-timeout
 mkdir -p /tmp/tactus-test-timeout
 
 # Run procedure - RESPOND QUICKLY
-tactus run examples/test-resume-timeout.tac \
+tactus run examples/98-test-resume-timeout.tac \
   --storage file \
   --storage-path /tmp/tactus-test-timeout \
   --no-sandbox
@@ -179,7 +179,7 @@ printf "y\n" | tactus control --socket /tmp/tactus-control-test-resume-timeout.s
 
 Now restart:
 ```bash
-tactus run examples/test-resume-timeout.tac \
+tactus run examples/98-test-resume-timeout.tac \
   --storage file \
   --storage-path /tmp/tactus-test-timeout \
   --no-sandbox

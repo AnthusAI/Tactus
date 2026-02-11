@@ -4,7 +4,7 @@ Example: Biblicus text.extract
 Demonstrates Biblicus-backed extraction with deterministic mock markup.
 
 To run this example:
-  tactus run examples/68-biblicus-text-extract.tac
+  tactus run examples/70-biblicus-text-extract.tac
 ]]--
 
 local text = require("biblicus.text")

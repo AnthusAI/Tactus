@@ -5,7 +5,7 @@ Demonstrates reading and writing Excel spreadsheets with multiple sheets.
 Excel format is widely used for business data and reporting.
 
 To run:
-  tactus run examples/57-excel-file-io.tac
+  tactus run examples/54-excel-file-io.tac
 ]]--
 
 local excel = require("tactus.io.excel")

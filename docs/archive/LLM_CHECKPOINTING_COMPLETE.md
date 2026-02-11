@@ -127,7 +127,7 @@ end
 
 ## Test Plan
 
-**Test 3: LLM Checkpoint/Resume** - `examples/test-resume-llm.tac`
+**Test 3: LLM Checkpoint/Resume** - `examples/97-test-resume-llm.tac`
 
 Validates:
 1. **First run** - LLM call creates checkpoint
@@ -153,7 +153,7 @@ Validates:
 3. **tactus/core/runtime.py**
    - Updated `_setup_agents()` to pass `execution_context`
 
-4. **examples/test-resume-llm.tac**
+4. **examples/97-test-resume-llm.tac**
    - Test procedure for LLM checkpoint/resume validation
 
 ## Checkpoint File Structure
@@ -225,4 +225,4 @@ Both primitives:
 - **HITL Checkpointing:** `docs/HITL_CHECKPOINT_FIX_COMPLETE.md`
 - **Checkpoint Status:** `docs/CHECKPOINT_RESUME_STATUS.md`
 - **Testing Plan:** `docs/CHECKPOINT_TESTING_PLAN.md`
-- **Test Procedure:** `examples/test-resume-llm.tac`
+- **Test Procedure:** `examples/97-test-resume-llm.tac`

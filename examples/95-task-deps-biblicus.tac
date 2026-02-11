@@ -1,7 +1,7 @@
 -- Biblicus task dependencies (load -> extract -> index).
 -- Run:
---   tactus examples/97-task-deps-biblicus.tac index --auto-deps
---   tactus examples/97-task-deps-biblicus.tac index:miami_search --auto-deps
+--   tactus examples/95-task-deps-biblicus.tac index --auto-deps
+--   tactus examples/95-task-deps-biblicus.tac index:miami_search --auto-deps
 
 local FilesystemCorpus = require("tactus.corpora.filesystem")
 local TfVector = require("tactus.retrievers.tf_vector")

@@ -10,7 +10,7 @@ Scenario: Deployment Review Agent
 - Agent constructs the approval question dynamically
 - Success: Agent calls HITL tool exactly once and proceeds based on response
 
-Run with: tactus run examples/95-agent-hitl.tac
+Run with: tactus run examples/93-agent-hitl.tac
 --]]
 
 local done = require("tactus.tools.done")

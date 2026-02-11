@@ -4,7 +4,7 @@ Example: Biblicus text.redact
 Demonstrates redaction with span tags using mock markup.
 
 To run this example:
-  tactus run examples/74-biblicus-text-redact.tac
+  tactus run examples/73-biblicus-text-redact.tac
 ]]--
 
 local text = require("biblicus.text")

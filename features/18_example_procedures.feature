@@ -28,7 +28,7 @@ Feature: Example Procedures
   | 15-feature-local-tools.tac  |
   | 16-feature-toolsets-advanced.tac  |
   | 17-feature-toolsets-dsl.tac  |
-  | 66-host-tools-via-broker.tac  |
+  | 63-host-tools-via-broker.tac  |
 
   Scenario: Hello World example produces correct output
   Given an example file "01-basics-hello-world.tac"
@@ -47,7 +47,6 @@ Feature: Example Procedures
   When I execute the procedure
   Then the execution should succeed
   And the output should contain field "result" with value "Completed default task with 3 iterations"
-
 
 
 

@@ -500,7 +500,7 @@ mcp_servers:
 **Automated Testing Status**:
 - ✅ Unit tests: `tests/test_mcp_integration.py` (4 tests, all passing)
 - ✅ Integration with test MCP server: `tests/fixtures/test_mcp_server.py` (FastMCP)
-- ✅ Example procedures: `examples/40-mcp-test.tac`, `examples/41-mcp-simple.tac`
+- ✅ Example procedures: `examples/41-mcp-test.tac`, `examples/42-mcp-simple.tac`
 - ✅ Tool prefixing verified in tests
 - ✅ Environment variable substitution tested
 - ✅ Connection lifecycle management verified

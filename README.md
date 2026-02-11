@@ -634,7 +634,7 @@ end
 Csv.write("results.csv", processed_data)
 ```
 
-See [`docs/FILE_IO.md`](docs/FILE_IO.md) for the complete API reference and [`examples/52-file-io-basics.tac`](examples/52-file-io-basics.tac) through [`examples/57-excel-file-io.tac`](examples/57-excel-file-io.tac) for working examples.
+See [`docs/FILE_IO.md`](docs/FILE_IO.md) for the complete API reference and [`examples/51-file-io-basics.tac`](examples/51-file-io-basics.tac) through [`examples/54-excel-file-io.tac`](examples/54-excel-file-io.tac) for working examples.
 
 ### Testing & Evaluation: Two Different Concerns
 
@@ -797,13 +797,13 @@ Score 0.0 otherwise.
 - You need to measure output quality (accuracy, tone)
 - You want to test prompt effectiveness
 - You need consistency metrics across runs
-- Example: [`examples/36-eval-advanced.tac`](examples/36-eval-advanced.tac)
+- Example: [`examples/34-eval-advanced.tac`](examples/34-eval-advanced.tac)
 
 **Use Both when:**
 - You have complex orchestration AND care about output quality
 - Run BDD tests for fast feedback on logic
 - Run evaluations periodically to measure LLM performance
-- Example: [`examples/35-eval-trace.tac`](examples/35-eval-trace.tac)
+- Example: [`examples/33-eval-trace.tac`](examples/33-eval-trace.tac)
 
 **The key insight:** Behavior specifications test your *code*. Evaluations test your *AI*. Most real-world procedures need both.
 
@@ -957,11 +957,11 @@ evaluations {
 When thresholds are not met, `tactus eval` exits with code 1, enabling CI/CD integration.
 
 **See examples:**
-- [`examples/34-eval-dataset.tac`](examples/34-eval-dataset.tac) - External dataset loading
-- [`examples/35-eval-trace.tac`](examples/35-eval-trace.tac) - Trace-based evaluators
-- [`examples/36-eval-advanced.tac`](examples/36-eval-advanced.tac) - Regex, JSON schema, range
-- [`examples/33-eval-thresholds.tac`](examples/33-eval-thresholds.tac) - CI/CD quality gates
-- [`examples/35-eval-trace.tac`](examples/35-eval-trace.tac) - Trace-based evaluator stack
+- [`examples/32-eval-dataset.tac`](examples/32-eval-dataset.tac) - External dataset loading
+- [`examples/33-eval-trace.tac`](examples/33-eval-trace.tac) - Trace-based evaluators
+- [`examples/34-eval-advanced.tac`](examples/34-eval-advanced.tac) - Regex, JSON schema, range
+- [`examples/31-eval-thresholds.tac`](examples/31-eval-thresholds.tac) - CI/CD quality gates
+- [`examples/33-eval-trace.tac`](examples/33-eval-trace.tac) - Trace-based evaluator stack
 
 ### Multi-Model and Multi-Provider Support
 

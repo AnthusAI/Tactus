@@ -14,7 +14,7 @@ Available libraries (via require):
 - tactus.io.excel: Excel spreadsheets (requires openpyxl)
 
 To run:
-  tactus run examples/52-file-io-basics.tac
+  tactus run examples/51-file-io-basics.tac
 ]]--
 
 local csv = require("tactus.io.csv")

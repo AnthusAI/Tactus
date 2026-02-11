@@ -143,7 +143,7 @@ async def chat_completion(self, messages, ...):
 ### Test 1: Basic HITL Resume (No LLM)
 
 ```lua
--- test-resume-basic.tac
+-- examples/96-test-resume-basic.tac
 function main()
     print("Step 1: Before HITL")
     local approved = Human.approve("Should we continue?")
@@ -153,18 +153,18 @@ end
 ```
 
 **Test Steps:**
-1. Run: `tactus run test-resume-basic.tac`
+1. Run: `tactus run examples/96-test-resume-basic.tac`
 2. Wait for "Should we continue?" prompt
 3. Kill with Ctrl+C
 4. Respond via control CLI: `tactus control --respond y`
-5. Restart: `tactus run test-resume-basic.tac`
+5. Restart: `tactus run examples/96-test-resume-basic.tac`
 6. **Expected:** Should NOT print "Step 1" again, should continue from HITL
 7. **Expected:** Should print "Step 2: After HITL, approved=true"
 
 ### Test 2: LLM + HITL Resume
 
 ```lua
--- test-resume-llm.tac
+-- examples/97-test-resume-llm.tac
 function main()
     print("Step 1: Calling LLM")
     local result = Agent.run({
@@ -182,12 +182,12 @@ end
 ```
 
 **Test Steps:**
-1. Run: `tactus run test-resume-llm.tac`
+1. Run: `tactus run examples/97-test-resume-llm.tac`
 2. Let LLM complete, note the joke
 3. Wait for approval prompt
 4. Kill with Ctrl+C
 5. Respond via control CLI: `tactus control --respond y`
-6. Restart: `tactus run test-resume-llm.tac`
+6. Restart: `tactus run examples/97-test-resume-llm.tac`
 7. **Expected:** Should NOT call LLM again (cached completion)
 8. **Expected:** Should show SAME joke as first run
 9. **Expected:** Should skip to "Step 4: Done"

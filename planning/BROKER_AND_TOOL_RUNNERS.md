@@ -44,10 +44,10 @@ Manual validation commands:
 
 - Rebuild sandbox image (required after sandbox entrypoint changes): `tactus sandbox rebuild --force`
 - Dev-only Docker integration smoke tests (skipped by default): `TACTUS_RUN_DOCKER_TESTS=1 pytest -m docker -v` (or `make test-docker-sandbox`)
-- Networkless runtime, stdio broker transport: `tactus run examples/52-file-io-basics.tac --sandbox --verbose`
+- Networkless runtime, stdio broker transport: `tactus run examples/51-file-io-basics.tac --sandbox --verbose`
 - Brokered LLM + streaming, still networkless runtime: `tactus run examples/06-basics-streaming.tac --sandbox --verbose`
-- Brokered host tools, still networkless runtime: `tactus run examples/66-host-tools-via-broker.tac --sandbox --verbose`
-- Remote-mode spike over TCP (runtime network enabled): `tactus run examples/52-file-io-basics.tac --sandbox --sandbox-broker tcp --verbose`
+- Brokered host tools, still networkless runtime: `tactus run examples/63-host-tools-via-broker.tac --sandbox --verbose`
+- Remote-mode spike over TCP (runtime network enabled): `tactus run examples/51-file-io-basics.tac --sandbox --sandbox-broker tcp --verbose`
 - Remote-mode spike LLM + streaming over TCP (runtime network enabled): `tactus run examples/06-basics-streaming.tac --sandbox --sandbox-broker tcp --verbose`
 
 Security note: TCP mode exists to prove cloud viability. In real deployments you must enforce “runtime can only talk to broker” with infra controls (K8s NetworkPolicy / SGs), because the runtime container has network access in this mode.
@@ -524,7 +524,7 @@ Deliverables:
 Acceptance / validation (manual):
 
 - `tactus sandbox rebuild --force`
-- `tactus run examples/52-file-io-basics.tac --sandbox --verbose` (no LLM/network)
+- `tactus run examples/51-file-io-basics.tac --sandbox --verbose` (no LLM/network)
 - `tactus run examples/06-basics-streaming.tac --sandbox --verbose` (requires host OpenAI credentials; container still runs `--network none`)
 
 ### Phase 1B: Host Tools (Deferred, Local Only)
@@ -575,7 +575,7 @@ This phase is intentionally “small but real”: it confirms we didn’t accide
 
 Local spike validation (CLI):
 
-- `tactus run examples/52-file-io-basics.tac --sandbox --sandbox-broker tcp --verbose`
+- `tactus run examples/51-file-io-basics.tac --sandbox --sandbox-broker tcp --verbose`
 - `tactus run examples/06-basics-streaming.tac --sandbox --sandbox-broker tcp --verbose`
 
 Notes:

@@ -5,7 +5,7 @@ Demonstrates reading and writing JSON files using file.read/write with json.enco
 json.encode/decode work with strings for JSON serialization.
 
 To run:
-  tactus run examples/54-json-file-io.tac
+  tactus run examples/52-json-file-io.tac
 ]]--
 
 local file = require("tactus.io.file")

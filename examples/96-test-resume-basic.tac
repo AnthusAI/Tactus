@@ -3,11 +3,11 @@
 -- This test verifies that checkpoint/resume works for HITL requests.
 --
 -- Test Steps:
--- 1. Run: tactus run examples/test-resume-basic.tac
+-- 1. Run: tactus run examples/96-test-resume-basic.tac
 -- 2. Wait for "Should we continue?" prompt
 -- 3. Kill with Ctrl+C
 -- 4. Respond via control CLI: tactus control --respond y
--- 5. Restart: tactus run examples/test-resume-basic.tac
+-- 5. Restart: tactus run examples/96-test-resume-basic.tac
 --
 -- Expected Behavior:
 -- - Should NOT print "Step 1" again

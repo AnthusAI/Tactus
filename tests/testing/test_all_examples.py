@@ -171,7 +171,7 @@ def get_mcp_servers_for_example(example: Dict[str, Any]) -> Dict[str, Any]:
     example_id = example.get("id", "")
     project_root = Path(__file__).resolve().parents[2]
 
-    if example_id in {"40-mcp-test", "41-mcp-simple"}:
+    if example_id in {"41-mcp-test", "42-mcp-simple"}:
         return {
             "test_server": {
                 "command": sys.executable,
@@ -180,7 +180,7 @@ def get_mcp_servers_for_example(example: Dict[str, Any]) -> Dict[str, Any]:
             }
         }
 
-    if example_id == "62-mcp-toolset-by-server":
+    if example_id == "61-mcp-toolset-by-server":
         return {
             "filesystem": {
                 "command": sys.executable,

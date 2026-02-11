@@ -100,7 +100,7 @@ def _deserialize_result(self, result: Any) -> Any:
 
 ## Test Results
 
-Created test procedure `examples/test-resume-basic.tac`:
+Created test procedure `examples/96-test-resume-basic.tac`:
 
 ```lua
 function main()
@@ -142,7 +142,7 @@ end
 1. `tactus/primitives/human.py` - Wrapped HITL calls in checkpoints
 2. `tactus/core/execution_context.py` - Fixed checkpoint save/replay logic
 3. `tactus/adapters/file_storage.py` - Fixed Pydantic model serialization
-4. `examples/test-resume-basic.tac` - Created test procedure
+4. `examples/96-test-resume-basic.tac` - Created test procedure
 
 ## Transparent Durability Achieved
 

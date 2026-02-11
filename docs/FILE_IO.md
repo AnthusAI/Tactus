@@ -188,11 +188,11 @@ Csv.read("../../data.csv")         -- Escaping working directory
 
 ## Example
 
-See [examples/52-file-io-basics.tac](../examples/52-file-io-basics.tac) for a complete example demonstrating:
+See [examples/51-file-io-basics.tac](../examples/51-file-io-basics.tac) for a complete example demonstrating:
 - Reading CSV data
 - Processing and filtering records
 - Writing results to multiple formats
 
 ```bash
-tactus run examples/52-file-io-basics.tac
+tactus run examples/51-file-io-basics.tac
 ```

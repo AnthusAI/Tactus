@@ -5,7 +5,7 @@ This test verifies that LLM completions are cached and replayed deterministicall
 on resume. The same LLM response should be used on restart without making a new
 API call.
 
-Run with: tactus run examples/test-resume-llm.tac --storage file --storage-path /tmp/tactus-test-llm --no-sandbox
+Run with: tactus run examples/97-test-resume-llm.tac --storage file --storage-path /tmp/tactus-test-llm --no-sandbox
 --]]
 
 local done = require("tactus.tools.done")

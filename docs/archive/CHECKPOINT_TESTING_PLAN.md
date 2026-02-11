@@ -68,7 +68,7 @@ end
 ### Test 3: LLM Checkpoint/Resume
 **Purpose:** Verify LLM completions are cached and deterministic on resume
 
-**Test Procedure:** `examples/test-resume-llm.tac`
+**Test Procedure:** `examples/97-test-resume-llm.tac`
 ```lua
 function main()
     print("Step 1: Before LLM call")
@@ -218,7 +218,7 @@ end
 ### Test 7: Timeout Behavior
 **Purpose:** Verify timeout/default values work with checkpoint/resume
 
-**Test Procedure:** `examples/test-resume-timeout.tac`
+**Test Procedure:** `examples/98-test-resume-timeout.tac`
 ```lua
 function main()
     local approved = Human.approve({

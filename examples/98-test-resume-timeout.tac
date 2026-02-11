@@ -4,7 +4,7 @@ Test: Timeout Behavior with Checkpoint/Resume
 This test verifies that timeout and default values work correctly with
 checkpoint/resume. Tests both timeout scenario and response-before-timeout.
 
-Run with: tactus run examples/test-resume-timeout.tac --storage file --storage-path /tmp/tactus-test-timeout --no-sandbox
+Run with: tactus run examples/98-test-resume-timeout.tac --storage file --storage-path /tmp/tactus-test-timeout --no-sandbox
 --]]
 
 function main()

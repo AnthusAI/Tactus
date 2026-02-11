@@ -72,7 +72,7 @@ Run the example:
 
 ```bash
 tactus sandbox rebuild --force
-tactus run examples/66-host-tools-via-broker.tac --sandbox --verbose
+tactus run examples/63-host-tools-via-broker.tac --sandbox --verbose
 ```
 
 Call a host tool from Lua:

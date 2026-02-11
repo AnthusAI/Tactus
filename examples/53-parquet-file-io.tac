@@ -5,7 +5,7 @@ Demonstrates reading and writing Apache Parquet files.
 Parquet is a columnar storage format that's efficient for analytics.
 
 To run:
-  tactus run examples/55-parquet-file-io.tac
+  tactus run examples/53-parquet-file-io.tac
 ]]--
 
 local parquet = require("tactus.io.parquet")

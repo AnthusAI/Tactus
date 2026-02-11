@@ -5,7 +5,7 @@ Demonstrates organizing Tactus code across multiple files using Lua's require().
 This example imports functions from two separate modules and uses them directly.
 
 To run this example:
-tactus run examples/64-require-modules.tac --param a=5 --param b=3 --param text="hello"
+tactus run examples/62-require-modules.tac --param a=5 --param b=3 --param text="hello"
 
 Note: require() paths are relative to the procedure file's directory.
 ]]--

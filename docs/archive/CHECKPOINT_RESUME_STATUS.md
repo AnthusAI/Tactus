@@ -39,7 +39,7 @@ Added `_serialize_result()` and `_deserialize_result()` methods to properly hand
 
 ## Test Results
 
-**Basic HITL Resume Test:** `examples/test-resume-basic.tac`
+**Basic HITL Resume Test:** `examples/96-test-resume-basic.tac`
 
 ✅ **First Run:**
 - Procedure executes normally
@@ -94,7 +94,7 @@ Added `_serialize_result()` and `_deserialize_result()` methods to properly hand
 3. **tactus/adapters/file_storage.py**
    - Added Pydantic model serialization/deserialization
 
-4. **examples/test-resume-basic.tac**
+4. **examples/96-test-resume-basic.tac**
    - Simple test procedure for validation
 
 ## Next Steps: Rigorous Testing
@@ -110,7 +110,7 @@ Added `_serialize_result()` and `_deserialize_result()` methods to properly hand
 ### Phase 2 - Edge Cases
 5. ✅ All HITL Types - Test procedure created (`test-resume-hitl-types.tac`)
 6. ✅ Kill at Different Points - Manual test guide created (`test-resume-many-checkpoints.tac`)
-7. ✅ Timeout Behavior - Test procedure created (`test-resume-timeout.tac`)
+7. ✅ Timeout Behavior - Test procedure created (`98-test-resume-timeout.tac`)
 8. ✅ Many Checkpoints - Test procedure created (`test-resume-many-checkpoints.tac`)
 
 **Detailed Plan:** See `docs/CHECKPOINT_TESTING_PLAN.md`
@@ -125,11 +125,11 @@ Added `_serialize_result()` and `_deserialize_result()` methods to properly hand
 - ✅ Test 2: Multiple Sequential HITL (`/tmp/test-multi-hitl.sh`)
 
 **Test Procedures Created (require API keys or manual validation):**
-- ✅ Test 3: LLM Checkpoint/Resume (`examples/test-resume-llm.tac`)
+- ✅ Test 3: LLM Checkpoint/Resume (`examples/97-test-resume-llm.tac`)
 - ✅ Test 4: Mixed Operations (`examples/test-resume-mixed.tac`)
 - ✅ Test 5: All HITL Types (`examples/test-resume-hitl-types.tac`)
 - ✅ Test 6: Kill at Different Points (`examples/test-resume-many-checkpoints.tac`)
-- ✅ Test 7: Timeout Behavior (`examples/test-resume-timeout.tac`)
+- ✅ Test 7: Timeout Behavior (`examples/98-test-resume-timeout.tac`)
 - ✅ Test 8: Many Checkpoints (`examples/test-resume-many-checkpoints.tac`)
 
 **Key Accomplishments:**
