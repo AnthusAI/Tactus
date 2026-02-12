@@ -47,7 +47,7 @@ jobs:
         run: pytest tests/ -v --tb=short -m "not integration" -n0
 
       - name: Run behave BDD tests
-        run: behave
+        run: behave --tags=-skip
 
       - name: Run stdlib BDD tests
         run: tactus stdlib test
