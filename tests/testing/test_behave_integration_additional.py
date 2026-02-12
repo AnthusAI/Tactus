@@ -101,6 +101,7 @@ def test_load_custom_steps_in_context_returns_custom_steps(monkeypatch, tmp_path
 
     class FakeRegistry:
         custom_steps = {"Given y": object()}
+        agent_mocks = {}
 
     class FakeResult:
         registry = FakeRegistry()
@@ -186,6 +187,7 @@ def test_load_custom_steps_in_context_returns_empty_when_no_steps(monkeypatch, t
 
     class FakeRegistry:
         custom_steps = {}
+        agent_mocks = {}
 
     class FakeResult:
         registry = FakeRegistry()

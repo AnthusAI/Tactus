@@ -1,35 +1,72 @@
 # Tactus Standard Library
 
-The Tactus standard library provides reusable primitives for building AI agents and classification workflows.
+The Tactus standard library provides reusable modules for building AI agents, classification, extraction, and retrieval workflows.
 
 ## Architecture
 
-The stdlib follows the **Dogfooding with BDD Specs as Contract** principle:
+The stdlib is **Tactus-first**: all modules are implemented in `.tac` files. Python is used only as a lower-level escape hatch when a Python library is genuinely needed (e.g., rapidfuzz for string similarity, openpyxl for Excel I/O).
 
-1. **BDD specs define behavior** - Each primitive has comprehensive `.spec.tac` files
-2. **Implementation is secondary** - Python, Tactus, or mix - doesn't matter if specs pass
-3. **Specs serve triple duty** - Tests, documentation, and contract
+1. **BDD specs define behavior** - Each module has `.spec.tac` files as the contract
+2. **Tactus code is primary** - All class hierarchies and logic live in `.tac` files
+3. **Python is a helper** - Only for functionality requiring Python libraries
 
 ## Structure
 
 ```
 tactus/stdlib/
-├── classify/
-│   ├── classify.tac          # Tactus implementation (reference)
-│   ├── classify.spec.tac     # BDD specifications (THE CONTRACT)
-│   ├── primitive.py           # Current Python implementation
-│   ├── llm.py                 # LLM-based classifier
-│   └── fuzzy.py               # Fuzzy string matching
+├── tac/tactus/                  # PRIMARY: Tactus module implementations
+│   ├── classify/                # Classification (LLM + fuzzy matching)
+│   │   ├── init.tac             # Module entry point + Classify factory
+│   │   ├── base.tac             # BaseClassifier + class helper
+│   │   ├── llm.tac              # LLM-based classifier
+│   │   └── fuzzy.tac            # Fuzzy classifier (calls Python similarity)
+│   ├── extract/                 # Structured data extraction
+│   ├── generate/                # LLM-based generation
+│   ├── retrievers/              # Search/retrieval systems
+│   ├── corpora/                 # Corpus management
+│   ├── tools/                   # Utility tools (log, done)
+│   ├── classify.spec.tac        # BDD specs for classify
+│   └── extract.spec.tac         # BDD specs for extract
+│
+├── classify/                    # Python helpers for classify
+│   └── similarity.py            # rapidfuzz-backed string similarity
+├── io/                          # Python I/O modules (json, csv, file, etc.)
+├── biblicus/                    # Python Biblicus bindings
+├── core/                        # Shared Python utilities
+└── loader.py                    # Python module loader for require()
 ```
 
 ## Available Modules
 
-- `tactus.classify` - LLM and fuzzy classification
+- `tactus.classify` - LLM and fuzzy string matching classification
 - `tactus.extract` - Structured extraction utilities
 - `tactus.generate` - LLM-based generation helpers
+- `tactus.retrievers.*` - Search/retrieval systems
 - `tactus.io.*` - File I/O helpers (json, csv, tsv, file)
 - `biblicus.text` - Biblicus-backed text utilities
-- `tactus.retrievers.*` - Biblicus-backed retrievers
+
+## Usage
+
+```lua
+-- Via require()
+local classify = require("tactus.classify")
+local classifier = classify.LLMClassifier:new {
+    classes = {"Yes", "No"},
+    prompt = "Is this a question?"
+}
+local result = classifier:classify("How are you?")
+
+-- Via Classify global (convenience)
+result = Classify {
+    classes = {"Yes", "No"},
+    prompt = "Is this a question?",
+    input = "How are you?"
+}
+
+-- Python helpers loaded as fallback
+local json = require("tactus.io.json")
+local data = json.read("config.json")
+```
 
 ## Testing
 
@@ -38,49 +75,14 @@ Run all stdlib specs:
 tactus stdlib test
 ```
 
-Run specific primitive specs:
+Run specific module specs:
 ```bash
-tactus test tactus/stdlib/classify/classify.spec.tac
+tactus test tactus/stdlib/tac/tactus/classify.spec.tac
 ```
 
-## Documentation
+## Adding New Modules
 
-Each `.spec.tac` file contains:
-- `--[[doc]]` blocks with usage documentation
-- `--[[doc:parameter name]]` blocks with parameter documentation
-- BDD scenarios showing expected behavior
-- Custom step definitions for the tests
-
-## Example: Classify
-
-The Classify primitive demonstrates the stdlib pattern:
-
-**Specifications** ([classify.spec.tac](classify/classify.spec.tac)):
-- 7 BDD scenarios covering LLM and fuzzy matching
-- Documentation blocks explaining usage and parameters
-- Custom steps for testing classification behavior
-
-**Current Status**:
-- ✅ Specs pass with Python implementation
-- ✅ Tactus reference implementation exists
-- Next: Module loading system needed to use Tactus impl
-
-## Adding New Primitives
-
-1. Create `primitive-name/` directory
-2. Write `primitive-name.spec.tac` with:
-   - `--[[doc]]` documentation blocks
-   - Custom step definitions
-   - Comprehensive BDD scenarios
-3. Implement in Python (for now) or Tactus (when module loading ready)
+1. Create a `.tac` module in `tac/tactus/your-module/`
+2. Write a `.spec.tac` with BDD scenarios
+3. If Python is needed, add a helper `.py` in `your-module/` with `__tactus_exports__`
 4. Ensure `tactus test` passes
-
-## CI Integration
-
-```yaml
-# .github/workflows/stdlib.yml
-- name: Test Standard Library
-  run: tactus stdlib test --verbose
-```
-
-All stdlib specs must pass before merge.

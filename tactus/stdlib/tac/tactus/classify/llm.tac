@@ -24,6 +24,7 @@ function LLMClassifier:init(config)
     assert(config.classes, "LLMClassifier requires 'classes' field")
     assert(config.prompt, "LLMClassifier requires 'prompt' field")
 
+    self.name = config.name
     self.classes = config.classes
     self.prompt = config.prompt
     self.max_retries = config.max_retries or 3
@@ -57,7 +58,11 @@ Valid values: %s]], self.prompt, classes_str, classes_str)
         end
     end
 
-    self.agent = Agent(agent_config)
+    if self.name then
+        self.agent = Agent(self.name)(agent_config)
+    else
+        self.agent = Agent(agent_config)
+    end
 end
 
 function LLMClassifier:parse_response(response)

@@ -216,7 +216,7 @@ class LuaSandbox:
         self.lua.execute(
             """
             -- Add Python stdlib loader to package.loaders
-            -- Insert after the preload loader but before path loader
+            -- Append at end so .tac files are checked first (Tactus-first architecture)
             local loaders = package.loaders or package.searchers
             if loaders then
                 -- Create wrapper that returns a loader function (Lua convention)
@@ -229,8 +229,8 @@ class LuaSandbox:
                     return nil
                 end
 
-                -- Insert at position 2 (after preload, before path)
-                table.insert(loaders, 2, python_searcher)
+                -- Append at end (.tac path loader runs first, Python is fallback)
+                table.insert(loaders, python_searcher)
             end
             """
         )

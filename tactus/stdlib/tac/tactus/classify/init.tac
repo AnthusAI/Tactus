@@ -11,18 +11,47 @@
 --
 -- Or load specific classifiers:
 --   local LLMClassifier = require("tactus.classify.llm")
+--
+-- Or use the Classify factory (same API as the global):
+--   local classify = require("tactus.classify")
+--   local result = classify.Classify {
+--       classes = {"Yes", "No"},
+--       prompt = "Is this a question?",
+--       input = "How are you?"
+--   }
 
 -- Load all submodules
 local base = require("tactus.classify.base")
 local llm = require("tactus.classify.llm")
 local fuzzy = require("tactus.classify.fuzzy")
 
--- Re-export all classes
+-- Classify factory: dispatches to the right classifier based on config
+local function Classify(config)
+    local method = config.method or "llm"
+    local classifier
+
+    if method == "fuzzy" then
+        classifier = fuzzy.FuzzyMatchClassifier:new(config)
+    else
+        classifier = llm.LLMClassifier:new(config)
+    end
+
+    if config.input then
+        return classifier:classify(config.input)
+    else
+        return classifier
+    end
+end
+
+-- Re-export all classes and the factory
 return {
     -- Core classes
     BaseClassifier = base.BaseClassifier,
     LLMClassifier = llm.LLMClassifier,
     FuzzyMatchClassifier = fuzzy.FuzzyMatchClassifier,
+
+    -- Factory
+    Classify = Classify,
 
     -- Helper for users who want to extend
     class = base.class,

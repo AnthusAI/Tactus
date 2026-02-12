@@ -25,6 +25,7 @@ class MockAgentResult:
     ):
         self.message = message
         self.response = message
+        self.output = message
         self.tool_calls = tool_calls or []
         self.data = data or {}
         self.usage = usage or {}

@@ -511,48 +511,6 @@ def test_agent_binding_renames_and_updates_created_agents(monkeypatch):
     assert runtime_context["_created_agents"]
 
 
-def test_classify_agent_factory_renames_handle(monkeypatch):
-    builder = RegistryBuilder()
-    stubs = create_dsl_stubs(builder)
-
-    created = {}
-
-    class FakeClassifyPrimitive:
-        def __init__(self, agent_factory, **_kwargs):
-            self.agent_factory = agent_factory
-
-        def __call__(self, _config):
-            created["handle"] = self.agent_factory(
-                {"name": "stable_agent", "provider": "openai", "model": "gpt-4o"}
-            )
-            return {"ok": True}
-
-    monkeypatch.setattr("tactus.core.dsl_stubs.ClassifyPrimitive", FakeClassifyPrimitive)
-
-    stubs["Classify"]({"classes": ["a"], "prompt": "p"})
-    assert created["handle"].name == "stable_agent"
-
-
-def test_classify_agent_factory_without_name(monkeypatch):
-    builder = RegistryBuilder()
-    stubs = create_dsl_stubs(builder)
-
-    created = {}
-
-    class FakeClassifyPrimitive:
-        def __init__(self, agent_factory, **_kwargs):
-            self.agent_factory = agent_factory
-
-        def __call__(self, _config):
-            created["handle"] = self.agent_factory({"provider": "openai", "model": "gpt-4o"})
-            return {"ok": True}
-
-    monkeypatch.setattr("tactus.core.dsl_stubs.ClassifyPrimitive", FakeClassifyPrimitive)
-
-    stubs["Classify"]({"classes": ["a"], "prompt": "p"})
-    assert created["handle"].name.startswith("_temp_agent_")
-
-
 def test_binding_callback_renames_agent_handle(monkeypatch):
     builder = RegistryBuilder()
     runtime_context = {"log_handler": None, "_created_agents": {}}
@@ -2023,60 +1981,6 @@ def test_binding_callback_renames_tool_and_agent():
         bind("other", ToolHandle("named", lambda *_args, **_kwargs: None))
 
 
-def test_classify_binding_callback_best_effort(monkeypatch):
-    import tactus.core.dsl_stubs as dsl_stubs
-
-    builder = RegistryBuilder()
-
-    class FakeClassifyPrimitive:
-        def __init__(self, agent_factory, **kwargs):
-            self.agent_factory = agent_factory
-
-        def __call__(self, config):
-            return self.agent_factory({"name": "named", "system_prompt": "Hi"})
-
-    called = []
-
-    def fake_binding_callback(*_args, **_kwargs):
-        def binder(name, handle):
-            called.append((name, handle.name))
-
-        return binder
-
-    monkeypatch.setattr(dsl_stubs, "ClassifyPrimitive", FakeClassifyPrimitive)
-    monkeypatch.setattr(dsl_stubs, "_make_binding_callback", fake_binding_callback)
-    stubs = dsl_stubs.create_dsl_stubs(builder)
-
-    handle = stubs["Classify"]({"classes": ["a"], "prompt": "p"})
-    assert called == [("named", handle.name)]
-
-
-def test_classify_agent_factory_without_name(monkeypatch):  # noqa: F811
-    import tactus.core.dsl_stubs as dsl_stubs
-
-    builder = RegistryBuilder()
-
-    class FakeClassifyPrimitive:
-        def __init__(self, agent_factory, **kwargs):
-            self.agent_factory = agent_factory
-
-        def __call__(self, config):
-            return self.agent_factory({"system_prompt": "Hi"})
-
-    def fake_binding_callback(*_args, **_kwargs):
-        def binder(*_args, **_kwargs):
-            raise AssertionError("should not be called")
-
-        return binder
-
-    monkeypatch.setattr(dsl_stubs, "ClassifyPrimitive", FakeClassifyPrimitive)
-    monkeypatch.setattr(dsl_stubs, "_make_binding_callback", fake_binding_callback)
-    stubs = dsl_stubs.create_dsl_stubs(builder)
-
-    handle = stubs["Classify"]({"classes": ["a"], "prompt": "p"})
-    assert handle.name.startswith("_temp_agent_")
-
-
 def test_mocks_register_agent_and_tool_configs():
     builder = RegistryBuilder()
     stubs = create_dsl_stubs(builder)
@@ -2171,33 +2075,6 @@ def test_classify_requires_config():
 
     with pytest.raises(TypeError, match="Classify requires"):
         stubs["Classify"]()
-
-
-def test_classify_uses_agent_factory(monkeypatch):
-    import tactus.core.dsl_stubs as dsl_stubs
-
-    builder = RegistryBuilder()
-
-    class FakeClassifyPrimitive:
-        def __init__(self, agent_factory, **kwargs):
-            self.agent_factory = agent_factory
-
-        def __call__(self, config):
-            handle = self.agent_factory({"name": "classified", "system_prompt": "Hi"})
-            return {"config": config, "handle": handle}
-
-    def fake_binding_callback(*args, **kwargs):
-        def raiser(*args, **kwargs):
-            raise RuntimeError("boom")
-
-        return raiser
-
-    monkeypatch.setattr(dsl_stubs, "ClassifyPrimitive", FakeClassifyPrimitive)
-    monkeypatch.setattr(dsl_stubs, "_make_binding_callback", fake_binding_callback)
-    stubs = dsl_stubs.create_dsl_stubs(builder)
-
-    result = stubs["Classify"]({"classes": ["a"], "prompt": "p"})
-    assert result["handle"].name.startswith("_temp_agent_")
 
 
 def test_procedure_array_only_function_cleans_to_empty_dict():
@@ -2501,20 +2378,3 @@ def test_binding_callback_allows_matching_agent_name():
     bind(agent.name, agent)
 
 
-def test_classify_agent_factory_handles_non_dict(monkeypatch):
-    import tactus.core.dsl_stubs as dsl_stubs
-
-    builder = RegistryBuilder()
-
-    class FakeClassifyPrimitive:
-        def __init__(self, agent_factory, **kwargs):
-            self.agent_factory = agent_factory
-
-        def __call__(self, config):
-            return self.agent_factory("not-a-dict")
-
-    monkeypatch.setattr(dsl_stubs, "ClassifyPrimitive", FakeClassifyPrimitive)
-    stubs = dsl_stubs.create_dsl_stubs(builder)
-
-    result = stubs["Classify"]({"classes": ["a"], "prompt": "p"})
-    assert callable(result)

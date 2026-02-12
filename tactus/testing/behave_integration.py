@@ -140,8 +140,19 @@ def load_custom_steps_in_context(test_context: Any) -> Dict[str, Any]:
         logger.warning(f"Error loading custom steps in context: {e}")
         return {}
 
-    # Return the custom steps
+    # Merge agent mocks from the spec file into the runtime's registry
+    # so that agents created during step execution use the correct mocks.
     result = builder.validate()
+    if result.registry and result.registry.agent_mocks:
+        if runtime.registry:
+            runtime.registry.agent_mocks.update(result.registry.agent_mocks)
+            logger.info(
+                "Merged %d agent mock(s) from spec into runtime: %s",
+                len(result.registry.agent_mocks),
+                list(result.registry.agent_mocks.keys()),
+            )
+
+    # Return the custom steps
     if result.registry and result.registry.custom_steps:
         return result.registry.custom_steps
     return {}

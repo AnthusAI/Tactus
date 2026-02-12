@@ -25,6 +25,7 @@ function LLMExtractor:init(config)
     assert(config.fields, "LLMExtractor requires 'fields' field")
     assert(config.prompt, "LLMExtractor requires 'prompt' field")
 
+    self.name = config.name
     self.fields = config.fields
     self.prompt = config.prompt
     self.max_retries = config.max_retries or 3
@@ -49,7 +50,11 @@ function LLMExtractor:init(config)
         end
     end
 
-    self.agent = Agent(agent_config)
+    if self.name then
+        self.agent = Agent(self.name)(agent_config)
+    else
+        self.agent = Agent(agent_config)
+    end
 end
 
 function LLMExtractor:build_system_prompt()
@@ -130,10 +135,23 @@ function LLMExtractor:extract(input_text)
 
         -- Call agent
         local agent_result = self.agent({message = message})
-        last_response = agent_result.output or ""
+        local raw_output = agent_result.output
 
-        -- Parse and validate response
-        local parsed, parse_errors = self:parse_json(last_response)
+        -- If the agent returned structured data (e.g. parsed dict),
+        -- use it directly; otherwise parse the string response.
+        local parsed, parse_errors
+        if type(raw_output) == "string" then
+            last_response = raw_output
+            parsed, parse_errors = self:parse_json(last_response)
+        elseif raw_output ~= nil then
+            -- Output is already structured (table or userdata dict)
+            parsed = raw_output
+            parse_errors = {}
+            last_response = tostring(raw_output)
+        else
+            last_response = ""
+            parsed, parse_errors = self:parse_json(last_response)
+        end
 
         if #parse_errors > 0 then
             validation_errors = parse_errors

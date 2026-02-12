@@ -3389,6 +3389,7 @@ class TactusRuntime:
             "mock_manager": self.mock_manager,
             "execution_context": self.execution_context,
             "log_handler": self.log_handler,
+            "sandbox": sandbox,
             "_created_agents": {},  # Will be populated during parsing
         }
 

@@ -1,36 +1,36 @@
 """Tactus Standard Library.
 
-The standard library provides high-level primitives for common AI tasks:
+The standard library is Tactus-first: modules are implemented in .tac files
+under tac/tactus/ and loaded via Lua's require() function.
 
-## Primitives (injected into Lua)
+Python modules exist only as helpers when a Python library is needed
+(e.g., rapidfuzz for string similarity, openpyxl for Excel I/O).
 
-### Classify - Smart classification with retry logic
+## Core Modules (via require)
+
+    local classify = require("tactus.classify")
+    local extract = require("tactus.extract")
+    local generate = require("tactus.generate")
+    local retrievers = require("tactus.retrievers")
+
+## Classify (also available as Lua global)
+
     result = Classify {
         classes = {"Yes", "No"},
         prompt = "Did the agent greet the customer?",
         input = transcript
     }
-    -- result.value = "Yes"
-    -- result.confidence = 0.92
-    -- result.explanation = "The agent said 'Hello'..."
 
-### Coming Soon
-- Extract: Schema-based information extraction with validation
-- Match: Fuzzy matching verification
-- Generate: Constrained generation with validation
+## Utility Modules
 
-## Utility Modules (via require)
+    local json = require("tactus.io.json")
+    local csv = require("tactus.io.csv")
+    local file = require("tactus.io.file")
 
-The standard library also includes .tac files in the tac/ subdirectory.
-These are loaded via Lua's require() function:
+## Python Helpers
 
-    local done = require("tactus.tools.done")
-    local log = require("tactus.tools.log")
-
-See tactus/stdlib/tac/ for available modules.
+Python helper modules in this directory are loaded as fallbacks when
+no .tac file exists for a given module name. Examples:
+- classify/similarity.py - rapidfuzz-backed string similarity
+- io/json.py, io/csv.py, etc. - file format I/O
 """
-
-from .classify import ClassifyPrimitive
-from .extract import ExtractPrimitive
-
-__all__ = ["ClassifyPrimitive", "ExtractPrimitive"]

@@ -44,7 +44,6 @@ from tactus.primitives.handles import (
     ModelLookup,
     RetrieverHandle,
 )
-from tactus.stdlib.classify import ClassifyPrimitive
 
 
 # NEW Builder pattern for field types - moved outside function for import
@@ -2433,9 +2432,13 @@ def create_dsl_stubs(
 
         return handle
 
+    # Classify is now Tactus-first: the factory function lives in init.tac
+    # and is loaded lazily on first use via require("tactus.classify").
+    _classify_fn = None
+
     def _new_classify(config=None):
         """
-        Classify factory for smart classification with retry logic.
+        Classify factory - delegates to the Tactus stdlib classify module.
 
         Syntax:
             -- One-shot classification
@@ -2451,57 +2454,21 @@ def create_dsl_stubs(
                 prompt = "What is the sentiment?"
             }
             result = classifier(text)
-
-        Config options:
-            - classes: List of valid classification values (required)
-            - prompt: Classification instruction (required)
-            - input: Optional input for one-shot classification
-            - max_retries: Maximum retry attempts (default: 3)
-            - temperature: Model temperature (default: 0.3)
-            - model: Model to use (optional)
-            - confidence_mode: "heuristic" or "none" (default: "heuristic")
-
-        Returns:
-            ClassifyHandle if no input (reusable)
-            ClassifyResult dict if input provided (one-shot)
         """
+        nonlocal _classify_fn
         if config is None:
             raise TypeError("Classify requires a configuration table")
 
-        # Create a wrapper function that creates agents using _new_agent.
-        #
-        # Important: Classify creates internal agents that are not assigned to a Lua global,
-        # so they normally keep a random _temp_agent_* name. If the stdlib passes a stable
-        # `name` in the agent config, we rename the handle here so it can be mocked via
-        # `Mocks { <name> = { ... } }` in BDD specs.
-        def agent_factory(agent_config):
-            """Factory function to create Agent instances for Classify."""
-            desired_name = None
-            if isinstance(agent_config, dict):
-                desired_name = agent_config.get("name")
+        # Lazy-load the .tac Classify factory on first call
+        if _classify_fn is None:
+            sandbox = _runtime_context.get("sandbox")
+            if sandbox is not None:
+                _classify_mod = sandbox.lua.eval('require("tactus.classify")')
+                _classify_fn = _classify_mod["Classify"]
+            else:
+                raise RuntimeError("Classify requires a Lua sandbox (Tactus-first architecture)")
 
-            # Use _new_agent to create an agent handle
-            handle = _new_agent(agent_config)
-
-            # Apply stable naming for internal agents when requested.
-            if desired_name:
-                try:
-                    binding_callback(desired_name, handle)
-                except Exception:
-                    # Best-effort: naming is for mocking/traceability; do not break runtime
-                    pass
-            return handle
-
-        # Create the classify primitive with the agent factory
-        classify_primitive = ClassifyPrimitive(
-            agent_factory=agent_factory,
-            lua_table_from=None,  # Will be handled by result conversion
-            registry=builder.registry if hasattr(builder, "registry") else None,
-            mock_manager=mock_manager,
-        )
-
-        # Call the primitive with the config
-        return classify_primitive(lua_table_to_dict(config))
+        return _classify_fn(config)
 
     binding_callback = _make_binding_callback(
         builder,

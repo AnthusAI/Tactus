@@ -1,14 +1,18 @@
 -- Fuzzy String Matching Classification
 --
--- Provides string similarity-based classification:
+-- Provides string similarity-based classification using rapidfuzz (via Python):
+-- - Binary mode: match against a single expected value (Yes/No)
+-- - Multi-class mode: find best match from a list of classes
+-- - Multiple algorithms: ratio, token_set_ratio, token_sort_ratio, partial_ratio
 -- - Configurable similarity threshold
--- - Case-insensitive matching
--- - Character overlap similarity algorithm
 
 -- Load dependencies
 local base = require("tactus.classify.base")
 local BaseClassifier = base.BaseClassifier
 local class = base.class
+
+-- Load Python similarity helper (rapidfuzz backend)
+local similarity = require("tactus.classify.similarity")
 
 -- ============================================================================
 -- FuzzyMatchClassifier
@@ -19,66 +23,82 @@ local FuzzyMatchClassifier = class(BaseClassifier)
 function FuzzyMatchClassifier:init(config)
     BaseClassifier.init(self, config)
 
-    assert(config.expected, "FuzzyMatchClassifier requires 'expected' field")
-
-    self.expected = config.expected
     self.threshold = config.threshold or 0.8
-    self.classes = config.classes or {"Yes", "No"}
-end
+    self.algorithm = config.algorithm or "ratio"
 
-function FuzzyMatchClassifier:calculate_similarity(s1, s2)
-    s1 = s1:lower()
-    s2 = s2:lower()
-
-    if s1 == s2 then
-        return 1.0
+    if config.expected then
+        -- Binary mode: Yes/No based on match to expected value
+        self.mode = "binary"
+        self.expected = config.expected
+        self.classes = config.classes or {"Yes", "No"}
+    elseif config.classes then
+        -- Multi-class mode: return closest matching class
+        self.mode = "multiclass"
+        self.classes = config.classes
+    else
+        error("FuzzyMatchClassifier requires either 'expected' (binary mode) or 'classes' (multi-class mode)")
     end
-
-    if s1:find(s2, 1, true) or s2:find(s1, 1, true) then
-        return 0.85
-    end
-
-    -- Character overlap similarity
-    local set1 = {}
-    for i = 1, #s1 do
-        set1[s1:sub(i,i)] = true
-    end
-
-    local intersection = 0
-    local set2 = {}
-    for i = 1, #s2 do
-        local char = s2:sub(i,i)
-        set2[char] = true
-        if set1[char] then
-            intersection = intersection + 1
-        end
-    end
-
-    local union = 0
-    for _ in pairs(set1) do union = union + 1 end
-    for char in pairs(set2) do
-        if not set1[char] then
-            union = union + 1
-        end
-    end
-
-    if union == 0 then
-        return 0.0
-    end
-
-    return intersection / union
 end
 
 function FuzzyMatchClassifier:classify(input_text)
-    local similarity = self:calculate_similarity(input_text, self.expected)
-    local value = similarity >= self.threshold and self.classes[1] or self.classes[2]
+    if self.mode == "binary" then
+        return self:classify_binary(input_text)
+    else
+        return self:classify_multiclass(input_text)
+    end
+end
 
-    return {
-        value = value,
-        confidence = similarity,
-        matched_text = self.expected,  -- What it matched against
-        retry_count = 0
-    }
+function FuzzyMatchClassifier:classify_binary(input_text)
+    local score = similarity.calculate_similarity(
+        input_text, self.expected, self.algorithm
+    )
+
+    if score >= self.threshold then
+        return {
+            value = self.classes[1],  -- "Yes"
+            confidence = score,
+            matched_text = self.expected,
+            retry_count = 0,
+        }
+    else
+        return {
+            value = self.classes[2],  -- "No"
+            confidence = 1.0 - score,
+            matched_text = nil,
+            retry_count = 0,
+        }
+    end
+end
+
+function FuzzyMatchClassifier:classify_multiclass(input_text)
+    local best_match = nil
+    local best_score = 0.0
+
+    for _, cls in ipairs(self.classes) do
+        local score = similarity.calculate_similarity(
+            input_text, cls, self.algorithm
+        )
+        if score > best_score then
+            best_score = score
+            best_match = cls
+        end
+    end
+
+    if best_score >= self.threshold then
+        return {
+            value = best_match,
+            confidence = best_score,
+            matched_text = best_match,
+            retry_count = 0,
+        }
+    else
+        return {
+            value = "NO_MATCH",
+            confidence = 1.0 - best_score,
+            matched_text = nil,
+            retry_count = 0,
+        }
+    end
 end
 
 -- Export FuzzyMatchClassifier

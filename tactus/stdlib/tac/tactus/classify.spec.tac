@@ -71,10 +71,12 @@ Step("an LLM classifier with classes (.+)", function(ctx, classes_str)
         table.insert(classes, class)
     end
     test_state.classifier_config = {
+        name = "stdlib_classify_llm",
         classes = classes,
         model = "openai/gpt-4o-mini"
     }
     test_state.classifier_type = "llm"
+    test_state.classifier = nil
 end)
 
 Step("prompt \"(.+)\"", function(ctx, prompt)
@@ -86,6 +88,7 @@ Step("a fuzzy classifier expecting \"(.+)\"", function(ctx, expected)
         expected = expected
     }
     test_state.classifier_type = "fuzzy"
+    test_state.classifier = nil
 end)
 
 Step("I create the classifier", function(ctx)
@@ -130,6 +133,31 @@ Step("the matched_text should be \"(.+)\"", function(ctx, expected)
     assert(test_state.result.matched_text == expected,
         "Expected matched_text '" .. expected .. "' but got '" .. tostring(test_state.result.matched_text) .. "'")
 end)
+
+-- Agent mocks for LLM classification scenarios
+Mocks {
+    stdlib_classify_llm = {
+        message = "",
+        temporal = {
+            {
+                when_message = "How are you?",
+                message = "Yes"
+            },
+            {
+                when_message = "I love this product!",
+                message = "positive"
+            },
+            {
+                when_message = "This is terrible",
+                message = "negative"
+            },
+            {
+                when_message = "The sky is blue",
+                message = "neutral"
+            }
+        }
+    }
+}
 
 -- BDD Specifications
 Specification([[

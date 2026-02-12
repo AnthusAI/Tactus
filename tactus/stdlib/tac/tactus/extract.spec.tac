@@ -64,9 +64,11 @@ Step("an LLM extractor with fields (.+)", function(ctx, fields_str)
         end
     end
     test_state.extractor_config = {
+        name = "stdlib_extract_llm",
         fields = fields,
         model = "openai/gpt-4o-mini"
     }
+    test_state.extractor = nil
 end)
 
 Step("extraction prompt \"(.+)\"", function(ctx, prompt)
@@ -110,6 +112,27 @@ Step("the extraction should have no validation errors", function(ctx)
     assert(#errors == 0,
         "Expected no validation errors but got: " .. table.concat(errors, ", "))
 end)
+
+-- Agent mocks for LLM extraction scenarios
+Mocks {
+    stdlib_extract_llm = {
+        message = "",
+        temporal = {
+            {
+                when_message = "Please extract the following information:\n\nJohn Smith is 34 years old",
+                message = '{"name": "John Smith", "age": 34}'
+            },
+            {
+                when_message = "Please extract the following information:\n\nThe meeting will be held in Paris, France",
+                message = '{"city": "Paris", "country": "France"}'
+            },
+            {
+                when_message = "Please extract the following information:\n\nOrder: 5 widgets at $19.99 each",
+                message = '{"product": "widgets", "price": 19.99, "quantity": 5}'
+            }
+        }
+    }
+}
 
 -- BDD Specifications
 Specification([[
