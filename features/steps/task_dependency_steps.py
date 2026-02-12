@@ -8,7 +8,6 @@ from pathlib import Path
 
 from behave import given, then
 from biblicus.corpus import Corpus
-from biblicus.migration import migrate_layout
 
 
 @given("a NOAA corpus fixture copy")
@@ -21,10 +20,6 @@ def step_copy_noaa_corpus(context):
     corpus_root = Path(temp_dir) / "MFL"
     shutil.copytree(fixture_root, corpus_root, dirs_exist_ok=True)
     context.corpus_root = corpus_root
-    legacy_meta = corpus_root / ".biblicus"
-    new_meta = corpus_root / "metadata"
-    if legacy_meta.exists() and not new_meta.exists():
-        migrate_layout(corpus_root=corpus_root, force=True)
     corpus = Corpus.open(corpus_root)
     if not corpus.has_items():
         raw_root = corpus.raw_dir
