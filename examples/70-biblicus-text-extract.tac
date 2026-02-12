@@ -7,7 +7,7 @@ To run this example:
   tactus run examples/70-biblicus-text-extract.tac
 ]]--
 
-local text = require("biblicus.text")
+local text = require("tactus.biblicus.text")
 
 Mocks {
     ["biblicus.text.extract"] = {

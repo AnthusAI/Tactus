@@ -5,7 +5,7 @@ This specification covers the Biblicus-backed `biblicus.text` stdlib module.
 It exercises the deterministic mock path plus markup helper functions.
 ]]
 
-local text = require("biblicus.text")
+local text = require("tactus.biblicus.text")
 
 local test_state = {}
 local function build_request(text_value)

@@ -7,7 +7,7 @@ To run this example:
   tactus run examples/73-biblicus-text-redact.tac
 ]]--
 
-local text = require("biblicus.text")
+local text = require("tactus.biblicus.text")
 
 Mocks {
     ["biblicus.text.redact"] = {
