@@ -2376,5 +2376,3 @@ def test_binding_callback_allows_matching_agent_name():
 
     agent = AgentHandle("agent")
     bind(agent.name, agent)
-
-

@@ -28,7 +28,9 @@ def _normalize_manifest_entry(entry: Any) -> Dict[str, Any]:
 
 def load_manifest() -> tuple[list[Dict[str, Any]], list[Dict[str, Any]]]:
     if not MANIFEST_PATH.exists():
-        raise FileNotFoundError("examples/manifest.yml is missing; the curated example list is required")
+        raise FileNotFoundError(
+            "examples/manifest.yml is missing; the curated example list is required"
+        )
 
     data = yaml.safe_load(MANIFEST_PATH.read_text()) or {}
     examples = [_normalize_manifest_entry(entry) for entry in data.get("examples", [])]

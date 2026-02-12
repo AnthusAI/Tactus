@@ -63,9 +63,7 @@ class TestSimilarityForSchoolNames:
 
     def test_abbreviation_limitation(self):
         """Pure abbreviations should not match well (documented limitation)."""
-        sim = calculate_similarity(
-            "United Education Institute", "UEI", "token_set_ratio"
-        )
+        sim = calculate_similarity("United Education Institute", "UEI", "token_set_ratio")
         # UEI shares no tokens with "United Education Institute"
         assert sim < 0.50
 

@@ -52,9 +52,7 @@ class TestStdlibSpecs:
         )
         try:
             test_result = runner.run_tests(parallel=False)
-            assert test_result.total_scenarios > 0, (
-                f"No scenarios found in {spec['id']}"
-            )
+            assert test_result.total_scenarios > 0, f"No scenarios found in {spec['id']}"
             assert test_result.failed_scenarios == 0, (
                 f"BDD tests failed for {spec['id']}: "
                 f"{test_result.failed_scenarios}/{test_result.total_scenarios} failed"
@@ -65,6 +63,6 @@ class TestStdlibSpecs:
 
 def test_stdlib_spec_coverage():
     """Ensure we have stdlib specs to test."""
-    assert len(STDLIB_SPECS) >= 4, (
-        f"Only {len(STDLIB_SPECS)} stdlib specs found, expected at least 4"
-    )
+    assert (
+        len(STDLIB_SPECS) >= 4
+    ), f"Only {len(STDLIB_SPECS)} stdlib specs found, expected at least 4"
