@@ -2,6 +2,53 @@
 
 <!-- version list -->
 
+## v0.41.0 (2026-02-12)
+
+### Bug Fixes
+
+- Black formatting for CI
+  ([`0c013c0`](https://github.com/AnthusAI/Tactus/commit/0c013c04240f2ac9a3b222c731aec6c9270b7531))
+
+- Remove obsolete biblicus.migration import
+  ([`05e854f`](https://github.com/AnthusAI/Tactus/commit/05e854f8d98a27cde36b6e78b728e08ab05c6b87))
+
+- Restore message history transforms example for 100% spec coverage
+  ([`7567551`](https://github.com/AnthusAI/Tactus/commit/756755124ed76bade6a1591bd8159fa987acb5ec))
+
+- Tighten lsp semantic token matching
+  ([`5a20106`](https://github.com/AnthusAI/Tactus/commit/5a201068c15ac153d551ee1ab77c6705e0e9a630))
+
+### Chores
+
+- Install and configure beads issue tracker
+  ([`fdb0881`](https://github.com/AnthusAI/Tactus/commit/fdb08814c25557f9e60fb591bddb5108a95a7296))
+
+- Sync beads metadata
+  ([`bc97fe6`](https://github.com/AnthusAI/Tactus/commit/bc97fe66e87e563c931e2f94703299fec50a3217))
+
+- Sync beads metadata
+  ([`bf2570c`](https://github.com/AnthusAI/Tactus/commit/bf2570c221eec5bd8d6739da757e064d210d4c40))
+
+- Track cleanup for uncommitted changes (Tactus-dxk)
+  ([`a9ce6fa`](https://github.com/AnthusAI/Tactus/commit/a9ce6fae1ec1d0c65530ddbf9d7c95f2afa74771))
+
+- Update beads export
+  ([`83b3493`](https://github.com/AnthusAI/Tactus/commit/83b3493e36c348a672ac4ab09fb86e0b98e58021))
+
+### Documentation
+
+- Add beads workflow instructions
+  ([`c7d1552`](https://github.com/AnthusAI/Tactus/commit/c7d15521f10c9ce476f0cb0dd0806c6c797fb647))
+
+### Features
+
+- Add task dependency demos and biblicus dev mount (Tactus-f6a)
+  ([`2c55c7d`](https://github.com/AnthusAI/Tactus/commit/2c55c7d26540cdbbeff822cdbc0a2646a9cabedf))
+
+- Add VSCode extension with LSP support
+  ([`496bbf2`](https://github.com/AnthusAI/Tactus/commit/496bbf2ded6f47a1045ffc26101513623a4e578d))
+
+
 ## v0.40.0 (2026-02-05)
 
 ### Bug Fixes
