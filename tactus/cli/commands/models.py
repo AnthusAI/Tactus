@@ -2,12 +2,16 @@
 CLI commands for model registry management.
 """
 
+import json
 from datetime import datetime
+from pathlib import Path
 from typing import Optional
 
 import typer
 
 from tactus.registry.local import LocalRegistry
+from tactus.training.runner import EvaluationRunner, TrainingRunner
+from tactus.training.types import CandidateConfig, TrainingConfig
 
 app = typer.Typer(help="Manage model registry and versions")
 
@@ -92,3 +96,63 @@ def promote(
     except ValueError as e:
         typer.echo(f"Error promoting version: {e}", err=True)
         raise typer.Exit(1)
+
+
+@app.command()
+def train(
+    config_path: str = typer.Argument(..., help="Path to training config (.tac or .json)"),
+):
+    """
+    Run training for all candidates defined in a training config.
+
+    For now accepts JSON files with fields matching TrainingConfig.
+    """
+    path = Path(config_path)
+    if not path.exists():
+        typer.echo(f"Config not found: {config_path}", err=True)
+        raise typer.Exit(1)
+
+    config_data = json.loads(path.read_text())
+    candidates = [
+        CandidateConfig(
+            name=c["name"],
+            type=c["type"],
+            training=c["training"],
+            metadata=c.get("metadata"),
+        )
+        for c in config_data.get("candidates", [])
+    ]
+    config = TrainingConfig(
+        model_name=config_data["model_name"],
+        train=config_data["train"],
+        val=config_data.get("val"),
+        test=config_data.get("test"),
+        candidates=candidates,
+        hyperparameters=config_data.get("hyperparameters"),
+    )
+
+    runner = TrainingRunner()
+    results = {}
+    for candidate in candidates:
+        try:
+            metrics = runner.run_candidate(candidate, config)
+            results[candidate.name] = metrics
+            typer.secho(f"✓ Trained {candidate.name}", fg=typer.colors.GREEN)
+        except Exception as e:
+            typer.secho(f"✗ Failed {candidate.name}: {e}", fg=typer.colors.RED)
+            results[candidate.name] = {"error": str(e)}
+
+    typer.echo(json.dumps(results, indent=2))
+
+
+@app.command()
+def evaluate(
+    predictions_path: str = typer.Argument(..., help="Path to predictions JSON list"),
+    labels_path: str = typer.Argument(..., help="Path to labels JSON list"),
+):
+    """Compute accuracy/precision/recall/F1 from prediction and label files."""
+    preds = json.loads(Path(predictions_path).read_text())
+    labels = json.loads(Path(labels_path).read_text())
+
+    metrics = EvaluationRunner.evaluate(preds, labels)
+    typer.echo(json.dumps(metrics.__dict__, indent=2))
