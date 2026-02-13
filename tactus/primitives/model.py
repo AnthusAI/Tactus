@@ -3,9 +3,11 @@ Model primitive for ML inference with automatic checkpointing.
 """
 
 import logging
-from typing import Any, Optional
+from typing import Any, Optional, Type
 
+from pydantic import BaseModel, ValidationError
 from tactus.core.execution_context import ExecutionContext
+from tactus.models.schema import resolve_schema
 
 logger = logging.getLogger(__name__)
 
@@ -47,9 +49,19 @@ class ModelPrimitive:
         self.context = context
         self.mock_manager = mock_manager
 
-        # Extract optional input/output schemas
-        self.input_schema = config.get("input", {})
-        self.output_schema = config.get("output", {})
+        # Resolve input/output schemas to Pydantic models
+        self.input_schema_dict = config.get("input", {})
+        self.output_schema_dict = config.get("output", {})
+
+        try:
+            self.input_schema: Optional[Type[BaseModel]] = resolve_schema(
+                self.input_schema_dict, f"{model_name}_Input"
+            )
+            self.output_schema: Optional[Type[BaseModel]] = resolve_schema(
+                self.output_schema_dict, f"{model_name}_Output"
+            )
+        except (ImportError, AttributeError, TypeError) as e:
+            raise ValueError(f"Failed to resolve schema for model '{model_name}': {e}") from e
 
         self.backend = self._create_backend(config)
 
@@ -96,8 +108,8 @@ class ModelPrimitive:
             Model prediction result
         """
         if self.context is None:
-            # No context - run directly without checkpointing
-            return self.backend.predict_sync(input_data)
+            # No context - run directly without checkpointing but still validate
+            return self._execute_predict(input_data)
 
         # With context - checkpoint the operation
         # Capture source location
@@ -129,7 +141,29 @@ class ModelPrimitive:
 
         Returns:
             Model prediction result
+
+        Raises:
+            ValidationError: If input_data doesn't match input_schema
         """
+        # Validate input if schema is defined
+        if self.input_schema is not None:
+            try:
+                # For dict input, validate directly
+                if isinstance(input_data, dict):
+                    validated_input = self.input_schema(**input_data)
+                    input_data = validated_input.model_dump()
+                else:
+                    # For non-dict, wrap in a dict with single "input" field if schema expects it
+                    # Otherwise, validation will fail with clear error message
+                    validated_input = self.input_schema(input=input_data)
+                    input_data = validated_input.model_dump()["input"]
+            except ValidationError as e:
+                logger.error(
+                    f"Model '{self.model_name}' input validation failed: {e}",
+                    extra={"model_name": self.model_name, "input_data": input_data},
+                )
+                raise
+
         if self.mock_manager is not None:
             args_payload = input_data if isinstance(input_data, dict) else {"input": input_data}
             mock_result = self.mock_manager.get_mock_response(
@@ -148,7 +182,25 @@ class ModelPrimitive:
                     pass
                 return mock_result
 
-        return self.backend.predict_sync(input_data)
+        result = self.backend.predict_sync(input_data)
+
+        # Validate output if schema is defined
+        if self.output_schema is not None:
+            try:
+                if isinstance(result, dict):
+                    validated_output = self.output_schema(**result)
+                else:
+                    # Wrap non-dict result
+                    validated_output = self.output_schema(output=result)
+            except ValidationError as e:
+                # Log warning but don't fail - backend may be external/untrusted
+                logger.warning(
+                    f"Model '{self.model_name}' output validation failed: {e}. "
+                    f"Backend returned: {result}",
+                    extra={"model_name": self.model_name, "result": result},
+                )
+
+        return result
 
     def __call__(self, input_data: Any) -> Any:
         """
