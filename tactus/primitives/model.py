@@ -205,10 +205,10 @@ class ModelPrimitive:
         if self.output_schema is not None:
             try:
                 if isinstance(result, dict):
-                    validated_output = self.output_schema(**result)
+                    _ = self.output_schema(**result)
                 else:
                     # Wrap non-dict result
-                    validated_output = self.output_schema(output=result)
+                    _ = self.output_schema(output=result)
             except ValidationError as e:
                 # Log warning but don't fail - backend may be external/untrusted
                 logger.warning(

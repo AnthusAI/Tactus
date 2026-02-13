@@ -12,7 +12,7 @@ from pydantic import BaseModel, create_model
 
 def schema_dict_to_pydantic(
     schema_dict: Dict[str, Any], model_name: str = "Schema"
-) -> Type[BaseModel]:
+) -> Optional[Type[BaseModel]]:
     """
     Convert an inline schema dictionary to a Pydantic model.
 
