@@ -7,7 +7,7 @@ Model "imdb_nb" {
     train = "train",
     test = "test",
     shuffle = { train = true, test = true },
-    limit = { train = 10000, test = 2000 },
+    limit = { train = 25000, test = 25000 },
     seed = 42,
     text_field = "text",
     label_field = "label"
