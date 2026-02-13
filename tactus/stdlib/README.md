@@ -98,6 +98,41 @@ local bert = models.HFTransformersModel{
 }
 local bert_result = bert({text = "great movie"})
 
+-- HuggingFace AutoModel training (full hyperparameter control)
+Model "imdb_bert" {
+  data = {
+    source = "hf",
+    name = "imdb",
+    train = "train[:2000]",
+    test = "test[:500]",
+    text_field = "text",
+    label_field = "label"
+  },
+  input = { text = "string" },
+  output = { label = "string", confidence = "float" },
+  candidates = {
+    {
+      name = "bert-base",
+      trainer = "hf_transformers",
+      hyperparameters = {
+        model = "distilbert-base-uncased",
+        labels = {"negative", "positive"},
+        epochs = 1,
+        batch_size = 8,
+        learning_rate = 2e-5,
+        max_length = 256,
+        padding = "max_length",
+        truncation = true,
+        training_args = {
+          evaluation_strategy = "epoch",
+          logging_steps = 25,
+          save_strategy = "no"
+        }
+      }
+    }
+  }
+}
+
 -- Ensemble / A/B examples (see examples/43-model-ensemble.tac, 44-model-ab-test.tac)
 ```
 
