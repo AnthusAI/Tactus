@@ -25,7 +25,7 @@ tactus/stdlib/
 │   │   ├── init.tac             # Module entry
 │   │   ├── llm.tac              # LLM Model wrapper built on Model primitive
 │   │   └── naive_bayes.tac       # Naive Bayes model helper (registry-backed)
-│   │   └── hf_transformers.tac   # HuggingFace AutoModel helper
+│   │   └── hf_sequence_classifier.tac   # Hugging Face sequence classifier helper
 │   ├── extract/                 # Structured data extraction
 │   ├── generate/                # LLM-based generation
 │   ├── retrievers/              # Search/retrieval systems
@@ -45,7 +45,7 @@ tactus/stdlib/
 ## Available Modules
 
 - `tactus.classify` - LLM, Naive Bayes, and fuzzy string matching classification
-- `tactus.models` - Helpers for Model primitive (e.g., `tactus.models.llm`, `tactus.models.naive_bayes`, `tactus.models.hf_transformers`)
+- `tactus.models` - Helpers for Model primitive (e.g., `tactus.models.llm`, `tactus.models.naive_bayes`, `tactus.models.hf_sequence_classifier`)
 - Ensembles & A/B: Model primitive supports `type = "ensemble"` (vote/average) and `type = "ab_test"` routing with metadata (`arm_index`)
 - `tactus.extract` - Structured extraction utilities
 - `tactus.generate` - LLM-based generation helpers
@@ -93,10 +93,10 @@ local nb_result = nb:classify("An excellent movie")
 
 -- HuggingFace AutoModel helper
 local models = require("tactus.models")
-local bert = models.HFTransformersModel{
+local classifier = models.HFSequenceClassifierModel{
     model = "distilbert-base-uncased-finetuned-sst-2-english"
 }
-local bert_result = bert({text = "great movie"})
+local classifier_result = classifier({text = "great movie"})
 
 -- HuggingFace AutoModel training (full hyperparameter control)
 Model "imdb_bert" {
@@ -113,7 +113,7 @@ Model "imdb_bert" {
   candidates = {
     {
       name = "bert-base",
-      trainer = "hf_transformers",
+      trainer = "hf_sequence_classifier",
       hyperparameters = {
         model = "distilbert-base-uncased",
         labels = {"negative", "positive"},

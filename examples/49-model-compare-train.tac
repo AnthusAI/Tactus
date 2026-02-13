@@ -27,7 +27,7 @@ Model "imdb_compare" {
     },
     {
       name = "hf_distilbert",
-      trainer = "hf_transformers",
+      trainer = "hf_sequence_classifier",
       hyperparameters = {
         model = "distilbert-base-uncased",
         labels = {"negative", "positive"},

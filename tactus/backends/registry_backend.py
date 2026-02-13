@@ -146,10 +146,12 @@ class RegistryBackend(ModelBackend):
                 labels=config.get("labels"),
             )
 
-        elif backend_type == "hf_transformers":
-            from tactus.backends.hf_transformers_backend import HFTransformersBackend
+        elif backend_type == "hf_sequence_classifier":
+            from tactus.backends.hf_sequence_classifier_backend import (
+                HFSequenceClassifierBackend,
+            )
 
-            return HFTransformersBackend(
+            return HFSequenceClassifierBackend(
                 model=config["model"],
                 revision=config.get("revision"),
                 device=config.get("device"),

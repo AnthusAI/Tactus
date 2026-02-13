@@ -1,5 +1,5 @@
 """
-HuggingFace transformers backend using AutoModel.
+Hugging Face sequence classifier backend using AutoModelForSequenceClassification.
 """
 
 from __future__ import annotations
@@ -7,7 +7,7 @@ from __future__ import annotations
 from typing import Any, Optional
 
 
-class HFTransformersBackend:
+class HFSequenceClassifierBackend:
     def __init__(
         self,
         model: str,

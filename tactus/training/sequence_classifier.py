@@ -1,5 +1,5 @@
 """
-HuggingFace transformers trainer using AutoModel and Trainer.
+Hugging Face sequence classifier trainer using AutoModelForSequenceClassification.
 """
 
 from __future__ import annotations
@@ -11,8 +11,8 @@ from tactus.training.datasets import DatasetBundle
 from tactus.training.types import CandidateConfig, EvalMetrics, TrainedModel
 
 
-class HFTransformersTrainer:
-    name = "hf_transformers"
+class HFSequenceClassifierTrainer:
+    name = "hf_sequence_classifier"
 
     def train(self, candidate: CandidateConfig, data: DatasetBundle, workdir: str) -> TrainedModel:
         try:
@@ -31,7 +31,7 @@ class HFTransformersTrainer:
         hyper = candidate.hyperparameters or {}
         model_name = hyper.get("model")
         if not model_name:
-            raise ValueError("hf_transformers trainer requires hyperparameters.model")
+            raise ValueError("hf_sequence_classifier trainer requires hyperparameters.model")
 
         label_list = hyper.get("labels", ["negative", "positive"])
         id2label = {i: label for i, label in enumerate(label_list)}
@@ -81,7 +81,7 @@ class HFTransformersTrainer:
 
         return TrainedModel(
             artifact_path=str(artifact_path),
-            backend_type="hf_transformers",
+            backend_type="hf_sequence_classifier",
             backend_config={"model": str(artifact_path)},
             metrics=metrics,
         )
