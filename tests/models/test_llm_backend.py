@@ -245,10 +245,8 @@ class TestModelPrimitiveLLMBackend:
 
         model.backend.predict_sync.assert_not_called()
 
-    def test_llm_backend_async_predict(self):
+    async def test_llm_backend_async_predict(self):
         """Test LLM backend async predict() wrapper."""
-        import asyncio
-
         backend = LLMModelBackend(
             model="openai/gpt-4o-mini",
             system_prompt="Classify sentiment",
@@ -263,7 +261,7 @@ class TestModelPrimitiveLLMBackend:
         backend.predict_sync = MagicMock(return_value=mock_result)
 
         # Call async predict
-        result = asyncio.run(backend.predict({"text": "Great!"}))
+        result = await backend.predict({"text": "Great!"})
 
         assert result["result"] == {"label": "positive"}
         backend.predict_sync.assert_called_once_with({"text": "Great!"})
