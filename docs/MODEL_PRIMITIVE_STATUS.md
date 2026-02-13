@@ -46,6 +46,15 @@ Last updated: 2026-02-13
 
 **Status:** Complete with 100% test coverage on all new code. CLI commands integrated and working.
 
+### Phase 4: S3 Storage Backend - COMPLETE
+- ✅ **4.1** `ModelStorage` protocol (`save`, `load`, `exists`, `list`)
+- ✅ **4.2** `LocalStorage` implementation (filesystem)
+- ✅ **4.3** `S3Storage` implementation (boto3 with moto tests)
+- ✅ **4.4** Registry wired to storage (artifacts saved via storage backend)
+- ✅ **4.5** `path = "s3://..."` shorthand downloads to local cache transparently
+
+**Status:** Storage abstractions implemented with local + S3 backends, registry integration, and cache-based S3 resolution for model configs.
+
 ## 📊 Test Coverage
 
 All implemented features have 100% test coverage:
@@ -131,27 +140,11 @@ version = registry.resolve("sentiment-classifier", "champion")
 
 ## 🚧 What's Not Yet Working
 
-### Registry Usage
-```lua
--- This now works!
-Model "classifier" {
-    type = "registry",
-    name = "sentiment-classifier",
-    version = "champion",
-    fallback = {
-        type = "llm",
-        model = "openai/gpt-4o-mini",
-        system_prompt = "Classify sentiment"
-    }
-}
-```
-
 ### CLI Commands (Not Yet Implemented)
 - `tactus models train` - Training infrastructure (Phase 5)
 - `tactus models evaluate` - Evaluation framework (Phase 5)
 
-### Advanced Features (Phase 4+)
-- S3 storage backend
+### Advanced Features (Phase 5+)
 - Training infrastructure
 - Stdlib alignment
 - External registry integration (MLflow, SageMaker)
@@ -161,12 +154,13 @@ Model "classifier" {
 
 ## 📝 Next Steps (Optional Future Work)
 
-Phases 0-3 are complete! The Model primitive is fully functional with:
+Phases 0-4 are complete! The Model primitive is fully functional with:
 - Schema validation
 - LLM backend with retry logic
 - Cost tracking
 - Local registry with champion/challenger workflow
 - CLI commands for model management
+- Storage abstraction with local and S3 support (cached downloads for S3 paths)
 
 Future enhancements (not required for core functionality):
 

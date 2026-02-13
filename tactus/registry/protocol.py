@@ -42,6 +42,9 @@ class ModelRegistry(Protocol):
         backend_config: dict,
         tags: Optional[List[str]] = None,
         metadata: Optional[dict] = None,
+        artifact: Optional[bytes] = None,
+        artifact_path: Optional[str] = None,
+        artifact_filename: str = "artifact.bin",
     ) -> ModelVersion:
         """
         Register a new model version.
@@ -53,6 +56,9 @@ class ModelRegistry(Protocol):
             backend_config: Backend configuration
             tags: Optional list of tags (e.g., ["champion"])
             metadata: Optional additional metadata
+            artifact: Optional artifact bytes to persist
+            artifact_path: Existing artifact URI/path to record
+            artifact_filename: Filename to use when persisting bytes
 
         Returns:
             ModelVersion object for the registered version

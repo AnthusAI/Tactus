@@ -10,6 +10,7 @@ from pydantic import BaseModel, ValidationError
 from tactus.core.execution_context import ExecutionContext
 from tactus.models.schema import resolve_schema
 from tactus.models.types import PredictionCost, PredictionResult
+from tactus.registry.storage import resolve_path
 
 logger = logging.getLogger(__name__)
 
@@ -97,8 +98,14 @@ class ModelPrimitive:
         if model_type == "pytorch":
             from tactus.backends.pytorch_backend import PyTorchModelBackend
 
+            resolved_path = resolve_path(
+                config["path"],
+                cache_dir=config.get("cache_dir"),
+                client=config.get("s3_client"),
+            )
+
             return PyTorchModelBackend(
-                path=config["path"],
+                path=resolved_path,
                 device=config.get("device", "cpu"),
                 labels=config.get("labels"),
             )

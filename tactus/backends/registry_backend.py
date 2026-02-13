@@ -8,6 +8,7 @@ import logging
 from typing import Any, Optional
 
 from tactus.backends.model_backend import ModelBackend
+from tactus.registry.storage import resolve_path
 
 logger = logging.getLogger(__name__)
 
@@ -92,7 +93,11 @@ class RegistryBackend(ModelBackend):
     def _create_backend_from_version(self, model_version: Any) -> ModelBackend:
         """Create a backend from ModelVersion metadata."""
         backend_type = model_version.backend_type
-        backend_config = model_version.backend_config
+        backend_config = dict(model_version.backend_config)
+
+        # Prefer stored artifact path if present
+        if getattr(model_version, "artifact_path", None) and "path" not in backend_config:
+            backend_config["path"] = model_version.artifact_path
 
         return self._create_backend_from_config(
             {"type": backend_type, **backend_config}
@@ -115,8 +120,15 @@ class RegistryBackend(ModelBackend):
         elif backend_type == "pytorch":
             from tactus.backends.pytorch_backend import PyTorchModelBackend
 
+            path = config["path"]
+            resolved_path = resolve_path(
+                path,
+                cache_dir=config.get("cache_dir"),
+                client=config.get("s3_client"),
+            )
+
             return PyTorchModelBackend(
-                path=config["path"],
+                path=resolved_path,
                 device=config.get("device", "cpu"),
                 labels=config.get("labels"),
             )

@@ -20,6 +20,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from tactus.registry.storage import LocalStorage, ModelStorage
+
 logger = logging.getLogger(__name__)
 
 
@@ -53,17 +55,19 @@ class LocalRegistry:
     Implements the ModelRegistry protocol for development and small projects.
     """
 
-    def __init__(self, registry_dir: Optional[str] = None):
+    def __init__(self, registry_dir: Optional[str] = None, storage: Optional[ModelStorage] = None):
         """
         Initialize local registry.
 
         Args:
             registry_dir: Directory to store registry data. Defaults to ~/.tactus/models/
+            storage: Storage backend for artifacts. Defaults to LocalStorage rooted in registry_dir.
         """
         if registry_dir is None:
             registry_dir = os.path.expanduser("~/.tactus/models")
         self.registry_dir = Path(registry_dir)
         self.registry_dir.mkdir(parents=True, exist_ok=True)
+        self.storage = storage or LocalStorage(base_dir=self.registry_dir / "artifacts")
 
     def _model_dir(self, name: str) -> Path:
         """Get directory for a specific model."""
@@ -93,6 +97,9 @@ class LocalRegistry:
         backend_config: dict,
         tags: Optional[List[str]] = None,
         metadata: Optional[dict] = None,
+        artifact: Optional[bytes] = None,
+        artifact_path: Optional[str] = None,
+        artifact_filename: str = "artifact.bin",
     ) -> ModelVersion:
         """
         Register a new model version.
@@ -104,6 +111,9 @@ class LocalRegistry:
             backend_config: Backend-specific configuration
             tags: Optional tags to apply
             metadata: Optional user metadata
+            artifact: Optional artifact bytes to store via storage backend
+            artifact_path: Pre-existing artifact location (file path or URI)
+            artifact_filename: Filename to use when saving artifact bytes
 
         Returns:
             ModelVersion object
@@ -120,6 +130,13 @@ class LocalRegistry:
         if version_path.exists():
             raise ValueError(f"Version {version} already exists for model {name}")
 
+        resolved_artifact_path = None
+        if artifact is not None:
+            storage_path = f"{name}/{version}/{artifact_filename}"
+            resolved_artifact_path = self.storage.save(artifact, storage_path)
+        elif artifact_path is not None:
+            resolved_artifact_path = artifact_path
+
         # Create version metadata
         model_version = ModelVersion(
             version_id=version,
@@ -129,6 +146,7 @@ class LocalRegistry:
             tags=tags or [],
             metadata=metadata or {},
             created_at=time.time(),
+            artifact_path=resolved_artifact_path,
         )
 
         # Save version metadata
