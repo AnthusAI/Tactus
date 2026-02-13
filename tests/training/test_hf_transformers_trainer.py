@@ -75,4 +75,5 @@ def test_hf_transformers_trainer_passes_training_args(monkeypatch, tmp_path):
 
     assert captured_args["num_train_epochs"] == 3
     assert captured_args["per_device_train_batch_size"] == 16
-    assert captured_args["evaluation_strategy"] == "epoch"
+    assert captured_args["eval_strategy"] == "epoch"
+    assert "evaluation_strategy" not in captured_args

@@ -4,6 +4,7 @@ Training runner for Model training configs.
 
 from __future__ import annotations
 
+import shutil
 import tempfile
 from dataclasses import asdict
 from datetime import datetime
@@ -36,6 +37,9 @@ def _parse_training_config(config: dict, model_name: str) -> TrainingConfig:
         test=data_cfg.get("test"),
         text_field=data_cfg.get("text_field", "text"),
         label_field=data_cfg.get("label_field", "label"),
+        shuffle=data_cfg.get("shuffle"),
+        limit=data_cfg.get("limit"),
+        seed=data_cfg.get("seed"),
     )
 
     candidates = []
@@ -94,7 +98,17 @@ class TrainingRunner:
                 metrics = trained.metrics if evaluate else None
                 if register:
                     version_id = self._build_version_id(candidate.name)
-                    artifact_bytes = Path(trained.artifact_path).read_bytes()
+                    artifact_path = Path(trained.artifact_path)
+                    if artifact_path.is_dir():
+                        archive_root = Path(tmpdir) / artifact_path.name
+                        archive_path = Path(
+                            shutil.make_archive(str(archive_root), "zip", root_dir=artifact_path)
+                        )
+                        artifact_bytes = archive_path.read_bytes()
+                        artifact_filename = archive_path.name
+                    else:
+                        artifact_bytes = artifact_path.read_bytes()
+                        artifact_filename = artifact_path.name
                     self.registry.register(
                         name=config.model_name,
                         version=version_id,
@@ -108,7 +122,7 @@ class TrainingRunner:
                             "data": asdict(config.data),
                         },
                         artifact=artifact_bytes,
-                        artifact_filename=Path(trained.artifact_path).name,
+                        artifact_filename=artifact_filename,
                     )
 
                 results[candidate.name] = {

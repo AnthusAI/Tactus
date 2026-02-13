@@ -5,7 +5,7 @@ Types for training and evaluation.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 
 @dataclass
@@ -17,6 +17,9 @@ class TrainingDataConfig:
     test: Optional[str] = None
     text_field: str = "text"
     label_field: str = "label"
+    shuffle: Optional[Union[bool, Dict[str, bool]]] = None
+    limit: Optional[Union[int, Dict[str, int]]] = None
+    seed: Optional[int] = None
 
 
 @dataclass
