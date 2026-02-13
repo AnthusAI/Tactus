@@ -3,11 +3,13 @@ Model primitive for ML inference with automatic checkpointing.
 """
 
 import logging
+import time
 from typing import Any, Optional, Type
 
 from pydantic import BaseModel, ValidationError
 from tactus.core.execution_context import ExecutionContext
 from tactus.models.schema import resolve_schema
+from tactus.models.types import PredictionCost, PredictionResult
 
 logger = logging.getLogger(__name__)
 
@@ -157,7 +159,7 @@ class ModelPrimitive:
             input_data: Input to the model
 
         Returns:
-            Model prediction result
+            Model prediction result (wrapped in PredictionResult)
 
         Raises:
             ValidationError: If input_data doesn't match input_schema
@@ -197,27 +199,57 @@ class ModelPrimitive:
                     )
                 except Exception:
                     pass
+                # Return raw mock result for backward compatibility
                 return mock_result
 
+        # Track timing
+        start_time = time.perf_counter()
         result = self.backend.predict_sync(input_data)
+        elapsed_ms = (time.perf_counter() - start_time) * 1000
+
+        # Extract cost and output from backend result
+        # LLM backend returns: {"result": <output>, "cost": {...}, "usage": {...}}
+        # HTTP/PyTorch backends return raw output
+        if isinstance(result, dict) and "result" in result and "cost" in result:
+            # LLM backend format (has both "result" and "cost" keys)
+            output = result["result"]
+            backend_cost = result.get("cost", {})
+            backend_usage = result.get("usage", {})
+
+            # Create PredictionCost from backend data
+            cost = PredictionCost(
+                inference_cost=backend_cost.get("total_cost"),
+                compute_time_ms=elapsed_ms,
+                tokens_in=backend_usage.get("prompt_tokens"),
+                tokens_out=backend_usage.get("completion_tokens"),
+            )
+        else:
+            # HTTP/PyTorch backend format (raw output)
+            output = result
+            cost = PredictionCost(compute_time_ms=elapsed_ms)
 
         # Validate output if schema is defined
         if self.output_schema is not None:
             try:
-                if isinstance(result, dict):
-                    _ = self.output_schema(**result)
+                if isinstance(output, dict):
+                    _ = self.output_schema(**output)
                 else:
                     # Wrap non-dict result
-                    _ = self.output_schema(output=result)
+                    _ = self.output_schema(output=output)
             except ValidationError as e:
                 # Log warning but don't fail - backend may be external/untrusted
                 logger.warning(
                     f"Model '{self.model_name}' output validation failed: {e}. "
-                    f"Backend returned: {result}",
-                    extra={"model_name": self.model_name, "result": result},
+                    f"Backend returned: {output}",
+                    extra={"model_name": self.model_name, "result": output},
                 )
 
-        return result
+        # Wrap in PredictionResult
+        prediction_result = PredictionResult(
+            output=output, cost=cost, model_version=None, backend_type=self.config.get("type")
+        )
+
+        return prediction_result
 
     def __call__(self, input_data: Any) -> Any:
         """

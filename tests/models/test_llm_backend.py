@@ -207,16 +207,23 @@ class TestModelPrimitiveLLMBackend:
         # Mock the backend
         mock_result = {
             "result": {"label": "positive"},
-            "usage": {"input_tokens": 10, "output_tokens": 10, "total_tokens": 20},
-            "cost": {"input": 0.0001, "output": 0.0001, "total": 0.0002},
+            "usage": {"prompt_tokens": 10, "completion_tokens": 10, "total_tokens": 20},
+            "cost": {"prompt_cost": 0.0001, "completion_cost": 0.0001, "total_cost": 0.0002},
         }
         model.backend.predict_sync = MagicMock(return_value=mock_result)
 
         result = model.predict({"text": "I love this!"})
 
-        # Model returns the full result dict (including cost/usage)
-        assert result["result"] == {"label": "positive"}
-        assert result["usage"]["total_tokens"] == 20
+        # Model returns PredictionResult wrapping the output
+        assert result.output == {"label": "positive"}
+        assert result.cost.tokens_in == 10
+        assert result.cost.tokens_out == 10
+        assert result.cost.inference_cost == 0.0002
+        assert result.backend_type == "llm"
+
+        # Test dict-like access for backward compatibility
+        assert result["output"] == {"label": "positive"}
+        assert result["label"] == "positive"  # Nested access
 
     def test_model_primitive_llm_input_validation(self):
         """Test Model primitive validates input before LLM backend call."""

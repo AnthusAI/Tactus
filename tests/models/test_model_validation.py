@@ -27,7 +27,8 @@ class TestModelInputValidation:
 
         # Valid input should work
         result = model.predict({"text": "hello", "count": 5})
-        assert result == {"label": "positive"}
+        assert result.output == {"label": "positive"}
+        assert result.backend_type == "http"
 
         # Verify backend was called with validated input
         model.backend.predict_sync.assert_called_once()
@@ -81,10 +82,10 @@ class TestModelInputValidation:
 
         # Any input should work
         result = model.predict({"anything": "goes"})
-        assert result == {"result": "ok"}
+        assert result.output == {"result": "ok"}
 
         result = model.predict("string input")
-        assert result == {"result": "ok"}
+        assert result.output == {"result": "ok"}
 
 
 class TestModelOutputValidation:
@@ -112,7 +113,7 @@ class TestModelOutputValidation:
             result = model.predict({"text": "hello"})
 
         # Result is returned unchanged despite validation failure
-        assert result == {"label": "positive", "confidence": "definitely_not_a_float"}
+        assert result.output == {"label": "positive", "confidence": "definitely_not_a_float"}
 
         # Warning was logged
         assert "output validation failed" in caplog.text.lower()
@@ -131,7 +132,7 @@ class TestModelOutputValidation:
         )
 
         result = model.predict({"text": "hello"})
-        assert result == {"label": "positive", "confidence": 0.95}
+        assert result.output == {"label": "positive", "confidence": 0.95}
 
     def test_no_output_schema_no_validation(self):
         """Test model without output schema doesn't validate."""
@@ -147,7 +148,7 @@ class TestModelOutputValidation:
         model.backend.predict_sync = MagicMock(return_value={"random": "data", "any": "structure"})
 
         result = model.predict({"text": "hello"})
-        assert result == {"random": "data", "any": "structure"}
+        assert result.output == {"random": "data", "any": "structure"}
 
 
 class TestSchemaResolution:
