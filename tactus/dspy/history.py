@@ -139,6 +139,12 @@ class TactusHistory:
         """Clear all messages from the history."""
         self._messages.clear()
 
+    def truncate(self, length: int) -> None:
+        """Truncate history to a given length."""
+        if length < 0:
+            length = 0
+        self._messages = self._messages[:length]
+
     def to_dspy(self) -> dspy.History:
         """
         Convert to a DSPy History object.

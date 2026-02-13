@@ -2044,6 +2044,11 @@ class TactusRuntime:
                     logger.info(
                         f"Agent '{agent_name}' has message history filter: {message_history_filter}"
                     )
+            if message_history_filter is None and agent_config.get("filter") is not None:
+                message_history_filter = agent_config.get("filter")
+                logger.info(
+                    f"Agent '{agent_name}' has legacy filter hook: {message_history_filter}"
+                )
 
             # Create DSPy-based agent
             tool_choice = agent_config.get("tool_choice")
@@ -2076,6 +2081,9 @@ class TactusRuntime:
                 "initial_message": initial_message,
                 "log_handler": self.log_handler,
                 "tool_choice": tool_choice,  # Pass through tool_choice
+                "prepare": agent_config.get("prepare"),
+                "message_history_filter": message_history_filter,
+                "response": agent_config.get("response"),
             }
             logger.info(
                 f"Agent '{agent_name}' dspy_config has tool_choice={dspy_config.get('tool_choice')}"

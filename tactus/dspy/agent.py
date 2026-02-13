@@ -15,6 +15,8 @@ The Agent uses:
 import asyncio
 import json
 import logging
+import os
+import time
 from typing import Any, Dict, List, Optional
 
 from tactus.dspy.history import TactusHistory, create_history
@@ -22,6 +24,8 @@ from tactus.dspy.module import TactusModule, create_module
 from tactus.dspy.prediction import TactusPrediction, wrap_prediction
 from tactus.protocols.cost import CostStats, UsageStats
 from tactus.protocols.result import TactusResult
+from tactus.core.template_resolver import TemplateResolver
+from tactus.core.message_history_manager import MessageHistoryManager
 
 logger = logging.getLogger(__name__)
 
@@ -106,6 +110,7 @@ class DSPyAgentHandle:
         # Default input schema: {message: string}
         self.input_schema = input_schema or {"message": {"type": "string", "required": False}}
         # Default output schema: {response: string}
+        self._explicit_output_schema = output_schema is not None
         self.output_schema = output_schema or {"response": {"type": "string", "required": False}}
         self.temperature = temperature
         self.max_tokens = max_tokens
@@ -117,6 +122,11 @@ class DSPyAgentHandle:
         self.log_handler = log_handler
         self.disable_streaming = disable_streaming
         self.tool_choice = kwargs.get("tool_choice")  # Extract tool_choice from kwargs
+        self.prepare = kwargs.get("prepare")
+        self.message_history_filter = kwargs.get("message_history_filter") or kwargs.get("filter")
+        response_config = kwargs.get("response") or {}
+        self.response_retries = int(response_config.get("retries", 0) or 0)
+        self.response_retry_delay = float(response_config.get("retry_delay", 0.0) or 0.0)
         self.kwargs = kwargs
 
         # CRITICAL DEBUG: Log handler state at initialization
@@ -130,6 +140,7 @@ class DSPyAgentHandle:
 
         # Initialize conversation history
         self._history = create_history()
+        self._prepared: dict[str, Any] = {}
 
         # Track conversation state
         self._turn_count = 0
@@ -1247,6 +1258,11 @@ class DSPyAgentHandle:
 
         context = opts.get("context") or {}
 
+        prepared = self._run_prepare_hook(context, user_message)
+        system_prompt = self._render_system_prompt(
+            self.system_prompt, context=context, prepared=prepared, user_message=user_message
+        )
+
         if self.context_name:
             if not self.registry or not hasattr(self.registry, "contexts"):
                 raise RuntimeError("Context assembly requires a registry with contexts")
@@ -1270,8 +1286,8 @@ class DSPyAgentHandle:
             )
             assembly = assembler.assemble(
                 context_name=self.context_name,
-                base_system_prompt=self.system_prompt,
-                history_messages=self._history.get(),
+                base_system_prompt=system_prompt,
+                history_messages=self._filter_history(self._history.get(), context, prepared),
                 user_message=user_message or "",
                 template_context=template_context,
             )
@@ -1284,8 +1300,10 @@ class DSPyAgentHandle:
         else:
             # Build the prompt context
             prompt_context = {
-                "system_prompt": self.system_prompt,
-                "history": self._history.to_dspy(),
+                "system_prompt": system_prompt,
+                "history": self._history_from_messages(
+                    self._filter_history(self._history.get(), context, prepared)
+                ),
                 "user_message": user_message or "",
             }
 
@@ -1300,21 +1318,131 @@ class DSPyAgentHandle:
         if context:
             prompt_context["context"] = context
 
-        # Check if we should use streaming
-        if self._should_stream():
-            logger.debug(f"Agent '{self.name}' using streaming mode")
-            return self._turn_with_streaming(opts, prompt_context)
+        return self._turn_with_retries(opts, prompt_context)
 
-        # Non-streaming execution
-        logger.debug(f"Agent '{self.name}' using non-streaming mode")
-
+    def _run_prepare_hook(
+        self, context: Dict[str, Any], user_message: Optional[str]
+    ) -> dict[str, Any]:
+        if not callable(self.prepare):
+            return {}
         try:
-            return self._turn_without_streaming(opts, prompt_context)
-        except Exception as e:
-            # Avoid double-logging provider/auth errors in test runs; callers already get the
-            # raised exception and can decide how to surface it.
-            logger.debug("Agent '%s' turn failed: %s", self.name, e, exc_info=True)
-            raise
+            prepared = self.prepare()
+        except TypeError:
+            try:
+                prepared = self.prepare({"context": context, "message": user_message})
+            except Exception as error:
+                logger.warning(
+                    "Agent '%s' prepare hook failed: %s", self.name, error, exc_info=True
+                )
+                return {}
+        except Exception as error:
+            logger.warning("Agent '%s' prepare hook failed: %s", self.name, error, exc_info=True)
+            return {}
+
+        if prepared is None:
+            return {}
+        if hasattr(prepared, "items"):
+            try:
+                prepared = dict(prepared.items())
+            except Exception:
+                pass
+        if not isinstance(prepared, dict):
+            return {"value": prepared}
+        return prepared
+
+    def _render_system_prompt(
+        self,
+        template: str,
+        context: Dict[str, Any],
+        prepared: Dict[str, Any],
+        user_message: Optional[str],
+    ) -> str:
+        if not template:
+            return template
+
+        input_context = dict(context or {})
+        if user_message and "message" not in input_context:
+            input_context["message"] = user_message
+
+        resolver = TemplateResolver(
+            params=input_context,
+            state=self._state_primitive.all() if getattr(self, "_state_primitive", None) else {},
+            context=getattr(self, "_context", {}) or {},
+            prepared=prepared or {},
+            env=dict(os.environ),
+        )
+        # TemplateResolver uses {params.*}; keep {input.*} working by aliasing input -> params.
+        return resolver.resolve(template.replace("{input.", "{params."))
+
+    def _filter_history(
+        self, messages: List[Dict[str, Any]], context: Dict[str, Any], prepared: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
+        if not self.message_history_filter:
+            return messages
+        manager = MessageHistoryManager()
+        filter_context = {"context": context, "prepared": prepared, "input": context}
+        return manager._apply_filter(messages, self.message_history_filter, filter_context)
+
+    @staticmethod
+    def _history_from_messages(messages: List[Dict[str, Any]]):
+        return TactusHistory(messages=messages).to_dspy()
+
+    def _turn_with_retries(
+        self,
+        opts: Dict[str, Any],
+        prompt_context: Dict[str, Any],
+    ) -> TactusResult:
+        attempts = max(self.response_retries, 0) + 1
+        history_length = len(self._history)
+
+        for attempt in range(attempts):
+            try:
+                if self._should_stream():
+                    logger.debug(f"Agent '{self.name}' using streaming mode")
+                    result = self._turn_with_streaming(opts, prompt_context)
+                else:
+                    logger.debug(f"Agent '{self.name}' using non-streaming mode")
+                    result = self._turn_without_streaming(opts, prompt_context)
+
+                self._validate_output(result)
+                return result
+            except Exception as error:
+                if attempt >= attempts - 1:
+                    logger.debug("Agent '%s' turn failed: %s", self.name, error, exc_info=True)
+                    raise
+                self._history.truncate(history_length)
+                if self.response_retry_delay > 0:
+                    time.sleep(self.response_retry_delay)
+
+        raise RuntimeError("Unexpected retry loop exit")  # pragma: no cover
+
+    def _validate_output(self, result: TactusResult) -> None:
+        if not self._explicit_output_schema:
+            return
+        output_schema = self.output_schema
+        if hasattr(output_schema, "fields"):
+            schema_fields = output_schema.fields
+        else:
+            schema_fields = output_schema or {}
+
+        if not isinstance(schema_fields, dict) or not schema_fields:
+            return
+
+        if not isinstance(result.output, dict):
+            raise ValueError("Agent output is not structured as expected")
+
+        missing = []
+        for field_name, field_def in schema_fields.items():
+            required = False
+            if hasattr(field_def, "required"):
+                required = bool(field_def.required)
+            elif isinstance(field_def, dict):
+                required = bool(field_def.get("required", False))
+            if required and field_name not in result.output:
+                missing.append(field_name)
+
+        if missing:
+            raise ValueError(f"Agent output missing required fields: {', '.join(missing)}")
 
     def _get_mock_response(self, opts: Dict[str, Any]) -> Optional[TactusPrediction]:
         """
