@@ -196,17 +196,16 @@ jobs:
             const version = "${{ steps.get_version.outputs.version }}";
             const os = "${{ matrix.os }}";
 
-            const names = [];
+            const patterns = [];
             if (os === "ubuntu-latest") {
-              names.push(`Tactus IDE-${version}-x86_64.AppImage`);
-              names.push(`Tactus IDE-${version}-x64.AppImage`);
+              patterns.push(new RegExp(`^Tactus\\.IDE-${version}-.*\\.AppImage$`));
             } else if (os === "windows-latest") {
-              names.push(`Tactus IDE-Setup-${version}.exe`);
+              patterns.push(new RegExp(`^Tactus\\.IDE-Setup-${version}\\.exe$`));
             } else if (os === "macos-latest") {
-              names.push(`Tactus IDE-${version}-mac.dmg`);
+              patterns.push(new RegExp(`^Tactus\\.IDE-${version}-mac\\.dmg$`));
             }
 
-            if (!names.length) {
+            if (!patterns.length) {
               core.info("No assets configured for this OS.");
               return;
             }
@@ -215,13 +214,17 @@ jobs:
             const release = await github.rest.repos.getReleaseByTag({ owner, repo, tag });
             const assets = release.data.assets || [];
 
-            for (const name of names) {
-              const asset = assets.find(a => a.name === name);
-              if (!asset) {
-                core.info(`No existing asset ${name}`);
-                continue;
-              }
-              core.info(`Deleting asset ${name} (${asset.id})`);
+            const matches = assets.filter(asset =>
+              patterns.some(pattern => pattern.test(asset.name))
+            );
+
+            if (!matches.length) {
+              core.info("No matching release assets found to delete.");
+              return;
+            }
+
+            for (const asset of matches) {
+              core.info(`Deleting asset ${asset.name} (${asset.id})`);
               await github.rest.repos.deleteReleaseAsset({ owner, repo, asset_id: asset.id });
             }
 
