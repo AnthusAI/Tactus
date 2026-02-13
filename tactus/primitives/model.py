@@ -271,11 +271,13 @@ class ModelPrimitive:
         # Extract cost and output from backend result
         # LLM backend returns: {"result": <output>, "cost": {...}, "usage": {...}}
         # HTTP/PyTorch backends return raw output
+        metadata = None
         if isinstance(result, dict) and "result" in result and "cost" in result:
             # LLM backend format (has both "result" and "cost" keys)
             output = result["result"]
             backend_cost = result.get("cost", {})
             backend_usage = result.get("usage", {})
+            metadata = result.get("meta") or result.get("metadata")
 
             # Create PredictionCost from backend data
             cost = PredictionCost(
@@ -307,7 +309,11 @@ class ModelPrimitive:
 
         # Wrap in PredictionResult
         prediction_result = PredictionResult(
-            output=output, cost=cost, model_version=None, backend_type=self.config.get("type")
+            output=output,
+            cost=cost,
+            model_version=None,
+            backend_type=self.config.get("type"),
+            metadata=metadata,
         )
 
         # Accumulate statistics

@@ -26,4 +26,5 @@ def test_ab_test_weighting_deterministic():
         seed=123,
     )
     output = backend.predict_sync({"x": 1})
-    assert output == "B"
+    assert output["result"] == "B"
+    assert output["meta"]["arm_index"] == 1

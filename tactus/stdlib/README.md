@@ -43,6 +43,7 @@ tactus/stdlib/
 
 - `tactus.classify` - LLM and fuzzy string matching classification (LLMClassifier now uses Model primitive)
 - `tactus.models` - Helpers for Model primitive (e.g., `tactus.models.llm`)
+- Ensembles & A/B: Model primitive supports `type = "ensemble"` (vote/average) and `type = "ab_test"` routing with metadata (`arm_index`)
 - `tactus.extract` - Structured extraction utilities
 - `tactus.generate` - LLM-based generation helpers
 - `tactus.retrievers.*` - Search/retrieval systems
@@ -80,6 +81,8 @@ local sentiment = models.LLMModel{
     model = "openai/gpt-4o-mini",
 }
 local prediction = sentiment({text = "great!"})
+
+-- Ensemble / A/B examples (see examples/43-model-ensemble.tac, 44-model-ab-test.tac)
 ```
 
 ## Testing

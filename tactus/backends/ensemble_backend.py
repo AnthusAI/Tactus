@@ -52,7 +52,7 @@ class EnsembleBackend:
         combined = self._combine(outputs)
         elapsed_ms = (time.perf_counter() - start) * 1000
         cost = PredictionCost(compute_time_ms=elapsed_ms)
-        return {"result": combined, "cost": {"compute_time_ms": cost.compute_time_ms}}
+        return {"result": combined, "cost": {"compute_time_ms": cost.compute_time_ms}, "meta": {"votes": outputs}}
 
     def _combine(self, outputs: List[Any]) -> Any:
         if self.strategy == "average":
@@ -80,7 +80,12 @@ class ABTestBackend:
     def predict_sync(self, input_data: Any) -> Any:
         idx = self._choose_index()
         chosen = self.backends[idx]
-        return chosen.predict_sync(input_data)
+        result = chosen.predict_sync(input_data)
+        if isinstance(result, dict) and "result" in result:
+            result.setdefault("meta", {})
+            result["meta"]["arm_index"] = idx
+            return result
+        return {"result": result, "meta": {"arm_index": idx}}
 
     def _choose_index(self) -> int:
         total = sum(self.weights)

@@ -43,6 +43,7 @@ class PredictionResult:
     cost: Optional[PredictionCost] = None  # Cost info (if applicable)
     model_version: Optional[str] = None  # Which version was used
     backend_type: Optional[str] = None  # Which backend ran it
+    metadata: Optional[dict] = None  # Additional metadata (e.g., chosen arm, votes)
 
     def __getitem__(self, key: str) -> Any:
         """Enable dict-like access for Lua compatibility."""
@@ -54,6 +55,8 @@ class PredictionResult:
             return self.model_version
         elif key == "backend_type":
             return self.backend_type
+        elif key == "metadata":
+            return self.metadata
         else:
             # For backward compat, try to access nested fields in output
             if isinstance(self.output, dict):

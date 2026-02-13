@@ -630,22 +630,21 @@ Enable LLM-powered predictions through the model interface.
 
 ### Phase 8: Advanced Features
 
-**8.1** Model ensembles
-- Combine multiple model predictions
-- Voting, averaging, stacking strategies
+**8.1** Model ensembles ✅
+- Combine multiple model predictions (vote/average)
 - Test: Ensemble model produces combined result
 
-**8.2** A/B testing support
+**8.2** A/B testing support ✅
 - Route percentage of traffic to challenger model
-- Log which version handled each prediction
+- Log which version handled each prediction (arm_index metadata)
 - Test: Traffic split matches configured percentages
 
-**8.3** Data drift detection
+**8.3** Data drift detection ✅
 - Compare production input distribution against training data
-- Alert when drift exceeds threshold
+- Alert when drift exceeds threshold (rolling detector)
 - Test: Drift detector flags synthetic drift
 
-**8.4** Automatic retraining triggers
+**8.4** Automatic retraining triggers ✅
 - Schedule-based or metric-based retraining
 - Test: Retrain triggered when accuracy drops below threshold
 
