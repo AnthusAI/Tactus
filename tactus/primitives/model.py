@@ -85,6 +85,11 @@ class ModelPrimitive:
         """
         model_type = config.get("type")
 
+        if model_type == "mock":
+            from tactus.backends.ensemble_backend import MockBackend
+
+            return MockBackend(config.get("value"))
+
         if model_type == "http":
             from tactus.backends.http_backend import HTTPModelBackend
 
@@ -146,6 +151,20 @@ class ModelPrimitive:
                 version=config.get("version"),
                 fallback_config=config.get("fallback"),
             )
+
+        if model_type == "ensemble":
+            from tactus.backends.ensemble_backend import EnsembleBackend
+
+            members = config.get("members", [])
+            backends = [ModelPrimitive(m.get("name", "member"), m, context=None, mock_manager=self.mock_manager).backend for m in members]
+            return EnsembleBackend(backends=backends, strategy=config.get("strategy", "vote"))
+
+        if model_type in {"ab_test", "traffic_split"}:
+            from tactus.backends.ensemble_backend import ABTestBackend
+
+            arms = config.get("arms", [])
+            backends = [ModelPrimitive(a.get("name", "arm"), a, context=None, mock_manager=self.mock_manager).backend for a in arms]
+            return ABTestBackend(backends=backends, weights=config.get("weights"), seed=config.get("seed"))
 
         raise ValueError(
             f"Unknown model type: {model_type}. Supported types: http, pytorch, llm, registry"
