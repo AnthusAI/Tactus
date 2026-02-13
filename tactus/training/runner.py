@@ -1,95 +1,121 @@
 """
-Training and evaluation runners.
+Training runner for Model training configs.
 """
 
 from __future__ import annotations
 
-import json
-import subprocess
+import tempfile
+from dataclasses import asdict
+from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 
-from tactus.training.types import CandidateConfig, EvalMetrics, TrainingConfig
+from tactus.registry.local import LocalRegistry
+from tactus.training.datasets import load_dataset_bundle
+from tactus.training.naive_bayes import NaiveBayesTrainer
+from tactus.training.trainers import get_trainer_registry
+from tactus.training.types import CandidateConfig, TrainingConfig, TrainingDataConfig
+
+
+def _register_default_trainers() -> None:
+    registry = get_trainer_registry()
+    registry.register(NaiveBayesTrainer())
+
+
+def _parse_training_config(config: dict, model_name: str) -> TrainingConfig:
+    data_cfg = config.get("data") or {}
+    if not data_cfg:
+        raise ValueError(f"Model '{model_name}' is missing required data configuration")
+    data = TrainingDataConfig(
+        source=data_cfg.get("source", "hf"),
+        name=data_cfg.get("name"),
+        train=data_cfg.get("train"),
+        val=data_cfg.get("val"),
+        test=data_cfg.get("test"),
+        text_field=data_cfg.get("text_field", "text"),
+        label_field=data_cfg.get("label_field", "label"),
+    )
+
+    candidates = []
+    for candidate in config.get("candidates", []):
+        candidates.append(
+            CandidateConfig(
+                name=candidate["name"],
+                trainer=candidate["trainer"],
+                hyperparameters=candidate.get("hyperparameters"),
+            )
+        )
+    if not candidates:
+        raise ValueError(f"Model '{model_name}' has no training candidates defined")
+
+    return TrainingConfig(
+        model_name=model_name,
+        data=data,
+        candidates=candidates,
+        input=config.get("input"),
+        output=config.get("output"),
+    )
 
 
 class TrainingRunner:
-    """Execute training scripts for candidates."""
+    def __init__(self, registry_dir: Optional[str] = None) -> None:
+        self.registry = LocalRegistry(registry_dir=registry_dir)
 
-    def __init__(self, workdir: Optional[str] = None):
-        self.workdir = workdir
+    def run(
+        self,
+        config: TrainingConfig,
+        candidate_name: Optional[str] = None,
+        register: bool = True,
+        evaluate: bool = True,
+    ) -> dict:
+        _register_default_trainers()
+        trainer_registry = get_trainer_registry()
 
-    def run_candidate(self, candidate: CandidateConfig, config: TrainingConfig) -> Dict:
-        """
-        Run a candidate's training script as a subprocess.
-        Expects script to emit JSON metrics to stdout or write metrics.json in cwd.
-        """
-        script = candidate.training.get("script")
-        if script is None:
-            raise ValueError(f"Candidate {candidate.name} missing training.script")
+        candidates = config.candidates
+        if not candidates:
+            raise ValueError("No candidates defined in training config")
+        if candidate_name:
+            candidates = [c for c in candidates if c.name == candidate_name]
+            if not candidates:
+                raise ValueError(f"Candidate not found: {candidate_name}")
 
-        # Prepare env/args
-        args = ["python3", script]
-        for key, value in (candidate.training.get("args") or {}).items():
-            args.append(f"--{key}")
-            args.append(str(value))
+        data_bundle = load_dataset_bundle(config.data)
+        if not evaluate:
+            data_bundle = type(data_bundle)(train=data_bundle.train, val=data_bundle.val, test=None)
 
-        proc = subprocess.run(
-            args,
-            cwd=self.workdir,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
+        results = {}
+        for candidate in candidates:
+            trainer = trainer_registry.get(candidate.trainer)
+            with tempfile.TemporaryDirectory() as tmpdir:
+                trained = trainer.train(candidate, data_bundle, tmpdir)
 
-        if proc.returncode != 0:
-            raise RuntimeError(f"Training failed for {candidate.name}: {proc.stderr}")
+                metrics = trained.metrics if evaluate else None
+                if register:
+                    version_id = self._build_version_id(candidate.name)
+                    artifact_bytes = Path(trained.artifact_path).read_bytes()
+                    self.registry.register(
+                        name=config.model_name,
+                        version=version_id,
+                        backend_type=trained.backend_type,
+                        backend_config=trained.backend_config,
+                        tags=["latest"],
+                        metadata={
+                            "candidate": candidate.name,
+                            "trainer": candidate.trainer,
+                            "metrics": asdict(metrics) if metrics else None,
+                            "data": asdict(config.data),
+                        },
+                        artifact=artifact_bytes,
+                        artifact_filename=Path(trained.artifact_path).name,
+                    )
 
-        # Try stdout first
-        stdout = proc.stdout.strip()
-        if stdout:
-            try:
-                return json.loads(stdout)
-            except json.JSONDecodeError:
-                pass
+                results[candidate.name] = {
+                    "metrics": asdict(metrics) if metrics else None,
+                    "backend_type": trained.backend_type,
+                }
 
-        # Fallback to metrics.json if present
-        metrics_path = Path(self.workdir or ".") / "metrics.json"
-        if metrics_path.exists():
-            return json.loads(metrics_path.read_text())
+        return results
 
-        return {}
-
-
-class EvaluationRunner:
-    """Compute evaluation metrics given predictions and labels."""
-
-    @staticmethod
-    def evaluate(predictions: List[str], labels: List[str]) -> EvalMetrics:
-        if len(predictions) != len(labels):
-            raise ValueError("Predictions and labels length mismatch")
-
-        tp = fp = fn = tn = 0
-        for pred, label in zip(predictions, labels):
-            if pred == "positive":
-                if label == "positive":
-                    tp += 1
-                else:
-                    fp += 1
-            else:
-                if label == "positive":
-                    fn += 1
-                else:
-                    tn += 1
-
-        total = len(predictions)
-        accuracy = (tp + tn) / total if total else 0.0
-        precision = tp / (tp + fp) if (tp + fp) else 0.0
-        recall = tp / (tp + fn) if (tp + fn) else 0.0
-        f1 = (2 * precision * recall) / (precision + recall) if (precision + recall) else 0.0
-
-        return EvalMetrics(
-            accuracy=accuracy,
-            precision=precision,
-            recall=recall,
-            f1=f1,
-        )
+    def _build_version_id(self, candidate_name: str) -> str:
+        timestamp = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+        return f"{candidate_name}-{timestamp}"

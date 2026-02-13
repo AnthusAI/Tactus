@@ -171,6 +171,38 @@ class TestRegistryBackend:
             MockPT.assert_called_once_with(path="/models/model.pt", device="cuda", labels=None)
             assert result == [0.1, 0.9]
 
+    def test_resolve_sklearn_backend(self):
+        """Test resolving sklearn backend from registry."""
+        mock_registry = Mock()
+        model_version = ModelVersion(
+            version_id="v2.1.0",
+            model_name="classifier",
+            backend_type="sklearn",
+            backend_config={"path": "/models/model.joblib"},
+            tags=[],
+            metadata={},
+            created_at=1234567890.0,
+        )
+        mock_registry.resolve.return_value = model_version
+
+        backend = RegistryBackend(
+            registry=mock_registry,
+            model_name="classifier",
+            version="v2.1.0",
+        )
+
+        from unittest.mock import patch
+
+        with patch("tactus.backends.sklearn_backend.SklearnModelBackend") as MockSK:
+            mock_sk = Mock()
+            mock_sk.predict_sync.return_value = {"label": "positive", "confidence": 0.9}
+            MockSK.return_value = mock_sk
+
+            result = backend.predict_sync({"text": "great"})
+
+            MockSK.assert_called_once_with(path="/models/model.joblib", labels=None)
+            assert result["label"] == "positive"
+
     def test_resolve_llm_backend(self):
         """Test resolving LLM backend from registry."""
         mock_registry = Mock()

@@ -131,6 +131,21 @@ class RegistryBackend(ModelBackend):
                 labels=config.get("labels"),
             )
 
+        elif backend_type == "sklearn":
+            from tactus.backends.sklearn_backend import SklearnModelBackend
+
+            path = config["path"]
+            resolved_path = resolve_path(
+                path,
+                cache_dir=config.get("cache_dir"),
+                client=config.get("s3_client"),
+            )
+
+            return SklearnModelBackend(
+                path=resolved_path,
+                labels=config.get("labels"),
+            )
+
         elif backend_type == "llm":
             from tactus.backends.llm_backend import LLMModelBackend
 

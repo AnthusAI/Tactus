@@ -77,6 +77,26 @@ Feature: Model Primitive for ML Inference
   When I validate the file
   Then validation should succeed
 
+  Scenario: Sklearn model type is supported
+  Given a Lua DSL file with content:
+  """
+  sentiment = Model {
+    type = "sklearn",
+    path = "models/sentiment.joblib",
+    labels = {"negative", "positive"}
+  }
+
+  main = Procedure "main" {
+    output = {result = field.string{}},
+    state = {},
+    function(input)
+      return {result = "ok"}
+    end
+  }
+  """
+  When I validate the file
+  Then validation should succeed
+
   Scenario: Model requires type field
   Given a Lua DSL file with content:
   """

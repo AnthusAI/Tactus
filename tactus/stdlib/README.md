@@ -19,10 +19,12 @@ tactus/stdlib/
 │   │   ├── init.tac             # Module entry point + Classify factory
 │   │   ├── base.tac             # BaseClassifier + class helper
 │   │   ├── llm.tac              # LLM-based classifier (now uses Model primitive)
+│   │   ├── naive_bayes.tac       # Registry-backed Naive Bayes classifier
 │   │   └── fuzzy.tac            # Fuzzy classifier (calls Python similarity)
 │   ├── models/                  # Model primitive helpers
 │   │   ├── init.tac             # Module entry
-│   │   └── llm.tac              # LLM Model wrapper built on Model primitive
+│   │   ├── llm.tac              # LLM Model wrapper built on Model primitive
+│   │   └── naive_bayes.tac       # Naive Bayes model helper (registry-backed)
 │   ├── extract/                 # Structured data extraction
 │   ├── generate/                # LLM-based generation
 │   ├── retrievers/              # Search/retrieval systems
@@ -41,8 +43,8 @@ tactus/stdlib/
 
 ## Available Modules
 
-- `tactus.classify` - LLM and fuzzy string matching classification (LLMClassifier now uses Model primitive)
-- `tactus.models` - Helpers for Model primitive (e.g., `tactus.models.llm`)
+- `tactus.classify` - LLM, Naive Bayes, and fuzzy string matching classification
+- `tactus.models` - Helpers for Model primitive (e.g., `tactus.models.llm`, `tactus.models.naive_bayes`)
 - Ensembles & A/B: Model primitive supports `type = "ensemble"` (vote/average) and `type = "ab_test"` routing with metadata (`arm_index`)
 - `tactus.extract` - Structured extraction utilities
 - `tactus.generate` - LLM-based generation helpers
@@ -81,6 +83,12 @@ local sentiment = models.LLMModel{
     model = "openai/gpt-4o-mini",
 }
 local prediction = sentiment({text = "great!"})
+
+-- Naive Bayes classifier (registry-backed, trained via tactus train)
+local nb = classify.NaiveBayesClassifier:new {
+    name = "imdb_nb"
+}
+local nb_result = nb:classify("An excellent movie")
 
 -- Ensemble / A/B examples (see examples/43-model-ensemble.tac, 44-model-ab-test.tac)
 ```

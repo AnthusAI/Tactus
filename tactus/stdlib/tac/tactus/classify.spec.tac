@@ -14,6 +14,7 @@ Proper Lua class hierarchy for text classification:
 local classify = require("tactus.classify")
 local LLMClassifier = classify.LLMClassifier
 local FuzzyMatchClassifier = classify.FuzzyMatchClassifier
+local NaiveBayesClassifier = classify.NaiveBayesClassifier
 
 -- Or load specific classifiers (dependencies auto-load):
 local LLMClassifier = require("tactus.classify.llm")
@@ -91,11 +92,21 @@ Step("a fuzzy classifier expecting \"(.+)\"", function(ctx, expected)
     test_state.classifier = nil
 end)
 
+Step("a naive bayes classifier named \"(.+)\"", function(ctx, model_name)
+    test_state.classifier_config = {
+        name = model_name
+    }
+    test_state.classifier_type = "naive_bayes"
+    test_state.classifier = nil
+end)
+
 Step("I create the classifier", function(ctx)
     if test_state.classifier_type == "llm" then
         test_state.classifier = LLMClassifier:new(test_state.classifier_config)
     elseif test_state.classifier_type == "fuzzy" then
         test_state.classifier = FuzzyMatchClassifier:new(test_state.classifier_config)
+    elseif test_state.classifier_type == "naive_bayes" then
+        test_state.classifier = NaiveBayesClassifier:new(test_state.classifier_config)
     else
         error("Unknown classifier type: " .. tostring(test_state.classifier_type))
     end
@@ -105,6 +116,8 @@ Step("I classify \"(.+)\"", function(ctx, text)
     if not test_state.classifier then
         if test_state.classifier_type == "llm" then
             test_state.classifier = LLMClassifier:new(test_state.classifier_config)
+        elseif test_state.classifier_type == "naive_bayes" then
+            test_state.classifier = NaiveBayesClassifier:new(test_state.classifier_config)
         else
             test_state.classifier = FuzzyMatchClassifier:new(test_state.classifier_config)
         end
@@ -156,6 +169,9 @@ Mocks {
                 message = "neutral"
             }
         }
+    },
+    imdb_nb = {
+        output = {label = "positive", confidence = 0.92}
     }
 }
 
@@ -206,6 +222,12 @@ Feature: Classification Class Hierarchy
     Given a fuzzy classifier expecting "hello"
     When I classify "goodbye"
     Then the result value should be "No"
+
+  Scenario: Naive Bayes classification
+    Given a naive bayes classifier named "imdb_nb"
+    When I classify "An excellent movie"
+    Then the result value should be "positive"
+    And the result should have a confidence score
 ]])
 
 -- Minimal procedure

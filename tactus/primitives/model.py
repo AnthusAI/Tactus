@@ -115,6 +115,20 @@ class ModelPrimitive:
                 labels=config.get("labels"),
             )
 
+        if model_type == "sklearn":
+            from tactus.backends.sklearn_backend import SklearnModelBackend
+
+            resolved_path = resolve_path(
+                config["path"],
+                cache_dir=config.get("cache_dir"),
+                client=config.get("s3_client"),
+            )
+
+            return SklearnModelBackend(
+                path=resolved_path,
+                labels=config.get("labels"),
+            )
+
         if model_type == "llm":
             from tactus.backends.llm_backend import LLMModelBackend
 
@@ -179,7 +193,8 @@ class ModelPrimitive:
             )
 
         raise ValueError(
-            f"Unknown model type: {model_type}. Supported types: http, pytorch, llm, registry"
+            "Unknown model type: "
+            f"{model_type}. Supported types: http, pytorch, sklearn, llm, registry"
         )
 
     def predict(self, input_data: Any) -> Any:

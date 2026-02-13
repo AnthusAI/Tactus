@@ -1329,6 +1329,48 @@ def validate(
         raise typer.Exit(1)
 
 
+@app.command()
+def train(
+    training_file: Path = typer.Argument(..., help="Path to training config (.tac)"),
+    model: Optional[str] = typer.Option(None, help="Model name if multiple are defined"),
+    candidate: Optional[str] = typer.Option(None, help="Train a specific candidate only"),
+    registry_dir: Optional[str] = typer.Option(
+        None, help="Registry directory (default: ~/.tactus/models)"
+    ),
+    no_register: bool = typer.Option(False, help="Skip registering trained artifact"),
+    no_eval: bool = typer.Option(False, help="Skip evaluation on test split"),
+):
+    """
+    Train models from a .tac training configuration.
+    """
+    if not training_file.exists():
+        console.print(f"[red]Error:[/red] Training file not found: {training_file}")
+        raise typer.Exit(1)
+
+    if training_file.suffix not in [".tac", ".lua"]:
+        console.print("[red]Error:[/red] Training config must be a .tac file")
+        raise typer.Exit(1)
+
+    try:
+        import json
+        from tactus.training.config import load_training_config
+        from tactus.training.runner import TrainingRunner
+
+        config = load_training_config(str(training_file), model_name=model)
+        runner = TrainingRunner(registry_dir=registry_dir)
+        results = runner.run(
+            config,
+            candidate_name=candidate,
+            register=not no_register,
+            evaluate=not no_eval,
+        )
+
+        console.print(json.dumps(results, indent=2))
+    except Exception as e:
+        console.print(f"[red]✗ Error:[/red] {e}")
+        raise typer.Exit(1)
+
+
 @app.command("format")
 def format_(
     workflow_file: Path = typer.Argument(..., help="Path to workflow file (.tac or .lua)"),

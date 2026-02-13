@@ -24,6 +24,7 @@
 local base = require("tactus.classify.base")
 local llm = require("tactus.classify.llm")
 local fuzzy = require("tactus.classify.fuzzy")
+local naive_bayes = require("tactus.classify.naive_bayes")
 
 -- Classify factory: dispatches to the right classifier based on config
 local function Classify(config)
@@ -32,6 +33,8 @@ local function Classify(config)
 
     if method == "fuzzy" then
         classifier = fuzzy.FuzzyMatchClassifier:new(config)
+    elseif method == "naive_bayes" then
+        classifier = naive_bayes.NaiveBayesClassifier:new(config)
     else
         classifier = llm.LLMClassifier:new(config)
     end
@@ -49,6 +52,7 @@ return {
     BaseClassifier = base.BaseClassifier,
     LLMClassifier = llm.LLMClassifier,
     FuzzyMatchClassifier = fuzzy.FuzzyMatchClassifier,
+    NaiveBayesClassifier = naive_bayes.NaiveBayesClassifier,
 
     -- Factory
     Classify = Classify,
