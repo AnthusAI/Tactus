@@ -2,7 +2,6 @@
 Tests for LocalRegistry implementation.
 """
 
-import json
 import tempfile
 from pathlib import Path
 
@@ -27,7 +26,7 @@ class TestLocalRegistry:
 
     def test_init_creates_directory(self, temp_registry_dir):
         """Test that __init__ creates the registry directory."""
-        registry = LocalRegistry(registry_dir=temp_registry_dir)
+        LocalRegistry(registry_dir=temp_registry_dir)
         assert Path(temp_registry_dir).exists()
 
     def test_register_creates_version(self, registry):

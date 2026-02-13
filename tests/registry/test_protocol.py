@@ -7,7 +7,7 @@ from typing import Any, List, Optional
 
 import pytest
 
-from tactus.registry.protocol import ModelRegistry, ModelVersion, PredictionLog
+from tactus.registry.protocol import ModelVersion, PredictionLog
 
 
 class MockRegistry:

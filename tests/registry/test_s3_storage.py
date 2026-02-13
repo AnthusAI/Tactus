@@ -1,7 +1,4 @@
-import tempfile
-
 import boto3
-import pytest
 from moto import mock_aws
 
 from tactus.registry.storage import S3Storage, download_to_cache, resolve_path

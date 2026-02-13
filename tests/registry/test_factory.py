@@ -1,5 +1,3 @@
-import os
-
 from tactus.registry.factory import create_registry
 from tactus.registry.local import LocalRegistry
 from tactus.registry.mlflow import MLflowRegistry

@@ -3,7 +3,6 @@ Tests for models CLI commands.
 """
 
 import tempfile
-from pathlib import Path
 
 from typer.testing import CliRunner
 

@@ -192,8 +192,6 @@ def test_execute_predict_with_llm_backend_format():
 
 def test_execute_predict_with_non_dict_input():
     """Test input validation with non-dict input and single-field schema."""
-    from pydantic import ValidationError
-
     backend = mock.Mock()
     backend.predict_sync.return_value = {"result": "ok"}
     with mock.patch("tactus.backends.http_backend.HTTPModelBackend", return_value=backend):

@@ -28,6 +28,7 @@ from rich.logging import RichHandler
 from rich.panel import Panel
 from rich.prompt import Prompt, Confirm
 from rich.table import Table
+from tactus.cli.commands import models
 from tactus.core import TactusRuntime
 from tactus.core.yaml_parser import ProcedureYAMLParser, ProcedureConfigError
 from tactus.validation import TactusValidator, ValidationMode
@@ -1047,8 +1048,6 @@ sandbox_app = typer.Typer(help="Manage Docker sandbox for secure procedure execu
 app.add_typer(sandbox_app, name="sandbox")
 
 # Models subcommand group
-from tactus.cli.commands import models
-
 app.add_typer(models.app, name="models")
 
 
