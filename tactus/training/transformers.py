@@ -130,4 +130,8 @@ class HFTransformersTrainer:
         }
         training_args = hyper.get("training_args") or {}
         base_args.update(training_args)
+        if "evaluation_strategy" in base_args and "eval_strategy" not in base_args:
+            base_args["eval_strategy"] = base_args["evaluation_strategy"]
+        if "evaluation_strategy" in base_args and "eval_strategy" in base_args:
+            base_args.pop("evaluation_strategy", None)
         return {k: v for k, v in base_args.items() if v is not None}

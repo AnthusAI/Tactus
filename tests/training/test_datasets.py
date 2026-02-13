@@ -22,20 +22,36 @@ def test_load_dataset_bundle_local(tmp_path):
         test=str(data_file),
         text_field="text",
         label_field="label",
+        limit={"train": 1, "test": 1},
     )
 
     bundle = load_dataset_bundle(config)
-    assert len(bundle.train) == 2
+    assert len(bundle.train) == 1
     assert bundle.test is not None
     assert bundle.train[0]["text"] == "good"
 
 
 def test_load_dataset_bundle_hf(monkeypatch):
+    class FakeDataset:
+        def __init__(self, rows):
+            self.rows = rows
+
+        def shuffle(self, seed=None):
+            return self
+
+        def select(self, indices):
+            return FakeDataset([self.rows[i] for i in indices])
+
+        def __iter__(self):
+            return iter(self.rows)
+
     def fake_load_dataset(name, split):
-        return [
-            {"text": "great", "label": 1},
-            {"text": "awful", "label": 0},
-        ]
+        return FakeDataset(
+            [
+                {"text": "great", "label": 1},
+                {"text": "awful", "label": 0},
+            ]
+        )
 
     monkeypatch.setitem(
         sys.modules,
@@ -50,8 +66,11 @@ def test_load_dataset_bundle_hf(monkeypatch):
         test="test[:2]",
         text_field="text",
         label_field="label",
+        shuffle=True,
+        limit=1,
+        seed=0,
     )
 
     bundle = load_dataset_bundle(config)
-    assert len(bundle.train) == 2
+    assert len(bundle.train) == 1
     assert bundle.test is not None
