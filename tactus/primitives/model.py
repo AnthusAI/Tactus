@@ -95,7 +95,24 @@ class ModelPrimitive:
                 labels=config.get("labels"),
             )
 
-        raise ValueError(f"Unknown model type: {model_type}. Supported types: http, pytorch")
+        if model_type == "llm":
+            from tactus.backends.llm_backend import LLMModelBackend
+
+            return LLMModelBackend(
+                model=config["model"],
+                system_prompt=config.get("system_prompt", ""),
+                provider=config.get("provider"),
+                temperature=config.get("temperature", 0.0),
+                max_tokens=config.get("max_tokens"),
+                retries=config.get("retries", 3),
+                retry_prompt=config.get("retry_prompt"),
+                parse_direction=config.get("parse_direction", "end"),
+                mock_manager=self.mock_manager,
+                registry=None,  # TODO: Pass registry when available
+                execution_context=None,  # Don't checkpoint internal agent turns
+            )
+
+        raise ValueError(f"Unknown model type: {model_type}. Supported types: http, pytorch, llm")
 
     def predict(self, input_data: Any) -> Any:
         """
