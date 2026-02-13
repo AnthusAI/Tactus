@@ -282,3 +282,18 @@ def test_cost_tracking_with_none_values():
     assert model.prediction_count == 1
     # But latency should be tracked
     assert model.avg_latency_ms > 0
+
+
+def test_create_backend_registry():
+    """Test creating registry backend."""
+    backend = object()
+    with mock.patch("tactus.backends.registry_backend.RegistryBackend", return_value=backend):
+        model = ModelPrimitive(
+            "m",
+            {
+                "type": "registry",
+                "name": "classifier",
+                "version": "champion",
+            },
+        )
+    assert model.backend is backend

@@ -120,7 +120,24 @@ class ModelPrimitive:
                 execution_context=None,  # Don't checkpoint internal agent turns
             )
 
-        raise ValueError(f"Unknown model type: {model_type}. Supported types: http, pytorch, llm")
+        if model_type == "registry":
+            from tactus.backends.registry_backend import RegistryBackend
+            from tactus.registry.local import LocalRegistry
+
+            # Get or create registry
+            registry_dir = config.get("registry_dir")
+            registry = LocalRegistry(registry_dir=registry_dir)
+
+            return RegistryBackend(
+                registry=registry,
+                model_name=config["name"],
+                version=config.get("version"),
+                fallback_config=config.get("fallback"),
+            )
+
+        raise ValueError(
+            f"Unknown model type: {model_type}. Supported types: http, pytorch, llm, registry"
+        )
 
     def predict(self, input_data: Any) -> Any:
         """
