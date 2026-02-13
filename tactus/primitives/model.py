@@ -91,6 +91,7 @@ class ModelPrimitive:
                 endpoint=config["endpoint"],
                 timeout=config.get("timeout", 30.0),
                 headers=config.get("headers"),
+                cost_per_call=config.get("cost_per_call"),
             )
 
         if model_type == "pytorch":
