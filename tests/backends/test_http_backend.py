@@ -63,3 +63,54 @@ def test_http_backend_predict_sync(monkeypatch):
     backend = HTTPModelBackend("http://example")
     result = backend.predict_sync({"x": 1})
     assert result == {"ok": True}
+
+
+def test_http_backend_predict_sync_with_cost(monkeypatch):
+    """Test HTTP backend with cost_per_call wraps result."""
+    response = FakeResponse({"label": "positive"})
+    monkeypatch.setattr(
+        "tactus.backends.http_backend.httpx.Client",
+        lambda timeout=None: FakeClient(response),
+    )
+    backend = HTTPModelBackend("http://example", cost_per_call=0.01)
+    result = backend.predict_sync({"text": "Hello"})
+
+    # Result should be wrapped with cost
+    assert result["result"] == {"label": "positive"}
+    assert result["cost"]["total_cost"] == 0.01
+    assert result["cost"]["prompt_cost"] == 0.01
+    assert result["cost"]["completion_cost"] == 0.0
+    assert result["usage"]["total_tokens"] == 0
+
+
+@pytest.mark.asyncio
+async def test_http_backend_predict_with_cost(monkeypatch):
+    """Test async HTTP backend with cost_per_call wraps result."""
+    response = FakeResponse({"label": "negative"})
+    monkeypatch.setattr(
+        "tactus.backends.http_backend.httpx.AsyncClient",
+        lambda timeout=None: FakeAsyncClient(response),
+    )
+    backend = HTTPModelBackend("http://example", cost_per_call=0.02)
+    result = await backend.predict({"text": "Bad"})
+
+    # Result should be wrapped with cost
+    assert result["result"] == {"label": "negative"}
+    assert result["cost"]["total_cost"] == 0.02
+    assert result["usage"]["prompt_tokens"] == 0
+
+
+def test_http_backend_with_headers_and_timeout(monkeypatch):
+    """Test HTTP backend with custom headers and timeout."""
+    response = FakeResponse({"status": "ok"})
+    monkeypatch.setattr(
+        "tactus.backends.http_backend.httpx.Client",
+        lambda timeout=None: FakeClient(response),
+    )
+    backend = HTTPModelBackend(
+        "http://example",
+        timeout=60.0,
+        headers={"Authorization": "Bearer token"},
+    )
+    result = backend.predict_sync({"data": "test"})
+    assert result == {"status": "ok"}

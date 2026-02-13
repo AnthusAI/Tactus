@@ -145,3 +145,59 @@ class TestPredictionResult:
         assert restored.cost.inference_cost == result.cost.inference_cost
         assert restored.model_version == result.model_version
         assert restored.backend_type == result.backend_type
+
+    def test_dict_like_access(self):
+        """Test dict-like __getitem__ access."""
+        cost = PredictionCost(inference_cost=0.001, compute_time_ms=100.0)
+        result = PredictionResult(
+            output={"label": "positive", "score": 0.95},
+            cost=cost,
+            model_version="v1.0.0",
+            backend_type="llm",
+        )
+
+        # Test accessing top-level fields
+        assert result["output"] == {"label": "positive", "score": 0.95}
+        assert result["cost"] == cost
+        assert result["model_version"] == "v1.0.0"
+        assert result["backend_type"] == "llm"
+
+        # Test accessing nested fields in output
+        assert result["label"] == "positive"
+        assert result["score"] == 0.95
+
+    def test_dict_like_access_missing_key(self):
+        """Test __getitem__ raises KeyError for missing keys on non-dict output."""
+        result = PredictionResult(output="string")
+
+        # For non-dict output, accessing unknown keys should raise KeyError
+        with pytest.raises(KeyError, match="No field 'nonexistent'"):
+            _ = result["nonexistent"]
+
+    def test_get_method(self):
+        """Test dict-like get method with defaults."""
+        result = PredictionResult(
+            output={"label": "positive"}, backend_type="http"
+        )
+
+        # Get existing fields
+        assert result.get("backend_type") == "http"
+        assert result.get("label") == "positive"
+
+        # Get missing fields from dict output returns None (from dict.get)
+        assert result.get("nonexistent") is None
+
+        # For non-dict output, get with default works
+        result2 = PredictionResult(output="string")
+        assert result2.get("missing", "default") == "default"
+
+    def test_nested_access_on_non_dict_output(self):
+        """Test nested access fails gracefully for non-dict output."""
+        result = PredictionResult(output="string_output")
+
+        # Can access top-level fields
+        assert result["output"] == "string_output"
+
+        # But nested access should raise KeyError
+        with pytest.raises(KeyError):
+            _ = result["some_field"]
