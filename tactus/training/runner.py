@@ -6,10 +6,12 @@ from __future__ import annotations
 
 import shutil
 import tempfile
+import time
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
+from collections import Counter
 
 from tactus.registry.local import LocalRegistry
 from tactus.training.datasets import load_dataset_bundle
@@ -86,6 +88,7 @@ class TrainingRunner:
                 raise ValueError(f"Candidate not found: {candidate_name}")
 
         data_bundle = load_dataset_bundle(config.data)
+        data_summary = self._summarize_data(data_bundle)
         if not evaluate:
             data_bundle = type(data_bundle)(train=data_bundle.train, val=data_bundle.val, test=None)
 
@@ -93,7 +96,9 @@ class TrainingRunner:
         for candidate in candidates:
             trainer = trainer_registry.get(candidate.trainer)
             with tempfile.TemporaryDirectory() as tmpdir:
+                start_time = time.perf_counter()
                 trained = trainer.train(candidate, data_bundle, tmpdir)
+                duration = time.perf_counter() - start_time
 
                 metrics = trained.metrics if evaluate else None
                 if register:
@@ -128,6 +133,9 @@ class TrainingRunner:
                 results[candidate.name] = {
                     "metrics": asdict(metrics) if metrics else None,
                     "backend_type": trained.backend_type,
+                    "hyperparameters": candidate.hyperparameters or {},
+                    "data": data_summary,
+                    "duration_seconds": round(duration, 3),
                 }
 
         return results
@@ -135,3 +143,16 @@ class TrainingRunner:
     def _build_version_id(self, candidate_name: str) -> str:
         timestamp = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
         return f"{candidate_name}-{timestamp}"
+
+    def _summarize_data(self, bundle: DatasetBundle) -> dict:
+        def summarize_split(rows):
+            if not rows:
+                return {"count": 0, "labels": {}}
+            labels = Counter(str(row.get("label")) for row in rows)
+            return {"count": len(rows), "labels": dict(labels)}
+
+        return {
+            "train": summarize_split(bundle.train),
+            "val": summarize_split(bundle.val),
+            "test": summarize_split(bundle.test),
+        }

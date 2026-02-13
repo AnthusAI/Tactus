@@ -6,6 +6,8 @@ Model "imdb_nb" {
     name = "imdb",
     train = "train[:2000]",
     test = "test[:500]",
+    shuffle = { train = true, test = true },
+    seed = 42,
     text_field = "text",
     label_field = "label"
   },
