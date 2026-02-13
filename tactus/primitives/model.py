@@ -257,7 +257,7 @@ class ModelPrimitive:
 
         # Accumulate statistics
         self._prediction_count += 1
-        if cost.compute_time_ms is not None:
+        if cost.compute_time_ms is not None:  # pragma: no branch
             self._total_compute_time_ms += cost.compute_time_ms
         if cost.inference_cost is not None:
             self._total_inference_cost += cost.inference_cost

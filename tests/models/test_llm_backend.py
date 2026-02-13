@@ -244,3 +244,163 @@ class TestModelPrimitiveLLMBackend:
             model.predict({"text": "Hello"})  # Missing 'lang'
 
         model.backend.predict_sync.assert_not_called()
+
+    def test_llm_backend_async_predict(self):
+        """Test LLM backend async predict() wrapper."""
+        import asyncio
+
+        backend = LLMModelBackend(
+            model="openai/gpt-4o-mini",
+            system_prompt="Classify sentiment",
+        )
+
+        # Mock the predict_sync method
+        mock_result = {
+            "result": {"label": "positive"},
+            "usage": {"prompt_tokens": 10, "completion_tokens": 10, "total_tokens": 20},
+            "cost": {"prompt_cost": 0.0001, "completion_cost": 0.0001, "total_cost": 0.0002},
+        }
+        backend.predict_sync = MagicMock(return_value=mock_result)
+
+        # Call async predict
+        result = asyncio.run(backend.predict({"text": "Great!"}))
+
+        assert result["result"] == {"label": "positive"}
+        backend.predict_sync.assert_called_once_with({"text": "Great!"})
+
+    def test_llm_backend_non_dict_input(self):
+        """Test LLM backend with non-dict input (str branch)."""
+        backend = LLMModelBackend(
+            model="openai/gpt-4o-mini",
+            system_prompt="Classify sentiment",
+        )
+
+        # Mock the internal agent's __call__ method
+        mock_result = TactusResult(
+            output={"response": '{"label": "positive"}'},
+            usage=UsageStats(prompt_tokens=10, completion_tokens=10, total_tokens=20),
+            cost_stats=CostStats(prompt_cost=0.0001, completion_cost=0.0001, total_cost=0.0002),
+        )
+        backend._agent = MagicMock(return_value=mock_result)
+
+        # Pass string input instead of dict
+        result = backend.predict_sync("Hello world")
+
+        # Should convert to string and pass to agent
+        backend._agent.assert_called_once()
+        call_args = backend._agent.call_args[0][0]
+        assert call_args["message"] == "Hello world"
+        assert result["result"] == {"label": "positive"}
+
+    def test_llm_backend_string_output_from_agent(self):
+        """Test LLM backend when agent_result.output is string instead of dict."""
+        backend = LLMModelBackend(
+            model="openai/gpt-4o-mini",
+            system_prompt="Classify sentiment",
+        )
+
+        # Mock the internal agent to return string output
+        mock_result = TactusResult(
+            output='{"label": "negative"}',  # String instead of dict
+            usage=UsageStats(prompt_tokens=10, completion_tokens=10, total_tokens=20),
+            cost_stats=CostStats(prompt_cost=0.0001, completion_cost=0.0001, total_cost=0.0002),
+        )
+        backend._agent = MagicMock(return_value=mock_result)
+
+        result = backend.predict_sync({"text": "Bad product"})
+
+        assert result["result"] == {"label": "negative"}
+
+    def test_llm_backend_parse_error_start_no_json(self):
+        """Test LLM backend raises error when no JSON found at start."""
+        backend = LLMModelBackend(
+            model="openai/gpt-4o-mini",
+            system_prompt="Classify",
+            parse_direction="start",
+            retries=0,  # No retries to test error path
+        )
+
+        # Mock response with no valid JSON at start
+        mock_result = TactusResult(
+            output={"response": "This text does not start with JSON"},
+            usage=UsageStats(prompt_tokens=10, completion_tokens=10, total_tokens=20),
+            cost_stats=CostStats(prompt_cost=0.0001, completion_cost=0.0001, total_cost=0.0002),
+        )
+        backend._agent = MagicMock(return_value=mock_result)
+
+        with pytest.raises(ValueError, match="failed to produce valid output after"):
+            backend.predict_sync({"text": "Test"})
+
+    def test_llm_backend_parse_error_start_invalid_json(self):
+        """Test LLM backend when JSON at start is invalid."""
+        backend = LLMModelBackend(
+            model="openai/gpt-4o-mini",
+            system_prompt="Classify",
+            parse_direction="start",
+            retries=0,
+        )
+
+        # Mock response with invalid JSON at start
+        mock_result = TactusResult(
+            output={"response": "{invalid json here}"},
+            usage=UsageStats(prompt_tokens=10, completion_tokens=10, total_tokens=20),
+            cost_stats=CostStats(prompt_cost=0.0001, completion_cost=0.0001, total_cost=0.0002),
+        )
+        backend._agent = MagicMock(return_value=mock_result)
+
+        with pytest.raises(ValueError, match="failed to produce valid output after"):
+            backend.predict_sync({"text": "Test"})
+
+    def test_llm_backend_parse_error_end_no_json(self):
+        """Test LLM backend raises error when no JSON found at end."""
+        backend = LLMModelBackend(
+            model="openai/gpt-4o-mini",
+            system_prompt="Classify",
+            parse_direction="end",
+            retries=0,
+        )
+
+        # Mock response with no valid JSON at end
+        mock_result = TactusResult(
+            output={"response": "This text does not end with JSON at all"},
+            usage=UsageStats(prompt_tokens=10, completion_tokens=10, total_tokens=20),
+            cost_stats=CostStats(prompt_cost=0.0001, completion_cost=0.0001, total_cost=0.0002),
+        )
+        backend._agent = MagicMock(return_value=mock_result)
+
+        with pytest.raises(ValueError, match="failed to produce valid output after"):
+            backend.predict_sync({"text": "Test"})
+
+    def test_llm_backend_parse_error_end_invalid_json(self):
+        """Test LLM backend when response ends with } but has invalid JSON."""
+        backend = LLMModelBackend(
+            model="openai/gpt-4o-mini",
+            system_prompt="Classify",
+            parse_direction="end",
+            retries=0,
+        )
+
+        # Mock response that ends with } but has invalid JSON throughout
+        mock_result = TactusResult(
+            output={"response": "Some reasoning text {invalid json here}"},
+            usage=UsageStats(prompt_tokens=10, completion_tokens=10, total_tokens=20),
+            cost_stats=CostStats(prompt_cost=0.0001, completion_cost=0.0001, total_cost=0.0002),
+        )
+        backend._agent = MagicMock(return_value=mock_result)
+
+        with pytest.raises(ValueError, match="No valid JSON found at end of response"):
+            backend.predict_sync({"text": "Test"})
+
+    def test_llm_backend_agent_exception_propagates(self):
+        """Test that exceptions from agent propagate correctly."""
+        backend = LLMModelBackend(
+            model="openai/gpt-4o-mini",
+            system_prompt="Classify",
+            retries=1,
+        )
+
+        # Mock agent to raise a non-JSON exception
+        backend._agent = MagicMock(side_effect=RuntimeError("Agent failed"))
+
+        with pytest.raises(RuntimeError, match="Agent failed"):
+            backend.predict_sync({"text": "Test"})

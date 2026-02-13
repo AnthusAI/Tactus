@@ -158,6 +158,9 @@ class LLMModelBackend:
                         f"Last error: {last_error}"
                     ) from last_error
 
+        # This line should never be reached (loop always returns or raises)
+        raise RuntimeError("Unexpected exit from retry loop")  # pragma: no cover
+
     def _parse_response(self, response_text: str) -> Any:
         """
         Parse LLM response text to extract structured output.

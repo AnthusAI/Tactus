@@ -80,6 +80,23 @@ class TestSchemaDictToPydantic:
         assert instance.a == "text"
         assert instance.b == 1
 
+    def test_unknown_field_type(self):
+        """Test that unknown field types (non-string, non-dict) default to Any."""
+        schema = {
+            "text": "string",
+            "unknown": 123,  # Neither string nor dict
+        }
+        Model = schema_dict_to_pydantic(schema, "UnknownTypeModel")
+
+        # Should accept any value for 'unknown' field
+        instance = Model(text="hello", unknown="anything")
+        assert instance.text == "hello"
+        assert instance.unknown == "anything"
+
+        # Can also accept non-string values
+        instance2 = Model(text="hello", unknown=999)
+        assert instance2.unknown == 999
+
 
 class TestResolveSchema:
     """Test resolving schema specifications to Pydantic models."""

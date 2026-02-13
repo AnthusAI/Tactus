@@ -56,7 +56,9 @@ def test_predict_without_context_calls_backend():
     with mock.patch("tactus.backends.http_backend.HTTPModelBackend", return_value=backend):
         model = ModelPrimitive("m", {"type": "http", "endpoint": "http://example"})
 
-    assert model.predict({"x": 1}) == {"result": 1}
+    result = model.predict({"x": 1})
+    assert result.output == {"result": 1}
+    assert result.backend_type == "http"
     backend.predict_sync.assert_called_once_with({"x": 1})
 
 
@@ -68,7 +70,8 @@ def test_predict_with_context_uses_checkpoint():
 
     context = DummyContext()
     model.context = context
-    assert model.predict({"x": 2}) == "ok"
+    result = model.predict({"x": 2})
+    assert result.output == "ok"
     assert context.calls[0]["checkpoint_type"] == "model_predict"
     assert context.calls[0]["source_info"] is not None
 
@@ -89,7 +92,8 @@ def test_predict_with_context_without_frame(monkeypatch):
         return Frame()
 
     monkeypatch.setattr("inspect.currentframe", fake_currentframe)
-    assert model.predict({"x": 2}) == "ok"
+    result = model.predict({"x": 2})
+    assert result.output == "ok"
     assert context.calls[0]["source_info"] is None
 
 
@@ -131,7 +135,8 @@ def test_execute_predict_falls_back_to_backend():
         model = ModelPrimitive("m", {"type": "http", "endpoint": "http://example"})
     model.mock_manager = mock_manager
 
-    assert model._execute_predict({"x": 4}) == "backend"
+    result = model._execute_predict({"x": 4})
+    assert result.output == "backend"
     backend.predict_sync.assert_called_once_with({"x": 4})
 
 
@@ -141,5 +146,139 @@ def test_call_alias_and_repr():
     with mock.patch("tactus.backends.http_backend.HTTPModelBackend", return_value=backend):
         model = ModelPrimitive("m", {"type": "http", "endpoint": "http://example"})
 
-    assert model({"x": 5}) == "backend"
+    result = model({"x": 5})
+    assert result.output == "backend"
     assert repr(model) == "ModelPrimitive(m, type=http)"
+
+
+def test_create_backend_llm():
+    """Test creating LLM backend."""
+    backend = object()
+    with mock.patch("tactus.backends.llm_backend.LLMModelBackend", return_value=backend):
+        model = ModelPrimitive(
+            "m",
+            {
+                "type": "llm",
+                "model": "openai/gpt-4o-mini",
+                "system_prompt": "Classify sentiment",
+            },
+        )
+    assert model.backend is backend
+
+
+def test_execute_predict_with_llm_backend_format():
+    """Test that LLM backend format (with 'result' and 'cost' keys) is properly processed."""
+    backend = mock.Mock()
+    backend.predict_sync.return_value = {
+        "result": {"label": "positive"},
+        "cost": {"total_cost": 0.0002, "prompt_cost": 0.0001, "completion_cost": 0.0001},
+        "usage": {"prompt_tokens": 10, "completion_tokens": 10, "total_tokens": 20},
+    }
+    with mock.patch("tactus.backends.http_backend.HTTPModelBackend", return_value=backend):
+        model = ModelPrimitive("m", {"type": "http", "endpoint": "http://example"})
+
+    result = model._execute_predict({"text": "Great!"})
+
+    assert result.output == {"label": "positive"}
+    assert result.cost.inference_cost == 0.0002
+    assert result.cost.tokens_in == 10
+    assert result.cost.tokens_out == 10
+    assert result.backend_type == "http"
+
+
+def test_execute_predict_with_non_dict_input():
+    """Test input validation with non-dict input and single-field schema."""
+    from pydantic import ValidationError
+
+    backend = mock.Mock()
+    backend.predict_sync.return_value = {"result": "ok"}
+    with mock.patch("tactus.backends.http_backend.HTTPModelBackend", return_value=backend):
+        model = ModelPrimitive(
+            "m",
+            {
+                "type": "http",
+                "endpoint": "http://example",
+                "input": {"input": "string"},  # Single field named "input"
+            },
+        )
+
+    # Should wrap non-dict input in dict with "input" key
+    result = model._execute_predict("test string")
+    assert result.output == {"result": "ok"}
+    backend.predict_sync.assert_called_once_with("test string")
+
+
+def test_execute_predict_with_non_dict_output():
+    """Test output validation with non-dict output."""
+    backend = mock.Mock()
+    backend.predict_sync.return_value = "string result"  # Non-dict output
+    with mock.patch("tactus.backends.http_backend.HTTPModelBackend", return_value=backend):
+        model = ModelPrimitive(
+            "m",
+            {
+                "type": "http",
+                "endpoint": "http://example",
+                "output": {"output": "string"},  # Schema expects dict with "output" field
+            },
+        )
+
+    # Should log warning but not fail
+    result = model._execute_predict({"x": 1})
+    assert result.output == "string result"
+
+
+def test_cumulative_statistics():
+    """Test cumulative cost and timing statistics."""
+    backend = mock.Mock()
+    # First call
+    backend.predict_sync.return_value = {
+        "result": {"label": "positive"},
+        "cost": {"total_cost": 0.001},
+        "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
+    }
+
+    with mock.patch("tactus.backends.http_backend.HTTPModelBackend", return_value=backend):
+        model = ModelPrimitive("m", {"type": "http", "endpoint": "http://example"})
+
+    # Before any predictions
+    assert model.total_cost == 0.0
+    assert model.prediction_count == 0
+    assert model.avg_latency_ms == 0.0
+
+    # First prediction
+    model._execute_predict({"x": 1})
+
+    assert model.total_cost == 0.001
+    assert model.prediction_count == 1
+    assert model.avg_latency_ms > 0
+
+    # Second call
+    backend.predict_sync.return_value = {
+        "result": {"label": "negative"},
+        "cost": {"total_cost": 0.002},
+        "usage": {"prompt_tokens": 15, "completion_tokens": 8, "total_tokens": 23},
+    }
+
+    model._execute_predict({"x": 2})
+
+    assert model.total_cost == 0.003
+    assert model.prediction_count == 2
+    assert model.avg_latency_ms > 0
+
+
+def test_cost_tracking_with_none_values():
+    """Test that None cost values don't break statistics tracking."""
+    backend = mock.Mock()
+    # Backend returns result without cost info (compute_time_ms will be set, but inference_cost will be None)
+    backend.predict_sync.return_value = "simple result"
+
+    with mock.patch("tactus.backends.http_backend.HTTPModelBackend", return_value=backend):
+        model = ModelPrimitive("m", {"type": "http", "endpoint": "http://example"})
+
+    model._execute_predict({"x": 1})
+
+    # Cost should still be 0.0 (no inference cost)
+    assert model.total_cost == 0.0
+    assert model.prediction_count == 1
+    # But latency should be tracked
+    assert model.avg_latency_ms > 0
