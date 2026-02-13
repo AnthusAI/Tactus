@@ -129,11 +129,16 @@ class ModelPrimitive:
 
         if model_type == "registry":
             from tactus.backends.registry_backend import RegistryBackend
-            from tactus.registry.local import LocalRegistry
+            from tactus.registry.factory import create_registry
 
             # Get or create registry
             registry_dir = config.get("registry_dir")
-            registry = LocalRegistry(registry_dir=registry_dir)
+            registry = create_registry(
+                registry_type=config.get("registry_type"),
+                registry_dir=registry_dir,
+                tracking_uri=config.get("tracking_uri"),
+                region_name=config.get("region"),
+            )
 
             return RegistryBackend(
                 registry=registry,

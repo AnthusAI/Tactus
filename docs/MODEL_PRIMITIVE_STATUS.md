@@ -179,7 +179,12 @@ Future enhancements (not required for core functionality):
    - ✅ Added `tactus.models.llm` stdlib helper
    - ✅ Added model-based stdlib example (`examples/42-model-stdlib-classify.tac`)
 
-4. **Phase 7-8: Advanced Features**
+4. **Phase 7: External Registry Integration** - COMPLETE
+   - ✅ MLflowRegistry adapter (tracking URI configurable)
+   - ✅ SageMakerRegistry stub adapter
+   - ✅ Registry factory with env/project config support (`TACTUS_REGISTRY_TYPE`, etc.)
+
+5. **Phase 8: Advanced Features**
    - External registries (MLflow, SageMaker)
    - Model ensembles
    - A/B testing
