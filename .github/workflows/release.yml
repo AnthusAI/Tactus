@@ -195,5 +195,6 @@ jobs:
             tactus-desktop/dist-electron/*.exe
             tactus-desktop/dist-electron/*.AppImage
           fail_on_unmatched_files: false
+          overwrite: true
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
