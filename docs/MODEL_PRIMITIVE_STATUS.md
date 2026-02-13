@@ -184,11 +184,10 @@ Future enhancements (not required for core functionality):
    - ✅ SageMakerRegistry stub adapter
    - ✅ Registry factory with env/project config support (`TACTUS_REGISTRY_TYPE`, etc.)
 
-5. **Phase 8: Advanced Features**
-   - External registries (MLflow, SageMaker)
-   - Model ensembles
-   - A/B testing
-   - Data drift detection
+5. **Phase 8: Advanced Features** - IN PROGRESS
+   - ✅ Model ensembles (vote/average) and A/B routing backends
+   - ✅ Drift detection + retrain trigger utilities
+   - ☐ User-facing config/docs/examples for ensembles/A/B/drift
 
 ## 💡 Design Decisions Made
 
