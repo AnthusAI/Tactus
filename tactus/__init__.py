@@ -19,7 +19,7 @@ from tactus.core.exceptions import (
 
 # Protocol exports
 from tactus.protocols.storage import StorageBackend, ProcedureMetadata
-from tactus.protocols.models import CheckpointEntry
+from tactus.protocols.models import CheckpointEntry, MessageClassification
 from tactus.protocols.hitl import HITLHandler, HITLRequest, HITLResponse
 from tactus.protocols.chat_recorder import ChatRecorder, ChatMessage
 from tactus.protocols.config import TactusConfig, ProcedureConfig
@@ -39,6 +39,7 @@ __all__ = [
     "StorageBackend",
     "ProcedureMetadata",
     "CheckpointEntry",
+    "MessageClassification",
     "HITLHandler",
     "HITLRequest",
     "HITLResponse",

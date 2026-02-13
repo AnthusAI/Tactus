@@ -11,6 +11,7 @@ from tactus.protocols.models import (
     HITLRequest,
     HITLResponse,
     ChatMessage,
+    MessageClassification,
 )
 
 # Control loop protocol and models
@@ -42,6 +43,7 @@ __all__ = [
     "HITLRequest",
     "HITLResponse",
     "ChatMessage",
+    "MessageClassification",
     # Control loop
     "ControlChannel",
     "ControlRequest",
