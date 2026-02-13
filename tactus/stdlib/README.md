@@ -18,8 +18,11 @@ tactus/stdlib/
 │   ├── classify/                # Classification (LLM + fuzzy matching)
 │   │   ├── init.tac             # Module entry point + Classify factory
 │   │   ├── base.tac             # BaseClassifier + class helper
-│   │   ├── llm.tac              # LLM-based classifier
+│   │   ├── llm.tac              # LLM-based classifier (now uses Model primitive)
 │   │   └── fuzzy.tac            # Fuzzy classifier (calls Python similarity)
+│   ├── models/                  # Model primitive helpers
+│   │   ├── init.tac             # Module entry
+│   │   └── llm.tac              # LLM Model wrapper built on Model primitive
 │   ├── extract/                 # Structured data extraction
 │   ├── generate/                # LLM-based generation
 │   ├── retrievers/              # Search/retrieval systems
@@ -38,7 +41,8 @@ tactus/stdlib/
 
 ## Available Modules
 
-- `tactus.classify` - LLM and fuzzy string matching classification
+- `tactus.classify` - LLM and fuzzy string matching classification (LLMClassifier now uses Model primitive)
+- `tactus.models` - Helpers for Model primitive (e.g., `tactus.models.llm`)
 - `tactus.extract` - Structured extraction utilities
 - `tactus.generate` - LLM-based generation helpers
 - `tactus.retrievers.*` - Search/retrieval systems
@@ -66,6 +70,16 @@ result = Classify {
 -- Python helpers loaded as fallback
 local json = require("tactus.io.json")
 local data = json.read("config.json")
+
+-- Model helper
+local models = require("tactus.models")
+local sentiment = models.LLMModel{
+    name = "sentiment",
+    classes = {"positive", "negative", "neutral"},
+    prompt = "Classify sentiment",
+    model = "openai/gpt-4o-mini",
+}
+local prediction = sentiment({text = "great!"})
 ```
 
 ## Testing

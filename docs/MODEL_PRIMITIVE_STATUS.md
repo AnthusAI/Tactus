@@ -174,9 +174,10 @@ Future enhancements (not required for core functionality):
    - Candidate comparison
    - Automatic evaluation
 
-3. **Phase 6: Stdlib Alignment**
-   - Update `LLMClassifier` to use model primitive internally
-   - Add model-based examples to stdlib
+3. **Phase 6: Stdlib Alignment** - COMPLETE
+   - ✅ `LLMClassifier` now uses Model primitive internally
+   - ✅ Added `tactus.models.llm` stdlib helper
+   - ✅ Added model-based stdlib example (`examples/42-model-stdlib-classify.tac`)
 
 4. **Phase 7-8: Advanced Features**
    - External registries (MLflow, SageMaker)
