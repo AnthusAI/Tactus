@@ -30,7 +30,7 @@ Last updated: 2026-02-13
 
 **Status:** Complete cost tracking infrastructure with Lua integration.
 
-### Phase 3: Local Model Registry - PARTIAL
+### Phase 3: Local Model Registry - COMPLETE ✅
 - ✅ **3.1** `ModelRegistry` protocol defined
 - ✅ **3.2** `LocalRegistry` implementation (filesystem-based)
   - Register model versions with metadata and tags
@@ -39,12 +39,12 @@ Last updated: 2026-02-13
   - Promote with champion/challenger tagging
   - Auto-tag previous champion as `{tag}-previous`
   - Log predictions for monitoring
-- ⏸️ **3.3** `type = "registry"` in model primitive (NOT YET STARTED)
-- ⏸️ **3.4** Champion/challenger tagging (implemented in registry, needs primitive integration)
-- ⏸️ **3.5** `tactus models list` CLI command (NOT YET STARTED)
-- ⏸️ **3.6** `tactus models promote` CLI command (NOT YET STARTED)
+- ✅ **3.3** `RegistryBackend` and `type = "registry"` in model primitive
+- ✅ **3.4** Champion/challenger tagging fully integrated
+- ✅ **3.5** `tactus models list` CLI command
+- ✅ **3.6** `tactus models promote` CLI command
 
-**Status:** Core registry implementation complete (100% test coverage), but not yet integrated with model primitive or CLI.
+**Status:** Complete with 100% test coverage on all new code. CLI commands integrated and working.
 
 ## 📊 Test Coverage
 
@@ -58,7 +58,7 @@ All implemented features have 100% test coverage:
 - `tactus/registry/protocol.py`: **83.3%** (Protocol abstract methods cannot be covered - expected)
 - `tactus/registry/local.py`: **100%**
 
-Total tests: 4,141 passing
+Total tests: 4,093 passing (128 model-related tests)
 
 ## 🎯 What Works Now
 
@@ -131,16 +131,24 @@ version = registry.resolve("sentiment-classifier", "champion")
 
 ## 🚧 What's Not Yet Working
 
-### Registry Integration
-- Model primitive doesn't support `type = "registry"` yet
-- No automatic resolution of champion/challenger versions
-- No fallback configuration
+### Registry Usage
+```lua
+-- This now works!
+Model "classifier" {
+    type = "registry",
+    name = "sentiment-classifier",
+    version = "champion",
+    fallback = {
+        type = "llm",
+        model = "openai/gpt-4o-mini",
+        system_prompt = "Classify sentiment"
+    }
+}
+```
 
-### CLI Commands
-- `tactus models list` - Not implemented
-- `tactus models promote` - Not implemented
-- `tactus models train` - Not implemented
-- `tactus models evaluate` - Not implemented
+### CLI Commands (Not Yet Implemented)
+- `tactus models train` - Training infrastructure (Phase 5)
+- `tactus models evaluate` - Evaluation framework (Phase 5)
 
 ### Advanced Features (Phase 4+)
 - S3 storage backend
@@ -151,29 +159,36 @@ version = registry.resolve("sentiment-classifier", "champion")
 - A/B testing
 - Data drift detection
 
-## 📝 Next Steps
+## 📝 Next Steps (Optional Future Work)
 
-To complete Phase 3 and make the registry fully usable:
+Phases 0-3 are complete! The Model primitive is fully functional with:
+- Schema validation
+- LLM backend with retry logic
+- Cost tracking
+- Local registry with champion/challenger workflow
+- CLI commands for model management
 
-1. **Add Registry Backend to Model Primitive** (Phase 3.3)
-   - Implement `type = "registry"` in `model.py`
-   - Resolve model name + version through registry
-   - Support `fallback` config when resolution fails
-   - Test: Registry-backed model resolves to correct backend
+Future enhancements (not required for core functionality):
 
-2. **CLI Commands** (Phase 3.5-3.6)
-   - `tactus models list <model-name>` - Show all versions
-   - `tactus models promote <name> --version <ver> --tag <tag>`
-   - Integration tests for CLI commands
+1. **Phase 4: S3 Storage Backend**
+   - Shared registry across environments
+   - Only needed for multi-team/multi-environment deployments
 
-3. **Documentation and Examples**
-   - Add registry usage examples
-   - Document champion/challenger workflow
-   - Update stdlib documentation
+2. **Phase 5: Training Infrastructure**
+   - `tactus models train` CLI command
+   - Training configuration parsing
+   - Candidate comparison
+   - Automatic evaluation
 
-4. **Phase 4: S3 Storage** (if needed)
-   - Only required if users need shared registry across environments
-   - Can be deferred if local filesystem registry is sufficient
+3. **Phase 6: Stdlib Alignment**
+   - Update `LLMClassifier` to use model primitive internally
+   - Add model-based examples to stdlib
+
+4. **Phase 7-8: Advanced Features**
+   - External registries (MLflow, SageMaker)
+   - Model ensembles
+   - A/B testing
+   - Data drift detection
 
 ## 💡 Design Decisions Made
 
