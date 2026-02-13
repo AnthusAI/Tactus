@@ -146,6 +146,15 @@ class RegistryBackend(ModelBackend):
                 labels=config.get("labels"),
             )
 
+        elif backend_type == "hf_transformers":
+            from tactus.backends.hf_transformers_backend import HFTransformersBackend
+
+            return HFTransformersBackend(
+                model=config["model"],
+                revision=config.get("revision"),
+                device=config.get("device"),
+            )
+
         elif backend_type == "llm":
             from tactus.backends.llm_backend import LLMModelBackend
 

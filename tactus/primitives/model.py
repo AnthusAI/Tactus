@@ -129,6 +129,15 @@ class ModelPrimitive:
                 labels=config.get("labels"),
             )
 
+        if model_type == "hf_transformers":
+            from tactus.backends.hf_transformers_backend import HFTransformersBackend
+
+            return HFTransformersBackend(
+                model=config["model"],
+                revision=config.get("revision"),
+                device=config.get("device"),
+            )
+
         if model_type == "llm":
             from tactus.backends.llm_backend import LLMModelBackend
 
@@ -194,7 +203,7 @@ class ModelPrimitive:
 
         raise ValueError(
             "Unknown model type: "
-            f"{model_type}. Supported types: http, pytorch, sklearn, llm, registry"
+            f"{model_type}. Supported types: http, pytorch, sklearn, hf_transformers, llm, registry"
         )
 
     def predict(self, input_data: Any) -> Any:

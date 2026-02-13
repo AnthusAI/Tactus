@@ -13,6 +13,7 @@ from typing import Optional
 from tactus.registry.local import LocalRegistry
 from tactus.training.datasets import load_dataset_bundle
 from tactus.training.naive_bayes import NaiveBayesTrainer
+from tactus.training.transformers import HFTransformersTrainer
 from tactus.training.trainers import get_trainer_registry
 from tactus.training.types import CandidateConfig, TrainingConfig, TrainingDataConfig
 
@@ -20,6 +21,7 @@ from tactus.training.types import CandidateConfig, TrainingConfig, TrainingDataC
 def _register_default_trainers() -> None:
     registry = get_trainer_registry()
     registry.register(NaiveBayesTrainer())
+    registry.register(HFTransformersTrainer())
 
 
 def _parse_training_config(config: dict, model_name: str) -> TrainingConfig:

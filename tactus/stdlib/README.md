@@ -25,6 +25,7 @@ tactus/stdlib/
 │   │   ├── init.tac             # Module entry
 │   │   ├── llm.tac              # LLM Model wrapper built on Model primitive
 │   │   └── naive_bayes.tac       # Naive Bayes model helper (registry-backed)
+│   │   └── hf_transformers.tac   # HuggingFace AutoModel helper
 │   ├── extract/                 # Structured data extraction
 │   ├── generate/                # LLM-based generation
 │   ├── retrievers/              # Search/retrieval systems
@@ -44,7 +45,7 @@ tactus/stdlib/
 ## Available Modules
 
 - `tactus.classify` - LLM, Naive Bayes, and fuzzy string matching classification
-- `tactus.models` - Helpers for Model primitive (e.g., `tactus.models.llm`, `tactus.models.naive_bayes`)
+- `tactus.models` - Helpers for Model primitive (e.g., `tactus.models.llm`, `tactus.models.naive_bayes`, `tactus.models.hf_transformers`)
 - Ensembles & A/B: Model primitive supports `type = "ensemble"` (vote/average) and `type = "ab_test"` routing with metadata (`arm_index`)
 - `tactus.extract` - Structured extraction utilities
 - `tactus.generate` - LLM-based generation helpers
@@ -89,6 +90,13 @@ local nb = classify.NaiveBayesClassifier:new {
     name = "imdb_nb"
 }
 local nb_result = nb:classify("An excellent movie")
+
+-- HuggingFace AutoModel helper
+local models = require("tactus.models")
+local bert = models.HFTransformersModel{
+    model = "distilbert-base-uncased-finetuned-sst-2-english"
+}
+local bert_result = bert({text = "great movie"})
 
 -- Ensemble / A/B examples (see examples/43-model-ensemble.tac, 44-model-ab-test.tac)
 ```

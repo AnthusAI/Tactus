@@ -97,6 +97,25 @@ Feature: Model Primitive for ML Inference
   When I validate the file
   Then validation should succeed
 
+  Scenario: HuggingFace transformers model type is supported
+  Given a Lua DSL file with content:
+  """
+  sentiment = Model {
+    type = "hf_transformers",
+    model = "distilbert-base-uncased-finetuned-sst-2-english"
+  }
+
+  main = Procedure "main" {
+    output = {result = field.string{}},
+    state = {},
+    function(input)
+      return {result = "ok"}
+    end
+  }
+  """
+  When I validate the file
+  Then validation should succeed
+
   Scenario: Model requires type field
   Given a Lua DSL file with content:
   """
