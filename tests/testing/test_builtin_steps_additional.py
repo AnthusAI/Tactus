@@ -123,6 +123,27 @@ def test_output_value_fuzzy_match_invalid_threshold():
         builtin.step_output_value_fuzzy_match(ctx, "Hello", "not-a-number")
 
 
+def test_semantic_assertion_skips_in_mock_mode(monkeypatch):
+    ctx = DummyContext()
+    ctx._output = "Hello there"
+
+    monkeypatch.setenv("TACTUS_MOCK_MODE", "1")
+    monkeypatch.delenv("TACTUS_SEMANTIC_ASSERT_MODEL", raising=False)
+
+    builtin.step_output_semantic_assertion(ctx, "be polite")
+
+
+def test_semantic_assertion_requires_model(monkeypatch):
+    ctx = DummyContext()
+    ctx._output = "Hello there"
+
+    monkeypatch.delenv("TACTUS_MOCK_MODE", raising=False)
+    monkeypatch.delenv("TACTUS_SEMANTIC_ASSERT_MODEL", raising=False)
+
+    with pytest.raises(AssertionError):
+        builtin.step_output_semantic_assertion(ctx, "be polite")
+
+
 def test_state_steps_and_output_steps():
     ctx = DummyContext()
 

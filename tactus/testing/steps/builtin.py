@@ -11,9 +11,11 @@ Provides a comprehensive library of steps for testing:
 - Fuzzy string matching
 """
 
-import logging
-import re
 import ast
+import json
+import logging
+import os
+import re
 from typing import Any, Optional
 
 from .registry import StepRegistry
@@ -231,6 +233,7 @@ def register_output_steps(registry: StepRegistry) -> None:
         step_output_value_fuzzy_match,
     )
     registry.register(r"the output should fuzzy match (?P<value>.+)", step_output_value_fuzzy_match)
+    registry.register(r"the output should semantically satisfy (?P<assertion>.+)", step_output_semantic_assertion)
 
     registry.register(r"the output (?P<key>\w+) should be (?P<value>.+)", step_output_equals)
 
@@ -395,6 +398,58 @@ def step_output_value_fuzzy_match(context: Any, value: str, threshold: str = "0.
         f"Output is '{actual}', best match was '{best_expected}'. "
         f"Expected: {expected_values}"
     )
+
+
+def step_output_semantic_assertion(context: Any, assertion: str) -> None:
+    """Use an LLM judge to verify a semantic assertion about the output."""
+    actual = context.output_value()
+    assert actual is not None, "Output is missing"
+
+    assertion, _ = _parse_step_string_literal(assertion)
+
+    if os.environ.get("TACTUS_MOCK_MODE") == "1":
+        return
+
+    model = os.environ.get("TACTUS_SEMANTIC_ASSERT_MODEL")
+    if not model:
+        raise AssertionError(
+            "Semantic assertions require TACTUS_SEMANTIC_ASSERT_MODEL to be set"
+        )
+
+    from tactus.dspy.agent import DSPyAgentHandle
+
+    judge = DSPyAgentHandle(
+        name="semantic_assertion_judge",
+        system_prompt=(
+            "You are a strict evaluator. Determine if the OUTPUT satisfies the ASSERTION. "
+            "Return JSON only: {\"ok\": true|false, \"reason\": \"...\"}."
+        ),
+        model=model,
+        temperature=0.0,
+        output_schema={
+            "ok": {"type": "boolean", "required": True},
+            "reason": {"type": "string", "required": False},
+        },
+        response={"retries": 2, "retry_delay": 0.0},
+        disable_streaming=True,
+    )
+
+    message = {
+        "output": actual,
+        "assertion": assertion,
+    }
+
+    result = judge({"message": json.dumps(message)})
+    output = result.output
+    if not isinstance(output, dict):
+        raise AssertionError("Semantic assertion judge returned invalid output")
+
+    ok = output.get("ok")
+    if ok is True:
+        return
+
+    reason = output.get("reason") or "Assertion failed"
+    raise AssertionError(f"Semantic assertion failed: {reason}")
 
 
 def step_output_not_equals(context: Any, key: str, value: str) -> None:

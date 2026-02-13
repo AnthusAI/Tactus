@@ -1851,6 +1851,23 @@ class TactusRuntime:
                 "system_prompt"
             ]  # Keep as template for dynamic rendering
 
+            skills_paths = agent_config.get("skills") or self.config.get("skills") or []
+            if isinstance(skills_paths, str):
+                skills_paths = [skills_paths]
+            if isinstance(skills_paths, list) and skills_paths and isinstance(
+                system_prompt_template, str
+            ):
+                from tactus.skills.loader import discover_skills, render_skills_manifest
+
+                skills_mode = agent_config.get("skills_mode") or self.config.get(
+                    "skills_mode", "metadata"
+                )
+                skills = discover_skills(skills_paths)
+                include_body = str(skills_mode).lower() == "full"
+                manifest = render_skills_manifest(skills, include_body=include_body)
+                if manifest:
+                    system_prompt_template = f"{system_prompt_template}\n\n{manifest}"
+
             # initial_message is optional - if not provided, will default to empty string or manual injection
             initial_message_raw = agent_config.get("initial_message", "")
             initial_message = (
