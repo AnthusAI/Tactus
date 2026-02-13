@@ -44,18 +44,30 @@ Provide a confidence score between 0 and 1 indicating how confident you are in t
     -- Call the model to classify the text
     local result = classifier({text = input.text})
 
-    -- Model returns: { result = {...}, cost = {...}, usage = {...} }
-    local classification = result.result
+    -- Model returns PredictionResult with output, cost, and metadata
+    -- Access output directly via dict-like interface
+    local sentiment = result.output.sentiment or result.sentiment
+    local confidence = result.output.confidence or result.confidence
 
-    -- Log cost information
-    print("Classification cost: $" .. result.cost.total_cost)
-    print("Tokens used: " .. result.usage.total_tokens ..
-          " (prompt: " .. result.usage.prompt_tokens ..
-          ", completion: " .. result.usage.completion_tokens .. ")")
+    -- Access cost information
+    if result.cost then
+        print("Classification cost: $" .. (result.cost.inference_cost or 0))
+        if result.cost.tokens_in then
+            print("Tokens used: " .. (result.cost.tokens_in + result.cost.tokens_out) ..
+                  " (input: " .. result.cost.tokens_in ..
+                  ", output: " .. result.cost.tokens_out .. ")")
+        end
+        print("Latency: " .. result.cost.compute_time_ms .. " ms")
+    end
+
+    -- Access model statistics
+    print("Total predictions: " .. classifier.prediction_count)
+    print("Total cost: $" .. classifier.total_cost)
+    print("Average latency: " .. classifier.avg_latency_ms .. " ms")
 
     return {
-        sentiment = classification.sentiment,
-        confidence = classification.confidence
+        sentiment = sentiment,
+        confidence = confidence
     }
 
     end
