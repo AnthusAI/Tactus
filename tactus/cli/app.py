@@ -28,6 +28,7 @@ from rich.logging import RichHandler
 from rich.panel import Panel
 from rich.prompt import Prompt, Confirm
 from rich.table import Table
+from tactus.cli.commands import models
 from tactus.core import TactusRuntime
 from tactus.core.yaml_parser import ProcedureYAMLParser, ProcedureConfigError
 from tactus.validation import TactusValidator, ValidationMode
@@ -1046,6 +1047,9 @@ def run(
 sandbox_app = typer.Typer(help="Manage Docker sandbox for secure procedure execution")
 app.add_typer(sandbox_app, name="sandbox")
 
+# Models subcommand group
+app.add_typer(models.app, name="models")
+
 
 @sandbox_app.command("status")
 def sandbox_status():
@@ -1322,6 +1326,48 @@ def validate(
         console.print(f"[red]{e}[/red]")
         if verbose:
             console.print_exception()
+        raise typer.Exit(1)
+
+
+@app.command()
+def train(
+    training_file: Path = typer.Argument(..., help="Path to training config (.tac)"),
+    model: Optional[str] = typer.Option(None, help="Model name if multiple are defined"),
+    candidate: Optional[str] = typer.Option(None, help="Train a specific candidate only"),
+    registry_dir: Optional[str] = typer.Option(
+        None, help="Registry directory (default: ~/.tactus/models)"
+    ),
+    no_register: bool = typer.Option(False, help="Skip registering trained artifact"),
+    no_eval: bool = typer.Option(False, help="Skip evaluation on test split"),
+):
+    """
+    Train models from a .tac training configuration.
+    """
+    if not training_file.exists():
+        console.print(f"[red]Error:[/red] Training file not found: {training_file}")
+        raise typer.Exit(1)
+
+    if training_file.suffix not in [".tac", ".lua"]:
+        console.print("[red]Error:[/red] Training config must be a .tac file")
+        raise typer.Exit(1)
+
+    try:
+        import json
+        from tactus.training.config import load_training_config
+        from tactus.training.runner import TrainingRunner
+
+        config = load_training_config(str(training_file), model_name=model)
+        runner = TrainingRunner(registry_dir=registry_dir)
+        results = runner.run(
+            config,
+            candidate_name=candidate,
+            register=not no_register,
+            evaluate=not no_eval,
+        )
+
+        console.print(json.dumps(results, indent=2))
+    except Exception as e:
+        console.print(f"[red]✗ Error:[/red] {e}")
         raise typer.Exit(1)
 
 

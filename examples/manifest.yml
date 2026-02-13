@@ -39,6 +39,9 @@ examples:
   - 40-model-simple.tac
   - 41-mcp-test.tac
   - 42-mcp-simple.tac
+  - models/classification.tac
+  - models/http-endpoint.tac
+  - models/registry-usage.tac
 
   # Sub-procedures & durability
   - 43-sub-procedure-simple.tac

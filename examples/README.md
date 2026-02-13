@@ -16,7 +16,7 @@ The definitive list of examples under test is tracked in `examples/manifest.yml`
 - **Features** – state, history, structure, tool usage: `10-feature-state.tac`, `11-feature-message-history.tac`, `12-feature-structured-output.tac`, `13-feature-session.tac`, `14-feature-per-turn-tools.tac`, `15-feature-local-tools.tac`, `16-feature-toolsets-advanced.tac`, `17-feature-toolsets-dsl.tac`, `18-feature-lua-tools-inline.tac`, `19-feature-direct-tool-calls.tac`
 - **BDD specs** – representative specification flows: `20-bdd-complete.tac`, `21-bdd-passing.tac`, `22-bdd-fuzzy-matching.tac`
 - **Evaluations** – eval runner + datasets: `30-eval-simple.tac`, `31-eval-thresholds.tac`, `32-eval-dataset.tac`, `33-eval-trace.tac`, `34-eval-advanced.tac`
-- **Models & MCP** – model plumbing and MCP servers: `40-model-simple.tac`, `41-mcp-test.tac`, `42-mcp-simple.tac`
+- **Models & MCP** – model plumbing and MCP servers: `40-model-simple.tac`, `41-mcp-test.tac`, `42-mcp-simple.tac`, `models/classification.tac`, `models/http-endpoint.tac`, `models/registry-usage.tac`
 - **Sub-procedures & durability** – procedure composition and checkpoints: `43-sub-procedure-simple.tac`, `44-sub-procedure-composition.tac`, `45-checkpoint-explicit.tac`, `46-script-mode-simple.tac`
 - **Inputs & file I/O** – parameter shapes and file adapters: `50-inputs-showcase.tac`, `51-file-io-basics.tac`, `52-json-file-io.tac`, `53-parquet-file-io.tac`, `54-excel-file-io.tac`
 - **Tools & integrations** – tool discovery and broker flows: `60-tool-sources.tac`, `61-mcp-toolset-by-server.tac`, `62-require-modules.tac`, `63-host-tools-via-broker.tac`

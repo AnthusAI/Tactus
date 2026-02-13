@@ -1,6 +1,11 @@
 from datetime import timezone
 
-from tactus.protocols.models import HITLRequest, HITLResponse
+from tactus.protocols.models import (
+    HITLRequest,
+    HITLResponse,
+    ChatMessage,
+    MessageClassification,
+)
 from tactus.protocols.notification import (
     ChannelCapabilities,
     NotificationDeliveryResult,
@@ -84,3 +89,28 @@ def test_notifications_config_defaults():
 def test_protocol_types_exposed():
     assert hasattr(LogHandler, "log")
     assert hasattr(StorageBackend, "load_procedure_metadata")
+
+
+def test_chat_message_defaults_classification_from_role():
+    message = ChatMessage(role="user", content="hello")
+
+    assert message.classification == MessageClassification.CHAT
+    assert message.human_interaction == MessageClassification.CHAT.value
+
+
+def test_chat_message_maps_legacy_human_interaction():
+    message = ChatMessage(role="user", content="hello", human_interaction="approval")
+
+    assert message.classification == MessageClassification.PENDING_APPROVAL
+    assert message.human_interaction == "approval"
+
+
+def test_chat_message_respects_explicit_classification():
+    message = ChatMessage(
+        role="assistant",
+        content="ok",
+        classification="ALERT_ERROR",
+    )
+
+    assert message.classification == MessageClassification.ALERT_ERROR
+    assert message.human_interaction == MessageClassification.ALERT_ERROR.value

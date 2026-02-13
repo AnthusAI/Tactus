@@ -10,6 +10,8 @@
 local base = require("tactus.classify.base")
 local BaseClassifier = base.BaseClassifier
 local class = base.class
+local models = require("tactus.models.llm")
+local Agent = require("tactus.agent")
 
 -- ============================================================================
 -- LLMClassifier
@@ -29,39 +31,27 @@ function LLMClassifier:init(config)
     self.prompt = config.prompt
     self.max_retries = config.max_retries or 3
     self.temperature = config.temperature or 0.3
-    self.model = config.model
+    self.model_id = config.model or "openai/gpt-4o-mini"
     self.confidence_mode = config.confidence_mode or "heuristic"
 
-    -- Build classification prompt
-    local classes_str = table.concat(self.classes, ", ")
-    self.system_prompt = string.format([[%s
-
-You MUST respond with ONLY one of these values: %s
-
-Response format:
-- Start your response with the classification value on its own line
-- You may optionally explain your reasoning afterward
-
-Valid values: %s]], self.prompt, classes_str, classes_str)
-
-    -- Create agent
-    local agent_config = {
-        system_prompt = self.system_prompt,
-        temperature = self.temperature,
-    }
-
-    if self.model then
-        local provider, model_id = self.model:match("([^/]+)/(.+)")
-        if provider and model_id then
-            agent_config.provider = provider
-            agent_config.model = model_id
-        end
-    end
-
-    if self.name then
-        self.agent = Agent(self.name)(agent_config)
+    -- If mocks are available, use Agent path for compatibility with stdlib mocks
+    if _G.MockManager then
+        local agent_config = {
+            system_prompt = self.prompt,
+            temperature = self.temperature,
+        }
+        self.agent = Agent(self.name or "llm_classifier")(agent_config)
     else
-        self.agent = Agent(agent_config)
+        -- Build Model primitive instance
+        self.model = models.LLMModel {
+            name = self.name or "llm_classifier",
+            classes = self.classes,
+            prompt = self.prompt,
+            model = self.model_id,
+            temperature = self.temperature,
+            retries = self.max_retries,
+            parse_direction = "end",
+        }
     end
 end
 
@@ -102,51 +92,37 @@ function LLMClassifier:parse_response(response)
 end
 
 function LLMClassifier:classify(input_text)
-    local retry_count = 0
-    local last_response = nil
-
-    for attempt = 1, self.max_retries + 1 do
-        -- Call agent
+    if self.agent then
         local agent_result = self.agent({message = input_text})
-        last_response = agent_result.output or ""
-
-        -- Parse classification
-        local value = self:parse_response(last_response)
-
-        if value then
-            local result = {
-                value = value,
-                retry_count = retry_count,
-                raw_response = last_response
-            }
-
-            if self.confidence_mode == "heuristic" then
-                result.confidence = 0.8
-            end
-
-            return result
+        local value = self:parse_response(agent_result.output or "")
+        local response = {
+            value = value,
+            retry_count = 0,
+            raw_response = agent_result.output,
+        }
+        if self.confidence_mode == "heuristic" then
+            response.confidence = 0.8
         end
-
-        -- Retry
-        retry_count = retry_count + 1
-
-        if attempt <= self.max_retries then
-            local feedback = string.format(
-                "Your response '%s' is not valid. Please respond with ONLY one of: %s",
-                last_response,
-                table.concat(self.classes, ", ")
-            )
-            self.agent({message = feedback})
-        end
+        return response
     end
 
-    -- All retries exhausted
-    return {
-        value = "ERROR",
-        error = "Failed to get valid classification after " .. self.max_retries .. " retries",
-        retry_count = retry_count,
-        raw_response = last_response
+    local result = self.model({text = input_text})
+    local output = result.output or result
+    local value = output.value or output.sentiment or self:parse_response(output)
+
+    local response = {
+        value = value,
+        retry_count = result.retry_count or 0,
+        raw_response = output,
     }
+
+    if output.confidence then
+        response.confidence = output.confidence
+    elseif self.confidence_mode == "heuristic" then
+        response.confidence = 0.8
+    end
+
+    return response
 end
 
 -- Export LLMClassifier

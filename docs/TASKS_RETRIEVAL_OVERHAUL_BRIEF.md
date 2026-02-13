@@ -295,3 +295,70 @@ fetch = Task {
 -- Script-mode entrypoint remains valid for simple workflows:
 return Miami("Summarize the recent Miami AFD.")
 ```
+
+## Implementation Summary (Tactus)
+This section captures what landed in Tactus to support Biblicus task dependencies.
+
+### Files changed
+- `tactus/sandbox/container_runner.py` (mount Biblicus dev repo into sandbox)
+- `tactus/cli/app.py` (dev_mode detection)
+- `tactus/stdlib/biblicus/text.py` (mock markup passthrough)
+- `pyproject.toml` (include stdlib tac)
+- `features/steps/task_dependency_steps.py` (fixtures + snapshot assertions)
+- `tests/cli/test_cli.py`
+- `tests/core/test_retrieval.py`
+- `tests/stdlib/test_biblicus_text.py`
+
+Examples:
+- `examples/96-context-elasticity.tac`
+- `examples/96-context-elasticity-min.tac`
+- `examples/97-task-deps-biblicus.tac`
+- `examples/97-task-deps-biblicus-blocked.tac`
+- `examples/98-task-deps-custom.tac`
+- `examples/99-task-deps-blocked.tac`
+
+Scripts/fixtures:
+- `scripts/demo_context_elasticity.py`
+- `tests/fixtures/empty_corpus/.gitkeep`
+
+### How dependency planning works (runtime)
+- Biblicus builds a dependency DAG using snapshot manifests (catalogs keyed by
+  `catalog_generated_at` + `configuration_id`).
+- Tactus normalizes task kinds to canonical kinds (e.g., `fetch`/`sync` -> `load`,
+  `build` -> `index`, `run` -> `query`).
+- If dependencies are missing, Tactus either prompts, auto-runs, or fails fast
+  depending on CLI flags.
+
+### Prompting vs auto-run
+- Default: prompt when dependencies are required.
+- `--auto-deps`: run dependency tasks automatically.
+- `--no-deps`: fail fast with a clear missing-deps error.
+
+## Demo / Verification
+Run these in a dev checkout with Biblicus available (no sandbox, auto deps).
+
+1) Happy path (index creates extract + index snapshots)
+```bash
+tactus run --no-sandbox --auto-deps examples/97-task-deps-biblicus.tac index
+```
+Expected: extract and index dependencies run first; index completes.
+
+2) Blocked path (no load handler)
+```bash
+tactus run --no-sandbox --auto-deps examples/97-task-deps-biblicus-blocked.tac index
+```
+Expected: fails with a blocked plan; error explains missing load handler.
+
+3) Custom provides/depends_on chain
+```bash
+tactus run --no-sandbox --auto-deps examples/98-task-deps-custom.tac load
+tactus run --no-sandbox --auto-deps examples/98-task-deps-custom.tac index
+```
+Expected: load runs first; index is unblocked afterward.
+
+4) Context elasticity comparison
+```bash
+tactus run --no-sandbox examples/96-context-elasticity-min.tac
+python3 scripts/demo_context_elasticity.py
+```
+Expected: min example uses smaller packs; demo script shows larger budgeted packs.

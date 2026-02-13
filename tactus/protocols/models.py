@@ -3,7 +3,8 @@ Core Pydantic models used across Tactus protocols.
 """
 
 from typing import Any, Dict, Optional
-from pydantic import BaseModel, Field
+from enum import Enum
+from pydantic import BaseModel, Field, model_validator
 from datetime import datetime, timezone
 
 
@@ -296,6 +297,25 @@ class CheckpointCreatedEvent(BaseModel):
     model_config = {"arbitrary_types_allowed": True}
 
 
+class MessageClassification(str, Enum):
+    """Classification for chat visibility and interaction semantics."""
+
+    INTERNAL = "INTERNAL"
+    CHAT = "CHAT"
+    CHAT_ASSISTANT = "CHAT_ASSISTANT"
+    NOTIFICATION = "NOTIFICATION"
+    ALERT_INFO = "ALERT_INFO"
+    ALERT_WARNING = "ALERT_WARNING"
+    ALERT_ERROR = "ALERT_ERROR"
+    ALERT_CRITICAL = "ALERT_CRITICAL"
+    PENDING_APPROVAL = "PENDING_APPROVAL"
+    PENDING_INPUT = "PENDING_INPUT"
+    PENDING_REVIEW = "PENDING_REVIEW"
+    RESPONSE = "RESPONSE"
+    TIMED_OUT = "TIMED_OUT"
+    CANCELLED = "CANCELLED"
+
+
 class ChatMessage(BaseModel):
     """A message in a chat session."""
 
@@ -315,9 +335,77 @@ class ChatMessage(BaseModel):
     human_interaction: Optional[str] = Field(
         default=None, description="Human interaction type (PENDING_APPROVAL, RESPONSE, etc.)"
     )
+    classification: Optional[MessageClassification] = Field(
+        default=None,
+        description="Classification for visibility/behavior (INTERNAL, CHAT, PENDING_*, etc.)",
+    )
     metadata: Optional[Dict[str, Any]] = Field(
         default=None, description="Additional message metadata"
     )
+
+    @classmethod
+    def _normalize_classification(cls, value: Any) -> Optional[MessageClassification]:
+        if value is None:
+            return None
+        if isinstance(value, MessageClassification):
+            return value
+        if isinstance(value, str):
+            upper = value.upper()
+            if upper in MessageClassification.__members__:
+                return MessageClassification[upper]
+
+            legacy_map = {
+                "approval": MessageClassification.PENDING_APPROVAL,
+                "input": MessageClassification.PENDING_INPUT,
+                "review": MessageClassification.PENDING_REVIEW,
+                "escalation": MessageClassification.PENDING_REVIEW,
+                "notification": MessageClassification.NOTIFICATION,
+                "pending_approval": MessageClassification.PENDING_APPROVAL,
+                "pending_input": MessageClassification.PENDING_INPUT,
+                "pending_review": MessageClassification.PENDING_REVIEW,
+                "response": MessageClassification.RESPONSE,
+                "timed_out": MessageClassification.TIMED_OUT,
+                "cancelled": MessageClassification.CANCELLED,
+            }
+            return legacy_map.get(value.lower())
+        return None
+
+    @classmethod
+    def _default_classification_from_role(
+        cls, role: Optional[str]
+    ) -> Optional[MessageClassification]:
+        if not role:
+            return None
+        role_upper = role.upper()
+        if role_upper == "USER":
+            return MessageClassification.CHAT
+        if role_upper == "ASSISTANT":
+            return MessageClassification.CHAT_ASSISTANT
+        if role_upper == "SYSTEM":
+            return MessageClassification.NOTIFICATION
+        if role_upper == "TOOL":
+            return MessageClassification.INTERNAL
+        return None
+
+    @classmethod
+    def _normalize_fields(cls, values: Dict[str, Any]) -> Dict[str, Any]:
+        classification = cls._normalize_classification(values.get("classification"))
+        if classification is None:
+            classification = cls._normalize_classification(values.get("human_interaction"))
+        if classification is None:
+            classification = cls._default_classification_from_role(values.get("role"))
+
+        values["classification"] = classification
+        if values.get("human_interaction") is None and classification is not None:
+            values["human_interaction"] = classification.value
+        return values
+
+    @model_validator(mode="before")
+    @classmethod
+    def _apply_classification_defaults(cls, values: Any) -> Any:
+        if isinstance(values, dict):
+            return cls._normalize_fields(dict(values))
+        return values
 
     model_config = {"arbitrary_types_allowed": True}
 

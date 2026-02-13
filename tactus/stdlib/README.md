@@ -18,8 +18,14 @@ tactus/stdlib/
 │   ├── classify/                # Classification (LLM + fuzzy matching)
 │   │   ├── init.tac             # Module entry point + Classify factory
 │   │   ├── base.tac             # BaseClassifier + class helper
-│   │   ├── llm.tac              # LLM-based classifier
+│   │   ├── llm.tac              # LLM-based classifier (now uses Model primitive)
+│   │   ├── naive_bayes.tac       # Registry-backed Naive Bayes classifier
 │   │   └── fuzzy.tac            # Fuzzy classifier (calls Python similarity)
+│   ├── models/                  # Model primitive helpers
+│   │   ├── init.tac             # Module entry
+│   │   ├── llm.tac              # LLM Model wrapper built on Model primitive
+│   │   └── naive_bayes.tac       # Naive Bayes model helper (registry-backed)
+│   │   └── hf_transformers.tac   # HuggingFace AutoModel helper
 │   ├── extract/                 # Structured data extraction
 │   ├── generate/                # LLM-based generation
 │   ├── retrievers/              # Search/retrieval systems
@@ -38,7 +44,9 @@ tactus/stdlib/
 
 ## Available Modules
 
-- `tactus.classify` - LLM and fuzzy string matching classification
+- `tactus.classify` - LLM, Naive Bayes, and fuzzy string matching classification
+- `tactus.models` - Helpers for Model primitive (e.g., `tactus.models.llm`, `tactus.models.naive_bayes`, `tactus.models.hf_transformers`)
+- Ensembles & A/B: Model primitive supports `type = "ensemble"` (vote/average) and `type = "ab_test"` routing with metadata (`arm_index`)
 - `tactus.extract` - Structured extraction utilities
 - `tactus.generate` - LLM-based generation helpers
 - `tactus.retrievers.*` - Search/retrieval systems
@@ -66,6 +74,66 @@ result = Classify {
 -- Python helpers loaded as fallback
 local json = require("tactus.io.json")
 local data = json.read("config.json")
+
+-- Model helper
+local models = require("tactus.models")
+local sentiment = models.LLMModel{
+    name = "sentiment",
+    classes = {"positive", "negative", "neutral"},
+    prompt = "Classify sentiment",
+    model = "openai/gpt-4o-mini",
+}
+local prediction = sentiment({text = "great!"})
+
+-- Naive Bayes classifier (registry-backed, trained via tactus train)
+local nb = classify.NaiveBayesClassifier:new {
+    name = "imdb_nb"
+}
+local nb_result = nb:classify("An excellent movie")
+
+-- HuggingFace AutoModel helper
+local models = require("tactus.models")
+local bert = models.HFTransformersModel{
+    model = "distilbert-base-uncased-finetuned-sst-2-english"
+}
+local bert_result = bert({text = "great movie"})
+
+-- HuggingFace AutoModel training (full hyperparameter control)
+Model "imdb_bert" {
+  data = {
+    source = "hf",
+    name = "imdb",
+    train = "train[:2000]",
+    test = "test[:500]",
+    text_field = "text",
+    label_field = "label"
+  },
+  input = { text = "string" },
+  output = { label = "string", confidence = "float" },
+  candidates = {
+    {
+      name = "bert-base",
+      trainer = "hf_transformers",
+      hyperparameters = {
+        model = "distilbert-base-uncased",
+        labels = {"negative", "positive"},
+        epochs = 1,
+        batch_size = 8,
+        learning_rate = 2e-5,
+        max_length = 256,
+        padding = "max_length",
+        truncation = true,
+        training_args = {
+          evaluation_strategy = "epoch",
+          logging_steps = 25,
+          save_strategy = "no"
+        }
+      }
+    }
+  }
+}
+
+-- Ensemble / A/B examples (see examples/43-model-ensemble.tac, 44-model-ab-test.tac)
 ```
 
 ## Testing
