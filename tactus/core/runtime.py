@@ -1854,8 +1854,10 @@ class TactusRuntime:
             skills_paths = agent_config.get("skills") or self.config.get("skills") or []
             if isinstance(skills_paths, str):
                 skills_paths = [skills_paths]
-            if isinstance(skills_paths, list) and skills_paths and isinstance(
-                system_prompt_template, str
+            if (
+                isinstance(skills_paths, list)
+                and skills_paths
+                and isinstance(system_prompt_template, str)
             ):
                 from tactus.skills.loader import discover_skills, render_skills_manifest
 

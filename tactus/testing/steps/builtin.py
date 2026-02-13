@@ -233,7 +233,9 @@ def register_output_steps(registry: StepRegistry) -> None:
         step_output_value_fuzzy_match,
     )
     registry.register(r"the output should fuzzy match (?P<value>.+)", step_output_value_fuzzy_match)
-    registry.register(r"the output should semantically satisfy (?P<assertion>.+)", step_output_semantic_assertion)
+    registry.register(
+        r"the output should semantically satisfy (?P<assertion>.+)", step_output_semantic_assertion
+    )
 
     registry.register(r"the output (?P<key>\w+) should be (?P<value>.+)", step_output_equals)
 
@@ -412,9 +414,7 @@ def step_output_semantic_assertion(context: Any, assertion: str) -> None:
 
     model = os.environ.get("TACTUS_SEMANTIC_ASSERT_MODEL")
     if not model:
-        raise AssertionError(
-            "Semantic assertions require TACTUS_SEMANTIC_ASSERT_MODEL to be set"
-        )
+        raise AssertionError("Semantic assertions require TACTUS_SEMANTIC_ASSERT_MODEL to be set")
 
     from tactus.dspy.agent import DSPyAgentHandle
 
@@ -422,7 +422,7 @@ def step_output_semantic_assertion(context: Any, assertion: str) -> None:
         name="semantic_assertion_judge",
         system_prompt=(
             "You are a strict evaluator. Determine if the OUTPUT satisfies the ASSERTION. "
-            "Return JSON only: {\"ok\": true|false, \"reason\": \"...\"}."
+            'Return JSON only: {"ok": true|false, "reason": "..."}.'
         ),
         model=model,
         temperature=0.0,
