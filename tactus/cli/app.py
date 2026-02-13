@@ -1046,6 +1046,11 @@ def run(
 sandbox_app = typer.Typer(help="Manage Docker sandbox for secure procedure execution")
 app.add_typer(sandbox_app, name="sandbox")
 
+# Models subcommand group
+from tactus.cli.commands import models
+
+app.add_typer(models.app, name="models")
+
 
 @sandbox_app.command("status")
 def sandbox_status():
