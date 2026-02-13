@@ -95,6 +95,7 @@ class TestResolveSchema:
 
     def test_python_class_reference(self):
         """Test resolving Python class references."""
+
         # Create a test Pydantic model
         class TestInput(BaseModel):
             value: int

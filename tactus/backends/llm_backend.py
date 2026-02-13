@@ -6,7 +6,6 @@ including retry logic, response parsing, and error handling.
 The Agent presents the Model's stateless predict() interface to callers.
 """
 
-import asyncio
 import json
 import logging
 from typing import Any, Dict, Optional
@@ -116,7 +115,6 @@ class LLMModelBackend:
             message = str(input_data)
 
         # Call Agent with retry logic
-        result = None
         last_error = None
 
         for attempt in range(self.retries + 1):

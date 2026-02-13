@@ -7,10 +7,12 @@ Converts inline .tac schema declarations into Pydantic models for validation.
 import importlib
 from typing import Any, Dict, Optional, Type
 
-from pydantic import BaseModel, Field, create_model
+from pydantic import BaseModel, create_model
 
 
-def schema_dict_to_pydantic(schema_dict: Dict[str, Any], model_name: str = "Schema") -> Type[BaseModel]:
+def schema_dict_to_pydantic(
+    schema_dict: Dict[str, Any], model_name: str = "Schema"
+) -> Type[BaseModel]:
     """
     Convert an inline schema dictionary to a Pydantic model.
 

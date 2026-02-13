@@ -60,7 +60,9 @@ class TestLLMModelBackend:
 
         # Mock response with JSON at start, followed by reasoning
         mock_result = TactusResult(
-            output={"response": '{"label": "positive"} This is because the text expresses happiness.'},
+            output={
+                "response": '{"label": "positive"} This is because the text expresses happiness.'
+            },
             usage=UsageStats(prompt_tokens=10, completion_tokens=20, total_tokens=30),
             cost_stats=CostStats(prompt_cost=0.0001, completion_cost=0.0002, total_cost=0.0003),
         )

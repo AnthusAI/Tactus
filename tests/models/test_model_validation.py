@@ -103,7 +103,9 @@ class TestModelOutputValidation:
         model = ModelPrimitive("test_model", config)
 
         # Backend returns invalid output (string that can't be coerced to float)
-        model.backend.predict_sync = MagicMock(return_value={"label": "positive", "confidence": "definitely_not_a_float"})
+        model.backend.predict_sync = MagicMock(
+            return_value={"label": "positive", "confidence": "definitely_not_a_float"}
+        )
 
         # Should not raise, but should log warning
         with caplog.at_level(logging.WARNING):
@@ -124,7 +126,9 @@ class TestModelOutputValidation:
         }
 
         model = ModelPrimitive("test_model", config)
-        model.backend.predict_sync = MagicMock(return_value={"label": "positive", "confidence": 0.95})
+        model.backend.predict_sync = MagicMock(
+            return_value={"label": "positive", "confidence": 0.95}
+        )
 
         result = model.predict({"text": "hello"})
         assert result == {"label": "positive", "confidence": 0.95}
