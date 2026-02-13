@@ -2,6 +2,124 @@
 
 <!-- version list -->
 
+## v0.42.0 (2026-02-13)
+
+### Bug Fixes
+
+- Include sandbox docker assets in package (Tactus-zch)
+  ([`65f3f6f`](https://github.com/AnthusAI/Tactus/commit/65f3f6f87b013271583eb131805de22fa0a62e0a))
+
+- Lint and format fixes for CI
+  ([`d687029`](https://github.com/AnthusAI/Tactus/commit/d68702994357a537c6d4863c77ef44433cd78e28))
+
+- Migrate NOAA fixture to new Biblicus metadata structure
+  ([`9c1753f`](https://github.com/AnthusAI/Tactus/commit/9c1753f4692d965a09f5e1091444680f8299d19c))
+
+- Type hints and unused variables for CI
+  ([`fb8f7cb`](https://github.com/AnthusAI/Tactus/commit/fb8f7cb45d06f277bddb4dc705ad83226f62bb84))
+
+- Use async/await instead of asyncio.run in async test
+  ([`c4b003a`](https://github.com/AnthusAI/Tactus/commit/c4b003a1cb05d68cd13bbcbcbeac3c6cfd0e773f))
+
+- Wrap mock_manager results in PredictionResult for API consistency
+  ([`ca11a02`](https://github.com/AnthusAI/Tactus/commit/ca11a0242d36cab38be14f4616f4ab4b75274f46))
+
+### Chores
+
+- Close examples reorg task (Tactus-2pc)
+  ([`a607ddf`](https://github.com/AnthusAI/Tactus/commit/a607ddfea333a781bc5f4b7e2804a75eb54b92f1))
+
+- Close hitl message classification task (Tactus-pg9)
+  ([`6778018`](https://github.com/AnthusAI/Tactus/commit/67780189d2783b45be8228d02c6b6a04f2cd73c6))
+
+- Close leftover workspace review task (Tactus-dxk)
+  ([`3684885`](https://github.com/AnthusAI/Tactus/commit/36848855bab5f8ba22ad34d2fe4881a793e152fd))
+
+- Close model primitive backlog issue (Tactus-87f)
+  ([`fcad2f4`](https://github.com/AnthusAI/Tactus/commit/fcad2f437f475bbc6fd22a89b4c6d836a16a932d))
+
+- Format runtime and builtin steps
+  ([`66a6340`](https://github.com/AnthusAI/Tactus/commit/66a63407f52a239354b58d6b2912652ac77b552c))
+
+### Documentation
+
+- Add comprehensive Model primitive status document
+  ([`2f6e483`](https://github.com/AnthusAI/Tactus/commit/2f6e483d0a62a868a7a39954eda87c819c74732a))
+
+- Add hf training hyperparameters example (Tactus-t41.3)
+  ([`b677ceb`](https://github.com/AnthusAI/Tactus/commit/b677ceb33ecbe8437013e87ca592fa263bc3d03e))
+
+- Add LLM classifier example using Model primitive
+  ([`d2b3bda`](https://github.com/AnthusAI/Tactus/commit/d2b3bdaa480512954739865c3079a410e9dcd223))
+
+- Add task dependency workflow summary (Tactus-f6a)
+  ([`d9b8722`](https://github.com/AnthusAI/Tactus/commit/d9b872279389cf565ab674ad0b1a0ed37bdbb8a0))
+
+- Update Model primitive status - Phases 0-3 complete!
+  ([`3ff34bc`](https://github.com/AnthusAI/Tactus/commit/3ff34bc158c188f5848178ab8e76f8c6289ab824))
+
+### Features
+
+- Add agent hooks for prepare/filter/retry (Tactus-4eq)
+  ([`2737f46`](https://github.com/AnthusAI/Tactus/commit/2737f464f194e466e81f092420f61d654aecfbad))
+
+- Add agent skills loader and semantic assertions (Tactus-6aa Tactus-0vb)
+  ([`a979b70`](https://github.com/AnthusAI/Tactus/commit/a979b70e47538377e083aff5f92451a4a41f91c4))
+
+- Add chat message classification defaults (Tactus-pg9)
+  ([`4868303`](https://github.com/AnthusAI/Tactus/commit/48683032ec39e784b873659ad3d88a08268d2562))
+
+- Add CLI commands for model registry management
+  ([`7dd74bb`](https://github.com/AnthusAI/Tactus/commit/7dd74bb2cfbb064bd209a703f21008732e491a10))
+
+- Add cost tracking to HTTP backend
+  ([`ebd6615`](https://github.com/AnthusAI/Tactus/commit/ebd6615a806ed01b72c4b2cfd261456606b3d2d2))
+
+- Add cumulative cost tracking to Model primitive
+  ([`821484a`](https://github.com/AnthusAI/Tactus/commit/821484a6f87b175a3a285951988395d27fd067f2))
+
+- Add hf automodel backend and trainer (Tactus-pns)
+  ([`d2f20d8`](https://github.com/AnthusAI/Tactus/commit/d2f20d841a7bc235f727b394ff882ac739027bc1))
+
+- Add LLM backend for Model primitive
+  ([`abf5dde`](https://github.com/AnthusAI/Tactus/commit/abf5ddea7e0bd47ee0685d83f14c890ebb2a3c05))
+
+- Add model-based example tac files (Tactus-t41.4)
+  ([`c844449`](https://github.com/AnthusAI/Tactus/commit/c844449e6c54ce36bfeb8bd4ecba51590bcc1dc6))
+
+- Add PredictionResult wrapper with cost tracking
+  ([`ddfa018`](https://github.com/AnthusAI/Tactus/commit/ddfa018e3a60bb2c10515da141b19436e7606105))
+
+- Add Pydantic schema validation to Model primitive
+  ([`6ca2608`](https://github.com/AnthusAI/Tactus/commit/6ca2608ac8966dd3aef748030d7dee41990c8403))
+
+- Add registry backend for model versioning
+  ([`bb1a576`](https://github.com/AnthusAI/Tactus/commit/bb1a576ff729e5ca62c8ce2884c60534973a48c6))
+
+- Add trainable naive bayes model (Tactus-0g8)
+  ([`f865202`](https://github.com/AnthusAI/Tactus/commit/f865202db3b5cf9b41299d35d34b768ac1fc5756))
+
+- Define ModelRegistry protocol
+  ([`a96bb4b`](https://github.com/AnthusAI/Tactus/commit/a96bb4b42383c882c2f511d6dea4e77938ba641e))
+
+- Expose cost tracking in Lua
+  ([`aa7b962`](https://github.com/AnthusAI/Tactus/commit/aa7b96205e4444d077a8e53c14fd9b7abc634413))
+
+- Expose hf trainer hyperparameters (Tactus-5z8)
+  ([`2a2af23`](https://github.com/AnthusAI/Tactus/commit/2a2af23f0d0a4c18510774883b3c2c7c931005fe))
+
+- Implement LocalRegistry for model versioning
+  ([`fcd0170`](https://github.com/AnthusAI/Tactus/commit/fcd017029cbb844ecafd45fed4fe41b808dfd99d))
+
+### Testing
+
+- Achieve 100% coverage on model-related code
+  ([`81a3381`](https://github.com/AnthusAI/Tactus/commit/81a3381bd3d988dda7a419629c7017b47045adac))
+
+- Improve test coverage for HTTP backend and types
+  ([`9e6abd4`](https://github.com/AnthusAI/Tactus/commit/9e6abd4731e92d2bd3fcc914eac04e437bbaa404))
+
+
 ## v0.41.0 (2026-02-12)
 
 ### Bug Fixes
