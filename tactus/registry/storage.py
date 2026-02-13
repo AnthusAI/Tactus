@@ -113,19 +113,23 @@ class S3Storage:
         return f"s3://{self.bucket}/{key}"
 
     def load(self, uri: str) -> bytes:
-        bucket, key = _parse_s3_uri(uri) if uri.startswith("s3://") else (self.bucket, self._full_key(uri))
+        bucket, key = (
+            _parse_s3_uri(uri) if uri.startswith("s3://") else (self.bucket, self._full_key(uri))
+        )
         resp = self.s3.get_object(Bucket=bucket, Key=key)
         return resp["Body"].read()
 
     def exists(self, uri: str) -> bool:
-        bucket, key = _parse_s3_uri(uri) if uri.startswith("s3://") else (self.bucket, self._full_key(uri))
+        bucket, key = (
+            _parse_s3_uri(uri) if uri.startswith("s3://") else (self.bucket, self._full_key(uri))
+        )
         try:
             self.s3.head_object(Bucket=bucket, Key=key)
             return True
         except ClientError as e:
-            if e.response.get("ResponseMetadata", {}).get("HTTPStatusCode") == 404 or e.response.get(
-                "Error", {}
-            ).get("Code") in {"404", "NoSuchKey"}:
+            if e.response.get("ResponseMetadata", {}).get(
+                "HTTPStatusCode"
+            ) == 404 or e.response.get("Error", {}).get("Code") in {"404", "NoSuchKey"}:
                 return False
             raise
 

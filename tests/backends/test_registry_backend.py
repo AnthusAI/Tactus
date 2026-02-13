@@ -168,9 +168,7 @@ class TestRegistryBackend:
 
             result = backend.predict_sync({"data": [1, 2, 3]})
 
-            MockPT.assert_called_once_with(
-                path="/models/model.pt", device="cuda", labels=None
-            )
+            MockPT.assert_called_once_with(path="/models/model.pt", device="cuda", labels=None)
             assert result == [0.1, 0.9]
 
     def test_resolve_llm_backend(self):

@@ -14,10 +14,7 @@ runner = CliRunner()
 def test_train_runs_candidates():
     with tempfile.TemporaryDirectory() as tmpdir:
         script = Path(tmpdir) / "train.py"
-        script.write_text(
-            "import json\n"
-            "print(json.dumps({'accuracy':0.9,'loss':0.1}))\n"
-        )
+        script.write_text("import json\n" "print(json.dumps({'accuracy':0.9,'loss':0.1}))\n")
 
         config = {
             "model_name": "demo",

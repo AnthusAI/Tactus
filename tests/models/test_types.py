@@ -131,9 +131,7 @@ class TestPredictionResult:
 
         # Deserialize from dict
         restored_dict = json.loads(result_json)
-        restored_cost = (
-            PredictionCost(**restored_dict["cost"]) if restored_dict["cost"] else None
-        )
+        restored_cost = PredictionCost(**restored_dict["cost"]) if restored_dict["cost"] else None
         restored = PredictionResult(
             output=restored_dict["output"],
             cost=restored_cost,
@@ -176,9 +174,7 @@ class TestPredictionResult:
 
     def test_get_method(self):
         """Test dict-like get method with defaults."""
-        result = PredictionResult(
-            output={"label": "positive"}, backend_type="http"
-        )
+        result = PredictionResult(output={"label": "positive"}, backend_type="http")
 
         # Get existing fields
         assert result.get("backend_type") == "http"

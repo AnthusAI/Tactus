@@ -52,7 +52,11 @@ class EnsembleBackend:
         combined = self._combine(outputs)
         elapsed_ms = (time.perf_counter() - start) * 1000
         cost = PredictionCost(compute_time_ms=elapsed_ms)
-        return {"result": combined, "cost": {"compute_time_ms": cost.compute_time_ms}, "meta": {"votes": outputs}}
+        return {
+            "result": combined,
+            "cost": {"compute_time_ms": cost.compute_time_ms},
+            "meta": {"votes": outputs},
+        }
 
     def _combine(self, outputs: List[Any]) -> Any:
         if self.strategy == "average":
@@ -69,7 +73,12 @@ class EnsembleBackend:
 class ABTestBackend:
     """Route traffic between multiple backends according to weights."""
 
-    def __init__(self, backends: Sequence[Any], weights: Sequence[float] | None = None, seed: int | None = None):
+    def __init__(
+        self,
+        backends: Sequence[Any],
+        weights: Sequence[float] | None = None,
+        seed: int | None = None,
+    ):
         self.backends = list(backends)
         self.weights = list(weights) if weights else [1.0] * len(backends)
         self.random = random.Random(seed)

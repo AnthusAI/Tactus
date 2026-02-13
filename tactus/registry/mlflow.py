@@ -93,12 +93,16 @@ class MLflowRegistry:
         return ModelVersion(
             version_id=str(getattr(mv, "version", mv.get("version"))),
             model_name=name,
-            backend_type=mv.tags.get("backend_type", "unknown") if getattr(mv, "tags", None) else "unknown",
+            backend_type=(
+                mv.tags.get("backend_type", "unknown") if getattr(mv, "tags", None) else "unknown"
+            ),
             backend_config={},
             tags=list(getattr(mv, "tags", {}).values()) if getattr(mv, "tags", None) else [],
             metadata={},
             created_at=getattr(mv, "creation_timestamp", 0) or 0,
-            artifact_path=getattr(mv, "source", None) or mv.get("source") if isinstance(mv, dict) else None,
+            artifact_path=(
+                getattr(mv, "source", None) or mv.get("source") if isinstance(mv, dict) else None
+            ),
         )
 
     def list_versions(self, name: str) -> List[ModelVersion]:
@@ -117,7 +121,9 @@ class MLflowRegistry:
                 ModelVersion(
                     version_id=str(version_id),
                     model_name=name,
-                    backend_type=tags.get("backend_type", "unknown") if isinstance(tags, dict) else "unknown",
+                    backend_type=(
+                        tags.get("backend_type", "unknown") if isinstance(tags, dict) else "unknown"
+                    ),
                     backend_config={},
                     tags=list(tags.values()) if isinstance(tags, dict) else [],
                     metadata={},
@@ -138,7 +144,9 @@ class MLflowRegistry:
             except Exception:
                 pass
             try:
-                self.client.set_model_version_tag(name, v.version_id, key="tag", value=f"{tag}-previous")
+                self.client.set_model_version_tag(
+                    name, v.version_id, key="tag", value=f"{tag}-previous"
+                )
             except Exception:
                 pass
 

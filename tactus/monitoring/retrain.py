@@ -7,7 +7,9 @@ from __future__ import annotations
 from typing import Iterable
 
 
-def should_trigger_retrain(metrics_history: Iterable[float], drop_threshold: float = 0.05, drift_flag: bool = False) -> bool:
+def should_trigger_retrain(
+    metrics_history: Iterable[float], drop_threshold: float = 0.05, drift_flag: bool = False
+) -> bool:
     """
     Trigger retrain if accuracy drops by more than drop_threshold relative to best,
     or if drift_flag is True (from a detector).

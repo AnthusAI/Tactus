@@ -99,9 +99,7 @@ class RegistryBackend(ModelBackend):
         if getattr(model_version, "artifact_path", None) and "path" not in backend_config:
             backend_config["path"] = model_version.artifact_path
 
-        return self._create_backend_from_config(
-            {"type": backend_type, **backend_config}
-        )
+        return self._create_backend_from_config({"type": backend_type, **backend_config})
 
     def _create_backend_from_config(self, config: dict) -> ModelBackend:
         """Create a backend from configuration dict."""

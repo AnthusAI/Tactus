@@ -42,9 +42,7 @@ def list_versions(
 
         # Rows
         for version in versions:
-            created_str = datetime.fromtimestamp(version.created_at).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            )
+            created_str = datetime.fromtimestamp(version.created_at).strftime("%Y-%m-%d %H:%M:%S")
             tags_str = ", ".join(version.tags) if version.tags else "-"
 
             typer.echo(
@@ -81,14 +79,15 @@ def promote(
 
     try:
         registry.promote(model_name, version, tag)
-        typer.secho(f"✓ Promoted {model_name} version {version} to tag '{tag}'", fg=typer.colors.GREEN)
+        typer.secho(
+            f"✓ Promoted {model_name} version {version} to tag '{tag}'", fg=typer.colors.GREEN
+        )
 
         # Show what happened
         try:
             previous = registry.resolve(model_name, f"{tag}-previous")
             typer.echo(
-                f"  Previous {tag} version {previous.version_id} "
-                f"tagged as '{tag}-previous'"
+                f"  Previous {tag} version {previous.version_id} " f"tagged as '{tag}-previous'"
             )
         except ValueError:
             pass  # No previous version

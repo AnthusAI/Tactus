@@ -28,9 +28,7 @@ class TestHTTPBackendCost:
 
     def test_http_backend_with_cost(self):
         """Test HTTP backend with cost_per_call wraps result with cost."""
-        backend = HTTPModelBackend(
-            endpoint="http://test.com/predict", cost_per_call=0.01
-        )
+        backend = HTTPModelBackend(endpoint="http://test.com/predict", cost_per_call=0.01)
 
         # Mock httpx client
         with patch("httpx.Client") as mock_client:
@@ -99,9 +97,7 @@ class TestHTTPBackendCost:
 
     def test_http_backend_cost_zero(self):
         """Test HTTP backend with zero cost."""
-        backend = HTTPModelBackend(
-            endpoint="http://test.com/predict", cost_per_call=0.0
-        )
+        backend = HTTPModelBackend(endpoint="http://test.com/predict", cost_per_call=0.0)
 
         # Mock httpx client
         with patch("httpx.Client") as mock_client:
@@ -117,9 +113,7 @@ class TestHTTPBackendCost:
 
     def test_http_backend_cost_formats_match_llm(self):
         """Test HTTP backend cost format matches LLM backend format."""
-        backend = HTTPModelBackend(
-            endpoint="http://test.com/predict", cost_per_call=0.02
-        )
+        backend = HTTPModelBackend(endpoint="http://test.com/predict", cost_per_call=0.02)
 
         # Mock httpx client
         with patch("httpx.Client") as mock_client:

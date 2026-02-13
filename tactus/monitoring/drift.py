@@ -25,7 +25,9 @@ class RollingDriftDetector:
         return abs(length - avg) / (avg or 1) > self.threshold_pct
 
 
-def detect_mean_shift(baseline: Iterable[float], current: Iterable[float], threshold_pct: float = 0.1) -> bool:
+def detect_mean_shift(
+    baseline: Iterable[float], current: Iterable[float], threshold_pct: float = 0.1
+) -> bool:
     base_vals = list(baseline)
     curr_vals = list(current)
     if not base_vals or not curr_vals:
