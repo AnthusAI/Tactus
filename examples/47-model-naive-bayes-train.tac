@@ -4,9 +4,10 @@ Model "imdb_nb" {
   data = {
     source = "hf",
     name = "imdb",
-    train = "train[:2000]",
-    test = "test[:500]",
+    train = "train",
+    test = "test",
     shuffle = { train = true, test = true },
+    limit = { train = 2000, test = 500 },
     seed = 42,
     text_field = "text",
     label_field = "label"

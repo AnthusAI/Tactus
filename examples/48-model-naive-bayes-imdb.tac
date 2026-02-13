@@ -1,5 +1,13 @@
 -- Example: Use registry-backed Naive Bayes classifier (trained via tactus train)
 
+Model "imdb_nb" {
+  type = "registry",
+  name = "imdb_nb",
+  version = "latest",
+  input = { text = "string" },
+  output = { label = "string", confidence = "float" }
+}
+
 Procedure {
   input = {
     text = field.string{required = true}
@@ -9,16 +17,14 @@ Procedure {
     confidence = field.number{required = false}
   },
   function(input)
-    local classify = require("tactus.classify")
-    local classifier = classify.NaiveBayesClassifier:new {
-      name = "imdb_nb",
-      version = "latest"
-    }
+    -- Registry-backed model handle (trained via tactus train)
+    local classifier = Model("imdb_nb")
 
-    local result = classifier:classify(input.text)
+    local result = classifier({text = input.text})
+    local output = result.output or result
     return {
-      label = result.value,
-      confidence = result.confidence
+      label = output.label,
+      confidence = output.confidence
     }
   end
 }
