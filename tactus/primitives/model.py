@@ -67,6 +67,11 @@ class ModelPrimitive:
 
         self.backend = self._create_backend(config)
 
+        # Cumulative statistics tracking
+        self._total_inference_cost: float = 0.0
+        self._total_compute_time_ms: float = 0.0
+        self._prediction_count: int = 0
+
     def _create_backend(self, config: dict):
         """
         Create appropriate backend based on model type.
@@ -249,7 +254,31 @@ class ModelPrimitive:
             output=output, cost=cost, model_version=None, backend_type=self.config.get("type")
         )
 
+        # Accumulate statistics
+        self._prediction_count += 1
+        if cost.compute_time_ms is not None:
+            self._total_compute_time_ms += cost.compute_time_ms
+        if cost.inference_cost is not None:
+            self._total_inference_cost += cost.inference_cost
+
         return prediction_result
+
+    @property
+    def total_cost(self) -> float:
+        """Return total accumulated inference cost across all predictions."""
+        return self._total_inference_cost
+
+    @property
+    def prediction_count(self) -> int:
+        """Return total number of predictions made."""
+        return self._prediction_count
+
+    @property
+    def avg_latency_ms(self) -> float:
+        """Return average latency in milliseconds across all predictions."""
+        if self._prediction_count == 0:
+            return 0.0
+        return self._total_compute_time_ms / self._prediction_count
 
     def __call__(self, input_data: Any) -> Any:
         """
