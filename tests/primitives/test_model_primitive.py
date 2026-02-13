@@ -105,7 +105,10 @@ def test_execute_predict_uses_mock_manager():
         model = ModelPrimitive("m", {"type": "http", "endpoint": "http://example"})
     model.mock_manager = mock_manager
 
-    assert model._execute_predict({"x": 3}) == "mocked"
+    result = model._execute_predict({"x": 3})
+    assert result.output == "mocked"
+    assert result.cost.compute_time_ms == 0.0
+    assert result.backend_type == "http"
     assert mock_manager.recorded
     backend.predict_sync.assert_not_called()
 
@@ -123,7 +126,8 @@ def test_execute_predict_ignores_record_call_errors():
         model = ModelPrimitive("m", {"type": "http", "endpoint": "http://example"})
     model.mock_manager = mock_manager
 
-    assert model._execute_predict({"x": 3}) == "mocked"
+    result = model._execute_predict({"x": 3})
+    assert result.output == "mocked"
     backend.predict_sync.assert_not_called()
 
 

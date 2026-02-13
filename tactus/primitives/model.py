@@ -222,8 +222,15 @@ class ModelPrimitive:
                     )
                 except Exception:
                     pass
-                # Return raw mock result for backward compatibility
-                return mock_result
+                # Wrap mock result in PredictionResult for API consistency
+                cost = PredictionCost(compute_time_ms=0.0)
+                prediction_result = PredictionResult(
+                    output=mock_result,
+                    cost=cost,
+                    model_version=None,
+                    backend_type=self.config.get("type"),
+                )
+                return prediction_result
 
         # Track timing
         start_time = time.perf_counter()
