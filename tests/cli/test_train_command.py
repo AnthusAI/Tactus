@@ -16,24 +16,29 @@ def test_train_command_runs(tmp_path):
     training_tac.write_text(
         f"""
 Model "imdb_nb" {{
-  data = {{
-    source = "local",
-    train = "{fixture}",
-    test = "{fixture}",
-    text_field = "text",
-    label_field = "label"
-  }},
+  type = "registry",
+  name = "imdb_nb",
+  version = "latest",
   input = {{ text = "string" }},
   output = {{ label = "string", confidence = "float" }},
-  candidates = {{
-    {{
-      name = "nb-tfidf",
-      trainer = "naive_bayes",
-      hyperparameters = {{
-        alpha = 1.0,
-        max_features = 1000,
-        ngram_min = 1,
-        ngram_max = 1
+  training = {{
+    data = {{
+      source = "local",
+      train = "{fixture}",
+      test = "{fixture}",
+      text_field = "text",
+      label_field = "label"
+    }},
+    candidates = {{
+      {{
+        name = "nb-tfidf",
+        trainer = "naive_bayes",
+        hyperparameters = {{
+          alpha = 1.0,
+          max_features = 1000,
+          ngram_min = 1,
+          ngram_max = 1
+        }}
       }}
     }}
   }}

@@ -55,19 +55,20 @@ Last updated: 2026-02-13
 
 **Status:** Storage abstractions implemented with local + S3 backends, registry integration, and cache-based S3 resolution for model configs.
 
+### Phase 5: Training + Evaluation - COMPLETE
+- ✅ `training` block lives inside `Model` declarations (single-file workflow)
+- ✅ `tactus train <file.tac> [--model name]` trains and registers artifacts
+- ✅ Registry tags include `latest` and `candidate/<candidate_name>`
+- ✅ `tactus models evaluate <file.tac> --model <name> [--version|--candidate]`
+- ✅ Training/evaluation examples in `examples/47-model-naive-bayes-train.tac` and
+  `examples/49-model-compare-train.tac`
+
+**Status:** Training and evaluation are wired to the registry with tagged versions and CLI support.
+
 ## 📊 Test Coverage
 
-All implemented features have 100% test coverage:
-
-- `tactus/backends/http_backend.py`: **100%**
-- `tactus/backends/llm_backend.py`: **100%**
-- `tactus/models/schema.py`: **100%**
-- `tactus/models/types.py`: **100%**
-- `tactus/primitives/model.py`: **100%**
-- `tactus/registry/protocol.py`: **83.3%** (Protocol abstract methods cannot be covered - expected)
-- `tactus/registry/local.py`: **100%**
-
-Total tests: 4,093 passing (128 model-related tests)
+Training, evaluation, and registry behavior are covered by CLI and unit tests.
+Evaluation tests exercise both `--version` and `--candidate` tag resolution.
 
 ## 🎯 What Works Now
 
@@ -140,51 +141,34 @@ version = registry.resolve("sentiment-classifier", "champion")
 
 ## 🚧 What's Not Yet Working
 
-### CLI Commands (Not Yet Implemented)
-- `tactus models train` - Training infrastructure (Phase 5)
-- `tactus models evaluate` - Evaluation framework (Phase 5)
-
-### Advanced Features (Phase 5+)
-- Training infrastructure
-- Stdlib alignment
-- External registry integration (MLflow, SageMaker)
-- Model ensembles
-- A/B testing
-- Data drift detection
+### Advanced Features (Phase 6+)
+- User-facing configuration/docs/examples for ensembles, A/B testing, and drift utilities
+- External registry integration in CLI workflows (MLflow/SageMaker)
 
 ## 📝 Next Steps (Optional Future Work)
 
-Phases 0-4 are complete! The Model primitive is fully functional with:
+Phases 0-5 are complete! The Model primitive is fully functional with:
 - Schema validation
 - LLM backend with retry logic
 - Cost tracking
 - Local registry with champion/challenger workflow
 - CLI commands for model management
 - Storage abstraction with local and S3 support (cached downloads for S3 paths)
+- Training + evaluation commands and registry tagging
 
 Future enhancements (not required for core functionality):
 
-1. **Phase 4: S3 Storage Backend**
-   - Shared registry across environments
-   - Only needed for multi-team/multi-environment deployments
-
-2. **Phase 5: Training Infrastructure**
-   - `tactus models train` CLI command
-   - Training configuration parsing
-   - Candidate comparison
-   - Automatic evaluation
-
-3. **Phase 6: Stdlib Alignment** - COMPLETE
+1. **Phase 6: Stdlib Alignment** - COMPLETE
    - ✅ `LLMClassifier` now uses Model primitive internally
    - ✅ Added `tactus.models.llm` stdlib helper
    - ✅ Added model-based stdlib example (`examples/42-model-stdlib-classify.tac`)
 
-4. **Phase 7: External Registry Integration** - COMPLETE
+2. **Phase 7: External Registry Integration** - COMPLETE
    - ✅ MLflowRegistry adapter (tracking URI configurable)
    - ✅ SageMakerRegistry stub adapter
    - ✅ Registry factory with env/project config support (`TACTUS_REGISTRY_TYPE`, etc.)
 
-5. **Phase 8: Advanced Features** - IN PROGRESS
+3. **Phase 8: Advanced Features** - IN PROGRESS
    - ✅ Model ensembles (vote/average) and A/B routing backends
    - ✅ Drift detection + retrain trigger utilities
    - ☐ User-facing config/docs/examples for ensembles/A/B/drift
@@ -213,11 +197,11 @@ Future enhancements (not required for core functionality):
 
 ## 🏆 Key Achievements
 
-1. **100% Test Coverage:** All implemented code has complete test coverage
-2. **Working Examples:** Real `.tac` examples demonstrating LLM-based classification
-3. **Cost Tracking:** Full visibility into inference costs and performance
-4. **Schema Validation:** Pydantic-based input/output validation catching errors early
-5. **Registry Foundation:** Complete local registry implementation ready for integration
+1. **Training + Evaluation:** Single-file `Model.training` workflow with CLI support
+2. **Registry Foundation:** Complete local registry implementation ready for integration
+3. **Schema Validation:** Pydantic-based input/output validation catching errors early
+4. **Cost Tracking:** Full visibility into inference costs and performance
+5. **Working Examples:** Real `.tac` examples demonstrating registry-backed models
 
 ## 📂 File Structure
 

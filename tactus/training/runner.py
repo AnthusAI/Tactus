@@ -28,9 +28,17 @@ def _register_default_trainers() -> None:
 
 
 def _parse_training_config(config: dict, model_name: str) -> TrainingConfig:
-    data_cfg = config.get("data") or {}
+    training_cfg = config.get("training")
+    if not training_cfg:
+        raise ValueError(
+            f"Model '{model_name}' missing training block (required for training)."
+        )
+
+    data_cfg = training_cfg.get("data") or {}
     if not data_cfg:
-        raise ValueError(f"Model '{model_name}' is missing required data configuration")
+        raise ValueError(
+            f"Model '{model_name}' training block is missing required data configuration."
+        )
     data = TrainingDataConfig(
         source=data_cfg.get("source", "hf"),
         name=data_cfg.get("name"),
@@ -45,7 +53,7 @@ def _parse_training_config(config: dict, model_name: str) -> TrainingConfig:
     )
 
     candidates = []
-    for candidate in config.get("candidates", []):
+    for candidate in training_cfg.get("candidates", []):
         candidates.append(
             CandidateConfig(
                 name=candidate["name"],
@@ -119,7 +127,7 @@ class TrainingRunner:
                         version=version_id,
                         backend_type=trained.backend_type,
                         backend_config=trained.backend_config,
-                        tags=["latest"],
+                        tags=["latest", f"candidate/{candidate.name}"],
                         metadata={
                             "candidate": candidate.name,
                             "trainer": candidate.trainer,

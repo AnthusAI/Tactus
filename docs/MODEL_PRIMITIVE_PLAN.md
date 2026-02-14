@@ -82,43 +82,47 @@ procedure "process_feedback" {
 }
 ```
 
-**Step 2: Define training configuration**
+**Step 2: Define training configuration (same Model block)**
 
 ```lua
--- models/urgent-classifier/train.tac
+-- my-workflow.tac
 Model "urgent-classifier" {
+    type = "registry",
     name = "urgent-classifier",
-
-    data = {
-        train = "data/urgent-train.jsonl",
-        val = "data/urgent-val.jsonl",
-        test = "data/urgent-test.jsonl"
-    },
+    version = "latest",
 
     input = { text = "string" },
     output = { label = "string", confidence = "float" },
 
-    candidates = {
-        {
-            name = "llm-zeroshot",
-            type = "llm",
-            provider = "openai",
-            model = "gpt-4o-mini",
-            prompt = "Classify: {text}"
+    training = {
+        data = {
+            train = "data/urgent-train.jsonl",
+            val = "data/urgent-val.jsonl",
+            test = "data/urgent-test.jsonl"
         },
-        {
-            name = "sklearn-svm",
-            type = "sklearn",
-            training = {
-                script = "models/urgent-classifier/train_svm.py"
-            }
-        },
-        {
-            name = "pytorch-bert",
-            type = "pytorch",
-            training = {
-                script = "models/urgent-classifier/train_bert.py",
+
+        candidates = {
+            {
+                name = "llm-zeroshot",
+                trainer = "llm",
                 hyperparameters = {
+                    provider = "openai",
+                    model = "gpt-4o-mini",
+                    prompt = "Classify: {text}"
+                }
+            },
+            {
+                name = "sklearn-svm",
+                trainer = "sklearn",
+                hyperparameters = {
+                    script = "models/urgent-classifier/train_svm.py"
+                }
+            },
+            {
+                name = "pytorch-bert",
+                trainer = "pytorch",
+                hyperparameters = {
+                    script = "models/urgent-classifier/train_bert.py",
                     learning_rate = 2e-5,
                     epochs = 3
                 }
@@ -131,14 +135,12 @@ Model "urgent-classifier" {
 **Step 3: Train and evaluate**
 
 ```bash
-tactus models train models/urgent-classifier/train.tac
-tactus models evaluate models/urgent-classifier/train.tac
+tactus train my-workflow.tac --model urgent-classifier
+tactus models evaluate my-workflow.tac --model urgent-classifier
 
 # Output:
-# Candidate        Accuracy  Precision  Recall  Cost/pred  Latency(ms)
-# llm-zeroshot     0.82      0.79       0.85    $0.0003    450
-# sklearn-svm      0.87      0.84       0.90    $0.0000    12
-# pytorch-bert     0.93      0.91       0.95    $0.0000    45
+# Model              Version                 Count  Accuracy  Precision  Recall  F1
+# urgent-classifier  candidate/pytorch-bert  2000   0.93      0.91       0.95    0.93
 ```
 
 **Step 4: Promote champion**
@@ -578,17 +580,17 @@ Enable LLM-powered predictions through the model interface.
 - Outputs comparison table
 - Test: Evaluation produces correct metrics
 
-**5.4** Add `tactus models train` CLI command
-- `tactus models train config.tac [--candidate name]`
+**5.4** Add `tactus train` CLI command
+- `tactus train config.tac [--model name] [--candidate name]`
 - Test: CLI trains candidate and saves artifact
 
 **5.5** Add `tactus models evaluate` CLI command
-- `tactus models evaluate config.tac`
-- Outputs comparison table across candidates
-- Test: CLI evaluates all candidates and shows table
+- `tactus models evaluate config.tac --model <name> [--version|--candidate]`
+- Outputs metrics table + JSON for the resolved registry version
+- Test: CLI evaluates the selected version and shows metrics
 
 **5.6** Support candidate definitions in training config
-- Parse `candidates = { ... }` from `.tac` file
+- Parse `training.candidates = { ... }` from `.tac` file
 - Train/evaluate each independently
 - Test: Multiple candidates train and evaluate
 

@@ -258,6 +258,7 @@ class LocalRegistry:
         """Apply a tag to a version."""
         self._tags_dir(name).mkdir(parents=True, exist_ok=True)
         tag_path = self._tag_path(name, tag)
+        tag_path.parent.mkdir(parents=True, exist_ok=True)
 
         tag_data = {
             "version_id": version,
