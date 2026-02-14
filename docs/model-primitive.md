@@ -148,6 +148,37 @@ Mocks {
   - `02-classification/04-model-train-imdb-naive-bayes.tac`
   - `02-classification/05-model-train-imdb-hf-sequence-classifier.tac`
 
+## Troubleshooting (common gotchas)
+
+### "datasets not installed"
+
+Core install intentionally does not pull heavy ML dependencies.
+
+- For Naive Bayes / sklearn training: `pip install "tactus[ml]"`
+- For HF sequence classifier training: `pip install "tactus[hf]"`
+
+### Suspicious metrics (e.g., accuracy=1.0 but precision/recall/F1=0)
+
+This usually means your evaluation set contains only one class (or your positive/negative
+label mapping is not what you think).
+
+Things to check:
+
+- `training.data.limit` is large enough to include both labels.
+- `training.data.label_field` points at the label column you expect.
+- Your trainer's label mapping matches your dataset labels (e.g., `0/1` vs strings).
+
+### Wrapper vs raw output
+
+If your procedure crashes while reading `result.label` or `result.confidence`, you're
+probably hitting a backend that returns a wrapper.
+
+Always normalize:
+
+```lua
+local out = result.output or result
+```
+
 ## LLM-facing "Do / Don't"
 
 Do:
@@ -162,4 +193,3 @@ Don't:
 - Don't invent `Model.predict()` in the DSL (the model is called like a function).
 - Don't assume `pip install tactus` installs `datasets` / `transformers` / `torch`.
 - Don't treat evaluation as retraining; evaluation reads a registry-backed version and scores it on the declared test set.
-
