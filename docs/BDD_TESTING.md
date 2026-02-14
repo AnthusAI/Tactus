@@ -127,17 +127,16 @@ Your specs should assert the *procedure behavior* driven by those outputs ("if t
 
 When you run `tactus test --mock`:
 
-1. **TactusTestContext** creates `MockToolRegistry` with configured mocks
-2. **MockedToolPrimitive** is created and injected into `TactusRuntime`
-3. **Runtime** is configured with `skip_agents=True`
-4. **During execution:**
-   - Tool calls return mocked responses from registry
-   - Agent turns use `MockAgentPrimitive` (calls done tool automatically)
-   - State primitives work normally
-   - No LLM calls are made
-5. **After execution:**
-   - Primitives are captured from runtime
-   - Test steps access captured primitive states
+1. **The test harness enables mock mode** (`TACTUS_MOCK_MODE=1`) and creates a `TactusRuntime` with in-memory storage and an auto-approving HITL handler.
+2. **The runtime creates a `MockManager`**, then loads and enables any `Mocks { ... }` blocks declared in the `.tac` file (tools and models).
+3. **Agents are mocked by default** (`runtime.mock_all_agents = true`) so tests never call real LLMs unless you explicitly opt out.
+4. **BDD step-driven agent mocks** (e.g. `And the agent "x" responds with ...` / `calls tool ...`) are applied as temporal mock turns and returned by the DSPy agent wrapper.
+5. **During execution:**
+   - Tool calls consult `MockManager` first (so `Mocks { ... }` drives deterministic tool/model outputs).
+   - Mocked agent turns record their `tool_calls` into `ToolPrimitive`, so assertions like `the <tool> tool should be called` work.
+   - State primitives work normally.
+   - No network access is required.
+6. **After execution**, the test context captures primitives (Tool/State/etc.) so step assertions can inspect tool calls, state, and output.
 
 ### Note: MCP Toolsets in Mock Mode
 
@@ -150,9 +149,8 @@ Toolset "filesystem_tools" { use = "mcp.filesystem" }
 Tactus will create an **empty placeholder toolset** so mocked agent turns can initialize and record tool-call assertions (for example, `And the agent "x" calls tool "filesystem_read_file" ...`).
 
 In real mode (non-mocked), you still need to configure `mcp_servers` in your `.tac.yml` sidecar for the server name (`filesystem`, `brave-search`, etc.) to resolve to real tools.
-6. **Assertions:**
-   - `tool_called()` checks MockedToolPrimitive
-   - `state_get()` checks StatePrimitive
+
+Note: If you use `--mock-config mocks.json`, tool mocks are provided via the `MockToolRegistry`/`MockedToolPrimitive` path. `Mocks { ... }` is the recommended, in-language approach.
 
 This allows testing workflow logic without LLM calls, making tests:
 - **Fast** - Seconds instead of minutes
