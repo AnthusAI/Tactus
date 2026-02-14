@@ -60,7 +60,7 @@ async def test_setup_agents_accepts_v1_agent_config_and_model_settings(monkeypat
     await runtime._setup_agents(context={})
 
     assert captured["name"] == "agent"
-    assert captured["config"]["model"] == "openai:gpt-4o"
+    assert captured["config"]["model"] == "openai/gpt-4o"
     assert captured["config"]["temperature"] == 0.5
 
 
@@ -83,22 +83,11 @@ async def test_setup_agents_requires_provider(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_setup_agents_provider_prefix_from_model(monkeypatch):
+async def test_setup_agents_infers_provider_prefix_from_model_colon(monkeypatch):
     runtime = runtime_module.TactusRuntime(procedure_id="proc", hitl_handler=object())
     runtime.lua_sandbox = DummyLuaSandbox()
     runtime.toolset_registry = {}
-
-    class FlakyConfig:
-        def __init__(self):
-            self.calls = 0
-
-        def get(self, key, default=None):
-            if key == "default_provider":
-                self.calls += 1
-                return "openai" if self.calls == 1 else None
-            return default
-
-    runtime.config = FlakyConfig()
+    runtime.config = {}
     runtime.registry = SimpleNamespace(
         agents={
             "agent": {
@@ -123,7 +112,98 @@ async def test_setup_agents_provider_prefix_from_model(monkeypatch):
 
     await runtime._setup_agents(context={})
 
-    assert captured["model"] == "openai:gpt-4o-mini"
+    assert captured["model"] == "openai/gpt-4o-mini"
+
+
+@pytest.mark.asyncio
+async def test_setup_agents_infers_provider_prefix_from_model_slash(monkeypatch):
+    runtime = runtime_module.TactusRuntime(procedure_id="proc", hitl_handler=object())
+    runtime.lua_sandbox = DummyLuaSandbox()
+    runtime.toolset_registry = {}
+    runtime.config = {}
+    runtime.registry = SimpleNamespace(
+        agents={
+            "agent": {
+                "system_prompt": "system",
+                "model": "openai/gpt-4o-mini",
+            }
+        }
+    )
+    runtime.agents = {}
+
+    captured = {}
+
+    def _create_agent(name, config, **_kwargs):
+        captured["model"] = config["model"]
+        return SimpleNamespace()
+
+    async def _noop_dependencies():
+        return None
+
+    monkeypatch.setattr(runtime, "_initialize_dependencies", _noop_dependencies)
+    monkeypatch.setattr("tactus.dspy.agent.create_dspy_agent", _create_agent)
+
+    await runtime._setup_agents(context={})
+
+    assert captured["model"] == "openai/gpt-4o-mini"
+
+
+@pytest.mark.asyncio
+async def test_setup_agents_requires_provider_when_model_has_no_prefix(monkeypatch):
+    runtime = runtime_module.TactusRuntime(procedure_id="proc", hitl_handler=object())
+    runtime.lua_sandbox = DummyLuaSandbox()
+    runtime.toolset_registry = {}
+    runtime.config = {}
+    runtime.registry = SimpleNamespace(
+        agents={
+            "agent": {
+                "system_prompt": "system",
+                "model": "gpt-4o-mini",
+            }
+        }
+    )
+    runtime.agents = {}
+
+    async def _noop_dependencies():
+        return None
+
+    monkeypatch.setattr(runtime, "_initialize_dependencies", _noop_dependencies)
+
+    with pytest.raises(ValueError, match="must specify a 'provider'"):
+        await runtime._setup_agents(context={})
+
+
+@pytest.mark.asyncio
+async def test_setup_agents_infers_provider_prefix_for_bedrock_model(monkeypatch):
+    runtime = runtime_module.TactusRuntime(procedure_id="proc", hitl_handler=object())
+    runtime.lua_sandbox = DummyLuaSandbox()
+    runtime.toolset_registry = {}
+    runtime.config = {}
+    runtime.registry = SimpleNamespace(
+        agents={
+            "agent": {
+                "system_prompt": "system",
+                "model": "bedrock/us.anthropic.claude-haiku-4-5-20251001-v1:0",
+            }
+        }
+    )
+    runtime.agents = {}
+
+    captured = {}
+
+    def _create_agent(name, config, **_kwargs):
+        captured["model"] = config["model"]
+        return SimpleNamespace()
+
+    async def _noop_dependencies():
+        return None
+
+    monkeypatch.setattr(runtime, "_initialize_dependencies", _noop_dependencies)
+    monkeypatch.setattr("tactus.dspy.agent.create_dspy_agent", _create_agent)
+
+    await runtime._setup_agents(context={})
+
+    assert captured["model"] == "bedrock/us.anthropic.claude-haiku-4-5-20251001-v1:0"
 
 
 @pytest.mark.asyncio
@@ -186,7 +266,7 @@ async def test_setup_agents_model_settings_empty(monkeypatch):
 
     await runtime._setup_agents(context={})
 
-    assert captured["model"] == "openai:gpt-4o"
+    assert captured["model"] == "openai/gpt-4o"
 
 
 @pytest.mark.asyncio

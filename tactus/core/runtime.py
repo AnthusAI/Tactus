@@ -1905,13 +1905,6 @@ class TactusRuntime:
                 self._process_template(initial_message_raw, context) if initial_message_raw else ""
             )
 
-            # Provider is required - no defaults
-            provider_name = agent_config.get("provider") or self.config.get("default_provider")
-            if not provider_name:
-                raise ValueError(
-                    f"Agent '{agent_name}' must specify a 'provider' (either on the agent or as 'default_provider' in the procedure)"
-                )
-
             # Handle model - can be string or dict with settings
             model_config = agent_config.get("model") or self.config.get("default_model") or "gpt-4o"
             model_settings = None
@@ -1927,17 +1920,42 @@ class TactusRuntime:
                 # Model is a simple string
                 model_id = model_config
 
-            # If model_id has a provider prefix AND no explicit provider was set, extract it
-            if (
-                ":" in model_id
-                and not agent_config.get("provider")
-                and not self.config.get("default_provider")
-            ):
-                prefix, model_id = model_id.split(":", 1)
-                provider_name = prefix
+            # Provider selection:
+            # - Prefer explicit provider or default_provider
+            # - Otherwise infer it from the model string when model is already in
+            #   "provider/model" (LiteLLM) or "provider:model" form.
+            allowed_model_prefixes = ("openai", "anthropic", "bedrock", "gemini", "ollama")
 
-            # Construct the full model string for pydantic-ai
-            model_name = f"{provider_name}:{model_id}"
+            provider_name = agent_config.get("provider") or self.config.get("default_provider")
+            inferred_model_name = None
+
+            if isinstance(model_id, str):
+                if "/" in model_id:
+                    prefix, rest = model_id.split("/", 1)
+                    if prefix in allowed_model_prefixes:
+                        if not provider_name:
+                            provider_name = prefix
+                        model_id = rest
+                        inferred_model_name = f"{prefix}/{rest}"
+                elif ":" in model_id:
+                    prefix, rest = model_id.split(":", 1)
+                    if prefix in allowed_model_prefixes:
+                        if not provider_name:
+                            provider_name = prefix
+                        model_id = rest
+                        inferred_model_name = f"{prefix}/{rest}"
+
+            if not provider_name:
+                raise ValueError(
+                    f"Agent '{agent_name}' must specify a 'provider' (either on the agent or as 'default_provider' in the procedure, or by using a provider-prefixed model like 'openai/gpt-4o-mini')"
+                )
+
+            # Construct the full model string for DSPy/LiteLLM.
+            # Keep it in "provider/model" form even if a user wrote "provider:model".
+            if inferred_model_name:
+                model_name = inferred_model_name
+            else:
+                model_name = f"{provider_name}/{model_id}"
 
             logger.info(
                 f"Agent '{agent_name}' using provider '{provider_name}' with model '{model_id}'"

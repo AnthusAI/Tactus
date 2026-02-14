@@ -173,7 +173,7 @@ async def test_setup_agents_message_history_filter(monkeypatch):
 
     await runtime._setup_agents(context={})
 
-    assert captured["model"] == "openai:gpt-4o"
+    assert captured["model"] == "openai/gpt-4o"
 
 
 @pytest.mark.asyncio
@@ -208,7 +208,7 @@ async def test_setup_agents_message_history_without_filter(monkeypatch):
 
     await runtime._setup_agents(context={})
 
-    assert captured["model"] == "openai:gpt-4o"
+    assert captured["model"] == "openai/gpt-4o"
 
 
 @pytest.mark.asyncio
@@ -554,7 +554,7 @@ async def test_setup_agents_message_history_filter(monkeypatch):  # noqa: F811
 
     await runtime._setup_agents(context={})
 
-    assert captured["config"]["model"] == "openai:gpt-4o"
+    assert captured["config"]["model"] == "openai/gpt-4o"
 
 
 @pytest.mark.asyncio
