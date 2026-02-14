@@ -10,6 +10,18 @@ canonical, current syntax (including the Model primitive call pattern), see:
 
 Tactus provides durable execution for agentic workflows through automatic checkpointing and replay. Unlike graph-based systems that require explicit node definitions, Tactus allows developers to write natural imperative Lua code while automatically handling persistence, interruption, and resumption.
 
+Runnable examples (canonical syntax):
+
+- `examples/10-feature-state.tac` (durable state)
+- `examples/44-sub-procedure-composition.tac` (sub-procedures)
+- `examples/90-hitl-simple.tac` (human-in-the-loop)
+
+Run any example in deterministic mock mode:
+
+```bash
+tactus test examples/10-feature-state.tac --mock
+```
+
 ## Core Principles
 
 ### Natural Control Flow
@@ -537,29 +549,30 @@ Tactus distinguishes between two types of inference primitives:
 
 ### Agents (LLM-powered, conversational)
 
-Agents wrap Pydantic AI and support conversation history, tools, and structured output:
+Agents wrap an LLM runtime and support conversation history, tools, and structured output:
 
 ```lua
-Researcher = agent "researcher" {
-    model = "claude-sonnet-4-20250514",
-    system_prompt = "You are a research assistant...",
-    tools = {web_search, read_file},
-    output_type = ResearchReport
+researcher = Agent {
+  provider = "openai",
+  model = "gpt-4o-mini",
+  system_prompt = "You are a research assistant...",
+  tools = {web_search, read_file}
 }
 
-Reviewer = agent "reviewer" {
-    model = "gpt-4o",
-    system_prompt = "You review research reports for accuracy..."
+reviewer = Agent {
+  provider = "openai",
+  model = "gpt-4o-mini",
+  system_prompt = "You review research reports for accuracy..."
 }
 ```
 
 **Agent methods:**
 
 ```lua
-Researcher()                             -- Take a conversation turn
-Researcher({message = "Research X"})     -- Call with a specific message
-state.report = Researcher.output         -- Get last output
-state.history = Researcher.messages      -- Access conversation history
+researcher()                             -- Take a conversation turn
+researcher({message = "Research X"})     -- Call with a specific message
+state.report = researcher.output         -- Get last output
+state.history = researcher.messages      -- Access conversation history
 ```
 
 ### Models (Generic ML inference)
@@ -567,46 +580,46 @@ state.history = Researcher.messages      -- Access conversation history
 Models wrap any ML inference - classifiers, extractors, embeddings, etc:
 
 ```lua
-Model \"intent_classifier\" {
-  type = \"pytorch\",
-  path = \"models/intent.pt\",
-  labels = {\"billing\", \"technical\", \"general\"},
-  input = { text = \"string\" },
-  output = { label = \"string\" }
+Model "intent_classifier" {
+  type = "pytorch",
+  path = "models/intent.pt",
+  labels = {"billing", "technical", "general"},
+  input = { text = "string" },
+  output = { label = "string" }
 }
 
-Model \"quote_extractor\" {
-  type = \"http\",
-  endpoint = \"http://ml-service:8000/extract\",
+Model "quote_extractor" {
+  type = "http",
+  endpoint = "http://ml-service:8000/extract",
   timeout = 30,
-  input = { text = \"string\" },
-  output = { quotes = \"list\" }
+  input = { text = "string" },
+  output = { quotes = "list" }
 }
 
 -- For embedding models, use an HTTP backend (or a future dedicated backend).
-Model \"embedder\" {
-  type = \"http\",
-  endpoint = \"http://ml-service:8000/embed\",
+Model "embedder" {
+  type = "http",
+  endpoint = "http://ml-service:8000/embed",
   timeout = 30,
-  input = { text = \"string\" },
-  output = { vector = \"list\" }
+  input = { text = "string" },
+  output = { vector = "list" }
 }
 ```
 
 **Model methods:**
 
 ```lua
-local intent = Model(\"intent_classifier\")
+local intent = Model("intent_classifier")
 local intent_result = intent({text = user_message})
 local intent_out = intent_result.output or intent_result
 state.intent = intent_out.label or intent_out
 
-local extractor = Model(\"quote_extractor\")
+local extractor = Model("quote_extractor")
 local quotes_result = extractor({text = document})
 local quotes_out = quotes_result.output or quotes_result
 state.quotes = quotes_out.quotes or quotes_out
 
-local embedder = Model(\"embedder\")
+local embedder = Model("embedder")
 local embedding_result = embedder({text = text})
 local embedding_out = embedding_result.output or embedding_result
 state.embedding = embedding_out.vector or embedding_out
@@ -631,12 +644,12 @@ state.embedding = embedding_out.vector or embedding_out
 Regardless of type, all inference operations auto-checkpoint:
 
 ```lua
-Researcher()                                -- Checkpoint (LLM call)
-local result = Model(\"intent_classifier\")({text = x})  -- Checkpoint (model inference)
+researcher()                                -- Checkpoint (LLM call)
+local result = Model("intent_classifier")({text = x})  -- Checkpoint (model inference)
 local out = result.output or result
 state.intent = out
 
-state.quotes = Model(\"quote_extractor\")({text = doc})  -- Checkpoint (HTTP call)
+state.quotes = Model("quote_extractor")({text = doc})  -- Checkpoint (HTTP call)
 ```
 
 On replay, cached results are returned without re-running inference.

@@ -31,7 +31,7 @@ The Tactus `Model` primitive becomes the integration point between AI procedure 
 - `ModelPrimitive` class (tactus/primitives/model.py) with automatic checkpointing
 - `ModelBackend` protocol (tactus/backends/model_backend.py) defining `predict()` / `predict_sync()`
 - Two backends: `HTTPModelBackend` and `PyTorchModelBackend`
-- DSL syntax: `classifier = Model "name" { type = "pytorch", ... }`
+- DSL syntax: `Model "name" { type = "pytorch", ... }` (and runtime lookup via `Model("name")`)
 - Input/output schema fields parsed but **not validated**
 - Mock support for testing
 - Checkpoint type `"model_predict"` for durability
