@@ -9,6 +9,10 @@ on:
     branches:
       - '**'
 
+concurrency:
+  group: release-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
