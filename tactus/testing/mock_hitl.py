@@ -35,7 +35,9 @@ class MockHITLHandler:
         self.default_responses = default_responses or {}
         self.requests_received: list[HITLRequest] = []
 
-    def request_interaction(self, procedure_id: str, request: HITLRequest) -> HITLResponse:
+    def request_interaction(
+        self, procedure_id: str, request: HITLRequest, execution_context=None
+    ) -> HITLResponse:
         """
         Handle HITL request with automatic response.
 

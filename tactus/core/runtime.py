@@ -2648,8 +2648,23 @@ class TactusRuntime:
                     # Re-raise without wrapping - this is expected behavior
                     raise
                 except Exception as e:
-                    logger.error(f"Named 'main' procedure execution failed: {e}")
-                    raise LuaSandboxError(f"Named 'main' procedure execution failed: {e}")
+                    import os
+                    import traceback
+
+                    logger.error("Named 'main' procedure execution failed: %s", e, exc_info=True)
+
+                    # By default, keep error strings concise for CLI UX. When debugging,
+                    # include the full Python traceback to pinpoint cross-language issues.
+                    message = f"Named 'main' procedure execution failed: {e}"
+                    if os.environ.get("TACTUS_DEBUG_TRACEBACK", "").strip().lower() in (
+                        "1",
+                        "true",
+                        "yes",
+                        "on",
+                    ):
+                        message = f"{message}\n{traceback.format_exc()}"
+
+                    raise LuaSandboxError(message)
 
             else:
                 # No main procedure found - check if we have top-level execution result
@@ -3418,6 +3433,7 @@ class TactusRuntime:
             "log_handler": self.log_handler,
             "sandbox": sandbox,
             "_created_agents": {},  # Will be populated during parsing
+            "is_parsing": True,  # Stubs can use this to defer runtime-only behavior
         }
 
         # Inject DSL stubs (pass tool_primitive, mock_manager, and runtime_context)
@@ -3589,6 +3605,7 @@ class TactusRuntime:
             logger.warning(warning.message)
 
         logger.debug(f"Registry after parsing: lua_tools={list(result.registry.lua_tools.keys())}")
+        runtime_context["is_parsing"] = False
         return result.registry
 
     def _register_assignment_tasks(self, builder: RegistryBuilder, lua_globals: Any) -> None:

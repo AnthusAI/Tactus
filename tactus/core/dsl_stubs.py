@@ -603,6 +603,25 @@ def create_dsl_stubs(
             # Create and register handle for lookup
             handle = ModelHandle(model_name)
             _model_registry[model_name] = handle
+
+            # If this model is being defined during procedure execution (not during the
+            # initial parse/registration pass), connect it immediately so it can be
+            # called right away (stdlib helpers often construct models dynamically).
+            if _runtime_context and not _runtime_context.get("is_parsing", False):
+                try:
+                    from tactus.primitives.model import ModelPrimitive
+
+                    primitive = ModelPrimitive(
+                        model_name=model_name,
+                        config=config_dict,
+                        context=_runtime_context.get("execution_context"),
+                        mock_manager=_runtime_context.get("mock_manager"),
+                    )
+                    handle._set_primitive(primitive)
+                    _runtime_context.setdefault("_created_models", {})[model_name] = primitive
+                except Exception:
+                    # Fallback to two-phase initialization; runtime will enhance handles later.
+                    pass
             return handle
 
         return accept_config
@@ -2464,6 +2483,10 @@ def create_dsl_stubs(
             sandbox = _runtime_context.get("sandbox")
             if sandbox is not None:
                 _classify_mod = sandbox.lua.eval('require("tactus.classify")')
+                # On first require() load, Lua's module loader may return (module, resolved_path).
+                # Lupa surfaces that as a Python tuple. We only want the module table.
+                if isinstance(_classify_mod, tuple) and _classify_mod:
+                    _classify_mod = _classify_mod[0]
                 _classify_fn = _classify_mod["Classify"]
             else:
                 raise RuntimeError("Classify requires a Lua sandbox (Tactus-first architecture)")

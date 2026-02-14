@@ -17,7 +17,9 @@ class HITLHandler(Protocol):
     This allows Tactus to work with any UI or interaction system.
     """
 
-    def request_interaction(self, procedure_id: str, request: HITLRequest) -> HITLResponse:
+    def request_interaction(
+        self, procedure_id: str, request: HITLRequest, execution_context=None
+    ) -> HITLResponse:
         """
         Request human interaction (blocking).
 
@@ -32,6 +34,7 @@ class HITLHandler(Protocol):
         Args:
             procedure_id: Unique procedure identifier
             request: HITLRequest with interaction details
+            execution_context: Optional ExecutionContext (passed by runtime for determinism)
 
         Returns:
             HITLResponse with human's answer

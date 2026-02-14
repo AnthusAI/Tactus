@@ -11,7 +11,6 @@ local base = require("tactus.classify.base")
 local BaseClassifier = base.BaseClassifier
 local class = base.class
 local models = require("tactus.models.llm")
-local Agent = require("tactus.agent")
 
 -- ============================================================================
 -- LLMClassifier
@@ -34,25 +33,18 @@ function LLMClassifier:init(config)
     self.model_id = config.model or "openai/gpt-4o-mini"
     self.confidence_mode = config.confidence_mode or "heuristic"
 
-    -- If mocks are available, use Agent path for compatibility with stdlib mocks
-    if _G.MockManager then
-        local agent_config = {
-            system_prompt = self.prompt,
-            temperature = self.temperature,
-        }
-        self.agent = Agent(self.name or "llm_classifier")(agent_config)
-    else
-        -- Build Model primitive instance
-        self.model = models.LLMModel {
-            name = self.name or "llm_classifier",
-            classes = self.classes,
-            prompt = self.prompt,
-            model = self.model_id,
-            temperature = self.temperature,
-            retries = self.max_retries,
-            parse_direction = "end",
-        }
-    end
+    -- Build Model primitive instance.
+    -- Note: in mocked mode, Mocks { <model_name> = ... } can override this call
+    -- deterministically without spinning up any real provider interactions.
+    self.model = models.LLMModel {
+        name = self.name or "llm_classifier",
+        classes = self.classes,
+        prompt = self.prompt,
+        model = self.model_id,
+        temperature = self.temperature,
+        retries = self.max_retries,
+        parse_direction = "end",
+    }
 end
 
 function LLMClassifier:parse_response(response)
@@ -92,37 +84,78 @@ function LLMClassifier:parse_response(response)
 end
 
 function LLMClassifier:classify(input_text)
-    if self.agent then
-        local agent_result = self.agent({message = input_text})
-        local value = self:parse_response(agent_result.output or "")
-        local response = {
-            value = value,
-            retry_count = 0,
-            raw_response = agent_result.output,
-        }
-        if self.confidence_mode == "heuristic" then
-            response.confidence = 0.8
+    -- Validate the predicted value against the explicit class set. If invalid,
+    -- retry by calling the model again. This makes retry_count meaningful and
+    -- keeps the contract stable across mocked and real runs.
+    local valid_lower = {}
+    for _, v in ipairs(self.classes) do
+        valid_lower[v:lower()] = v
+    end
+
+    local function safe_get(obj, key)
+        if obj == nil then
+            return nil
         end
-        return response
+        if type(obj) == "table" then
+            return obj[key]
+        end
+        local ok, value = pcall(function()
+            return obj[key]
+        end)
+        if ok then
+            return value
+        end
+        return nil
     end
 
-    local result = self.model({text = input_text})
-    local output = result.output or result
-    local value = output.value or output.sentiment or self:parse_response(output)
+    local last_output = nil
+    for attempt = 1, self.max_retries + 1 do
+        local result = self.model({text = input_text})
+        -- Unwrap Model primitive PredictionResult safely (works for both Lua tables
+        -- and Python-backed objects bridged into Lua).
+        local output = result
+        local ok, maybe_output = pcall(function()
+            return result["output"]
+        end)
+        if ok and maybe_output ~= nil then
+            output = maybe_output
+        elseif type(result) == "table" and result.output ~= nil then
+            output = result.output
+        end
+        last_output = output
 
-    local response = {
-        value = value,
-        retry_count = result.retry_count or 0,
-        raw_response = output,
+        local value = safe_get(output, "value") or safe_get(output, "sentiment")
+        if value == nil and type(output) == "string" then
+            value = self:parse_response(output)
+        end
+
+        local canonical = nil
+        if value ~= nil then
+            canonical = valid_lower[tostring(value):lower()]
+        end
+
+        if canonical ~= nil then
+            local response = {
+                value = canonical,
+                retry_count = attempt - 1,
+                raw_response = output,
+            }
+            local conf = safe_get(output, "confidence")
+            if conf ~= nil then
+                response.confidence = conf
+            elseif self.confidence_mode == "heuristic" then
+                response.confidence = 0.8
+            end
+            return response
+        end
+    end
+
+    return {
+        value = "ERROR",
+        retry_count = self.max_retries,
+        raw_response = last_output,
+        error = "Invalid classification after retries",
     }
-
-    if output.confidence then
-        response.confidence = output.confidence
-    elseif self.confidence_mode == "heuristic" then
-        response.confidence = 0.8
-    end
-
-    return response
 end
 
 -- Export LLMClassifier

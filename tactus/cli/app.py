@@ -1617,6 +1617,10 @@ def test(
         tactus test procedure.tac --scenario "Agent completes research"
     """
     setup_logging(verbose=verbose, debug=debug)
+    if debug:
+        # Make Python tracebacks available in CLI errors for cross-language failures.
+        # This is particularly useful for diagnosing Lua<->Python bridge issues.
+        os.environ.setdefault("TACTUS_DEBUG_TRACEBACK", "1")
 
     if not procedure_file.exists():
         console.print(f"[red]Error:[/red] File not found: {procedure_file}")

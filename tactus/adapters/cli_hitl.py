@@ -44,7 +44,9 @@ class CLIHITLHandler:
         self.console = console or Console()
         logger.debug("CLIHITLHandler initialized")
 
-    def request_interaction(self, procedure_id: str, request: HITLRequest) -> HITLResponse:
+    def request_interaction(
+        self, procedure_id: str, request: HITLRequest, execution_context=None
+    ) -> HITLResponse:
         """
         Request human interaction via CLI prompt.
 
