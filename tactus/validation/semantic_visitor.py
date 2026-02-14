@@ -758,6 +758,9 @@ class TactusDSLVisitor(LuaParserVisitor):
                         declaration="Agent",
                     )
         elif function_name == "Model":  # CamelCase only
+            # Skip Model calls inside function bodies - they're runtime lookups, not declarations
+            if self.in_function_body:
+                return self.visitChildren(ctx)
             if argument_values and len(argument_values) >= 1:
                 # Check if this is assignment syntax (single dict arg) or curried syntax (name + dict)
                 if len(argument_values) == 1 and isinstance(argument_values[0], dict):

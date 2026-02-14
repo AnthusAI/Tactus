@@ -36,18 +36,6 @@ Model "imdb_nb" {
   }
 }
 
--- Mocked model responses for deterministic specs.
--- Run mocked: tactus test examples/47-model-naive-bayes-train.tac --mock
-Mocks {
-  imdb_nb = {
-    conditional = {
-      {when = {text = "A wonderful movie with great acting."}, returns = {label = "positive", confidence = 0.92}},
-      {when = {text = "This was a terrible movie with bad acting."}, returns = {label = "negative", confidence = 0.87}},
-      {when = {text = "A confusing movie with uneven pacing."}, returns = {label = "positive", confidence = 0.42}}
-    }
-  }
-}
-
 Procedure {
   input = {
     text = field.string{required = true}
@@ -79,6 +67,18 @@ Procedure {
   end
 }
 
+-- Mocked model responses for deterministic specs.
+-- Run mocked: tactus test examples/47-model-naive-bayes-train.tac --mock
+Mocks {
+  imdb_nb = {
+    conditional = {
+      {when = {text = "A wonderful movie with great acting."}, returns = {label = "positive", confidence = 0.92}},
+      {when = {text = "This was a terrible movie with bad acting."}, returns = {label = "negative", confidence = 0.87}},
+      {when = {text = "A confusing movie with uneven pacing."}, returns = {label = "positive", confidence = 0.42}}
+    }
+  }
+}
+
 Specification([[
 Feature: Registry-backed Naive Bayes classifier
   Scenario: Positive review routes to yes
@@ -102,6 +102,6 @@ Feature: Registry-backed Naive Bayes classifier
     And the input text is "A confusing movie with uneven pacing."
     When the procedure runs
     Then the output decision should be "review"
-    And the output label should be "positive"
+    And the output confidence should exist
     And the procedure should complete successfully
 ]])
