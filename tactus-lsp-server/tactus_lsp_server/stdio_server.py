@@ -9,7 +9,7 @@ import logging
 import sys
 from typing import Optional
 from pygls.server import LanguageServer
-from pygls.lsp.types import (
+from lsprotocol.types import (
     DidOpenTextDocumentParams,
     DidChangeTextDocumentParams,
     DidCloseTextDocumentParams,
