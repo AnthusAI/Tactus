@@ -14,7 +14,7 @@ from typing import Optional
 from collections import Counter
 
 from tactus.registry.local import LocalRegistry
-from tactus.training.datasets import load_dataset_bundle
+from tactus.training.datasets import DatasetBundle, load_dataset_bundle
 from tactus.training.naive_bayes import NaiveBayesTrainer
 from tactus.training.sequence_classifier import HFSequenceClassifierTrainer
 from tactus.training.trainers import get_trainer_registry
