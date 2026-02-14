@@ -2,11 +2,17 @@
 
 ## Overview
 
-The Procedure DSL enables defining agentic workflows in a token-efficient, sandboxed Lua language. Components are defined using assignment-based syntax.
+The Procedure DSL enables defining agentic workflows in a token-efficient, sandboxed Lua language.
+
+NOTE (canonical syntax as of 2026-02):
+- Tools and Agents are typically defined using assignment-based syntax (e.g., `worker = Agent { ... }`).
+- Models are typically defined using a first-class declaration block (e.g., `Model "sentiment" { ... }`).
+- At runtime, registry-backed Models are looked up by name (`Model("sentiment")`) and called like functions.
 
 **Design Philosophy:**
-- **Assignment-based definitions** — `worker = Agent {...}` assigns to variables
-- **Variable references** — `tools = {done, search}` uses variables, not strings
+- **Assignment-based definitions** — Tools/Agents are assigned to variables (e.g., `worker = Agent {...}`)
+- **Declarative Model blocks** — Models are declared as `Model "name" { ... }` (including `training = {...}` when trainable)
+- **Variable references** — `tools = {done, search}` uses variables for tools (toolsets/MCP servers may be referenced by name)
 - **High-level primitives** — operations like `worker()` (callable agents) hide LLM mechanics
 - **Uniform recursion** — a procedure invoked by another procedure works identically to a top-level procedure
 - **Human-in-the-loop** — first-class support for human interaction, approval, and oversight
@@ -22,7 +28,7 @@ The Procedure DSL enables defining agentic workflows in a token-efficient, sandb
 
 ## Lua DSL Format (.tac files)
 
-**.tac files** define procedures using Lua DSL. All primitives use assignment-based syntax.
+**.tac files** define procedures using Lua DSL. Tools and Agents are often assignment-based; Models are commonly declared with `Model "name" { ... }`.
 
 ```lua
 -- Import built-in tool
@@ -93,6 +99,7 @@ Feature: Task Processing
 **Key structure:**
 - **Tools** defined as `name = Tool {...}` or imported via `require()` like `local done = require("tactus.tools.done")`
 - **Agents** defined as `name = Agent {...}` with `tools = {...}`; `tools = {...}` is reserved for inline tool definitions only
+- **Models** declared as `Model "name" { ... }` and looked up at runtime via `Model("name")`
 - **Procedure { }** unnamed, defaults to "main"
   - Config fields: `input`, `output`, `state` (state is optional)
   - Function as the last element containing the procedure logic
@@ -1357,7 +1364,7 @@ The runtime detects script mode during execution and performs source transformat
 - `Specification()` / `Specifications()`
 - Agent definitions: `name = Agent {}`
 - Tool definitions: `name = Tool {}` or imported via `require()` like `local done = require("tactus.tools.done")`
-- Model definitions: `name = Model {}`
+- Model declarations: `Model "name" { ... }`
 - Comments and blank lines
 
 **Executable code** (wrapped in Procedure function):
@@ -1461,12 +1468,77 @@ Sub-procedures follow the **exact same structure** as top-level procedures.
 
 ---
 
+## Model Primitive
+
+Models are the non-conversational, stateless counterpart to Agents: they perform inference (classification, extraction, scoring) with explicit input/output contracts.
+
+Canonical references:
+
+- `docs/model-primitive.md` (quick reference)
+- `docs/model-training-walkthrough.md` (hands-on training/eval/run walkthrough)
+- `llms.txt` (machine-ingestible guidance for AI assistants/tools)
+
+### Declaring a trainable, registry-backed model (Option A)
+
+Training configuration lives inside the Model block under `training`.
+
+```lua
+Model "imdb_nb" {
+  type = "registry",
+  name = "imdb_nb",
+  version = "latest",
+
+  input = { text = "string" },
+  output = { label = "string", confidence = "float" },
+
+  training = {
+    data = {
+      source = "hf",
+      name = "imdb",
+      train = "train",
+      test = "test",
+      text_field = "text",
+      label_field = "label"
+    },
+    candidates = {
+      {
+        name = "nb-tfidf",
+        trainer = "naive_bayes",
+        hyperparameters = { alpha = 1.0 }
+      }
+    }
+  }
+}
+```
+
+### Calling a model in a Procedure (canonical pattern)
+
+```lua
+local m = Model("imdb_nb")
+local result = m({text = input.text})
+local out = result.output or result
+```
+
+### CLI: training + evaluation
+
+```bash
+tactus train file.tac --model imdb_nb
+tactus models evaluate file.tac --model imdb_nb
+```
+
+---
+
 ## Agent Definitions
 
 Agents are the cognitive workers within a procedure. Defined using assignment-based syntax:
 
 ```lua
 local done = require("tactus.tools.done")
+
+-- Toolsets are registered by name and then referenced from an Agent.
+Toolset "search_tools" {
+    use = "mcp.brave-search"
+}
 
 worker = Agent {
     provider = "openai",
@@ -1486,7 +1558,7 @@ Context: {prepared.data}
 
     initial_message = "Begin working on the task.",
 
-    tools = {"brave_search_search", "done"},  -- MCP tools referenced by string name
+    tools = {"search_tools", done},
 
     filter = {
         class = "ComposedFilter",
