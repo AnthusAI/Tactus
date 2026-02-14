@@ -806,6 +806,43 @@ def test_create_toolset_from_config_use_mcp():
     assert toolset is runtime.toolset_registry["server"]
 
 
+def test_create_toolset_from_config_use_mcp_missing_server_in_mock_mode(monkeypatch):
+    runtime = _runtime()
+    monkeypatch.setenv("TACTUS_MOCK_MODE", "1")
+
+    class DummyFunctionToolset:
+        def __init__(self, tools):
+            self.tools = tools
+
+    monkeypatch.setattr("pydantic_ai.toolsets.FunctionToolset", DummyFunctionToolset)
+
+    toolset = _run(runtime._create_toolset_from_config("use", {"use": "mcp.missing"}))
+
+    assert isinstance(toolset, DummyFunctionToolset)
+    assert toolset.tools == []
+
+
+def test_create_toolset_from_config_type_mcp_missing_server_in_mock_mode(monkeypatch):
+    runtime = _runtime()
+    monkeypatch.setenv("TACTUS_MOCK_MODE", "1")
+
+    class DummyFunctionToolset:
+        def __init__(self, tools):
+            self.tools = tools
+
+    monkeypatch.setattr("pydantic_ai.toolsets.FunctionToolset", DummyFunctionToolset)
+
+    toolset = _run(
+        runtime._create_toolset_from_config(
+            "mcp_toolset",
+            {"type": "mcp", "server": "missing"},
+        )
+    )
+
+    assert isinstance(toolset, DummyFunctionToolset)
+    assert toolset.tools == []
+
+
 def test_create_toolset_from_config_use_unknown():
     runtime = _runtime()
 

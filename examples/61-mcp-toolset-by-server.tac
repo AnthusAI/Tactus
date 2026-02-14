@@ -5,7 +5,8 @@
 local done = require("tactus.tools.done")
 
 -- Define toolsets that reference specific MCP servers
--- Note: These require actual MCP servers to be configured in .tac.yml
+-- Note: Real-mode runs require MCP servers to be configured in .tac.yml.
+-- Mock-mode tests do not require MCP because agent tool calls are mocked in the spec.
 Toolset "filesystem_tools" {
     use = "mcp.filesystem"  -- Reference filesystem MCP server
 }
@@ -27,11 +28,10 @@ Available MCP toolsets:
 Use these tools to help with research tasks.
 When done, call the done tool.]],
 
-    tools = {"filesystem_tools", "search_tools"},
     tools = {"filesystem_tools", "search_tools", done},
 }
 
--- Alternative: Direct reference to MCP server in agent
+-- A second agent that only uses filesystem tools
 file_manager = Agent {
     provider = "openai",
     model = "gpt-4o-mini",
@@ -40,9 +40,10 @@ file_manager = Agent {
 Use filesystem tools to manage files.
 When done, call the done tool.]],
 
-    -- Directly reference MCP server (registered by server name)
-    tools = {"filesystem"},
-    tools = {"filesystem", done},
+    -- Use the filesystem MCP server via a Toolset that references `mcp.filesystem`.
+    -- In real mode, `mcp.filesystem` is resolved via .tac.yml MCP config.
+    -- In mock mode, Tactus uses an empty placeholder toolset so agent mocking can run in CI.
+    tools = {"filesystem_tools", done},
 }
 
 -- Main procedure

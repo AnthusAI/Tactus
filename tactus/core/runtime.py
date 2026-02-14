@@ -1458,9 +1458,13 @@ class TactusRuntime:
             AbstractToolset instance or None if creation fails
         """
         import re
+        import os
         from pydantic_ai.toolsets import CombinedToolset
 
         toolset_type = definition.get("type")
+        mock_mode = os.environ.get("TACTUS_MOCK_MODE") == "1" or bool(
+            getattr(self, "mock_all_agents", False)
+        )
 
         if toolset_type == "lua":
             # Lua function toolset
@@ -1495,7 +1499,21 @@ class TactusRuntime:
                 return None
 
             # Return reference to MCP toolset (will be resolved after MCP init)
-            return self.resolve_toolset(server_name)
+            toolset = self.resolve_toolset(server_name)
+            if toolset is None and mock_mode:
+                # In mocked mode (BDD tests), MCP servers are typically not configured.
+                # Return an empty placeholder toolset so agent initialization can proceed;
+                # mocked agent turns record tool calls directly into ToolPrimitive.
+                from pydantic_ai.toolsets import FunctionToolset
+
+                logger.info(
+                    "Mock mode: creating placeholder MCP toolset '%s' (server '%s')",
+                    name,
+                    server_name,
+                )
+                return FunctionToolset(tools=[])
+
+            return toolset
 
         elif toolset_type == "filtered":
             # Filter tools from source toolset
@@ -1665,7 +1683,18 @@ class TactusRuntime:
                 elif source.startswith("mcp."):
                     # Reference MCP server
                     server_name = source[4:]  # Remove "mcp." prefix
-                    return self.resolve_toolset(server_name)
+                    toolset = self.resolve_toolset(server_name)
+                    if toolset is None and mock_mode:
+                        from pydantic_ai.toolsets import FunctionToolset
+
+                        logger.info(
+                            "Mock mode: creating placeholder MCP toolset '%s' (server '%s')",
+                            name,
+                            server_name,
+                        )
+                        return FunctionToolset(tools=[])
+
+                    return toolset
                 else:
                     logger.error(f"Unknown toolset source '{source}' for '{name}'")
                     return None
