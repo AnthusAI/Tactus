@@ -1203,11 +1203,11 @@ end)
 `Agent()` returns a standard `TactusResult` wrapper (instead of raw text).
 
 **Features:**
-- ✅ `result.value` - Response value (string or structured data)
+- ✅ `result.output` - Response value (string or structured data)
 - ✅ `result.usage` - Token usage stats (prompt_tokens, completion_tokens, total_tokens)
 - ✅ `result.cost()` - Cost stats (total_cost, prompt_cost, completion_cost)
 
-**Breaking change:** Access agent output via `result.value` (not `result.message` / `result.data`).
+**Breaking change:** Access agent output via `result.output` (not `result.message` / `result.data` / `result.response`).
 
 **Implementation locations:**
 - `tactus/dspy/agent.py` (`DSPyAgentHandle.__call__`)
@@ -1217,34 +1217,35 @@ end)
 **Example:**
 ```lua
 local result = Agent()
-Log.info(result.value)
+Log.info(result.output)
 Log.info("Tokens", {total = result.usage.total_tokens})
 Log.info("Cost", {total = result.cost().total_cost})
 ```
 
-#### Structured Output (output_type)
+#### Structured Output (Agent output schema)
 
-**Status**: ✅ **Fully Implemented**
+**Status**: ✅ **Implemented**
 
 **Implementation:**
-- `AgentDeclaration.output_type` field in registry (`tactus/core/registry.py`)
-- `_create_pydantic_model_from_output_type()` helper in runtime (`tactus/core/runtime.py`)
-- Converts Tactus schema to Pydantic model for pydantic-ai's `output_type` parameter
+- `AgentDeclaration.output` field in registry (`tactus/core/registry.py`)
+- Runtime output model creation in `tactus/core/runtime.py` (`_create_pydantic_model_from_output`)
 
-**Aligned with pydantic-ai:** Maps directly to pydantic-ai's `output_type` parameter with automatic validation and retry.
+This enables structured agent outputs that are validated and exposed as `result.output`.
 
 **Example:**
 ```lua
-agent("extractor", {
-    output_type = {
+Extractor = Agent {
+    model = "openai/gpt-4o-mini",
+    output = {
         city = {type = "string", required = true},
-        country = {type = "string", required = true}
-    }
-})
+        country = {type = "string", required = true},
+    },
+    system_prompt = "Extract city and country from user text.",
+}
 
 -- Agent automatically validates output against schema
-local result = Extractor()
-Log.info(result.value.city)
+local result = Extractor({message = "I'm in Paris, France."})
+Log.info(result.output.city)
 ```
 
 #### State Primitives

@@ -762,7 +762,7 @@ Score 1.0 if the agent:
 - Called the done tool appropriately
 Score 0.0 otherwise.
       ]],
-      model = "openai:gpt-4o-mini"
+      model = "openai/gpt-4o-mini"
     }
   }
 }
@@ -1580,7 +1580,7 @@ Hello! I'll help you with that task.
 ✓ Agent researcher: Completed 1204ms
 → Tool done {"reason": "Task completed successfully"}
   Result: Done
-$ Cost researcher: $0.001267 (354 tokens, openai:gpt-4o, 1204ms)
+$ Cost researcher: $0.001267 (354 tokens, openai/gpt-4o, 1204ms)
 
 ✓ Procedure completed: 1 iterations, 1 tools used
 

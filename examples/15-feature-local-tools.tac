@@ -82,8 +82,6 @@ Procedure {
             -- Max turns reached - use last response
             if result and result.output then
                 answer = tostring(result.output)
-            elseif result and result.message then
-                answer = tostring(result.message)
             else
                 answer = ""
             end

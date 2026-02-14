@@ -125,8 +125,8 @@ Procedure {
                         answer = reason
                     end
                 end
-            elseif result and result.message then
-                answer = result.message
+            elseif result and result.output ~= nil then
+                answer = tostring(result.output)
             end
 
             Log.info("Task result", {

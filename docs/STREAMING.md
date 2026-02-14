@@ -24,17 +24,19 @@ When you have an `output` block defined, the system will:
 ```lua
 -- STREAMING WORKS - even with outputs defined
 storyteller = Agent {
-    provider = "openai",
-    model = "gpt-4o-mini",
+    model = "openai/gpt-4o-mini",
     system_prompt = "You are a creative storyteller...",
 }
 
-output {
-    story = field.string{description = "The generated story"},
+Procedure {
+    output = {
+        story = field.string{description = "The generated story"},
+    },
+    function(input)
+        local result = storyteller({message = "Write a short story"})
+        return { story = result.output }
+    end
 }
-
-local result = storyteller({message = "Write a short story"})
-return { story = result.response }
 ```
 
 ## Disabling Streaming
@@ -42,11 +44,11 @@ return { story = result.response }
 You can explicitly disable streaming for an agent:
 
 ```lua
-agent("assistant", {
+assistant = Agent {
     system_prompt = "You are helpful",
     model = "openai/gpt-4o",
     disable_streaming = true,  -- Force non-streaming mode
-})
+}
 ```
 
 ## Technical Details
@@ -103,13 +105,12 @@ Key files:
 ```lua
 -- Streaming example
 storyteller = Agent {
-    provider = "openai",
-    model = "gpt-4o",
+    model = "openai/gpt-4o",
     system_prompt = "You are a creative storyteller...",
 }
 
 local result = storyteller({message = "Tell me a short story"})  -- This will stream!
-return { story = result.response }
+return { story = result.output }
 ```
 
 ## Configuration Options
