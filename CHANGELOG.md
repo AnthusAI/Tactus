@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.42.2 (2026-02-14)
+
+### Bug Fixes
+
+- **ci**: Add workflow concurrency to prevent release races (Tactus-74q)
+  ([`b8db640`](https://github.com/AnthusAI/Tactus/commit/b8db640559d9f3e82006cedcbdcecbe5eead830f))
+
+
 ## v0.42.1 (2026-02-14)
 
 ### Bug Fixes
