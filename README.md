@@ -520,6 +520,7 @@ tactus test hello.tac --runs 10
 
 ## Documentation
 
+- **[docs/README.md](docs/README.md)** — Docs index and recommended reading paths
 - **[SPECIFICATION.md](SPECIFICATION.md)** — Complete DSL reference
 - **[IMPLEMENTATION.md](IMPLEMENTATION.md)** — Implementation status and architecture
 - **[docs/model-primitive.md](docs/model-primitive.md)** — Model primitive quick reference (humans + AI assistants)
