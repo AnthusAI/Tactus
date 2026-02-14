@@ -218,6 +218,44 @@ sandbox:
 
 Tactus intentionally blocks common secret env vars from entering the runtime container. For LLM calls, provide credentials to the host/broker side (for example via your shell environment or host-side config loading), not via `sandbox.env`.
 
+---
+
+## Model Registry Configuration (Training/Evaluation)
+
+Training (`tactus train`) and registry-backed inference (`type = "registry"`) use a model registry.
+
+By default, Tactus uses the **local filesystem registry** at:
+
+- `~/.tactus/models`
+
+### Environment Variables
+
+These environment variables control which registry implementation is used and where it stores data:
+
+- `TACTUS_REGISTRY_TYPE`
+  - `local` (default)
+  - `mlflow`
+  - `sagemaker`
+- `TACTUS_REGISTRY_DIR`
+  - Local registry directory (used when `TACTUS_REGISTRY_TYPE=local`)
+- `TACTUS_REGISTRY_TRACKING_URI`
+  - MLflow tracking URI (used when `TACTUS_REGISTRY_TYPE=mlflow`)
+- `AWS_REGION` / `AWS_DEFAULT_REGION`
+  - Region for SageMaker (used when `TACTUS_REGISTRY_TYPE=sagemaker`)
+
+### Recommended: isolate your registry for experiments
+
+If you are training models while learning, it is often helpful to keep the registry in a disposable directory:
+
+```bash
+export TACTUS_REGISTRY_TYPE=local
+export TACTUS_REGISTRY_DIR="$(mktemp -d)"
+echo "Using registry dir: $TACTUS_REGISTRY_DIR"
+```
+
+This keeps your main registry (`~/.tactus/models`) clean.
+
+
 ### Per-Procedure Sandbox Configuration
 
 Use sidecar files to customize sandbox settings per procedure:

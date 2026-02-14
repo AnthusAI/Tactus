@@ -2,7 +2,12 @@
 
 ## Overview
 
-Tactus includes first-class support for behavior-driven testing using Gherkin syntax. Write natural language specifications directly in your procedure files and run them with `tactus test` and `tactus evaluate` commands.
+Tactus includes first-class support for behavior-driven testing using Gherkin syntax. Write natural language specifications directly in your procedure files and run them with `tactus test`.
+
+NOTE:
+- BDD specs are run with `tactus test`.
+- Pydantic Evals are run with `tactus eval`.
+- Registry-backed model evaluation is run with `tactus models evaluate`.
 
 ## Why BDD Testing in Tactus?
 
@@ -92,6 +97,31 @@ tactus test procedure.tac --mock-config mocks.json
 Mock responses can be:
 - **Static values** - Same response every time
 - **Callable functions** - Dynamic responses based on arguments (in code)
+
+### Mocking Models (not just tools)
+
+Mock mode is also how you test procedure logic that depends on **Models** (classification/extraction/scoring) without training or downloading any ML artifacts.
+
+Use a `Mocks { ... }` block in the same `.tac` file to provide deterministic model outputs:
+
+```lua
+Mocks {
+  imdb_nb = {
+    conditional = {
+      {when = {text = "Great movie."}, returns = {label = "positive", confidence = 0.91}},
+      {when = {text = "Bad movie."}, returns = {label = "negative", confidence = 0.88}}
+    }
+  }
+}
+```
+
+Then run:
+
+```bash
+tactus test your-file.tac --mock
+```
+
+Your specs should assert the *procedure behavior* driven by those outputs ("if the model says X, we do Y").
 
 ## How Mock Mode Works
 
@@ -781,5 +811,3 @@ See `examples/with-bdd-tests.lua` for a complete example demonstrating:
 ## API Reference
 
 See `tactus/testing/README.md` for complete API documentation.
-
-
