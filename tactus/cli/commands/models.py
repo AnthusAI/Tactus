@@ -175,9 +175,7 @@ def evaluate(
         raise typer.Exit(1)
 
 
-def _normalize_labels(
-    y_true: List[Any], y_pred: List[Any]
-) -> Tuple[List[str], List[str]]:
+def _normalize_labels(y_true: List[Any], y_pred: List[Any]) -> Tuple[List[str], List[str]]:
     def to_str(value: Any) -> str:
         return value if isinstance(value, str) else str(value)
 
@@ -206,13 +204,19 @@ def _compute_metrics(y_true: List[str], y_pred: List[str]) -> Dict[str, float]:
     try:
         from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
     except ImportError as exc:
-        raise ImportError("scikit-learn not installed. Install with: pip install tactus[ml]") from exc
+        raise ImportError(
+            "scikit-learn not installed. Install with: pip install tactus[ml]"
+        ) from exc
 
     labels = sorted(set(y_true) | set(y_pred))
     if len(labels) <= 2:
         pos_label = "positive" if "positive" in labels else labels[-1]
-        precision = precision_score(y_true, y_pred, average="binary", pos_label=pos_label, zero_division=0)
-        recall = recall_score(y_true, y_pred, average="binary", pos_label=pos_label, zero_division=0)
+        precision = precision_score(
+            y_true, y_pred, average="binary", pos_label=pos_label, zero_division=0
+        )
+        recall = recall_score(
+            y_true, y_pred, average="binary", pos_label=pos_label, zero_division=0
+        )
         f1 = f1_score(y_true, y_pred, average="binary", pos_label=pos_label, zero_division=0)
     else:
         precision = precision_score(y_true, y_pred, average="macro", zero_division=0)
