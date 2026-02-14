@@ -30,9 +30,7 @@ def _register_default_trainers() -> None:
 def _parse_training_config(config: dict, model_name: str) -> TrainingConfig:
     training_cfg = config.get("training")
     if not training_cfg:
-        raise ValueError(
-            f"Model '{model_name}' missing training block (required for training)."
-        )
+        raise ValueError(f"Model '{model_name}' missing training block (required for training).")
 
     data_cfg = training_cfg.get("data") or {}
     if not data_cfg:
