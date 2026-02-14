@@ -61,6 +61,7 @@ review for high-stakes decisions.
 local classify = require("tactus.classify")
 local LLMClassifier = classify.LLMClassifier
 local FuzzyMatchClassifier = classify.FuzzyMatchClassifier
+local NaiveBayesClassifier = classify.NaiveBayesClassifier
 
 -- Local state for test context
 local test_state = {}
@@ -147,31 +148,21 @@ Step("the matched_text should be \"(.+)\"", function(ctx, expected)
         "Expected matched_text '" .. expected .. "' but got '" .. tostring(test_state.result.matched_text) .. "'")
 end)
 
--- Agent mocks for LLM classification scenarios
+-- Deterministic model mocks for CI-safe specs.
+--
+-- LLMClassifier uses the Model primitive (type="llm") under the hood, so we
+-- mock the *model name* (stdlib_classify_llm), not an Agent.
 Mocks {
     stdlib_classify_llm = {
-        message = "",
-        temporal = {
-            {
-                when_message = "How are you?",
-                message = "Yes"
-            },
-            {
-                when_message = "I love this product!",
-                message = "positive"
-            },
-            {
-                when_message = "This is terrible",
-                message = "negative"
-            },
-            {
-                when_message = "The sky is blue",
-                message = "neutral"
-            }
+        conditional = {
+            {when = {text = "How are you?"}, returns = {value = "Yes", confidence = 0.8}},
+            {when = {text = "I love this product!"}, returns = {value = "positive", confidence = 0.93}},
+            {when = {text = "This is terrible"}, returns = {value = "negative", confidence = 0.91}},
+            {when = {text = "The sky is blue"}, returns = {value = "neutral", confidence = 0.78}}
         }
     },
     imdb_nb = {
-        output = {label = "positive", confidence = 0.92}
+        returns = {label = "positive", confidence = 0.92}
     }
 }
 

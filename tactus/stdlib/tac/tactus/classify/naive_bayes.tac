@@ -21,11 +21,35 @@ end
 
 function NaiveBayesClassifier:classify(input_text)
     local result = self.model({text = input_text})
-    local output = result.output or result
+    local output = result
+    local ok, maybe_output = pcall(function()
+        return result["output"]
+    end)
+    if ok and maybe_output ~= nil then
+        output = maybe_output
+    elseif type(result) == "table" and result.output ~= nil then
+        output = result.output
+    end
+
+    local function safe_get(obj, key)
+        if obj == nil then
+            return nil
+        end
+        if type(obj) == "table" then
+            return obj[key]
+        end
+        local ok_get, val = pcall(function()
+            return obj[key]
+        end)
+        if ok_get then
+            return val
+        end
+        return nil
+    end
 
     return {
-        value = output.label,
-        confidence = output.confidence,
+        value = safe_get(output, "label"),
+        confidence = safe_get(output, "confidence"),
         raw_response = output,
     }
 end

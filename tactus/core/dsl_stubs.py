@@ -1249,6 +1249,18 @@ def create_dsl_stubs(
 
                 # Register the tool mock configuration
                 builder.register_mock(name, processed_config)
+                # Also apply the mock immediately when a MockManager is available.
+                # This is important for test contexts that execute .tac files to
+                # load custom Step() handlers (they don't run the full runtime
+                # parse->apply-mocks pipeline).
+                if mock_manager is not None:
+                    try:
+                        mock_manager.register_mock(name, processed_config)
+                        mock_manager.enable_mock(name)
+                    except Exception:
+                        # Mocks should never break parsing; runtime will still see
+                        # builder.registry.mocks and can apply them later.
+                        pass
                 continue
 
             # Otherwise, ignore unknown mock config.
