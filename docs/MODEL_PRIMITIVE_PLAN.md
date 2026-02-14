@@ -1,4 +1,6 @@
-# Model Primitive: First-Class MLOps Integration
+# Model Primitive: First-Class MLOps Integration (Roadmap)
+
+For current usage and syntax, see `docs/MODEL_PRIMITIVE.md`.
 
 ## Vision
 
