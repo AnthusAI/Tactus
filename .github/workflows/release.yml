@@ -198,17 +198,47 @@ jobs:
       - name: Package Application (macOS)
         if: matrix.os == 'macos-latest'
         working-directory: ./tactus-desktop
-        run: npx electron-builder --mac
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            echo "electron-builder --mac (attempt ${attempt}/3)"
+            if npx electron-builder --mac; then
+              exit 0
+            fi
+            sleep $((attempt * 30))
+          done
+          exit 1
 
       - name: Package Application (Windows)
         if: matrix.os == 'windows-latest'
         working-directory: ./tactus-desktop
-        run: npx electron-builder --win
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            echo "electron-builder --win (attempt ${attempt}/3)"
+            if npx electron-builder --win; then
+              exit 0
+            fi
+            sleep $((attempt * 30))
+          done
+          exit 1
 
       - name: Package Application (Linux)
         if: matrix.os == 'ubuntu-latest'
         working-directory: ./tactus-desktop
-        run: npx electron-builder --linux
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            echo "electron-builder --linux (attempt ${attempt}/3)"
+            if npx electron-builder --linux; then
+              exit 0
+            fi
+            sleep $((attempt * 30))
+          done
+          exit 1
 
       - name: Upload Desktop Artifacts to GitHub Artifacts
         uses: actions/upload-artifact@v4
