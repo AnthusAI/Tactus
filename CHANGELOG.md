@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.42.1 (2026-02-14)
+
+### Bug Fixes
+
+- **ci**: Gate desktop builds on release publish (Tactus-ci0)
+  ([`8fb5645`](https://github.com/AnthusAI/Tactus/commit/8fb564555fa7f2ca2675f2edafa5a4766c4f4296))
+
+
 ## v0.42.0 (2026-02-13)
 
 ### Bug Fixes
