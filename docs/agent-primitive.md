@@ -35,8 +35,7 @@ Agents are called like functions.
 
 ```lua
 my_agent = Agent {
-  provider = "openai",
-  model = "gpt-4o-mini",
+  model = "openai/gpt-4o-mini",
   system_prompt = "You are helpful and concise.",
   tools = { /* ... */ }
 }
@@ -49,6 +48,11 @@ Procedure {
   end
 }
 ```
+
+Model naming note:
+
+- Preferred: `model = "provider/model"` (LiteLLM format, e.g. `"openai/gpt-4o-mini"`).
+- Supported: `provider = "openai", model = "gpt-4o-mini"` (Tactus will normalize to `"openai/gpt-4o-mini"`).
 
 Agents are non-deterministic by nature; you typically structure correctness around:
 
@@ -118,4 +122,3 @@ Don't:
 
 - don't build correctness around free-form text unless you validate it
 - don't rely on an agent "remembering" state; store state explicitly
-

@@ -30,6 +30,39 @@ from tactus.core.message_history_manager import MessageHistoryManager
 logger = logging.getLogger(__name__)
 
 
+def _normalize_model_for_litellm(model: Optional[str], provider: Optional[str]) -> Optional[str]:
+    """
+    Normalize Agent model/provider configuration to LiteLLM's expected format.
+
+    Supported inputs:
+    - model="openai/gpt-4o-mini" (already normalized)
+    - model="openai:gpt-4o-mini" (colon provider separator -> slash)
+    - provider="openai", model="gpt-4o-mini" (combine to "openai/gpt-4o-mini")
+
+    Note: Some provider model IDs (e.g., Bedrock) may contain ':' as part of the model ID
+    (version suffix). If provider is provided and the model does not start with
+    "<provider>:", we treat ':' as part of the model ID (do not rewrite).
+    """
+    if not model:
+        return None
+
+    normalized = model
+
+    # Convert "provider:model" to "provider/model", but do not rewrite colons that
+    # are part of a model ID (e.g., Bedrock version suffixes) unless they look like
+    # an explicit provider separator.
+    if ":" in normalized and "/" not in normalized:
+        prefix = normalized.split(":", 1)[0]
+        if provider is None or prefix == provider:
+            normalized = normalized.replace(":", "/", 1)
+
+    # Combine split provider + model into provider/model.
+    if provider and "/" not in normalized:
+        normalized = f"{provider}/{normalized}"
+
+    return normalized
+
+
 class DSPyAgentHandle:
     """
     A DSPy-based Agent handle that provides the callable interface.
@@ -1229,10 +1262,7 @@ class DSPyAgentHandle:
         from tactus.dspy.config import get_current_lm, configure_lm
 
         if get_current_lm() is None and self.model:
-            # Convert model format from "provider:model" to "provider/model" for LiteLLM
-            # Only replace the FIRST colon (provider separator), not all colons
-            # Bedrock model IDs like "us.anthropic.claude-haiku-4-5-20251001-v1:0" have a version suffix
-            model_for_litellm = self.model.replace(":", "/", 1) if ":" in self.model else self.model
+            model_for_litellm = _normalize_model_for_litellm(self.model, self.provider)
             logger.info(f"Auto-configuring DSPy LM with model: {model_for_litellm}")
 
             # Build kwargs for configure_lm
