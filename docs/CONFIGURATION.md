@@ -110,6 +110,8 @@ sandbox:
 
 **Note**: If Docker is unavailable and `enabled: true`, execution will fail with an error. Use `--no-sandbox` or set `enabled: false` to explicitly run without isolation.
 
+**Mock mode note**: `tactus test --mock` does not start MCP servers. If your `.tac` file declares `Toolset "x" { use = "mcp.<server>" }`, Tactus will create an empty placeholder toolset so mocked agent turns can run in CI. Real tool execution still requires `mcp_servers` configuration.
+
 ### Sandbox Image Build Modes
 
 Tactus auto-builds the sandbox image the first time you run a procedure with Docker:

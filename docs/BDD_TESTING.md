@@ -138,6 +138,18 @@ When you run `tactus test --mock`:
 5. **After execution:**
    - Primitives are captured from runtime
    - Test steps access captured primitive states
+
+### Note: MCP Toolsets in Mock Mode
+
+Mock mode does **not** start MCP servers. If your `.tac` file declares a toolset like:
+
+```lua
+Toolset "filesystem_tools" { use = "mcp.filesystem" }
+```
+
+Tactus will create an **empty placeholder toolset** so mocked agent turns can initialize and record tool-call assertions (for example, `And the agent "x" calls tool "filesystem_read_file" ...`).
+
+In real mode (non-mocked), you still need to configure `mcp_servers` in your `.tac.yml` sidecar for the server name (`filesystem`, `brave-search`, etc.) to resolve to real tools.
 6. **Assertions:**
    - `tool_called()` checks MockedToolPrimitive
    - `state_get()` checks StatePrimitive
