@@ -54,7 +54,7 @@ main = procedure "main" {
     run = function()
         -- Model for ML classification
         IntentClassifier = model "intent_classifier" {
-            type = "bert",
+            type = "pytorch",
             path = "models/intent.pt",
             labels = {"billing", "technical", "general"}
         }
@@ -71,7 +71,9 @@ main = procedure "main" {
         }
 
         -- Route based on ML classification
-        state.category = IntentClassifier.predict(input.user_message)
+        local intent_result = IntentClassifier(input.user_message)
+        local intent_out = intent_result.output or intent_result
+        state.category = intent_out
 
         if state.category == "billing" then
             BillingAgent()
@@ -565,43 +567,64 @@ state.history = Researcher.messages      -- Access conversation history
 Models wrap any ML inference - classifiers, extractors, embeddings, etc:
 
 ```lua
-IntentClassifier = model "intent_classifier" {
-    type = "bert",
-    path = "models/intent.pt",
-    labels = {"billing", "technical", "general"}
+Model \"intent_classifier\" {
+  type = \"pytorch\",
+  path = \"models/intent.pt\",
+  labels = {\"billing\", \"technical\", \"general\"},
+  input = { text = \"string\" },
+  output = { label = \"string\" }
 }
 
-QuoteExtractor = model "quote_extractor" {
-    type = "http",
-    endpoint = "http://ml-service:8000/extract",
-    timeout = 30
+Model \"quote_extractor\" {
+  type = \"http\",
+  endpoint = \"http://ml-service:8000/extract\",
+  timeout = 30,
+  input = { text = \"string\" },
+  output = { quotes = \"list\" }
 }
 
-Embedder = model "embedder" {
-    type = "sentence_transformers",
-    model_name = "all-MiniLM-L6-v2"
+-- For embedding models, use an HTTP backend (or a future dedicated backend).
+Model \"embedder\" {
+  type = \"http\",
+  endpoint = \"http://ml-service:8000/embed\",
+  timeout = 30,
+  input = { text = \"string\" },
+  output = { vector = \"list\" }
 }
 ```
 
 **Model methods:**
 
 ```lua
-state.intent = IntentClassifier.predict(user_message)
-state.quotes = QuoteExtractor.predict({text = document, min_length = 10})
-state.embedding = Embedder.predict(text)
+local intent = Model(\"intent_classifier\")
+local intent_result = intent({text = user_message})
+local intent_out = intent_result.output or intent_result
+state.intent = intent_out.label or intent_out
+
+local extractor = Model(\"quote_extractor\")
+local quotes_result = extractor({text = document})
+local quotes_out = quotes_result.output or quotes_result
+state.quotes = quotes_out.quotes or quotes_out
+
+local embedder = Model(\"embedder\")
+local embedding_result = embedder({text = text})
+local embedding_out = embedding_result.output or embedding_result
+state.embedding = embedding_out.vector or embedding_out
 ```
 
 ### Supported Model Types
 
 | Type | Description | Example Use Case |
 |------|-------------|------------------|
-| `bert` | HuggingFace transformers | Text classification, NER |
-| `sklearn` | Scikit-learn models | Naive Bayes, SVM, Random Forest |
-| `pytorch` | Custom PyTorch models | Any `.pt` file |
-| `onnx` | ONNX runtime | Cross-platform inference |
-| `sentence_transformers` | Sentence embeddings | Semantic search, clustering |
+| `registry` | Resolve a registered version/tag | Production inference from trained artifacts |
 | `http` | REST endpoint | External ML services |
-| `sagemaker` | AWS SageMaker endpoint | Production ML |
+| `pytorch` | Local `.pt` inference | Custom PyTorch models |
+| `sklearn` | Local sklearn artifact | Naive Bayes text classifier |
+| `hf_sequence_classifier` | HF AutoModel sequence classifier | BERT/RoBERTa/etc. classification |
+| `llm` | LLM-backed classifier/extractor | Flexible inference with cost tracking |
+| `ensemble` | Combine multiple models | Majority vote / averaging |
+| `ab_test` / `traffic_split` | Route traffic across arms | Online experiments |
+| `mock` | Fixed value backend | Testing / demos |
 
 ### Both Auto-Checkpoint
 
@@ -609,8 +632,11 @@ Regardless of type, all inference operations auto-checkpoint:
 
 ```lua
 Researcher()                                -- Checkpoint (LLM call)
-state.intent = IntentClassifier.predict(x)  -- Checkpoint (BERT inference)
-state.quotes = QuoteExtractor.predict(doc)  -- Checkpoint (HTTP call)
+local result = Model(\"intent_classifier\")({text = x})  -- Checkpoint (model inference)
+local out = result.output or result
+state.intent = out
+
+state.quotes = Model(\"quote_extractor\")({text = doc})  -- Checkpoint (HTTP call)
 ```
 
 On replay, cached results are returned without re-running inference.
