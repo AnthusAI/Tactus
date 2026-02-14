@@ -1,0 +1,71 @@
+Tactus LLM Guidance (Canonical)
+
+This file is intended for AI assistants and automated tooling. It describes the
+canonical concepts and patterns for writing correct, modern Tactus code.
+
+If you are producing docs or examples, also consult:
+- docs/model-primitive.md
+- README.md
+- SPECIFICATION.md
+
+================================================================================
+MODEL PRIMITIVE
+================================================================================
+
+One-sentence definition:
+A Model is Tactus's stateless prediction interface: typed input -> typed output,
+with a registry-backed lifecycle for training, versioning, and evaluation.
+
+Model vs Agent:
+- Use a Model for classification/extraction/scoring ("input in, output out").
+- Use an Agent for multi-turn reasoning and tool use.
+
+Canonical runtime call pattern (always use this):
+
+  local m = Model("imdb_nb")
+  local result = m({text = input.text})
+  local out = result.output or result
+
+Do NOT:
+- Do not invent a "Model.predict()" DSL method. Models are called like functions.
+
+Training config (Option A, canonical):
+Training lives inside the same Model block under "training".
+
+  Model "imdb_nb" {
+    type = "registry",
+    name = "imdb_nb",
+    version = "latest",
+    input = { text = "string" },
+    output = { label = "string", confidence = "float" },
+    training = { data = {...}, candidates = {...} }
+  }
+
+CLI (canonical):
+- Train:
+    tactus train file.tac --model imdb_nb
+- Evaluate (registry-backed):
+    tactus models evaluate file.tac --model imdb_nb
+
+Registry tags (canonical):
+- latest
+- candidate/<candidate_name>
+
+Testing story (canonical):
+Specs should test procedure logic, not model quality.
+Use Mocks for deterministic CI (conditional mocking is preferred).
+
+Dependencies:
+Do not assume heavy ML deps in the core install.
+- Core runtime: pip install tactus
+- sklearn training: pip install "tactus[ml]"
+- HF training: pip install "tactus[hf]"
+
+================================================================================
+AGENT PRIMITIVE
+================================================================================
+
+Agents are stateful multi-turn runtimes. They can use tools and iterate.
+Keep deterministic control flow in Procedures and use Agents for the
+non-deterministic steps that benefit from intelligence.
+
