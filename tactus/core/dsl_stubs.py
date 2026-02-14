@@ -587,12 +587,15 @@ def create_dsl_stubs(
             Function that accepts config and returns ModelHandle
 
         Example (Lua):
-            classifier = model "classifier" {
+            Model "classifier" {
                 type = "pytorch",
-                path = "models/classifier.pt"
+                path = "models/classifier.pt",
+                input = { text = "string" },
+                output = { label = "string" }
             }
 
-            local result = Model("classifier").predict(data)
+            local result = Model("classifier")({text = "hello"})
+            local out = result.output or result
         """
 
         def accept_config(config) -> ModelHandle:

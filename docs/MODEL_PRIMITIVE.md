@@ -1,5 +1,11 @@
 # Model Primitive
 
+NOTE: This document is retained for historical context, but the canonical,
+copy/pasteable reference is now:
+
+- `docs/model-primitive.md` (humans + AI assistants)
+- `llms.txt` (machine-ingestible guidance)
+
 The Tactus `Model` primitive is a first-class, declarative way to define and use
 predictive models inside procedures. A `Model` is **stateless** and **cacheable**:
 it takes input and produces output, without multi-turn behavior. If you need
@@ -107,11 +113,8 @@ Training registers artifacts in the registry and applies tags:
 - `latest`
 - `candidate/<candidate_name>`
 
-Promote a version to a long-lived tag:
-
-```bash
-tactus models promote imdb_nb --candidate nb-tfidf --tag champion
-```
+Advanced: you can apply additional tags with `tactus models promote`.
+This is optional; most examples use `latest` and `candidate/<name>`.
 
 ---
 

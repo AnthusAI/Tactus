@@ -2,6 +2,19 @@
 
 Last updated: 2026-02-13
 
+NOTE: This is an implementation/status document. For canonical user-facing
+syntax and copy/pasteable guidance, see:
+
+- `docs/model-primitive.md`
+- `llms.txt`
+
+In the DSL, models are called like functions (not `:predict(...)`):
+
+```lua
+local result = Model("sentiment")({text = "I love this!"})
+local out = result.output or result
+```
+
 ## ✅ Completed Phases
 
 ### Phase 0: Foundation (Schema Validation) - COMPLETE
@@ -104,7 +117,9 @@ Model "sentiment" {
 
 ### Cost Tracking
 ```lua
-local result = sentiment:predict({text = "I love this!"})
+local sentiment = Model("sentiment")
+local result = sentiment({text = "I love this!"})
+local out = result.output or result
 
 -- Access per-prediction cost
 print(result.cost.tokens_in)       -- 10

@@ -1,5 +1,11 @@
 # Tactus Durable Execution Design
 
+NOTE: This document contains some older, pre-Option-A DSL snippets. For the
+canonical, current syntax (including the Model primitive call pattern), see:
+
+- `docs/model-primitive.md`
+- `llms.txt`
+
 ## Overview
 
 Tactus provides durable execution for agentic workflows through automatic checkpointing and replay. Unlike graph-based systems that require explicit node definitions, Tactus allows developers to write natural imperative Lua code while automatically handling persistence, interruption, and resumption.
@@ -95,7 +101,9 @@ main = procedure "main" {
 Every agent turn, model prediction, human interaction, and tool call automatically creates a checkpoint. No explicit step definitions required for common cases:
 
 ```lua
-state.intent = Classifier.predict(text)  -- Checkpoint 1 (ML inference)
+local result = Model("classifier")({text = text})  -- Checkpoint 1 (ML inference)
+local out = result.output or result
+state.intent = out
 Worker()                                 -- Checkpoint 2 (LLM call)
 Human.approve({...})                     -- Checkpoint 3 (suspends until response)
 Publisher()                              -- Checkpoint 4 (LLM call)

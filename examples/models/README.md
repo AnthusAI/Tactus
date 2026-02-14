@@ -2,6 +2,11 @@
 
 This directory contains ML model files used by Tactus procedures.
 
+For canonical Model primitive syntax and patterns, see:
+
+- `docs/model-primitive.md`
+- `llms.txt`
+
 ## PyTorch Models
 
 To use PyTorch models (`.pt` files), install PyTorch:
@@ -34,21 +39,25 @@ torch.save(model, "my_model.pt")
 ### Using in Tactus
 
 ```lua
-model("my_classifier", {
-    type = "pytorch",
-    path = "examples/models/my_model.pt",
-    device = "cpu",  -- or "cuda", "mps"
-    labels = {"class1", "class2", "class3"}
-})
+Model "my_classifier" {
+  type = "pytorch",
+  path = "examples/models/my_model.pt",
+  device = "cpu",  -- or "cuda", "mps"
+  labels = {"class1", "class2", "class3"},
+  input = { data = "array" },
+  output = { prediction = "string" }
+}
 
-main = procedure("main", {
-    input = {data = {type = "array"}},
-    output = {prediction = {type = "string"}},
-    state = {}
-}, function()
-    local result = My_classifier.predict(input.data)
-    return {prediction = result}
-end)
+Procedure {
+  input = { data = field.list{required = true} },
+  output = { prediction = field.string{required = true} },
+  function(input)
+    local classifier = Model("my_classifier")
+    local result = classifier(input.data)
+    local out = result.output or result
+    return { prediction = out }
+  end
+}
 ```
 
 ## HTTP Models
@@ -56,14 +65,16 @@ end)
 No installation required - just point to any REST endpoint:
 
 ```lua
-model("api_classifier", {
-    type = "http",
-    endpoint = "https://your-api.com/classify",
-    timeout = 30.0,
-    headers = {
-        Authorization = "Bearer YOUR_TOKEN"
-    }
-})
+Model "api_classifier" {
+  type = "http",
+  endpoint = "https://your-api.com/classify",
+  timeout = 30.0,
+  headers = {
+    Authorization = "Bearer YOUR_TOKEN"
+  },
+  input = { text = "string" },
+  output = { label = "string", confidence = "float" }
+}
 ```
 
 ## Model Types Supported

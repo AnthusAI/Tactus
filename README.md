@@ -523,6 +523,7 @@ tactus test hello.tac --runs 10
 - **[SPECIFICATION.md](SPECIFICATION.md)** — Complete DSL reference
 - **[IMPLEMENTATION.md](IMPLEMENTATION.md)** — Implementation status and architecture
 - **[docs/model-primitive.md](docs/model-primitive.md)** — Model primitive quick reference (humans + AI assistants)
+- **[docs/agent-primitive.md](docs/agent-primitive.md)** — Agent primitive quick reference (humans + AI assistants)
 - **[docs/TOOLS.md](docs/TOOLS.md)** — Tools and MCP integration guide
 - **[docs/FILE_IO.md](docs/FILE_IO.md)** — File I/O operations guide (CSV, TSV, Parquet, HDF5, Excel)
 - **[examples/](examples/)** — Example procedures

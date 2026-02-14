@@ -87,14 +87,28 @@ class ABTestBackend:
         return self.predict_sync(input_data)
 
     def predict_sync(self, input_data: Any) -> Any:
+        start = time.perf_counter()
         idx = self._choose_index()
         chosen = self.backends[idx]
         result = chosen.predict_sync(input_data)
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        cost = PredictionCost(compute_time_ms=elapsed_ms)
+
+        # Normalize to a shape that ModelPrimitive can extract consistently:
+        # include "cost" so it is treated like the LLM backend shape
+        # ("result" + "cost" + optional "meta").
         if isinstance(result, dict) and "result" in result:
             result.setdefault("meta", {})
             result["meta"]["arm_index"] = idx
+            result.setdefault("cost", {})
+            result["cost"].setdefault("compute_time_ms", cost.compute_time_ms)
             return result
-        return {"result": result, "meta": {"arm_index": idx}}
+
+        return {
+            "result": result,
+            "meta": {"arm_index": idx},
+            "cost": {"compute_time_ms": cost.compute_time_ms},
+        }
 
     def _choose_index(self) -> int:
         total = sum(self.weights)

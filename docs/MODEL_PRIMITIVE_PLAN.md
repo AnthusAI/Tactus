@@ -1,6 +1,15 @@
 # Model Primitive: First-Class MLOps Integration (Roadmap)
 
-For current usage and syntax, see `docs/MODEL_PRIMITIVE.md`.
+For current usage and syntax, see `docs/model-primitive.md`.
+
+NOTE: This roadmap includes historical sketches (including older Lua calling
+styles like `:predict(...)`). The canonical DSL pattern is to call models like
+functions and unwrap with:
+
+```lua
+local result = Model("name")({ ... })
+local out = result.output or result
+```
 
 ## Vision
 
@@ -74,14 +83,15 @@ Model "urgent_classifier" {
     }
 }
 
-procedure "process_feedback" {
-    function run(input)
-        local result = urgent_classifier:predict({text = input.feedback})
-        if result.label == "urgent" then
-            -- escalate
-        end
-    end
-}
+	procedure "process_feedback" {
+	    function run(input)
+	        local result = Model("urgent_classifier")({text = input.feedback})
+	        local out = result.output or result
+	        if out.label == "urgent" then
+	            -- escalate
+	        end
+	    end
+	}
 ```
 
 **Step 2: Define training configuration (same Model block)**
@@ -340,7 +350,8 @@ Model "classifier" {
 
 **Option A**: Always return `PredictionResult` wrapper with `.output` and `.cost`:
 ```lua
-local result = classifier:predict({text = "hello"})
+local result = Model("classifier")({text = "hello"})
+local out = result.output or result
 print(result.output.label)   -- "urgent"
 print(result.cost.tokens_in) -- 42
 ```
@@ -348,7 +359,9 @@ print(result.cost.tokens_in) -- 42
 **Option B**: Return raw output by default, opt-in to enriched result:
 ```lua
 -- Simple (default)
-local label = classifier:predict({text = "hello"})
+local result = Model("classifier")({text = "hello"})
+local out = result.output or result
+local label = out.label or out
 
 -- Enriched
 local result = classifier:predict_with_metadata({text = "hello"})
@@ -358,7 +371,10 @@ print(result.cost)
 
 **Option C**: Return raw output, accumulate costs on the model object:
 ```lua
-local label = classifier:predict({text = "hello"})
+local classifier = Model("classifier")
+local result = classifier({text = "hello"})
+local out = result.output or result
+local label = out.label or out
 print(classifier.last_cost)
 print(classifier.total_cost)
 ```
