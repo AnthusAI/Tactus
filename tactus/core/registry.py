@@ -631,8 +631,25 @@ class RegistryBuilder:
         # Top-level code can execute directly without being wrapped in a Procedure.
 
         # Agent validation
+        allowed_model_prefixes = ("openai", "anthropic", "bedrock", "gemini", "ollama")
         for agent_declaration in self.registry.agents.values():
             # Check if agent has provider or if there's a default
+            if agent_declaration.provider or self.registry.default_provider:
+                continue
+
+            # Allow provider to be implicit when model is in "provider/model" (LiteLLM) or
+            # "provider:model" form.
+            model = agent_declaration.model
+            if isinstance(model, str):
+                if "/" in model:
+                    prefix = model.split("/", 1)[0]
+                    if prefix in allowed_model_prefixes:
+                        continue
+                if ":" in model:
+                    prefix = model.split(":", 1)[0]
+                    if prefix in allowed_model_prefixes:
+                        continue
+
             if not agent_declaration.provider and not self.registry.default_provider:
                 validation_errors.append(
                     ValidationMessage(
