@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.42.3 (2026-02-14)
+
+### Bug Fixes
+
+- **ci**: Retry electron-builder packaging (Tactus-8wv)
+  ([`ae69cb7`](https://github.com/AnthusAI/Tactus/commit/ae69cb745b6920ebf078d887157040d25be476dc))
+
+
 ## v0.42.2 (2026-02-14)
 
 ### Bug Fixes
