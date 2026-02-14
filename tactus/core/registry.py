@@ -640,13 +640,19 @@ class RegistryBuilder:
             # Allow provider to be implicit when model is in "provider/model" (LiteLLM) or
             # "provider:model" form.
             model = agent_declaration.model
+            model_name = None
             if isinstance(model, str):
-                if "/" in model:
-                    prefix = model.split("/", 1)[0]
+                model_name = model
+            elif isinstance(model, dict):
+                model_name = model.get("name")
+
+            if isinstance(model_name, str):
+                if "/" in model_name:
+                    prefix = model_name.split("/", 1)[0]
                     if prefix in allowed_model_prefixes:
                         continue
-                if ":" in model:
-                    prefix = model.split(":", 1)[0]
+                if ":" in model_name:
+                    prefix = model_name.split(":", 1)[0]
                     if prefix in allowed_model_prefixes:
                         continue
 
