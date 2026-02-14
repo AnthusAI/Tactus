@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 
 from tactus.training.datasets import DatasetBundle
-from tactus.training.transformers import HFTransformersTrainer
+from tactus.training.sequence_classifier import HFSequenceClassifierTrainer
 from tactus.training.types import CandidateConfig
 
 
@@ -58,10 +58,10 @@ def test_hf_transformers_trainer_passes_training_args(monkeypatch, tmp_path):
     )
     monkeypatch.setitem(__import__("sys").modules, "transformers", fake_transformers)
 
-    trainer = HFTransformersTrainer()
+    trainer = HFSequenceClassifierTrainer()
     candidate = CandidateConfig(
         name="bert",
-        trainer="hf_transformers",
+        trainer="hf_sequence_classifier",
         hyperparameters={
             "model": "distilbert-base-uncased",
             "epochs": 3,

@@ -1,7 +1,7 @@
 import sys
 from types import SimpleNamespace
 
-from tactus.backends.hf_transformers_backend import HFTransformersBackend
+from tactus.backends.hf_sequence_classifier_backend import HFSequenceClassifierBackend
 
 
 def test_hf_transformers_backend_predicts_label(monkeypatch):
@@ -74,7 +74,7 @@ def test_hf_transformers_backend_predicts_label(monkeypatch):
     )
     monkeypatch.setitem(sys.modules, "torch", FakeTorch())
 
-    backend = HFTransformersBackend(model="fake-model")
+    backend = HFSequenceClassifierBackend(model="fake-model")
     result = backend.predict_sync({"text": "great"})
 
     assert result["label"] == "positive"
