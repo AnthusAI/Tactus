@@ -56,3 +56,20 @@ def test_training_runner_zips_directory_artifacts(monkeypatch, tmp_path):
     assert artifact_path is not None
     assert artifact_path.endswith(".zip")
     assert Path(artifact_path).is_file()
+
+
+def test_training_runner_version_id_uses_datetime_now(monkeypatch, tmp_path):
+    # If TrainingRunner uses datetime.utcnow(), this test will fail because our
+    # stub does not implement it.
+    class FakeDatetime:
+        @classmethod
+        def now(cls, tz=None):
+            from datetime import datetime, timezone
+
+            assert tz == timezone.utc
+            return datetime(2026, 1, 2, 3, 4, 5, tzinfo=timezone.utc)
+
+    monkeypatch.setattr("tactus.training.runner.datetime", FakeDatetime)
+
+    runner = TrainingRunner(registry_dir=str(tmp_path / "registry"))
+    assert runner._build_version_id("nb-tfidf") == "nb-tfidf-20260102-030405"

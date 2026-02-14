@@ -147,7 +147,10 @@ class TrainingRunner:
         return results
 
     def _build_version_id(self, candidate_name: str) -> str:
-        timestamp = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+        # Avoid deprecated datetime.utcnow(); use an explicit UTC-aware timestamp.
+        from datetime import timezone
+
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
         return f"{candidate_name}-{timestamp}"
 
     def _summarize_data(self, bundle: DatasetBundle) -> dict:
