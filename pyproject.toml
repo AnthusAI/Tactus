@@ -38,7 +38,7 @@ dependencies = [
     # NOTE: We use LiteLLM (via DSPy) for all LLM calls - do not add provider-specific SDKs
     "boto3>=1.28.0",
     "rich>=13.9.4",
-    "typer",
+    "typer>=0.12,<0.13",
     "dotyaml>=0.1.4",
     "antlr4-python3-runtime==4.13.1",
     "behave>=1.2.6",
@@ -74,6 +74,8 @@ dev = [
     "black==24.10.0",
     "ruff",
     "python-semantic-release>=9.0.0",
+    # Reduce resolver search by pinning transitive CLI deps
+    "click-option-group>=0.5.8,<0.6",
     "antlr4-tools>=0.2.1",
     "fastmcp>=2.3.5; python_version >= '3.10'",
     "moto>=5.0",
