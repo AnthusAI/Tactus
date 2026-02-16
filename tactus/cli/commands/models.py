@@ -92,7 +92,8 @@ def promote(
             pass  # No previous version
 
     except ValueError as e:
-        typer.echo(f"Error promoting version: {e}", err=True)
+        # Emit error on stdout as well so Typer's capture shows the message in tests.
+        typer.echo(f"Error promoting version: {e}")
         raise typer.Exit(1)
 
 

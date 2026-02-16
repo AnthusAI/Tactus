@@ -33,13 +33,13 @@ from tactus_lsp_server.handler import TactusLSPHandler
 # Configure logging to stderr (stdout is used for LSP communication)
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    stream=sys.stderr
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    stream=sys.stderr,
 )
 logger = logging.getLogger(__name__)
 
 # Create language server
-server = LanguageServer('tactus-lsp-server', 'v0.1.0')
+server = LanguageServer("tactus-lsp-server", "v0.1.0")
 handler = TactusLSPHandler()
 
 
@@ -117,7 +117,9 @@ async def signature_help(ls: LanguageServer, params: SignatureHelpParams):
 
 
 @server.feature(TEXT_DOCUMENT_SEMANTIC_TOKENS_FULL)
-async def semantic_tokens_full(ls: LanguageServer, params: SemanticTokensParams) -> Optional[SemanticTokens]:
+async def semantic_tokens_full(
+    ls: LanguageServer, params: SemanticTokensParams
+) -> Optional[SemanticTokens]:
     """Handle semantic tokens request."""
     uri = params.text_document.uri
 
@@ -140,5 +142,5 @@ def main():
         sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

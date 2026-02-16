@@ -337,7 +337,9 @@ def test_extractor_module_doc_ignores_nonexistent_dir(tmp_path):
     spec_path.write_text("--[[doc\nDocs\n]]", encoding="utf-8")
 
     extractor = TacFileExtractor(spec_path)
-    module_doc = extractor.extract_module_doc("classify", "tactus.text.classify", tmp_path / "missing")
+    module_doc = extractor.extract_module_doc(
+        "classify", "tactus.text.classify", tmp_path / "missing"
+    )
 
     assert module_doc.index_content is None
 

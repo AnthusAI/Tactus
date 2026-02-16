@@ -40,13 +40,13 @@ def encode_semantic_tokens(registry: Any, document_lines: List[str]) -> Optional
 
     # Collect agent names and their declaration lines
     agent_names = set()
-    if hasattr(registry, 'agents'):
+    if hasattr(registry, "agents"):
         for agent_name in registry.agents.keys():
             agent_names.add(agent_name)
 
     # Collect tool names
     tool_names = set()
-    if hasattr(registry, 'lua_tools'):
+    if hasattr(registry, "lua_tools"):
         for tool_name in registry.lua_tools.keys():
             tool_names.add(tool_name)
 
@@ -61,8 +61,9 @@ def encode_semantic_tokens(registry: Any, document_lines: List[str]) -> Optional
                     break
 
                 # Check if it's a word boundary (not part of another identifier)
-                if (col == 0 or not line[col-1].isalnum()) and \
-                   (col + len(agent_name) >= len(line) or not line[col + len(agent_name)].isalnum()):
+                if (col == 0 or not line[col - 1].isalnum()) and (
+                    col + len(agent_name) >= len(line) or not line[col + len(agent_name)].isalnum()
+                ):
                     # Add token: variable type, possibly with declaration modifier
                     token_type = TOKEN_TYPES.index("variable")
                     token_mods = 0  # No modifiers for now (would need AST for declaration)
@@ -79,8 +80,9 @@ def encode_semantic_tokens(registry: Any, document_lines: List[str]) -> Optional
                     break
 
                 # Check word boundary
-                if (col == 0 or not line[col-1].isalnum()) and \
-                   (col + len(tool_name) >= len(line) or not line[col + len(tool_name)].isalnum()):
+                if (col == 0 or not line[col - 1].isalnum()) and (
+                    col + len(tool_name) >= len(line) or not line[col + len(tool_name)].isalnum()
+                ):
                     # Add token: variable type
                     token_type = TOKEN_TYPES.index("variable")
                     token_mods = 0
@@ -89,7 +91,13 @@ def encode_semantic_tokens(registry: Any, document_lines: List[str]) -> Optional
                 col += 1
 
         # Look for field builders (field.string, field.number, etc.)
-        field_keywords = ["field.string", "field.number", "field.boolean", "field.array", "field.object"]
+        field_keywords = [
+            "field.string",
+            "field.number",
+            "field.boolean",
+            "field.array",
+            "field.object",
+        ]
         for field_kw in field_keywords:
             col = 0
             while True:
@@ -110,8 +118,19 @@ def encode_semantic_tokens(registry: Any, document_lines: List[str]) -> Optional
                 col += 1
 
         # Look for property names in agent/procedure configs (provider, model, etc.)
-        properties = ["provider", "model", "system_prompt", "tools", "input", "output",
-                     "temperature", "max_tokens", "required", "default", "description"]
+        properties = [
+            "provider",
+            "model",
+            "system_prompt",
+            "tools",
+            "input",
+            "output",
+            "temperature",
+            "max_tokens",
+            "required",
+            "default",
+            "description",
+        ]
         for prop in properties:
             col = 0
             while True:
