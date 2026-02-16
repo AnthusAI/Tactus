@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v0.43.0 (2026-02-16)
+
+### Documentation
+
+- Fix mock mode internals description
+  ([`c7d8268`](https://github.com/AnthusAI/Tactus/commit/c7d826869a6fc8574c61ab0c8a2419d30168be35))
+
+### Features
+
+- Move stdlib classifiers to tactus.text.classify
+  ([`3545a1b`](https://github.com/AnthusAI/Tactus/commit/3545a1b4d116a0e028e0149012bb2f8463dd786f))
+
+
 ## v0.42.3 (2026-02-14)
 
 ### Bug Fixes
