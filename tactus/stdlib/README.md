@@ -15,7 +15,7 @@ The stdlib is **Tactus-first**: all modules are implemented in `.tac` files. Pyt
 ```
 tactus/stdlib/
 ├── tac/tactus/                  # PRIMARY: Tactus module implementations
-│   ├── classify/                # Classification (LLM + fuzzy matching)
+│   ├── text/classify/           # Classification (LLM + fuzzy matching)
 │   │   ├── init.tac             # Module entry point + Classify factory
 │   │   ├── base.tac             # BaseClassifier + class helper
 │   │   ├── llm.tac              # LLM-based classifier (now uses Model primitive)
@@ -34,7 +34,7 @@ tactus/stdlib/
 │   ├── classify.spec.tac        # BDD specs for classify
 │   └── extract.spec.tac         # BDD specs for extract
 │
-├── classify/                    # Python helpers for classify
+├── text/classify/               # Python helpers for classify
 │   └── similarity.py            # rapidfuzz-backed string similarity
 ├── io/                          # Python I/O modules (json, csv, file, etc.)
 ├── biblicus/                    # Python Biblicus bindings
@@ -44,7 +44,7 @@ tactus/stdlib/
 
 ## Available Modules
 
-- `tactus.classify` - LLM, Naive Bayes, and fuzzy string matching classification
+- `tactus.text.classify` - LLM, Naive Bayes, and fuzzy string matching classification
 - `tactus.models` - Helpers for Model primitive (e.g., `tactus.models.llm`, `tactus.models.naive_bayes`, `tactus.models.hf_sequence_classifier`)
 - Ensembles & A/B: Model primitive supports `type = "ensemble"` (vote/average) and `type = "ab_test"` routing with metadata (`arm_index`)
 - `tactus.extract` - Structured extraction utilities
@@ -57,7 +57,7 @@ tactus/stdlib/
 
 ```lua
 -- Via require()
-local classify = require("tactus.classify")
+local classify = require("tactus.text.classify")
 local classifier = classify.LLMClassifier:new {
     classes = {"Yes", "No"},
     prompt = "Is this a question?"

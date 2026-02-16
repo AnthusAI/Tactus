@@ -75,11 +75,11 @@ class CodeExample(BaseModel):
 
 class ModuleDoc(BaseModel):
     """
-    Complete documentation for a Tactus module (e.g., tactus.classify).
+    Complete documentation for a Tactus module (e.g., tactus.text.classify).
     """
 
     name: str = Field(..., description="Module name (e.g., 'classify')")
-    full_name: str = Field(..., description="Full module path (e.g., 'tactus.classify')")
+    full_name: str = Field(..., description="Full module path (e.g., 'tactus.text.classify')")
     file_path: str = Field(..., description="Path to source .tac file")
 
     # Main documentation
@@ -117,5 +117,5 @@ class DocumentationTree(BaseModel):
         return None
 
     def get_modules_by_prefix(self, prefix: str) -> List[ModuleDoc]:
-        """Get all modules matching a prefix (e.g., 'tactus.classify')."""
+        """Get all modules matching a prefix (e.g., 'tactus.text.classify')."""
         return [m for m in self.modules if m.full_name.startswith(prefix)]

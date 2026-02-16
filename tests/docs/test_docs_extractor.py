@@ -325,7 +325,7 @@ def test_extractor_module_doc_includes_index(tmp_path):
     spec_path.write_text("--[[doc\nDocs\n]]", encoding="utf-8")
 
     extractor = TacFileExtractor(spec_path)
-    module_doc = extractor.extract_module_doc("classify", "tactus.classify", module_dir)
+    module_doc = extractor.extract_module_doc("classify", "tactus.text.classify", module_dir)
 
     assert module_doc.index_content == "Index content"
     assert module_doc.overview == "Docs"
@@ -337,7 +337,7 @@ def test_extractor_module_doc_ignores_nonexistent_dir(tmp_path):
     spec_path.write_text("--[[doc\nDocs\n]]", encoding="utf-8")
 
     extractor = TacFileExtractor(spec_path)
-    module_doc = extractor.extract_module_doc("classify", "tactus.classify", tmp_path / "missing")
+    module_doc = extractor.extract_module_doc("classify", "tactus.text.classify", tmp_path / "missing")
 
     assert module_doc.index_content is None
 
@@ -393,7 +393,7 @@ def test_directory_extractor_uses_module_dir_when_present(tmp_path):
 
 
 def test_directory_extractor_builds_module_names(tmp_path):
-    spec_dir = tmp_path / "stdlib" / "tac" / "tactus"
+    spec_dir = tmp_path / "stdlib" / "tac" / "tactus" / "text"
     spec_dir.mkdir(parents=True)
     spec_path = spec_dir / "classify.spec.tac"
     spec_path.write_text("--[[doc\nDocs\n]]", encoding="utf-8")
@@ -402,4 +402,4 @@ def test_directory_extractor_builds_module_names(tmp_path):
     docs = extractor.extract_all()
 
     assert docs.modules
-    assert docs.modules[0].full_name == "tactus.classify"
+    assert docs.modules[0].full_name == "tactus.text.classify"

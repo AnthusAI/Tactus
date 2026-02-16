@@ -3,12 +3,12 @@ Tests for the similarity calculation helper used by the fuzzy matching demo.
 
 The FuzzyMatchClassifier class now lives in .tac code and is tested via
 classify.spec.tac. These tests cover the Python calculate_similarity
-helper that the .tac code calls via require("tactus.classify.similarity").
+helper that the .tac code calls via require("tactus.text.classify.similarity").
 """
 
 import pytest
 
-from tactus.stdlib.classify.similarity import calculate_similarity
+from tactus.stdlib.text.classify.similarity import calculate_similarity
 
 
 class TestSimilarityForSchoolNames:

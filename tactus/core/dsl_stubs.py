@@ -2467,7 +2467,7 @@ def create_dsl_stubs(
         return handle
 
     # Classify is now Tactus-first: the factory function lives in init.tac
-    # and is loaded lazily on first use via require("tactus.classify").
+    # and is loaded lazily on first use via require("tactus.text.classify").
     _classify_fn = None
 
     def _new_classify(config=None):
@@ -2497,7 +2497,7 @@ def create_dsl_stubs(
         if _classify_fn is None:
             sandbox = _runtime_context.get("sandbox")
             if sandbox is not None:
-                _classify_mod = sandbox.lua.eval('require("tactus.classify")')
+                _classify_mod = sandbox.lua.eval('require("tactus.text.classify")')
                 # On first require() load, Lua's module loader may return (module, resolved_path).
                 # Lupa surfaces that as a Python tuple. We only want the module table.
                 if isinstance(_classify_mod, tuple) and _classify_mod:

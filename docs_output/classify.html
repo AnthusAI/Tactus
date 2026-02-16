@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>tactus.classify - Tactus Documentation</title>
+    <title>tactus.text.classify - Tactus Documentation</title>
     <style>
         :root {
             --bg: #0a0a0a;
@@ -184,7 +184,7 @@
 <body>
     <div class="container">
         <header>
-            <h1>tactus.classify</h1>
+            <h1>tactus.text.classify</h1>
             <div class="nav-links">
                 <a href="index.html">← Back to Index</a>
             </div>
@@ -196,7 +196,7 @@
 
 <div class="overview">
     <h1>Classification Module</h1>
-<p>The <code>tactus.classify</code> module provides a comprehensive classification system with support for both LLM-based and fuzzy string matching approaches.</p>
+<p>The <code>tactus.text.classify</code> module provides a comprehensive classification system with support for both LLM-based and fuzzy string matching approaches.</p>
 <h2>Overview</h2>
 <p>All classifiers extend <code>BaseClassifier</code> and share a common interface, making them interchangeable. This enables you to switch between LLM and fuzzy matching without changing your code structure.</p>
 <h2>When to Use</h2>
@@ -227,11 +227,11 @@
 
 <h2>Loading the Module</h2>
 <div class="codehilite"><pre><span></span><code><span class="c1">-- Load the main module</span>
-<span class="kd">local</span> <span class="n">classify</span> <span class="o">=</span> <span class="nb">require</span><span class="p">(</span><span class="s2">&quot;tactus.classify&quot;</span><span class="p">)</span>
+<span class="kd">local</span> <span class="n">classify</span> <span class="o">=</span> <span class="nb">require</span><span class="p">(</span><span class="s2">&quot;tactus.text.classify&quot;</span><span class="p">)</span>
 
 <span class="c1">-- Or load specific classifiers (dependencies auto-load)</span>
-<span class="kd">local</span> <span class="n">LLMClassifier</span> <span class="o">=</span> <span class="nb">require</span><span class="p">(</span><span class="s2">&quot;tactus.classify.llm&quot;</span><span class="p">)</span>
-<span class="kd">local</span> <span class="n">FuzzyMatchClassifier</span> <span class="o">=</span> <span class="nb">require</span><span class="p">(</span><span class="s2">&quot;tactus.classify.fuzzy&quot;</span><span class="p">)</span>
+<span class="kd">local</span> <span class="n">LLMClassifier</span> <span class="o">=</span> <span class="nb">require</span><span class="p">(</span><span class="s2">&quot;tactus.text.classify.llm&quot;</span><span class="p">)</span>
+<span class="kd">local</span> <span class="n">FuzzyMatchClassifier</span> <span class="o">=</span> <span class="nb">require</span><span class="p">(</span><span class="s2">&quot;tactus.text.classify.fuzzy&quot;</span><span class="p">)</span>
 </code></pre></div>
 
 <h2>Performance Notes</h2>
@@ -243,7 +243,7 @@
 </ul>
 <h2>Extending Classifiers</h2>
 <p>You can extend <code>BaseClassifier</code> to create custom classifiers:</p>
-<div class="codehilite"><pre><span></span><code><span class="kd">local</span> <span class="n">base</span> <span class="o">=</span> <span class="nb">require</span><span class="p">(</span><span class="s2">&quot;tactus.classify.base&quot;</span><span class="p">)</span>
+<div class="codehilite"><pre><span></span><code><span class="kd">local</span> <span class="n">base</span> <span class="o">=</span> <span class="nb">require</span><span class="p">(</span><span class="s2">&quot;tactus.text.classify.base&quot;</span><span class="p">)</span>
 <span class="kd">local</span> <span class="n">class</span> <span class="o">=</span> <span class="n">base</span><span class="p">.</span><span class="n">class</span>
 <span class="kd">local</span> <span class="n">BaseClassifier</span> <span class="o">=</span> <span class="n">base</span><span class="p">.</span><span class="n">BaseClassifier</span>
 
@@ -274,12 +274,12 @@
         <h3>Usage</h3>
         
         <pre><code class="language-lua">-- Import classification classes
-local classify = require(&#34;tactus.classify&#34;)
+local classify = require(&#34;tactus.text.classify&#34;)
 local LLMClassifier = classify.LLMClassifier
 local FuzzyMatchClassifier = classify.FuzzyMatchClassifier
 
 -- Or load specific classifiers (dependencies auto-load):
-local LLMClassifier = require(&#34;tactus.classify.llm&#34;)
+local LLMClassifier = require(&#34;tactus.text.classify.llm&#34;)
 
 -- LLM Classification
 local classifier = LLMClassifier:new {
@@ -472,7 +472,7 @@ local result = fuzzy:classify(&#34;helo&#34;)</code></pre>
 
 
 <div style="margin-top: 3rem; padding-top: 2rem; border-top: 1px solid var(--border); color: var(--text-secondary); font-size: 0.875rem;">
-    <p><strong>Source:</strong> <code>tactus/stdlib/tac/tactus/classify.spec.tac</code></p>
+    <p><strong>Source:</strong> <code>tactus/stdlib/tac/tactus/text/classify.spec.tac</code></p>
     <p style="margin-top: 0.5rem;"><strong>Lines:</strong> 192</p>
 </div>
 

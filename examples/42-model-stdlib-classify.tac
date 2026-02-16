@@ -9,7 +9,7 @@ Procedure {
         confidence = field.number{required = true}
     },
     function(input)
-        local classify = require("tactus.classify")
+        local classify = require("tactus.text.classify")
 
         local classifier = classify.LLMClassifier:new {
             name = "sentiment",

@@ -8,7 +8,7 @@ Python modules exist only as helpers when a Python library is needed
 
 ## Core Modules (via require)
 
-    local classify = require("tactus.classify")
+    local classify = require("tactus.text.classify")
     local extract = require("tactus.extract")
     local generate = require("tactus.generate")
     local retrievers = require("tactus.retrievers")
@@ -31,6 +31,6 @@ Python modules exist only as helpers when a Python library is needed
 
 Python helper modules in this directory are loaded as fallbacks when
 no .tac file exists for a given module name. Examples:
-- classify/similarity.py - rapidfuzz-backed string similarity
+- text/classify/similarity.py - rapidfuzz-backed string similarity
 - io/json.py, io/csv.py, etc. - file format I/O
 """

@@ -6,7 +6,7 @@ the Python calculate_similarity helper that the .tac code calls.
 
 import pytest
 
-from tactus.stdlib.classify.similarity import calculate_similarity
+from tactus.stdlib.text.classify.similarity import calculate_similarity
 
 
 class TestCalculateSimilarityAlgorithms:

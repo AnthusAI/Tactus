@@ -293,7 +293,7 @@ class DirectoryExtractor:
         # Find all .spec.tac files
         for spec_file in self.root_path.rglob("*.spec.tac"):
             # Derive module name from file path
-            # e.g., tactus/stdlib/tac/tactus/classify.spec.tac -> tactus.classify
+        # e.g., tactus/stdlib/tac/tactus/text/classify.spec.tac -> tactus.text.classify
             relative = spec_file.relative_to(self.root_path)
             parts = relative.parts
 
@@ -301,8 +301,8 @@ class DirectoryExtractor:
             module_name = spec_file.stem.replace(".spec", "")
 
             # Build full module name from path
-            # If path is tactus/stdlib/tac/tactus/classify.spec.tac
-            # -> tactus.classify
+        # If path is tactus/stdlib/tac/tactus/text/classify.spec.tac
+        # -> tactus.text.classify
             if "tactus" in parts:
                 # Find first "tactus" and build from there
                 tactus_idx = parts.index("tactus")
@@ -312,8 +312,8 @@ class DirectoryExtractor:
                 full_module_name = module_name
 
             # Find module directory (parent of spec file or sibling directory)
-            # For tactus/stdlib/tac/tactus/classify.spec.tac
-            # -> look for tactus/stdlib/tac/tactus/classify/ directory
+        # For tactus/stdlib/tac/tactus/text/classify.spec.tac
+        # -> look for tactus/stdlib/tac/tactus/text/classify/ directory
             module_dir = spec_file.parent / module_name
             if not module_dir.is_dir():
                 # Fallback: spec file's parent is the module directory
