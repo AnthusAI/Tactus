@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.43.1 (2026-02-18)
+
+### Bug Fixes
+
+- Update package inclusion in build targets for sdist and wheel
+  ([`572df1b`](https://github.com/AnthusAI/Tactus/commit/572df1b636c87c1d1a76d6948dfedcf1c8ebd841))
+
+
 ## v0.43.0 (2026-02-16)
 
 ### Documentation
