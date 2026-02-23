@@ -10,11 +10,11 @@ Proper Lua class hierarchy for structured data extraction:
 
 ```lua
 -- Import extraction classes
-local extract = require("tactus.extract")
+local extract = require("tactus.text.extract")
 local LLMExtractor = extract.LLMExtractor
 
 -- Or load specific extractors (dependencies auto-load):
-local LLMExtractor = require("tactus.extract.llm")
+local LLMExtractor = require("tactus.text.extract.llm")
 
 -- LLM Extraction
 local extractor = LLMExtractor:new {
@@ -46,7 +46,7 @@ local result = extractor:extract("John Smith is 34 years old. Contact: john@exam
 ]]
 
 -- Load extraction classes
-local extract = require("tactus.extract")
+local extract = require("tactus.text.extract")
 local LLMExtractor = extract.LLMExtractor
 
 -- Local state for test context

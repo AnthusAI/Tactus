@@ -21,18 +21,20 @@ tactus/stdlib/
 │   │   ├── llm.tac              # LLM-based classifier (now uses Model primitive)
 │   │   ├── naive_bayes.tac       # Registry-backed Naive Bayes classifier
 │   │   └── fuzzy.tac            # Fuzzy classifier (calls Python similarity)
+│   ├── text/extract/            # Structured data extraction
 │   ├── models/                  # Model primitive helpers
 │   │   ├── init.tac             # Module entry
 │   │   ├── llm.tac              # LLM Model wrapper built on Model primitive
 │   │   └── naive_bayes.tac       # Naive Bayes model helper (registry-backed)
 │   │   └── hf_sequence_classifier.tac   # Hugging Face sequence classifier helper
-│   ├── extract/                 # Structured data extraction
+│   ├── deepgram/                # Deepgram JSON utilities
 │   ├── generate/                # LLM-based generation
 │   ├── retrievers/              # Search/retrieval systems
 │   ├── corpora/                 # Corpus management
 │   ├── tools/                   # Utility tools (log, done)
 │   ├── classify.spec.tac        # BDD specs for classify
-│   └── extract.spec.tac         # BDD specs for extract
+│   ├── deepgram.spec.tac        # BDD specs for deepgram
+│   └── text/extract.spec.tac    # BDD specs for extract
 │
 ├── text/classify/               # Python helpers for classify
 │   └── similarity.py            # rapidfuzz-backed string similarity
@@ -47,7 +49,8 @@ tactus/stdlib/
 - `tactus.text.classify` - LLM, Naive Bayes, and fuzzy string matching classification
 - `tactus.models` - Helpers for Model primitive (e.g., `tactus.models.llm`, `tactus.models.naive_bayes`, `tactus.models.hf_sequence_classifier`)
 - Ensembles & A/B: Model primitive supports `type = "ensemble"` (vote/average) and `type = "ab_test"` routing with metadata (`arm_index`)
-- `tactus.extract` - Structured extraction utilities
+- `tactus.text.extract` - Structured extraction utilities
+- `tactus.deepgram` - Deepgram JSON transcript utilities
 - `tactus.generate` - LLM-based generation helpers
 - `tactus.retrievers.*` - Search/retrieval systems
 - `tactus.io.*` - File I/O helpers (json, csv, tsv, file)

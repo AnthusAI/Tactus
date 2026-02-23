@@ -413,7 +413,7 @@ print(classifier.total_cost)
 
 ### 8. Model Primitive vs. Classify/Extract Stdlib
 
-**Question**: Once models are first-class, what happens to the existing `tactus.classify` and `tactus.extract` stdlib modules?
+**Question**: Once models are first-class, what happens to the existing `tactus.classify` and `tactus.text.extract` stdlib modules?
 
 **Option A**: Rewrite them to use model primitive internally.
 **Option B**: Keep them as-is (agent-based), add new model-based alternatives.

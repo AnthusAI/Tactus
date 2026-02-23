@@ -1,0 +1,91 @@
+{
+  "results": {
+    "utterances": [
+      {
+        "transcript": "Hi there.",
+        "start": 0.0,
+        "end": 1.0,
+        "speaker": 1,
+        "channel": 0,
+        "words": [
+          {
+            "word": "Hi",
+            "punctuated_word": "Hi",
+            "start": 0.0,
+            "end": 0.4,
+            "speaker": 1
+          },
+          {
+            "word": "there",
+            "punctuated_word": "there.",
+            "start": 0.4,
+            "end": 1.0,
+            "speaker": 1
+          }
+        ]
+      },
+      {
+        "transcript": "General Kenobi.",
+        "start": 1.2,
+        "end": 2.0,
+        "speaker": 2,
+        "channel": 0,
+        "words": [
+          {
+            "word": "General",
+            "punctuated_word": "General",
+            "start": 1.2,
+            "end": 1.6,
+            "speaker": 2
+          },
+          {
+            "word": "Kenobi",
+            "punctuated_word": "Kenobi.",
+            "start": 1.6,
+            "end": 2.0,
+            "speaker": 2
+          }
+        ]
+      }
+    ],
+    "channels": [
+      {
+        "alternatives": [
+          {
+            "transcript": "Hi there. General Kenobi.",
+            "words": [
+              {
+                "word": "Hi",
+                "punctuated_word": "Hi",
+                "start": 0.0,
+                "end": 0.4,
+                "speaker": 1
+              },
+              {
+                "word": "there",
+                "punctuated_word": "there.",
+                "start": 0.4,
+                "end": 1.0,
+                "speaker": 1
+              },
+              {
+                "word": "General",
+                "punctuated_word": "General",
+                "start": 1.2,
+                "end": 1.6,
+                "speaker": 2
+              },
+              {
+                "word": "Kenobi",
+                "punctuated_word": "Kenobi.",
+                "start": 1.6,
+                "end": 2.0,
+                "speaker": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

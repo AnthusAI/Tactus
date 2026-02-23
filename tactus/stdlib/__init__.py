@@ -9,7 +9,8 @@ Python modules exist only as helpers when a Python library is needed
 ## Core Modules (via require)
 
     local classify = require("tactus.text.classify")
-    local extract = require("tactus.extract")
+    local extract = require("tactus.text.extract")
+    local deepgram = require("tactus.deepgram")
     local generate = require("tactus.generate")
     local retrievers = require("tactus.retrievers")
 

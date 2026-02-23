@@ -7,7 +7,7 @@
 -- - Conversational feedback for self-correction
 
 -- Load dependencies
-local base = require("tactus.extract.base")
+local base = require("tactus.text.extract.base")
 local BaseExtractor = base.BaseExtractor
 local class = base.class
 local json = require("tactus.io.json")

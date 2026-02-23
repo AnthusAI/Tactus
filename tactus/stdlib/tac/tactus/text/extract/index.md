@@ -1,6 +1,6 @@
 # Extraction Module
 
-The `tactus.extract` module provides structured data extraction from unstructured text using LLM-based analysis.
+The `tactus.text.extract` module provides structured data extraction from unstructured text using LLM-based analysis.
 
 ## Overview
 
@@ -37,10 +37,10 @@ All extractors return a consistent result format:
 
 ```lua
 -- Load the main module
-local extract = require("tactus.extract")
+local extract = require("tactus.text.extract")
 
 -- Or load specific extractors (dependencies auto-load)
-local LLMExtractor = require("tactus.extract.llm")
+local LLMExtractor = require("tactus.text.extract.llm")
 ```
 
 ## Field Types
@@ -68,7 +68,7 @@ LLMExtractor supports these field types for validation:
 You can extend `BaseExtractor` to create custom extractors:
 
 ```lua
-local base = require("tactus.extract.base")
+local base = require("tactus.text.extract.base")
 local class = base.class
 local BaseExtractor = base.BaseExtractor
 

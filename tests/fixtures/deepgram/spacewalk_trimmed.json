@@ -1,0 +1,151 @@
+{
+  "metadata": {
+    "channels": 1,
+    "created": "2024-02-12T18:27:21.342Z"
+  },
+  "results": {
+    "channels": [
+      {
+        "alternatives": [
+          {
+            "transcript": "Yeah. As as much as, it's worth celebrating, the first, spacewalk, with",
+            "words": [
+              {
+                "word": "yeah",
+                "start": 0.08,
+                "end": 0.32,
+                "confidence": 0.9975586,
+                "punctuated_word": "Yeah.",
+                "speaker": 0,
+                "speaker_confidence": 0.0,
+                "sentiment": "",
+                "sentiment_score": 0.0
+              },
+              {
+                "word": "as",
+                "start": 0.32,
+                "end": 0.79999995,
+                "confidence": 0.9921875,
+                "punctuated_word": "As",
+                "speaker": 0,
+                "speaker_confidence": 0.0,
+                "sentiment": "",
+                "sentiment_score": 0.0
+              },
+              {
+                "word": "as",
+                "start": 0.79999995,
+                "end": 1.04,
+                "confidence": 0.96777344,
+                "punctuated_word": "as",
+                "speaker": 0,
+                "speaker_confidence": 0.0,
+                "sentiment": "",
+                "sentiment_score": 0.0
+              },
+              {
+                "word": "much",
+                "start": 1.04,
+                "end": 1.28,
+                "confidence": 1.0,
+                "punctuated_word": "much",
+                "speaker": 0,
+                "speaker_confidence": 0.0,
+                "sentiment": "",
+                "sentiment_score": 0.0
+              },
+              {
+                "word": "as",
+                "start": 1.28,
+                "end": 1.5999999,
+                "confidence": 0.9926758,
+                "punctuated_word": "as,",
+                "speaker": 0,
+                "speaker_confidence": 0.0,
+                "sentiment": "",
+                "sentiment_score": 0.0
+              },
+              {
+                "word": "it's",
+                "start": 2.0,
+                "end": 2.24,
+                "confidence": 1.0,
+                "punctuated_word": "it's",
+                "speaker": 0,
+                "speaker_confidence": 0.0,
+                "sentiment": "",
+                "sentiment_score": 0.0
+              },
+              {
+                "word": "worth",
+                "start": 2.24,
+                "end": 2.74,
+                "confidence": 1.0,
+                "punctuated_word": "worth",
+                "speaker": 0,
+                "speaker_confidence": 0.0,
+                "sentiment": "",
+                "sentiment_score": 0.0
+              },
+              {
+                "word": "celebrating",
+                "start": 2.8,
+                "end": 3.3,
+                "confidence": 0.97143555,
+                "punctuated_word": "celebrating,",
+                "speaker": 0,
+                "speaker_confidence": 0.0,
+                "sentiment": "",
+                "sentiment_score": 0.0
+              },
+              {
+                "word": "the",
+                "start": 4.4,
+                "end": 4.64,
+                "confidence": 0.9980469,
+                "punctuated_word": "the",
+                "speaker": 0,
+                "speaker_confidence": 0.0,
+                "sentiment": "",
+                "sentiment_score": 0.0
+              },
+              {
+                "word": "first",
+                "start": 4.64,
+                "end": 5.04,
+                "confidence": 0.8017578,
+                "punctuated_word": "first,",
+                "speaker": 0,
+                "speaker_confidence": 0.0,
+                "sentiment": "",
+                "sentiment_score": 0.0
+              },
+              {
+                "word": "spacewalk",
+                "start": 5.2799997,
+                "end": 5.7799997,
+                "confidence": 0.9468994,
+                "punctuated_word": "spacewalk,",
+                "speaker": 0,
+                "speaker_confidence": 0.0,
+                "sentiment": "",
+                "sentiment_score": 0.0
+              },
+              {
+                "word": "with",
+                "start": 6.3199997,
+                "end": 6.56,
+                "confidence": 1.0,
+                "punctuated_word": "with",
+                "speaker": 0,
+                "speaker_confidence": 0.0,
+                "sentiment": "",
+                "sentiment_score": 0.0
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
