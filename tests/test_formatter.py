@@ -42,7 +42,9 @@ Procedure {
 """
     formatter = TactusFormatter(indent_width=2)
     first = formatter.format_source(src).formatted
-    assert first == """-- formatting test
+    assert (
+        first
+        == """-- formatting test
 
 Procedure {
   output = {
@@ -56,6 +58,7 @@ Procedure {
   end
 }
 """
+    )
     second = formatter.format_source(first).formatted
     assert first == second
 
@@ -85,10 +88,13 @@ Feature: Simple State Management
 ]])\n"""
     formatter = TactusFormatter(indent_width=2)
     formatted = formatter.format_source(src).formatted
-    assert formatted == """Specifications([[
+    assert (
+        formatted
+        == """Specifications([[
   Feature: Simple State Management
     Test basic state and stage functionality without agents
 ]])\n"""
+    )
 
     assert formatter.format_source(formatted).formatted == formatted
 

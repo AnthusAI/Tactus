@@ -121,7 +121,8 @@ def test_cli_test_command_mock_mode(tmp_path):
 
     # Create a simple test procedure
     test_proc = tmp_path / "test.tac"
-    test_proc.write_text("""
+    test_proc.write_text(
+        """
 local done = require("tactus.tools.done")
 
 	worker = Agent {
@@ -141,7 +142,8 @@ local done = require("tactus.tools.done")
 	    When the procedure runs
 	    Then the procedure should complete successfully
 	]])
-	""")
+	"""
+    )
 
     runner = CliRunner()
     result = runner.invoke(app, ["test", str(test_proc), "--mock", "--no-parallel"])

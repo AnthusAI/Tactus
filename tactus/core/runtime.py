@@ -296,7 +296,8 @@ class TactusRuntime:
                 self.lua_sandbox.inject_primitive("_state_primitive", placeholder_state)
 
                 # Create State object with special methods and lowercase state proxy with metatable
-                self.lua_sandbox.lua.execute("""
+                self.lua_sandbox.lua.execute(
+                    """
                     State = {
                         increment = function(key, amount)
                             return _state_primitive.increment(key, amount or 1)
@@ -318,7 +319,8 @@ class TactusRuntime:
                             _state_primitive.set(key, value)
                         end
                     })
-                """)
+                """
+                )
                 self.lua_sandbox.inject_primitive("Tool", placeholder_tool_primitive)
                 self.lua_sandbox.inject_primitive("params", placeholder_params)
                 placeholder_system = LuaSystemPrimitive(
@@ -2480,7 +2482,8 @@ class TactusRuntime:
             self.lua_sandbox.inject_primitive("_python_checkpoint", self.step_primitive.checkpoint)
 
             # Create Lua wrapper that captures source location before calling Python
-            self.lua_sandbox.lua.execute("""
+            self.lua_sandbox.lua.execute(
+                """
                 function checkpoint(fn)
                     -- Capture caller's source location (2 levels up: this wrapper -> caller)
                     local info = debug.getinfo(2, 'Sl')
@@ -2496,7 +2499,8 @@ class TactusRuntime:
                         return _python_checkpoint(fn, nil)
                     end
                 end
-            """)
+            """
+            )
             logger.debug("Checkpoint wrapper injected with Lua source location tracking")
 
         if self.checkpoint_primitive:

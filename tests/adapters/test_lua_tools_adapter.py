@@ -96,12 +96,14 @@ class TestLuaToolsAdapter:
         sandbox = LuaSandbox()
 
         # Create a simple Lua function
-        lua_add = sandbox.lua.execute("""
+        lua_add = sandbox.lua.execute(
+            """
             function add(args)
                 return args.a + args.b
             end
             return add
-        """)
+        """
+        )
 
         adapter = LuaToolsAdapter()
         tool_spec = {
@@ -120,19 +122,23 @@ class TestLuaToolsAdapter:
         """Test creating a Lua toolset with multiple tools."""
         sandbox = LuaSandbox()
 
-        lua_add = sandbox.lua.execute("""
+        lua_add = sandbox.lua.execute(
+            """
             function add(args)
                 return args.a + args.b
             end
             return add
-        """)
+        """
+        )
 
-        lua_multiply = sandbox.lua.execute("""
+        lua_multiply = sandbox.lua.execute(
+            """
             function multiply(args)
                 return args.a * args.b
             end
             return multiply
-        """)
+        """
+        )
 
         adapter = LuaToolsAdapter()
         toolset_config = {
@@ -174,12 +180,14 @@ class TestLuaToolsAdapter:
         """Test creating inline tools toolset."""
         sandbox = LuaSandbox()
 
-        lua_uppercase = sandbox.lua.execute("""
+        lua_uppercase = sandbox.lua.execute(
+            """
             function uppercase(args)
                 return string.upper(args.text)
             end
             return uppercase
-        """)
+        """
+        )
 
         adapter = LuaToolsAdapter()
         tools_list = [
@@ -376,12 +384,14 @@ class TestLuaToolsAdapter:
         """Test executing a wrapped Lua function."""
         sandbox = LuaSandbox()
 
-        lua_add = sandbox.lua.execute("""
+        lua_add = sandbox.lua.execute(
+            """
             function add(args)
                 return args.a + args.b
             end
             return add
-        """)
+        """
+        )
 
         adapter = LuaToolsAdapter()
         tool_spec = {
@@ -412,12 +422,14 @@ class TestLuaToolsAdapter:
 
         sandbox = LuaSandbox()
 
-        lua_add = sandbox.lua.execute("""
+        lua_add = sandbox.lua.execute(
+            """
             function add(args)
                 return args.a + args.b
             end
             return add
-        """)
+        """
+        )
 
         mock_primitive = MockToolPrimitive()
         adapter = LuaToolsAdapter(tool_primitive=mock_primitive)
@@ -468,12 +480,14 @@ class TestLuaToolsAdapter:
         """Test error handling in wrapped function."""
         sandbox = LuaSandbox()
 
-        lua_error = sandbox.lua.execute("""
+        lua_error = sandbox.lua.execute(
+            """
             function error_func(args)
                 error("Test error")
             end
             return error_func
-        """)
+        """
+        )
 
         adapter = LuaToolsAdapter()
         tool_spec = {
@@ -500,12 +514,14 @@ class TestLuaToolsAdapter:
 
         sandbox = LuaSandbox()
 
-        lua_error = sandbox.lua.execute("""
+        lua_error = sandbox.lua.execute(
+            """
             function error_func(args)
                 error("Test error")
             end
             return error_func
-        """)
+        """
+        )
 
         mock_primitive = MockToolPrimitive()
         adapter = LuaToolsAdapter(tool_primitive=mock_primitive)

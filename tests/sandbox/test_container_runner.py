@@ -110,7 +110,8 @@ async def test_run_container_closes_stdin_after_result() -> None:
         format="lua",
     )
 
-    script = textwrap.dedent("""
+    script = textwrap.dedent(
+        """
         import sys
         from tactus.sandbox.protocol import ExecutionResult, RESULT_START_MARKER, RESULT_END_MARKER
 
@@ -123,7 +124,8 @@ async def test_run_container_closes_stdin_after_result() -> None:
         # Keep the process alive until stdin is closed to simulate Docker attach behavior.
         while sys.stdin.readline():
             pass
-        """).strip()
+        """
+    ).strip()
 
     result = await runner._run_container(
         docker_cmd=[sys.executable, "-c", script],
