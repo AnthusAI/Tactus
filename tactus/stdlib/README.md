@@ -56,6 +56,10 @@ tactus/stdlib/
 - `tactus.io.*` - File I/O helpers (json, csv, tsv, file)
 - `biblicus.text` - Biblicus-backed text utilities
 
+### New in this release
+
+- Deepgram JSON utilities (`tactus.deepgram`) are now included by default: flatten transcripts, expose structured segments, and extract timestamped quotes with behavior covered by `tactus/stdlib/tac/tactus/deepgram.spec.tac`.
+
 ## Usage
 
 ```lua
