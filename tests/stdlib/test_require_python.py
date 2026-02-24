@@ -13,8 +13,7 @@ class TestRequirePythonModule:
         sandbox = LuaSandbox(base_path=str(tmp_path))
 
         # Should be able to require the json module
-        result = sandbox.execute(
-            """
+        result = sandbox.execute("""
             local json = require("tactus.io.json")
             return {
                 has_read = json.read ~= nil,
@@ -22,8 +21,7 @@ class TestRequirePythonModule:
                 has_encode = json.encode ~= nil,
                 has_decode = json.decode ~= nil
             }
-        """
-        )
+        """)
         assert result["has_read"] == True  # noqa: E712
         assert result["has_write"] == True  # noqa: E712
         assert result["has_encode"] == True  # noqa: E712
@@ -34,12 +32,10 @@ class TestRequirePythonModule:
         sandbox = LuaSandbox(base_path=str(tmp_path))
 
         # Write a JSON file
-        sandbox.execute(
-            """
+        sandbox.execute("""
             local json = require("tactus.io.json")
             json.write("test.json", {name = "Alice", age = 30})
-        """
-        )
+        """)
 
         # Verify file was created
         json_file = tmp_path / "test.json"
@@ -51,12 +47,10 @@ class TestRequirePythonModule:
         assert data == {"name": "Alice", "age": 30}
 
         # Read from Lua
-        result = sandbox.execute(
-            """
+        result = sandbox.execute("""
             local json = require("tactus.io.json")
             return json.read("test.json")
-        """
-        )
+        """)
         assert result["name"] == "Alice"
         assert result["age"] == 30
 
@@ -65,35 +59,29 @@ class TestRequirePythonModule:
         sandbox = LuaSandbox(base_path=str(tmp_path))
 
         # Encode to string
-        result = sandbox.execute(
-            """
+        result = sandbox.execute("""
             local json = require("tactus.io.json")
             return json.encode({key = "value", number = 42})
-        """
-        )
+        """)
         assert isinstance(result, str)
         data = json.loads(result)
         assert data == {"key": "value", "number": 42}
 
         # Decode from string
-        result = sandbox.execute(
-            """
+        result = sandbox.execute("""
             local json = require("tactus.io.json")
             return json.decode('{"key": "value"}')
-        """
-        )
+        """)
         assert result["key"] == "value"
 
     def test_tac_preferred_over_python(self, tmp_path):
         """Test that .tac files are preferred when both exist."""
         # Create a .tac file in user's directory
-        (tmp_path / "mymodule.tac").write_text(
-            """
+        (tmp_path / "mymodule.tac").write_text("""
             return {
                 type = "tac_module"
             }
-        """
-        )
+        """)
 
         sandbox = LuaSandbox(base_path=str(tmp_path))
 
@@ -107,12 +95,10 @@ class TestRequirePythonModule:
 
         # Try to read nonexistent file
         with pytest.raises(Exception) as exc_info:
-            sandbox.execute(
-                """
+            sandbox.execute("""
                 local json = require("tactus.io.json")
                 json.read("nonexistent.json")
-            """
-            )
+            """)
 
         # Should contain error about file not found
         assert (
@@ -126,12 +112,10 @@ class TestRequirePythonModule:
 
         # Try to write outside base_path
         with pytest.raises(Exception) as exc_info:
-            sandbox.execute(
-                """
+            sandbox.execute("""
                 local json = require("tactus.io.json")
                 json.write("../../../etc/passwd", {evil = true})
-            """
-            )
+            """)
 
         # Should be blocked with permission error
         assert (
@@ -143,41 +127,35 @@ class TestRequirePythonModule:
         sandbox = LuaSandbox(base_path=str(tmp_path))
 
         # Should not be able to require Python os module via tactus prefix
-        result = sandbox.execute(
-            """
+        result = sandbox.execute("""
             local status, err = pcall(function()
                 return require("tactus.os")
             end)
             return status
-        """
-        )
+        """)
         # pcall should catch the error (module not found)
         assert result == False  # noqa: E712
 
         # Should not be able to require Python sys module via tactus prefix
-        result = sandbox.execute(
-            """
+        result = sandbox.execute("""
             local status, err = pcall(function()
                 return require("tactus.sys")
             end)
             return status
-        """
-        )
+        """)
         assert result == False  # noqa: E712
 
     def test_pcall_catches_python_errors(self, tmp_path):
         """Test that Lua pcall() can catch Python exceptions."""
         sandbox = LuaSandbox(base_path=str(tmp_path))
 
-        result = sandbox.execute(
-            """
+        result = sandbox.execute("""
             local json = require("tactus.io.json")
             local status, err = pcall(function()
                 return json.read("nonexistent.json")
             end)
             return {status = status, has_error = err ~= nil}
-        """
-        )
+        """)
 
         assert result["status"] == False  # noqa: E712
         assert result["has_error"] == True  # noqa: E712
@@ -190,8 +168,7 @@ class TestRequirePythonModule:
         json_file = tmp_path / "data.json"
         json_file.write_text('{"name": "Bob", "scores": [95, 87, 92]}')
 
-        result = sandbox.execute(
-            """
+        result = sandbox.execute("""
             local json = require("tactus.io.json")
             local data = json.read("data.json")
             return {
@@ -199,8 +176,7 @@ class TestRequirePythonModule:
                 first_score = data.scores[1],
                 count = #data.scores
             }
-        """
-        )
+        """)
 
         assert result["name"] == "Bob"
         assert result["first_score"] == 95
@@ -210,15 +186,13 @@ class TestRequirePythonModule:
         """Test Lua table -> Python dict conversion."""
         sandbox = LuaSandbox(base_path=str(tmp_path))
 
-        sandbox.execute(
-            """
+        sandbox.execute("""
             local json = require("tactus.io.json")
             json.write("output.json", {
                 message = "Hello",
                 items = {"apple", "banana", "cherry"}
             })
-        """
-        )
+        """)
 
         json_file = tmp_path / "output.json"
         with open(json_file) as f:

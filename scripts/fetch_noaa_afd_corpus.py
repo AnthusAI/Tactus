@@ -14,7 +14,6 @@ import xml.etree.ElementTree as ET
 import re
 import yaml
 
-
 RSS_TEMPLATES = (
     "https://www.weather.gov/source/{wfo}/rss/AFD/AFD.xml",
     "https://weather.gov/source/{wfo}/rss/AFD/AFD.xml",

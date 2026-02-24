@@ -17,8 +17,7 @@ def _extract_json(stdout: str) -> dict:
 
 
 def _write_training_file(path: Path, fixture: Path) -> None:
-    path.write_text(
-        f"""
+    path.write_text(f"""
 Model "imdb_nb" {{
   type = "registry",
   name = "imdb_nb",
@@ -47,8 +46,7 @@ Model "imdb_nb" {{
     }}
   }}
 }}
-"""
-    )
+""")
 
 
 def test_models_evaluate_by_version(tmp_path):

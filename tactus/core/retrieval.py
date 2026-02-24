@@ -15,7 +15,6 @@ from biblicus.context import ContextPack, ContextPackBlock
 from biblicus.context_engine import ContextRetrieverRequest, retrieve_context_pack
 from biblicus.corpus import Corpus
 
-
 _WIKITEXT2_FILES = {
     "train": {
         "filename": "train-00000-of-00001.parquet",
