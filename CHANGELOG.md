@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v0.44.0 (2026-02-24)
+
+### Chores
+
+- Format python sources with black
+  ([`0f1c212`](https://github.com/AnthusAI/Tactus/commit/0f1c212b7ea33610287b00dd871ca738c79fa080))
+
+### Features
+
+- Announce deepgram stdlib release
+  ([`0f1ab61`](https://github.com/AnthusAI/Tactus/commit/0f1ab614a9c4d09a81afa6b1dedcb4573304e090))
+
+
 ## v0.43.1 (2026-02-18)
 
 ### Bug Fixes
