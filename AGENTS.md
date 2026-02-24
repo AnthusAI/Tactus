@@ -31,3 +31,34 @@ Warning: Editing project/ directly is a sin against The Way. Do not read or writ
 - NEVER stop before pushing - that leaves work stranded locally
 - NEVER say "ready to push when you are" - YOU must push
 - If push fails, resolve and retry until it succeeds
+
+## Cursor Cloud specific instructions
+
+### Services overview
+
+**Tactus core** is the primary product — a Python library + CLI for Lua-based agentic workflows. The monorepo also contains `tactus-lsp-server`, `tactus-ide`, `tactus-vscode`, and `tactus-desktop`, but day-to-day development centres on the core Python package.
+
+### Development setup
+
+Dependencies are installed by the VM update script (`pip install -e ".[dev]"` and `pip install -e tactus-lsp-server/`). The `tactus` CLI is installed into `~/.local/bin`; ensure `PATH` includes it (the update script handles this).
+
+### Running quality gates
+
+- **Lint:** `ruff check` (zero-config, uses settings in `pyproject.toml`)
+- **Unit tests:** `pytest tests/ -v --tb=short -m "not integration" -n0` (same as `test-ci.sh`; fetch test data first with `python3 scripts/fetch_wikitext2.py`)
+- **BDD integration tests:** `behave --summary` (runs 450+ scenarios, no API key needed)
+- **Validate `.tac` files:** `tactus validate <file>.tac`
+- **Format check:** `tactus format <file>.tac --check`
+
+### Running the CLI
+
+- Use `--no-sandbox` when Docker is unavailable: `tactus run <file>.tac --no-sandbox`
+- `tactus run` / `tactus test` / `tactus eval` against agent-based `.tac` files require `OPENAI_API_KEY` (or Bedrock credentials).
+- Pure-logic `.tac` files (e.g. `examples/02-basics-simple-logic.tac`) can run and be tested without any API key.
+
+### Gotchas
+
+- `python` is not on PATH in the Cloud VM; always use `python3`.
+- `~/.local/bin` (where `pip install --user` places scripts like `tactus`, `ruff`, `behave`) must be on PATH. Add `export PATH="$HOME/.local/bin:$PATH"` if missing.
+- The user rule says **do not run `npm run dev`** and **do not run type checking** (takes too long).
+- Do not attempt to run `tactus run` on agent-based examples without setting `OPENAI_API_KEY` first.
