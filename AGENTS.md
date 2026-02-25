@@ -42,23 +42,54 @@ Warning: Editing project/ directly is a sin against The Way. Do not read or writ
 - NEVER say "ready to push when you are" - YOU must push
 - If push fails, resolve and retry until it succeeds
 
+## Repo layout
+
+- `tactus/` — Python package (runtime, CLI, stdlib, validation)
+- `tests/` — Python tests (unit + integration markers)
+- `features/` — Behave BDD feature files
+- `examples/` — runnable `.tac` programs (many have BDD specs)
+- `docs/` — canonical documentation for the language and primitives
+- `tactus-ide/` — web IDE (Flask backend + React frontend)
+- `tactus-lsp-server/` — Language Server Protocol server
+- `tactus-vscode/` — VS Code extension
+- `tactus-desktop/` — Electron desktop app
+
+## Quality gates
+
+Run these before pushing when code has changed:
+
+```bash
+ruff check .
+black --check .
+./test-ci.sh                          # unit tests (same as CI)
+behave --tags=-skip                   # BDD integration tests
+```
+
+Focused targets:
+
+```bash
+pytest tests/cli -q                   # just CLI tests
+make test-examples-fast               # examples without slow/integration
+make test-examples-bdd                # only examples with BDD specs
+```
+
+## CI debugging
+
+Use `gh` (never scrape with curl):
+
+```bash
+gh run list --limit 10
+gh run view <run_id>
+gh run view <run_id> --log-failed
+```
+
+When CI is red: read the failing job logs, reproduce locally, fix, push, re-check.
+
 ## Cursor Cloud specific instructions
-
-### Services overview
-
-**Tactus core** is the primary product — a Python library + CLI for Lua-based agentic workflows. The monorepo also contains `tactus-lsp-server`, `tactus-ide`, `tactus-vscode`, and `tactus-desktop`, but day-to-day development centres on the core Python package.
 
 ### Development setup
 
 Dependencies are installed by the VM update script (`pip install -e ".[dev]"` and `pip install -e tactus-lsp-server/`). The `tactus` CLI is installed into `~/.local/bin`; ensure `PATH` includes it (the update script handles this).
-
-### Running quality gates
-
-- **Lint:** `ruff check` (zero-config, uses settings in `pyproject.toml`)
-- **Unit tests:** `pytest tests/ -v --tb=short -m "not integration" -n0` (same as `test-ci.sh`; fetch test data first with `python3 scripts/fetch_wikitext2.py`)
-- **BDD integration tests:** `behave --summary` (runs 450+ scenarios, no API key needed)
-- **Validate `.tac` files:** `tactus validate <file>.tac`
-- **Format check:** `tactus format <file>.tac --check`
 
 ### Running the CLI
 
@@ -69,6 +100,6 @@ Dependencies are installed by the VM update script (`pip install -e ".[dev]"` an
 ### Gotchas
 
 - `python` is not on PATH in the Cloud VM; always use `python3`.
-- `~/.local/bin` (where `pip install --user` places scripts like `tactus`, `ruff`, `behave`) must be on PATH. Add `export PATH="$HOME/.local/bin:$PATH"` if missing.
-- The user rule says **do not run `npm run dev`** and **do not run type checking** (takes too long).
-- Do not attempt to run `tactus run` on agent-based examples without setting `OPENAI_API_KEY` first.
+- `~/.local/bin` must be on PATH. Add `export PATH="$HOME/.local/bin:$PATH"` if missing.
+- Do not run `npm run dev` or type checking (takes too long).
+- Do not run `tactus run` on agent-based examples without `OPENAI_API_KEY`.

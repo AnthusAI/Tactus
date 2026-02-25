@@ -522,7 +522,7 @@ tactus test hello.tac --runs 10
 
 - **[docs/README.md](docs/README.md)** — Docs index and recommended reading paths
 - **[SPECIFICATION.md](SPECIFICATION.md)** — Complete DSL reference
-- **[IMPLEMENTATION.md](IMPLEMENTATION.md)** — Implementation status and architecture
+- **[docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md)** — Implementation status and architecture
 - **[docs/model-primitive.md](docs/model-primitive.md)** — Model primitive quick reference (humans + AI assistants)
 - **[docs/model-training-walkthrough.md](docs/model-training-walkthrough.md)** — Train/evaluate/run walkthrough (registry-backed models)
 - **[docs/agent-primitive.md](docs/agent-primitive.md)** — Agent primitive quick reference (humans + AI assistants)
@@ -1498,7 +1498,7 @@ These frameworks are valuable if you're committed to a specific vendor's ecosyst
 - **Standalone CLI**: Run workflows without any infrastructure
 - **Type-Safe**: Pydantic models throughout for validation and type safety
 
-**Note**: Some features from the [specification](SPECIFICATION.md) are not yet implemented, including `guards`, `dependencies`, inline procedure definitions, and advanced HITL configuration. See [IMPLEMENTATION.md](IMPLEMENTATION.md) for the complete status.
+**Note**: Some features from the [specification](SPECIFICATION.md) are not yet implemented, including `guards`, `dependencies`, inline procedure definitions, and advanced HITL configuration. See [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md) for the complete status.
 
 ## Architecture
 
