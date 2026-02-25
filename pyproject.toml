@@ -71,7 +71,7 @@ dev = [
     "pytest-xdist>=3.0",
     "behave>=1.2.6",
     "coverage>=7.4",
-    "black>=24.10.0",
+    "black==26.1.0",
     "ruff",
     "python-semantic-release>=9.0.0",
     # Reduce resolver search by pinning transitive CLI deps
