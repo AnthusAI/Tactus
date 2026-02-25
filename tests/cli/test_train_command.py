@@ -13,8 +13,7 @@ def test_train_command_runs(tmp_path):
     registry_dir = tmp_path / "registry"
 
     training_tac = tmp_path / "train.tac"
-    training_tac.write_text(
-        f"""
+    training_tac.write_text(f"""
 Model "imdb_nb" {{
   type = "registry",
   name = "imdb_nb",
@@ -43,8 +42,7 @@ Model "imdb_nb" {{
     }}
   }}
 }}
-"""
-    )
+""")
 
     result = runner.invoke(
         app,
