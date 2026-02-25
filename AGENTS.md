@@ -1,3 +1,13 @@
+## Git Flow
+
+This project uses **Git Flow**. The `dev` branch is the integration branch for all feature work. **Never push directly to `main`.**
+
+- **Feature branches** branch from `dev` and merge back into `dev`.
+- **Release branches** branch from `dev` and merge into both `main` and `dev`.
+- **Hotfix branches** branch from `main` and merge into both `main` and `dev`.
+
+When Cursor Cloud assigns you a feature branch (e.g. `cursor/some-task-xxxx`), it should be based on `dev`, not `main`.
+
 ## Project management with Kanbus
 
 Use Kanbus for task management.
