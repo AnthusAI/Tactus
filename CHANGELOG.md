@@ -2,6 +2,25 @@
 
 <!-- version list -->
 
+## v0.44.1 (2026-02-25)
+
+### Bug Fixes
+
+- **ci**: Kanbus requires Python >=3.11, not >=3.10
+  ([`42c9419`](https://github.com/AnthusAI/Tactus/commit/42c9419a555751aa986192c8ba29ffcd8afe8643))
+
+- **ci**: Use env markers for black/kanbus Python 3.9 compat
+  ([`88134a0`](https://github.com/AnthusAI/Tactus/commit/88134a02c5836302ea5698bbfc4a95630e5b59b5))
+
+### Documentation
+
+- Add Cursor Cloud specific instructions to AGENTS.md
+  ([`2aecd3e`](https://github.com/AnthusAI/Tactus/commit/2aecd3e98cdb7f147459b3acecfa227aafc40597))
+
+- Add Git Flow branching policy to AGENTS.md
+  ([`727d9ec`](https://github.com/AnthusAI/Tactus/commit/727d9ecaeda26b5f81aaeafaa0b6177f161ca356))
+
+
 ## v0.44.0 (2026-02-24)
 
 ### Chores
