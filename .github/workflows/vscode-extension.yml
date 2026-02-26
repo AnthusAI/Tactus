@@ -3,15 +3,8 @@ name: VSCode Extension CI
 on:
   push:
     branches: [ main ]
-    paths:
-      - 'tactus-vscode/**'
-      - 'tactus-lsp-server/**'
-      - '.github/workflows/vscode-extension.yml'
   pull_request:
     branches: [ main ]
-    paths:
-      - 'tactus-vscode/**'
-      - 'tactus-lsp-server/**'
   workflow_dispatch:
 
 jobs:
@@ -21,42 +14,64 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    
+    - name: Detect VSCode/LSP changes
+      id: changes
+      uses: dorny/paths-filter@v3
+      with:
+        filters: |
+          vscode:
+            - 'tactus-vscode/**'
+            - 'tactus-lsp-server/**'
+            - '.github/workflows/vscode-extension.yml'
+    
+    - name: No relevant changes
+      if: steps.changes.outputs.vscode != 'true'
+      run: echo "No VSCode extension or LSP changes. Skipping job steps."
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
+      if: steps.changes.outputs.vscode == 'true'
       with:
         node-version: '20'
 
     - name: Setup Python
       uses: actions/setup-python@v5
+      if: steps.changes.outputs.vscode == 'true'
       with:
         python-version: '3.11'
 
     - name: Install Tactus core
+      if: steps.changes.outputs.vscode == 'true'
       run: |
         pip install -e .
 
     - name: Install LSP server
+      if: steps.changes.outputs.vscode == 'true'
       run: |
         cd tactus-lsp-server
         pip install -e .
 
     - name: Test LSP server can start
+      if: steps.changes.outputs.vscode == 'true'
       run: |
         timeout 5s python -m tactus_lsp_server.stdio_server || [ $? -eq 124 ]
 
     - name: Compile VSCode extension
+      if: steps.changes.outputs.vscode == 'true'
       run: |
         cd tactus-vscode
         npm run compile
 
     - name: Package extension
+      if: steps.changes.outputs.vscode == 'true'
       run: |
         cd tactus-vscode
         npm run package
 
     - name: Upload VSIX artifact
       uses: actions/upload-artifact@v4
+      if: steps.changes.outputs.vscode == 'true'
       with:
         name: tactus-vscode-extension
         path: tactus-vscode/*.vsix
