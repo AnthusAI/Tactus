@@ -2077,7 +2077,6 @@ def eval(
         parallel = False
 
     parallel = _coerce_bool(parallel)
-    no_parallel = _coerce_bool(no_parallel)
     verbose = _coerce_bool(verbose)
     debug = _coerce_bool(debug)
 
