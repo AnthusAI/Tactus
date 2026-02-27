@@ -96,14 +96,24 @@ class ContainerRunner:
         "ANTHROPIC_API_KEY",
     }
 
-    def __init__(self, config: SandboxConfig):
+    def __init__(
+        self,
+        config: SandboxConfig,
+        broker_mcp_servers: Optional[dict[str, Any]] = None,
+        mcp_servers: Optional[dict[str, Any]] = None,
+    ):
         """
         Initialize container runner.
 
         Args:
             config: Sandbox configuration.
+            broker_mcp_servers: Optional broker-hosted MCP server configs (host side).
+                Deprecated: use `mcp_servers` in user config instead.
+            mcp_servers: Optional MCP server configs (host side) for name propagation.
         """
         self.config = config
+        self.broker_mcp_servers = broker_mcp_servers
+        self.mcp_servers = mcp_servers or {}
 
         # Parse image name and tag from config.image (e.g., "tactus-sandbox:local").
         image_name_parts = config.image.split(":")
@@ -177,6 +187,24 @@ class ContainerRunner:
             logger.info("Sandbox rebuilt successfully")
         else:
             logger.debug("Sandbox is up to date")
+
+    @staticmethod
+    def _sanitize_mcp_servers_for_container(
+        mcp_servers: Optional[dict[str, Any]]
+    ) -> dict[str, dict[str, Any]]:
+        """
+        Produce a name-only MCP server map safe to pass into the container.
+
+        Each server name is mapped to {"broker": True} to force broker-backed usage.
+        """
+        if not mcp_servers:
+            return {}
+        sanitized: dict[str, dict[str, Any]] = {}
+        for name in mcp_servers.keys():
+            if not name:
+                continue
+            sanitized[str(name)] = {"broker": True}
+        return sanitized
 
     def _find_tactus_source_dir(self) -> Optional[Path]:
         """
@@ -288,6 +316,14 @@ class ContainerRunner:
         ]
 
         docker_command.extend(["--network", self.config.network])
+
+        # Ensure host.docker.internal resolves on Linux (needed for broker TCP/TLS).
+        if (
+            self.config.network != "none"
+            and self.config.broker_host == "host.docker.internal"
+            and sys.platform.startswith("linux")
+        ):
+            docker_command.extend(["--add-host", "host.docker.internal:host-gateway"])
 
         # Resource limits
         if self.config.limits.memory:
@@ -472,6 +508,16 @@ class ContainerRunner:
             broker_transport = (self.config.broker_transport or "stdio").lower()
             broker_env: dict[str, str]
 
+            # Load host MCP servers from user config if not provided
+            broker_mcp_servers = self.broker_mcp_servers
+            if broker_mcp_servers is None:
+                try:
+                    from tactus.core.config_manager import ConfigManager
+
+                    broker_mcp_servers = ConfigManager().load_host_mcp_servers()
+                except Exception:
+                    broker_mcp_servers = {}
+
             if broker_transport == "stdio":
                 from tactus.broker.stdio import STDIO_TRANSPORT_VALUE
 
@@ -508,6 +554,7 @@ class ContainerRunner:
                     port=self.config.broker_port,
                     ssl_context=ssl_context,
                     openai_backend=OpenAIChatBackend(api_key=openai_key),
+                    broker_mcp_servers=broker_mcp_servers,
                     event_handler=event_handler,
                     control_handler=control_handler,
                 )
@@ -537,6 +584,11 @@ class ContainerRunner:
             logger.debug("Docker command: %s", " ".join(docker_cmd))
 
             # Create execution request
+            sanitized_mcp_servers = self._sanitize_mcp_servers_for_container(self.mcp_servers)
+            if not sanitized_mcp_servers and broker_mcp_servers:
+                sanitized_mcp_servers = self._sanitize_mcp_servers_for_container(
+                    broker_mcp_servers
+                )
             request = ExecutionRequest(
                 source=source,
                 working_dir="/workspace",
@@ -546,6 +598,7 @@ class ContainerRunner:
                 source_file_path=source_file_path,
                 format=format,
                 task_name=task_name,
+                mcp_servers=sanitized_mcp_servers or None,
             )
 
             # Run container
@@ -570,6 +623,7 @@ class ContainerRunner:
                         event_handler=event_handler,
                         control_handler=control_handler,
                         llm_backend_config=llm_backend_config,
+                        broker_mcp_servers=broker_mcp_servers,
                     )
                 finally:
                     try:
@@ -591,6 +645,7 @@ class ContainerRunner:
                     event_handler=event_handler,
                     control_handler=control_handler,
                     llm_backend_config=llm_backend_config,
+                    broker_mcp_servers=broker_mcp_servers,
                 )
 
             result.duration_seconds = time.time() - start_timestamp
@@ -629,6 +684,7 @@ class ContainerRunner:
         event_handler: Optional[Callable[[Dict[str, Any]], None]] = None,
         control_handler: Optional[Callable[[dict], Any]] = None,
         llm_backend_config: Optional[Dict[str, Any]] = None,
+        broker_mcp_servers: Optional[Dict[str, Any]] = None,
     ) -> ExecutionResult:
         """
         Run the container and communicate via stdio.
@@ -647,6 +703,7 @@ class ContainerRunner:
         if broker_transport == "stdio":
             from tactus.broker.server import OpenAIChatBackend
             from tactus.broker.server import HostToolRegistry
+            from tactus.broker.server import BrokerMCPManager
             from tactus.broker.stdio import STDIO_REQUEST_PREFIX
 
             stdio_request_prefix = STDIO_REQUEST_PREFIX
@@ -658,6 +715,7 @@ class ContainerRunner:
 
             openai_backend = OpenAIChatBackend(api_key=openai_key)
             tool_registry = HostToolRegistry.default()
+            mcp_manager = BrokerMCPManager(broker_mcp_servers) if broker_mcp_servers else None
 
             async def send_event(writer: asyncio.StreamWriter, event: dict[str, Any]) -> None:
                 if writer.is_closing():
@@ -820,6 +878,137 @@ class ContainerRunner:
                         )
                         return
 
+                    await send_event(
+                        writer,
+                        {"id": request_id, "event": "done", "data": {"result": result}},
+                    )
+                    return
+
+                if request_method == "mcp.list_tools":
+                    server_name = (
+                        request_params.get("server") if isinstance(request_params, dict) else None
+                    )
+                    if not isinstance(server_name, str) or not server_name:
+                        await send_event(
+                            writer,
+                            {
+                                "id": request_id,
+                                "event": "error",
+                                "error": {
+                                    "type": "BadRequest",
+                                    "message": "params.server must be a string",
+                                },
+                            },
+                        )
+                        return
+                    if mcp_manager is None:
+                        await send_event(
+                            writer,
+                            {
+                                "id": request_id,
+                                "event": "error",
+                                "error": {
+                                    "type": "MCPNotConfigured",
+                                    "message": "No broker MCP servers configured",
+                                },
+                            },
+                        )
+                        return
+                    try:
+                        tools = await mcp_manager.list_tools(server_name)
+                    except Exception as e:
+                        await send_event(
+                            writer,
+                            {
+                                "id": request_id,
+                                "event": "error",
+                                "error": {"type": type(e).__name__, "message": str(e)},
+                            },
+                        )
+                        return
+                    await send_event(
+                        writer,
+                        {"id": request_id, "event": "done", "data": {"tools": tools}},
+                    )
+                    return
+
+                if request_method == "mcp.call_tool":
+                    server_name = (
+                        request_params.get("server") if isinstance(request_params, dict) else None
+                    )
+                    tool_name = (
+                        request_params.get("name") if isinstance(request_params, dict) else None
+                    )
+                    tool_args = (
+                        request_params.get("args") if isinstance(request_params, dict) else None
+                    )
+                    if tool_args is None:
+                        tool_args = {}
+
+                    if not isinstance(server_name, str) or not server_name:
+                        await send_event(
+                            writer,
+                            {
+                                "id": request_id,
+                                "event": "error",
+                                "error": {
+                                    "type": "BadRequest",
+                                    "message": "params.server must be a string",
+                                },
+                            },
+                        )
+                        return
+                    if not isinstance(tool_name, str) or not tool_name:
+                        await send_event(
+                            writer,
+                            {
+                                "id": request_id,
+                                "event": "error",
+                                "error": {
+                                    "type": "BadRequest",
+                                    "message": "params.name must be a string",
+                                },
+                            },
+                        )
+                        return
+                    if not isinstance(tool_args, dict):
+                        await send_event(
+                            writer,
+                            {
+                                "id": request_id,
+                                "event": "error",
+                                "error": {
+                                    "type": "BadRequest",
+                                    "message": "params.args must be an object",
+                                },
+                            },
+                        )
+                        return
+                    if mcp_manager is None:
+                        await send_event(
+                            writer,
+                            {
+                                "id": request_id,
+                                "event": "error",
+                                "error": {
+                                    "type": "MCPNotConfigured",
+                                    "message": "No broker MCP servers configured",
+                                },
+                            },
+                        )
+                        return
+                    try:
+                        result = await mcp_manager.call_tool(server_name, tool_name, tool_args)
+                    except Exception as e:
+                        await send_event(
+                            writer,
+                            {
+                                "id": request_id,
+                                "event": "error",
+                                "error": {"type": type(e).__name__, "message": str(e)},
+                            },
+                        )
+                        return
                     await send_event(
                         writer,
                         {"id": request_id, "event": "done", "data": {"result": result}},
