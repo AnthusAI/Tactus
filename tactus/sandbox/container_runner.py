@@ -190,7 +190,7 @@ class ContainerRunner:
 
     @staticmethod
     def _sanitize_mcp_servers_for_container(
-        mcp_servers: Optional[dict[str, Any]]
+        mcp_servers: Optional[dict[str, Any]],
     ) -> dict[str, dict[str, Any]]:
         """
         Produce a name-only MCP server map safe to pass into the container.
@@ -586,9 +586,7 @@ class ContainerRunner:
             # Create execution request
             sanitized_mcp_servers = self._sanitize_mcp_servers_for_container(self.mcp_servers)
             if not sanitized_mcp_servers and broker_mcp_servers:
-                sanitized_mcp_servers = self._sanitize_mcp_servers_for_container(
-                    broker_mcp_servers
-                )
+                sanitized_mcp_servers = self._sanitize_mcp_servers_for_container(broker_mcp_servers)
             request = ExecutionRequest(
                 source=source,
                 working_dir="/workspace",

@@ -393,6 +393,7 @@ class DSPyAgentHandle:
         for idx, toolset in enumerate(self.toolsets):
             logger.info(f"Agent '{self.name}' processing toolset {idx}: {type(toolset).__name__}")
             try:
+
                 def _run_async(coro):
                     import asyncio
                     import threading
@@ -401,6 +402,7 @@ class DSPyAgentHandle:
                         loop = asyncio.get_running_loop()
                         try:
                             import nest_asyncio
+
                             nest_asyncio.apply(loop)
                             return asyncio.run(coro)
                         except ImportError:
@@ -411,7 +413,9 @@ class DSPyAgentHandle:
                                     thread_loop = asyncio.new_event_loop()
                                     asyncio.set_event_loop(thread_loop)
                                     try:
-                                        thread_result["value"] = thread_loop.run_until_complete(coro)
+                                        thread_result["value"] = thread_loop.run_until_complete(
+                                            coro
+                                        )
                                     finally:
                                         thread_loop.close()
                                 except Exception as error:
@@ -495,6 +499,7 @@ class DSPyAgentHandle:
                         def _make_mcp_wrapper(ts, name):
                             async def _call(**kwargs):
                                 return await ts.call_tool(name, kwargs)
+
                             return _call
 
                         logger.info(
@@ -627,7 +632,9 @@ class DSPyAgentHandle:
                                         thread_loop = asyncio.new_event_loop()
                                         asyncio.set_event_loop(thread_loop)
                                         try:
-                                            thread_result["value"] = thread_loop.run_until_complete(coro)
+                                            thread_result["value"] = thread_loop.run_until_complete(
+                                                coro
+                                            )
                                         finally:
                                             thread_loop.close()
                                     except Exception as error:
@@ -645,12 +652,14 @@ class DSPyAgentHandle:
 
                     if inspect.iscoroutinefunction(toolset.call_tool):
                         ctx = RunContext(deps=None, model=TestModel(), usage=RunUsage())
+
                         async def _call():
                             tools = await toolset.get_tools(ctx)
                             tool = tools.get(tool_name)
                             if tool is None:
                                 return None
                             return await toolset.call_tool(tool_name, tool_args, ctx, tool)
+
                         result = _run_async(_call())
                         if result is None:
                             continue

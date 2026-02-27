@@ -44,6 +44,7 @@ app = typer.Typer(
     name="tactus", help="Tactus - Workflow automation with Lua DSL", add_completion=False
 )
 
+
 def _coerce_bool(value: Any) -> bool:
     if isinstance(value, bool):
         return value
@@ -1397,7 +1398,9 @@ def train(
     registry_dir: Optional[str] = typer.Option(
         None, help="Registry directory (default: ~/.tactus/models)"
     ),
-    no_register: bool = typer.Option(False, "--no-register", help="Skip registering trained artifact"),
+    no_register: bool = typer.Option(
+        False, "--no-register", help="Skip registering trained artifact"
+    ),
     no_eval: bool = typer.Option(False, "--no-eval", help="Skip evaluation on test split"),
 ):
     """
