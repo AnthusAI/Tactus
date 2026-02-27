@@ -613,7 +613,7 @@ class DSPyAgentHandle:
                         import threading
 
                         try:
-                            loop = asyncio.get_running_loop()
+                            asyncio.get_running_loop()
                             try:
                                 import nest_asyncio
 
