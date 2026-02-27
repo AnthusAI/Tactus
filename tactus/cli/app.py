@@ -51,8 +51,14 @@ def _coerce_bool(value: Any) -> bool:
 
         if isinstance(value, (OptionInfo, ArgumentInfo)):
             return False
-    except Exception:
-        pass
+    except Exception as exc:
+        # Best-effort use of Typer's internal classes; on failure, fall back to
+        # generic coercion logic while logging for debugging purposes.
+        logging.getLogger(__name__).debug(
+            "Failed to import or use Typer models in _coerce_bool; "
+            "falling back to generic coercion. Error: %r",
+            exc,
+        )
     if isinstance(value, bool):
         return value
     if value is None:
