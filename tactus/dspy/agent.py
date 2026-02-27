@@ -395,7 +395,6 @@ class DSPyAgentHandle:
             try:
 
                 def _run_async(coro):
-                    import asyncio
                     import threading
 
                     try:
