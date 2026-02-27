@@ -45,6 +45,23 @@ app = typer.Typer(
 )
 
 
+def _coerce_bool(value: Any) -> bool:
+    try:
+        from typer.models import ArgumentInfo, OptionInfo
+
+        if isinstance(value, (OptionInfo, ArgumentInfo)):
+            return False
+    except Exception:
+        pass
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return False
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "y", "on"}
+    return bool(value)
+
+
 @app.callback(invoke_without_command=True)
 def main_callback(
     ctx: typer.Context,
@@ -57,6 +74,7 @@ def main_callback(
     ),
 ):
     """Tactus CLI callback for global options."""
+    version = _coerce_bool(version)
     if version:
         from tactus import __version__
 
@@ -65,6 +83,21 @@ def main_callback(
 
     # If no subcommand was invoked and version flag not set, show help
     if ctx.invoked_subcommand is None:
+        protected_args = getattr(ctx, "protected_args", None)
+        if protected_args and protected_args[0] in {
+            "run",
+            "validate",
+            "test",
+            "eval",
+            "version",
+            "ide",
+            "stdlib",
+            "control",
+            "trace-list",
+            "trace-show",
+            "trace-export",
+        }:
+            return
         if getattr(ctx, "args", None) and ctx.args[0].endswith((".tac", ".lua")):
             workflow_file = Path(ctx.args[0])
             task_name = None
@@ -512,11 +545,15 @@ def run(
     no_deps: bool = typer.Option(
         False, "--no-deps", help="Fail fast if dependency tasks are required"
     ),
-    sandbox: Optional[bool] = typer.Option(
-        None,
-        "--sandbox/--no-sandbox",
-        help="Run in Docker sandbox (default: required unless --no-sandbox). "
-        "Use --no-sandbox to run without isolation (security risk).",
+    sandbox: bool = typer.Option(
+        False,
+        "--sandbox",
+        help="Force running in Docker sandbox (default: required unless --no-sandbox).",
+    ),
+    no_sandbox: bool = typer.Option(
+        False,
+        "--no-sandbox",
+        help="Run without isolation (security risk).",
     ),
     sandbox_broker: str = typer.Option(
         "tcp",
@@ -560,6 +597,16 @@ def run(
         # Use real implementation for specific tools while mocking others
         tactus run workflow.tac --mock-all --real done
     """
+    verbose = _coerce_bool(verbose)
+    debug = _coerce_bool(debug)
+    interactive = _coerce_bool(interactive)
+    mock_all = _coerce_bool(mock_all)
+    real_all = _coerce_bool(real_all)
+    auto_deps = _coerce_bool(auto_deps)
+    no_deps = _coerce_bool(no_deps)
+    sandbox = _coerce_bool(sandbox)
+    no_sandbox = _coerce_bool(no_sandbox)
+
     setup_logging(verbose=verbose, log_level=log_level, log_format=log_format, debug=debug)
     import warnings
 
@@ -605,6 +652,16 @@ def run(
 
     # Parse parameters from CLI with type information from schema
     context = {}
+    if not isinstance(param, list):
+        param = None
+    if not isinstance(task, str):
+        task = None
+    param = [p for p in (param or []) if p]
+    if task and "=" in task and not param:
+        # Treat accidental task=value as a param if no explicit params were parsed
+        param = [task]
+        task = None
+
     if param:
         for p in param:
             if "=" not in p:
@@ -681,6 +738,14 @@ def run(
 
     config_manager = ConfigManager()
     merged_config = config_manager.load_cascade(workflow_file)
+    broker_mcp_servers = {}
+    if hasattr(config_manager, "load_host_mcp_servers"):
+        broker_mcp_servers = config_manager.load_host_mcp_servers()
+    elif hasattr(config_manager, "load_user_config"):
+        user_config = config_manager.load_user_config() or {}
+        broker_mcp_servers = (
+            user_config.get("mcp_servers") or user_config.get("broker_mcp_servers") or {}
+        )
 
     # CLI arguments override config values
     # Get OpenAI API key: CLI param > config > environment
@@ -703,9 +768,19 @@ def run(
 
     # Build sandbox config from merged config and CLI flag
     sandbox_config_dict = merged_config.get("sandbox", {})
-    if sandbox is not None:
+    if sandbox and no_sandbox:
+        console.print("[red]Error:[/red] --sandbox and --no-sandbox cannot be used together.")
+        raise typer.Exit(1)
+
+    sandbox_flag: Optional[bool] = None
+    if sandbox:
+        sandbox_flag = True
+    elif no_sandbox:
+        sandbox_flag = False
+
+    if sandbox_flag is not None:
         # CLI flag overrides config
-        sandbox_config_dict["enabled"] = sandbox
+        sandbox_config_dict["enabled"] = sandbox_flag
     else:
         # CLI default: require sandbox unless explicitly disabled
         if sandbox_config_dict.get("enabled") is None:
@@ -900,7 +975,11 @@ def run(
                 os.environ["OPENAI_API_KEY"] = api_key
 
             # Execute in Docker sandbox
-            runner = ContainerRunner(sandbox_config)
+            runner = ContainerRunner(
+                sandbox_config,
+                broker_mcp_servers=broker_mcp_servers,
+                mcp_servers=mcp_servers,
+            )
             sandbox_result = asyncio.run(
                 runner.run(
                     source=source_content,
@@ -1337,8 +1416,10 @@ def train(
     registry_dir: Optional[str] = typer.Option(
         None, help="Registry directory (default: ~/.tactus/models)"
     ),
-    no_register: bool = typer.Option(False, help="Skip registering trained artifact"),
-    no_eval: bool = typer.Option(False, help="Skip evaluation on test split"),
+    no_register: bool = typer.Option(
+        False, "--no-register", help="Skip registering trained artifact"
+    ),
+    no_eval: bool = typer.Option(False, "--no-eval", help="Skip evaluation on test split"),
 ):
     """
     Train models from a .tac training configuration.
@@ -1589,9 +1670,10 @@ def test(
     procedure_file: Path = typer.Argument(..., help="Path to procedure file (.tac or .lua)"),
     runs: int = typer.Option(1, help="Number of runs per scenario (for consistency check)"),
     scenario: Optional[str] = typer.Option(None, help="Run specific scenario"),
-    parallel: bool = typer.Option(True, help="Run scenarios in parallel"),
+    parallel: bool = typer.Option(True, "--parallel", help="Run scenarios in parallel"),
+    no_parallel: bool = typer.Option(False, "--no-parallel", help="Run scenarios serially"),
     workers: Optional[int] = typer.Option(None, help="Number of parallel workers"),
-    mock: bool = typer.Option(False, help="Use mocked tools (fast, deterministic)"),
+    mock: bool = typer.Option(False, "--mock", help="Use mocked tools (fast, deterministic)"),
     mock_config: Optional[Path] = typer.Option(None, help="Path to mock config JSON"),
     param: Optional[list[str]] = typer.Option(None, help="Parameters in format key=value"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose logging"),
@@ -1616,6 +1698,18 @@ def test(
         # Run specific scenario
         tactus test procedure.tac --scenario "Agent completes research"
     """
+    if parallel and no_parallel:
+        console.print("[red]Error:[/red] --parallel and --no-parallel cannot be used together.")
+        raise typer.Exit(1)
+    if no_parallel:
+        parallel = False
+
+    parallel = _coerce_bool(parallel)
+    no_parallel = _coerce_bool(no_parallel)
+    mock = _coerce_bool(mock)
+    verbose = _coerce_bool(verbose)
+    debug = _coerce_bool(debug)
+
     setup_logging(verbose=verbose, debug=debug)
     if debug:
         # Make Python tracebacks available in CLI errors for cross-language failures.
@@ -1948,7 +2042,8 @@ def _display_eval_results(report, runs: int, console):
 def eval(
     procedure_file: Path = typer.Argument(..., help="Path to procedure file (.tac)"),
     runs: int = typer.Option(1, help="Number of runs per case"),
-    parallel: bool = typer.Option(True, help="Run cases in parallel"),
+    parallel: bool = typer.Option(True, "--parallel", help="Run cases in parallel"),
+    no_parallel: bool = typer.Option(False, "--no-parallel", help="Run cases serially"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose logging"),
     debug: bool = typer.Option(False, "--debug", help="Enable debug logging + context tracing"),
 ):
@@ -1970,6 +2065,17 @@ def eval(
         # Run sequentially (for debugging)
         tactus eval procedure.tac --no-parallel
     """
+    if parallel and no_parallel:
+        console.print("[red]Error:[/red] --parallel and --no-parallel cannot be used together.")
+        raise typer.Exit(1)
+    if no_parallel:
+        parallel = False
+
+    parallel = _coerce_bool(parallel)
+    no_parallel = _coerce_bool(no_parallel)
+    verbose = _coerce_bool(verbose)
+    debug = _coerce_bool(debug)
+
     setup_logging(verbose=verbose, debug=debug)
     load_tactus_config()
 
@@ -2528,7 +2634,8 @@ def stdlib_test(
         None, help="Specific module to test (e.g., 'classify', 'extract')"
     ),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
-    parallel: bool = typer.Option(True, "--parallel/--no-parallel", help="Run in parallel"),
+    parallel: bool = typer.Option(True, "--parallel", help="Run in parallel"),
+    no_parallel: bool = typer.Option(False, "--no-parallel", help="Run serially"),
 ):
     """
     Run BDD tests for standard library modules.
@@ -2538,10 +2645,22 @@ def stdlib_test(
         tactus stdlib test classify     # Run only classify tests
         tactus stdlib test extract      # Run only extract tests
     """
+    verbose = _coerce_bool(verbose)
+    parallel = _coerce_bool(parallel)
+    no_parallel = _coerce_bool(no_parallel)
+    if not isinstance(module, str):
+        module = None
+
     import os
     import tactus
     from tactus.validation import TactusValidator
     from tactus.testing.test_runner import TactusTestRunner
+
+    if parallel and no_parallel:
+        console.print("[red]Error:[/red] --parallel and --no-parallel cannot be used together.")
+        raise typer.Exit(1)
+    if no_parallel:
+        parallel = False
 
     # Force deterministic mocks for stdlib tests (CI-safe, offline).
     os.environ["TACTUS_MOCK_MODE"] = "1"

@@ -269,6 +269,45 @@ class BrokerClient:
 
         raise RuntimeError("Broker tool call ended without a response")
 
+    async def list_mcp_tools(self, *, server: str) -> list[dict[str, Any]]:
+        if not isinstance(server, str) or not server:
+            raise ValueError("server must be a non-empty string")
+
+        async for event_payload in self._request("mcp.list_tools", {"server": server}):
+            event_type = event_payload.get("event")
+            if event_type == "done":
+                data = event_payload.get("data") or {}
+                tools = data.get("tools") or []
+                if isinstance(tools, list):
+                    return tools
+                return []
+            if event_type == "error":
+                error_payload = event_payload.get("error") or {}
+                raise RuntimeError(error_payload.get("message") or "Broker MCP list_tools error")
+
+        raise RuntimeError("Broker MCP list_tools call ended without a response")
+
+    async def call_mcp_tool(self, *, server: str, name: str, args: dict[str, Any]) -> Any:
+        if not isinstance(server, str) or not server:
+            raise ValueError("server must be a non-empty string")
+        if not isinstance(name, str) or not name:
+            raise ValueError("tool name must be a non-empty string")
+        if not isinstance(args, dict):
+            raise ValueError("tool args must be an object")
+
+        async for event_payload in self._request(
+            "mcp.call_tool", {"server": server, "name": name, "args": args}
+        ):
+            event_type = event_payload.get("event")
+            if event_type == "done":
+                data = event_payload.get("data") or {}
+                return data.get("result")
+            if event_type == "error":
+                error_payload = event_payload.get("error") or {}
+                raise RuntimeError(error_payload.get("message") or "Broker MCP tool error")
+
+        raise RuntimeError("Broker MCP tool call ended without a response")
+
     async def emit_event(self, event: dict[str, Any]) -> None:
         async for _ in self._request("events.emit", {"event": event}):
             pass

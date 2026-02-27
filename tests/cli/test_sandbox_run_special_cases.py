@@ -42,7 +42,7 @@ def test_cli_run_sandbox_task_selection_required(monkeypatch, tmp_path) -> None:
         exit_code=2,
     )
     monkeypatch.setattr(
-        tactus.sandbox, "ContainerRunner", lambda cfg: _FakeRunner(cfg, result=result)
+        tactus.sandbox, "ContainerRunner", lambda cfg, **_kwargs: _FakeRunner(cfg, result=result)
     )
 
     cli_app.run(
@@ -88,7 +88,7 @@ def test_cli_run_sandbox_task_selection_required_empty_task_list(monkeypatch, tm
         exit_code=2,
     )
     monkeypatch.setattr(
-        tactus.sandbox, "ContainerRunner", lambda cfg: _FakeRunner(cfg, result=result)
+        tactus.sandbox, "ContainerRunner", lambda cfg, **_kwargs: _FakeRunner(cfg, result=result)
     )
 
     cli_app.run(
@@ -134,7 +134,7 @@ def test_cli_run_sandbox_waiting_for_human(monkeypatch, tmp_path) -> None:
         exit_code=0,
     )
     monkeypatch.setattr(
-        tactus.sandbox, "ContainerRunner", lambda cfg: _FakeRunner(cfg, result=result)
+        tactus.sandbox, "ContainerRunner", lambda cfg, **_kwargs: _FakeRunner(cfg, result=result)
     )
 
     cli_app.run(
@@ -180,7 +180,7 @@ def test_cli_run_sandbox_waiting_for_human_without_message_id(monkeypatch, tmp_p
         exit_code=0,
     )
     monkeypatch.setattr(
-        tactus.sandbox, "ContainerRunner", lambda cfg: _FakeRunner(cfg, result=result)
+        tactus.sandbox, "ContainerRunner", lambda cfg, **_kwargs: _FakeRunner(cfg, result=result)
     )
 
     cli_app.run(

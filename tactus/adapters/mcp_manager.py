@@ -12,7 +12,7 @@ import os
 import re
 import asyncio
 from contextlib import AsyncExitStack
-from typing import Any, Optional
+from typing import Any, Optional, Iterable
 
 logger = logging.getLogger(__name__)
 
@@ -99,6 +99,9 @@ class MCPServerManager:
                         args=resolved_config.get("args", []),
                         env=resolved_config.get("env"),
                         cwd=resolved_config.get("cwd"),
+                        timeout=resolved_config.get("timeout", 5),
+                        read_timeout=resolved_config.get("read_timeout", 300),
+                        max_retries=resolved_config.get("max_retries", 1),
                         process_tool_call=self._create_trace_callback(name),  # Tracking hook
                     )
 
@@ -226,4 +229,107 @@ class MCPServerManager:
         Returns:
             MCPServerStdio instance for the named server, or None if not found
         """
+        return self.server_toolsets.get(server_name)
+
+
+class BrokerMCPToolset:
+    """
+    Broker-backed MCP toolset that proxies list/call through BrokerClient.
+    """
+
+    def __init__(self, server_name: str, client, tool_primitive=None):
+        self.server_name = server_name
+        self._client = client
+        self._tool_primitive = tool_primitive
+        self._tools_cache: Optional[dict[str, Any]] = None
+
+    @property
+    def id(self) -> str | None:
+        return f"broker-mcp:{self.server_name}"
+
+    async def get_tools(self, ctx):
+        if self._tools_cache is not None:
+            return self._tools_cache
+
+        from pydantic_ai.toolsets import ToolsetTool
+        from pydantic_ai.tools import ToolDefinition
+        from pydantic_ai.mcp import TOOL_SCHEMA_VALIDATOR
+
+        tools = await self._client.list_mcp_tools(server=self.server_name)
+        tool_map: dict[str, ToolsetTool] = {}
+
+        for tool in tools:
+            if not isinstance(tool, dict) or "name" not in tool:
+                continue
+            tool_name = f"{self.server_name}_{tool['name']}"
+            params_schema = tool.get("inputSchema") or {"type": "object", "properties": {}}
+            tool_def = ToolDefinition(
+                name=tool_name,
+                description=tool.get("description"),
+                parameters_json_schema=params_schema,
+            )
+            tool_map[tool_name] = ToolsetTool(
+                toolset=self,
+                tool_def=tool_def,
+                max_retries=1,
+                args_validator=TOOL_SCHEMA_VALIDATOR,
+            )
+
+        self._tools_cache = tool_map
+        return tool_map
+
+    async def call_tool(self, name: str, tool_args: dict[str, Any], ctx=None, tool=None):
+        prefix = f"{self.server_name}_"
+        tool_name = name[len(prefix) :] if name.startswith(prefix) else name
+        result = await self._client.call_mcp_tool(
+            server=self.server_name,
+            name=tool_name,
+            args=tool_args or {},
+        )
+
+        if self._tool_primitive is not None:
+            result_str = str(result) if not isinstance(result, str) else result
+            self._tool_primitive.record_call(name, tool_args or {}, result_str)
+
+        return result
+
+
+class BrokerMCPServerManager:
+    """
+    Manages broker-proxied MCP toolsets inside the runtime container.
+    """
+
+    def __init__(
+        self,
+        server_configs: dict[str, dict[str, Any]] | Iterable[str],
+        *,
+        tool_primitive=None,
+        client=None,
+    ):
+        from tactus.broker.client import BrokerClient
+
+        if isinstance(server_configs, dict):
+            server_names = list(server_configs.keys())
+        else:
+            server_names = list(server_configs)
+
+        self._client = client or BrokerClient.from_environment()
+        if self._client is None:
+            raise RuntimeError("Broker MCP toolset requires TACTUS_BROKER_SOCKET to be set")
+        self.tool_primitive = tool_primitive
+        self.server_toolsets = {
+            name: BrokerMCPToolset(name, self._client, tool_primitive=tool_primitive)
+            for name in server_names
+        }
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        return None
+
+    def get_toolsets(self) -> list[Any]:
+        return list(self.server_toolsets.values())
+
+    def get_toolset_by_name(self, server_name: str):
         return self.server_toolsets.get(server_name)

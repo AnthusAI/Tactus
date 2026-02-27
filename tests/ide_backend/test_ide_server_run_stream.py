@@ -396,7 +396,7 @@ def test_run_stream_sandbox_success(monkeypatch, tmp_path):
             self.error = None
 
     class FakeRunner:
-        def __init__(self, _config):
+        def __init__(self, _config, **_kwargs):
             pass
 
         async def run(self, **_kwargs):
@@ -456,7 +456,7 @@ def test_run_stream_sandbox_execution(monkeypatch, tmp_path, docker_available):
         error = None
 
     class FakeRunner:
-        def __init__(self, _config):
+        def __init__(self, _config, **_kwargs):
             self.config = _config
 
         async def run(self, **kwargs):
@@ -536,7 +536,7 @@ def test_run_stream_sandbox_event_queue_drain(monkeypatch, tmp_path):
     captured = {}
 
     class FakeRunner:
-        def __init__(self, _config):
+        def __init__(self, _config, **_kwargs):
             self.config = _config
 
         async def run(self, **kwargs):
@@ -584,7 +584,7 @@ def test_run_stream_sandbox_no_openai_key(monkeypatch, tmp_path):
     captured = {}
 
     class FakeRunner:
-        def __init__(self, _config):
+        def __init__(self, _config, **_kwargs):
             self.config = _config
 
         async def run(self, **kwargs):
@@ -627,7 +627,7 @@ def test_run_stream_container_hitl_success(monkeypatch, tmp_path):
         error = None
 
     class FakeRunner:
-        def __init__(self, _config):
+        def __init__(self, _config, **_kwargs):
             self.config = _config
 
         async def run(self, **kwargs):
@@ -686,7 +686,7 @@ def test_run_stream_sandbox_openai_key(monkeypatch, tmp_path):
         error = None
 
     class FakeRunner:
-        def __init__(self, _config):
+        def __init__(self, _config, **_kwargs):
             self.config = _config
 
         async def run(self, **kwargs):
@@ -814,7 +814,7 @@ def test_run_stream_container_hitl_delivery_failure(monkeypatch, tmp_path):
         error = None
 
     class FakeRunner:
-        def __init__(self, _config):
+        def __init__(self, _config, **_kwargs):
             self.config = _config
 
         async def run(self, **kwargs):
@@ -867,7 +867,7 @@ def test_run_stream_sandbox_failure(monkeypatch, tmp_path):
         error = "boom"
 
     class FakeRunner:
-        def __init__(self, _config):
+        def __init__(self, _config, **_kwargs):
             self.config = _config
 
         async def run(self, **_kwargs):
