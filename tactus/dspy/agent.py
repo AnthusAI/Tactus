@@ -618,7 +618,6 @@ class DSPyAgentHandle:
             elif hasattr(toolset, "call_tool"):
                 logger.info(f"[TOOL_EXEC] Attempting MCP tool '{tool_name}' via toolset")
                 try:
-                    import asyncio
                     import inspect
                     from pydantic_ai import RunContext
                     from pydantic_ai.models.test import TestModel
