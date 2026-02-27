@@ -524,7 +524,7 @@ def test_run_sandbox_sets_openai_key(tmp_path, monkeypatch):
             self.kwargs = kwargs
 
     class DummyRunner:
-        def __init__(self, _config):
+        def __init__(self, _config, **_kwargs):
             pass
 
         async def run(self, **_kwargs):
@@ -952,7 +952,7 @@ def test_run_sandbox_skips_api_key_when_unset(tmp_path, monkeypatch):
             super().__init__(should_use=True, explicit_disabled=False, error_if_unavailable=False)
 
     class DummyRunner:
-        def __init__(self, _config):
+        def __init__(self, _config, **_kwargs):
             pass
 
         async def run(self, **_kwargs):
@@ -1685,7 +1685,7 @@ def test_run_sandbox_success(tmp_path, monkeypatch):
     workflow.write_text("print('hi')")
 
     class DummyRunner:
-        def __init__(self, _config):
+        def __init__(self, _config, **_kwargs):
             pass
 
         async def run(self, **_kwargs):
@@ -1726,7 +1726,7 @@ def test_run_sandbox_failure_verbose(tmp_path, monkeypatch):
     workflow.write_text("print('hi')")
 
     class DummyRunner:
-        def __init__(self, _config):
+        def __init__(self, _config, **_kwargs):
             pass
 
         async def run(self, **_kwargs):
@@ -1769,7 +1769,7 @@ def test_run_sandbox_failure_not_verbose(tmp_path, monkeypatch):
     workflow.write_text("print('hi')")
 
     class DummyRunner:
-        def __init__(self, _config):
+        def __init__(self, _config, **_kwargs):
             pass
 
         async def run(self, **_kwargs):
@@ -1812,7 +1812,7 @@ def test_run_sets_api_key_for_sandbox(tmp_path, monkeypatch):
     workflow.write_text("print('hi')")
 
     class DummyRunner:
-        def __init__(self, _config):
+        def __init__(self, _config, **_kwargs):
             pass
 
         async def run(self, **_kwargs):

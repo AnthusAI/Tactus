@@ -515,6 +515,17 @@ class DSPyAgentHandle:
                         logger.info(
                             f"Converted MCP tool '{tool_name}' to DSPy Tool with args={tool_args}"
                         )
+                    elif hasattr(pydantic_tool, "name") and hasattr(pydantic_tool, "function"):
+                        tool_name = pydantic_tool.name
+                        tool_desc = getattr(pydantic_tool, "description", None)
+                        dspy_tool = DSPyTool(
+                            func=pydantic_tool.function,
+                            name=tool_name,
+                            desc=tool_desc,
+                            args=None,
+                        )
+                        dspy_tools.append(dspy_tool)
+                        logger.info(f"Converted tool '{tool_name}' to DSPy Tool with args=None")
                     else:
                         logger.warning(
                             f"Skipping tool with unsupported type: {type(pydantic_tool)}"

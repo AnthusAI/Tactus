@@ -46,10 +46,17 @@ app = typer.Typer(
 
 
 def _coerce_bool(value: Any) -> bool:
+    try:
+        from typer.models import ArgumentInfo, OptionInfo
+
+        if isinstance(value, (OptionInfo, ArgumentInfo)):
+            return False
+    except Exception:
+        pass
     if isinstance(value, bool):
         return value
     if value is None:
-        return True
+        return False
     if isinstance(value, str):
         return value.strip().lower() in {"1", "true", "yes", "y", "on"}
     return bool(value)
@@ -645,6 +652,10 @@ def run(
 
     # Parse parameters from CLI with type information from schema
     context = {}
+    if not isinstance(param, list):
+        param = None
+    if not isinstance(task, str):
+        task = None
     param = [p for p in (param or []) if p]
     if task and "=" in task and not param:
         # Treat accidental task=value as a param if no explicit params were parsed
@@ -727,7 +738,14 @@ def run(
 
     config_manager = ConfigManager()
     merged_config = config_manager.load_cascade(workflow_file)
-    broker_mcp_servers = config_manager.load_host_mcp_servers()
+    broker_mcp_servers = {}
+    if hasattr(config_manager, "load_host_mcp_servers"):
+        broker_mcp_servers = config_manager.load_host_mcp_servers()
+    elif hasattr(config_manager, "load_user_config"):
+        user_config = config_manager.load_user_config() or {}
+        broker_mcp_servers = (
+            user_config.get("mcp_servers") or user_config.get("broker_mcp_servers") or {}
+        )
 
     # CLI arguments override config values
     # Get OpenAI API key: CLI param > config > environment
@@ -2627,6 +2645,12 @@ def stdlib_test(
         tactus stdlib test classify     # Run only classify tests
         tactus stdlib test extract      # Run only extract tests
     """
+    verbose = _coerce_bool(verbose)
+    parallel = _coerce_bool(parallel)
+    no_parallel = _coerce_bool(no_parallel)
+    if not isinstance(module, str):
+        module = None
+
     import os
     import tactus
     from tactus.validation import TactusValidator
