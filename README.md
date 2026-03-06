@@ -2,6 +2,10 @@
 
 ![Continuous integration][continuous-integration-badge]
 ![Coverage][coverage-badge]
+[![PyPI release][pypi-badge]][pypi-link]
+[![License][license-badge]][license-link]
+![Black][black-badge]
+![Ruff][ruff-badge]
 [![Documentation][documentation-badge]][documentation-link]
 
 **A programming language for reliable, tool-using AI agents.**
@@ -1769,5 +1773,11 @@ MIT License - see LICENSE file for details.
 
 [continuous-integration-badge]: https://github.com/AnthusAI/Tactus/actions/workflows/release.yml/badge.svg?branch=main
 [coverage-badge]: https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FAnthusAI%2FTactus%2Fmain%2Fcoverage_badge.json
+[pypi-badge]: https://img.shields.io/pypi/v/tactus
+[pypi-link]: https://pypi.org/project/tactus/
+[license-badge]: https://img.shields.io/github/license/AnthusAI/Tactus
+[license-link]: https://github.com/AnthusAI/Tactus/blob/main/LICENSE
+[black-badge]: https://img.shields.io/badge/formatting-Black-000000?logo=black
+[ruff-badge]: https://img.shields.io/badge/lint-Ruff-46a9e0?logo=ruff
 [documentation-badge]: https://img.shields.io/badge/docs-GitHub%20Pages-blue
 [documentation-link]: https://anthusai.github.io/Tactus/
