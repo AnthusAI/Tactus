@@ -30,7 +30,7 @@ normalize_desired() {
       name,
       target,
       enforcement,
-      bypass_actors,
+      bypass_actors: (.bypass_actors // []),
       conditions,
       rules: (
         .rules
@@ -60,7 +60,7 @@ normalize_live() {
       name,
       target,
       enforcement,
-      bypass_actors,
+      bypass_actors: (.bypass_actors // []),
       conditions,
       rules: (
         .rules
