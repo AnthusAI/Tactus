@@ -26,6 +26,7 @@ from tactus.protocols.cost import CostStats, UsageStats
 from tactus.protocols.result import TactusResult
 from tactus.core.template_resolver import TemplateResolver
 from tactus.core.message_history_manager import MessageHistoryManager
+from tactus.utils.asyncio_helpers import clear_closed_event_loop
 
 logger = logging.getLogger(__name__)
 
@@ -392,6 +393,43 @@ class DSPyAgentHandle:
         for idx, toolset in enumerate(self.toolsets):
             logger.info(f"Agent '{self.name}' processing toolset {idx}: {type(toolset).__name__}")
             try:
+
+                def _run_async(coro):
+                    import threading
+
+                    try:
+                        loop = asyncio.get_running_loop()
+                        try:
+                            import nest_asyncio
+
+                            nest_asyncio.apply(loop)
+                            return asyncio.run(coro)
+                        except ImportError:
+                            thread_result = {"value": None, "exception": None}
+
+                            def run_in_thread():
+                                try:
+                                    thread_loop = asyncio.new_event_loop()
+                                    asyncio.set_event_loop(thread_loop)
+                                    try:
+                                        thread_result["value"] = thread_loop.run_until_complete(
+                                            coro
+                                        )
+                                    finally:
+                                        thread_loop.close()
+                                except Exception as error:
+                                    thread_result["exception"] = error
+
+                            worker = threading.Thread(target=run_in_thread)
+                            worker.start()
+                            worker.join()
+                            if thread_result["exception"]:
+                                raise thread_result["exception"]
+                            return thread_result["value"]
+                    except RuntimeError:
+                        clear_closed_event_loop()
+                        return asyncio.run(coro)
+
                 # Pydantic AI FunctionToolset has a .tools dict attribute that's directly accessible
                 # This avoids the need for async get_tools() call and RunContext
                 if hasattr(toolset, "tools") and isinstance(toolset.tools, dict):
@@ -399,6 +437,21 @@ class DSPyAgentHandle:
                     logger.info(
                         f"Agent '{self.name}' toolset {idx} has {len(pydantic_tools)} tools (from .tools attribute)"
                     )
+                elif hasattr(toolset, "get_tools"):
+                    try:
+                        from pydantic_ai import RunContext
+                        from pydantic_ai.models.test import TestModel
+                        from pydantic_ai.usage import RunUsage
+
+                        ctx = RunContext(deps=None, model=TestModel(), usage=RunUsage())
+                        tools_dict = _run_async(toolset.get_tools(ctx))
+                        pydantic_tools = list(tools_dict.values())
+                        logger.info(
+                            f"Agent '{self.name}' toolset {idx} has {len(pydantic_tools)} tools (from get_tools)"
+                        )
+                    except Exception as e:
+                        logger.warning(f"Toolset {toolset} get_tools() failed: {e}")
+                        continue
                 else:
                     logger.warning(
                         f"Toolset {toolset} doesn't have accessible .tools dict, skipping"
@@ -406,16 +459,16 @@ class DSPyAgentHandle:
                     continue
 
                 for pydantic_tool in pydantic_tools:
-                    # Pydantic AI Tool has: name, description, function_schema.json_schema, function
-                    logger.info(
-                        f"Agent '{self.name}' converting tool: name={pydantic_tool.name}, desc={pydantic_tool.description[:50] if pydantic_tool.description else 'N/A'}..."
-                    )
-
-                    # Extract parameter schema from Pydantic AI tool
-                    tool_args = None
                     if hasattr(pydantic_tool, "function_schema") and hasattr(
                         pydantic_tool.function_schema, "json_schema"
                     ):
+                        # Pydantic AI Tool has: name, description, function_schema.json_schema, function
+                        logger.info(
+                            f"Agent '{self.name}' converting tool: name={pydantic_tool.name}, desc={pydantic_tool.description[:50] if pydantic_tool.description else 'N/A'}..."
+                        )
+
+                        # Extract parameter schema from Pydantic AI tool
+                        tool_args = None
                         json_schema = pydantic_tool.function_schema.json_schema
                         if "properties" in json_schema:
                             # Convert JSON schema properties to DSPy's expected format
@@ -424,16 +477,58 @@ class DSPyAgentHandle:
                                 f"Extracted parameter schema for '{pydantic_tool.name}': {tool_args}"
                             )
 
-                    dspy_tool = DSPyTool(
-                        func=pydantic_tool.function,
-                        name=pydantic_tool.name,
-                        desc=pydantic_tool.description,
-                        args=tool_args,  # Pass the parameter schema
-                    )
-                    dspy_tools.append(dspy_tool)
-                    logger.info(
-                        f"Converted tool '{pydantic_tool.name}' to DSPy Tool with args={tool_args}"
-                    )
+                        dspy_tool = DSPyTool(
+                            func=pydantic_tool.function,
+                            name=pydantic_tool.name,
+                            desc=pydantic_tool.description,
+                            args=tool_args,  # Pass the parameter schema
+                        )
+                        dspy_tools.append(dspy_tool)
+                        logger.info(
+                            f"Converted tool '{pydantic_tool.name}' to DSPy Tool with args={tool_args}"
+                        )
+                    elif hasattr(pydantic_tool, "tool_def"):
+                        tool_def = pydantic_tool.tool_def
+                        tool_name = tool_def.name
+                        tool_desc = tool_def.description or ""
+                        tool_args = None
+                        if isinstance(tool_def.parameters_json_schema, dict):
+                            tool_args = tool_def.parameters_json_schema.get("properties")
+
+                        def _make_mcp_wrapper(ts, name):
+                            async def _call(**kwargs):
+                                return await ts.call_tool(name, kwargs)
+
+                            return _call
+
+                        logger.info(
+                            f"Agent '{self.name}' converting MCP tool: name={tool_name}, desc={tool_desc[:50] if tool_desc else 'N/A'}..."
+                        )
+                        dspy_tool = DSPyTool(
+                            func=_make_mcp_wrapper(pydantic_tool.toolset, tool_name),
+                            name=tool_name,
+                            desc=tool_desc,
+                            args=tool_args,
+                        )
+                        dspy_tools.append(dspy_tool)
+                        logger.info(
+                            f"Converted MCP tool '{tool_name}' to DSPy Tool with args={tool_args}"
+                        )
+                    elif hasattr(pydantic_tool, "name") and hasattr(pydantic_tool, "function"):
+                        tool_name = pydantic_tool.name
+                        tool_desc = getattr(pydantic_tool, "description", None)
+                        dspy_tool = DSPyTool(
+                            func=pydantic_tool.function,
+                            name=tool_name,
+                            desc=tool_desc,
+                            args=None,
+                        )
+                        dspy_tools.append(dspy_tool)
+                        logger.info(f"Converted tool '{tool_name}' to DSPy Tool with args=None")
+                    else:
+                        logger.warning(
+                            f"Skipping tool with unsupported type: {type(pydantic_tool)}"
+                        )
 
             except Exception as e:
                 import traceback
@@ -520,6 +615,80 @@ class DSPyAgentHandle:
                                 exc_info=True,
                             )
                             return {"error": str(e)}
+            elif hasattr(toolset, "call_tool"):
+                logger.info(f"[TOOL_EXEC] Attempting MCP tool '{tool_name}' via toolset")
+                try:
+                    import inspect
+                    from pydantic_ai import RunContext
+                    from pydantic_ai.models.test import TestModel
+                    from pydantic_ai.usage import RunUsage
+
+                    def _run_async(coro):
+                        import threading
+
+                        try:
+                            asyncio.get_running_loop()
+                            try:
+                                import nest_asyncio
+
+                                nest_asyncio.apply()
+                                return asyncio.run(coro)
+                            except ImportError:
+                                thread_result = {"value": None, "exception": None}
+
+                                def run_in_thread():
+                                    try:
+                                        thread_loop = asyncio.new_event_loop()
+                                        asyncio.set_event_loop(thread_loop)
+                                        try:
+                                            thread_result["value"] = thread_loop.run_until_complete(
+                                                coro
+                                            )
+                                        finally:
+                                            thread_loop.close()
+                                    except Exception as error:
+                                        thread_result["exception"] = error
+
+                                worker = threading.Thread(target=run_in_thread)
+                                worker.start()
+                                worker.join()
+                                if thread_result["exception"]:
+                                    raise thread_result["exception"]
+                                return thread_result["value"]
+                        except RuntimeError:
+                            clear_closed_event_loop()
+                            return asyncio.run(coro)
+
+                    if inspect.iscoroutinefunction(toolset.call_tool):
+                        ctx = RunContext(deps=None, model=TestModel(), usage=RunUsage())
+
+                        async def _call():
+                            tools = await toolset.get_tools(ctx)
+                            tool = tools.get(tool_name)
+                            if tool is None:
+                                return None
+                            return await toolset.call_tool(tool_name, tool_args, ctx, tool)
+
+                        result = _run_async(_call())
+                        if result is None:
+                            continue
+                    else:
+                        ctx = RunContext(deps=None, model=TestModel(), usage=RunUsage())
+                        tools = _run_async(toolset.get_tools(ctx))
+                        tool = tools.get(tool_name)
+                        if tool is None:
+                            continue
+                        logger.info("[TOOL_EXEC] Toolset call_tool is sync, calling directly")
+                        result = toolset.call_tool(tool_name, tool_args, ctx, tool)
+
+                    logger.info(f"[TOOL_EXEC] MCP tool '{tool_name}' returned: {result}")
+                    return result
+                except Exception as e:
+                    logger.error(
+                        f"[TOOL_EXEC] MCP tool '{tool_name}' execution failed: {e}",
+                        exc_info=True,
+                    )
+                    return {"error": str(e)}
 
         logger.warning(f"[TOOL_EXEC] Tool '{tool_name}' not found in any toolset")
         return {"error": f"Tool '{tool_name}' not found"}
@@ -1459,6 +1628,12 @@ class DSPyAgentHandle:
             return
 
         if not isinstance(result.output, dict):
+            if self.toolsets:
+                logger.warning(
+                    "Agent '%s' produced non-dict output while using toolsets; skipping output validation",
+                    self.name,
+                )
+                return
             raise ValueError("Agent output is not structured as expected")
 
         missing = []

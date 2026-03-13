@@ -296,8 +296,7 @@ class TactusRuntime:
                 self.lua_sandbox.inject_primitive("_state_primitive", placeholder_state)
 
                 # Create State object with special methods and lowercase state proxy with metatable
-                self.lua_sandbox.lua.execute(
-                    """
+                self.lua_sandbox.lua.execute("""
                     State = {
                         increment = function(key, amount)
                             return _state_primitive.increment(key, amount or 1)
@@ -319,8 +318,7 @@ class TactusRuntime:
                             _state_primitive.set(key, value)
                         end
                     })
-                """
-                )
+                """)
                 self.lua_sandbox.inject_primitive("Tool", placeholder_tool_primitive)
                 self.lua_sandbox.inject_primitive("params", placeholder_params)
                 placeholder_system = LuaSystemPrimitive(
@@ -922,11 +920,38 @@ class TactusRuntime:
         # 3. Register MCP toolsets by server name
         if self.mcp_servers:
             try:
-                from tactus.adapters.mcp_manager import MCPServerManager
+                from tactus.broker.client import BrokerClient
+                from tactus.adapters.mcp_manager import MCPServerManager, BrokerMCPServerManager
 
-                self.mcp_manager = MCPServerManager(
-                    self.mcp_servers, tool_primitive=self.tool_primitive
+                broker_client = BrokerClient.from_environment()
+
+                def _should_use_broker(config: Any) -> bool:
+                    if not config:
+                        return True
+                    if isinstance(config, dict):
+                        if config.get("broker") is True:
+                            return True
+                        if config.get("transport") == "broker":
+                            return True
+                        if "command" not in config:
+                            return True
+                    return False
+
+                use_broker = broker_client is not None and all(
+                    _should_use_broker(cfg) for cfg in self.mcp_servers.values()
                 )
+
+                if use_broker:
+                    self.mcp_manager = BrokerMCPServerManager(
+                        self.mcp_servers,
+                        tool_primitive=self.tool_primitive,
+                        client=broker_client,
+                    )
+                else:
+                    self.mcp_manager = MCPServerManager(
+                        self.mcp_servers, tool_primitive=self.tool_primitive
+                    )
+
                 await self.mcp_manager.__aenter__()
 
                 # Register each MCP toolset by server name
@@ -2482,8 +2507,7 @@ class TactusRuntime:
             self.lua_sandbox.inject_primitive("_python_checkpoint", self.step_primitive.checkpoint)
 
             # Create Lua wrapper that captures source location before calling Python
-            self.lua_sandbox.lua.execute(
-                """
+            self.lua_sandbox.lua.execute("""
                 function checkpoint(fn)
                     -- Capture caller's source location (2 levels up: this wrapper -> caller)
                     local info = debug.getinfo(2, 'Sl')
@@ -2499,8 +2523,7 @@ class TactusRuntime:
                         return _python_checkpoint(fn, nil)
                     end
                 end
-            """
-            )
+            """)
             logger.debug("Checkpoint wrapper injected with Lua source location tracking")
 
         if self.checkpoint_primitive:

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "tactus"
-version = "0.43.1"
+version = "0.44.1"
 description = "Tactus: Lua-based DSL for agentic workflows"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -39,6 +39,7 @@ dependencies = [
     "boto3>=1.28.0",
     "rich>=13.9.4",
     "typer>=0.12,<0.13",
+    "click>=8.1,<8.2",
     "dotyaml>=0.1.4",
     "antlr4-python3-runtime==4.13.1",
     "behave>=1.2.6",
@@ -71,7 +72,10 @@ dev = [
     "pytest-xdist>=3.0",
     "behave>=1.2.6",
     "coverage>=7.4",
-    "black==24.10.0",
+    # black 26+ requires Python >=3.10; keep 24.x for 3.9 CI compat.
+    # CI runs `black --check` only on 3.12 to avoid cross-version diffs.
+    "black==26.1.0; python_version >= '3.10'",
+    "black==24.10.0; python_version < '3.10'",
     "ruff",
     "python-semantic-release>=9.0.0",
     # Reduce resolver search by pinning transitive CLI deps
@@ -81,6 +85,8 @@ dev = [
     "moto>=5.0",
     "typer>=0.12",
     "mlflow>=2.16",
+    # kanbus requires Python >=3.11
+    "kanbus>=0.13; python_version >= '3.11'",
 ]
 ml = [
     "scikit-learn>=1.3",

@@ -161,6 +161,50 @@ class ConfigManager:
         logger.debug("Merged configuration from %s source(s)", len(config_sources))
         return merged
 
+    def load_user_config(self) -> dict[str, Any]:
+        """
+        Load and merge user configuration files only.
+
+        This is useful for host-side services (like the broker) that should
+        not depend on project or procedure configs.
+
+        Returns:
+            Merged user configuration dictionary (empty if none found).
+        """
+        config_sources: list[tuple[str, dict[str, Any]]] = []
+
+        for user_path in self._get_user_config_paths():
+            if user_path.exists():
+                user_config = self._load_yaml_file(user_path)
+                if user_config:
+                    config_sources.append((f"user:{user_path}", user_config))
+                    logger.debug("Loaded user config: %s", user_path)
+
+        self.loaded_configs = config_sources
+        merged = self._merge_configs([config for _, config in config_sources])
+        logger.debug("Merged user configuration from %s source(s)", len(config_sources))
+        return merged
+
+    def load_host_mcp_servers(self) -> dict[str, Any]:
+        """
+        Load host-side MCP server definitions from user config.
+
+        Prefers the canonical `mcp_servers` key. Falls back to deprecated
+        `broker_mcp_servers` if `mcp_servers` is not present.
+        """
+        user_config = self.load_user_config()
+        if "mcp_servers" in user_config:
+            mcp_servers = user_config.get("mcp_servers")
+            return mcp_servers or {}
+
+        legacy = user_config.get("broker_mcp_servers")
+        if legacy:
+            logger.warning(
+                "Config key 'broker_mcp_servers' is deprecated; use 'mcp_servers' instead."
+            )
+            return legacy
+        return {}
+
     def _find_sidecar_config(self, tac_path: Path) -> Optional[Path]:
         """
         Find sidecar configuration file for a .tac procedure.

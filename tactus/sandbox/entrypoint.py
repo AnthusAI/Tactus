@@ -18,7 +18,10 @@ import os
 import sys
 import time
 import traceback
+from pathlib import Path
 from typing import Any, Optional
+
+import yaml
 
 from tactus.sandbox.protocol import ExecutionResult
 
@@ -87,6 +90,7 @@ async def execute_procedure(
     format: str = "lua",
     run_id: Optional[str] = None,
     task_name: Optional[str] = None,
+    mcp_servers: Optional[dict[str, Any]] = None,
 ) -> Any:
     """
     Execute a procedure using TactusRuntime.
@@ -94,11 +98,10 @@ async def execute_procedure(
     Args:
         source: Procedure source code
         params: Input parameters
-        config: Runtime configuration
-        mcp_servers: MCP server configurations
         source_file_path: Original source file path
         format: Source format ("lua" or "yaml")
         run_id: Run ID for checkpoint isolation
+        mcp_servers: Optional MCP server name map (broker-backed)
 
     Returns:
         Procedure execution result
@@ -147,11 +150,25 @@ async def execute_procedure(
     else:
         logger.debug("[SANDBOX] No broker control channel available, HITL disabled")
 
+    # Load MCP server names if they weren't passed in the request.
+    if not mcp_servers:
+        local_config_path = Path("/workspace/.tactus/config.yml")
+        if local_config_path.exists():
+            try:
+                local_config = yaml.safe_load(local_config_path.read_text()) or {}
+                mcp_servers = local_config.get("mcp_servers") or {}
+            except Exception:
+                logger.debug(
+                    "[SANDBOX] Failed to load local mcp_servers from %s",
+                    local_config_path,
+                    exc_info=True,
+                )
+
     # Create runtime with log handler for event streaming
     runtime = TactusRuntime(
         procedure_id=procedure_id,
         storage_backend=MemoryStorage(),
-        mcp_servers=None,
+        mcp_servers=mcp_servers or {},
         external_config={},
         source_file_path=source_file_path,
         log_handler=log_handler,  # Enable event streaming to IDE
@@ -212,6 +229,7 @@ async def main_async() -> int:
                 format=request.format,
                 run_id=request.run_id,
                 task_name=request.task_name,
+                mcp_servers=request.mcp_servers,
             )
         except Exception as exc:
             # Provide structured results for common control-flow exceptions.

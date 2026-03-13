@@ -45,6 +45,7 @@ jobs:
         run: ruff check tactus/ tests/ features/steps/
 
       - name: Run black formatting check
+        if: matrix.python-version == '3.12'
         run: black --check tactus/ tests/ features/steps/
 
       - name: Run pytest tests

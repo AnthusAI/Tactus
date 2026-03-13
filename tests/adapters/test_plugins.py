@@ -96,8 +96,7 @@ def test_private_functions_not_loaded(plugin_loader, tmp_path):
     """Test that private functions (starting with _) are not loaded."""
     # Create a test file with public and private functions
     test_file = tmp_path / "test_tools.py"
-    test_file.write_text(
-        """
+    test_file.write_text("""
 def public_tool(x: int) -> int:
     '''A public tool.'''
     return x * 2
@@ -105,8 +104,7 @@ def public_tool(x: int) -> int:
 def _private_tool(x: int) -> int:
     '''A private tool.'''
     return x * 3
-"""
-    )
+""")
 
     tools = plugin_loader.load_from_paths([str(test_file)])
 
@@ -119,13 +117,11 @@ def test_multiple_paths(plugin_loader, example_tools_dir, tmp_path):
     """Test loading tools from multiple paths."""
     # Create an additional test file
     test_file = tmp_path / "extra_tools.py"
-    test_file.write_text(
-        """
+    test_file.write_text("""
 def extra_tool(message: str) -> str:
     '''An extra tool.'''
     return f"Extra: {message}"
-"""
-    )
+""")
 
     tools = plugin_loader.load_from_paths([example_tools_dir, str(test_file)])
 
@@ -165,13 +161,11 @@ def test_create_toolset_empty_returns_no_tools(tmp_path):
 def test_create_toolset_with_functions(tmp_path):
     loader = PluginLoader()
     tool_file = tmp_path / "tools.py"
-    tool_file.write_text(
-        """
+    tool_file.write_text("""
 def greet(name: str) -> str:
     '''Greets by name.'''
     return f"hi {name}"
-"""
-    )
+""")
     toolset = loader.create_toolset([str(tool_file)])
     assert len(toolset.tools) == 1
 
@@ -179,12 +173,10 @@ def greet(name: str) -> str:
 def test_load_all_functions_skips_private_module(tmp_path):
     loader = PluginLoader()
     private_file = tmp_path / "_private.py"
-    private_file.write_text(
-        """
+    private_file.write_text("""
 def public_tool(x: int) -> int:
     return x
-"""
-    )
+""")
 
     functions = loader._load_all_functions([str(tmp_path)])
     assert functions == []
@@ -225,12 +217,10 @@ def test_load_all_functions_skips_non_python_file(tmp_path):
 def test_load_functions_from_directory(tmp_path):
     loader = PluginLoader()
     tool_file = tmp_path / "tools.py"
-    tool_file.write_text(
-        """
+    tool_file.write_text("""
 def greet(name: str) -> str:
     return f"hi {name}"
-"""
-    )
+""")
     functions = loader._load_functions_from_directory(tmp_path)
     assert any(func.__name__ == "greet" for func in functions)
 
@@ -326,12 +316,10 @@ async def test_trace_callback_without_tool_primitive_failure():
 def test_load_tools_from_file_skips_failed_tool_creation(monkeypatch, tmp_path):
     loader = PluginLoader()
     tool_file = tmp_path / "tools.py"
-    tool_file.write_text(
-        """
+    tool_file.write_text("""
 def greet(name: str) -> str:
     return f"hi {name}"
-"""
-    )
+""")
 
     monkeypatch.setattr(loader, "_create_tool_from_function", lambda *_args, **_kwargs: None)
 

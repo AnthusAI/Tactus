@@ -22,7 +22,7 @@ Tactus now has comprehensive durable execution capabilities:
 
 **Test Coverage**: 146/146 pytest + 233/233 behave scenarios passing
 
-See [docs/DURABILITY.md](/Users/ryan.porter/Projects/Tactus/docs/DURABILITY.md) for comprehensive durability design documentation.
+See [DURABILITY.md](DURABILITY.md) for comprehensive durability design documentation.
 
 ---
 
