@@ -23,7 +23,7 @@ help:
 	@echo ""
 	@echo "Requirements:"
 	@echo "  - Docker must be running (for parser generation)"
-	@echo "  - Python 3.11+ with dependencies installed"
+	@echo "  - Python 3.10+ with dependencies installed"
 	@echo "  - Node.js 20+ (for IDE frontend)"
 
 generate-parsers: generate-python-parser generate-typescript-parser
@@ -76,7 +76,7 @@ generate-typescript-parser:
 
 test-parsers:
 	@echo "Running Python parser tests..."
-	pytest tests/validation/test_antlr_parser.py -v
+	python3 -m poetry run pytest tests/validation -v
 	@echo ""
 	@echo "Running TypeScript parser tests..."
 	cd tactus-web && npm test
@@ -100,30 +100,28 @@ dev-ide:
 test-examples:
 	@echo "Testing all example .tac files..."
 	@echo "This will validate and run BDD tests for all examples"
-	pytest tests/testing/test_all_examples.py -v --tb=short
+	python3 -m poetry run pytest tests/testing/test_all_examples.py -v --tb=short
 
 # Fast test mode - skip slow/integration tests
 test-examples-fast:
 	@echo "Testing examples (fast mode - no integration tests)..."
-	pytest tests/testing/test_all_examples.py -v --tb=short -m "not integration and not slow"
+	python3 -m poetry run pytest tests/testing/test_all_examples.py -v --tb=short -m "not integration and not slow"
 
 # Parallel test execution for speed
 test-examples-parallel:
 	@echo "Testing examples in parallel..."
-	pytest tests/testing/test_all_examples.py -n auto -v --tb=short
+	python3 -m poetry run pytest tests/testing/test_all_examples.py -n auto -v --tb=short
 
 # Test only examples with BDD specifications
 test-examples-bdd:
 	@echo "Testing examples with BDD specifications..."
-	pytest tests/testing/test_all_examples.py::TestAllExamples::test_example_bdd_specs -v --tb=short
+	python3 -m poetry run pytest tests/testing/test_all_examples.py::TestAllExamples::test_example_bdd_specs -v --tb=short
 
 # Docker sandbox integration tests (dev-only, opt-in)
 test-docker-sandbox:
 	@echo "Running Docker sandbox integration tests (opt-in)..."
 	@echo "Pre-req: tactus sandbox rebuild --force"
-	TACTUS_RUN_DOCKER_TESTS=1 pytest -m docker -v --tb=short
-
-
+	TACTUS_RUN_DOCKER_TESTS=1 python3 -m poetry run pytest -m docker -v --tb=short
 
 
 

@@ -1,14 +1,14 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["poetry-core>=1.9.0"]
+build-backend = "poetry.core.masonry.api"
 
 [project]
 name = "tactus"
 version = "0.44.1"
 description = "Tactus: Lua-based DSL for agentic workflows"
 readme = "README.md"
-requires-python = ">=3.9"
-license = {text = "MIT"}
+requires-python = ">=3.10,<4.0"
+license = "MIT"
 authors = [
     {name = "Anthus", email = "info@anthus.ai"}
 ]
@@ -16,9 +16,7 @@ keywords = ["ai", "agents", "workflows", "lua", "dsl", "llm"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -30,9 +28,10 @@ dependencies = [
     "lupa>=2.6",
     "pyyaml",
     "pydantic>=2.0",
-    "pydantic-ai",
+    "pydantic-ai==1.46.0",
+    "griffe<2",
     "logfire>=4.20.0",
-    "litellm>=1.81.5",
+    "litellm==1.81.1",
     "opentelemetry-api>=1.39.1",
     "opentelemetry-sdk>=1.39.1",
     # NOTE: We use LiteLLM (via DSPy) for all LLM calls - do not add provider-specific SDKs
@@ -110,7 +109,9 @@ email = [
 ]
 # Install all notification channels
 notifications = [
-    "tactus[slack,discord,email]",
+    "slack-sdk>=3.0",
+    "discord.py>=2.0",
+    "aiosmtplib>=3.0",
 ]
 
 [project.scripts]
@@ -122,11 +123,8 @@ Documentation = "https://github.com/AnthusAI/Tactus/tree/main/docs"
 Repository = "https://github.com/AnthusAI/Tactus"
 Issues = "https://github.com/AnthusAI/Tactus/issues"
 
-[tool.hatch.build.targets.wheel]
-packages = ["tactus"]
-
-[tool.hatch.build.targets.sdist]
-include = ["tactus/**", "pyproject.toml", "README.md", "LICENSE"]
+[tool.poetry]
+packages = [{ include = "tactus" }]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

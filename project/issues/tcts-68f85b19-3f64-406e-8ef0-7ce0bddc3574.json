@@ -1,0 +1,22 @@
+{
+  "id": "tcts-68f85b19-3f64-406e-8ef0-7ce0bddc3574",
+  "title": "Poetry migration for root package",
+  "description": "Migrate root Python packaging to Poetry-compatible metadata and lockfile; update CI/docs and validate.",
+  "type": "epic",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-9d5c7428-739b-468e-b9d4-f2cc7c0110ce",
+  "labels": [
+    "security",
+    "snyk",
+    "python"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-03-13T20:23:10.370368Z",
+  "updated_at": "2026-03-13T20:23:10.370368Z",
+  "closed_at": null,
+  "custom": {}
+}

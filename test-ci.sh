@@ -3,4 +3,4 @@
 # -n0 disables xdist parallelization to avoid test isolation issues
 cd "$(dirname "$0")"
 python scripts/fetch_wikitext2.py
-pytest tests/ -v --tb=short -m "not integration" -n0 "$@"
+python3 -m poetry run pytest tests/ -v --tb=short -m "not integration" -n0 "$@"
