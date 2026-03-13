@@ -25,11 +25,63 @@ if [[ ${#files[@]} -eq 0 ]]; then
 fi
 
 normalize_desired() {
-  jq -S '{name,target,enforcement,bypass_actors,conditions,rules}' "$1"
+  jq -S '
+    {
+      name,
+      target,
+      enforcement,
+      bypass_actors,
+      conditions,
+      rules: (
+        .rules
+        | map(
+            if .type == "required_status_checks" then
+              .parameters.required_status_checks = (
+                .parameters.required_status_checks
+                | map({context})
+                | sort_by(.context)
+              )
+            elif .type == "pull_request" then
+              .parameters.allowed_merge_methods = (
+                (.parameters.allowed_merge_methods // []) | sort
+              )
+            else .
+            end
+          )
+        | sort_by(.type)
+      )
+    }
+  ' "$1"
 }
 
 normalize_live() {
-  jq -S '{name,target,enforcement,bypass_actors,conditions,rules}'
+  jq -S '
+    {
+      name,
+      target,
+      enforcement,
+      bypass_actors,
+      conditions,
+      rules: (
+        .rules
+        | map(
+            if .type == "required_status_checks" then
+              .parameters.required_status_checks = (
+                .parameters.required_status_checks
+                | map({context})
+                | sort_by(.context)
+              )
+            elif .type == "pull_request" then
+              .parameters.allowed_merge_methods = (
+                (.parameters.allowed_merge_methods // []) | sort
+              )
+            else .
+            end
+          )
+        | sort_by(.type)
+      )
+    }
+  '
 }
 
 status=0
@@ -75,6 +127,14 @@ for file in "${files[@]}"; do
   fi
 
   echo "  Drift detected"
+  desired_file="$(mktemp)"
+  live_file="$(mktemp)"
+  printf '%s\n' "$desired_norm" > "$desired_file"
+  printf '%s\n' "$live_norm" > "$live_file"
+  echo "  Desired vs live diff:"
+  diff -u "$desired_file" "$live_file" || true
+  rm -f "$desired_file" "$live_file"
+
   if [[ "$MODE" == "check" ]]; then
     status=1
     continue
