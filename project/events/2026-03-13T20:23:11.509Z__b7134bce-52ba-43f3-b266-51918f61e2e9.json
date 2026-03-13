@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "event_id": "b7134bce-52ba-43f3-b266-51918f61e2e9",
+  "issue_id": "tcts-dd7b52e7-f119-4018-ba87-43a46f543aa3",
+  "event_type": "issue_created",
+  "occurred_at": "2026-03-13T20:23:11.509Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "title": "Implement Poetry migration for Tactus root package",
+    "description": "Replace hatch build backend with poetry-core, generate poetry.lock, update CI/docs install flow, and verify with tests and Snyk.",
+    "issue_type": "task",
+    "status": "open",
+    "priority": 2,
+    "assignee": null,
+    "parent": "tcts-68f85b19-3f64-406e-8ef0-7ce0bddc3574",
+    "labels": [
+      "security",
+      "snyk",
+      "python"
+    ]
+  }
+}

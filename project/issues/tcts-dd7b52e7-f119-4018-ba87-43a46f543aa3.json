@@ -1,0 +1,41 @@
+{
+  "id": "tcts-dd7b52e7-f119-4018-ba87-43a46f543aa3",
+  "title": "Implement Poetry migration for Tactus root package",
+  "description": "Replace hatch build backend with poetry-core, generate poetry.lock, update CI/docs install flow, and verify with tests and Snyk.",
+  "type": "task",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-68f85b19-3f64-406e-8ef0-7ce0bddc3574",
+  "labels": [
+    "security",
+    "snyk",
+    "python"
+  ],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "e19a211f-f75a-4373-883a-266cb47b78bc",
+      "author": "derek.norrbom",
+      "text": "Starting implementation on `feature/poetry-conversion`: migrate root pyproject to poetry-core + lockfile, update CI install flow and docs, then validate with poetry check, quality tests, and Snyk dependency detection.",
+      "created_at": "2026-03-13T20:23:15.165331Z"
+    },
+    {
+      "id": "ca6eada4-6954-4e06-9faa-a0b46ba79c81",
+      "author": "derek.norrbom",
+      "text": "Implementation complete on feature branch: migrated root package build backend to poetry-core, added tool.poetry package config, generated poetry.lock, updated release workflow quality-check job to install and run via Poetry, updated README/AGENTS dev setup commands, and aligned declared Python support to >=3.10 due pydantic-ai constraints. Validation run: poetry check, poetry install --extras \"dev ml\", ruff check, black --check, pytest -m \"not integration\" (4090 passed), behave --tags=-skip (449 scenarios passed), tactus stdlib test (18 passed), python -m build successful. Snyk CLI now detects Python as Package manager: poetry with Target file: pyproject.toml.",
+      "created_at": "2026-03-13T20:46:02.345185Z"
+    },
+    {
+      "id": "b53b798e-daa3-417e-934f-b054aa1765fb",
+      "author": "derek.norrbom",
+      "text": "Follow-up consistency updates applied: root Makefile test targets now execute through Poetry (`python3 -m poetry run pytest ...`), `test-ci.sh` now runs pytest through Poetry, and Makefile help text now reflects Python 3.10+ support. Quick verification: `make -n` shows updated commands and `python3 -m poetry run pytest tests/validation/test_semantic_visitor.py -q` passed.",
+      "created_at": "2026-03-13T20:54:04.421946Z"
+    }
+  ],
+  "created_at": "2026-03-13T20:23:11.509413Z",
+  "updated_at": "2026-03-13T20:54:04.421946Z",
+  "closed_at": null,
+  "custom": {}
+}

@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "event_id": "9e7ec4c9-3d1e-4f78-a274-e6a2475ec048",
+  "issue_id": "tcts-68f85b19-3f64-406e-8ef0-7ce0bddc3574",
+  "event_type": "issue_created",
+  "occurred_at": "2026-03-13T20:23:10.370Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "title": "Poetry migration for root package",
+    "description": "Migrate root Python packaging to Poetry-compatible metadata and lockfile; update CI/docs and validate.",
+    "issue_type": "epic",
+    "status": "open",
+    "priority": 2,
+    "assignee": null,
+    "parent": "tcts-9d5c7428-739b-468e-b9d4-f2cc7c0110ce",
+    "labels": [
+      "security",
+      "snyk",
+      "python"
+    ]
+  }
+}
