@@ -89,7 +89,7 @@ When CI is red: read the failing job logs, reproduce locally, fix, push, re-chec
 
 ### Development setup
 
-Dependencies are installed by the VM update script (`pip install -e ".[dev]"` and `pip install -e tactus-lsp-server/`). The `tactus` CLI is installed into `~/.local/bin`; ensure `PATH` includes it (the update script handles this).
+Dependencies are installed by the VM update script (`python3 -m poetry install --extras "dev"` and `pip install -e tactus-lsp-server/`). The `tactus` CLI is installed into `~/.local/bin`; ensure `PATH` includes it (the update script handles this).
 
 ### Running the CLI
 

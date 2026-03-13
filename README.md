@@ -1731,14 +1731,15 @@ git clone https://github.com/AnthusAI/Tactus.git
 cd Tactus
 
 # Install with dev dependencies
-pip install -e ".[dev]"
+python3 -m pip install --upgrade pip poetry
+python3 -m poetry install --extras "dev"
 
 # Run tests
-behave --summary  # BDD integration tests
-pytest tests/     # Unit tests
+python3 -m poetry run behave --summary  # BDD integration tests
+python3 -m poetry run pytest tests/     # Unit tests
 
 # Run with coverage
-pytest --cov=tactus --cov-report=html
+python3 -m poetry run pytest --cov=tactus --cov-report=html
 
 # See tactus/testing/README.md for detailed testing documentation
 ```
