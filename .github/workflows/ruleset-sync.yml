@@ -1,0 +1,53 @@
+name: Ruleset Sync
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'infra/github-rulesets/**'
+      - 'scripts/sync-rulesets.sh'
+      - '.github/workflows/ruleset-sync.yml'
+  push:
+    branches:
+      - main
+      - 'feature/**'
+    paths:
+      - 'infra/github-rulesets/**'
+      - 'scripts/sync-rulesets.sh'
+      - '.github/workflows/ruleset-sync.yml'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Run mode'
+        required: true
+        default: check
+        type: choice
+        options:
+          - check
+          - apply
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'check') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify ruleset drift
+        env:
+          GH_TOKEN: ${{ secrets.RULESET_ADMIN_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: ./scripts/sync-rulesets.sh check
+
+  apply:
+    if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.mode == 'apply') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply ruleset desired state
+        env:
+          GH_TOKEN: ${{ secrets.RULESET_ADMIN_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: ./scripts/sync-rulesets.sh apply

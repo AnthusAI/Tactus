@@ -1,0 +1,21 @@
+{
+  "id": "tcts-c92d566e-8a94-4d2b-870a-5a0c487cef54",
+  "title": "GitHub ruleset maintenance",
+  "description": "Track repository branch protection/ruleset updates for CI status checks.",
+  "type": "initiative",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [
+    "github",
+    "ci"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-03-13T21:29:11.471256Z",
+  "updated_at": "2026-03-13T21:29:11.471256Z",
+  "closed_at": null,
+  "custom": {}
+}

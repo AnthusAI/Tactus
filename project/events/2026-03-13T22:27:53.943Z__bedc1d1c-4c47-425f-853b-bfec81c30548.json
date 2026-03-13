@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "event_id": "bedc1d1c-4c47-425f-853b-bfec81c30548",
+  "issue_id": "tcts-bbdd5dc2-ef90-41db-98c1-74cde61254e0",
+  "event_type": "issue_created",
+  "occurred_at": "2026-03-13T22:27:53.943Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "title": "Automate GitHub ruleset sync as IaC",
+    "description": "Add ruleset desired-state file and workflow to check drift on PR/feature branches and apply on main or manual dispatch using RULESET_ADMIN_TOKEN.",
+    "issue_type": "task",
+    "status": "open",
+    "priority": 2,
+    "assignee": null,
+    "parent": "tcts-cb2464fa-75fc-4ae2-b2d4-3146898fc2f0",
+    "labels": [
+      "github",
+      "ci"
+    ]
+  }
+}

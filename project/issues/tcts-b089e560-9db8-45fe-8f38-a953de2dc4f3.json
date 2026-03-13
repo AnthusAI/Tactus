@@ -1,0 +1,28 @@
+{
+  "id": "tcts-b089e560-9db8-45fe-8f38-a953de2dc4f3",
+  "title": "Remove obsolete py3.9 required check from ruleset",
+  "description": "Update GitHub ruleset so branch protection no longer requires Python 3.9 quality-check status.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-cb2464fa-75fc-4ae2-b2d4-3146898fc2f0",
+  "labels": [
+    "github",
+    "ci"
+  ],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "4e84e7bf-d674-4087-9f0b-ab3fdb7e6ba2",
+      "author": "derek.norrbom",
+      "text": "Updated GitHub repository ruleset `main-branch-protection` (id: 13256380) to remove obsolete required status check `Quality Checks (Python 3.9)`. Remaining required checks: Python 3.10, 3.11, 3.12 quality checks plus `Test VSCode Extension`. Verified via `gh api repos/AnthusAI/Tactus/rulesets/13256380`.",
+      "created_at": "2026-03-13T21:29:51.094875Z"
+    }
+  ],
+  "created_at": "2026-03-13T21:29:13.560911Z",
+  "updated_at": "2026-03-13T21:30:04.250486Z",
+  "closed_at": "2026-03-13T21:30:04.250486Z",
+  "custom": {}
+}
