@@ -1,0 +1,21 @@
+{
+  "id": "tcts-0vb",
+  "title": "Feature Request: Semantic Assertions (LLM-as-a-judge) in Behavior Specs",
+  "description": "## Summary\nThe Tactus website ([specifications page](https://tactus.anth.us/specifications/)) describes behavior specifications that can verify \"invariants\" rather than just exact string matches (e.g., \"text must be polite\" or \"text must contain the answer\").\n\nWhile Tactus supports LLM-as-a-judge concepts in evaluations (potentially via DSPy integration), we do not yet have direct, first-class support for semantic assertions within the Gherkin-style behavior specifications language itself.\n\n## Proposed Feature\nAdd a \"Semantic Assertion\" step type to the spec language that allows users to define a natural language invariant that is verified by an LLM.\n\nExample syntax concept:\n```gherkin\nThen the output should be polite\nAnd the output should contain the answer to the user's question\n```\n\n## Implementation Notes\n- We should investigate building this on top of **DSPy's assertion/teleprompter capabilities** since it is already a dependency for evaluations.\n- Alternatively, we could implement this using Tactus's own agent primitives (spinning up a ephemeral \"judge agent\" to evaluate the assertion).\n- The goal is to close the gap between the high-level promise of \"verifying intent\" and the current implementation reality of deterministic checks.\n",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-10T06:05:49.055631Z",
+  "updated_at": "2026-02-13T08:52:19.898088Z",
+  "closed_at": "2026-02-13T08:52:19.898088Z",
+  "custom": {
+    "beads_close_reason": "Added semantic assertion step with LLM judge, mock-safe fallback, and tests",
+    "beads_owner": "rap@endymion.com"
+  }
+}

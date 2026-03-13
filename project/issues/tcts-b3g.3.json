@@ -1,0 +1,22 @@
+{
+  "id": "tcts-b3g.3",
+  "title": "Research: Learning-Tactus agent primitive drift inventory",
+  "description": "Search ../Learning-Tactus for Agent primitive coverage. Record drift findings as NOTES (paths + what to change).",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-b3g",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T12:56:35.335325Z",
+  "updated_at": "2026-02-14T12:58:24.066419Z",
+  "closed_at": "2026-02-14T12:58:24.066419Z",
+  "custom": {
+    "beads_close_reason": "Completed inventory; no drift found in current scan.",
+    "beads_notes": "Scan results: Learning-Tactus appears aligned with current Agent primitive canon.\n\n- Agent snippets and code/*.tac files consistently use Agent { ... tools = {...} }.\n- Mock-first workflow is repeatedly taught (tactus test --mock, then real mode + runs).\n- No legacy toolsets key found in this scan.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

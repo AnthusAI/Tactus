@@ -1,0 +1,21 @@
+{
+  "id": "tcts-c99",
+  "title": "Docs: Add agent primitive quick ref + align legacy docs/examples to canonical model call",
+  "description": "Add docs/agent-primitive.md and link from README. Reduce user/LLM confusion by aligning legacy docs and examples away from Lua .predict/:predict calling style toward the canonical callable Model pattern (result.output or result). Update ensemble/ab_test examples to current DSL and add specs. Normalize ABTestBackend output to include cost/meta so ModelPrimitive extracts metadata consistently.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T09:25:40.111916Z",
+  "updated_at": "2026-02-14T09:26:03.213059Z",
+  "closed_at": "2026-02-14T09:26:03.213059Z",
+  "custom": {
+    "beads_close_reason": "Added docs/agent-primitive.md, linked from README, modernized legacy Model docs/examples to canonical callable pattern, and normalized AB test backend output shape",
+    "beads_owner": "rap@endymion.com"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "id": "tcts-d8m",
+  "title": "Runtime: allow implicit Agent provider when model is provider/model",
+  "description": "Even after registry validation changes, the runtime agent setup still throws ValueError if Agent.provider is missing and default_provider is not set. This prevents the preferred DSL style Agent { model = \"openai/gpt-4o-mini\" } from running (including in mock mode), and breaks Tactus-examples.\\n\\nFix: In tactus/core/runtime.py agent setup, infer provider from model string when model is provider/model or provider:model. Avoid constructing malformed provider:model strings when model already includes a provider prefix. Update runtime tests accordingly.",
+  "type": "bug",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T15:16:20.005805Z",
+  "updated_at": "2026-02-14T15:21:38.439396Z",
+  "closed_at": "2026-02-14T15:21:38.439396Z",
+  "custom": {
+    "beads_acceptance_criteria": "- Agent { model=\"openai/gpt-4o-mini\" } runs without provider/default_provider\\n- Agent { model=\"bedrock/us...:0\" } runs without provider/default_provider\\n- Agent with model=\"gpt-4o-mini\" still errors without provider/default_provider\\n- Unit tests updated and passing",
+    "beads_close_reason": "Runtime now infers provider from provider/model or provider:model agent model strings; updated runtime tests to expect provider/model",
+    "beads_owner": "rap@endymion.com"
+  }
+}

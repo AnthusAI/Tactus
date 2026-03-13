@@ -1,0 +1,22 @@
+{
+  "id": "tcts-fft.3",
+  "title": "Docs: Mention MCP toolset placeholder behavior in mock mode",
+  "description": "We now allow Toolset \"name\" { use = \"mcp.<server>\" } to resolve to an empty placeholder toolset when TACTUS_MOCK_MODE=1 (so BDD agent mocks can run in CI without MCP server config).\n\nDocument this behavior so users understand why their mock-mode tests can pass without MCP, and so they know real-mode still requires .tac.yml MCP config.\n\nSuggested files:\n- docs/BDD_TESTING.md (Mocking section)\n- docs/CONFIGURATION.md (MCP servers/toolsets)\n\nAcceptance:\n- Add a short, explicit note: mock mode creates placeholder MCP toolsets; real mode requires MCP server config.\n- Include a minimal example snippet showing Toolset use = \"mcp.filesystem\" + tactus test --mock.\n",
+  "type": "task",
+  "status": "closed",
+  "priority": 3,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-fft",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T10:00:33.527547Z",
+  "updated_at": "2026-02-14T10:04:40.007324Z",
+  "closed_at": "2026-02-14T10:04:40.007324Z",
+  "custom": {
+    "beads_close_reason": "Documented MCP toolset placeholder behavior in mock mode",
+    "beads_notes": "Outline / writing notes:\\n\\n- Add a short note in docs/BDD_TESTING.md under mocking guidance:\\n  - In mock mode (tactus test --mock), Toolset \"x\" { use = \"mcp.<server>\" } resolves to an empty placeholder toolset so agent mocks can initialize without MCP.\\n  - Tool calls in agent mocks are recorded into ToolPrimitive directly, so assertions like 'the <tool> tool should be called' still work.\\n  - Real tool execution still requires MCP server config in .tac.yml.\\n\\n- Add a short note in docs/CONFIGURATION.md near MCP server configuration:\\n  - mock mode does not start MCP servers; it only needs the toolset names to exist.\\n\\n- Include a minimal snippet that references examples/61-mcp-toolset-by-server.tac as a concrete example.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

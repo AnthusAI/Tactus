@@ -1,0 +1,21 @@
+{
+  "id": "tcts-ny0",
+  "title": "Docs: Align SPECIFICATION.md with canonical Model/Agent syntax",
+  "description": "Update SPECIFICATION.md to reflect current canonical syntax: Models are declared as Model \"name\" { ... } with training under Model.training; runtime uses callable Model handles and the pattern out = result.output or result. Remove/soften claims that all primitives are assignment-based. Add a short Model primitive section and links to docs/model-primitive.md and docs/model-training-walkthrough.md.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T09:31:33.533444Z",
+  "updated_at": "2026-02-14T09:34:10.418601Z",
+  "closed_at": "2026-02-14T09:34:10.418601Z",
+  "custom": {
+    "beads_close_reason": "Updated SPECIFICATION.md: clarified mixed declaration styles, added Model primitive section with canonical patterns and links, and corrected script-mode rules + agent tools example",
+    "beads_owner": "rap@endymion.com"
+  }
+}

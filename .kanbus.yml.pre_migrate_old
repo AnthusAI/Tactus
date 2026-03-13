@@ -1,0 +1,78 @@
+project_directory: project
+external_projects: []
+ignore_paths: []
+console_port: 4244
+project_key: tcts
+beads_compatibility: false
+project_management_template: null
+hierarchy:
+- initiative
+- epic
+- task
+- sub-task
+types:
+- bug
+- story
+- chore
+workflows:
+  default:
+    blocked:
+    - in_progress
+    - closed
+    closed:
+    - open
+    deferred:
+    - open
+    - closed
+    in_progress:
+    - open
+    - blocked
+    - closed
+    open:
+    - in_progress
+    - closed
+    - deferred
+  epic:
+    closed:
+    - open
+    in_progress:
+    - open
+    - closed
+    open:
+    - in_progress
+    - closed
+initial_status: open
+priorities:
+  0:
+    name: critical
+    color: red
+  1:
+    name: high
+    color: bright_red
+  2:
+    name: medium
+    color: yellow
+  3:
+    name: low
+    color: blue
+  4:
+    name: trivial
+    color: white
+default_priority: 2
+assignee: null
+time_zone: null
+status_colors:
+  blocked: red
+  closed: green
+  deferred: yellow
+  in_progress: blue
+  open: cyan
+type_colors:
+  bug: red
+  chore: green
+  epic: magenta
+  event: bright_blue
+  initiative: bright_blue
+  story: yellow
+  sub-task: bright_cyan
+  task: cyan

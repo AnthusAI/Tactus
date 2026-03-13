@@ -1,0 +1,21 @@
+{
+  "id": "tcts-561.5",
+  "title": "Add 'tactus models evaluate' CLI command",
+  "description": "tactus models evaluate config.tac. Evaluates all candidates on test set, outputs comparison table with metrics and cost.\n\nAcceptance: CLI evaluates all candidates and shows table.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-561",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T02:21:16.255729Z",
+  "updated_at": "2026-02-13T06:29:29.389059Z",
+  "closed_at": "2026-02-13T06:29:29.389059Z",
+  "custom": {
+    "beads_close_reason": "Completed: tactus models evaluate CLI added",
+    "beads_owner": "rap@endymion.com"
+  }
+}

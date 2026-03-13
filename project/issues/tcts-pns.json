@@ -1,0 +1,21 @@
+{
+  "id": "tcts-pns",
+  "title": "Support HuggingFace AutoModel backend + trainer",
+  "description": "Add hf_transformers backend using AutoTokenizer/AutoModelForSequenceClassification, hf trainer using HuggingFace Trainer, stdlib helper, and tests. Optional extra for transformers/torch.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T08:15:04.643595Z",
+  "updated_at": "2026-02-13T08:18:08.770173Z",
+  "closed_at": "2026-02-13T08:18:08.770173Z",
+  "custom": {
+    "beads_close_reason": "Added HF AutoModel backend, trainer wiring, stdlib helper, and tests.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

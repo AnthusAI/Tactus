@@ -1,0 +1,22 @@
+{
+  "id": "tcts-3or",
+  "title": "Audit + outline: Tactus-web Model/Agent docs",
+  "description": "Audit ../Tactus-web for Model + Agent primitive documentation and examples; record what needs updating; propose an outline/writing notes aligned to the canonical narrative in Tactus docs.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-e61",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T14:56:36.253201Z",
+  "updated_at": "2026-02-14T15:03:05.370021Z",
+  "closed_at": "2026-02-14T15:03:05.370021Z",
+  "custom": {
+    "beads_close_reason": "Audit complete: recorded findings + outline/writing notes",
+    "beads_notes": "Findings (2026-02-14):\\n- Tactus-web already has a dedicated model primitive page: src/pages/model-primitive.js with Option A syntax (Model.training) + CLI (tactus train --model, tactus models evaluate).\\n- static/llms.txt includes the same unified Model.training narrative + commands.\\n- src/data/examples.json includes CI-safe mocked examples AND real trainable examples (IMDB Naive Bayes + HF sequence classifier) with branching logic + deterministic specs.\\n\\nPotential follow-ups:\\n- Re-scan the rest of the site for any stale Model/Agent snippets (result.response/message, Agent.toolsets, provider required) and normalize.\\n- Ensure install guidance is consistent: ML extras are optional (tactus[ml], tactus[hf]) and pip install tactus should not pull datasets/torch by default.\n\\nOutline / writing notes (proposed):\\n- Add/confirm a short 'Agent vs Model' framing section on the site (either in both pages or a shared glossary page):\\n  - Agent = deliberation + tools + conversation; Model = prediction only.\\n- Model primitive page (src/pages/model-primitive.js):\\n  - Keep Option A as the only syntax shown; add a one-paragraph explanation of what persists (artifact + metrics + tags) and what does not (no hidden state).\\n  - Add a callout: training requires optional extras; base install does not include datasets/torch.\\n  - Add a 'Mock-first workflow' block: tactus test --mock, then tactus train, then tactus test (real).\\n- Examples gallery (src/data/examples.json):\\n  - Ensure every trainable model example includes 4 commands: test mocked, train, evaluate, test real.\\n  - Ensure mocked specs test branching logic (yes/no/review) rather than only 'procedure completes'.\\n- llms.txt: keep canonical patterns minimal but correct; ensure no stale keys (toolsets, result.response).\\n",
+    "beads_owner": "rap@endymion.com"
+  }
+}

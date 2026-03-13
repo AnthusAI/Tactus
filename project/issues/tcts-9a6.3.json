@@ -1,0 +1,22 @@
+{
+  "id": "tcts-9a6.3",
+  "title": "Research: Learning-Tactus model primitive drift inventory",
+  "description": "Search ../Learning-Tactus for Model primitive coverage (tutorial flow, training/eval loop). Record drift findings as NOTES (paths + what to change).",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-9a6",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T12:38:59.845114Z",
+  "updated_at": "2026-02-14T12:40:45.303169Z",
+  "closed_at": "2026-02-14T12:40:45.303169Z",
+  "custom": {
+    "beads_close_reason": "Completed inventory; no drift found in current scan.",
+    "beads_notes": "Scan results: Learning-Tactus appears aligned with current Model primitive canon.\n\n- chapters/07a-models.qmd: teaches Model vs Agent, mocks-first testing, then train via tactus[ml] and registry-backed runtime; documents tactus train ... --model and tactus models evaluate ... --model.\n- code/chapter-07a/10-model-naive-bayes-imdb.tac: single Model block with training= and BDD specs + Mocks.\n- chapters/02-transparent-durability.qmd: references Model(\"sentiment\")({text = \"...\"}) which matches callable Model pattern.\n- No drift found in this scan.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

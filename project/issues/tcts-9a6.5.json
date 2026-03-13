@@ -1,0 +1,22 @@
+{
+  "id": "tcts-9a6.5",
+  "title": "Research: Programming-Tactus model primitive drift inventory",
+  "description": "Search ../Programming-Tactus for Model primitive reference-level docs. Record drift findings as NOTES (paths + what to change).",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-9a6",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T12:39:00.061644Z",
+  "updated_at": "2026-02-14T12:40:45.526020Z",
+  "closed_at": "2026-02-14T12:40:45.526020Z",
+  "custom": {
+    "beads_close_reason": "Completed inventory; no drift found in current scan.",
+    "beads_notes": "Scan results: Programming-Tactus appears aligned with current Model primitive canon.\n\n- chapters/22-model-primitive.qmd: documents single Model block with training=; train + models evaluate CLI; registry tags latest and candidate/<name>; includes naive_bayes and hf_sequence_classifier (Hugging Face Sequence Classifier) details and AutoModelForSequenceClassification framing.\n- No stale references found in this scan.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

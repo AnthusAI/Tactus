@@ -1,0 +1,21 @@
+{
+  "id": "tcts-4eq",
+  "title": "Implement agent hooks (prepare/filter/retry)",
+  "description": "## Problem\nThe spec describes agent lifecycle hooks (`prepare`, `filter`, `response` retry config), but they are not implemented.\n\n## Why it matters\n- Users need per-agent customization (pre-turn context, token budgeting, retry behavior) without forking core code.\n\n## Where this shows up\n- `TECHNICAL_DEBT.md` → “Agent Hooks” (Category 3).\n\n## Proposed fix\n- Implement agent config fields:\n  - `prepare`: callable run before each turn; output becomes `{prepared.*}` (when/if that namespace is implemented)\n  - `filter`: token budget / message filtering policy\n  - `response`: retry policy (`retries`, `retry_delay`, etc.)\n- If `{prepared.*}` is not implemented yet, define a minimal path (e.g., only allow prepare to mutate session/context).\n\n## Acceptance criteria\n- Hooks are parsed, validated, and executed according to spec (or spec is updated to match final design).\n- Tests cover hook execution order and retry behavior.\n\n",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-10T06:05:52.429667Z",
+  "updated_at": "2026-02-13T08:50:16.811170Z",
+  "closed_at": "2026-02-13T08:50:16.811170Z",
+  "custom": {
+    "beads_close_reason": "Implemented agent prepare hook, message history filter hook, and response retry policy with tests",
+    "beads_owner": "rap@endymion.com"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "id": "tcts-807",
+  "title": "Examples: Clean up MCP toolset-by-server example (remove duplicate tools keys)",
+  "description": "Fix examples/61-mcp-toolset-by-server.tac: remove duplicated tools fields, clarify toolset vs server name references, and correct comments so mock-mode tests don't imply MCP servers are required.",
+  "type": "task",
+  "status": "closed",
+  "priority": 3,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T09:48:58.181675Z",
+  "updated_at": "2026-02-14T09:56:21.116509Z",
+  "closed_at": "2026-02-14T09:56:21.116509Z",
+  "custom": {
+    "beads_close_reason": "Example 61 passes in mock mode; runtime creates placeholder MCP toolsets when TACTUS_MOCK_MODE=1",
+    "beads_owner": "rap@endymion.com"
+  }
+}

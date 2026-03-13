@@ -1,0 +1,22 @@
+{
+  "id": "tcts-fft",
+  "title": "Docs Maintenance: Model + Agent primitives coherence sweep",
+  "description": "# Docs Maintenance: Model + Agent primitives coherence sweep\n\nWe need a repeatable way to keep **Tactus docs + examples + books + web** aligned as the language evolves (especially the Model + Agent primitives).\n\nThis epic is a maintenance follow-up to the original docs program (Tactus-84l).\n\n## Scope (repos)\n- ../Tactus-web\n- ../Tactus-examples\n- ../Learning-Tactus\n- ../Tactus-in-a-Nutshell\n- ../Programming-Tactus\n- This repo (Tactus): canonical reference docs + SPECIFICATION.md\n\n## Canon (must match everywhere)\n- Model training config lives in `Model.training` (single Model block for training + runtime).\n- CLI:\n  - Train: `tactus train file.tac --model <name>`\n  - Evaluate: `tactus models evaluate file.tac --model <name> [--version ... | --candidate ...]`\n- Registry tags:\n  - `latest`\n  - `candidate/<candidate_name>`\n- Canonical Model call pattern:\n  - `local m = Model(\"name\"); local r = m({ ... }); local out = r.output or r`\n- Mocking story:\n  - Specs should validate procedure logic.\n  - `Mocks { ... }` provides deterministic, CI-safe tests.\n\n## Plan (do in this order)\n1) Inventory / drift scan\n- In each repo, locate every snippet/paragraph that describes Models or Agents (and related CLI).\n- Record exact file paths + what is stale + what to replace it with as notes on child beads.\n\n2) Canon snippet pack\n- Maintain a small set of copy/paste snippets that all repos should reuse (Model declaration, training CLI, evaluation CLI, mocks, runtime call pattern).\n- Source of truth: `docs/model-primitive.md`, `docs/agent-primitive.md`, `SPECIFICATION.md` in this repo.\n\n3) Outlines (holistic)\n- For each repo, define what level of detail it should carry:\n  - Web: conceptual + quickstart\n  - Examples: runnable code + minimal narrative\n  - Learning: guided tutorial + mental models\n  - Nutshell: quick reference\n  - Programming: deep reference\n- Link across properties without contradicting semantics.\n\n4) Implementation\n- Make edits repo-by-repo, keeping terminology consistent and ensuring code snippets correspond to runnable examples.\n\n5) QA pass\n- Run examples test scripts in mock mode where available.\n- Build Quarto books (Learning / Nutshell / Programming) to ensure no broken includes/snippets.\n\n## Drift inventory (initial findings)\n- Programming-Tactus: one heading still calls the HF trainer \"Hugging Face AutoModel\" even though the canonical name is \"Hugging Face Sequence Classifier\" (`hf_sequence_classifier`). Needs wording alignment.\n",
+  "type": "epic",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T09:59:17.332697Z",
+  "updated_at": "2026-02-14T10:04:46.875452Z",
+  "closed_at": "2026-02-14T10:04:46.875452Z",
+  "custom": {
+    "beads_close_reason": "Initial drift sweep completed; filed/landed fixes and documented mock-mode MCP toolset behavior",
+    "beads_notes": "Drift found: ../Tactus-in-a-Nutshell/chapters/06-tools-and-toolsets.qmd still documents agent_config.toolsets = {...}; current DSL requires Agent.tools.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

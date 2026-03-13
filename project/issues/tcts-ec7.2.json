@@ -1,0 +1,21 @@
+{
+  "id": "tcts-ec7.2",
+  "title": "Implement LocalStorage",
+  "description": "Filesystem-based model artifact storage for development.\n\nAcceptance: Save and load model artifacts locally.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-ec7",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T02:17:12.531913Z",
+  "updated_at": "2026-02-13T06:23:09.070045Z",
+  "closed_at": "2026-02-13T06:23:09.070045Z",
+  "custom": {
+    "beads_close_reason": "Completed: LocalStorage filesystem backend implemented with tests",
+    "beads_owner": "rap@endymion.com"
+  }
+}

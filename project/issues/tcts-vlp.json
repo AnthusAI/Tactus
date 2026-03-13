@@ -1,0 +1,21 @@
+{
+  "id": "tcts-vlp",
+  "title": "Toolset Declaration Syntax",
+  "description": "## Problem\nThe spec documents Toolset declarations using function-call syntax, but the implementation and examples use Lua function-call syntactic sugar with a CamelCase `Toolset` declaration.\n\n| Spec (Wrong) | Reality (Correct) |\n| --- | --- |\n| `toolset(\"math_tools\", {...})` | `Toolset \"math_tools\" {...}` |\n\n## Why it matters\n- Users following the spec will try `toolset(...)` and hit confusing syntax/validation/runtime errors.\n- The real syntax is more DSL-like and consistent with other Tactus declarations.\n\n## Where this shows up\n- `SPECIFICATION.md` around `toolset() with type=\"lua\"` (currently starts around line 1886).\n- `TECHNICAL_DEBT.md` → “Toolset Declaration Syntax” (Category 1).\n\n## Proposed fix (docs-only)\n- Update the `SPECIFICATION.md` section to use the correct declaration form, e.g.:\n  - Rename the heading from `toolset() with type=\"lua\"` to `Toolset with type=\"lua\"` (or similar).\n  - Change the example from `toolset(\"math_tools\", { ... })` to:\n    - `Toolset \"math_tools\" { type = \"lua\", tools = { ... } }`\n\n## Acceptance criteria\n- `SPECIFICATION.md` no longer shows lowercase `toolset(\"name\", ...)` as the primary syntax.\n- Example matches the DSL used in `examples/*` (e.g. `examples/63-toolset-import-from-file.tac`).\n\n\n",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-10T06:06:32.558207Z",
+  "updated_at": "2026-02-10T06:06:32.742531Z",
+  "closed_at": "2026-02-10T06:06:32.742531Z",
+  "custom": {
+    "beads_close_reason": "Closed in GitHub",
+    "beads_owner": "rap@endymion.com"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "id": "tcts-ybd.4",
+  "title": "Automatic retraining triggers",
+  "description": "Schedule-based or metric-based retraining. When accuracy drops below threshold or on schedule, trigger retraining pipeline.\n\nAcceptance: Retrain triggered when accuracy drops below threshold.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-ybd",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T02:27:37.678045Z",
+  "updated_at": "2026-02-13T06:41:28.273667Z",
+  "closed_at": "2026-02-13T06:41:28.273667Z",
+  "custom": {
+    "beads_close_reason": "Completed: retrain trigger heuristics",
+    "beads_owner": "rap@endymion.com"
+  }
+}

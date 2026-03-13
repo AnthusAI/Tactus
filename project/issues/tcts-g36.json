@@ -1,0 +1,22 @@
+{
+  "id": "tcts-g36",
+  "title": "Validation: allow Agent provider omitted when model is provider/model",
+  "description": "Registry validation currently errors if Agent.provider is missing and there is no default_provider, even when Agent.model is in LiteLLM format like openai/gpt-4o-mini. This blocks the preferred DSL style (model includes provider) and breaks docs/books that use model=provider/model without provider=.\\n\\nFix: in RegistryBuilder.validate(), treat agents as having an implicit provider when model is a string in provider/model or provider:model format. Add unit tests.",
+  "type": "bug",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T14:27:17.342024Z",
+  "updated_at": "2026-02-14T14:34:22.333974Z",
+  "closed_at": "2026-02-14T14:34:22.333974Z",
+  "custom": {
+    "beads_acceptance_criteria": "- Agent declarations with model=\"openai/gpt-4o-mini\" validate without provider=\"openai\"\\n- Declarations with model missing provider prefix still error when provider/default_provider are missing\\n- Unit tests cover both cases",
+    "beads_close_reason": "RegistryBuilder.validate now accepts provider/model or provider:model agent models without provider=; added unit tests",
+    "beads_owner": "rap@endymion.com"
+  }
+}

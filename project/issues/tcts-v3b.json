@@ -1,0 +1,22 @@
+{
+  "id": "tcts-v3b",
+  "title": "Fix AGENT_INSTRUCTIONS.md: remove Springstack content, add Tactus workflow",
+  "description": "AGENT_INSTRUCTIONS.md currently contains Springstack/Node/React instructions that do not apply to Tactus. Replace it with Tactus-specific guidance: beads workflow, quality gates (pytest/ruff/black, etc.), gh CLI for CI, and repo layout notes. Keep AGENTS.md as short entrypoint.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T12:36:14.549104Z",
+  "updated_at": "2026-02-14T12:38:06.418953Z",
+  "closed_at": "2026-02-14T12:38:06.418953Z",
+  "custom": {
+    "beads_acceptance_criteria": "- AGENT_INSTRUCTIONS.md no longer mentions Springstack/React/Cucumber\\n- Instructions match how this repo is actually built/tested (python/uv/pip, pytest, black, ruff, etc.)\\n- Links/commands are correct and runnable from repo root",
+    "close_notes": "AGENT_INSTRUCTIONS.md now contains Tactus-specific Kanbus workflow, quality gates, and gh-based CI debugging; removed irrelevant Springstack content.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

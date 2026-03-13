@@ -1,0 +1,31 @@
+{
+  "id": "tcts-e69f1303-9a58-44f9-87f5-aee4b91c24be",
+  "title": "Stabilize GitHub Actions CI (Feb 2026)",
+  "description": "",
+  "type": "epic",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "4442f286-9d37-4b4f-a2ef-f018e291130d",
+      "author": "unknown",
+      "text": "Resolved Release CI failures by reformatting with black (commit 0f1c212). Workflow run 22336179480 on main is green. Child bug tcts-3c8e15 closed.",
+      "created_at": "2026-02-24T04:18:22.930022Z"
+    },
+    {
+      "id": "8bdc62cd-7109-4893-aa40-5ec27dc7041d",
+      "author": "unknown",
+      "text": "Feature release completed: tactus 0.44.0 published to PyPI (Release workflow 22336466817, Semantic Release uploaded wheel + sdist). Child task tcts-f5d0ee closed.",
+      "created_at": "2026-02-24T04:40:03.858008Z"
+    }
+  ],
+  "created_at": "2026-02-24T04:04:41.391605Z",
+  "updated_at": "2026-02-24T04:40:07.251771Z",
+  "closed_at": "2026-02-24T04:40:07.251771Z",
+  "custom": {}
+}

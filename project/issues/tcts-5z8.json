@@ -1,0 +1,21 @@
+{
+  "id": "tcts-5z8",
+  "title": "Expose HF trainer hyperparameters in .tac configs",
+  "description": "Allow full hyperparameter control for hf_transformers trainer via CandidateConfig.hyperparameters, including TrainingArguments passthrough and tokenizer max_length.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T08:19:13.310195Z",
+  "updated_at": "2026-02-13T08:20:17.992733Z",
+  "closed_at": "2026-02-13T08:20:17.992733Z",
+  "custom": {
+    "beads_close_reason": "Added full hyperparameter control for hf_transformers trainer and tests.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

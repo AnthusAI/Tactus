@@ -1,0 +1,21 @@
+{
+  "id": "tcts-hh1.2",
+  "title": "Validate inputs in predict()",
+  "description": "Before calling backend, validate input_data against input_schema. Return clear error message on validation failure.\n\nAcceptance: Invalid input raises ValidationError with field-level detail.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-hh1",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T02:00:48.997298Z",
+  "updated_at": "2026-02-13T06:43:08.099072Z",
+  "closed_at": "2026-02-13T06:43:08.099072Z",
+  "custom": {
+    "beads_close_reason": "Completed: input validation in ModelPrimitive.predict",
+    "beads_owner": "rap@endymion.com"
+  }
+}

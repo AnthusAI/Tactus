@@ -1,0 +1,22 @@
+{
+  "id": "tcts-fft.2",
+  "title": "Nutshell: Update tools-and-toolsets doc to use tools= (toolsets key is unsupported)",
+  "description": "Tactus-in-a-Nutshell has guidance that suggests using agent_config.toolsets = {...}. In current Tactus DSL, Agent does not support a 'toolsets' key; tool/toolset references live under 'tools'.\n\nFiles to update:\n- ../Tactus-in-a-Nutshell/chapters/06-tools-and-toolsets.qmd\n\nAcceptance:\n- Remove/replace any recommendation or examples that use toolsets = {...}.\n- Replace with canonical: tools = {\"filesystem_tools\", done} or tools = {\"filesystem\", done} (server/toolset name strings), plus Toolset \"...\" { use = \"mcp.<server>\" } when appropriate.\n- Ensure examples match current semantics: Toolset is a bundle; Agent.tools accepts tool + toolset references and transformation dicts.\n",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-fft",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T09:59:46.400180Z",
+  "updated_at": "2026-02-14T10:04:39.928828Z",
+  "closed_at": "2026-02-14T10:04:39.928828Z",
+  "custom": {
+    "beads_close_reason": "Updated Tactus-in-a-Nutshell tools/toolsets chapter to remove Agent.toolsets and pushed",
+    "beads_notes": "Outline / writing notes:\\n\\n- Problem: This chapter documents Agent{ toolsets = {...} } but the DSL rejects 'toolsets'; use Agent.tools instead.\\n\\n- Target mental model:\\n  - Toolset = named bundle of tools.\\n  - Agent.tools = list of tool/toolset references + optional transformation dicts.\\n  - MCP servers register toolsets by server name when configured in .tac.yml; you can also alias them via Toolset \"x\" { use = \"mcp.<server>\" }.\\n\\n- Concrete replacement snippet (keep it short):\\n\\n  Toolset \"filesystem_tools\" {\\n    use = \"mcp.filesystem\"\\n  }\\n\\n  local done = require(\"tactus.tools.done\")\\n\\n  file_manager = Agent {\\n    provider = \"openai\",\\n    model = \"gpt-4o-mini\",\\n    system_prompt = [[Use filesystem tools. When done, call done.]],\\n    tools = {\"filesystem_tools\", done},\\n  }\\n\\n- If you want to show per-turn restriction, keep it in the Agents cheat-sheet style:\\n  worker({tools = {}}) -- no tools this turn\\n  worker({tools = {\"filesystem_tools\", done}})\\n\\n- Remove/replace these exact lines in ../Tactus-in-a-Nutshell/chapters/06-tools-and-toolsets.qmd:\\n  - 'Use toolsets = {...} for string-named tools ...'\\n  - the example block that uses toolsets = {\"filesystem_read_file\", ...}\\n\\n- Optional addendum (1-2 sentences): In mock mode, MCP toolsets may be placeholders; real tool execution requires MCP config.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

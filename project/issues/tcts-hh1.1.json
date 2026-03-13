@@ -1,0 +1,21 @@
+{
+  "id": "tcts-hh1.1",
+  "title": "Add Pydantic schema generation from inline .tac declarations",
+  "description": "Parse input = { text = \"string\" } into a Pydantic model at runtime. Location: tactus/primitives/model.py.\n\nAcceptance: Model with schema rejects invalid input.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-hh1",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T02:00:48.847962Z",
+  "updated_at": "2026-02-13T03:05:07.149249Z",
+  "closed_at": "2026-02-13T03:05:07.149249Z",
+  "custom": {
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

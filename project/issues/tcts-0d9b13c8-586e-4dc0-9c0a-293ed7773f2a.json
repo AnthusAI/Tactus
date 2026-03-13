@@ -1,0 +1,18 @@
+{
+  "id": "tcts-0d9b13c8-586e-4dc0-9c0a-293ed7773f2a",
+  "title": "Implement tactus.deepgram utilities + specs",
+  "description": "",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-98265d1f-6331-4760-9467-7b7b81387daf",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-23T22:37:28.370610Z",
+  "updated_at": "2026-02-23T22:50:30.214329Z",
+  "closed_at": "2026-02-23T22:50:30.214329Z",
+  "custom": {}
+}

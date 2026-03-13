@@ -1,0 +1,21 @@
+{
+  "id": "tcts-t41.1",
+  "title": "Create tactus.models.llm stdlib module",
+  "description": "Convenience wrapper around Model primitive with type=\"llm\". Location: tactus/stdlib/tac/tactus/models/llm.tac.\n\nAcceptance: Module loads and creates LLM-backed model.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-t41",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T02:23:40.963945Z",
+  "updated_at": "2026-02-13T08:35:27.328813Z",
+  "closed_at": "2026-02-13T08:35:27.328813Z",
+  "custom": {
+    "beads_close_reason": "tactus.models.llm stdlib module implemented",
+    "beads_owner": "rap@endymion.com"
+  }
+}

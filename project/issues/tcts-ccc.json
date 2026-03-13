@@ -1,0 +1,21 @@
+{
+  "id": "tcts-ccc",
+  "title": "Fix runpy warning for python -m tactus.cli.app",
+  "description": "Remove RuntimeWarning about tactus.cli.app being in sys.modules before execution by avoiding eager import of tactus.cli.app in tactus/cli/__init__.py. Keep tactus.cli.main import-compatible via lazy wrapper.",
+  "type": "task",
+  "status": "closed",
+  "priority": 3,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T12:21:55.202257Z",
+  "updated_at": "2026-02-14T12:22:02.501549Z",
+  "closed_at": "2026-02-14T12:22:02.501549Z",
+  "custom": {
+    "beads_close_reason": "tactus/cli/__init__.py now lazy-imports app.main; verified python -m tactus.cli.app has no warning; cli tests pass",
+    "beads_owner": "rap@endymion.com"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "id": "tcts-b3g.5",
+  "title": "Research: Programming-Tactus agent primitive drift inventory",
+  "description": "Search ../Programming-Tactus for Agent primitive reference-level docs. Record drift findings as NOTES (paths + what to change).",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-b3g",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T12:56:35.552314Z",
+  "updated_at": "2026-02-14T12:59:22.517944Z",
+  "closed_at": "2026-02-14T12:59:22.517944Z",
+  "custom": {
+    "beads_close_reason": "Inventory complete; drift captured in notes and follow-up writing task filed (Tactus-b3g.6).",
+    "beads_notes": "Drift/gaps found in Programming-Tactus Agent primitive coverage. Several Agent-related chapters are currently outline stubs and contain stale terminology/API references:\n\n- chapters/04-agent-configuration.qmd: outline only; includes \"Toolsets and tool access\" (should align to tools = {...} and the Toolset primitive; avoid legacy agent_config.toolsets style).\n- chapters/05-agent-interactions.qmd: outline only; explicitly mentions Agent(\"name\").turn() which appears non-canonical (current DSL calls the Agent value like a function: agent({message = \"...\"}) with per-turn tool overrides via tools = {...}).\n- chapters/08-tool-integration.qmd: outline only; mentions \"Combining and filtering toolsets\" (should align to Toolset blocks + composing into Agent.tools).\n\nRecommendation: treat these as candidates for a real writing pass (fill in canonical syntax, per-turn overrides, tools/toolsets, and mock-mode testing story).",
+    "beads_owner": "rap@endymion.com"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "id": "tcts-bn4",
+  "title": "Docs: Add hands-on walkthrough for training/evaluating registry-backed Models",
+  "description": "Write a longer-form, hands-on walkthrough (separate from the quick reference) showing how to: install extras, train examples/47, inspect registry versions/tags, run mocked vs real tests, evaluate by latest vs candidate/<name>, and compare Naive Bayes vs HF sequence classifier.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T09:29:35.885365Z",
+  "updated_at": "2026-02-14T09:30:23.513745Z",
+  "closed_at": "2026-02-14T09:30:23.513745Z",
+  "custom": {
+    "beads_close_reason": "Added docs/model-training-walkthrough.md and linked from README",
+    "beads_owner": "rap@endymion.com"
+  }
+}

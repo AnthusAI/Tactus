@@ -1,0 +1,21 @@
+{
+  "id": "tcts-ccq.5",
+  "title": "Add .tac example: LLM-based classification via Model primitive",
+  "description": "Create examples/models/llm-classification.tac showing end-to-end LLM classification through the Model interface.\n\nAcceptance: Example runs successfully with --mock.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-ccq",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T02:01:13.473206Z",
+  "updated_at": "2026-02-13T06:42:56.184871Z",
+  "closed_at": "2026-02-13T06:42:56.184871Z",
+  "custom": {
+    "beads_close_reason": "Completed: LLM-based classification example exists",
+    "beads_owner": "rap@endymion.com"
+  }
+}

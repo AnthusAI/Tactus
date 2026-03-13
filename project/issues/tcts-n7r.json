@@ -1,0 +1,27 @@
+{
+  "id": "tcts-n7r",
+  "title": "Implement docs updates: Tactus-in-a-Nutshell",
+  "description": "Apply the repo-specific outline from Tactus-6ca: add/strengthen Agent vs Model cheat sheet, clarify CLI dependency requirements for train/evaluate, add minimal Model.training skeleton to syntax reference.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-e61",
+  "labels": [],
+  "dependencies": [
+    {
+      "target": "Tactus-6ca",
+      "type": "blocks"
+    }
+  ],
+  "comments": [],
+  "created_at": "2026-02-14T15:01:35.828323Z",
+  "updated_at": "2026-02-14T15:54:46.136405Z",
+  "closed_at": "2026-02-14T15:54:46.136405Z",
+  "custom": {
+    "beads_acceptance_criteria": "- Book renders\\n- Snippets match current DSL",
+    "beads_close_reason": "Updated Tactus-in-a-Nutshell to prefer model=\"openai/...\" in Agent snippets, added Agent vs Model cheat sheet, added minimal Model.training skeleton, bumped pinned Tactus commit; render-html and CI green",
+    "beads_owner": "rap@endymion.com"
+  }
+}

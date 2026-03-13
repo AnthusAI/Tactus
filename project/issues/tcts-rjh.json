@@ -1,0 +1,21 @@
+{
+  "id": "tcts-rjh",
+  "title": "Fix stdlib classify.spec.tac mocks for Model-based LLMClassifier",
+  "description": "CI pytest was running stdlib BDD specs (tactus/stdlib/tac/tactus/classify.spec.tac) and LLM scenarios attempted real OpenAI calls because mocks were defined as Agent mocks. Update the spec to mock the Model name (stdlib_classify_llm) via conditional model mocks, import NaiveBayesClassifier properly, and make NaiveBayesClassifier resilient to Python dict-like outputs. Also apply Mocks {..} directly to MockManager at parse time so custom step sandboxes see mocks.",
+  "type": "bug",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T08:18:28.438719Z",
+  "updated_at": "2026-02-14T08:18:40.094648Z",
+  "closed_at": "2026-02-14T08:18:40.094648Z",
+  "custom": {
+    "beads_close_reason": "Updated classify.spec.tac to use Model mocks + fixed NaiveBayesClassifier import/interop; applied mocks to MockManager during parse for custom steps.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

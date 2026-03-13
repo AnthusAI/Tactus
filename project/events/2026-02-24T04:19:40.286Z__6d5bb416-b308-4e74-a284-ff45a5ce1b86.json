@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "6d5bb416-b308-4e74-a284-ff45a5ce1b86",
+  "issue_id": "tcts-f5d0ee0d-fe28-44b9-9317-7a467c0dd7e4",
+  "event_type": "issue_created",
+  "occurred_at": "2026-02-24T04:19:40.286Z",
+  "actor_id": "unknown",
+  "payload": {
+    "assignee": null,
+    "description": "",
+    "issue_type": "task",
+    "labels": [],
+    "parent": "tcts-e69f1303-9a58-44f9-87f5-aee4b91c24be",
+    "priority": 1,
+    "status": "open",
+    "title": "Publish Deepgram stdlib feature release"
+  }
+}

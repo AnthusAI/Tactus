@@ -1,0 +1,21 @@
+{
+  "id": "tcts-qzk.3",
+  "title": "Add registry configuration to project config",
+  "description": "Allow .tactus/config.toml or similar to specify default registry (local, mlflow, sagemaker). Project-level config is respected by all model operations.\n\nAcceptance: Project-level registry config is respected.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-qzk",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T02:27:36.904724Z",
+  "updated_at": "2026-02-13T06:37:56.825351Z",
+  "closed_at": "2026-02-13T06:37:56.825351Z",
+  "custom": {
+    "beads_close_reason": "Completed: registry factory supports env/project defaults",
+    "beads_owner": "rap@endymion.com"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "id": "tcts-cbx",
+  "title": "Docs: Add docs/README.md index and reading guide",
+  "description": "Add docs/README.md as an index for the docs/ folder, with recommended reading paths (users vs contributors vs AI assistants) and links to model/agent quick refs, walkthroughs, and core docs.",
+  "type": "task",
+  "status": "closed",
+  "priority": 3,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T09:38:43.597149Z",
+  "updated_at": "2026-02-14T09:39:19.778130Z",
+  "closed_at": "2026-02-14T09:39:19.778130Z",
+  "custom": {
+    "beads_close_reason": "Added docs/README.md index with reading paths for users, AI assistants, and contributors",
+    "beads_owner": "rap@endymion.com"
+  }
+}

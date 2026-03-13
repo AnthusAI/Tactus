@@ -1,0 +1,21 @@
+{
+  "id": "tcts-6u7",
+  "title": "Add .tac training config parsing + tactus train CLI",
+  "description": "Implement .tac-only training configs via Model { data, candidates } and a top-level tactus train CLI. Remove JSON training and tactus models train/evaluate. Acceptance: parses training .tac, supports --model/--candidate, version naming {candidate}-{timestamp} with latest tag.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T07:55:04.193523Z",
+  "updated_at": "2026-02-13T08:04:29.707714Z",
+  "closed_at": "2026-02-13T08:04:29.707714Z",
+  "custom": {
+    "beads_close_reason": "Implemented .tac-only training config parsing and top-level tactus train CLI.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

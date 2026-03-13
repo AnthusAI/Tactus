@@ -1,0 +1,21 @@
+{
+  "id": "tcts-rl0.4",
+  "title": "Add cost tracking to HTTP backend",
+  "description": "Optional cost_per_call config field for HTTP backends.\n\nAcceptance: HTTP predictions accumulate configured cost.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-rl0",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T02:03:03.324098Z",
+  "updated_at": "2026-02-13T06:43:36.678569Z",
+  "closed_at": "2026-02-13T06:43:36.678569Z",
+  "custom": {
+    "beads_close_reason": "Completed: HTTP backend cost tracking",
+    "beads_owner": "rap@endymion.com"
+  }
+}

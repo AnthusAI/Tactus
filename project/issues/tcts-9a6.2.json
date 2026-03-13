@@ -1,0 +1,22 @@
+{
+  "id": "tcts-9a6.2",
+  "title": "Research: Tactus-examples model primitive drift inventory",
+  "description": "Search ../Tactus-examples for Model primitive references/snippets and runnable examples. Record drift findings as NOTES (paths + what to change).",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-9a6",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T12:38:59.741679Z",
+  "updated_at": "2026-02-14T12:40:45.191598Z",
+  "closed_at": "2026-02-14T12:40:45.191598Z",
+  "custom": {
+    "beads_close_reason": "Completed inventory; no drift found in current scan.",
+    "beads_notes": "Scan results: Tactus-examples already matches current Model primitive canon.\\n\\n- 02-classification/04-model-train-imdb-naive-bayes.tac: single Model block with training=, CLI comments for train/eval, Procedure includes branching logic based on label/confidence, and Mocks-based specs.\\n- 02-classification/05-model-train-imdb-hf-sequence-classifier.tac: same pattern using trainer=hf_sequence_classifier.\\n- 02-classification/README.md: documents train/eval workflow and mocks story correctly.\\n- No stale references found in this scan.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

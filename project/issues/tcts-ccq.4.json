@@ -1,0 +1,21 @@
+{
+  "id": "tcts-ccq.4",
+  "title": "Add cost tracking to LLM backend",
+  "description": "Track input/output tokens from LLM response. Calculate cost based on provider pricing. Return cost in prediction result.\n\nAcceptance: Prediction result includes token counts and cost estimate.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-ccq",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T02:01:13.330196Z",
+  "updated_at": "2026-02-13T06:42:53.098942Z",
+  "closed_at": "2026-02-13T06:42:53.098942Z",
+  "custom": {
+    "beads_close_reason": "Completed: cost tracking in LLM backend",
+    "beads_owner": "rap@endymion.com"
+  }
+}

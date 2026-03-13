@@ -1,0 +1,21 @@
+{
+  "id": "tcts-d7y",
+  "title": "Implement System.alert() primitive",
+  "description": "## Problem\nThe spec describes `System.alert()` but only `Human.notify()` exists today (and it just logs notifications). There is no system-level alert primitive.\n\n## Why it matters\n- Procedures need a non-blocking way to emit operational signals (info/warning/error/critical) without involving HITL workflow participants.\n\n## Where this shows up\n- `TECHNICAL_DEBT.md` → “System.alert() Primitive” (Category 3).\n- `IMPLEMENTATION.md` notes `System.alert()` is unimplemented.\n\n## Proposed fix\n- Implement `System.alert({...})` with fields like:\n  - `message` (required)\n  - `level` (info|warning|error|critical)\n  - `source` (optional)\n  - `context` (optional table)\n- Initial implementation can log with a structured payload; later integrations can forward to external monitoring.\n\n## Acceptance criteria\n- `System.alert()` is available in the DSL and does not block execution.\n- Alerts show up in logs in a structured, parseable format.\n- `SPECIFICATION.md` and `IMPLEMENTATION.md` reflect the behavior.\n\n",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-10T06:06:07.803183Z",
+  "updated_at": "2026-02-10T06:06:07.976535Z",
+  "closed_at": "2026-02-10T06:06:07.976535Z",
+  "custom": {
+    "beads_close_reason": "Closed in GitHub",
+    "beads_owner": "rap@endymion.com"
+  }
+}

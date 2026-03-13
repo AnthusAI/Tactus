@@ -1,0 +1,22 @@
+{
+  "id": "tcts-b3g.4",
+  "title": "Research: Tactus-in-a-Nutshell agent primitive drift inventory",
+  "description": "Search ../Tactus-in-a-Nutshell for Agent primitive quick reference coverage. Record drift findings as NOTES (paths + what to change).",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-b3g",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T12:56:35.447072Z",
+  "updated_at": "2026-02-14T12:58:24.186494Z",
+  "closed_at": "2026-02-14T12:58:24.186494Z",
+  "custom": {
+    "beads_close_reason": "Completed inventory; no drift found in current scan.",
+    "beads_notes": "Scan results: Tactus-in-a-Nutshell appears aligned with current Agent primitive canon.\n\n- Agent snippets use tools = {...} (per-turn tool restriction examples included).\n- Toolset primitive is documented via Toolset { ... tools = {...} } and composed into Agent.tools.\n- No legacy agent_config.toolsets or similar patterns found in this scan.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

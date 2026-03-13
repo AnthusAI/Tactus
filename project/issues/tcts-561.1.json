@@ -1,0 +1,21 @@
+{
+  "id": "tcts-561.1",
+  "title": "Define TrainingConfig and EvalMetrics data classes",
+  "description": "Location: tactus/training/types.py (new). TrainingConfig captures script path, hyperparameters, data paths. EvalMetrics captures accuracy, precision, recall, F1, cost, latency.\n\nAcceptance: Data classes validate correctly.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-561",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T02:21:15.594868Z",
+  "updated_at": "2026-02-13T06:29:19.966410Z",
+  "closed_at": "2026-02-13T06:29:19.966410Z",
+  "custom": {
+    "beads_close_reason": "Completed: TrainingConfig, EvalMetrics, CandidateConfig added",
+    "beads_owner": "rap@endymion.com"
+  }
+}

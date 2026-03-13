@@ -1,0 +1,22 @@
+{
+  "id": "tcts-7by",
+  "title": "Agent: support provider+model split by auto-combining to provider/model",
+  "description": "DSPyAgentHandle auto-configures the LM using config.model, but config.provider is currently unused for LM selection. This makes common Agent configs like provider=\"openai\" + model=\"gpt-4o-mini\" fail unless a global LM is already configured.\\n\\nFix: when provider is set and model has no provider prefix, combine into provider/model (or provider:model handling) before calling configure_lm. Add tests to ensure both (a) model already has prefix and (b) provider+model split work. Update docs/agent-primitive.md examples to reflect canonical behavior.",
+  "type": "bug",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T13:40:15.368705Z",
+  "updated_at": "2026-02-14T13:42:55.676685Z",
+  "closed_at": "2026-02-14T13:42:55.676685Z",
+  "custom": {
+    "beads_acceptance_criteria": "- Agent configs with provider=\"openai\" and model=\"gpt-4o-mini\" auto-configure LM correctly in real mode\\n- Existing provider/model-prefixed configs still work\\n- Unit tests cover combination logic\\n- Docs match reality",
+    "beads_close_reason": "DSPyAgentHandle now normalizes model/provider to LiteLLM provider/model format (supports provider+model split, provider:model, and passthrough); added unit+integration tests; updated docs/agent-primitive.md; dspy test suite passes.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

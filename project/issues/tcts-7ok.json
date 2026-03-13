@@ -1,0 +1,27 @@
+{
+  "id": "tcts-7ok",
+  "title": "Implement docs updates: Tactus-web",
+  "description": "Apply the repo-specific outline from Tactus-3or: finalize Model/Agent primitive pages and examples gallery for coherence; add mock-first workflow + optional extras callouts; sweep for drift markers.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-e61",
+  "labels": [],
+  "dependencies": [
+    {
+      "target": "Tactus-3or",
+      "type": "blocks"
+    }
+  ],
+  "comments": [],
+  "created_at": "2026-02-14T15:01:35.487496Z",
+  "updated_at": "2026-02-14T15:36:26.321709Z",
+  "closed_at": "2026-02-14T15:36:26.321709Z",
+  "custom": {
+    "beads_acceptance_criteria": "- Model/Agent pages align with canonical conventions\\n- Examples gallery trainable examples include mocked specs that assert branching\\n- Site build passes",
+    "beads_close_reason": "Verified Tactus-web build (npm run clean && npm run build) and updated sandbox diagram snippet to use model=\"openai/gpt-4o-mini\" (no provider=).",
+    "beads_owner": "rap@endymion.com"
+  }
+}

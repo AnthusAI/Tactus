@@ -1,0 +1,21 @@
+{
+  "id": "tcts-561.3",
+  "title": "Implement evaluation runner",
+  "description": "Runs trained model against test dataset. Computes accuracy, precision, recall, F1. Outputs comparison table.\n\nAcceptance: Evaluation produces correct metrics.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-561",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T02:21:15.897743Z",
+  "updated_at": "2026-02-13T06:29:24.986329Z",
+  "closed_at": "2026-02-13T06:29:24.986329Z",
+  "custom": {
+    "beads_close_reason": "Completed: EvaluationRunner computes accuracy/precision/recall/F1",
+    "beads_owner": "rap@endymion.com"
+  }
+}

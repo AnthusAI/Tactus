@@ -1,0 +1,22 @@
+{
+  "id": "tcts-9a6.4",
+  "title": "Research: Tactus-in-a-Nutshell model primitive drift inventory",
+  "description": "Search ../Tactus-in-a-Nutshell for Model primitive quick reference coverage. Record drift findings as NOTES (paths + what to change).",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-9a6",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T12:38:59.948076Z",
+  "updated_at": "2026-02-14T12:40:45.416169Z",
+  "closed_at": "2026-02-14T12:40:45.416169Z",
+  "custom": {
+    "beads_close_reason": "Completed inventory; no drift found in current scan.",
+    "beads_notes": "Scan results: Tactus-in-a-Nutshell appears aligned with current Model primitive canon.\n\n- chapters/04-primitives-reference.qmd: documents callable Model syntax and Mocks override.\n- chapters/14-cli-reference.qmd: documents tactus train (training lives under Model.training) and tactus models evaluate, including candidate flag.\n- No stale references found in this scan.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

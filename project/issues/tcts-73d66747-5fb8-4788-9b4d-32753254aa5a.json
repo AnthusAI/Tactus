@@ -1,0 +1,18 @@
+{
+  "id": "tcts-73d66747-5fb8-4788-9b4d-32753254aa5a",
+  "title": "Move stdlib classifiers to tactus.text.classify",
+  "description": "Move classification stdlib and helpers under tactus.text.classify; update docs, tests, loader.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-16T20:09:16.789210Z",
+  "updated_at": "2026-02-16T20:37:39.728661Z",
+  "closed_at": "2026-02-16T20:37:39.728661Z",
+  "custom": {}
+}

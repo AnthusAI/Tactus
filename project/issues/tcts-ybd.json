@@ -1,0 +1,21 @@
+{
+  "id": "tcts-ybd",
+  "title": "Phase 8: Advanced Model Features",
+  "description": "Advanced features: model ensembles, A/B testing, data drift detection, automatic retraining triggers.\n\nPart of the Model Primitive MLOps vision (docs/MODEL_PRIMITIVE_PLAN.md).",
+  "type": "epic",
+  "status": "closed",
+  "priority": 3,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T01:53:59.665992Z",
+  "updated_at": "2026-02-13T06:41:33.475040Z",
+  "closed_at": "2026-02-13T06:41:33.475040Z",
+  "custom": {
+    "beads_close_reason": "Completed Phase 8 advanced model features",
+    "beads_owner": "rap@endymion.com"
+  }
+}

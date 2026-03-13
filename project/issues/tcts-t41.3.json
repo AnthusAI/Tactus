@@ -1,0 +1,21 @@
+{
+  "id": "tcts-t41.3",
+  "title": "Update stdlib README for Model primitive",
+  "description": "Document Model primitive usage. Show model-based classification alongside agent-based.\n\nAcceptance: README examples are accurate.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-t41",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T02:23:41.271750Z",
+  "updated_at": "2026-02-13T08:32:12.343062Z",
+  "closed_at": "2026-02-13T08:32:12.343062Z",
+  "custom": {
+    "beads_close_reason": "Updated stdlib README with HF AutoModel training hyperparameters example",
+    "beads_owner": "rap@endymion.com"
+  }
+}

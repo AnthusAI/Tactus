@@ -1,0 +1,22 @@
+{
+  "id": "tcts-4ze",
+  "title": "Audit + outline: Tactus-examples Model/Agent examples",
+  "description": "Audit ../Tactus-examples for Model + Agent primitive examples; record what needs updating; propose outlines and concrete runnable examples that match current DSL.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-e61",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T14:56:36.382533Z",
+  "updated_at": "2026-02-14T15:03:05.512386Z",
+  "closed_at": "2026-02-14T15:03:05.512386Z",
+  "custom": {
+    "beads_close_reason": "Audit complete: recorded findings + outline/writing notes",
+    "beads_notes": "Findings (2026-02-14):\\n- ../Tactus-examples already includes Model.training syntax + CLI examples:\\n  - 02-classification/04-model-train-imdb-naive-bayes.tac\\n  - 02-classification/05-model-train-imdb-hf-sequence-classifier.tac\\n  - 02-classification/03-model-primitive-sentiment.tac (mock)\\n- No occurrences of result.response/result.message found.\\n\\nPotential follow-ups:\\n- Decide canonical Agent style in examples: keep provider= + model= (beginner-friendly) vs prefer model=\"openai/gpt-4o-mini\" (now supported by validation).\\n- Ensure README sections (02-classification/README.md etc.) match the canonical narrative from Tactus docs (Model.lifecycle, registry tags, evaluate command).\\n- Verify any install guidance: keep ML/HF extras optional (avoid implying pip install tactus pulls datasets/torch).\n\\nOutline / writing notes (proposed):\\n- Pick a single canonical Agent declaration style for examples repo (recommend: model=\"openai/gpt-4o-mini\" and omit provider=) now that validation supports it; keep one explicit example showing provider+model split.\\n- Classification section README (02-classification/README.md):\\n  - Add a short 'why two models' comparison: Naive Bayes (fast CPU baseline) vs HF sequence classifier (stronger, slower, GPU-capable).\\n  - Add a short 'mock-first' testing recipe that mirrors the docs (tactus test --mock, then train/evaluate).\\n- Ensure every trainable model example has deterministic specs that assert real branching outputs (yes/no/review) via Mocks conditional returns.\\n- Add a small 'Troubleshooting training' section:\\n  - missing extras -> install tactus[ml] or tactus[hf]\\n  - first run downloads dataset -> expect time/space\\n",
+    "beads_owner": "rap@endymion.com"
+  }
+}

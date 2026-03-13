@@ -1,0 +1,21 @@
+{
+  "id": "tcts-8wv",
+  "title": "CI: Retry electron-builder packaging steps (avoid transient 5xx download failures)",
+  "description": "The Release workflow's desktop builds can fail on transient download errors from GitHub releases (e.g., electron-builder nsis-resources 502) during `npx electron-builder --win`.\n\nFix:\n- Wrap the OS-specific packaging steps (`electron-builder --mac/--win/--linux`) in a small retry loop with backoff.\n\nAcceptance:\n- Transient 5xx download failures do not fail the entire workflow on the first attempt.\n- If failures persist after retries, the job still fails (no silent success).\n",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T11:21:40.520900Z",
+  "updated_at": "2026-02-14T11:22:03.307857Z",
+  "closed_at": "2026-02-14T11:22:03.307857Z",
+  "custom": {
+    "beads_close_reason": "Added retry loops around electron-builder packaging steps for mac/win/linux",
+    "beads_owner": "rap@endymion.com"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "8b8b6aea-8942-487a-af6e-ffe2763e96e5",
+  "issue_id": "tcts-b376be3d-b6da-4d8a-8a2c-5ac8ee7645c6",
+  "event_type": "issue_created",
+  "occurred_at": "2026-02-23T22:37:21.490Z",
+  "actor_id": "ryan.porter",
+  "payload": {
+    "assignee": null,
+    "description": "",
+    "issue_type": "task",
+    "labels": [],
+    "parent": "tcts-98265d1f-6331-4760-9467-7b7b81387daf",
+    "priority": 2,
+    "status": "open",
+    "title": "Rename tactus.extract to tactus.text.extract (breaking)"
+  }
+}

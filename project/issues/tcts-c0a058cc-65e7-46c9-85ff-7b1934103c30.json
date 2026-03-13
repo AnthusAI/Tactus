@@ -1,0 +1,18 @@
+{
+  "id": "tcts-c0a058cc-65e7-46c9-85ff-7b1934103c30",
+  "title": "Add Deepgram fixtures + docs updates",
+  "description": "",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-98265d1f-6331-4760-9467-7b7b81387daf",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-23T22:37:30.641744Z",
+  "updated_at": "2026-02-23T22:50:34.733511Z",
+  "closed_at": "2026-02-23T22:50:34.733511Z",
+  "custom": {}
+}

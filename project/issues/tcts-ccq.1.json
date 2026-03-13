@@ -1,0 +1,21 @@
+{
+  "id": "tcts-ccq.1",
+  "title": "Create LLMModelBackend class",
+  "description": "Location: tactus/backends/llm_backend.py. Internally uses an Agent with conversation loop for classification. Agent handles prompt construction, response parsing, retry-with-feedback. Presents predict() interface: caller sees input in, result out. Uses existing LLM/Agent infrastructure (provider/model config).\n\nAcceptance: LLM backend returns classification result.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-ccq",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T02:01:12.889841Z",
+  "updated_at": "2026-02-13T06:42:41.308193Z",
+  "closed_at": "2026-02-13T06:42:41.308193Z",
+  "custom": {
+    "beads_close_reason": "Completed previously: LLMModelBackend implemented",
+    "beads_owner": "rap@endymion.com"
+  }
+}

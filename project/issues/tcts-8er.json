@@ -1,0 +1,21 @@
+{
+  "id": "tcts-8er",
+  "title": "VSCode extension for Tactus syntax highlighting and LSP support",
+  "description": "Created complete VSCode extension package with TextMate grammar, LSP client, and semantic highlighting. Packaged as tactus-0.1.1.vsix with Tactus logo icon. Publisher: AnthusAISolutions. Features include real-time validation, code completions, hover docs, and graceful degradation when LSP server unavailable.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-10T04:25:08.707918Z",
+  "updated_at": "2026-02-10T04:25:22.363140Z",
+  "closed_at": "2026-02-10T04:25:22.363140Z",
+  "custom": {
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

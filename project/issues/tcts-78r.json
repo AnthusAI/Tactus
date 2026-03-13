@@ -1,0 +1,22 @@
+{
+  "id": "tcts-78r",
+  "title": "Validation: allow implicit Agent provider when model is dict name=provider/model",
+  "description": "RegistryBuilder.validate currently allows missing Agent.provider when Agent.model is a string in provider/model or provider:model form, but it still errors when Agent.model is a dict (model settings) with name=\"openai/gpt-4o-mini\". This blocks the common pattern Agent { model = { name=..., temperature=... } } with provider omitted.\\n\\nFix: Extend agent validation to inspect dict model.name for a provider prefix and treat it as implicit provider.",
+  "type": "bug",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T15:39:23.163308Z",
+  "updated_at": "2026-02-14T15:40:12.519865Z",
+  "closed_at": "2026-02-14T15:40:12.519865Z",
+  "custom": {
+    "beads_acceptance_criteria": "- Agent { model={name=\"openai/gpt-4o-mini\"} } validates without provider/default_provider\\n- Unit tests cover dict + string cases",
+    "beads_close_reason": "Registry validation now treats model={name=\"openai/...\"} as implicit provider; added unit test",
+    "beads_owner": "rap@endymion.com"
+  }
+}

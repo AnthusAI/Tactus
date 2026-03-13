@@ -1,0 +1,21 @@
+{
+  "id": "tcts-woo",
+  "title": "Docs: Fix DURABILITY.md code blocks to use canonical Agent/Model syntax",
+  "description": "Remove accidental escaping/backslashes in DURABILITY.md code fences and align the Agent/Model snippets in the reference section to the canonical Agent {}/Model \"name\" {} syntax (provider required, callable Model pattern).",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T09:35:32.327273Z",
+  "updated_at": "2026-02-14T09:36:48.889306Z",
+  "closed_at": "2026-02-14T09:36:48.889306Z",
+  "custom": {
+    "beads_close_reason": "Removed accidental escaping in DURABILITY.md code fences, aligned Agent/Model snippets to canonical syntax, added runnable example pointers, and fixed plan doc line to avoid obsolete Model assignment syntax",
+    "beads_owner": "rap@endymion.com"
+  }
+}

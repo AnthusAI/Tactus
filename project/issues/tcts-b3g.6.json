@@ -1,0 +1,23 @@
+{
+  "id": "tcts-b3g.6",
+  "title": "Programming-Tactus: Write/align Agent primitive chapters (tools/toolsets + call pattern)",
+  "description": "Update Programming-Tactus Agent-related chapters that are currently stubs and/or contain stale API references. Target at least: chapters/04-agent-configuration.qmd, chapters/05-agent-interactions.qmd, chapters/08-tool-integration.qmd.\\n\\nKey alignments:\\n- Use canonical Agent call style (call the agent value like a function) and document per-turn overrides via tools = {...}.\\n- Use Toolset primitive + composition into Agent.tools (avoid legacy toolsets key).\\n- Include a deterministic testing section (tactus test --mock + Mocks { ... }).",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-b3g",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T12:58:37.944573Z",
+  "updated_at": "2026-02-14T13:15:37.294990Z",
+  "closed_at": "2026-02-14T13:15:37.294990Z",
+  "custom": {
+    "beads_acceptance_criteria": "- No mention of Agent(\"name\").turn() unless it is actually supported and documented in canonical Tactus docs\\n- Replace vague 'toolsets' wording with precise Toolset primitive + tools = {...} examples\\n- Add at least one runnable code snippet per chapter (or explicitly link to a runnable example in Tactus-examples)",
+    "beads_close_reason": "Filled Programming-Tactus agent chapters 04/05/08 with canonical Agent/tools/toolset patterns; removed stale Agent(name).turn reference; Quarto render succeeds; Programming-Tactus CI green.",
+    "beads_notes": "Outline / writing notes for Programming-Tactus agent chapters\n\nSource-of-truth (this repo): docs/agent-primitive.md, SPECIFICATION.md, and implementation in tactus/primitives/handles.py (AgentHandle is callable).\n\nChapter 04-agent-configuration.qmd (config reference)\n- What goes in Agent { ... }:\n  - provider, model, system_prompt\n  - tools = {...} (Tool + Toolset handles, and optionally toolset aliases by string if supported)\n  - optional model/provider params if supported (temperature/max_tokens/etc) - confirm against code before documenting.\n- Toolsets vs tools:\n  - Define Toolset { tools = {...} } and pass it inside Agent.tools\n  - Prefer 'tools = {...}' everywhere; avoid legacy 'toolsets = {...}'.\n- Per-turn capability control:\n  - agent({message = ..., tools = {}}) for no-tools summarization\n  - agent({tools = {search, done}}) for explicit capability boundary\n- Testing story teaser: keep control flow in Procedure; mock agent/tool calls in specs.\n\nChapter 05-agent-interactions.qmd (calling + per-turn overrides)\n- Canonical call patterns:\n  - Direct variable call: worker({message = \"...\"})\n  - Lookup call: Agent(\"worker\")({message = \"...\"}) (supported by AgentLookup)\n- Return shape: document what result fields are stable (e.g. result.output, result.response) and how to access them; verify against runtime.\n- Per-turn overrides:\n  - tools overrides (primary)\n  - optional generation params if supported\n- Observable behavior over text:\n  - tool calls + procedure state + bounded loops + done tool\n- Mocking:\n  - Mocks { worker = { tool_calls = [...], message = \"...\" } }\n  - Run: tactus test file.tac --mock\n\nChapter 08-tool-integration.qmd (tool plumbing)\n- Tool definition patterns:\n  - Tool { description, input schema, function(args) ... }\n- Toolset patterns:\n  - Toolset { type = \"lua\", tools = {...} }\n  - Toolset { use = \"mcp.<server>\", tools = {...} } (and mock-mode placeholder behavior if relevant)\n- Composition:\n  - Agent { tools = {toolset1, tool2, done} }\n  - Per-turn restriction via tools = {...}\n- Testing:\n  - mock tools + deterministic tool results\n  - mock agents where needed\n\nDoc tone\n- Programming-Tactus is deep reference: be precise about what is supported today.\n- Avoid speculative APIs (e.g. Agent(\"name\").turn()) unless verified.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

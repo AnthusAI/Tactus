@@ -1,0 +1,22 @@
+{
+  "id": "tcts-dkk",
+  "title": "Fix VSCode Extension CI publish step (missing PyPI token)",
+  "description": "VSCode Extension CI fails on main because the PyPI publish step runs with an empty PYPI_API_TOKEN secret (TWINE_PASSWORD), causing twine upload to 403. Make publishing a no-op when the token isn't configured, and fix setup-node input name.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T16:49:06.119721Z",
+  "updated_at": "2026-02-14T17:01:54.113643Z",
+  "closed_at": "2026-02-14T17:01:54.113643Z",
+  "custom": {
+    "beads_acceptance_criteria": "- VSCode Extension CI workflow is green on main\\n- LSP publish step skips cleanly when PYPI_API_TOKEN is missing",
+    "beads_close_reason": "VSCode CI publish step now no-ops when PYPI_API_TOKEN is missing, preventing 403 failures.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

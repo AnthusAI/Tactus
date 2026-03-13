@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "8a78f7c1-c72a-4df4-bc9f-03b40cbba580",
+  "issue_id": "tcts-0d9b13c8-586e-4dc0-9c0a-293ed7773f2a",
+  "event_type": "issue_created",
+  "occurred_at": "2026-02-23T22:37:28.370Z",
+  "actor_id": "ryan.porter",
+  "payload": {
+    "assignee": null,
+    "description": "",
+    "issue_type": "task",
+    "labels": [],
+    "parent": "tcts-98265d1f-6331-4760-9467-7b7b81387daf",
+    "priority": 2,
+    "status": "open",
+    "title": "Implement tactus.deepgram utilities + specs"
+  }
+}

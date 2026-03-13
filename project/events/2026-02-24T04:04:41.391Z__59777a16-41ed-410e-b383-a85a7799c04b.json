@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "59777a16-41ed-410e-b383-a85a7799c04b",
+  "issue_id": "tcts-e69f1303-9a58-44f9-87f5-aee4b91c24be",
+  "event_type": "issue_created",
+  "occurred_at": "2026-02-24T04:04:41.391Z",
+  "actor_id": "unknown",
+  "payload": {
+    "assignee": null,
+    "description": "",
+    "issue_type": "epic",
+    "labels": [],
+    "parent": null,
+    "priority": 1,
+    "status": "open",
+    "title": "Stabilize GitHub Actions CI (Feb 2026)"
+  }
+}

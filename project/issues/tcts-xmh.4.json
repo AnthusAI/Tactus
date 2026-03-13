@@ -1,0 +1,21 @@
+{
+  "id": "tcts-xmh.4",
+  "title": "Implement champion/challenger tagging",
+  "description": "promote(name, version, tag) updates tag pointer. Previous champion auto-tagged as champion-previous for rollback.\n\nAcceptance: Promote updates tag, old champion becomes previous.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-xmh",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T02:12:14.854068Z",
+  "updated_at": "2026-02-13T06:18:01.934467Z",
+  "closed_at": "2026-02-13T06:18:01.934467Z",
+  "custom": {
+    "beads_close_reason": "Completed: promote applies champion/challenger with previous tag in LocalRegistry",
+    "beads_owner": "rap@endymion.com"
+  }
+}

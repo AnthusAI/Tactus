@@ -1,0 +1,21 @@
+{
+  "id": "tcts-87f",
+  "title": "ML models first-class concept: underdeveloped; no stdlib support or examples; stdlib ML does not use model interface",
+  "description": "## Summary\n\nTactus treats ML models as a first-class concept (DSL model \"name\" { ... }, ModelPrimitive, ModelBackend with predict / predict_sync, checkpointing). That idea is not well-developed: there is no standard library support or code examples that use it, and existing stdlib ML features do not conform to this interface.\n\n## Evidence\n\n- **Stdlib:** tactus/stdlib/tac/tactus/classify/llm.tac implements LLMClassifier by composing an Agent (conversational LLM), not by using the model primitive or any ModelBackend. So \"ML\" in the stdlib is agent-based and does not go through the standard model interface.\n- **Stdlib README:** tactus/stdlib/README.md lists tactus.classify (LLM + fuzzy) and does not mention the model primitive or any stdlib modules that use it.\n- **Examples:** examples/models/ contains a README with brief model(...) snippets and a Python script for creating a sentiment model; there are no full .tac examples that demonstrate the model primitive end-to-end in a procedure.\n\n## Desired direction (for later work)\n\nAlign stdlib and examples with the first-class model concept: add stdlib support and examples that use model \"...\" { ... } and the ModelBackend contract, and/or refactor stdlib classifiers (e.g. LLMClassifier) to use the model interface where appropriate so that all ML inference is consistent and checkpointed.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-12T17:18:44.531627Z",
+  "updated_at": "2026-02-13T08:36:28.090587Z",
+  "closed_at": "2026-02-13T08:36:28.090587Z",
+  "custom": {
+    "beads_close_reason": "Stdlib and examples now use Model primitive; LLMClassifier delegates to Model; stdlib README updated",
+    "beads_owner": "rap@endymion.com"
+  }
+}

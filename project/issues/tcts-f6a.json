@@ -1,0 +1,23 @@
+{
+  "id": "tcts-f6a",
+  "title": "Task dependency system: Biblicus planning + Tactus integration summary",
+  "description": "Background: add first-class task dependencies for Biblicus-backed RAG workflows. Problem: load/ingest/extract/index/query ordering was ad hoc and retriever readiness was not enforced. Solution: Biblicus plans dependency DAGs (load→extract→index→query), Tactus maps those tasks, prompts or auto-runs deps, and exposes retriever tasks as CLI entrypoints. This enables deterministic readiness checks, blocked plans with clear reasons, and consistent behavior across CLI and programmatic usage.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-10T05:47:23.295917Z",
+  "updated_at": "2026-02-13T08:39:45.477153Z",
+  "closed_at": "2026-02-13T08:39:45.477153Z",
+  "custom": {
+    "beads_acceptance_criteria": "Document full workflow: background, what changed, file list, how dependency planning works, how prompting/auto works, how to demo. Include example commands + expected outputs (blocked vs happy path).",
+    "beads_close_reason": "Documented task dependency workflow, file list, and demo steps in TASKS_RETRIEVAL_OVERHAUL_BRIEF",
+    "beads_notes": "How it works: Biblicus plan builder uses catalog_generated_at + configuration_id manifests to decide if extraction/index snapshots are current. Extract blocks if corpus empty and no load handler. Tactus resolves provides/depends_on on Tasks, normalizes aliases (fetch/sync→load, build→index, run→query), and executes plan in prompt/auto/none modes. CLI flags: --auto-deps to run dependencies, --no-deps to fail fast. Retrievers that support index expose index and index:<retriever>.\n\nFiles changed (Tactus): tactus/sandbox/container_runner.py (mount Biblicus dev repo into sandbox), tactus/cli/app.py (dev_mode detection), tactus/stdlib/biblicus/text.py (mock markup passthrough), pyproject.toml (include stdlib tac), features/steps/task_dependency_steps.py (fixtures + snapshot assertions), tests/cli/test_cli.py, tests/core/test_retrieval.py, tests/stdlib/test_biblicus_text.py. Examples: examples/96-context-elasticity.tac, examples/96-context-elasticity-min.tac, examples/97-task-deps-biblicus.tac, examples/97-task-deps-biblicus-blocked.tac, examples/98-task-deps-custom.tac, examples/99-task-deps-blocked.tac, scripts/demo_context_elasticity.py, tests/fixtures/empty_corpus/.gitkeep.\n\nDemo/verification roadmap: (1) tactus run --no-sandbox --auto-deps examples/97-task-deps-biblicus.tac index → creates extract+index snapshots. (2) tactus run --no-sandbox --auto-deps examples/97-task-deps-biblicus-blocked.tac index → blocked when load handler missing. (3) tactus run --no-sandbox --auto-deps examples/98-task-deps-custom.tac load then index → custom provides/depends_on chain. (4) Context elasticity: compare examples/96-context-elasticity-min.tac vs demo_context_elasticity.py output to show budgeted packs.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

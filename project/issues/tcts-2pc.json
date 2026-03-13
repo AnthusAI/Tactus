@@ -1,0 +1,23 @@
+{
+  "id": "tcts-2pc",
+  "title": "Reorganize examples folder: testing-only spec suite (no duplication)",
+  "description": "The AnthusAI/Tactus-examples project now holds education/tutorial examples. The `examples/` folder in this repo is no longer for education—it should serve only as a testing/spec suite. Reorganize to avoid duplication and retain only the examples needed for a good spec suite that covers everything.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-10T22:08:34.157193Z",
+  "updated_at": "2026-02-13T08:36:41.604864Z",
+  "closed_at": "2026-02-13T08:36:41.604864Z",
+  "custom": {
+    "beads_acceptance_criteria": "Audit all .tac files in examples/; identify overlap with Tactus-examples and internal duplication; remove or consolidate redundant examples; retain a minimal set that gives full spec coverage (basics, features, eval, models, MCP, file I/O, tools, mocking, HITL, BDD, etc.); document which examples are kept and why (e.g. in examples/README.md).",
+    "beads_close_reason": "Examples folder is curated spec suite with manifest and coverage README; duplication handled",
+    "beads_notes": "Renumbered curated examples to close gaps; manifest and docs updated to new numbering; test harness and feature table adjusted; archive checkpoint docs corrected. test_all_examples passes (98 run, 62 skipped expected).",
+    "beads_owner": "rap@endymion.com"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "id": "tcts-rb8",
+  "title": "Spec: clarify implemented template variable namespaces",
+  "description": "## Problem\n`SPECIFICATION.md` documents six template variable namespaces, but only `{input.*}` and `{state.*}` are currently implemented.\n\n| Namespace | Spec Says | Reality |\n| --- | --- | --- |\n| `{input.*}` | Supported | Working |\n| `{state.*}` | Supported | Working |\n| `{output.*}` | Supported | Not implemented |\n| `{context.*}` | Supported | Not implemented |\n| `{prepared.*}` | Supported | Not implemented |\n| `{env.*}` | Supported | Not implemented |\n\n## Why it matters\n- Users will assume `{env.*}` / `{prepared.*}` / etc. work and won’t realize substitution is not happening.\n\n## Where this shows up\n- `TECHNICAL_DEBT.md` → “Template Variable Namespaces” (Category 1).\n- `SPECIFICATION.md` Template Variable Namespaces section (currently around lines 843–856).\n\n## Proposed fix (docs-only)\n- Mark unimplemented namespaces as Planned/Future (or remove until implemented).\n- Explicitly state which namespaces are implemented today.\n\n## Acceptance criteria\n- `SPECIFICATION.md` clearly distinguishes implemented vs planned template namespaces.\n- Examples avoid using unimplemented namespaces unless marked as future.\n\n",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-10T06:06:26.237088Z",
+  "updated_at": "2026-02-10T06:06:26.450551Z",
+  "closed_at": "2026-02-10T06:06:26.450551Z",
+  "custom": {
+    "beads_close_reason": "Closed in GitHub",
+    "beads_owner": "rap@endymion.com"
+  }
+}

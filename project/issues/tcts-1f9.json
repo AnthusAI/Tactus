@@ -1,0 +1,22 @@
+{
+  "id": "tcts-1f9",
+  "title": "Docs sweep: replace result.response + openai:model with canonical result.output + openai/model",
+  "description": "Final coherence sweep: update remaining Tactus docs/examples that still use result.response/result.message for agent results or colon-separated provider:model strings in docs/snippets. Also update LSP server snippet templates to prefer model=provider/model.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T16:31:29.445435Z",
+  "updated_at": "2026-02-14T16:38:15.054626Z",
+  "closed_at": "2026-02-14T16:38:15.054626Z",
+  "custom": {
+    "beads_acceptance_criteria": "- docs/ and examples/ no longer show result.response or result.message as the primary agent output accessor\\n- Canonical docs prefer model=\"openai/gpt-4o-mini\" over provider+model or openai:gpt-... (unless teaching alternatives)\\n- CI green",
+    "beads_close_reason": "Updated remaining docs/examples to use result.output and provider/model (slash) format; updated LSP Agent snippet; tests passing",
+    "beads_owner": "rap@endymion.com"
+  }
+}

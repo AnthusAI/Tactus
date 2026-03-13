@@ -1,0 +1,21 @@
+{
+  "id": "tcts-ec7.4",
+  "title": "Wire storage into registry",
+  "description": "Registry uses ModelStorage protocol for artifact persistence. Registry can use either local or S3 storage interchangeably.\n\nAcceptance: Local registry works with either storage backend.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-ec7",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T02:17:12.868633Z",
+  "updated_at": "2026-02-13T06:23:14.018690Z",
+  "closed_at": "2026-02-13T06:23:14.018690Z",
+  "custom": {
+    "beads_close_reason": "Completed: LocalRegistry now uses ModelStorage; RegistryBackend resolves cached S3 paths",
+    "beads_owner": "rap@endymion.com"
+  }
+}

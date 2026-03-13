@@ -1,0 +1,21 @@
+{
+  "id": "tcts-561.4",
+  "title": "Add 'tactus models train' CLI command",
+  "description": "tactus models train config.tac [--candidate name]. Trains one or all candidates defined in config.\n\nAcceptance: CLI trains candidate and saves artifact to registry.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-561",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T02:21:16.087698Z",
+  "updated_at": "2026-02-13T06:29:27.179215Z",
+  "closed_at": "2026-02-13T06:29:27.179215Z",
+  "custom": {
+    "beads_close_reason": "Completed: tactus models train CLI added",
+    "beads_owner": "rap@endymion.com"
+  }
+}
