@@ -2,14 +2,15 @@ name: Ruleset Sync
 
 on:
   pull_request:
-    branches: [main]
+    branches:
+      - dev
+      - main
     paths:
       - 'infra/github-rulesets/**'
       - '.github/workflows/ruleset-sync.yml'
   push:
     branches:
       - main
-      - 'feature/**'
     paths:
       - 'infra/github-rulesets/**'
       - '.github/workflows/ruleset-sync.yml'
@@ -29,7 +30,7 @@ permissions:
 
 jobs:
   check:
-    if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'check') }}
+    if: ${{ github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'check') }}
     uses: AnthusAI/platform-ci/.github/workflows/ruleset-sync-reusable.yml@main
     with:
       mode: check
