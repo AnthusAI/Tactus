@@ -1,0 +1,37 @@
+{
+  "id": "tcts-3c8e1558-6468-4a16-bab6-7113c81182f6",
+  "title": "Fix failing GitHub Actions CI pipeline",
+  "description": "",
+  "type": "bug",
+  "status": "closed",
+  "priority": 0,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-e69f1303-9a58-44f9-87f5-aee4b91c24be",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "1666daaf-7f5c-4246-8627-a8e22022444a",
+      "author": "unknown",
+      "text": "Started investigating GitHub Actions CI failure via gh; will inspect latest failing runs and reproduce locally as needed.",
+      "created_at": "2026-02-24T04:04:55.751708Z"
+    },
+    {
+      "id": "78ad74bd-74d8-41de-b525-9a44f5078fe6",
+      "author": "unknown",
+      "text": "Found Release workflow failing because black --check flagged 14 files. Ran black 24.10.0 locally plus ruff check to match CI; reformatted affected files. Committing fix now and will push + watch Actions.",
+      "created_at": "2026-02-24T04:07:10.939802Z"
+    },
+    {
+      "id": "fad9c2e3-0062-4e4e-b050-b3eb7da34a10",
+      "author": "unknown",
+      "text": "Pushed fix as commit 0f1c212 (chore: format python sources with black). Release workflow run 22336179480 now green (all matrix jobs passed, Semantic Release succeeded). Local verification: black --check and ruff check on tactus/tests/features/steps.",
+      "created_at": "2026-02-24T04:18:16.600864Z"
+    }
+  ],
+  "created_at": "2026-02-24T04:04:44.934017Z",
+  "updated_at": "2026-02-24T04:18:19.599613Z",
+  "closed_at": "2026-02-24T04:18:19.599613Z",
+  "custom": {}
+}

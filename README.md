@@ -2,6 +2,10 @@
 
 ![Continuous integration][continuous-integration-badge]
 ![Coverage][coverage-badge]
+[![PyPI release][pypi-badge]][pypi-link]
+[![License][license-badge]][license-link]
+![Black][black-badge]
+![Ruff][ruff-badge]
 [![Documentation][documentation-badge]][documentation-link]
 
 **A programming language for reliable, tool-using AI agents.**
@@ -522,7 +526,7 @@ tactus test hello.tac --runs 10
 
 - **[docs/README.md](docs/README.md)** — Docs index and recommended reading paths
 - **[SPECIFICATION.md](SPECIFICATION.md)** — Complete DSL reference
-- **[IMPLEMENTATION.md](IMPLEMENTATION.md)** — Implementation status and architecture
+- **[docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md)** — Implementation status and architecture
 - **[docs/model-primitive.md](docs/model-primitive.md)** — Model primitive quick reference (humans + AI assistants)
 - **[docs/model-training-walkthrough.md](docs/model-training-walkthrough.md)** — Train/evaluate/run walkthrough (registry-backed models)
 - **[docs/agent-primitive.md](docs/agent-primitive.md)** — Agent primitive quick reference (humans + AI assistants)
@@ -1498,7 +1502,7 @@ These frameworks are valuable if you're committed to a specific vendor's ecosyst
 - **Standalone CLI**: Run workflows without any infrastructure
 - **Type-Safe**: Pydantic models throughout for validation and type safety
 
-**Note**: Some features from the [specification](SPECIFICATION.md) are not yet implemented, including `guards`, `dependencies`, inline procedure definitions, and advanced HITL configuration. See [IMPLEMENTATION.md](IMPLEMENTATION.md) for the complete status.
+**Note**: Some features from the [specification](SPECIFICATION.md) are not yet implemented, including `guards`, `dependencies`, inline procedure definitions, and advanced HITL configuration. See [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md) for the complete status.
 
 ## Architecture
 
@@ -1727,14 +1731,15 @@ git clone https://github.com/AnthusAI/Tactus.git
 cd Tactus
 
 # Install with dev dependencies
-pip install -e ".[dev]"
+python3 -m pip install --upgrade pip poetry
+python3 -m poetry install --extras "dev"
 
 # Run tests
-behave --summary  # BDD integration tests
-pytest tests/     # Unit tests
+python3 -m poetry run behave --summary  # BDD integration tests
+python3 -m poetry run pytest tests/     # Unit tests
 
 # Run with coverage
-pytest --cov=tactus --cov-report=html
+python3 -m poetry run pytest --cov=tactus --cov-report=html
 
 # See tactus/testing/README.md for detailed testing documentation
 ```
@@ -1769,5 +1774,11 @@ MIT License - see LICENSE file for details.
 
 [continuous-integration-badge]: https://github.com/AnthusAI/Tactus/actions/workflows/release.yml/badge.svg?branch=main
 [coverage-badge]: https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FAnthusAI%2FTactus%2Fmain%2Fcoverage_badge.json
+[pypi-badge]: https://img.shields.io/pypi/v/tactus
+[pypi-link]: https://pypi.org/project/tactus/
+[license-badge]: https://img.shields.io/github/license/AnthusAI/Tactus
+[license-link]: https://github.com/AnthusAI/Tactus/blob/main/LICENSE
+[black-badge]: https://img.shields.io/badge/formatting-Black-000000?logo=black
+[ruff-badge]: https://img.shields.io/badge/lint-Ruff-46a9e0?logo=ruff
 [documentation-badge]: https://img.shields.io/badge/docs-GitHub%20Pages-blue
 [documentation-link]: https://anthusai.github.io/Tactus/

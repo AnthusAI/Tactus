@@ -1,0 +1,21 @@
+{
+  "id": "tcts-ccq.6",
+  "title": "Add parse direction config to LLM classifier (end-first default)",
+  "description": "The LLM classifier's response parser currently extracts the first line and matches from the start. This is wrong for chain-of-thought completions where the answer appears at the end after reasoning.\n\n## Problem\n\nWith chain-of-thought, the reasoning may contain words that match valid classes:\n\n    \"Let me think... the answer could be yes because of X, but actually considering Y, the answer is no.\"\n\nParsing from the start finds \"yes\" (incorrect). Parsing from the end finds \"no\" (correct).\n\n## Solution\n\nAdd a parse_direction config parameter:\n\n- **\"end\" (default)**: Start at the last word/bigram of the completion and slide a window backward toward the beginning, looking for any token that matches a valid class. Return the first match found (i.e., the last match in the text). This is correct for chain-of-thought LLM completions where reasoning precedes the answer.\n\n- **\"start\"**: Parse from the beginning of the completion looking for the first match. This is correct for fine-tuned models where the classification label is the very first token in the output.\n\n## Configuration\n\n```lua\nModel \"my_classifier\" {\n    type = \"llm\",\n    parse_direction = \"end\",  -- default, good for chain-of-thought\n    -- or\n    parse_direction = \"start\",  -- for fine-tuned models\n}\n```\n\n## Implementation\n\nModify parse_response (currently in tactus/stdlib/tac/tactus/classify/llm.tac:68-101) to support both directions. The end-first parser should:\n1. Tokenize the full completion into words\n2. Starting from the last word, check if it matches a valid class (case-insensitive)\n3. If no single-word match, try bigrams from the end\n4. Slide window backward until a match is found\n5. Return nil if no match found in entire completion\n\nAcceptance: Chain-of-thought completion with class name in reasoning and different class at end parses correctly with default settings. Fine-tuned single-token completion parses correctly with parse_direction=\"start\".",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-ccq",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T02:32:35.762514Z",
+  "updated_at": "2026-02-13T06:42:59.987823Z",
+  "closed_at": "2026-02-13T06:42:59.987823Z",
+  "custom": {
+    "beads_close_reason": "Completed: parse direction config default end",
+    "beads_owner": "rap@endymion.com"
+  }
+}

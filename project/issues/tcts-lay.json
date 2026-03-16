@@ -1,0 +1,21 @@
+{
+  "id": "tcts-lay",
+  "title": "Spec: clarify summarization prompts are logged only",
+  "description": "## Problem\n`SPECIFICATION.md` describes `return_prompt`, `error_prompt`, and `status_prompt` as triggering additional agent turns to generate summaries. In reality, these prompts are logged but do not invoke any agent turn.\n\n## Why it matters\n- Users expect automatic summarization and are confused when no summary is generated.\n\n## Where this shows up\n- `TECHNICAL_DEBT.md` → “Summarization Prompts Behavior” (Category 1).\n- `SPECIFICATION.md` summarization prompt docs (currently around lines 427–492).\n\n## Proposed fix (docs-only)\n- Update the spec to match current behavior (logged only; no agent interaction).\n- Optionally add a note about how to implement summaries explicitly (e.g., a final Step that calls an agent) until native support exists.\n\n## Acceptance criteria\n- `SPECIFICATION.md` no longer claims summarization prompts cause extra agent turns.\n- The documented behavior matches what the runtime does today.\n\n",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-10T06:06:23.073803Z",
+  "updated_at": "2026-02-10T06:06:23.259653Z",
+  "closed_at": "2026-02-10T06:06:23.259653Z",
+  "custom": {
+    "beads_close_reason": "Closed in GitHub",
+    "beads_owner": "rap@endymion.com"
+  }
+}

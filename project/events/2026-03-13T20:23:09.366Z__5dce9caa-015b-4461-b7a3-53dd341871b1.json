@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "event_id": "5dce9caa-015b-4461-b7a3-53dd341871b1",
+  "issue_id": "tcts-9d5c7428-739b-468e-b9d4-f2cc7c0110ce",
+  "event_type": "issue_created",
+  "occurred_at": "2026-03-13T20:23:09.366Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "title": "Snyk dependency scanning compatibility",
+    "description": "Track dependency-manifest compatibility work so Snyk can scan dependencies reliably.",
+    "issue_type": "initiative",
+    "status": "open",
+    "priority": 2,
+    "assignee": null,
+    "parent": null,
+    "labels": [
+      "security",
+      "snyk"
+    ]
+  }
+}

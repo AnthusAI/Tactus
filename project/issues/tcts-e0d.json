@@ -1,0 +1,21 @@
+{
+  "id": "tcts-e0d",
+  "title": "Format models CLI for black",
+  "description": "Run black on tactus/cli/commands/models.py to satisfy CI",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T03:02:21.656872Z",
+  "updated_at": "2026-02-14T03:02:30.605310Z",
+  "closed_at": "2026-02-14T03:02:30.605310Z",
+  "custom": {
+    "beads_close_reason": "Completed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

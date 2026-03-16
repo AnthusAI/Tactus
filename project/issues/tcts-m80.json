@@ -1,0 +1,21 @@
+{
+  "id": "tcts-m80",
+  "title": "Install and configure beads issue tracker",
+  "description": "Replaced the legacy tracker with Kanbus for the Tactus project. Kanbus config and issues now live under project/issues with .kanbus.yml as the source of truth.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-10T04:48:49.590822Z",
+  "updated_at": "2026-02-10T04:49:39.428748Z",
+  "closed_at": "2026-02-10T04:49:39.428748Z",
+  "custom": {
+    "beads_close_reason": "Closed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

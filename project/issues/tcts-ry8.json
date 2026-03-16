@@ -1,0 +1,21 @@
+{
+  "id": "tcts-ry8",
+  "title": "Implement Trainer interface + dataset loaders",
+  "description": "Add Trainer protocol/registry and dataset loaders for HF IMDB + local JSONL fixtures. Acceptance: Trainer registry resolves trainer by name; HF loader supports split slices; local JSONL used in tests.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T07:55:13.890102Z",
+  "updated_at": "2026-02-13T08:04:34.852805Z",
+  "closed_at": "2026-02-13T08:04:34.852805Z",
+  "custom": {
+    "beads_close_reason": "Added Trainer interface and dataset loaders for HF/local.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "id": "tcts-xmh",
+  "title": "Phase 3: Local Model Registry",
+  "description": "Implement a local filesystem-based model registry with versioning and champion/challenger tagging. Define ModelRegistry protocol. Add CLI commands for listing models and promoting versions.\n\nPart of the Model Primitive MLOps vision (docs/MODEL_PRIMITIVE_PLAN.md).",
+  "type": "epic",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T01:53:58.937029Z",
+  "updated_at": "2026-02-13T06:18:09.803030Z",
+  "closed_at": "2026-02-13T06:18:09.803030Z",
+  "custom": {
+    "beads_close_reason": "Completed: Local registry + registry backend + CLI commands implemented and tests passing",
+    "beads_owner": "rap@endymion.com"
+  }
+}

@@ -9,8 +9,10 @@ import asyncio
 import json
 import logging
 import os
+import re
 import ssl
 from collections.abc import Awaitable, Callable
+from contextlib import AsyncExitStack
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
@@ -172,12 +174,128 @@ class HostToolRegistry:
         return self._tools[name](args)
 
 
+def _substitute_env_vars(value: Any) -> Any:
+    if isinstance(value, str):
+        return re.sub(r"\$\{(\w+)\}", lambda match: os.getenv(match.group(1), ""), value)
+    if isinstance(value, dict):
+        return {k: _substitute_env_vars(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_substitute_env_vars(v) for v in value]
+    return value
+
+
+def _load_broker_mcp_servers_from_user_config() -> dict[str, Any]:
+    try:
+        from tactus.core.config_manager import ConfigManager
+
+        config_manager = ConfigManager()
+        servers = config_manager.load_host_mcp_servers()
+        if isinstance(servers, dict):
+            return servers
+    except Exception:
+        logger.debug("[BROKER] Failed to load broker MCP servers from user config", exc_info=True)
+    return {}
+
+
+class BrokerMCPManager:
+    """
+    Host-side MCP server manager for broker-proxied MCP tools.
+
+    Spawns MCP servers via stdio and proxies list/call operations.
+    """
+
+    def __init__(self, server_configs: Optional[dict[str, dict[str, Any]]] = None):
+        self._configs = server_configs or {}
+        self._servers: dict[str, Any] = {}
+        self._exit_stack = AsyncExitStack()
+        self._mcp_server_stdio = None
+
+    def _require_mcp_server_stdio(self):
+        if self._mcp_server_stdio is not None:
+            return self._mcp_server_stdio
+        try:
+            from pydantic_ai.mcp import MCPServerStdio
+        except ImportError as import_error:
+            raise RuntimeError(
+                "Broker MCP support requires optional dependencies. "
+                'Install with `pip install "pydantic-ai-slim[mcp]"`.'
+            ) from import_error
+        self._mcp_server_stdio = MCPServerStdio
+        return MCPServerStdio
+
+    async def _ensure_server(self, name: str):
+        if name in self._servers:
+            return self._servers[name]
+        if name not in self._configs:
+            raise KeyError(f"MCP server not configured: {name}")
+        config = _substitute_env_vars(self._configs[name])
+        MCPServerStdio = self._require_mcp_server_stdio()
+        server = MCPServerStdio(
+            command=config["command"],
+            args=config.get("args", []),
+            env=config.get("env"),
+            cwd=config.get("cwd"),
+            timeout=config.get("timeout", 5),
+            read_timeout=config.get("read_timeout", 300),
+            max_retries=config.get("max_retries", 1),
+        )
+        await self._exit_stack.enter_async_context(server)
+        self._servers[name] = server
+        logger.info("[BROKER] Started MCP server '%s' via stdio", name)
+        return server
+
+    async def list_tools(self, name: str) -> list[dict[str, Any]]:
+        server = await self._ensure_server(name)
+        tools = await server.list_tools()
+        return [tool.model_dump() for tool in tools]
+
+    async def call_tool(self, server_name: str, tool_name: str, tool_args: dict[str, Any]):
+        server = await self._ensure_server(server_name)
+        # Try the provided name first. If not found, attempt a prefixed/unprefixed variant.
+        prefix = f"{server_name}_"
+        try:
+            result = await server.direct_call_tool(tool_name, tool_args or {})
+            return _json_safe(result)
+        except KeyError as error:
+            # Fallback: flip prefix if this looks namespaced.
+            alt_name = None
+            if tool_name.startswith(prefix):
+                alt_name = tool_name[len(prefix) :]
+            else:
+                alt_name = f"{prefix}{tool_name}"
+
+            if alt_name and alt_name != tool_name:
+                result = await server.direct_call_tool(alt_name, tool_args or {})
+                return _json_safe(result)
+            raise error
+
+    async def aclose(self) -> None:
+        await self._exit_stack.aclose()
+
+
+def _json_safe(value: Any) -> Any:
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if hasattr(value, "model_dump"):
+        try:
+            return value.model_dump()
+        except Exception:
+            return str(value)
+    if isinstance(value, dict):
+        return {k: _json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(v) for v in value]
+    return str(value)
+
+
 class _BaseBrokerServer:
     def __init__(
         self,
         *,
         openai_backend: Optional[OpenAIChatBackend] = None,
         tool_registry: Optional[HostToolRegistry] = None,
+        mcp_manager: Optional[BrokerMCPManager] = None,
+        broker_mcp_servers: Optional[dict[str, dict[str, Any]]] = None,
         event_handler: Optional[Callable[[dict[str, Any]], None]] = None,
         control_handler: Optional[Callable[[dict], Awaitable[dict]]] = None,
     ):
@@ -185,6 +303,11 @@ class _BaseBrokerServer:
         self._serve_task: Optional[asyncio.Task[None]] = None
         self._openai = openai_backend or OpenAIChatBackend()
         self._tools = tool_registry or HostToolRegistry.default()
+        if mcp_manager is None:
+            if broker_mcp_servers is None:
+                broker_mcp_servers = _load_broker_mcp_servers_from_user_config()
+            mcp_manager = BrokerMCPManager(broker_mcp_servers) if broker_mcp_servers else None
+        self._mcp_manager = mcp_manager
         self._event_handler = event_handler
         self._control_handler = control_handler
 
@@ -215,6 +338,12 @@ class _BaseBrokerServer:
                 raise
             except asyncio.CancelledError:
                 pass
+
+        if self._mcp_manager is not None:
+            try:
+                await self._mcp_manager.aclose()
+            except Exception:
+                logger.debug("[BROKER] Failed to close MCP manager", exc_info=True)
 
     async def __aenter__(self) -> "_BaseBrokerServer":
         await self.start()
@@ -271,6 +400,14 @@ class _BaseBrokerServer:
 
             if request_method == "tool.call":
                 await self._handle_tool_call(request_id, request_params, byte_stream)
+                return
+
+            if request_method == "mcp.list_tools":
+                await self._handle_mcp_list_tools(request_id, request_params, byte_stream)
+                return
+
+            if request_method == "mcp.call_tool":
+                await self._handle_mcp_call_tool(request_id, request_params, byte_stream)
                 return
 
             await _write_event_anyio(
@@ -339,6 +476,14 @@ class _BaseBrokerServer:
 
             if request_method == "tool.call":
                 await self._handle_tool_call_asyncio(request_id, request_params, writer)
+                return
+
+            if request_method == "mcp.list_tools":
+                await self._handle_mcp_list_tools_asyncio(request_id, request_params, writer)
+                return
+
+            if request_method == "mcp.call_tool":
+                await self._handle_mcp_call_tool_asyncio(request_id, request_params, writer)
                 return
 
             await _write_event_asyncio(
@@ -655,6 +800,63 @@ class _BaseBrokerServer:
 
         await _write_event_asyncio(
             writer, {"id": req_id, "event": "done", "data": {"result": result}}
+        )
+
+    async def _handle_mcp_list_tools_asyncio(
+        self, req_id: str, params: dict[str, Any], writer: asyncio.StreamWriter
+    ) -> None:
+        server_name = params.get("server")
+        if not isinstance(server_name, str) or not server_name:
+            await _write_event_asyncio(
+                writer,
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {"type": "BadRequest", "message": "params.server must be a string"},
+                },
+            )
+            return
+
+        if self._mcp_manager is None:
+            await _write_event_asyncio(
+                writer,
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {
+                        "type": "MCPNotConfigured",
+                        "message": "No broker MCP servers configured",
+                    },
+                },
+            )
+            return
+
+        try:
+            tools = await self._mcp_manager.list_tools(server_name)
+        except KeyError as error:
+            await _write_event_asyncio(
+                writer,
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {"type": "NotFound", "message": str(error)},
+                },
+            )
+            return
+        except Exception as error:
+            logger.debug("[BROKER] mcp.list_tools error", exc_info=True)
+            await _write_event_asyncio(
+                writer,
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {"type": type(error).__name__, "message": str(error)},
+                },
+            )
+            return
+
+        await _write_event_asyncio(
+            writer, {"id": req_id, "event": "done", "data": {"tools": tools}}
         )
 
     async def _handle_events_emit(
@@ -998,6 +1200,223 @@ class _BaseBrokerServer:
             byte_stream, {"id": req_id, "event": "done", "data": {"result": result}}
         )
 
+    async def _handle_mcp_list_tools(
+        self, req_id: str, params: dict[str, Any], byte_stream: anyio.abc.ByteStream
+    ) -> None:
+        server_name = params.get("server")
+        if not isinstance(server_name, str) or not server_name:
+            await _write_event_anyio(
+                byte_stream,
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {"type": "BadRequest", "message": "params.server must be a string"},
+                },
+            )
+            return
+
+        if self._mcp_manager is None:
+            await _write_event_anyio(
+                byte_stream,
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {
+                        "type": "MCPNotConfigured",
+                        "message": "No broker MCP servers configured",
+                    },
+                },
+            )
+            return
+
+        try:
+            tools = await self._mcp_manager.list_tools(server_name)
+        except KeyError as error:
+            await _write_event_anyio(
+                byte_stream,
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {"type": "NotFound", "message": str(error)},
+                },
+            )
+            return
+        except Exception as error:
+            logger.debug("[BROKER] mcp.list_tools error", exc_info=True)
+            await _write_event_anyio(
+                byte_stream,
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {"type": type(error).__name__, "message": str(error)},
+                },
+            )
+            return
+
+        await _write_event_anyio(
+            byte_stream, {"id": req_id, "event": "done", "data": {"tools": tools}}
+        )
+
+    async def _handle_mcp_call_tool_asyncio(
+        self, req_id: str, params: dict[str, Any], writer: asyncio.StreamWriter
+    ) -> None:
+        server_name = params.get("server")
+        tool_name = params.get("name")
+        tool_args = params.get("args") or {}
+
+        if not isinstance(server_name, str) or not server_name:
+            await _write_event_asyncio(
+                writer,
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {"type": "BadRequest", "message": "params.server must be a string"},
+                },
+            )
+            return
+        if not isinstance(tool_name, str) or not tool_name:
+            await _write_event_asyncio(
+                writer,
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {"type": "BadRequest", "message": "params.name must be a string"},
+                },
+            )
+            return
+        if not isinstance(tool_args, dict):
+            await _write_event_asyncio(
+                writer,
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {"type": "BadRequest", "message": "params.args must be an object"},
+                },
+            )
+            return
+
+        if self._mcp_manager is None:
+            await _write_event_asyncio(
+                writer,
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {
+                        "type": "MCPNotConfigured",
+                        "message": "No broker MCP servers configured",
+                    },
+                },
+            )
+            return
+
+        try:
+            result = await self._mcp_manager.call_tool(server_name, tool_name, tool_args)
+        except KeyError as error:
+            await _write_event_asyncio(
+                writer,
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {"type": "NotFound", "message": str(error)},
+                },
+            )
+            return
+        except Exception as error:
+            logger.debug("[BROKER] mcp.call_tool error", exc_info=True)
+            await _write_event_asyncio(
+                writer,
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {"type": type(error).__name__, "message": str(error)},
+                },
+            )
+            return
+
+        await _write_event_asyncio(
+            writer, {"id": req_id, "event": "done", "data": {"result": result}}
+        )
+
+    async def _handle_mcp_call_tool(
+        self, req_id: str, params: dict[str, Any], byte_stream: anyio.abc.ByteStream
+    ) -> None:
+        server_name = params.get("server")
+        tool_name = params.get("name")
+        tool_args = params.get("args") or {}
+
+        if not isinstance(server_name, str) or not server_name:
+            await _write_event_anyio(
+                byte_stream,
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {"type": "BadRequest", "message": "params.server must be a string"},
+                },
+            )
+            return
+        if not isinstance(tool_name, str) or not tool_name:
+            await _write_event_anyio(
+                byte_stream,
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {"type": "BadRequest", "message": "params.name must be a string"},
+                },
+            )
+            return
+        if not isinstance(tool_args, dict):
+            await _write_event_anyio(
+                byte_stream,
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {"type": "BadRequest", "message": "params.args must be an object"},
+                },
+            )
+            return
+
+        if self._mcp_manager is None:
+            await _write_event_anyio(
+                byte_stream,
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {
+                        "type": "MCPNotConfigured",
+                        "message": "No broker MCP servers configured",
+                    },
+                },
+            )
+            return
+
+        try:
+            result = await self._mcp_manager.call_tool(server_name, tool_name, tool_args)
+        except KeyError as error:
+            await _write_event_anyio(
+                byte_stream,
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {"type": "NotFound", "message": str(error)},
+                },
+            )
+            return
+        except Exception as error:
+            logger.debug("[BROKER] mcp.call_tool error", exc_info=True)
+            await _write_event_anyio(
+                byte_stream,
+                {
+                    "id": req_id,
+                    "event": "error",
+                    "error": {"type": type(error).__name__, "message": str(error)},
+                },
+            )
+            return
+
+        await _write_event_anyio(
+            byte_stream, {"id": req_id, "event": "done", "data": {"result": result}}
+        )
+
 
 class BrokerServer(_BaseBrokerServer):
     """
@@ -1018,10 +1437,16 @@ class BrokerServer(_BaseBrokerServer):
         *,
         openai_backend: Optional[OpenAIChatBackend] = None,
         tool_registry: Optional[HostToolRegistry] = None,
+        mcp_manager: Optional[BrokerMCPManager] = None,
+        broker_mcp_servers: Optional[dict[str, dict[str, Any]]] = None,
         event_handler: Optional[Callable[[dict[str, Any]], None]] = None,
     ):
         super().__init__(
-            openai_backend=openai_backend, tool_registry=tool_registry, event_handler=event_handler
+            openai_backend=openai_backend,
+            tool_registry=tool_registry,
+            mcp_manager=mcp_manager,
+            broker_mcp_servers=broker_mcp_servers,
+            event_handler=event_handler,
         )
         self.socket_path = Path(socket_path)
         self._server: Optional[asyncio.AbstractServer] = None
@@ -1102,6 +1527,14 @@ class BrokerServer(_BaseBrokerServer):
 
             if request_method == "tool.call":
                 await self._handle_tool_call_asyncio(request_id, request_params, write_event)
+                return
+
+            if request_method == "mcp.list_tools":
+                await self._handle_mcp_list_tools_asyncio(request_id, request_params, write_event)
+                return
+
+            if request_method == "mcp.call_tool":
+                await self._handle_mcp_call_tool_asyncio(request_id, request_params, write_event)
                 return
 
             await write_event(
@@ -1460,12 +1893,16 @@ class TcpBrokerServer(_BaseBrokerServer):
         ssl_context: Optional[ssl.SSLContext] = None,
         openai_backend: Optional[OpenAIChatBackend] = None,
         tool_registry: Optional[HostToolRegistry] = None,
+        mcp_manager: Optional[BrokerMCPManager] = None,
+        broker_mcp_servers: Optional[dict[str, dict[str, Any]]] = None,
         event_handler: Optional[Callable[[dict[str, Any]], None]] = None,
         control_handler: Optional[Callable[[dict], Awaitable[dict]]] = None,
     ):
         super().__init__(
             openai_backend=openai_backend,
             tool_registry=tool_registry,
+            mcp_manager=mcp_manager,
+            broker_mcp_servers=broker_mcp_servers,
             event_handler=event_handler,
             control_handler=control_handler,
         )

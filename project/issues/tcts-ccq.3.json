@@ -1,0 +1,21 @@
+{
+  "id": "tcts-ccq.3",
+  "title": "Configurable retry behavior for LLM backend",
+  "description": "Optional retries and retry_prompt config passed to internal Agent. Caller still sees single predict() call regardless of retry count.\n\nAcceptance: Invalid LLM response triggers internal retry, caller gets clean result.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-ccq",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T02:01:13.168078Z",
+  "updated_at": "2026-02-13T06:42:49.766403Z",
+  "closed_at": "2026-02-13T06:42:49.766403Z",
+  "custom": {
+    "beads_close_reason": "Completed: LLM backend configurable retries",
+    "beads_owner": "rap@endymion.com"
+  }
+}

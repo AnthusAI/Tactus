@@ -1,0 +1,22 @@
+{
+  "id": "tcts-9a6.1",
+  "title": "Research: Tactus-web model primitive drift inventory",
+  "description": "Search ../Tactus-web for Model primitive references/snippets (Model syntax, train/eval CLI, registry/mocks). Record drift findings as NOTES with exact file paths and proposed replacements.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-9a6",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T12:38:59.624987Z",
+  "updated_at": "2026-02-14T12:40:45.065387Z",
+  "closed_at": "2026-02-14T12:40:45.065387Z",
+  "custom": {
+    "beads_close_reason": "Completed inventory; no drift found in current scan.",
+    "beads_notes": "Scan results: Tactus-web already appears aligned with current Model primitive canon.\\n\\n- src/pages/model-primitive.js: contains single-block Model declaration with training=, uses Model(\"imdb_nb\") callable pattern, shows train + models evaluate CLI, includes mocks + procedure control-flow logic.\\n- static/llms.txt: includes Model.training + CLI snippet + candidate/<name> tag.\\n- No stale references found in this scan (no top-level data/candidates; no old HF naming).",
+    "beads_owner": "rap@endymion.com"
+  }
+}

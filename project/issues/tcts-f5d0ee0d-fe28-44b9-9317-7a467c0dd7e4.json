@@ -1,0 +1,31 @@
+{
+  "id": "tcts-f5d0ee0d-fe28-44b9-9317-7a467c0dd7e4",
+  "title": "Publish Deepgram stdlib feature release",
+  "description": "",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-e69f1303-9a58-44f9-87f5-aee4b91c24be",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "19f8f03c-0acf-47e4-a8d7-deee3861d856",
+      "author": "unknown",
+      "text": "Need feature release to publish Deepgram stdlib to PyPI. Plan: add feat commit (docs-only) to trigger semantic-release minor; push to main; verify Release workflow publishes package.",
+      "created_at": "2026-02-24T04:19:45.032856Z"
+    },
+    {
+      "id": "2bec01c1-23fb-4b20-ae24-85b45f2e2e11",
+      "author": "unknown",
+      "text": "Release pipeline published tactus 0.44.0 to PyPI (Semantic Release job in run 22336466817 shows upload to https://pypi.org/project/tactus/0.44.0/). All quality checks + desktop builds green.",
+      "created_at": "2026-02-24T04:39:53.142454Z"
+    }
+  ],
+  "created_at": "2026-02-24T04:19:40.286504Z",
+  "updated_at": "2026-02-24T04:39:57.398261Z",
+  "closed_at": "2026-02-24T04:39:57.398261Z",
+  "custom": {}
+}

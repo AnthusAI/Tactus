@@ -1,0 +1,21 @@
+{
+  "id": "tcts-tyk",
+  "title": "Docs: Publish llms.txt guidance on tactus.ai site",
+  "description": "Add a machine-ingestible llms.txt to Tactus-web (static/llms.txt) with canonical Model primitive semantics and usage patterns, so AI assistants/tools pick up the correct DSL patterns.",
+  "type": "task",
+  "status": "closed",
+  "priority": 3,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T09:18:06.439106Z",
+  "updated_at": "2026-02-14T09:18:11.655045Z",
+  "closed_at": "2026-02-14T09:18:11.655045Z",
+  "custom": {
+    "beads_close_reason": "Merged Tactus-web PR #2 adding static/llms.txt",
+    "beads_owner": "rap@endymion.com"
+  }
+}

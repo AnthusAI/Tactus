@@ -1,0 +1,21 @@
+{
+  "id": "tcts-b3g",
+  "title": "Docs Program: Agent primitive docs refresh across web/examples/books",
+  "description": "# Docs Program: Agent Primitive (Web + Examples + Books)\n\nWe need a coordinated documentation refresh for the Tactus Agent primitive across these sibling repos:\n\n- ../Tactus-web\n- ../Tactus-examples\n- ../Learning-Tactus\n- ../Tactus-in-a-Nutshell\n- ../Programming-Tactus\n\nGoal: consistent mental model for Agents (control loop, tools, toolsets, memory/session semantics, mocking/testing story) and consistent canonical syntax/snippet patterns.\n\n## Canon (must match everywhere)\n\n- Agent is for multi-turn reasoning + tool use; Model is for stateless inference.\n- Canonical configuration patterns for tools/toolsets (avoid legacy toolsets key if unsupported).\n- Testing: specs validate procedure logic; mock mode should make Agent/tool execution deterministic where possible.\n\n## Plan\n\n1) Research + drift inventory in each repo (record file paths + fixes as NOTES).\n2) Canon snippet pack in this repo (docs/agent-primitive.md, SPECIFICATION.md).\n3) Holistic outlines per property (web vs examples vs tutorial vs quick ref vs deep ref).\n4) Draft edits repo-by-repo.\n5) QA: build books + run examples tests.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T12:56:29.235438Z",
+  "updated_at": "2026-02-14T13:15:37.421389Z",
+  "closed_at": "2026-02-14T13:15:37.421389Z",
+  "custom": {
+    "beads_close_reason": "Agent primitive drift inventory complete and identified gap fixed (Programming-Tactus chapters updated and CI green).",
+    "beads_owner": "rap@endymion.com"
+  }
+}

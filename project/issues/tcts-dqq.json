@@ -1,0 +1,22 @@
+{
+  "id": "tcts-dqq",
+  "title": "Fix VSCode Extension CI: pygls v2 import break",
+  "description": "VSCode Extension CI fails starting LSP server due to pygls 2.x removing LanguageServer from pygls.server. Pin tactus-lsp-server dependency to pygls<2 or update imports.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T16:43:48.951268Z",
+  "updated_at": "2026-02-14T16:43:52.835237Z",
+  "closed_at": "2026-02-14T16:43:52.835237Z",
+  "custom": {
+    "beads_acceptance_criteria": "- VSCode Extension CI job 'Test LSP server can start' passes\\n- LSP server can import LanguageServer",
+    "beads_close_reason": "Pinned pygls dependency for tactus-lsp-server to <2 to restore LanguageServer import.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

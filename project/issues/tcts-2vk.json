@@ -1,0 +1,21 @@
+{
+  "id": "tcts-2vk",
+  "title": "Stdlib NaiveBayesClassifier + models helper",
+  "description": "Add stdlib models.naive_bayes helper and classify.NaiveBayesClassifier, wire classify init method, update stdlib README. Acceptance: classifier works via registry-backed model, exports present, docs updated.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T07:55:21.589772Z",
+  "updated_at": "2026-02-13T08:04:46.029944Z",
+  "closed_at": "2026-02-13T08:04:46.029944Z",
+  "custom": {
+    "beads_close_reason": "Added stdlib NaiveBayesClassifier and models helper, updated docs/specs.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

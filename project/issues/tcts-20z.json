@@ -1,0 +1,21 @@
+{
+  "id": "tcts-20z",
+  "title": "Add Checkpoint.exists/get inspection helpers",
+  "description": "## Problem\nThe spec documents `Checkpoint.exists(name)` and `Checkpoint.get(name)` inspection helpers, but they are not implemented.\n\n## Why it matters\n- Useful for debugging and for writing tests around checkpoint behavior.\n\n## Where this shows up\n- `TECHNICAL_DEBT.md` → “Checkpoint Inspection Methods” (Category 2).\n- Implementation location: `tactus/primitives/step.py` (`CheckpointPrimitive`).\n\n## Proposed fix\n- Add `Checkpoint.exists(name)`:\n  - Returns `true` if the named checkpoint is present in the checkpoint store.\n- Add `Checkpoint.get(name)`:\n  - Returns the cached value (or `nil` if absent), without mutating checkpoint state.\n\n## Acceptance criteria\n- Both methods are available in the DSL and covered by tests.\n- Behavior is documented in `SPECIFICATION.md` (or referenced from existing checkpoint docs).\n\n",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-10T06:06:18.391246Z",
+  "updated_at": "2026-02-10T06:06:18.593307Z",
+  "closed_at": "2026-02-10T06:06:18.593307Z",
+  "custom": {
+    "beads_close_reason": "Closed in GitHub",
+    "beads_owner": "rap@endymion.com"
+  }
+}

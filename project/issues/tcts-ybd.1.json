@@ -1,0 +1,21 @@
+{
+  "id": "tcts-ybd.1",
+  "title": "Model ensembles",
+  "description": "Combine multiple model predictions. Support voting, averaging, stacking strategies.\n\nAcceptance: Ensemble model produces combined result.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-ybd",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T02:27:37.082844Z",
+  "updated_at": "2026-02-13T06:41:15.369980Z",
+  "closed_at": "2026-02-13T06:41:15.369980Z",
+  "custom": {
+    "beads_close_reason": "Completed: ensemble backend and example",
+    "beads_owner": "rap@endymion.com"
+  }
+}

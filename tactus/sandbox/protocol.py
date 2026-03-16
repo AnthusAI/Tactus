@@ -48,6 +48,9 @@ class ExecutionRequest:
     # Input parameters for the procedure
     params: dict[str, Any] = field(default_factory=dict)
 
+    # Optional MCP server names (name-only, broker-backed in container)
+    mcp_servers: Optional[dict[str, Any]] = None
+
     # Unique execution ID for tracking
     execution_id: Optional[str] = None
 

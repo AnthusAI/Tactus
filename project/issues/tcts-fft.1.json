@@ -1,0 +1,22 @@
+{
+  "id": "tcts-fft.1",
+  "title": "Programming-Tactus: Rename HF trainer section to Hugging Face Sequence Classifier",
+  "description": "Update ../Programming-Tactus/chapters/22-model-primitive.qmd wording so hf_sequence_classifier is named and described consistently as \"Hugging Face Sequence Classifier\" (it uses AutoModelForSequenceClassification under the hood).\n\nAcceptance:\n- Section heading uses \"Hugging Face Sequence Classifier\" (not \"AutoModel\").\n- Copy still explains that it uses Hugging Face Auto classes to load many architectures (BERT/RoBERTa/etc.).\n",
+  "type": "task",
+  "status": "closed",
+  "priority": 3,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-fft",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T09:59:24.179676Z",
+  "updated_at": "2026-02-14T10:04:39.838322Z",
+  "closed_at": "2026-02-14T10:04:39.838322Z",
+  "custom": {
+    "beads_close_reason": "Updated Programming-Tactus 22-model-primitive.qmd to use 'Hugging Face Sequence Classifier' wording and pushed",
+    "beads_notes": "Outline / writing notes:\\n\\n- Locate section in ../Programming-Tactus/chapters/22-model-primitive.qmd currently titled roughly:\\n  - 'hf_sequence_classifier (Hugging Face AutoModel)'\\n\\n- Rename to:\\n  - 'hf_sequence_classifier (Hugging Face Sequence Classifier)'\\n\\n- Keep the key clarification in the first paragraph:\\n  - This trainer uses Hugging Face AutoModelForSequenceClassification, which is a generic loader for many transformer architectures (BERT, RoBERTa, DeBERTa, DistilBERT, ...).\\n  - The important thing for Tactus users is the task: sequence classification, not the specific architecture.\\n\\n- Hyperparameter control copy should emphasize:\\n  - Simple knobs as top-level hyperparameters\\n  - Escape hatch via pass-through training_args / model_args (if documented elsewhere).",
+    "beads_owner": "rap@endymion.com"
+  }
+}

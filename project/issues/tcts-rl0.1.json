@@ -1,0 +1,21 @@
+{
+  "id": "tcts-rl0.1",
+  "title": "Define PredictionCost and PredictionResult data classes",
+  "description": "Location: tactus/models/types.py (new). PredictionCost tracks inference_cost, compute_time_ms, tokens_in, tokens_out. PredictionResult wraps output with cost, model_version, backend_type.\n\nAcceptance: Data classes serialize/deserialize correctly.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-rl0",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T02:03:02.930677Z",
+  "updated_at": "2026-02-13T06:43:24.547471Z",
+  "closed_at": "2026-02-13T06:43:24.547471Z",
+  "custom": {
+    "beads_close_reason": "Completed: PredictionCost/PredictionResult data classes",
+    "beads_owner": "rap@endymion.com"
+  }
+}

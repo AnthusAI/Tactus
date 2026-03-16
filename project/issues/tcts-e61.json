@@ -1,0 +1,23 @@
+{
+  "id": "tcts-e61",
+  "title": "Docs program: Model + Agent primitives across ecosystem repos",
+  "description": "Bring ecosystem documentation up to date and coherent around the new Model primitive (training + evaluation + registry) and the Agent primitive (call pattern, output access, provider/model conventions), across these repos: ../Tactus-web, ../Tactus-examples, ../Learning-Tactus, ../Tactus-in-a-Nutshell, ../Programming-Tactus.\\n\\nThis epic is structured as: (1) research/scope; (2) holistic concept + vocabulary; (3) outlines/writing notes per repo; (4) implementation edits; (5) CI/links/examples validation.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T14:56:14.607722Z",
+  "updated_at": "2026-02-14T16:18:57.691314Z",
+  "closed_at": "2026-02-14T16:18:57.691314Z",
+  "custom": {
+    "beads_acceptance_criteria": "- Each repo has an up-to-date, consistent narrative for Model + Agent primitives\\n- All code snippets match current DSL semantics (result.output, tools=, Model.training, provider/model)\\n- Example commands are runnable (or explicitly marked as mock/optional ML extras)\\n- CI green across affected repos",
+    "beads_close_reason": "Completed ecosystem docs program: updated examples + web + books for Agent/Model primitives; snippets consistent (result.output, tools=, Model.training, model=provider/model); verified builds and CI green across repos",
+    "beads_notes": "Docs program plan (Option A, unified + coherent)\\n\\nNorth-star: Teach a single coherent mental model across all ecosystem repos:\\n- Agent primitive = conversational + stateful orchestration (turns, tools, message history).\\n- Model primitive = stateless prediction interface (input -> output) with a first-class lifecycle: declare -> (optionally) train -> register -> evaluate -> run in procedures.\\n\\nCanonical conventions (apply everywhere unless a chapter explicitly teaches alternatives):\\n- Agent calls: agent({...}) returns a result whose primary value is result.output (not result.response/message).\\n- Prefer LiteLLM-style model strings: model=\"openai/gpt-4o-mini\" and omit provider= unless you are demonstrating the split; provider+model remains supported.\\n- Tool references live under Agent.tools (not Agent.toolsets).\\n- Model training config lives under Model.training (single Model block; no separate training file required).\\n- CI-safe examples must have deterministic specs and run in mock mode (tactus test --mock). Real training is optional and gated behind extras (tactus[ml]/tactus[hf]).\\n\\nPhases\\n1) Research + scope (do first):\\n- For each target repo, locate every page/chapter/example that mentions Agent or Model primitives.\\n- Record drift types: stale call pattern, stale output accessor, stale CLI flags, stale install guidance, duplicated/competing vocabulary.\\n- Write repo-specific outlines/writing notes as issues (children of this epic).\\n\\n2) Holistic narrative + vocabulary (before editing text):\\n- Define a shared glossary: provider/model, registry-backed model, version/tag, candidate tag, mock mode, CI-safe, training extras.\\n- Decide a standard example storyline used across repos (IMDB sentiment: Naive Bayes vs HF sequence classifier; same Procedure logic + mocks + deterministic specs).\\n\\n3) Draft outlines (per repo)\\n- Tactus-web: landing pages + llms.txt + examples gallery (keep snippets aligned with canonical conventions).\\n- Tactus-examples: runnable .tac examples + READMEs; align to canonical style; ensure each example states mock vs real requirements.\\n- Learning-Tactus / Programming-Tactus / Tactus-in-a-Nutshell: chapter-level teaching sequence; add cross-links; keep a single voice + consistent terminology.\\n\\n4) Implement edits + verify\\n- Apply changes repo-by-repo; run local build/test gates; watch GitHub Actions with gh.\\n- Verify all examples still validate; ensure training examples have clear 'optional extras' instructions and graceful error messaging when extras missing.\\n\\n5) Final coherence pass\\n- Re-scan all repos for known drift markers (result.response/result.message, toolsets=, provider required, old train/evaluate syntax).\\n- Ensure all code blocks are runnable as written (or explicitly labeled as pseudocode).\\n",
+    "beads_owner": "rap@endymion.com"
+  }
+}

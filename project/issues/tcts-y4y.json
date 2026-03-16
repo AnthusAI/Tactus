@@ -1,0 +1,21 @@
+{
+  "id": "tcts-y4y",
+  "title": "Expose per-call Result usage + message history",
+  "description": "## Problem\nThe spec documents a rich per-call result object (usage stats, message history helpers, cost calculation), but the implementation returns a `TactusPrediction` with `.text` only.\n\n## Why it matters\n- Users can’t inspect token usage or per-call costs, which are important for optimization and budgeting.\n\n## Where this shows up\n- `TECHNICAL_DEBT.md` → “Result Object with Usage Statistics” (Category 2).\n- Implementation location: `tactus/dspy/prediction.py`.\n\n## Proposed fix\n- Extend the prediction/result wrapper returned to Lua so it can expose:\n  - `result.usage` (prompt/completion/total tokens)\n  - `result.new_messages()`\n  - `result.all_messages()`\n  - `result.cost()` (if cost model is available)\n\n## Acceptance criteria\n- Lua can access usage stats and message history for an agent call.\n- Tests cover presence/shape of `result.usage` at minimum (with mocking as needed).\n- `SPECIFICATION.md` aligns with actual behavior.\n\n",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-10T06:06:14.606308Z",
+  "updated_at": "2026-02-10T06:06:14.783927Z",
+  "closed_at": "2026-02-10T06:06:14.783927Z",
+  "custom": {
+    "beads_close_reason": "Closed in GitHub",
+    "beads_owner": "rap@endymion.com"
+  }
+}

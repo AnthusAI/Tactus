@@ -1,0 +1,21 @@
+{
+  "id": "tcts-u0f",
+  "title": "Fix ruff F821 in training runner",
+  "description": "Import DatasetBundle for type annotation in training runner",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T02:57:07.025810Z",
+  "updated_at": "2026-02-14T02:57:16.601333Z",
+  "closed_at": "2026-02-14T02:57:16.601333Z",
+  "custom": {
+    "beads_close_reason": "Completed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

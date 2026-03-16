@@ -1,0 +1,22 @@
+{
+  "id": "tcts-cpa",
+  "title": "Audit + outline: Learning-Tactus Model/Agent content",
+  "description": "Audit ../Learning-Tactus chapters + code examples for Model + Agent primitives; record what needs updating; propose chapter edits + example updates.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-e61",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T14:56:36.492970Z",
+  "updated_at": "2026-02-14T15:03:05.640289Z",
+  "closed_at": "2026-02-14T15:03:05.640289Z",
+  "custom": {
+    "beads_close_reason": "Audit complete: recorded findings + outline/writing notes",
+    "beads_notes": "Findings (2026-02-14):\\n- ../Learning-Tactus has a dedicated Models chapter + example: chapters/07a-models.qmd and code/chapter-07a/10-model-naive-bayes-imdb.tac using Model.training + tactus train/evaluate.\\n- No stale agent result accessors found (no result.response/result.message).\\n- Agent declarations use a mix of styles:\\n  - model=\"openai/gpt-4o-mini\" (no provider) in some baseline examples\\n  - provider=\"openai\" + model=\"gpt-4o-mini\" elsewhere\\n\\nPotential follow-ups:\\n- Decide a single canonical Agent declaration style for the book; sweep examples + prose accordingly.\\n- Ensure the Models chapter describes optional extras (tactus[ml], tactus[hf]) and clarifies what gets persisted in the registry (artifacts + metrics + tags).\\n- Ensure mock-mode guidance is prominent: tactus test --mock should validate procedure logic deterministically; real training is optional.\n\\nOutline / writing notes (proposed):\\n- Standardize the Agent declaration style across book examples for cognitive load reduction (recommend: model=\"openai/gpt-4o-mini\"; mention provider= is optional + supported).\\n- Models chapter (chapters/07a-models.qmd):\\n  - Add an explicit 'What gets installed' note: base tactus vs tactus[ml]/tactus[hf].\\n  - Make the 'learners workflow' explicit and interactive:\\n    1) tactus test --mock (understand procedure logic)\\n    2) tactus train --model ... (train + register)\\n    3) tactus models evaluate ... (measure)\\n    4) tactus test (real)\\n  - Add a short paragraph on registry tags: latest, candidate/<name>.\\n- Add cross-links between the Agents chapter(s) and the Models chapter so readers can choose the right primitive quickly.\\n",
+    "beads_owner": "rap@endymion.com"
+  }
+}

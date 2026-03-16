@@ -1,0 +1,21 @@
+{
+  "id": "tcts-561.6",
+  "title": "Support candidate definitions in training config",
+  "description": "Parse candidates = { ... } from .tac file. Each candidate specifies a backend type, training script, and hyperparameters. Train/evaluate each independently.\n\nAcceptance: Multiple candidates train and evaluate.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-561",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T02:21:16.432562Z",
+  "updated_at": "2026-02-13T06:29:32.863179Z",
+  "closed_at": "2026-02-13T06:29:32.863179Z",
+  "custom": {
+    "beads_close_reason": "Completed: candidates supported in training config parsing and CLI",
+    "beads_owner": "rap@endymion.com"
+  }
+}

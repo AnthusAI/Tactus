@@ -1,0 +1,21 @@
+{
+  "id": "tcts-ec7.5",
+  "title": "Support path=\"s3://...\" shorthand in model config",
+  "description": "Model \"x\" { type = \"pytorch\", path = \"s3://bucket/model.pt\" } downloads to local cache on first use.\n\nAcceptance: S3 path resolves and caches locally.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-ec7",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T02:17:13.021522Z",
+  "updated_at": "2026-02-13T06:23:16.701394Z",
+  "closed_at": "2026-02-13T06:23:16.701394Z",
+  "custom": {
+    "beads_close_reason": "Completed: s3:// path shorthand resolved to local cache for pytorch models",
+    "beads_owner": "rap@endymion.com"
+  }
+}

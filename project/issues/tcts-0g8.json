@@ -1,0 +1,21 @@
+{
+  "id": "tcts-0g8",
+  "title": "Trainable Model Interface + Naive Bayes IMDB",
+  "description": "Epic: Standard training hooks + Naive Bayes IMDB model + stdlib classifier + examples + full test/spec coverage. This epic tracks the end-to-end training CLI, trainer interface, sklearn backend, stdlib integration, and CI deps.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T07:54:45.994645Z",
+  "updated_at": "2026-02-13T08:04:55.026315Z",
+  "closed_at": "2026-02-13T08:04:55.026315Z",
+  "custom": {
+    "beads_close_reason": "Epic complete: training CLI + trainer interface + naive bayes + stdlib + tests.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

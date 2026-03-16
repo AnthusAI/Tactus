@@ -1,0 +1,21 @@
+{
+  "id": "tcts-ccq.2",
+  "title": "Add type=\"llm\" to model primitive routing",
+  "description": "Update _create_backend() in model.py to route type=\"llm\" to LLMModelBackend.\n\nAcceptance: Model \"x\" { type = \"llm\", ... } creates LLMModelBackend.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-ccq",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T02:01:13.031427Z",
+  "updated_at": "2026-02-13T06:42:44.881309Z",
+  "closed_at": "2026-02-13T06:42:44.881309Z",
+  "custom": {
+    "beads_close_reason": "Completed: type=\"llm\" routing in ModelPrimitive",
+    "beads_owner": "rap@endymion.com"
+  }
+}

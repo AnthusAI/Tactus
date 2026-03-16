@@ -1,0 +1,21 @@
+{
+  "id": "tcts-xmh.6",
+  "title": "Add 'tactus models promote' CLI command",
+  "description": "tactus models promote <name> --candidate <version> --tag champion\n\nAcceptance: CLI promotion updates registry.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-xmh",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T02:12:15.419605Z",
+  "updated_at": "2026-02-13T06:18:05.299270Z",
+  "closed_at": "2026-02-13T06:18:05.299270Z",
+  "custom": {
+    "beads_close_reason": "Completed: tactus models promote CLI implemented and tested",
+    "beads_owner": "rap@endymion.com"
+  }
+}

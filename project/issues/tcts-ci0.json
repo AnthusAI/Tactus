@@ -1,0 +1,21 @@
+{
+  "id": "tcts-ci0",
+  "title": "CI: Skip desktop builds when semantic release publishes no release",
+  "description": "Desktop build jobs sometimes fail with a 404 when attaching assets to a release tag (e.g. v0.42.0) on commits that did not actually publish a new GitHub Release.\n\nObserved failure pattern:\n- Build Desktop Apps (ubuntu-latest) -> softprops/action-gh-release upload returns 404\n\nRoot cause:\n- desktop-builds derives tag via `git describe --tags --abbrev=0`, and runs after the release job even when semantic-release did not publish a new release.\n\nFix:\n- Have the release job compute outputs (released true/false, tag, version) based on whether a new tag was created.\n- Gate desktop-builds on `needs.release.outputs.released == 'true'`.\n- Checkout the release tag and use the propagated version/tag outputs.\n\nAcceptance:\n- Desktop builds do not run on main pushes that do not publish a new release.\n- No more 404s when attaching assets due to missing/mismatched release.\n",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T10:37:11.047717Z",
+  "updated_at": "2026-02-14T10:37:42.090642Z",
+  "closed_at": "2026-02-14T10:37:42.090642Z",
+  "custom": {
+    "beads_close_reason": "Release workflow now outputs released/tag/version and gates desktop builds; desktop job checks out release tag",
+    "beads_owner": "rap@endymion.com"
+  }
+}

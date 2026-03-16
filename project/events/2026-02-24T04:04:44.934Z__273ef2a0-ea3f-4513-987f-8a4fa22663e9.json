@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "273ef2a0-ea3f-4513-987f-8a4fa22663e9",
+  "issue_id": "tcts-3c8e1558-6468-4a16-bab6-7113c81182f6",
+  "event_type": "issue_created",
+  "occurred_at": "2026-02-24T04:04:44.934Z",
+  "actor_id": "unknown",
+  "payload": {
+    "assignee": null,
+    "description": "",
+    "issue_type": "bug",
+    "labels": [],
+    "parent": "tcts-e69f1303-9a58-44f9-87f5-aee4b91c24be",
+    "priority": 0,
+    "status": "open",
+    "title": "Fix failing GitHub Actions CI pipeline"
+  }
+}

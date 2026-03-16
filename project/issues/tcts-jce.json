@@ -1,0 +1,22 @@
+{
+  "id": "tcts-jce",
+  "title": "Audit + outline: Programming-Tactus Model/Agent content",
+  "description": "Audit ../Programming-Tactus chapters for Model + Agent primitives; record what needs updating; propose edits/notes.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-e61",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T14:56:36.731643Z",
+  "updated_at": "2026-02-14T15:03:05.902574Z",
+  "closed_at": "2026-02-14T15:03:05.902574Z",
+  "custom": {
+    "beads_close_reason": "Audit complete: recorded findings + outline/writing notes",
+    "beads_notes": "Findings (2026-02-14):\\n- ../Programming-Tactus has a substantial model primitive chapter: chapters/22-model-primitive.qmd with unified Model.training syntax, CLI (tactus train / tactus models evaluate), and trainer docs (naive_bayes + hf_sequence_classifier).\\n- No stale agent result accessors found.\\n\\nPotential follow-ups:\\n- Ensure terminology/vocabulary matches the canonical narrative we pick in this docs program (e.g., 'registry-backed model', 'candidate tag', 'CI-safe mocks').\\n- Add cross-links from Agent chapters to Model chapter where appropriate (and vice versa) so readers understand when to use Agent vs Model.\n\\nOutline / writing notes (proposed):\\n- Model primitive chapter (chapters/22-model-primitive.qmd):\\n  - Add a short 'registry contract' section: what keys must be stable between training + runtime (name/version/tags; input/output schemas).\\n  - Add a 'hyperparameter ergonomics' subsection: common knobs + an escape hatch (pass-through config dict) + GPU control (HF training_args.no_cuda).\\n- Add a short comparison panel: naive_bayes vs hf_sequence_classifier (speed, accuracy, dependencies, GPU).\\n- Add a cross-link back to the Agent chapters: when to prefer Agent + tools vs Model + deterministic inference.\\n",
+    "beads_owner": "rap@endymion.com"
+  }
+}

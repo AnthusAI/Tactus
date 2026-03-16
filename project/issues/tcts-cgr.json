@@ -1,0 +1,21 @@
+{
+  "id": "tcts-cgr",
+  "title": "Docs: Align DURABILITY.md model snippets with canonical callable Model pattern",
+  "description": "Update docs/DURABILITY.md to avoid outdated Model .predict/:predict examples and unsupported backend type names; use the canonical callable Model pattern (result.output or result) and list only currently supported model types (or clearly mark others as future).",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T09:27:47.287253Z",
+  "updated_at": "2026-02-14T09:28:37.003024Z",
+  "closed_at": "2026-02-14T09:28:37.003024Z",
+  "custom": {
+    "beads_close_reason": "Updated docs/DURABILITY.md model sections/snippets to use canonical callable Model pattern, removed outdated .predict examples and unsupported type names, and synced supported types table",
+    "beads_owner": "rap@endymion.com"
+  }
+}

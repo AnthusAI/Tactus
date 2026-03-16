@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "ca68c492-77ab-4007-95fa-61d2cf782969",
+  "issue_id": "tcts-5c0245bd-6c80-43f4-9c56-ced00fff068a",
+  "event_type": "issue_created",
+  "occurred_at": "2026-02-24T00:34:53.083Z",
+  "actor_id": "ryan.porter",
+  "payload": {
+    "assignee": null,
+    "description": "",
+    "issue_type": "task",
+    "labels": [],
+    "parent": "tcts-98265d1f-6331-4760-9467-7b7b81387daf",
+    "priority": 2,
+    "status": "open",
+    "title": "Quality gates + CI check for deepgram feature"
+  }
+}

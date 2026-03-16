@@ -1,0 +1,21 @@
+{
+  "id": "tcts-jac",
+  "title": "Add explicit API for stateless execution mode",
+  "description": "## Context\n\nWhen integrating Tactus into high-volume applications like Plexus (a scoring/evaluation system), we discovered that reusing a `TactusRuntime` instance across multiple executions requires careful consideration of state management.\n\n## Current Behavior\n\nThe primitives (State, Iterations, Stop, Tool) are created fresh inside each `execute()` call, which is good. However:\n\n1. `MemoryStorage._procedures` persists across calls (checkpoint data)\n2. There's no documented API contract for reusing runtimes\n3. The `reset()` / `clear()` methods on primitives are marked \"mainly for testing\"\n\nThe current workaround is to create a fresh runtime for each execution:\n\n```python\nasync def predict(self, model_input):\n    # Create a fresh runtime for each prediction\n    storage = MemoryStorage()\n    runtime = TactusRuntime(\n        procedure_id=self.parameters.name,\n        storage_backend=storage,\n        openai_api_key=self._get_openai_api_key(),\n    )\n    result = await runtime.execute(code, context=context, format=\"lua\")\n```\n\nThis works correctly but creates overhead that could be avoided.\n\n## Suggestions\n\n### 1. Add a `runtime.reset()` method\n\nAn explicit public API for clearing transient state between executions:\n\n```python\n# Clear state for next independent execution\nruntime.reset()\nresult = await runtime.execute(...)\n```\n\n### 2. Add a \"stateless mode\" option\n\nFor use cases where checkpointing is not needed:\n\n```python\nruntime = TactusRuntime(\n    procedure_id=\"scorer\",\n    stateless=True,  # Disable checkpointing entirely\n)\n```\n\n### 3. Documentation\n\nClarify in the docs whether:\n- One-runtime-per-execution is the expected pattern for isolated predictions\n- Runtimes can be safely reused with proper reset\n- What state persists vs. what's fresh per execute()\n\n## Use Case\n\nPlexus runs thousands of scoring predictions per day. Each prediction should be completely isolated from others. The ability to either:\n- Reuse a runtime efficiently with explicit reset, OR\n- Opt out of checkpointing entirely for stateless workflows\n\n...would improve performance and make the API clearer for this use case.\n\n## Discovery Source\n\nThis was discovered while building `TactusScore` - a Plexus Score subclass that wraps Tactus runtime execution. The integration tests helped identify these patterns.\n",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-10T06:06:03.006845Z",
+  "updated_at": "2026-02-10T06:06:03.128429Z",
+  "closed_at": "2026-02-10T06:06:03.128429Z",
+  "custom": {
+    "beads_close_reason": "Closed in GitHub",
+    "beads_owner": "rap@endymion.com"
+  }
+}

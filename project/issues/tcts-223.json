@@ -1,0 +1,21 @@
+{
+  "id": "tcts-223",
+  "title": "Format training runner with black",
+  "description": "Run black on tactus/training/runner.py to satisfy CI",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T02:59:47.945123Z",
+  "updated_at": "2026-02-14T02:59:56.147477Z",
+  "closed_at": "2026-02-14T02:59:56.147477Z",
+  "custom": {
+    "beads_close_reason": "Completed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

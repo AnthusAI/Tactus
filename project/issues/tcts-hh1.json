@@ -1,0 +1,21 @@
+{
+  "id": "tcts-hh1",
+  "title": "Phase 0: Model Schema Validation",
+  "description": "Make the existing Model primitive actually validate its inputs and outputs using Pydantic. Currently input_schema and output_schema are parsed from .tac declarations but never enforced. This phase adds real validation at the predict() boundary.\n\nPart of the Model Primitive MLOps vision (docs/MODEL_PRIMITIVE_PLAN.md). Parent of Tactus-87f.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T01:52:30.247848Z",
+  "updated_at": "2026-02-13T06:43:21.201734Z",
+  "closed_at": "2026-02-13T06:43:21.201734Z",
+  "custom": {
+    "beads_close_reason": "Phase 0 complete: schema validation implemented",
+    "beads_owner": "rap@endymion.com"
+  }
+}

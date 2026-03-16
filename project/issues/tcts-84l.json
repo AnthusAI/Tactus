@@ -1,0 +1,21 @@
+{
+  "id": "tcts-84l",
+  "title": "Docs Program: Model primitive across web + examples + books",
+  "description": "# Docs Program: Model Primitive (Web + Examples + Books)\n\nWe need to refresh and unify all public-facing documentation for the Tactus *Model primitive* across these sibling repos:\n\n- ../Tactus-web\n- ../Tactus-examples\n- ../Learning-Tactus\n- ../Tactus-in-a-Nutshell\n- ../Programming-Tactus\n\nThis is a coordinated documentation program (not independent edits). The goal is that a reader can start anywhere (marketing page, examples repo, tutorial book, quick reference, deep reference) and get a consistent mental model, syntax, and workflow.\n\n## Scope\n\n- Model primitive conceptual docs and examples\n- Training + evaluation loop (CLI + registry semantics)\n- Testing story: mocks vs real trained models\n- Clear Model vs Agent positioning\n\n## Non-goals\n\n- Backward compatibility documentation for obsolete syntax/CLI. Current design is canonical.\n\n## Canon (Must Match Everywhere)\n\n- Single Model block contains both runtime + training:\n  - `Model \"name\" { ... training = { data = {...}, candidates = {...} } }`\n- CLI:\n  - Train: `tactus train file.tac --model <name>` (required if multiple models in file)\n  - Evaluate: `tactus models evaluate file.tac --model <name> [--version ... | --candidate ...]`\n- Registry tags:\n  - `latest`\n  - `candidate/<candidate_name>`\n- Hugging Face classifier naming:\n  - trainer/backend: `hf_sequence_classifier` (\"Hugging Face Sequence Classifier\"), not `hf_transformers`\n- Dependency story:\n  - core: `pip install tactus`\n  - ML: `pip install tactus[ml]` (scikit-learn + datasets + joblib)\n  - HF: `pip install tactus[hf]` (transformers + torch + datasets)\n- Testing story:\n  - specs validate *our logic*\n  - `Mocks { ... }` enables deterministic CI-safe tests\n  - optional \"real model integration run\" after training (not required for CI)\n\n## Program Phases (Do In This Order)\n\n1) Research + drift inventory\n- For each repo, find every place that explains, implies, or demonstrates Models.\n- Capture findings as NOTES on the corresponding child bead (file path + what is stale + what to replace it with).\n\n2) Canon narrative + snippet pack (single source of truth)\n- Complete `Tactus-84l.1`.\n- This becomes the copy-and-paste spine for every other doc update.\n\n3) Holistic outlines (avoid divergence)\n- For each repo task, write a short outline that explicitly references the Canon sections/snippets it will reuse.\n- Identify where we should link across properties (web -> examples -> books).\n\n4) Draft edits (repo-by-repo)\n- Implement the doc updates in the repos.\n- Keep everything consistent with Canon (vocabulary, CLI, syntax).\n\n5) QA pass + coherence checks\n- Build the Quarto books (Learning / Nutshell / Programming).\n- Run Tactus-examples `./scripts/test-all.sh` in mock mode.\n- Sanity-check that code snippets match the runnable examples (no undefined variables, no obsolete names).\n\n## Definition of Done\n\n- Web page(s) show current syntax and correct usage.\n- Examples repo contains at least one trainable, registry-backed model example with meaningful specs + mocks.\n- All three books contain coherent Model primitive coverage appropriate to their level (tutorial, quick ref, deep ref).\n- Cross-links connect the story (web <-> examples <-> books) without contradicting semantics.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T06:24:37.288505Z",
+  "updated_at": "2026-02-14T09:13:39.178256Z",
+  "closed_at": "2026-02-14T09:13:39.178256Z",
+  "custom": {
+    "beads_close_reason": "All child doc updates merged across Tactus-web, Tactus-examples, Learning-Tactus, Nutshell, and Programming-Tactus",
+    "beads_owner": "rap@endymion.com"
+  }
+}

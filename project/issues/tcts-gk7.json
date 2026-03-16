@@ -1,0 +1,27 @@
+{
+  "id": "tcts-gk7",
+  "title": "Implement docs updates: Learning-Tactus",
+  "description": "Apply the repo-specific outline from Tactus-cpa: standardize Agent declaration style, strengthen Models chapter with mock-first workflow + optional extras callouts, add cross-links Agent<->Model.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-e61",
+  "labels": [],
+  "dependencies": [
+    {
+      "target": "Tactus-cpa",
+      "type": "blocks"
+    }
+  ],
+  "comments": [],
+  "created_at": "2026-02-14T15:01:35.719332Z",
+  "updated_at": "2026-02-14T15:46:03.243112Z",
+  "closed_at": "2026-02-14T15:46:03.243112Z",
+  "custom": {
+    "beads_acceptance_criteria": "- Book renders\\n- Examples validate/test in CI\\n- Chapters are consistent",
+    "beads_close_reason": "Learning-Tactus: standardized Agent examples to use model=\"openai/...\" (no provider=), removed unused agent in state example, bumped pinned Tactus commit; render-html and CI green",
+    "beads_owner": "rap@endymion.com"
+  }
+}

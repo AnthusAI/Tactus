@@ -1,0 +1,21 @@
+{
+  "id": "tcts-c86",
+  "title": "Fix Classify require() tuple return + mock interop",
+  "description": "# Fix Classify require() tuple return + mock interop\n\n## Problem\n\nTwo CI-breaking issues showed up when running Tactus-examples in mocked mode:\n\n1) `Classify { ... }` could crash at runtime with:\n- `TypeError: tuple indices must be integers or slices, not str`\n\nRoot cause:\n- In `tactus/core/dsl_stubs.py`, `_new_classify` lazy-loads stdlib via:\n  - `sandbox.lua.eval('require(\"tactus.classify\")')`\n- On the first `require()` load, the loader returns **two Lua values**:\n  - `(module_table, resolved_path)`\n- Lupa surfaces that as a Python tuple, so `_classify_mod[\"Classify\"]` blows up.\n\n2) LLM-based classification in mocked mode could incorrectly return `ERROR`:\n- The Model primitive returns Python dict-like outputs (mocked `PredictionResult.output`).\n- Lua stdlib code treated output as a Lua table only, so it never read `value`.\n\n## Fix\n\n- Unwrap `require()` results in `_new_classify`:\n  - If `sandbox.lua.eval(...)` returns a tuple, use the first element as the module table.\n- Make `tactus.classify.llm` robust to Python-bridged dict-like outputs:\n  - Use `pcall(obj[key])` access and a `safe_get` helper.\n  - Retry until a valid class is produced; report retry_count consistently.\n\n## Debuggability\n\n- When `tactus test --debug` is used:\n  - Set `TACTUS_DEBUG_TRACEBACK=1`.\n  - Include full Python traceback when wrapping main-procedure exceptions.\n\n## Acceptance\n\n- `tactus test ../Tactus-examples/02-classification/01-support-inbox-triage.tac --mock` passes.\n- `tactus test ../Tactus-examples/02-classification/02-composite-fuzzy-then-llm.tac --mock` passes.\n- Targeted unit tests for DSL stubs/model primitive/classify pass.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T08:05:52.728952Z",
+  "updated_at": "2026-02-14T08:07:21.373752Z",
+  "closed_at": "2026-02-14T08:07:21.373752Z",
+  "custom": {
+    "beads_close_reason": "Fixed Classify stdlib require() tuple behavior and made LLM classifier mock outputs work; added debug traceback switch.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

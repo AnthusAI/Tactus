@@ -30,7 +30,7 @@ If you are new, start with the quick references and runnable examples first.
 
 ## For contributors / implementers
 
-- `IMPLEMENTATION.md`: architecture and current status
+- `docs/IMPLEMENTATION.md`: architecture and current status
 - `docs/SANDBOXING.md`: threat model and sandbox design
 - `docs/MODEL_PRIMITIVE_STATUS.md`: implementation status and milestones
 - `docs/MODEL_PRIMITIVE_PLAN.md`: roadmap notes (contains historical sketches; canonical syntax lives elsewhere)

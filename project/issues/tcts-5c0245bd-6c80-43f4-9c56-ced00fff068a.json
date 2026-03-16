@@ -1,0 +1,31 @@
+{
+  "id": "tcts-5c0245bd-6c80-43f4-9c56-ced00fff068a",
+  "title": "Quality gates + CI check for deepgram feature",
+  "description": "",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-98265d1f-6331-4760-9467-7b7b81387daf",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "f64ce151-abbd-4e8b-95e5-49e556d6df4c",
+      "author": "ryan.porter",
+      "text": "Quality gates: ruff check . (py311) passed; deepgram BDD specs passed. black --check . fails due to 17 pre-existing files unrelated to deepgram work; did not auto-format to avoid large unrelated diff.",
+      "created_at": "2026-02-24T00:46:02.670664Z"
+    },
+    {
+      "id": "a3d2d9bb-11e1-4a16-a047-90f8703d6aff",
+      "author": "ryan.porter",
+      "text": "Quality gates finished in py311 (/opt/anaconda3/envs/py311). Ran black --check ., ruff check ., and pytest tests/stdlib/test_stdlib_specs.py -k deepgram; all passed.",
+      "created_at": "2026-02-24T00:49:09.687271Z"
+    }
+  ],
+  "created_at": "2026-02-24T00:34:53.083454Z",
+  "updated_at": "2026-02-24T00:49:22.573450Z",
+  "closed_at": "2026-02-24T00:49:22.573450Z",
+  "custom": {}
+}

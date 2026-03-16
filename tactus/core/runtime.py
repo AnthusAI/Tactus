@@ -920,11 +920,38 @@ class TactusRuntime:
         # 3. Register MCP toolsets by server name
         if self.mcp_servers:
             try:
-                from tactus.adapters.mcp_manager import MCPServerManager
+                from tactus.broker.client import BrokerClient
+                from tactus.adapters.mcp_manager import MCPServerManager, BrokerMCPServerManager
 
-                self.mcp_manager = MCPServerManager(
-                    self.mcp_servers, tool_primitive=self.tool_primitive
+                broker_client = BrokerClient.from_environment()
+
+                def _should_use_broker(config: Any) -> bool:
+                    if not config:
+                        return True
+                    if isinstance(config, dict):
+                        if config.get("broker") is True:
+                            return True
+                        if config.get("transport") == "broker":
+                            return True
+                        if "command" not in config:
+                            return True
+                    return False
+
+                use_broker = broker_client is not None and all(
+                    _should_use_broker(cfg) for cfg in self.mcp_servers.values()
                 )
+
+                if use_broker:
+                    self.mcp_manager = BrokerMCPServerManager(
+                        self.mcp_servers,
+                        tool_primitive=self.tool_primitive,
+                        client=broker_client,
+                    )
+                else:
+                    self.mcp_manager = MCPServerManager(
+                        self.mcp_servers, tool_primitive=self.tool_primitive
+                    )
+
                 await self.mcp_manager.__aenter__()
 
                 # Register each MCP toolset by server name

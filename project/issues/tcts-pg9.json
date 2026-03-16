@@ -1,0 +1,22 @@
+{
+  "id": "tcts-pg9",
+  "title": "Implement HITL Message Classifications",
+  "description": "## Summary\n\nThe specification documents a comprehensive message classification system for chat messages, but the current implementation only supports a subset of the required classifications.\n\n## Current State\n\nThe `ChatMessage` model currently has a `human_interaction_type` field that uses `HITLRequestType` enum with these values:\n- `APPROVAL` (approval)\n- `INPUT` (input)\n- `REVIEW` (review)\n- `ESCALATION` (escalation)\n- `NOTIFICATION` (notification)\n\n## Missing Classifications\n\nAccording to SPECIFICATION.md (lines 858-877), the following classifications are missing:\n\n### Internal Messages\n- `INTERNAL` - Agent-only messages, hidden from human UI (LLM reasoning, tool calls, intermediate steps)\n\n### Chat Messages\n- `CHAT` - Normal human-AI conversation\n- `CHAT_ASSISTANT` - AI response in conversation\n\n### Response Messages\n- `RESPONSE` - Human's response to a pending request\n\n### Alert Messages\n- `ALERT_INFO` - System info alert\n- `ALERT_WARNING` - System warning alert\n- `ALERT_ERROR` - System error alert\n- `ALERT_CRITICAL` - System critical alert\n\n### Lifecycle States\n- `TIMED_OUT` - Request expired without response\n- `CANCELLED` - Request was cancelled\n\n## Value\n\nImplementing the full classification system provides:\n\n1. **Better UI Filtering** - UIs can filter messages by type (e.g., hide INTERNAL messages, show only ALERT_* messages)\n2. **Audit Trails** - Clear separation between user-facing messages and internal agent operations\n3. **Separation of Concerns** - Distinguish between:\n   - Procedure internals (INTERNAL)\n   - Human-AI chat (CHAT/CHAT_ASSISTANT)\n   - Procedure notifications (NOTIFICATION)\n   - System monitoring (ALERT_*)\n   - Interactive requests (PENDING_*)\n\n## Implementation Notes\n\n1. **Extend Enum or Create New**: Decide whether to extend `HITLRequestType` or create a new `MessageClassification` enum that encompasses all types\n2. **Backwards Compatibility**: The current `human_interaction_type` field should continue to work, but may need to map to the broader classification system\n3. **Message Creation**: Update all places where `ChatMessage` objects are created to set appropriate classifications:\n   - Agent reasoning/tool calls → `INTERNAL`\n   - Normal conversation → `CHAT` / `CHAT_ASSISTANT`\n   - Human responses → `RESPONSE`\n   - System alerts → `ALERT_*`\n4. **UI Integration**: Ensure the IDE and any UI components can filter/display messages based on classification\n\n## Related Documentation\n\n- SPECIFICATION.md lines 858-886\n- TECHNICAL_DEBT.md \"HITL Message Classifications\" section (Category 3)\n- Current implementation: `tactus/protocols/models.py` `ChatMessage` and `HITLRequestType`\n\n## Acceptance Criteria\n\n- [ ] All message classifications from the spec are supported\n- [ ] Messages are automatically classified based on their context (agent reasoning → INTERNAL, etc.)\n- [ ] Backwards compatibility is maintained for existing `human_interaction_type` usage\n- [ ] UI components can filter messages by classification\n- [ ] Tests verify classification behavior\n- [ ] Documentation updated to reflect implementation\n\n",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-10T06:05:56.092112Z",
+  "updated_at": "2026-02-13T08:43:16.647183Z",
+  "closed_at": "2026-02-13T08:43:16.647183Z",
+  "custom": {
+    "beads_close_reason": "Added MessageClassification enum, ChatMessage classification defaults + legacy mapping, exports, and tests; classification now available for UI filtering",
+    "beads_notes": "Added MessageClassification enum + ChatMessage auto classification defaults and legacy mapping; exports + tests added. Remaining: set classifications where messages are created/recorded and update UI handling.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

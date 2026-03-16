@@ -1,0 +1,22 @@
+{
+  "id": "tcts-84l.5",
+  "title": "Tactus-in-a-Nutshell: Add Model primitive + train/eval CLI references",
+  "description": "# Tactus-in-a-Nutshell: Add Model primitive + train/eval CLI references\n\n## Seed Findings\n\n- chapters/04-primitives-reference.qmd: no Models section (missing what can I call from Lua coverage for Model).\n- chapters/14-cli-reference.qmd: missing tactus train and tactus models evaluate.\n\n## Deliverables\n\n- Add Models section to primitives reference:\n  - declare\n  - Model(\"name\") lookup\n  - call pattern + output extraction (result.output or result)\n  - brief mocking note\n- Add CLI reference entries:\n  - tactus train <file> --model <name>\n  - tactus models evaluate <file> --model <name> [--candidate ...]\n\n## Acceptance\n\n- Nutshell supports quick lookup for Model usage + train/eval commands.\n",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-84l",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T06:25:27.778791Z",
+  "updated_at": "2026-02-14T09:13:30.533336Z",
+  "closed_at": "2026-02-14T09:13:30.533336Z",
+  "custom": {
+    "close_notes": "Merged in Tactus-in-a-Nutshell PR #1 (Model quick reference) + PR #2 (cleanup)",
+    "beads_notes": "\n## Audit Notes (2026-02-14)\n\n- No Model primitive coverage exists today.\n- Places to update:\n  - ../Tactus-in-a-Nutshell/chapters/04-primitives-reference.qmd: add Models section.\n  - ../Tactus-in-a-Nutshell/chapters/14-cli-reference.qmd: add tactus train + tactus models evaluate.\n\n## Update Requirements (Concrete)\n\n- Primitives reference: include the minimal call surface:\n  - declaration shape (brief)\n  - Model(\\\"name\\\") lookup\n  - call + result.output-or-result pattern\n  - note: Mocks { ... } can override model calls for deterministic tests\n- CLI reference: include current commands and the multi-model selection rule:\n  - tactus train file.tac --model <name>\n  - error if multiple models and --model omitted\n  - tactus models evaluate file.tac --model <name> [--candidate ...] [--version ...]\n\n## Outline (Draft v0)\n\n1) ../Tactus-in-a-Nutshell/chapters/04-primitives-reference.qmd\n- Add a new section: \"Models (Callable Syntax)\"\n- Include:\n  - Model declaration quick sketch\n  - lookup: local m = Model(\"name\")\n  - call: local result = m({ ... })\n  - output extraction: local out = result.output or result\n  - one line about mocks overriding model calls\n\n2) ../Tactus-in-a-Nutshell/chapters/14-cli-reference.qmd\n- Add a new section: \"tactus train\" (ML)\n- Add a new section: \"tactus models evaluate\"\n- Include the multi-model selection rule (must pass --model if multiple models declared)\n\n3) (Optional) add a very small \"install extras\" note\n- `pip install tactus[ml]` and `pip install tactus[hf]`\n\n## Additional audit notes (2026-02-14)\n\n- ../Tactus-in-a-Nutshell/chapters/01-syntax-reference.qmd\n  - Opening sentence lists DSL declarations as tools/agents/procedures/tests; should include Models.\n  - File skeleton should include a minimal Model declaration and the canonical call pattern via Model(\"name\").\n",
+    "beads_owner": "rap@endymion.com"
+  }
+}

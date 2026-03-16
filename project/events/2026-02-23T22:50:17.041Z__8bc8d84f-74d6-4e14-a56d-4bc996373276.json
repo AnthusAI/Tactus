@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "8bc8d84f-74d6-4e14-a56d-4bc996373276",
+  "issue_id": "tcts-438ede0a-3b71-4fbe-a069-45cc4065c9c3",
+  "event_type": "issue_created",
+  "occurred_at": "2026-02-23T22:50:17.041Z",
+  "actor_id": "ryan.porter",
+  "payload": {
+    "assignee": null,
+    "description": "",
+    "issue_type": "task",
+    "labels": [],
+    "parent": "tcts-98265d1f-6331-4760-9467-7b7b81387daf",
+    "priority": 2,
+    "status": "open",
+    "title": "Run stdlib deepgram specs in pytest-enabled env"
+  }
+}

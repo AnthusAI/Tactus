@@ -1,0 +1,21 @@
+{
+  "id": "tcts-zch",
+  "title": "tactus run fails from Tactus-examples when sandbox is enabled (Docker build context expects Tactus source tree)",
+  "description": "When installing `tactus` from PyPI and running examples from `Tactus-examples`, `tactus run` fails by default because it tries to build a Docker sandbox image using a Dockerfile that assumes the current working directory contains the Tactus source tree (`pyproject.toml`, `README.md`, and `tactus/`). Those files aren’t present in `Tactus-examples`, so the docker build fails immediately.\n\n## Environment\n- OS: macOS\n- Python: 3.12.7 (note: system Python 3.9 fails to install because `tactus` requires Python >= 3.11)\n- `tactus`: 0.33.0 (`pip install tactus`)\n- Docker: installed + available on PATH\n\n## Repro steps\n```bash\npython3.12 -m venv .venv\nsource .venv/bin/activate\npip install tactus\n\ngit clone https://github.com/AnthusAI/Tactus-examples.git\ncd Tactus-examples\n\n# This passes\ntactus test 01-getting-started/01-hello-world.tac --mock\n\n# This fails (default behavior)\ntactus run 01-getting-started/01-hello-world.tac\n```\n\n## Expected behavior\n`tactus run 01-getting-started/01-hello-world.tac` should run from `Tactus-examples` after a normal `pip install tactus` (typical quickstart workflow).\n\n## Actual behavior\n`tactus run` attempts to build/rebuild the sandbox Docker image and fails because the Dockerfile contains:\n- `COPY pyproject.toml ./`\n- `COPY README.md ./`\n- `COPY tactus/ ./tactus/`\n\nThose files don’t exist in `Tactus-examples`, so docker build fails with “not found”.\n\n## Error excerpt\n```text\n#9 [ 5/13] COPY pyproject.toml ./\n#9 ERROR: failed to calculate checksum ... \"/pyproject.toml\": not found\n\n#10 [ 6/13] COPY README.md ./\n#10 ERROR: failed to calculate checksum ... \"/README.md\": not found\n\nDockerfile:35\n 35 | >>> COPY pyproject.toml ./\n 36 |     COPY README.md ./\n 37 |     COPY tactus/ ./tactus/\nERROR: failed to solve: failed to compute cache key ... \"/pyproject.toml\": not found\n```\n\n## Workaround\nRunning without Docker isolation works:\n```bash\ntactus run 01-getting-started/01-hello-world.tac --no-sandbox --mock-all\n```\n\n## Why this seems like a bug\nThe sandbox build appears to use the caller’s current directory as build context, but the Dockerfile requires files only available in the Tactus source repo. That makes the default `tactus run` fail for the common “pip install + clone examples” workflow.\n\n## Possible fixes\n- Don’t rebuild the sandbox image from the current repo context; ship/pull a prebuilt sandbox image by default.\n- Or change the docker build context / Dockerfile so it doesn’t assume it’s running from the Tactus source checkout.\n- Or only attempt sandbox rebuild when running from the Tactus source tree (and otherwise use a packaged/prebuilt image).\n",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-10T06:05:43.690977Z",
+  "updated_at": "2026-02-13T08:38:48.588087Z",
+  "closed_at": "2026-02-13T08:38:48.588087Z",
+  "custom": {
+    "beads_close_reason": "Include tactus/docker assets in package so PyPI installs can build sandbox image with Dockerfile.pypi",
+    "beads_owner": "rap@endymion.com"
+  }
+}

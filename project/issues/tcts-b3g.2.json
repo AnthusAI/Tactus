@@ -1,0 +1,22 @@
+{
+  "id": "tcts-b3g.2",
+  "title": "Research: Tactus-examples agent primitive drift inventory",
+  "description": "Search ../Tactus-examples for Agent usage patterns and any stale syntax. Record drift findings as NOTES (paths + what to change).",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-b3g",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T12:56:35.222776Z",
+  "updated_at": "2026-02-14T12:58:23.933207Z",
+  "closed_at": "2026-02-14T12:58:23.933207Z",
+  "custom": {
+    "beads_close_reason": "Completed inventory; no drift found in current scan.",
+    "beads_notes": "Scan results: Tactus-examples appears aligned with current Agent primitive canon.\n\n- Agent declarations use Agent { ... tools = {...} } (no legacy toolsets key found).\n- README.md + category READMEs emphasize mock-first testing via tactus test --mock and Mocks { ... }.\n- No drift found in this scan.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "id": "tcts-1ge",
+  "title": "Docs: Add human+LLM quick reference for Model primitive",
+  "description": "Add a single canonical, copy/pasteable reference doc in the main repo that explains the Model primitive for both humans and AI assistants: semantics, runtime call pattern (result.output or result), training config under Model.training, registry tags (latest, candidate/<name>), CLI train + models evaluate, dependency extras, GPU control (HF no_cuda), and mocking/spec patterns.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T09:15:21.809234Z",
+  "updated_at": "2026-02-14T09:16:16.230616Z",
+  "closed_at": "2026-02-14T09:16:16.230616Z",
+  "custom": {
+    "beads_close_reason": "Added canonical docs/model-primitive.md and linked from README",
+    "beads_owner": "rap@endymion.com"
+  }
+}

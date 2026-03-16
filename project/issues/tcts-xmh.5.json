@@ -1,0 +1,21 @@
+{
+  "id": "tcts-xmh.5",
+  "title": "Add 'tactus models list' CLI command",
+  "description": "List models declared in a .tac file (static analysis from parse tree). List versions in registry for a model name.\n\nAcceptance: CLI output matches expected format.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-xmh",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T02:12:15.230918Z",
+  "updated_at": "2026-02-13T06:18:03.698402Z",
+  "closed_at": "2026-02-13T06:18:03.698402Z",
+  "custom": {
+    "beads_close_reason": "Completed: tactus models list implemented with Typer CLI and tests",
+    "beads_owner": "rap@endymion.com"
+  }
+}

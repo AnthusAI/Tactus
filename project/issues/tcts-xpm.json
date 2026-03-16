@@ -1,0 +1,21 @@
+{
+  "id": "tcts-xpm",
+  "title": "Unify Model.training + evaluate CLI",
+  "description": "Implement Model.training block, candidate tags, evaluate CLI, update examples/docs/tests",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T00:01:57.134344Z",
+  "updated_at": "2026-02-14T00:02:12.957687Z",
+  "closed_at": "2026-02-14T00:02:12.957687Z",
+  "custom": {
+    "beads_close_reason": "Completed",
+    "beads_owner": "rap@endymion.com"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "id": "tcts-ybd.3",
+  "title": "Data drift detection",
+  "description": "Compare production input distribution against training data. Alert when drift exceeds threshold.\n\nAcceptance: Drift detector flags synthetic drift.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-ybd",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T02:27:37.476660Z",
+  "updated_at": "2026-02-13T06:41:22.937635Z",
+  "closed_at": "2026-02-13T06:41:22.937635Z",
+  "custom": {
+    "beads_close_reason": "Completed: drift detection utilities",
+    "beads_owner": "rap@endymion.com"
+  }
+}

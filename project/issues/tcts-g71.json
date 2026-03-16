@@ -1,0 +1,21 @@
+{
+  "id": "tcts-g71",
+  "title": "Fix datetime.utcnow deprecation in training runner",
+  "description": "Pytest shows deprecation warnings in tactus/training/runner.py for datetime.utcnow; replace with timezone-aware datetime.",
+  "type": "task",
+  "status": "closed",
+  "priority": 3,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T00:04:27.700194Z",
+  "updated_at": "2026-02-14T09:47:44.507901Z",
+  "closed_at": "2026-02-14T09:47:44.507901Z",
+  "custom": {
+    "beads_close_reason": "Replaced deprecated datetime.utcnow() with datetime.now(timezone.utc) in training runner and added a unit test to prevent regression",
+    "beads_owner": "rap@endymion.com"
+  }
+}

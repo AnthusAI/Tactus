@@ -762,6 +762,16 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
 
                     config_manager = ConfigManager()
                     merged_config = config_manager.load_cascade(path)
+                    broker_mcp_servers = {}
+                    if hasattr(config_manager, "load_host_mcp_servers"):
+                        broker_mcp_servers = config_manager.load_host_mcp_servers()
+                    elif hasattr(config_manager, "load_user_config"):
+                        user_config = config_manager.load_user_config() or {}
+                        broker_mcp_servers = (
+                            user_config.get("mcp_servers")
+                            or user_config.get("broker_mcp_servers")
+                            or {}
+                        )
 
                     # Extract API keys and other config values
                     openai_api_key = (
@@ -942,7 +952,11 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
 
                             if use_sandbox:
                                 # Use sandbox execution (events streamed via broker over UDS)
-                                runner = ContainerRunner(sandbox_config)
+                                runner = ContainerRunner(
+                                    sandbox_config,
+                                    broker_mcp_servers=broker_mcp_servers,
+                                    mcp_servers=mcp_servers,
+                                )
 
                                 # Pass async control handler directly (broker calls it in async context)
                                 # Build LLM backend config (provider-agnostic)

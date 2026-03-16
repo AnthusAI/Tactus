@@ -1,0 +1,21 @@
+{
+  "id": "tcts-561",
+  "title": "Phase 5: Training Infrastructure",
+  "description": "Add training and evaluation infrastructure. Training runner executes scripts as subprocesses, captures metrics. Evaluation runner computes accuracy/precision/recall/F1 across candidates. CLI commands for train and evaluate.\n\nPart of the Model Primitive MLOps vision (docs/MODEL_PRIMITIVE_PLAN.md).",
+  "type": "epic",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T01:53:59.240542Z",
+  "updated_at": "2026-02-13T06:29:35.528857Z",
+  "closed_at": "2026-02-13T06:29:35.528857Z",
+  "custom": {
+    "beads_close_reason": "Completed Phase 5 training infrastructure with runners and CLI",
+    "beads_owner": "rap@endymion.com"
+  }
+}

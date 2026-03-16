@@ -1,0 +1,18 @@
+{
+  "id": "tcts-438ede0a-3b71-4fbe-a069-45cc4065c9c3",
+  "title": "Run stdlib deepgram specs in pytest-enabled env",
+  "description": "",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-98265d1f-6331-4760-9467-7b7b81387daf",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-23T22:50:17.041146Z",
+  "updated_at": "2026-02-23T23:19:45.103892Z",
+  "closed_at": "2026-02-23T23:19:45.103892Z",
+  "custom": {}
+}

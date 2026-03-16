@@ -1,0 +1,21 @@
+{
+  "id": "tcts-t41.2",
+  "title": "Refactor LLMClassifier to use Model primitive internally",
+  "description": "Keep existing API (LLMClassifier:new{...}, :classify()). Delegate to Model primitive under the hood instead of creating Agent directly.\n\nAcceptance: All existing classify tests still pass.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-t41",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T02:23:41.137616Z",
+  "updated_at": "2026-02-13T08:35:29.649616Z",
+  "closed_at": "2026-02-13T08:35:29.649616Z",
+  "custom": {
+    "beads_close_reason": "LLMClassifier now delegates to Model primitive",
+    "beads_owner": "rap@endymion.com"
+  }
+}

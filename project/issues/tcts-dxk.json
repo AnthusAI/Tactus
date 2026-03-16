@@ -1,0 +1,21 @@
+{
+  "id": "tcts-dxk",
+  "title": "Review leftover uncommitted workspace changes",
+  "description": "Workspace has uncommitted changes unrelated to task dependency work (AGENTS.md, tactus-lsp-server semantic_tokens/stdio_server, tactus-vscode extension files, plus untracked .vscode/, AGENT_INSTRUCTIONS.md, examples/tests/, scripts/activate-tactus-conda.sh, tests/fixtures/empty_corpus/metadata/). Decide whether to keep, commit separately, or discard.",
+  "type": "task",
+  "status": "closed",
+  "priority": 3,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-10T06:04:36.800188Z",
+  "updated_at": "2026-02-13T08:37:45.924345Z",
+  "closed_at": "2026-02-13T08:37:45.924345Z",
+  "custom": {
+    "beads_close_reason": "Workspace clean; no leftover uncommitted changes to review",
+    "beads_owner": "rap@endymion.com"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "id": "tcts-xmh.1",
+  "title": "Define ModelRegistry protocol",
+  "description": "Location: tactus/registry/protocol.py (new). Methods: resolve(name, version) -> ModelArtifact, list_versions(name), promote(name, version, tag), log_prediction(model_id, input, output, cost, latency_ms).\n\nAcceptance: Protocol is implementable.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-xmh",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T02:12:13.197939Z",
+  "updated_at": "2026-02-13T06:17:55.298844Z",
+  "closed_at": "2026-02-13T06:17:55.298844Z",
+  "custom": {
+    "beads_close_reason": "Completed: ModelRegistry protocol implemented in tactus/registry/protocol.py and covered by tests",
+    "beads_owner": "rap@endymion.com"
+  }
+}

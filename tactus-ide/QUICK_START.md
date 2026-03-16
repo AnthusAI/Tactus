@@ -191,7 +191,7 @@ Edit `tactus-ide/frontend/src/index.css` to customize colors:
 
 - Check `IDE_OVERHAUL_SUMMARY.md` for implementation details
 - Read `SPECIFICATION.md` for DSL syntax
-- See `IMPLEMENTATION.md` for feature status
+- See `docs/IMPLEMENTATION.md` for feature status
 - Report issues on GitHub (when available)
 
 

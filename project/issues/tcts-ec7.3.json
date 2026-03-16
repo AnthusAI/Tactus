@@ -1,0 +1,21 @@
+{
+  "id": "tcts-ec7.3",
+  "title": "Implement S3Storage",
+  "description": "Uses boto3. Supports s3://bucket/key URIs.\n\nAcceptance: Integration test with mocked S3 (moto).",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-ec7",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T02:17:12.711292Z",
+  "updated_at": "2026-02-13T06:23:11.324913Z",
+  "closed_at": "2026-02-13T06:23:11.324913Z",
+  "custom": {
+    "beads_close_reason": "Completed: S3Storage using boto3 with moto-based tests",
+    "beads_owner": "rap@endymion.com"
+  }
+}

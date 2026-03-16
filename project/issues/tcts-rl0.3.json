@@ -1,0 +1,21 @@
+{
+  "id": "tcts-rl0.3",
+  "title": "Add cost accumulation on model instance",
+  "description": "Track model.total_cost, model.prediction_count, model.avg_latency_ms across predictions.\n\nAcceptance: After N predictions, accumulated stats are correct.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-rl0",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T02:03:03.202100Z",
+  "updated_at": "2026-02-13T06:43:32.223526Z",
+  "closed_at": "2026-02-13T06:43:32.223526Z",
+  "custom": {
+    "beads_close_reason": "Completed: cost accumulation on model instance",
+    "beads_owner": "rap@endymion.com"
+  }
+}

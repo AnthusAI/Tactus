@@ -1,0 +1,21 @@
+{
+  "id": "tcts-96d",
+  "title": "Spec: agent callable uses initial_message not message",
+  "description": "## Problem\n`SPECIFICATION.md` documents calling an agent with `{message = \"...\"}`, but the implementation expects `{initial_message = \"...\"}`.\n\n| Spec (Wrong) | Reality (Correct) |\n| --- | --- |\n| `worker({message = \"...\"})` | `worker({initial_message = \"...\"})` |\n\n## Why it matters\n- Users following the spec will pass a parameter that is ignored, leading to confusing behavior.\n\n## Where this shows up\n- `TECHNICAL_DEBT.md` → “Agent Callable Parameter Name” (Category 1).\n- `SPECIFICATION.md` around the agent callable examples (currently near line 2235).\n\n## Proposed fix (docs-only)\n- Update agent invocation examples to use `initial_message`.\n- If `message` is intentionally supported as an alias, document both and clarify precedence.\n\n## Acceptance criteria\n- `SPECIFICATION.md` uses `initial_message` in the canonical agent call example(s).\n- Any mention of `message` is removed or explicitly documented as an alias (if supported).\n\n",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-10T06:06:29.708817Z",
+  "updated_at": "2026-02-10T06:06:29.864864Z",
+  "closed_at": "2026-02-10T06:06:29.864864Z",
+  "custom": {
+    "beads_close_reason": "Closed in GitHub",
+    "beads_owner": "rap@endymion.com"
+  }
+}

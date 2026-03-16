@@ -1,0 +1,85 @@
+{
+  "id": "tcts-98265d1f-6331-4760-9467-7b7b81387daf",
+  "title": "Deepgram stdlib + extract rename",
+  "description": "",
+  "type": "epic",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "01b9db18-3afa-4d25-9dd2-6e2aa26ecfeb",
+      "author": "ryan.porter",
+      "text": "Started work. Plan: breaking rename tactus.extract -> tactus.text.extract; add tactus.deepgram module with text/segments/quote; add Deepgram fixtures + docs. Will use biblicus.text.extract for LLM quote path.",
+      "created_at": "2026-02-23T22:37:33.699933Z"
+    },
+    {
+      "id": "d8658366-6134-4b6e-b2d1-2114be8bd626",
+      "author": "ryan.porter",
+      "text": "Progress: moved tactus.extract to tactus.text.extract (breaking); updated all references/docs; added tactus.deepgram module (init.tac, index.md, deepgram.spec.tac); added Deepgram fixtures under tests/fixtures/deepgram. Note: pytest not available in env (python3 -m pytest fails: no module named pytest).",
+      "created_at": "2026-02-23T22:48:09.508402Z"
+    },
+    {
+      "id": "312a0854-1d44-4dd6-b1db-907512a17460",
+      "author": "ryan.porter",
+      "text": "Follow-up filed: tcts-438ede to run stdlib deepgram specs where pytest is available.",
+      "created_at": "2026-02-23T22:50:21.085306Z"
+    },
+    {
+      "id": "fbe8cc1f-129d-42c5-b2bd-d3d3e76a5c8b",
+      "author": "ryan.porter",
+      "text": "Work pushed (commit d6c42aa). Tasks tcts-b376be, tcts-0d9b13, tcts-c0a058 closed. pytest unavailable locally; see follow-up tcts-438ede.",
+      "created_at": "2026-02-23T22:50:59.515401Z"
+    },
+    {
+      "id": "560a313b-df73-4946-a6aa-4cb2b6be8a18",
+      "author": "ryan.porter",
+      "text": "Ran tests in py311:  now passing. Updated deepgram.spec.tac to inline fixtures and normalize \n in expectations.",
+      "created_at": "2026-02-23T23:19:30.659654Z"
+    },
+    {
+      "id": "1367cb67-37ec-43a0-9b67-5db98c5e6de2",
+      "author": "ryan.porter",
+      "text": "Ran tests in py311: python -m pytest tests/stdlib/test_stdlib_specs.py -k deepgram (passed). Updated deepgram.spec.tac to inline fixtures and normalize \n expectations.",
+      "created_at": "2026-02-23T23:19:40.704454Z"
+    },
+    {
+      "id": "211d08d0-db8d-41ba-a0ed-6c8a513971ab",
+      "author": "ryan.porter",
+      "text": "Pushed follow-up fix commit d8246d3 (deepgram spec fixtures + expectations). Deepgram stdlib specs passing in py311.",
+      "created_at": "2026-02-23T23:20:10.050918Z"
+    },
+    {
+      "id": "571c3839-17ee-4ef9-85d9-d726dbd28120",
+      "author": "ryan.porter",
+      "text": "Running quality gates (ruff/black + deepgram BDD) in py311 conda env for CI readiness.",
+      "created_at": "2026-02-24T00:35:00.015691Z"
+    },
+    {
+      "id": "5e51e704-8d22-43ba-9d2f-d1e2b0c6f706",
+      "author": "ryan.porter",
+      "text": "Quality gates: ruff check . (py311) passed; deepgram BDD specs passed. black --check . fails with 17 unrelated files (scripts/fetch_noaa_afd_corpus.py, tactus/core/*.py, several tests, etc.). Need decision: reformat whole repo or leave existing formatting debt.",
+      "created_at": "2026-02-24T00:35:57.613090Z"
+    },
+    {
+      "id": "640ff97a-7196-4da4-8f24-f9261b10987b",
+      "author": "ryan.porter",
+      "text": "Quality gates complete in py311: black --check ., ruff check ., pytest tests/stdlib/test_stdlib_specs.py -k deepgram all passing. Black formatting committed-ready (17 previously failing files). Preparing to push and close epic.",
+      "created_at": "2026-02-24T00:49:25.270147Z"
+    },
+    {
+      "id": "48d07e58-2cd0-4f7b-af04-2440447db267",
+      "author": "ryan.porter",
+      "text": "Pushed black formatting cleanup (commit d29b4a4) after passing quality gates; epic remains closed.",
+      "created_at": "2026-02-24T00:49:52.402121Z"
+    }
+  ],
+  "created_at": "2026-02-23T22:37:19.414093Z",
+  "updated_at": "2026-02-24T00:49:52.402121Z",
+  "closed_at": "2026-02-24T00:49:27.187446Z",
+  "custom": {}
+}

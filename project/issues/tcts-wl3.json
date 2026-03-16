@@ -1,0 +1,21 @@
+{
+  "id": "tcts-wl3",
+  "title": "Naive Bayes trainer + sklearn backend",
+  "description": "Implement NaiveBayes trainer (TF-IDF + MultinomialNB) and sklearn backend for inference + registry integration. Acceptance: training outputs artifact/metrics; type=sklearn works in ModelPrimitive and registry backend.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T07:55:17.992464Z",
+  "updated_at": "2026-02-13T08:04:39.683942Z",
+  "closed_at": "2026-02-13T08:04:39.683942Z",
+  "custom": {
+    "beads_close_reason": "Implemented Naive Bayes trainer and sklearn backend integration.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

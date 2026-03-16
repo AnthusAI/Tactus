@@ -1,0 +1,22 @@
+{
+  "id": "tcts-o2c",
+  "title": "Fix VSCode Extension CI: Node 20 for packaging",
+  "description": "VSCode Extension CI fails packaging step because npm pulls deps requiring Node >=20 and undici crashes on Node 18 ('File is not defined'). Update workflow to use Node 20.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T16:51:10.270371Z",
+  "updated_at": "2026-02-14T17:01:54.114572Z",
+  "closed_at": "2026-02-14T17:01:54.114572Z",
+  "custom": {
+    "beads_acceptance_criteria": "- VSCode Extension CI workflow passes on main\\n- npm package step succeeds",
+    "beads_close_reason": "Updated VSCode extension CI to use Node 20; packaging step now succeeds.",
+    "beads_owner": "rap@endymion.com"
+  }
+}

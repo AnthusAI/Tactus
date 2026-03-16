@@ -1,0 +1,22 @@
+{
+  "id": "tcts-84l.6",
+  "title": "Programming-Tactus: Write Model primitive chapter (reference-level)",
+  "description": "# Programming-Tactus: Write Model primitive chapter (reference-level)\n\n## Seed Findings\n\n- chapters/22-model-primitive.qmd is a placeholder and references HuggingFace Transformers backend (obsolete naming).\n\n## Deliverables\n\n- Replace Chapter 22 placeholder with a full reference chapter:\n  - Model semantics and lifecycle\n  - backends (mock, registry, sklearn, hf_sequence_classifier)\n  - training config surface (training.data, training.candidates, hyperparameters)\n  - evaluation (tactus models evaluate) + metrics meaning + caveats\n  - versioning/tags (latest, candidate/<name>)\n  - GPU/device control for HF training (accurate and actionable)\n\n## Acceptance\n\n- Chapter 22 is no longer a stub and matches canon terminology and syntax.\n",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-84l",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T06:25:27.971781Z",
+  "updated_at": "2026-02-14T09:13:30.615966Z",
+  "closed_at": "2026-02-14T09:13:30.615966Z",
+  "custom": {
+    "beads_close_reason": "Merged in Programming-Tactus PR #1 (Model reference chapter)",
+    "beads_notes": "\n## Audit Notes (2026-02-14)\n\n- ../Programming-Tactus/chapters/22-model-primitive.qmd is a stub outline.\n- It references \\\"HuggingFace Transformers backend\\\" (obsolete naming) and contains no current syntax or CLI.\n\n## Update Requirements (Concrete)\n\n- Replace Chapter 22 with a real reference chapter that matches canon:\n  - current Model syntax (including Model.training)\n  - registry tags (latest, candidate/<name>)\n  - CLI (train + models evaluate)\n  - backends/training candidates:\n    - naive_bayes\n    - hf_sequence_classifier\n  - hyperparameter control surface and GPU control (HF Trainer)\n\n## Outline (Draft v0)\n\nFile: ../Programming-Tactus/chapters/22-model-primitive.qmd\n\n### Sections\n\n1) What the Model primitive is\n- definition\n- statelessness\n- schema-first I/O\n\n2) Model vs Agent\n- decision table (reuse canon)\n\n3) How to use a model in a procedure\n- canonical lookup/call/output pattern\n- result.output-or-result\n\n4) Registry + versions/tags\n- latest\n- candidate/<name>\n- how runtime resolves versions\n\n5) Training config reference (Model.training)\n- data sources (HF dataset bundle)\n- candidates\n- hyperparameters\n\n6) Evaluation\n- tactus models evaluate\n- metrics meaning + caveats\n\n7) Hugging Face Sequence Classifier\n- what it is\n- hyperparameters\n- GPU control (no_cuda)\n\n### Snippet sources\n\n- Tactus repo examples:\n  - examples/47-model-naive-bayes-train.tac\n  - examples/49-model-compare-train.tac\n\n## Additional audit notes (2026-02-14)\n\n- ../Programming-Tactus/chapters/02-the-tactus-dsl.qmd\n  - Bullet list of top-level declarations omits Model; add Model to keep the DSL chapter accurate.\n",
+    "beads_owner": "rap@endymion.com"
+  }
+}

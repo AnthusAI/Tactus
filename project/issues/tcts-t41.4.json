@@ -1,0 +1,21 @@
+{
+  "id": "tcts-t41.4",
+  "title": "Add model-based .tac examples",
+  "description": "examples/models/classification.tac - Full classification workflow. examples/models/http-endpoint.tac - HTTP model usage. examples/models/registry-usage.tac - Registry with champion.\n\nAcceptance: All examples run with --mock.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-t41",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-13T02:23:41.440433Z",
+  "updated_at": "2026-02-13T08:35:24.190596Z",
+  "closed_at": "2026-02-13T08:35:24.190596Z",
+  "custom": {
+    "beads_close_reason": "Added model-based .tac examples with mock-safe workflows",
+    "beads_owner": "rap@endymion.com"
+  }
+}

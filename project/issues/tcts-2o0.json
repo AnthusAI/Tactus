@@ -1,0 +1,21 @@
+{
+  "id": "tcts-2o0",
+  "title": "Add named checkpoints for selective replay",
+  "description": "## Problem\nCheckpointing is position-based today. The spec/backlog calls out named checkpoints to enable clearer execution traces and selective replay.\n\n## Why it matters\n- Better debugging and easier reruns starting from a semantic step boundary.\n\n## Where this shows up\n- `TECHNICAL_DEBT.md` → “Named Checkpoints” (Category 3).\n\n## Proposed fix\n- Introduce a named checkpoint API, e.g.:\n  - `Step.run(\"fetch_data\", function() ... end)`\n  - `Checkpoint.clear_after(\"fetch_data\")`\n- Define behavior for collisions/duplicates and for renames.\n\n## Acceptance criteria\n- Named checkpoints can be created and cleared via DSL APIs.\n- Backwards compatibility with position-based checkpoints is preserved.\n- Tests demonstrate selective replay using names.\n\n",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-10T06:06:10.835363Z",
+  "updated_at": "2026-02-10T06:06:11.001355Z",
+  "closed_at": "2026-02-10T06:06:11.001355Z",
+  "custom": {
+    "beads_close_reason": "Closed in GitHub",
+    "beads_owner": "rap@endymion.com"
+  }
+}

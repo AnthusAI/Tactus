@@ -1,0 +1,21 @@
+{
+  "id": "tcts-74q",
+  "title": "CI: Add concurrency to release workflow to avoid semantic-release upstream changed failures",
+  "description": "We saw python-semantic-release fail with:\n- \"Upstream branch 'origin/main' has changed!\" when a newer commit was pushed while the release job was running.\n\nFix:\n- Add GitHub Actions concurrency for the Release workflow (grouped by branch/event) with cancel-in-progress so older runs are cancelled when a new push lands.\n\nAcceptance:\n- Pushing multiple commits quickly to main does not produce failing semantic-release jobs due to upstream moving.\n",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T10:57:52.497325Z",
+  "updated_at": "2026-02-14T10:58:18.794378Z",
+  "closed_at": "2026-02-14T10:58:18.794378Z",
+  "custom": {
+    "beads_close_reason": "Added workflow-level concurrency (cancel-in-progress) to Release workflow",
+    "beads_owner": "rap@endymion.com"
+  }
+}

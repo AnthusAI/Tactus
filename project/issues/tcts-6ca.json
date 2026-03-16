@@ -1,0 +1,22 @@
+{
+  "id": "tcts-6ca",
+  "title": "Audit + outline: Tactus-in-a-Nutshell Model/Agent content",
+  "description": "Audit ../Tactus-in-a-Nutshell chapters for Model + Agent primitives; record what needs updating; propose edits/notes.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": "Ryan Alyn Porter",
+  "parent": "tcts-e61",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-02-14T14:56:36.605816Z",
+  "updated_at": "2026-02-14T15:03:05.772928Z",
+  "closed_at": "2026-02-14T15:03:05.772928Z",
+  "custom": {
+    "beads_close_reason": "Audit complete: recorded findings + outline/writing notes",
+    "beads_notes": "Findings (2026-02-14):\\n- ../Tactus-in-a-Nutshell already references the new Model.training + CLI surface in chapters/14-cli-reference.qmd (tactus train + tactus models evaluate).\\n- Syntax reference includes a mocked Model example (chapters/01-syntax-reference.qmd).\\n- No stale agent result accessors (result.response/result.message) found.\\n\\nPotential follow-ups:\\n- Normalize Agent declaration style and wording to match canonical docs (prefer model=\"openai/gpt-4o-mini\" where helpful; keep provider+model only when teaching that split explicitly).\\n- Ensure the CLI reference clearly calls out optional dependency extras (tactus[ml]/tactus[hf]) and what happens when they are missing.\n\\nOutline / writing notes (proposed):\\n- CLI reference (chapters/14-cli-reference.qmd):\\n  - Add explicit footnote/callout for tactus train/evaluate: requires optional extras; base install won't include datasets/torch.\\n  - Add examples for both selection modes when multiple models exist in a file: require --model.\\n- Syntax reference (chapters/01-syntax-reference.qmd):\\n  - Add a minimal Model.training skeleton (even if not fully explained) to teach the shape.\\n- Add a 1-page 'Agent vs Model' cheat sheet in the Nutshell (new chapter or section), linking to both.\\n",
+    "beads_owner": "rap@endymion.com"
+  }
+}
