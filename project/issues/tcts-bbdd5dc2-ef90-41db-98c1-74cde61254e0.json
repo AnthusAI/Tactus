@@ -1,0 +1,34 @@
+{
+  "id": "tcts-bbdd5dc2-ef90-41db-98c1-74cde61254e0",
+  "title": "Automate GitHub ruleset sync as IaC",
+  "description": "Add ruleset desired-state file and workflow to check drift on PR/feature branches and apply on main or manual dispatch using RULESET_ADMIN_TOKEN.",
+  "type": "task",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-cb2464fa-75fc-4ae2-b2d4-3146898fc2f0",
+  "labels": [
+    "github",
+    "ci"
+  ],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "1bf1f491-5d4e-4b9a-8f54-316daff0e8ea",
+      "author": "derek.norrbom",
+      "text": "Implemented ruleset IaC bootstrap: added desired-state file `infra/github-rulesets/main-branch-protection.json`, added sync utility `scripts/sync-rulesets.sh` (check/apply modes), and added dedicated workflow `.github/workflows/ruleset-sync.yml`. Workflow runs on feature/* and PRs in check mode, applies on push to main, and supports manual workflow_dispatch check/apply. Verified locally: script check reports ruleset in sync and workflow YAML validates.",
+      "created_at": "2026-03-13T22:28:38.143572Z"
+    },
+    {
+      "id": "5f696a65-f830-40bc-93d2-ddd7435da314",
+      "author": "derek.norrbom",
+      "text": "Enhanced ruleset IaC sync to avoid hardcoded IDs: `scripts/sync-rulesets.sh` now resolves rulesets by desired `name` + `target`, updates when found, and creates missing rulesets in apply mode. Desired-state JSON no longer requires `id` (removed from `infra/github-rulesets/main-branch-protection.json`). Verified: `./scripts/sync-rulesets.sh check` reports in sync.",
+      "created_at": "2026-03-13T22:31:22.505591Z"
+    }
+  ],
+  "created_at": "2026-03-13T22:27:53.942559Z",
+  "updated_at": "2026-03-13T22:31:22.505591Z",
+  "closed_at": null,
+  "custom": {}
+}

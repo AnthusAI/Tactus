@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "event_id": "332e1f94-f98a-47a2-a016-b2ae143569d2",
+  "issue_id": "tcts-b089e560-9db8-45fe-8f38-a953de2dc4f3",
+  "event_type": "issue_created",
+  "occurred_at": "2026-03-13T21:29:13.561Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "title": "Remove obsolete py3.9 required check from ruleset",
+    "description": "Update GitHub ruleset so branch protection no longer requires Python 3.9 quality-check status.",
+    "issue_type": "task",
+    "status": "open",
+    "priority": 2,
+    "assignee": null,
+    "parent": "tcts-cb2464fa-75fc-4ae2-b2d4-3146898fc2f0",
+    "labels": [
+      "github",
+      "ci"
+    ]
+  }
+}

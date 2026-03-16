@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "event_id": "c25364e3-6be5-4daf-858e-c60e3560732b",
+  "issue_id": "tcts-cb2464fa-75fc-4ae2-b2d4-3146898fc2f0",
+  "event_type": "issue_created",
+  "occurred_at": "2026-03-13T21:29:12.534Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "title": "Update required status checks after CI matrix changes",
+    "description": "Keep GitHub required checks aligned with active CI job names and matrix values.",
+    "issue_type": "epic",
+    "status": "open",
+    "priority": 2,
+    "assignee": null,
+    "parent": "tcts-c92d566e-8a94-4d2b-870a-5a0c487cef54",
+    "labels": [
+      "github",
+      "ci"
+    ]
+  }
+}
