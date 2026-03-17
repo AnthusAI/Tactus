@@ -574,6 +574,38 @@ local function quote(data, request)
     error("unknown quote method: " .. tostring(method))
 end
 
+local function _format_timestamp(seconds)
+    local m = math.floor(seconds / 60)
+    local s = seconds - (m * 60)
+    return string.format("%d:%05.2f", m, s)
+end
+
+local function enrich_timestamps(input_text, data, opts)
+    -- If no deepgram data available, return text unchanged
+    if data == nil then
+        return input_text
+    end
+    opts = _get_opts(opts)
+    local method = opts.method or "fuzzy"
+    local threshold = opts.threshold or 0.7
+    local min_len = opts.min_quote_length or 5
+
+    local result = input_text
+    for q in input_text:gmatch('"([^"]+)"') do
+        if #q > min_len then
+            local hit = quote(data, {quote = q, method = method, threshold = threshold})
+            if not hit then
+                error("Quote not found in transcript: \"" .. q .. "\"")
+            end
+            local ts = _format_timestamp(hit.start or 0) .. "-" .. _format_timestamp(hit["end"] or 0)
+            local tag = " [" .. ts .. "]"
+            local escaped = q:gsub("([%(%)%.%%%+%-%*%?%[%]%^%$])", "%%%1")
+            result = result:gsub('"' .. escaped .. '"', '"' .. q .. '"' .. tag, 1)
+        end
+    end
+    return result
+end
+
 return {
     words_text = words_text,
     sentences_text = sentences_text,
@@ -582,4 +614,5 @@ return {
     text = text,
     segments = segments,
     quote = quote,
+    enrich_timestamps = enrich_timestamps,
 }

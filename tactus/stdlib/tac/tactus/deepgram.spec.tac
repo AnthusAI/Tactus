@@ -68,6 +68,41 @@ Step("I fuzzy match quote \"(.+)\"", function(ctx, quote)
     })
 end)
 
+Step("I enrich timestamps in \"(.+)\"", function(ctx, input_text)
+    test_state.enriched = deepgram.enrich_timestamps(input_text, test_state.data)
+end)
+
+Step("I enrich timestamps in \"(.+)\" with no data", function(ctx, input_text)
+    test_state.enriched = deepgram.enrich_timestamps(input_text, nil)
+end)
+
+Step("I try to enrich timestamps in \"(.+)\"", function(ctx, input_text)
+    local ok, err = pcall(function()
+        test_state.enriched = deepgram.enrich_timestamps(input_text, test_state.data)
+    end)
+    test_state.enrich_ok = ok
+    test_state.enrich_error = err
+end)
+
+Step("the enriched text should contain \"(.+)\"", function(ctx, expected)
+    local enriched = test_state.enriched
+    assert(enriched ~= nil, "Expected enriched text but got nil")
+    assert(string.find(enriched, expected, 1, true) ~= nil,
+        "Expected enriched text to contain '" .. expected .. "' but got '" .. tostring(enriched) .. "'")
+end)
+
+Step("the enriched text should be \"(.+)\"", function(ctx, expected)
+    expected = string.gsub(expected, "\\n", "\n")
+    local enriched = test_state.enriched
+    assert(enriched == expected,
+        "Expected enriched text '" .. expected .. "' but got '" .. tostring(enriched) .. "'")
+end)
+
+Step("the enrich should have failed with an error", function(ctx)
+    assert(test_state.enrich_ok == false,
+        "Expected enrich to fail but it succeeded with: " .. tostring(test_state.enriched))
+end)
+
 Step("I LLM match quote \"(.+)\" with markup \"(.+)\"", function(ctx, quote, markup)
     test_state.quote = deepgram.quote(test_state.data, {
         quote = quote,
@@ -132,6 +167,20 @@ Feature: Deepgram Utilities
     Given a deepgram fixture "utterances_sample"
     When I LLM match quote "Hi there" with markup "<span>Hi there</span>."
     Then the quote should be "Hi there." with start 0.0 and end 1.0 and speaker 1 via "llm"
+
+  Scenario: enrich_timestamps inlines timestamps for matched quotes
+    Given a deepgram fixture "utterances_sample"
+    When I enrich timestamps in "The customer said "Hi there" at the start."
+    Then the enriched text should contain "[0:00.00-0:01.00]"
+
+  Scenario: enrich_timestamps throws error for unmatched quotes
+    Given a deepgram fixture "utterances_sample"
+    When I try to enrich timestamps in "They said "this quote does not exist in transcript at all"."
+    Then the enrich should have failed with an error
+
+  Scenario: enrich_timestamps returns text unchanged when data is nil
+    When I enrich timestamps in "Hello "world" foo." with no data
+    Then the enriched text should be "Hello "world" foo."
 ]])
 
 Procedure {
