@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "event_id": "5c40c60e-d52d-4e30-b983-c1b642e8c5e8",
+  "issue_id": "tcts-625a1700-56d8-4211-8b80-ae5adf649c8b",
+  "event_type": "issue_created",
+  "occurred_at": "2026-03-18T22:51:06.304Z",
+  "actor_id": "derek",
+  "payload": {
+    "assignee": null,
+    "description": "Root cause: pydantic-ai import path expects python module 'griffe', but latest resolved griffe 2.x packaging in downstream installs does not provide importable module for current stack, causing runtime ModuleNotFoundError in Tactus and downstream Plexus tests. Implement upstream dependency fix in Tactus and validate by local install in Plexus.",
+    "issue_type": "task",
+    "labels": [
+      "security",
+      "dependencies",
+      "tactus"
+    ],
+    "parent": "tcts-68f85b19-3f64-406e-8ef0-7ce0bddc3574",
+    "priority": 1,
+    "status": "open",
+    "title": "Fix griffe import break in tactus runtime dependency graph"
+  }
+}
