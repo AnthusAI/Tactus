@@ -1,0 +1,65 @@
+{
+  "id": "tcts-625a1700-56d8-4211-8b80-ae5adf649c8b",
+  "title": "Fix griffe import break in tactus runtime dependency graph",
+  "description": "Root cause: pydantic-ai import path expects python module 'griffe', but latest resolved griffe 2.x packaging in downstream installs does not provide importable module for current stack, causing runtime ModuleNotFoundError in Tactus and downstream Plexus tests. Implement upstream dependency fix in Tactus and validate by local install in Plexus.",
+  "type": "task",
+  "status": "in_progress",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-68f85b19-3f64-406e-8ef0-7ce0bddc3574",
+  "labels": [
+    "security",
+    "dependencies",
+    "tactus"
+  ],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "c2e60ed4-4d58-4c2a-a117-011268c7cdde",
+      "author": "derek",
+      "text": "Starting implementation. Plan: (1) constrain/update Tactus dependencies so pydantic-ai runtime can import griffe reliably, (2) regenerate lock and run focused Tactus validation, (3) install local Tactus into Plexus env and rerun failing TestRealTactusRuntime tests.",
+      "created_at": "2026-03-18T22:51:10.619314355Z"
+    },
+    {
+      "id": "c045996a-bae0-4313-ac36-6aff24ef5ef0",
+      "author": "derek",
+      "text": "Observed that current Tactus repo already specifies pydantic-ai==1.46.0 and griffe<2 in pyproject. Next: validate downstream by locally installing ../Tactus into Plexus environment and rerunning failing TestRealTactusRuntime tests.",
+      "created_at": "2026-03-18T22:51:35.024735558Z"
+    },
+    {
+      "id": "65ebdca6-c704-41cd-8199-05ee35adf8a6",
+      "author": "derek",
+      "text": "Validated downstream with local editable install of ../Tactus into Plexus py311 env; this replaced griffe 2.0.0 with griffe 1.15.0 and pydantic-ai 1.46.0. Re-ran Plexus tests: tests/scores/test_tactus_score.py::TestRealTactusRuntime => 6 passed. Confirms fix is in local Tactus source/dependency spec and issue is consumption of older published artifact/metadata.",
+      "created_at": "2026-03-18T22:52:33.359764438Z"
+    },
+    {
+      "id": "b8ed7efc-10be-4736-a5aa-588148d5a92d",
+      "author": "derek",
+      "text": "Investigating semantic-release failure in GitHub run 23203224309. Initial signal from run annotations: 'Failed to push branch (main) to remote'. Reviewing release workflow auth/token config next.",
+      "created_at": "2026-03-18T22:53:56.274487357Z"
+    },
+    {
+      "id": "4ce35bb4-c2b1-4564-85d5-775a96b65fb3",
+      "author": "derek",
+      "text": "Confirmed root cause from run 23203224309 logs via gh CLI: semantic-release failed on git push with GH013 repository rule violation for refs/heads/main. Ruleset main-branch-protection requires PR + 4 status checks and currently has bypass_actors=[]. Therefore any direct push from workflow token is blocked. anthusbot token alone will not help unless anthusbot (or GitHub Actions app) is added as ruleset bypass actor.",
+      "created_at": "2026-03-18T22:55:05.611041690Z"
+    },
+    {
+      "id": "825c5fef-b410-4c9f-bf7c-ae923b326c03",
+      "author": "derek",
+      "text": "Implementing requested changes: update release.yml to use anthusbot token/identity and add declarative ruleset bypass for release automation in branch-protection IaC source (platform-ci), then sync generated Tactus ruleset JSON.",
+      "created_at": "2026-03-18T22:57:58.312697407Z"
+    },
+    {
+      "id": "6e6bed25-54e4-4ae4-ac32-7e53b6fb7c73",
+      "author": "derek",
+      "text": "Implemented requested release/ruleset updates. Tactus release workflow now uses ANTHUSBOT_GH_TOKEN for checkout, semantic-release GH_TOKEN, and release-asset upload token, and sets git identity to anthusbot. Added ruleset bypass actor for anthusbot (actor_id=266826422, actor_type=User, bypass_mode=always) in Tactus infra/github-rulesets/main-branch-protection.json. Also updated platform-ci infra/github-rulesets/main-branch-protection.json with same bypass so shared IaC baseline includes it. Validated YAML/JSON parse successfully.",
+      "created_at": "2026-03-18T22:59:04.588070183Z"
+    }
+  ],
+  "created_at": "2026-03-18T22:51:06.304250337Z",
+  "updated_at": "2026-03-18T22:59:04.588070183Z",
+  "closed_at": null,
+  "custom": {}
+}

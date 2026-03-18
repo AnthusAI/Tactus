@@ -76,7 +76,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GH_TOKEN }}
+          token: ${{ secrets.ANTHUSBOT_GH_TOKEN }}
 
       - name: Capture pre-release tag
         id: pre_release
@@ -98,11 +98,11 @@ jobs:
 
       - name: Python Semantic Release
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GH_TOKEN: ${{ secrets.ANTHUSBOT_GH_TOKEN }}
           PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "anthusbot"
+          git config user.email "anthusbot@users.noreply.github.com"
           semantic-release version
           semantic-release publish
 
@@ -303,4 +303,4 @@ jobs:
             tactus-desktop/dist-electron/*.AppImage
           fail_on_unmatched_files: false
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.ANTHUSBOT_GH_TOKEN }}
