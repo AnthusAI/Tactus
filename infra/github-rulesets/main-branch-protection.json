@@ -4,8 +4,8 @@
   "enforcement": "active",
   "bypass_actors": [
     {
-      "actor_id": 266826422,
-      "actor_type": "User",
+      "actor_id": 16575896,
+      "actor_type": "Team",
       "bypass_mode": "always"
     }
   ],
