@@ -1,0 +1,31 @@
+{
+  "id": "tcts-d1ec7096-8c66-4f9e-9b02-39266a3dd146",
+  "title": "Adjust auth probe to simulate semantic-release fast-forward push",
+  "description": "",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-cb2464fa-75fc-4ae2-b2d4-3146898fc2f0",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "848d3014-744a-4173-8698-228db4634e80",
+      "author": "derek",
+      "text": "Updating release workflow auth-probe job to checkout origin/main, create empty commit, and run git push --dry-run origin HEAD:main for release-like validation semantics.",
+      "created_at": "2026-03-20T18:53:11.907913609Z"
+    },
+    {
+      "id": "cff6f95a-3f55-4bf1-b18b-e127cc9659dc",
+      "author": "derek",
+      "text": "Updated auth probe in release.yml to mirror semantic-release push conditions: fetch origin/main, checkout local main from origin/main, create empty probe commit, and run git push --dry-run origin HEAD:main. This removes expected non-fast-forward noise from feature-branch HEAD probes.",
+      "created_at": "2026-03-20T18:53:31.007926493Z"
+    }
+  ],
+  "created_at": "2026-03-20T18:53:09.387502744Z",
+  "updated_at": "2026-03-20T18:53:31.016650584Z",
+  "closed_at": "2026-03-20T18:53:31.016650584Z",
+  "custom": {}
+}
