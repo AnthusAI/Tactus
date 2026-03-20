@@ -68,9 +68,12 @@ jobs:
           echo "GitHub extraheader (should be empty):"
           git config --get-all http.https://github.com/.extraheader || true
 
-      - name: Dry-run push to main
+      - name: Dry-run release-like push to main
         run: |
           set -euo pipefail
+          git fetch --no-tags origin main
+          git checkout -B main origin/main
+          git commit --allow-empty -m "chore: release auth probe [skip ci]"
           git push --dry-run origin HEAD:main
 
   quality-checks:
