@@ -84,6 +84,52 @@ async def test_adapter_tool_wrapper_executes_and_records():
     assert tool_primitive.calls[0][0] == "search"
 
 
+@pytest.mark.asyncio
+async def test_adapter_tool_wrapper_accepts_keyword_args():
+    class DummyClient:
+        async def call_tool(self, name, args):
+            return {"text": f"{name}:{args.get('days')}"}
+
+    adapter = PydanticAIMCPAdapter(DummyClient())
+    tool = adapter._convert_mcp_tool_to_pydantic_ai(
+        {
+            "name": "feedback_find",
+            "inputSchema": {
+                "type": "object",
+                "properties": {"days": {"type": "integer"}},
+                "required": ["days"],
+            },
+        }
+    )
+
+    result = await tool.function(days=30)
+
+    assert result == "feedback_find:30"
+
+
+@pytest.mark.asyncio
+async def test_adapter_tool_wrapper_coerces_scalar_to_string_for_string_fields():
+    class DummyClient:
+        async def call_tool(self, name, args):
+            return {"text": f"{name}:{args.get('days')}:{type(args.get('days')).__name__}"}
+
+    adapter = PydanticAIMCPAdapter(DummyClient())
+    tool = adapter._convert_mcp_tool_to_pydantic_ai(
+        {
+            "name": "feedback_find",
+            "inputSchema": {
+                "type": "object",
+                "properties": {"days": {"type": "string"}},
+                "required": ["days"],
+            },
+        }
+    )
+
+    result = await tool.function(days=30)
+
+    assert result == "feedback_find:30:str"
+
+
 def test_adapter_rejects_tools_without_name(caplog):
     adapter = PydanticAIMCPAdapter(object())
 
@@ -229,6 +275,42 @@ async def test_adapter_tool_wrapper_handles_missing_schema():
     result = await tool.function(args_model())
 
     assert result == "ok"
+
+
+@pytest.mark.asyncio
+async def test_adapter_tool_wrapper_extracts_text_from_dict_content_list():
+    class DummyClient:
+        async def call_tool(self, name, args):
+            return {"content": [{"type": "text", "text": '{"status":"ok"}'}]}
+
+    adapter = PydanticAIMCPAdapter(DummyClient())
+    tool = adapter._convert_mcp_tool_to_pydantic_ai({"name": "noop"})
+    args_model = tool.function.__annotations__["args"]
+    result = await tool.function(args_model())
+
+    assert result == '{"status":"ok"}'
+
+
+@pytest.mark.asyncio
+async def test_adapter_tool_wrapper_extracts_text_from_object_content_list():
+    class ContentPart:
+        def __init__(self, text):
+            self.text = text
+
+    class CallResult:
+        def __init__(self):
+            self.content = [ContentPart("line1"), ContentPart("line2")]
+
+    class DummyClient:
+        async def call_tool(self, name, args):
+            return CallResult()
+
+    adapter = PydanticAIMCPAdapter(DummyClient())
+    tool = adapter._convert_mcp_tool_to_pydantic_ai({"name": "noop"})
+    args_model = tool.function.__annotations__["args"]
+    result = await tool.function(args_model())
+
+    assert result == "line1\nline2"
 
 
 @pytest.mark.asyncio

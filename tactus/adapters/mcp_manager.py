@@ -20,6 +20,17 @@ logger = logging.getLogger(__name__)
 MCPServerStdio: Optional[Any] = None
 
 
+def _is_transient_mcp_error(error: Exception) -> bool:
+    """Detect transient MCP transport failures worth retrying."""
+    error_str = str(error)
+    return (
+        "BrokenResourceError" in error_str
+        or "ClosedResourceError" in error_str
+        or "EndOfStream" in error_str
+        or "unhandled errors in a TaskGroup" in error_str
+    )
+
+
 def _require_mcp_server_stdio():
     try:
         from pydantic_ai.mcp import MCPServerStdio
@@ -136,10 +147,7 @@ class MCPServerManager:
                         break
 
                     # Retry transient anyio TaskGroup/broken stream issues.
-                    if (
-                        "BrokenResourceError" in error_str
-                        or "unhandled errors in a TaskGroup" in error_str
-                    ):
+                    if _is_transient_mcp_error(error):
                         logger.warning(
                             "Transient MCP connection failure for '%s': %s (retrying)",
                             name,
@@ -189,7 +197,24 @@ class MCPServerManager:
             )
 
             try:
-                result = await invoke_next(tool_name, tool_args)
+                max_attempts = 3
+                result = None
+                for attempt in range(1, max_attempts + 1):
+                    try:
+                        result = await invoke_next(tool_name, tool_args)
+                        break
+                    except Exception as error:
+                        if attempt < max_attempts and _is_transient_mcp_error(error):
+                            logger.warning(
+                                "Transient MCP tool failure on '%s' (%s/%s): %s (retrying)",
+                                tool_name,
+                                attempt,
+                                max_attempts,
+                                error,
+                            )
+                            await asyncio.sleep(0.05 * attempt)
+                            continue
+                        raise
 
                 # Record in ToolPrimitive if available
                 if self.tool_primitive:

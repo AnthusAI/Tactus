@@ -5,11 +5,22 @@ Provides integration with MCP servers to load and convert tools for use with Pyd
 """
 
 import logging
-from typing import List, Any, Optional, Dict
+import inspect
+from types import UnionType
+from typing import List, Any, Optional, Dict, get_origin, get_args, Union
 from pydantic import create_model, Field
 from pydantic_ai import Tool
 
 logger = logging.getLogger(__name__)
+
+
+def _annotation_includes_str(annotation: Any) -> bool:
+    if annotation is str:
+        return True
+    origin = get_origin(annotation)
+    if origin in (Union, UnionType):
+        return any(arg is str for arg in get_args(annotation))
+    return False
 
 
 class PydanticAIMCPAdapter:
@@ -130,23 +141,74 @@ class PydanticAIMCPAdapter:
             args_model = create_model(f"{tool_name}Args")
 
         # Create wrapper function that executes the MCP tool
-        async def tool_wrapper(args: args_model) -> str:
+        async def tool_wrapper(*call_args: Any, **call_kwargs: Any) -> str:
             """
             Wrapper function that executes the MCP tool call.
 
             Args:
-                args: Validated arguments from Pydantic model
+                call_args: Positional arguments from tool invocation
+                call_kwargs: Keyword arguments from tool invocation
 
             Returns:
                 Tool result as string
             """
-            # Convert Pydantic model to dict for MCP call
-            if hasattr(args, "model_dump"):
-                args_dict = args.model_dump()
-            elif hasattr(args, "dict"):
-                args_dict = args.dict()
+            raw_args: Any = {}
+            if call_kwargs:
+                raw_args = call_kwargs
+                if len(call_args) > 1:
+                    raise TypeError(
+                        f"Tool '{tool_name}' received unexpected positional arguments: {call_args}"
+                    )
+            elif len(call_args) == 1:
+                raw_args = call_args[0]
+            elif len(call_args) == 0:
+                raw_args = {}
             else:
-                args_dict = dict(args) if hasattr(args, "__dict__") else {}
+                raise TypeError(
+                    f"Tool '{tool_name}' received unexpected positional arguments: {call_args}"
+                )
+
+            # Normalize and validate arguments through the schema-derived model
+            if not isinstance(raw_args, dict):
+                if hasattr(raw_args, "model_dump"):
+                    raw_args = raw_args.model_dump()
+                elif hasattr(raw_args, "dict"):
+                    raw_args = raw_args.dict()
+                elif hasattr(raw_args, "__iter__") and not isinstance(raw_args, (str, bytes)):
+                    try:
+                        raw_args = dict(raw_args)
+                    except Exception:
+                        pass
+
+            if isinstance(raw_args, dict):
+                normalized_raw_args = dict(raw_args)
+                for field_name, field_info in args_model.model_fields.items():
+                    if field_name not in normalized_raw_args:
+                        continue
+                    value = normalized_raw_args[field_name]
+                    if value is None or isinstance(value, str):
+                        continue
+                    if _annotation_includes_str(field_info.annotation):
+                        normalized_raw_args[field_name] = str(value)
+                raw_args = normalized_raw_args
+
+            if isinstance(raw_args, args_model):
+                validated_args = raw_args
+            else:
+                try:
+                    validated_args = args_model.model_validate(raw_args)
+                except Exception:
+                    model_fields = getattr(args_model, "model_fields", {})
+                    # Backward-compat fallback model: {args: Dict[str, Any]}
+                    if len(model_fields) == 1 and "args" in model_fields and isinstance(
+                        raw_args, dict
+                    ):
+                        validated_args = args_model.model_validate({"args": raw_args})
+                    else:
+                        raise
+
+            # Convert Pydantic model to dict for MCP call
+            args_dict = validated_args.model_dump()
 
             logger.info(f"Executing MCP tool '{tool_name}' with args: {args_dict}")
 
@@ -167,14 +229,8 @@ class PydanticAIMCPAdapter:
                             f"Cannot execute MCP tool '{tool_name}': no callable interface found"
                         )
 
-                # Convert result to string
-                if isinstance(result, dict):
-                    # MCP tools often return dict with 'content' or 'text' field
-                    result_str = result.get("content") or result.get("text") or str(result)
-                elif isinstance(result, list):
-                    result_str = str(result)
-                else:
-                    result_str = str(result)
+                # Convert result to string payload expected by downstream Lua/JSON parsing
+                result_str = self._result_to_text(result)
 
                 # Record tool call if tool_primitive is available
                 if self.tool_primitive:
@@ -191,12 +247,96 @@ class PydanticAIMCPAdapter:
                     self.tool_primitive.record_call(tool_name, args_dict, error_msg)
                 raise
 
+        # Expose schema-driven signature so tool callers use explicit keyword args.
+        # Keep a backward-compatible "args" annotation for legacy direct calls.
+        parameters = []
+        for field_name, field_info in args_model.model_fields.items():
+            annotation = field_info.annotation if field_info.annotation is not None else Any
+            default = (
+                inspect.Parameter.empty if field_info.is_required() else field_info.default
+            )
+            parameters.append(
+                inspect.Parameter(
+                    field_name,
+                    kind=inspect.Parameter.KEYWORD_ONLY,
+                    annotation=annotation,
+                    default=default,
+                )
+            )
+        tool_wrapper.__signature__ = inspect.Signature(parameters=parameters, return_annotation=str)
+        annotations = {"args": args_model, "return": str}
+        for field_name, field_info in args_model.model_fields.items():
+            if field_name == "args":
+                continue
+            annotations[field_name] = (
+                field_info.annotation if field_info.annotation is not None else Any
+            )
+        tool_wrapper.__annotations__ = annotations
+        tool_wrapper.__name__ = tool_name
+
         # Create Pydantic AI Tool
         tool = Tool(
             tool_wrapper, name=tool_name, description=tool_description or f"Tool: {tool_name}"
         )
 
         return tool
+
+    def _result_to_text(self, result: Any) -> str:
+        """Normalize MCP tool responses to plain text/JSON strings."""
+        # Fast path: already a string
+        if isinstance(result, str):
+            return result
+
+        # Dict-style responses
+        if isinstance(result, dict):
+            content = result.get("content")
+            if isinstance(content, str):
+                return content
+            if isinstance(content, list):
+                text = self._extract_text_from_content_list(content)
+                if text is not None:
+                    return text
+            text = result.get("text")
+            if isinstance(text, str):
+                return text
+            return str(result)
+
+        # Object-style responses (common for MCP SDKs)
+        content_attr = getattr(result, "content", None)
+        if isinstance(content_attr, str):
+            return content_attr
+        if isinstance(content_attr, list):
+            text = self._extract_text_from_content_list(content_attr)
+            if text is not None:
+                return text
+
+        text_attr = getattr(result, "text", None)
+        if isinstance(text_attr, str):
+            return text_attr
+
+        # List responses (possibly MCP content list directly)
+        if isinstance(result, list):
+            text = self._extract_text_from_content_list(result)
+            if text is not None:
+                return text
+            return str(result)
+
+        return str(result)
+
+    def _extract_text_from_content_list(self, content: List[Any]) -> Optional[str]:
+        texts: List[str] = []
+        for part in content:
+            if isinstance(part, dict):
+                text_value = part.get("text")
+                if isinstance(text_value, str):
+                    texts.append(text_value)
+                continue
+            text_attr = getattr(part, "text", None)
+            if isinstance(text_attr, str):
+                texts.append(text_attr)
+        if texts:
+            return "\n".join(texts)
+        return None
 
     def _json_schema_to_pydantic_model(
         self, schema: Dict[str, Any], base_name: str = "Model"

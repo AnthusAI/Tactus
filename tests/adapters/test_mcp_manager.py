@@ -185,3 +185,44 @@ async def test_trace_callback_error_without_tool_primitive():
 
     with pytest.raises(RuntimeError):
         await callback(None, invoke_error, "tool", {"a": 2})
+
+
+@pytest.mark.asyncio
+async def test_trace_callback_retries_transient_tool_errors():
+    records = []
+    calls = {"count": 0}
+
+    class DummyToolPrimitive:
+        def record_call(self, name, args, result):
+            records.append((name, args, result))
+
+    manager = mcp_manager.MCPServerManager({}, tool_primitive=DummyToolPrimitive())
+    callback = manager._create_trace_callback("srv")
+
+    async def flaky_invoke(_tool, _args):
+        calls["count"] += 1
+        if calls["count"] == 1:
+            raise RuntimeError("unhandled errors in a TaskGroup")
+        return "ok-after-retry"
+
+    result = await callback(None, flaky_invoke, "tool", {"a": 3})
+    assert result == "ok-after-retry"
+    assert calls["count"] == 2
+    assert records[-1][2] == "ok-after-retry"
+
+
+@pytest.mark.asyncio
+async def test_trace_callback_does_not_retry_non_transient_tool_errors():
+    calls = {"count": 0}
+
+    manager = mcp_manager.MCPServerManager({}, tool_primitive=None)
+    callback = manager._create_trace_callback("srv")
+
+    async def boom(_tool, _args):
+        calls["count"] += 1
+        raise RuntimeError("permanent failure")
+
+    with pytest.raises(RuntimeError, match="permanent failure"):
+        await callback(None, boom, "tool", {"a": 4})
+
+    assert calls["count"] == 1

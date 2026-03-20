@@ -1228,6 +1228,16 @@ class TestMockingAndHistory:
         assert agent.get_history() == []
         assert agent._turn_count == 0
 
+    def test_reset_alias_clears_history(self, monkeypatch):
+        agent = _make_agent(monkeypatch)
+        agent._history.add({"role": "assistant", "content": "tool result"})
+        agent._turn_count = 2
+
+        agent.reset()
+
+        assert agent.get_history() == []
+        assert agent._turn_count == 0
+
     def test_history_property(self, monkeypatch):
         agent = _make_agent(monkeypatch)
         assert agent.history is agent._history

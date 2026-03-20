@@ -1828,6 +1828,15 @@ class DSPyAgentHandle:
         self._history.clear()
         self._turn_count = 0
 
+    def reset(self) -> None:
+        """
+        Reset conversation state.
+
+        Compatibility alias used by legacy Plexus Lua procedures that call
+        `agent.reset()` between paginated tool-fetch turns.
+        """
+        self.clear_history()
+
     def get_history(self) -> List[Dict[str, Any]]:
         """Get the conversation history."""
         return self._history.get()
