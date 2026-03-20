@@ -2,6 +2,80 @@
 
 <!-- version list -->
 
+## v0.45.0 (2026-03-20)
+
+### Bug Fixes
+
+- Enhance release workflow and add event tracking
+  ([`bce80fd`](https://github.com/AnthusAI/Tactus/commit/bce80fd27d1e59d16b45e7fe112fbda2e6d54aa0))
+
+- Ruff unused variable
+  ([`6a2e9e6`](https://github.com/AnthusAI/Tactus/commit/6a2e9e6695284639da30b3bf67a7312cbb57aab5))
+
+- Stabilize cli defaults and tool conversion
+  ([`b3420b6`](https://github.com/AnthusAI/Tactus/commit/b3420b6cb708b6e983f407061521922eb09e8adb))
+
+- Tolerate missing host mcp config in IDE tests
+  ([`6409fd1`](https://github.com/AnthusAI/Tactus/commit/6409fd10e8b1ef9abfe0d47cf047c2f53733540e))
+
+- Update release workflow to use ANTHUSBOT_GH_TOKEN and add bypass actor for branch protection
+  ruleset
+  ([`bfb2992`](https://github.com/AnthusAI/Tactus/commit/bfb299203f9125ef562e5bec5beb56b61c87d5f7))
+
+- **cli**: Pin click to 8.1.x for consistent CLI behavior
+  ([`fe1a8d6`](https://github.com/AnthusAI/Tactus/commit/fe1a8d65b6963b25dd089e4b58b6099700da6ad2))
+
+- **sync-rulesets**: Ensure bypass_actors defaults to an empty array in normalization functions
+  ([`f51b7b0`](https://github.com/AnthusAI/Tactus/commit/f51b7b06e6ded35b2a2d4ae7736e76bfe6ee8c29))
+
+### Chores
+
+- **ci**: Update VSCode extension CI workflow to conditionally run steps based on relevant changes
+  ([`7a3a6c6`](https://github.com/AnthusAI/Tactus/commit/7a3a6c6d80cfd5120104fba9f979caffbe648f6e))
+
+- **deps**: Migrate root package to Poetry and align CI/test tooling
+  ([`725bda9`](https://github.com/AnthusAI/Tactus/commit/725bda93c7c44061302a1c621e73b649e16d3757))
+
+- **GitHub**: Add GitHub ruleset automation with sync workflow and desired-state configuration
+  ([`4c9aa28`](https://github.com/AnthusAI/Tactus/commit/4c9aa28cd11b040ff5172f7ed274ffd169ca505e))
+
+- **GitHub**: Enhance ruleset normalization in sync script
+  ([`c5d0163`](https://github.com/AnthusAI/Tactus/commit/c5d01637952ee20bf19b762495c7cc16182b31cc))
+
+- **GitHub**: Update ruleset sync workflow and remove deprecated script
+  ([`941e231`](https://github.com/AnthusAI/Tactus/commit/941e231ee2b2b9583852615dc66129c62382aa44))
+
+- **pm**: Add new event and issue files for Snyk dependency scanning compatibility and Poetry
+  migration tasks
+  ([`023894b`](https://github.com/AnthusAI/Tactus/commit/023894b24de8efaf6ba81641c79b769cbf7d9913))
+
+### Code Style
+
+- Format broker mcp changes
+  ([`ae730e3`](https://github.com/AnthusAI/Tactus/commit/ae730e359a9728b21c0b4935bf23c784f07d0656))
+
+### Features
+
+- Broker-proxied MCP toolsets
+  ([`cabec3f`](https://github.com/AnthusAI/Tactus/commit/cabec3f6623653505036076645bd821b4f365a0b))
+
+- **deepgram**: Add enrich_timestamps() to stdlib
+  ([`12545ad`](https://github.com/AnthusAI/Tactus/commit/12545adf8f4d2dae6e78021292559f948b4ea3a9))
+
+### Refactoring
+
+- Migrate release workflow to reusable semantic-release configuration
+  ([`96bfae8`](https://github.com/AnthusAI/Tactus/commit/96bfae8b0296612365174870f6b2ca1c08928281))
+
+- **GitHub**: Simplify ruleset sync workflow by using reusable workflow
+  ([`ac4410b`](https://github.com/AnthusAI/Tactus/commit/ac4410b0e41506f273f46f090c1e8b772b3b82fb))
+
+### Testing
+
+- Allow sandbox runner kwargs
+  ([`7040d43`](https://github.com/AnthusAI/Tactus/commit/7040d43aadd2be939b0706a27ceb67de4158c7a3))
+
+
 ## v0.44.1 (2026-02-25)
 
 ### Bug Fixes
