@@ -1,0 +1,55 @@
+name: Release Auth Probe
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    name: Probe anthusbot push auth (dry run)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.ANTHUSBOT_GH_TOKEN }}
+          persist-credentials: true
+
+      - name: Configure git auth and identity
+        env:
+          ANTHUSBOT_GH_TOKEN: ${{ secrets.ANTHUSBOT_GH_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${ANTHUSBOT_GH_TOKEN}" ]; then
+            echo "Missing secret: ANTHUSBOT_GH_TOKEN" >&2
+            exit 1
+          fi
+          git config user.name "anthusbot"
+          git config user.email "anthusbot@users.noreply.github.com"
+          git config --local --unset-all http.https://github.com/.extraheader || true
+          git remote set-url origin "https://x-access-token:${ANTHUSBOT_GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git remote set-url --push origin "https://x-access-token:${ANTHUSBOT_GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+
+      - name: Debug auth context (sanitized)
+        env:
+          ANTHUSBOT_GH_TOKEN: ${{ secrets.ANTHUSBOT_GH_TOKEN }}
+        run: |
+          set -euo pipefail
+          echo "Actor from token:"
+          curl -fsS \
+            -H "Authorization: Bearer ${ANTHUSBOT_GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/user | jq -r '.login, .id, .type'
+          echo "Current branch: $(git rev-parse --abbrev-ref HEAD)"
+          echo "Remote origin (sanitized):"
+          git remote -v | sed -E 's#x-access-token:[^@]+@#x-access-token:***@#g'
+          echo "GitHub extraheader (should be empty):"
+          git config --get-all http.https://github.com/.extraheader || true
+
+      - name: Dry-run push to main
+        run: |
+          set -euo pipefail
+          git push --dry-run origin HEAD:main

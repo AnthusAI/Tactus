@@ -64,7 +64,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: write
-    uses: AnthusAI/platform-ci/.github/workflows/semantic-release-reusable.yml@main
+    uses: AnthusAI/platform-ci/.github/workflows/semantic-release-reusable.yml@feature/dry-semantic-release
     with:
       python_version: "3.13"
       release_branch: "main"
