@@ -56,10 +56,40 @@
       "author": "derek",
       "text": "Implemented requested release/ruleset updates. Tactus release workflow now uses ANTHUSBOT_GH_TOKEN for checkout, semantic-release GH_TOKEN, and release-asset upload token, and sets git identity to anthusbot. Added ruleset bypass actor for anthusbot (actor_id=266826422, actor_type=User, bypass_mode=always) in Tactus infra/github-rulesets/main-branch-protection.json. Also updated platform-ci infra/github-rulesets/main-branch-protection.json with same bypass so shared IaC baseline includes it. Validated YAML/JSON parse successfully.",
       "created_at": "2026-03-18T22:59:04.588070183Z"
+    },
+    {
+      "id": "528b1db6-75e2-431a-9e6a-0d9619c7935e",
+      "author": "derek",
+      "text": "Running local token diagnostics (no code changes): verify ANTHUSBOT_GH_TOKEN identity and access against GitHub API.",
+      "created_at": "2026-03-19T15:38:41.662084502Z"
+    },
+    {
+      "id": "fbd81d2b-ab58-4e31-ab8b-855cd9f6feda",
+      "author": "derek",
+      "text": "Applying Virtuus-aligned release auth pattern to Tactus release workflow: checkout with persist-credentials=false, explicit git remote set-url with ANTHUSBOT_GH_TOKEN, and provide both GH_TOKEN and GITHUB_TOKEN to semantic-release.",
+      "created_at": "2026-03-19T15:44:26.488024882Z"
+    },
+    {
+      "id": "b2c15f0f-2a49-4ffd-8833-3635878714d4",
+      "author": "derek",
+      "text": "Updated release.yml to match proven Virtuus auth pattern: checkout persist-credentials=false, explicit origin remote set-url with ANTHUSBOT_GH_TOKEN, validate token presence, and provide both GITHUB_TOKEN + GH_TOKEN to semantic-release. This removes ambiguity about which credential git push uses.",
+      "created_at": "2026-03-19T15:44:39.685991904Z"
+    },
+    {
+      "id": "f78667dd-ba86-445d-b7b6-9541e4a57b0c",
+      "author": "derek",
+      "text": "Extending scope: standardize semantic-release via shared platform-ci reusable workflow and migrate Tactus wrapper to consume it alongside Virtuus.",
+      "created_at": "2026-03-19T17:06:40.469095653Z"
+    },
+    {
+      "id": "1b8761f2-2ee5-46dc-a377-ccdfefae9ae5",
+      "author": "derek",
+      "text": "Implemented Tactus migration to shared reusable semantic-release workflow in platform-ci. release job now calls AnthusAI/platform-ci/.github/workflows/semantic-release-reusable.yml@main with anthusbot and pypi secrets; desktop build job continues to gate on needs.release.outputs and consume tag/version outputs. Validated workflow YAML parse.",
+      "created_at": "2026-03-19T17:08:45.023316086Z"
     }
   ],
   "created_at": "2026-03-18T22:51:06.304250337Z",
-  "updated_at": "2026-03-18T22:59:04.588070183Z",
+  "updated_at": "2026-03-19T17:08:45.023316086Z",
   "closed_at": null,
   "custom": {}
 }
