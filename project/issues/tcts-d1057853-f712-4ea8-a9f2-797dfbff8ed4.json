@@ -1,0 +1,31 @@
+{
+  "id": "tcts-d1057853-f712-4ea8-a9f2-797dfbff8ed4",
+  "title": "Add auth-probe mode to existing release workflow for branch-only validation",
+  "description": "",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-cb2464fa-75fc-4ae2-b2d4-3146898fc2f0",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "2c9cd258-86d2-4b14-a5b9-b257e4c0bbd8",
+      "author": "derek",
+      "text": "Switching to branch-only test path by adding workflow_dispatch probe mode to existing release.yml so it can be triggered without default-branch workflow file changes.",
+      "created_at": "2026-03-20T18:50:38.354102346Z"
+    },
+    {
+      "id": "dc860a2d-1b86-4edf-8d39-2234da628f34",
+      "author": "derek",
+      "text": "Implemented branch-only probe path by adding workflow_dispatch input auth_probe_only to existing .github/workflows/release.yml and an auth-probe job that runs git push --dry-run origin HEAD:main with anthusbot credentials. Removed separate release-auth-probe.yml to avoid default-branch workflow dispatch limitation.",
+      "created_at": "2026-03-20T18:51:03.808484177Z"
+    }
+  ],
+  "created_at": "2026-03-20T18:50:35.565004799Z",
+  "updated_at": "2026-03-20T18:51:03.817355269Z",
+  "closed_at": "2026-03-20T18:51:03.817355269Z",
+  "custom": {}
+}

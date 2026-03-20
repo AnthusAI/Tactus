@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "event_id": "846c8b10-fcbe-4995-98dc-c2fcf62f1947",
+  "issue_id": "tcts-d1ec7096-8c66-4f9e-9b02-39266a3dd146",
+  "event_type": "state_transition",
+  "occurred_at": "2026-03-20T18:53:31.016Z",
+  "actor_id": "derek",
+  "payload": {
+    "from_status": "in_progress",
+    "to_status": "closed"
+  }
+}

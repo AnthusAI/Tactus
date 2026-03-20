@@ -1,0 +1,31 @@
+{
+  "id": "tcts-f4571f53-72fb-419e-a573-d5d72328af78",
+  "title": "Remove temporary release auth probe logic after validation",
+  "description": "",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-cb2464fa-75fc-4ae2-b2d4-3146898fc2f0",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "f4b652de-1fe2-4c72-abcf-2c239875d8c8",
+      "author": "derek",
+      "text": "Auth probe has passed; cleaning release.yml by removing temporary workflow_dispatch probe input/job and restoring production release workflow structure.",
+      "created_at": "2026-03-20T18:55:12.345316111Z"
+    },
+    {
+      "id": "21700ad3-437e-49b1-abd6-c154699ddbdb",
+      "author": "derek",
+      "text": "Cleanup complete: removed temporary auth probe input/job and probe gating from .github/workflows/release.yml; restored reusable workflow reference to AnthusAI/platform-ci/.github/workflows/semantic-release-reusable.yml@main.",
+      "created_at": "2026-03-20T18:55:38.669014640Z"
+    }
+  ],
+  "created_at": "2026-03-20T18:55:10.030107602Z",
+  "updated_at": "2026-03-20T18:55:38.677451160Z",
+  "closed_at": "2026-03-20T18:55:38.677451160Z",
+  "custom": {}
+}

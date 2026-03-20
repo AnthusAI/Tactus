@@ -1,0 +1,31 @@
+{
+  "id": "tcts-cd0f4830-3012-4fc2-86c5-505de9fae651",
+  "title": "Align Tactus main branch bypass actor with Virtuus team-based configuration",
+  "description": "",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-cb2464fa-75fc-4ae2-b2d4-3146898fc2f0",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "0db3f3c3-e0b9-4b42-9acd-ad6610c57151",
+      "author": "derek",
+      "text": "Updating infra/github-rulesets/main-branch-protection.json bypass_actors to use release-bots team (actor_id 16575896) to match proven Virtuus behavior and avoid user-actor GH013 issues.",
+      "created_at": "2026-03-20T19:13:10.963840797Z"
+    },
+    {
+      "id": "602492ef-0644-466e-831d-7c3e84992780",
+      "author": "derek",
+      "text": "Applied team-based bypass actor in infra/github-rulesets/main-branch-protection.json: actor_type Team, actor_id 16575896 (release-bots), replacing direct User actor. Committed and pushed on fix/release-workflow.",
+      "created_at": "2026-03-20T19:13:32.577814842Z"
+    }
+  ],
+  "created_at": "2026-03-20T19:13:06.484529693Z",
+  "updated_at": "2026-03-20T19:13:32.586596821Z",
+  "closed_at": "2026-03-20T19:13:32.586596821Z",
+  "custom": {}
+}
