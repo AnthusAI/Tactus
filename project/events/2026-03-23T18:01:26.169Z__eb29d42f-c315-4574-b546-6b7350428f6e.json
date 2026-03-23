@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "eb29d42f-c315-4574-b546-6b7350428f6e",
+  "issue_id": "tcts-c03c6ff0-1fca-43ac-af93-1aeaf95059d5",
+  "event_type": "issue_created",
+  "occurred_at": "2026-03-23T18:01:26.169Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "assignee": null,
+    "description": "",
+    "issue_type": "chore",
+    "labels": [],
+    "parent": "tcts-c92d566e-8a94-4d2b-870a-5a0c487cef54",
+    "priority": 1,
+    "status": "open",
+    "title": "Align release reusable workflow inputs with hardened platform-ci contract"
+  }
+}

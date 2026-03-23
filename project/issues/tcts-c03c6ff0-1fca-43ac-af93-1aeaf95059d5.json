@@ -1,0 +1,37 @@
+{
+  "id": "tcts-c03c6ff0-1fca-43ac-af93-1aeaf95059d5",
+  "title": "Align release reusable workflow inputs with hardened platform-ci contract",
+  "description": "",
+  "type": "chore",
+  "status": "in_progress",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-c92d566e-8a94-4d2b-870a-5a0c487cef54",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "8ed87c85-b485-446b-80f2-da13d2bf68d8",
+      "author": "derek.norrbom",
+      "text": "Updating Tactus release caller to remove deprecated install_command input and use strict semantic_release_requirement contract.",
+      "created_at": "2026-03-23T18:01:31.397130Z"
+    },
+    {
+      "id": "a778b199-a1c9-4b4d-a5af-cfcc5c89ff02",
+      "author": "derek.norrbom",
+      "text": "Applying strict caller update in .github/workflows/release.yml: replace install_command with semantic_release_requirement.",
+      "created_at": "2026-03-23T18:01:47.306273Z"
+    },
+    {
+      "id": "442bf9d7-2862-47b7-9879-83092a146f7c",
+      "author": "derek.norrbom",
+      "text": "Updated Tactus release workflow to strict semantic-release reusable contract: replaced install_command with semantic_release_requirement input.",
+      "created_at": "2026-03-23T18:02:08.839302Z"
+    }
+  ],
+  "created_at": "2026-03-23T18:01:26.167919Z",
+  "updated_at": "2026-03-23T18:02:08.839302Z",
+  "closed_at": null,
+  "custom": {}
+}
