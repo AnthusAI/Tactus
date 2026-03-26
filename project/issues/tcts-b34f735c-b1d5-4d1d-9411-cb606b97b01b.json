@@ -1,0 +1,49 @@
+{
+  "id": "tcts-b34f735c-b1d5-4d1d-9411-cb606b97b01b",
+  "title": "Implement Tactus dependency metadata fixes and lockfile update",
+  "description": "Adjust Tactus runtime dependency declarations to avoid unnecessary pydantic-ai provider extras churn in downstream resolution; update poetry lock; verify local install/test sanity.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-a653518f-74e5-409e-9402-5307dbc60042",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "f4368a12-ac14-4315-9caa-48d53bcb80fd",
+      "author": "derek.norrbom",
+      "text": "Started work. Next: create feature branch from develop, adjust dependency metadata in pyproject.toml to reduce resolver backtracking for downstream consumers, refresh lockfile, and prepare for local test run by maintainer.",
+      "created_at": "2026-03-26T21:17:38.380100Z"
+    },
+    {
+      "id": "6b738d8f-53bf-439a-b3bd-3d81e74b4562",
+      "author": "derek.norrbom",
+      "text": "Implemented Tactus dependency metadata stabilization on feature/tactus-dependency-metadata-stability: switched runtime dep from pydantic-ai==1.46.0 to pydantic-ai-slim==1.46.0 to avoid transitive provider extras, tightened dev fastmcp to >=3.1.0,<3.2.0, and regenerated poetry.lock successfully (poetry lock + poetry check passed). Ready for full test suite validation.",
+      "created_at": "2026-03-26T21:18:48.647299Z"
+    },
+    {
+      "id": "a531d1ef-4e38-4b53-976d-a70cda7b8e43",
+      "author": "derek.norrbom",
+      "text": "Follow-up from local test run: evaluator test suite fails due to missing pydantic_evals after switching to pydantic-ai-slim. Plan: add pydantic-evals back in Tactus dev extra (not runtime deps), regenerate lock, and revalidate install/test path.",
+      "created_at": "2026-03-26T21:30:13.183314Z"
+    },
+    {
+      "id": "44571832-b6fc-4e88-9f42-eeadfa6a6067",
+      "author": "derek.norrbom",
+      "text": "Implemented follow-up fix for evaluator failures: added pydantic-evals==1.46.0 to [project.optional-dependencies].dev, regenerated poetry.lock, and validated pyproject with poetry check. This keeps runtime on pydantic-ai-slim while restoring eval test dependencies in dev installs.",
+      "created_at": "2026-03-26T21:30:44.762230Z"
+    },
+    {
+      "id": "322f21d6-10ff-4bd4-8153-4f02cd2745d6",
+      "author": "derek.norrbom",
+      "text": "Implemented and validated dependency metadata stabilization in Tactus. Commit: 2675abef. Changes: runtime pydantic-ai -> pydantic-ai-slim, dev fastmcp >=3.1.0,<3.2.0, restored pydantic-evals in dev extra, regenerated poetry.lock. Validation: poetry check and targeted eval tests (63 passed).",
+      "created_at": "2026-03-26T21:42:10.018786Z"
+    }
+  ],
+  "created_at": "2026-03-26T21:17:31.398794Z",
+  "updated_at": "2026-03-26T21:42:12.246658Z",
+  "closed_at": "2026-03-26T21:42:12.246658Z",
+  "custom": {}
+}
