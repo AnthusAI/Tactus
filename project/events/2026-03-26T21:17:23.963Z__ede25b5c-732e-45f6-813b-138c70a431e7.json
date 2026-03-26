@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "ede25b5c-732e-45f6-813b-138c70a431e7",
+  "issue_id": "tcts-a653518f-74e5-409e-9402-5307dbc60042",
+  "event_type": "issue_created",
+  "occurred_at": "2026-03-26T21:17:23.963Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "assignee": null,
+    "description": "Harden published dependency constraints in Tactus so downstream projects (for example Plexus and Call-Criteria-Python) can resolve dependencies in fresh Python 3.11 environments without excessive backtracking or hidden optional-provider churn.",
+    "issue_type": "epic",
+    "labels": [],
+    "parent": null,
+    "priority": 1,
+    "status": "open",
+    "title": "Stabilize Tactus dependency metadata for downstream pip resolution"
+  }
+}
