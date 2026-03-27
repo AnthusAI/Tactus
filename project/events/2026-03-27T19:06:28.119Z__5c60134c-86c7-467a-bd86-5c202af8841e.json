@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "5c60134c-86c7-467a-bd86-5c202af8841e",
+  "issue_id": "tcts-184745ee-09d6-4547-b6d9-c088a0f7ea23",
+  "event_type": "issue_created",
+  "occurred_at": "2026-03-27T19:06:28.119Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "assignee": null,
+    "description": "Release badge is failing and PyPI publication appears to have stopped since February. Investigate failing GitHub Actions release runs and reusable workflow behavior, identify root cause, and apply fix.",
+    "issue_type": "bug",
+    "labels": [],
+    "parent": "tcts-c92d566e-8a94-4d2b-870a-5a0c487cef54",
+    "priority": 1,
+    "status": "open",
+    "title": "Investigate and fix release workflow not publishing to PyPI"
+  }
+}
