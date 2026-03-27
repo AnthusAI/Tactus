@@ -1,0 +1,25 @@
+{
+  "id": "tcts-90fa3e01-35d4-4a92-a833-dba60a0ec739",
+  "title": "Define dependency-resolution behavior for Tactus published metadata",
+  "description": "As a downstream maintainer, I want Tactus package metadata to avoid unnecessary provider/extras explosion during install, so that pip resolves quickly and deterministically.\n\nFeature: Stable Tactus dependency metadata\nScenario: Resolve Tactus transitively in downstream project install\nGiven a clean Python 3.11 environment with modern pip\nWhen pip resolves dependencies that include tactus\nThen resolver does not backtrack across large unrelated provider stacks\nAnd installed dependency versions remain compatible with downstream constraints\nAnd no temporary downstream transitive pin block is required for basic install success",
+  "type": "story",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-a653518f-74e5-409e-9402-5307dbc60042",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "790669a7-324c-4d93-98ea-1bd7eaafaaf0",
+      "author": "derek.norrbom",
+      "text": "Acceptance met by commit 2675abef: dependency metadata reduced runtime transitive provider footprint while preserving evaluator functionality in dev installs; eval-related tests pass.",
+      "created_at": "2026-03-26T21:42:10.020317Z"
+    }
+  ],
+  "created_at": "2026-03-26T21:17:27.905955Z",
+  "updated_at": "2026-03-26T21:42:12.249611Z",
+  "closed_at": "2026-03-26T21:42:12.249611Z",
+  "custom": {}
+}

@@ -68,7 +68,7 @@ jobs:
     with:
       python_version: "3.13"
       release_branch: "main"
-      install_command: "pip install python-semantic-release"
+      semantic_release_requirement: "python-semantic-release~=10.0"
       run_publish: true
     secrets:
       anthusbot_gh_token: ${{ secrets.ANTHUSBOT_GH_TOKEN }}
