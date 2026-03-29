@@ -1173,11 +1173,25 @@ class DSPyAgentHandle:
         if hasattr(wrapped_result, "tool_calls") and wrapped_result.tool_calls:
             tool_primitive = getattr(self, "_tool_primitive", None)
             if tool_primitive and "done" in str(wrapped_result.tool_calls).lower():
-                reason = (
-                    wrapped_result.response
-                    if hasattr(wrapped_result, "response")
-                    else "Task completed"
+                # Extract reason from the done tool call arguments, falling back to response text
+                reason = None
+                tc_list = (
+                    wrapped_result.tool_calls.tool_calls
+                    if hasattr(wrapped_result.tool_calls, "tool_calls")
+                    else []
                 )
+                for tc in tc_list:
+                    tc_name = tc.name if hasattr(tc, "name") else tc.get("name", "")
+                    if tc_name == "done":
+                        tc_args = tc.args if hasattr(tc, "args") else tc.get("args", {})
+                        reason = tc_args.get("reason") if isinstance(tc_args, dict) else None
+                        break
+                if reason is None:
+                    reason = (
+                        wrapped_result.response
+                        if hasattr(wrapped_result, "response")
+                        else "Task completed"
+                    )
                 logger.info(f"Recording done tool call with reason: {reason}")
                 tool_primitive.record_call(
                     "done",
@@ -1258,16 +1272,19 @@ class DSPyAgentHandle:
                     if hasattr(dspy_result.tool_calls, "tool_calls")
                     else []
                 ):
+                    # tc may be a ToolCall object or a dict depending on provider
+                    tc_name = tc.name if hasattr(tc, "name") else tc["name"]
+                    tc_args = tc.args if hasattr(tc, "args") else tc["args"]
                     tool_calls_list.append(
                         {
-                            "id": f"call_{tc['name']}",  # Generate a simple ID
+                            "id": f"call_{tc_name}",
                             "type": "function",
                             "function": {
-                                "name": tc["name"],
+                                "name": tc_name,
                                 "arguments": (
-                                    json.dumps(tc["args"])
-                                    if isinstance(tc["args"], dict)
-                                    else tc["args"]
+                                    json.dumps(tc_args)
+                                    if isinstance(tc_args, dict)
+                                    else tc_args
                                 ),
                             },
                         }
@@ -1289,11 +1306,25 @@ class DSPyAgentHandle:
         if hasattr(wrapped_result, "tool_calls") and wrapped_result.tool_calls:
             tool_primitive = getattr(self, "_tool_primitive", None)
             if tool_primitive and "done" in str(wrapped_result.tool_calls).lower():
-                reason = (
-                    wrapped_result.response
-                    if hasattr(wrapped_result, "response")
-                    else "Task completed"
+                # Extract reason from the done tool call arguments, falling back to response text
+                reason = None
+                tc_list = (
+                    wrapped_result.tool_calls.tool_calls
+                    if hasattr(wrapped_result.tool_calls, "tool_calls")
+                    else []
                 )
+                for tc in tc_list:
+                    tc_name = tc.name if hasattr(tc, "name") else tc.get("name", "")
+                    if tc_name == "done":
+                        tc_args = tc.args if hasattr(tc, "args") else tc.get("args", {})
+                        reason = tc_args.get("reason") if isinstance(tc_args, dict) else None
+                        break
+                if reason is None:
+                    reason = (
+                        wrapped_result.response
+                        if hasattr(wrapped_result, "response")
+                        else "Task completed"
+                    )
                 logger.info(f"Recording done tool call with reason: {reason}")
                 tool_primitive.record_call(
                     "done",

@@ -465,6 +465,33 @@ class TestTurns:
         assert result.output == "ok"
         assert agent._tool_primitive.calls[0][0] == "done"
 
+    def test_turn_without_streaming_records_done_tool_object_style(self, monkeypatch):
+        """ToolCall objects (returned by OpenAI provider) should be handled correctly."""
+        from tactus.primitives.tool import ToolCall
+
+        class DummyModule:
+            def __call__(self, **_kw):
+                tc = ToolCall(name="done", args={"reason": "Task result from LLM"}, result=None)
+                tool_calls = DummyToolCalls([tc])
+                return dspy.Prediction(response=None, tool_calls=tool_calls)
+
+        agent = _make_agent(monkeypatch)
+        agent._module = types.SimpleNamespace(module=DummyModule())
+        agent._tool_primitive = DummyToolPrimitive()
+        agent._turn_count = 1
+
+        monkeypatch.setattr(agent, "_extract_last_call_stats", lambda: (UsageStats(), CostStats()))
+        monkeypatch.setattr(agent, "_emit_cost_event", lambda: None)
+
+        result = agent._turn_without_streaming(
+            {"message": "hi"}, {"history": [], "system_prompt": "", "user_message": "hi"}
+        )
+
+        assert agent._tool_primitive.calls[0][0] == "done"
+        # reason must come from tool call args, not from response (which is None)
+        recorded_args = agent._tool_primitive.calls[0][1]
+        assert recorded_args["reason"] == "Task result from LLM"
+
     def test_turn_without_streaming_initial_message(self, monkeypatch):
         class DummyModule:
             def __call__(self, **_kw):
