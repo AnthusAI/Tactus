@@ -2,6 +2,22 @@
 
 <!-- version list -->
 
+## v0.45.1 (2026-03-27)
+
+### Bug Fixes
+
+- **deps**: Slim pydantic-ai runtime deps and restore evals for dev
+  ([`2675abe`](https://github.com/AnthusAI/Tactus/commit/2675abefe082647b0cb23a993553a459ce7df119))
+
+### Chores
+
+- **pm**: Add new event and issue tracking for Tactus dependency stabilization
+  ([`3938679`](https://github.com/AnthusAI/Tactus/commit/3938679ad97f686cd4bae546b5627d1eef693c33))
+
+- **pm**: Add new JSON files for comment and state transition events in Tactus workflow
+  ([`2d8186f`](https://github.com/AnthusAI/Tactus/commit/2d8186f5c5601c3b24b2557ab427d3162ef2de2b))
+
+
 ## v0.45.0 (2026-03-20)
 
 ### Bug Fixes
