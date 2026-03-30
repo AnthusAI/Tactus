@@ -7,17 +7,23 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   test-extension:
     name: Test VSCode Extension
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
 
     steps:
     - uses: actions/checkout@v4
     
     - name: Detect VSCode/LSP changes
       id: changes
-      uses: dorny/paths-filter@v3
+      uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36
       with:
         filters: |
           vscode:
@@ -81,6 +87,8 @@ jobs:
     name: Publish LSP Server to PyPI
     runs-on: ubuntu-latest
     needs: test-extension
+    permissions:
+      contents: read
     # Only attempt publishing from pushes to main. If the PyPI token is missing, we'll no-op.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 

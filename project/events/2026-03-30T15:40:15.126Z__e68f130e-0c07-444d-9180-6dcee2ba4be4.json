@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "e68f130e-0c07-444d-9180-6dcee2ba4be4",
+  "issue_id": "tcts-963f5afe-3201-4cf2-b719-fdd2a3e70279",
+  "event_type": "issue_created",
+  "occurred_at": "2026-03-30T15:40:15.126Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "assignee": null,
+    "description": "Address CodeQL actions warnings by adding explicit GITHUB_TOKEN permissions to vscode-extension workflow and pinning external actions to immutable SHAs in vscode-extension and release workflows without changing behavior.",
+    "issue_type": "bug",
+    "labels": [],
+    "parent": "tcts-cb2464fa-75fc-4ae2-b2d4-3146898fc2f0",
+    "priority": 2,
+    "status": "open",
+    "title": "Harden GitHub Actions workflow permissions and pin external actions"
+  }
+}

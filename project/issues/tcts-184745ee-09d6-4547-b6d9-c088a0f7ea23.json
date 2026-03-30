@@ -1,0 +1,37 @@
+{
+  "id": "tcts-184745ee-09d6-4547-b6d9-c088a0f7ea23",
+  "title": "Investigate and fix release workflow not publishing to PyPI",
+  "description": "Release badge is failing and PyPI publication appears to have stopped since February. Investigate failing GitHub Actions release runs and reusable workflow behavior, identify root cause, and apply fix.",
+  "type": "bug",
+  "status": "in_progress",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-c92d566e-8a94-4d2b-870a-5a0c487cef54",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "90a47f0e-afb7-4323-9eb1-bf53d4eb90d4",
+      "author": "derek.norrbom",
+      "text": "Started investigation. Reviewed release workflow and confirmed release job runs only on push to main and delegates semantic release to AnthusAI/platform-ci reusable workflow. Next: inspect recent failed run logs and platform-ci reusable workflow internals for publish step behavior.",
+      "created_at": "2026-03-27T19:06:30.530569Z"
+    },
+    {
+      "id": "e83bfda5-910f-4b39-8384-a3d01af30efe",
+      "author": "derek.norrbom",
+      "text": "Findings: (1) Release badge failure on main is currently caused by desktop-builds windows checkout failing on invalid Windows path  (colon in filename). (2) PyPI publication stopped after workflow migration to reusable semantic-release pipeline. Historical successful run 22379649490 (2026-02-25) included explicit  step. Current reusable workflow run 23662438326 (2026-03-27) runs  successfully but does not emit upload logs and PyPI latest remains 0.44.1 while GitHub release reached v0.45.1. Likely regression is removal of explicit twine upload in migration commit 96bfae8b/16b30d86.",
+      "created_at": "2026-03-27T19:08:02.156214Z"
+    },
+    {
+      "id": "16e55c96-1e51-47bc-a4ad-077576f95c66",
+      "author": "derek.norrbom",
+      "text": "Findings update: Release badge failure on main is currently caused by desktop-builds windows checkout failing on invalid Windows path project/events/2026-02-23T22:37:19.414Z__70e6158e-1fcd-481a-b094-535ec0aa23b9.json (colon in filename). PyPI publication stopped after workflow migration to reusable semantic-release pipeline. Historical successful run 22379649490 on 2026-02-25 included explicit twine upload --skip-existing dist/* step. Current reusable workflow run 23662438326 on 2026-03-27 runs semantic-release publish successfully but does not emit upload logs and PyPI latest remains 0.44.1 while GitHub release reached v0.45.1. Likely regression is removal of explicit twine upload in migration commits 96bfae8b and 16b30d86.",
+      "created_at": "2026-03-27T19:08:06.314706Z"
+    }
+  ],
+  "created_at": "2026-03-27T19:06:28.119280Z",
+  "updated_at": "2026-03-27T19:08:06.314706Z",
+  "closed_at": null,
+  "custom": {}
+}
