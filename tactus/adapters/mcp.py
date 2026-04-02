@@ -130,23 +130,29 @@ class PydanticAIMCPAdapter:
             args_model = create_model(f"{tool_name}Args")
 
         # Create wrapper function that executes the MCP tool
-        async def tool_wrapper(args: args_model) -> str:
+        async def tool_wrapper(**kwargs) -> str:
             """
             Wrapper function that executes the MCP tool call.
 
             Args:
-                args: Validated arguments from Pydantic model
+                **kwargs: Tool arguments as keyword arguments
 
             Returns:
                 Tool result as string
             """
-            # Convert Pydantic model to dict for MCP call
-            if hasattr(args, "model_dump"):
-                args_dict = args.model_dump()
-            elif hasattr(args, "dict"):
-                args_dict = args.dict()
-            else:
-                args_dict = dict(args) if hasattr(args, "__dict__") else {}
+            # Validate arguments with Pydantic model
+            try:
+                args = args_model(**kwargs)
+                # Convert Pydantic model to dict for MCP call
+                if hasattr(args, "model_dump"):
+                    args_dict = args.model_dump()
+                elif hasattr(args, "dict"):
+                    args_dict = args.dict()
+                else:
+                    args_dict = dict(args) if hasattr(args, "__dict__") else {}
+            except Exception as validation_error:
+                logger.error(f"Tool '{tool_name}' argument validation failed: {validation_error}")
+                args_dict = kwargs  # Fallback to raw kwargs if validation fails
 
             logger.info(f"Executing MCP tool '{tool_name}' with args: {args_dict}")
 
