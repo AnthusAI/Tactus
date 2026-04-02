@@ -1,0 +1,18 @@
+{
+  "id": "tcts-5dfb9460-b738-4ef8-a67e-7d6c9219a289",
+  "title": "Triage/fix remaining py/call-to-non-callable in MCP adapter",
+  "description": "",
+  "type": "bug",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-04-02T23:52:13.481609Z",
+  "updated_at": "2026-04-02T23:52:13.481609Z",
+  "closed_at": null,
+  "custom": {}
+}

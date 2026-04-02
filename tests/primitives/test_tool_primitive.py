@@ -211,29 +211,25 @@ def test_extract_tool_function_list_match_not_callable_falls_through():
 def test_extract_tool_function_dict_no_match_uses_callable_toolset():
     tool = ToolPrimitive()
 
-    class Toolset:
-        def __init__(self):
-            self.tools = {"other": FakeTool("other", function=lambda args: args["x"])}
+    def toolset(args):
+        return args["x"] * 3
 
-        def __call__(self, args):
-            return args["x"] * 3
-
-    toolset = Toolset()
-    assert tool._extract_tool_function(toolset, "t1")({"x": 2}) == 6
+    toolset.tools = {"other": FakeTool("other", function=lambda args: args["x"])}
+    fn = tool._extract_tool_function(toolset, "t1")
+    assert callable(fn)
+    assert fn({"x": 2}) == 6
 
 
 def test_extract_tool_function_dict_match_not_callable_falls_through():
     tool = ToolPrimitive()
 
-    class Toolset:
-        def __init__(self):
-            self.tools = {"t1": type("PlainTool", (), {})()}
+    def toolset(args):
+        return args["x"] * 4
 
-        def __call__(self, args):
-            return args["x"] * 4
-
-    toolset = Toolset()
-    assert tool._extract_tool_function(toolset, "t1")({"x": 2}) == 8
+    toolset.tools = {"t1": type("PlainTool", (), {})()}
+    fn = tool._extract_tool_function(toolset, "t1")
+    assert callable(fn)
+    assert fn({"x": 2}) == 8
 
 
 def test_extract_tool_function_mcp_without_get_tool():

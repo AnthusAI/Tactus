@@ -34,10 +34,16 @@
       "author": "derek.norrbom",
       "text": "CI remediation interleaved with batching: fixed regression from run 23926590563 by restoring CLI/IDE server behavior while preserving safe unused-import/local fixes. Current rcql python total is 347 (from 352 pre-batch); remaining high-volume rules still include unnecessary-pass/empty-except/ineffectual-statement and dsl_stubs unused-local.",
       "created_at": "2026-04-02T23:34:46.027357Z"
+    },
+    {
+      "id": "0bfa7094-552a-4b91-9ec8-e5507976a16d",
+      "author": "derek.norrbom",
+      "text": "Next chunk: py/call-to-non-callable. Starting with the two test findings in tests/primitives/test_tool_primitive.py; production mcp adapter fallback call triaged separately to avoid unintended behavior change.",
+      "created_at": "2026-04-02T23:48:36.002752Z"
     }
   ],
   "created_at": "2026-04-02T23:08:41.297987Z",
-  "updated_at": "2026-04-02T23:34:46.027357Z",
+  "updated_at": "2026-04-02T23:48:36.002752Z",
   "closed_at": null,
   "custom": {}
 }

@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "b421b4c0-9622-486f-b043-27cc52e3523e",
+  "issue_id": "tcts-5dfb9460-b738-4ef8-a67e-7d6c9219a289",
+  "event_type": "issue_created",
+  "occurred_at": "2026-04-02T23:52:13.481Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "assignee": null,
+    "description": "",
+    "issue_type": "bug",
+    "labels": [],
+    "parent": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+    "priority": 2,
+    "status": "open",
+    "title": "Triage/fix remaining py/call-to-non-callable in MCP adapter"
+  }
+}
