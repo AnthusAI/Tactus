@@ -20,17 +20,32 @@ class PydanticAIMCPAdapter:
     Pydantic AI Tool instances with dynamically generated Pydantic models.
     """
 
-    def __init__(self, mcp_client: Any, tool_primitive: Optional[Any] = None):
+    def __init__(
+        self,
+        mcp_client: Any,
+        tool_primitive: Optional[Any] = None,
+        runtime: Optional[Any] = None,
+    ):
         """
         Initialize MCP adapter.
 
         Args:
             mcp_client: MCP client instance (from fastmcp or similar)
             tool_primitive: Optional ToolPrimitive for recording tool calls
+            runtime: Optional TactusRuntime; when set, tool_primitive is looked
+                     up from runtime.tool_primitive at call time so that calls
+                     made after execute() initializes primitives are recorded.
         """
         self.mcp_client = mcp_client
         self.tool_primitive = tool_primitive
+        self._runtime = runtime
         logger.debug("PydanticAIMCPAdapter initialized")
+
+    def _get_primitive(self) -> Optional[Any]:
+        """Return the live ToolPrimitive, deferring to runtime when available."""
+        if self._runtime is not None:
+            return getattr(self._runtime, "tool_primitive", None)
+        return self.tool_primitive
 
     async def load_tools(self) -> List[Tool]:
         """
@@ -129,24 +144,24 @@ class PydanticAIMCPAdapter:
             # No schema - create empty model
             args_model = create_model(f"{tool_name}Args")
 
-        # Create wrapper function that executes the MCP tool
-        async def tool_wrapper(args: args_model) -> str:
+        # Capture input_schema for the prepare closure
+        _input_schema = input_schema
+
+        # Create wrapper function that executes the MCP tool.
+        # Uses **kwargs so callers (DSPy agent, ToolHandle) can pass individual
+        # field names directly rather than a Pydantic model instance.
+        async def tool_wrapper(**kwargs) -> str:
             """
             Wrapper function that executes the MCP tool call.
 
             Args:
-                args: Validated arguments from Pydantic model
+                **kwargs: Tool arguments as keyword arguments matching the
+                          MCP tool's inputSchema field names.
 
             Returns:
                 Tool result as string
             """
-            # Convert Pydantic model to dict for MCP call
-            if hasattr(args, "model_dump"):
-                args_dict = args.model_dump()
-            elif hasattr(args, "dict"):
-                args_dict = args.dict()
-            else:
-                args_dict = dict(args) if hasattr(args, "__dict__") else {}
+            args_dict = {k: v for k, v in kwargs.items() if v is not None}
 
             logger.info(f"Executing MCP tool '{tool_name}' with args: {args_dict}")
 
@@ -176,9 +191,10 @@ class PydanticAIMCPAdapter:
                 else:
                     result_str = str(result)
 
-                # Record tool call if tool_primitive is available
-                if self.tool_primitive:
-                    self.tool_primitive.record_call(tool_name, args_dict, result_str)
+                # Record tool call using the live primitive (resolved at call time)
+                primitive = self._get_primitive()
+                if primitive:
+                    primitive.record_call(tool_name, args_dict, result_str)
 
                 logger.debug(f"Tool '{tool_name}' returned: {result_str[:100]}...")
                 return result_str
@@ -187,13 +203,29 @@ class PydanticAIMCPAdapter:
                 logger.error(f"MCP tool '{tool_name}' execution failed: {error}", exc_info=True)
                 error_msg = f"Error executing tool '{tool_name}': {str(error)}"
                 # Still record the failed call
-                if self.tool_primitive:
-                    self.tool_primitive.record_call(tool_name, args_dict, error_msg)
+                primitive = self._get_primitive()
+                if primitive:
+                    primitive.record_call(tool_name, args_dict, error_msg)
                 raise
+
+        # Use a prepare callback to explicitly set the schema from the MCP tool's
+        # inputSchema. This is necessary because **kwargs has no type annotations
+        # for pydantic-ai to derive a schema from.
+        async def _prepare(ctx, tool_def):
+            from pydantic_ai.tools import ToolDefinition
+
+            return ToolDefinition(
+                name=tool_def.name,
+                description=tool_def.description or "",
+                parameters_json_schema=_input_schema or {"type": "object", "properties": {}},
+            )
 
         # Create Pydantic AI Tool
         tool = Tool(
-            tool_wrapper, name=tool_name, description=tool_description or f"Tool: {tool_name}"
+            tool_wrapper,
+            name=tool_name,
+            description=tool_description or f"Tool: {tool_name}",
+            prepare=_prepare,
         )
 
         return tool
