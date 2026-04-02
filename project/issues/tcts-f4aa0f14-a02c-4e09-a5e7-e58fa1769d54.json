@@ -1,0 +1,43 @@
+{
+  "id": "tcts-f4aa0f14-a02c-4e09-a5e7-e58fa1769d54",
+  "title": "Fix py/unexpected-raise-in-special-method findings in tests",
+  "description": "",
+  "type": "bug",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "abeb35cd-211b-46b5-bd3d-5a0e71e3cb2e",
+      "author": "derek.norrbom",
+      "text": "Delegating test-only fix for special methods raising RuntimeError; switch to AttributeError where semantics require missing attribute behavior.",
+      "created_at": "2026-04-02T23:45:10.236957Z"
+    },
+    {
+      "id": "7b23f5f0-7a86-42ce-a9b7-d827f305c3b5",
+      "author": "derek.norrbom",
+      "text": "Starting implementation: update targeted test doubles/special methods to raise AttributeError instead of RuntimeError where Python lookup semantics expect AttributeError, then run targeted pytest + ruff.",
+      "created_at": "2026-04-02T23:45:33.461288Z"
+    },
+    {
+      "id": "3f21d2db-c765-4f34-9e11-099546420842",
+      "author": "derek.norrbom",
+      "text": "Implemented test-only fix for py/unexpected-raise-in-special-method: updated targeted __getattr__ methods to raise AttributeError and adjusted test doubles with property-based exceptions to preserve fallback-path assertions. Validation: poetry run pytest (4 touched files) passed (139), ruff check (4 touched files) passed.",
+      "created_at": "2026-04-02T23:46:50.035065Z"
+    },
+    {
+      "id": "7434dd2c-d8b9-4542-ac88-69e3729f8a9a",
+      "author": "derek.norrbom",
+      "text": "Completed: replaced RuntimeError in targeted __getattr__ special methods with AttributeError and preserved fallback test intent via property-based exceptions. Validation: poetry run pytest (4 files, 139 passed) and ruff check (4 files) both passed.",
+      "created_at": "2026-04-02T23:47:23.118438Z"
+    }
+  ],
+  "created_at": "2026-04-02T23:45:08.078216Z",
+  "updated_at": "2026-04-02T23:47:24.424746Z",
+  "closed_at": "2026-04-02T23:47:24.424746Z",
+  "custom": {}
+}

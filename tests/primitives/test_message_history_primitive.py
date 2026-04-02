@@ -311,7 +311,15 @@ def test_get_handles_bad_message_object():
 
     class BadMessage:
         def __getattr__(self, _name):
-            raise RuntimeError("boom")
+            raise AttributeError("missing")
+
+        @property
+        def role(self):
+            raise ValueError("boom")
+
+        @property
+        def content(self):
+            raise ValueError("boom")
 
     manager.shared_history = [BadMessage()]
     messages = history.get()
@@ -380,7 +388,15 @@ def test_serialize_messages_fallback_on_bad_message():
 
     class BadMessage:
         def __getattr__(self, _name):
-            raise RuntimeError("boom")
+            raise AttributeError("missing")
+
+        @property
+        def role(self):
+            raise ValueError("boom")
+
+        @property
+        def content(self):
+            raise ValueError("boom")
 
     result = history._serialize_messages([BadMessage()])
     assert result[0]["role"] == "unknown"

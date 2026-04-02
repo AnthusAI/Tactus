@@ -474,7 +474,7 @@ def test_run_tactus_result_import_error(tmp_path, monkeypatch):
 
     class BrokenModule:
         def __getattr__(self, _name):
-            raise RuntimeError("boom")
+            raise AttributeError("boom")
 
     monkeypatch.setitem(sys.modules, "tactus.protocols.result", BrokenModule())
 
