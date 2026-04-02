@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "187550bd-44fe-430e-aee8-14b9700115bf",
+  "issue_id": "tcts-ba41d335-39f0-4ac4-8c54-bfaba13cdbbf",
+  "event_type": "issue_created",
+  "occurred_at": "2026-04-02T22:53:21.273Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "assignee": null,
+    "description": "",
+    "issue_type": "bug",
+    "labels": [],
+    "parent": "tcts-6603b94e-360c-4d14-90a9-f5291cfb72cb",
+    "priority": 2,
+    "status": "open",
+    "title": "Fix py/missing-call-to-init in IDE run_stream chunk log handler"
+  }
+}

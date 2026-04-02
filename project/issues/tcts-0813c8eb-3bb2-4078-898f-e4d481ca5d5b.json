@@ -1,0 +1,25 @@
+{
+  "id": "tcts-0813c8eb-3bb2-4078-898f-e4d481ca5d5b",
+  "title": "Stabilize local test-ci.sh execution environment for Poetry/dev deps",
+  "description": "",
+  "type": "bug",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-68f85b19-3f64-406e-8ef0-7ce0bddc3574",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "0e3cb149-3d11-42ed-90be-1e996dba5714",
+      "author": "derek.norrbom",
+      "text": "Observed while running mandatory quality gates for rcql remediation: ./test-ci.sh fails locally unless python/poetry/dev deps are pre-arranged; subagent run ended with 605 failed tests after environment bootstrapping attempts. Key missing pieces include async test plugins and optional deps (pydantic-evals, ml extras). Need deterministic setup instructions or script hardening.",
+      "created_at": "2026-04-02T23:05:27.638216Z"
+    }
+  ],
+  "created_at": "2026-04-02T23:05:24.964962Z",
+  "updated_at": "2026-04-02T23:05:27.638216Z",
+  "closed_at": null,
+  "custom": {}
+}

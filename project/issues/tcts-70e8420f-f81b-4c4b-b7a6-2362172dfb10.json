@@ -1,0 +1,25 @@
+{
+  "id": "tcts-70e8420f-f81b-4c4b-b7a6-2362172dfb10",
+  "title": "Address py/file-not-closed findings in vendored biplist paths",
+  "description": "",
+  "type": "bug",
+  "status": "open",
+  "priority": 3,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-6603b94e-360c-4d14-90a9-f5291cfb72cb",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "c13ff2b0-57ac-48e0-9e40-09c4ef619b33",
+      "author": "derek.norrbom",
+      "text": "Triage: finding points to vendored third-party file under tactus-desktop/node_modules/dmg-builder/vendor/biplist plus duplicated .codeql/db-python mirror path. Not patched yet; proposal is to reduce rcql noise by path scoping/exclusion rather than editing vendored upstream code directly.",
+      "created_at": "2026-04-02T22:57:30.626203Z"
+    }
+  ],
+  "created_at": "2026-04-02T22:53:24.414105Z",
+  "updated_at": "2026-04-02T22:57:30.626203Z",
+  "closed_at": null,
+  "custom": {}
+}

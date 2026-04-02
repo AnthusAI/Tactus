@@ -1,0 +1,31 @@
+{
+  "id": "tcts-b4426c72-34b9-45a0-9767-c13862ad8e70",
+  "title": "Fix py/missing-call-to-init in broker channel test double",
+  "description": "",
+  "type": "bug",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-6603b94e-360c-4d14-90a9-f5291cfb72cb",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "e939e6d1-ded4-4beb-bc19-0b3f0d6d3a1b",
+      "author": "derek.norrbom",
+      "text": "Started remediation via delegated worker on tests/adapters/channels/test_broker_channel.py.",
+      "created_at": "2026-04-02T22:53:36.787165Z"
+    },
+    {
+      "id": "e33c17eb-fb0d-494a-907e-43c58171824a",
+      "author": "derek.norrbom",
+      "text": "Implemented fix: BoomClient.__init__ now calls super().__init__(socket_path) before raising. Verification: python3 -m pytest -q tests/adapters/channels/test_broker_channel.py::test_from_environment_handles_client_errors (pass). rcql python findings total reduced in fresh scan.",
+      "created_at": "2026-04-02T22:57:25.993583Z"
+    }
+  ],
+  "created_at": "2026-04-02T22:53:21.266565Z",
+  "updated_at": "2026-04-02T22:57:26.004174Z",
+  "closed_at": "2026-04-02T22:57:26.004174Z",
+  "custom": {}
+}

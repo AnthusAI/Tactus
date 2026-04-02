@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "349f7da9-a438-43da-9763-65daf411208e",
+  "issue_id": "tcts-70e8420f-f81b-4c4b-b7a6-2362172dfb10",
+  "event_type": "issue_created",
+  "occurred_at": "2026-04-02T22:53:24.414Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "assignee": null,
+    "description": "",
+    "issue_type": "bug",
+    "labels": [],
+    "parent": "tcts-6603b94e-360c-4d14-90a9-f5291cfb72cb",
+    "priority": 3,
+    "status": "open",
+    "title": "Address py/file-not-closed findings in vendored biplist paths"
+  }
+}

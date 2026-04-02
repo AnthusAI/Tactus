@@ -1,0 +1,25 @@
+{
+  "id": "tcts-9e3d16e0-c97d-4e4a-865b-f716a8ea9790",
+  "title": "Address py/incomplete-ordering findings in vendored biplist paths",
+  "description": "",
+  "type": "bug",
+  "status": "open",
+  "priority": 3,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-6603b94e-360c-4d14-90a9-f5291cfb72cb",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "1435a47f-aa4f-442a-9676-7ae22071da7c",
+      "author": "derek.norrbom",
+      "text": "Triage: finding points to vendored third-party file under tactus-desktop/node_modules/dmg-builder/vendor/biplist plus duplicated .codeql/db-python mirror path. Not patched yet; proposal is to reduce rcql noise by path scoping/exclusion rather than editing vendored upstream code directly.",
+      "created_at": "2026-04-02T22:57:30.625356Z"
+    }
+  ],
+  "created_at": "2026-04-02T22:53:24.415926Z",
+  "updated_at": "2026-04-02T22:57:30.625356Z",
+  "closed_at": null,
+  "custom": {}
+}

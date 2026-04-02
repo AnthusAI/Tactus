@@ -1,0 +1,31 @@
+{
+  "id": "tcts-ba41d335-39f0-4ac4-8c54-bfaba13cdbbf",
+  "title": "Fix py/missing-call-to-init in IDE run_stream chunk log handler",
+  "description": "",
+  "type": "bug",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-6603b94e-360c-4d14-90a9-f5291cfb72cb",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "d33d80a6-b5d7-42f2-b816-23b371e26075",
+      "author": "derek.norrbom",
+      "text": "Started remediation via delegated worker on tests/ide_backend/test_ide_server_run_stream.py.",
+      "created_at": "2026-04-02T22:53:36.793413Z"
+    },
+    {
+      "id": "0a649f3c-6dc4-4e42-8295-0d225dac3490",
+      "author": "derek.norrbom",
+      "text": "Implemented fix: ChunkLogHandler.__init__ now calls super().__init__() before queue override. Verification: .venv/bin/python -m pytest -q tests/ide_backend/test_ide_server_run_stream.py -k run_stream_consolidates_stream_chunks (pass). rcql python findings total reduced in fresh scan.",
+      "created_at": "2026-04-02T22:57:25.837620Z"
+    }
+  ],
+  "created_at": "2026-04-02T22:53:21.273271Z",
+  "updated_at": "2026-04-02T22:57:25.994926Z",
+  "closed_at": "2026-04-02T22:57:25.994926Z",
+  "custom": {}
+}
