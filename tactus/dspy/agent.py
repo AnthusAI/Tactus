@@ -1169,22 +1169,28 @@ class DSPyAgentHandle:
             all_messages=self._history.get(),
         )
 
-        # Handle tool calls if present
+        # Handle tool calls if present — only record done if not already captured by [TOOL_EXEC]
         if hasattr(wrapped_result, "tool_calls") and wrapped_result.tool_calls:
             tool_primitive = getattr(self, "_tool_primitive", None)
             if tool_primitive and "done" in str(wrapped_result.tool_calls).lower():
-                reason = (
-                    wrapped_result.response
-                    if hasattr(wrapped_result, "response")
-                    else "Task completed"
+                existing = (
+                    tool_primitive.last_call("done")
+                    if hasattr(tool_primitive, "last_call")
+                    else None
                 )
-                logger.info(f"Recording done tool call with reason: {reason}")
-                tool_primitive.record_call(
-                    "done",
-                    {"reason": reason},
-                    {"status": "completed", "reason": reason, "tool": "done"},
-                    agent_name=self.name,
-                )
+                if existing is None:
+                    reason = (
+                        wrapped_result.response
+                        if hasattr(wrapped_result, "response")
+                        else "Task completed"
+                    )
+                    logger.info(f"Recording done tool call with reason: {reason}")
+                    tool_primitive.record_call(
+                        "done",
+                        {"reason": reason},
+                        {"status": "completed", "reason": reason, "tool": "done"},
+                        agent_name=self.name,
+                    )
 
         # Emit turn completed event
         self.log_handler.log(
@@ -1285,22 +1291,28 @@ class DSPyAgentHandle:
             all_messages=self._history.get(),
         )
 
-        # Handle tool calls if present
+        # Handle tool calls if present — only record done if not already captured by [TOOL_EXEC]
         if hasattr(wrapped_result, "tool_calls") and wrapped_result.tool_calls:
             tool_primitive = getattr(self, "_tool_primitive", None)
             if tool_primitive and "done" in str(wrapped_result.tool_calls).lower():
-                reason = (
-                    wrapped_result.response
-                    if hasattr(wrapped_result, "response")
-                    else "Task completed"
+                existing = (
+                    tool_primitive.last_call("done")
+                    if hasattr(tool_primitive, "last_call")
+                    else None
                 )
-                logger.info(f"Recording done tool call with reason: {reason}")
-                tool_primitive.record_call(
-                    "done",
-                    {"reason": reason},
-                    {"status": "completed", "reason": reason, "tool": "done"},
-                    agent_name=self.name,
-                )
+                if existing is None:
+                    reason = (
+                        wrapped_result.response
+                        if hasattr(wrapped_result, "response")
+                        else "Task completed"
+                    )
+                    logger.info(f"Recording done tool call with reason: {reason}")
+                    tool_primitive.record_call(
+                        "done",
+                        {"reason": reason},
+                        {"status": "completed", "reason": reason, "tool": "done"},
+                        agent_name=self.name,
+                    )
 
         # Extract usage and cost stats
         usage_stats, cost_stats = self._extract_last_call_stats()

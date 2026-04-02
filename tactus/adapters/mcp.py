@@ -183,11 +183,30 @@ class PydanticAIMCPAdapter:
                         )
 
                 # Convert result to string
+                # Helper to extract text from MCP content list
+                def _extract_text_from_content(content_list):
+                    text_parts = []
+                    for item in content_list:
+                        if hasattr(item, "text"):
+                            text_parts.append(item.text)
+                        elif isinstance(item, dict) and "text" in item:
+                            text_parts.append(item["text"])
+                        else:
+                            text_parts.append(str(item))
+                    return text_parts[0] if len(text_parts) == 1 else "\n".join(text_parts)
+
                 if isinstance(result, dict):
-                    # MCP tools often return dict with 'content' or 'text' field
-                    result_str = result.get("content") or result.get("text") or str(result)
+                    # MCP standard format: {"content": [{"type": "text", "text": "..."}]}
+                    content = result.get("content")
+                    if content and isinstance(content, list):
+                        result_str = _extract_text_from_content(content)
+                    elif content:
+                        result_str = str(content)
+                    else:
+                        result_str = result.get("text") or str(result)
                 elif isinstance(result, list):
-                    result_str = str(result)
+                    # Direct MCP content list: [{"type": "text", "text": "..."}]
+                    result_str = _extract_text_from_content(result)
                 else:
                     result_str = str(result)
 

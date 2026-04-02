@@ -210,20 +210,22 @@ class FilePrimitive:
         Raises:
             ValueError: If absolute path or path traversal detected
         """
-        relative_path = Path(path)
+        input_path = Path(path)
 
-        # Security: Never allow absolute paths
-        if relative_path.is_absolute():
-            raise ValueError(f"Absolute paths not allowed: {path}")
+        if input_path.is_absolute():
+            # Absolute paths are allowed; resolve to follow symlinks but no
+            # containment check is needed since the caller already knows the location.
+            resolved_path = input_path.resolve()
+        else:
+            # Resolve relative to base_path
+            resolved_path = (self.base_path / input_path).resolve()
 
-        # Resolve relative to base_path
-        resolved_path = (self.base_path / relative_path).resolve()
-
-        # Security: Verify resolved path is under base_path
-        try:
-            resolved_path.relative_to(self.base_path)
-        except ValueError:
-            raise ValueError(f"Path traversal detected: {path} resolves outside base directory")
+            # Security: Verify resolved path is under base_path.
+            # Use resolved base_path to handle symlinks (e.g. /Users -> /private/Users on macOS).
+            try:
+                resolved_path.relative_to(self.base_path.resolve())
+            except ValueError:
+                raise ValueError(f"Path traversal detected: {path} resolves outside base directory")
 
         return resolved_path
 
