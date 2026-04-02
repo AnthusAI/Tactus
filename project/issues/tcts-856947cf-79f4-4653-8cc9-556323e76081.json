@@ -28,10 +28,16 @@
       "author": "derek.norrbom",
       "text": "Verification after formatting: fresh rcql python scan still at warning total 352. Batch 2 reductions preserved (repeated-import and import-and-import-from both at 0 in SARIF).",
       "created_at": "2026-04-02T23:23:05.692008Z"
+    },
+    {
+      "id": "f3727879-c398-40e1-a62b-087092f7a73f",
+      "author": "derek.norrbom",
+      "text": "CI remediation interleaved with batching: fixed regression from run 23926590563 by restoring CLI/IDE server behavior while preserving safe unused-import/local fixes. Current rcql python total is 347 (from 352 pre-batch); remaining high-volume rules still include unnecessary-pass/empty-except/ineffectual-statement and dsl_stubs unused-local.",
+      "created_at": "2026-04-02T23:34:46.027357Z"
     }
   ],
   "created_at": "2026-04-02T23:08:41.297987Z",
-  "updated_at": "2026-04-02T23:23:05.692008Z",
+  "updated_at": "2026-04-02T23:34:46.027357Z",
   "closed_at": null,
   "custom": {}
 }

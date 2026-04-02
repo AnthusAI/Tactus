@@ -43,10 +43,10 @@ class LSPServer:
             if method == "initialize":
                 result = self._handle_initialize(params)
             elif method == "textDocument/didOpen":
-                result = self._handle_did_open(params)
+                self._handle_did_open(params)
                 return None  # Notification, no response
             elif method == "textDocument/didChange":
-                result = self._handle_did_change(params)
+                self._handle_did_change(params)
                 return None  # Notification, no response
             elif method == "textDocument/completion":
                 result = self._handle_completion(params)

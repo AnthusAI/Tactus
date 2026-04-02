@@ -7,13 +7,23 @@ Provides Lua-accessible methods for manipulating chat session state.
 from typing import Any, Optional
 
 try:
-    from pydantic_ai.messages import ModelMessage, ModelRequest, ModelResponse, TextPart
+    from pydantic_ai.messages import (
+        ModelMessage as _ModelMessage,
+        ModelRequest as _ModelRequest,
+        ModelResponse as _ModelResponse,
+        TextPart as _TextPart,
+    )
 except ImportError:
     # Fallback types when pydantic_ai is not available at runtime.
-    ModelMessage = dict
-    ModelRequest = dict
-    ModelResponse = dict
-    TextPart = dict
+    _ModelMessage = dict
+    _ModelRequest = dict
+    _ModelResponse = dict
+    _TextPart = dict
+
+ModelMessage = _ModelMessage
+ModelRequest = _ModelRequest
+ModelResponse = _ModelResponse
+TextPart = _TextPart
 
 
 class SessionPrimitive:

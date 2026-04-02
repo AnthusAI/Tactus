@@ -6,10 +6,8 @@ import logging
 from typing import Any, List, Optional
 
 try:  # Optional dependency
-    import mlflow
     from mlflow.tracking import MlflowClient
 except ImportError:  # pragma: no cover - handled in code paths without mlflow
-    mlflow = None
     MlflowClient = None  # type: ignore
 
 from tactus.registry.local import ModelVersion

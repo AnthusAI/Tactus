@@ -114,9 +114,6 @@ class TestResolveSchema:
         """Test resolving Python class references."""
 
         # Create a test Pydantic model
-        class TestInput(BaseModel):
-            value: int
-
         # Should be able to resolve by full path
         # (In real usage: "myproject.schemas.TestInput")
         # For test, we'll use __main__ or the actual module path

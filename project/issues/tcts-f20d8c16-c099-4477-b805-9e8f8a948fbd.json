@@ -1,0 +1,43 @@
+{
+  "id": "tcts-f20d8c16-c099-4477-b805-9e8f8a948fbd",
+  "title": "Fix py/unused-local-variable findings in tests and support modules",
+  "description": "",
+  "type": "bug",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "c13bb010-1889-476c-a4e8-6f9c5ca75f13",
+      "author": "derek.norrbom",
+      "text": "Delegating in parallel by disjoint file sets. Prefer semantic no-op fixes (remove dead assignment/import or underscore-ignore where appropriate).",
+      "created_at": "2026-04-02T23:24:04.739877Z"
+    },
+    {
+      "id": "81ac6825-60a7-4ac0-855b-d93fdd76a02c",
+      "author": "derek.norrbom",
+      "text": "Starting on unused-local-variable cleanup for tactus/core/dsl_stubs.py, tactus-ide/backend/lsp_server.py, and features/steps/result_and_output_steps.py as part of the existing bug.",
+      "created_at": "2026-04-02T23:26:54.137721Z"
+    },
+    {
+      "id": "c45fae69-5255-4f3b-8afe-ef9c50b8b529",
+      "author": "derek.norrbom",
+      "text": "Removed the unused AgentLookup helper/export from tactus/core/dsl_stubs.py, simplified the notification paths in lsp_server so no local result is assigned, and renamed the no-op step parameters to _context in features/steps/result_and_output_steps.py so linters will ignore them.",
+      "created_at": "2026-04-02T23:29:35.976119Z"
+    },
+    {
+      "id": "4b1cd04f-71e7-4908-8f7b-fdf6bed21100",
+      "author": "derek.norrbom",
+      "text": "Partial complete. Cleared test/support unused-local findings in tests/cli/test_cli_inputs.py, tests/models/test_schema.py, features/steps/result_and_output_steps.py, tactus-ide/backend/lsp_server.py. Remaining py/unused-local-variable findings are primarily in tactus/core/dsl_stubs.py plus generated parser file; keeping issue open for next chunk.",
+      "created_at": "2026-04-02T23:34:43.428778Z"
+    }
+  ],
+  "created_at": "2026-04-02T23:24:00.967254Z",
+  "updated_at": "2026-04-02T23:34:43.428778Z",
+  "closed_at": null,
+  "custom": {}
+}

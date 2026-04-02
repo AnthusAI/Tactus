@@ -4,7 +4,6 @@ Tactus IDE Backend Server.
 Provides HTTP-based LSP server for the Tactus IDE.
 """
 
-import asyncio
 import json
 import logging
 import os
@@ -18,8 +17,6 @@ from flask import Flask, request, jsonify, Response, stream_with_context
 from flask_cors import CORS
 from typing import Any, Optional
 
-from tactus.adapters.file_storage import FileStorage
-from tactus.core.config_manager import ConfigManager
 from tactus.validation.validator import TactusValidator, ValidationMode
 from tactus.core.registry import ValidationMessage
 
@@ -566,6 +563,8 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             def generate_events():
                 """Generator function that yields SSE validation events."""
                 try:
+                    import json
+
                     # Read and validate file
                     content = path.read_text()
                     validator = TactusValidator()
@@ -724,8 +723,10 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                 all_events = []  # Collect all events to save at the end
                 try:
                     # Send start event
+                    import json
                     from tactus.adapters.ide_log import IDELogHandler
                     from tactus.core.runtime import TactusRuntime
+                    from tactus.adapters.file_storage import FileStorage
                     from nanoid import generate
 
                     # Generate unique run_id for this execution
@@ -747,14 +748,18 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                     log_handler = IDELogHandler()
 
                     # Create storage backend
+                    from pathlib import Path as PathLib
+
                     storage_dir = (
-                        str(Path(WORKSPACE_ROOT) / ".tac" / "storage")
+                        str(PathLib(WORKSPACE_ROOT) / ".tac" / "storage")
                         if WORKSPACE_ROOT
                         else "~/.tactus/storage"
                     )
                     storage_backend = FileStorage(storage_dir=storage_dir)
 
                     # Load configuration cascade for this procedure
+                    from tactus.core.config_manager import ConfigManager
+
                     config_manager = ConfigManager()
                     merged_config = config_manager.load_cascade(path)
                     broker_mcp_servers = {}
@@ -851,6 +856,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                         yield f"data: {json.dumps(container_starting_event)}\n\n"
 
                     # Run in a thread to avoid blocking
+                    import asyncio
 
                     result_container = {
                         "result": None,
@@ -871,6 +877,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                         waits for the user response in the IDE, and returns the response
                         data back to the container.
                         """
+                        import threading
                         from tactus.protocols.control import ControlRequest
 
                         # Parse the request
@@ -1204,8 +1211,9 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
 
                     # Save consolidated events to disk
                     try:
+                        from pathlib import Path as PathLib
 
-                        events_dir = Path(storage_dir) / "events"
+                        events_dir = PathLib(storage_dir) / "events"
                         events_dir.mkdir(parents=True, exist_ok=True)
                         events_file = events_dir / f"{run_id}.json"
                         with open(events_file, "w") as f:
@@ -1278,6 +1286,8 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             def generate_events():
                 """Generator function that yields SSE test events."""
                 try:
+                    import json
+                    from tactus.validation import TactusValidator
                     from tactus.testing import TactusTestRunner, GherkinParser
 
                     # Validate and extract specifications
@@ -1491,6 +1501,8 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             def generate_events():
                 """Generator function that yields SSE evaluation events."""
                 try:
+                    import json
+                    from tactus.validation import TactusValidator
                     from tactus.testing import TactusEvaluationRunner, GherkinParser
 
                     # Validate and extract specifications
@@ -1822,6 +1834,8 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
     def list_trace_runs():
         """List all execution runs by grouping checkpoints by run_id."""
         try:
+            from pathlib import Path as PathLib
+            from tactus.adapters.file_storage import FileStorage
             from collections import defaultdict
 
             # Get optional query params
@@ -1830,7 +1844,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
 
             # Create storage backend
             storage_dir = (
-                str(Path(WORKSPACE_ROOT) / ".tac" / "storage")
+                str(PathLib(WORKSPACE_ROOT) / ".tac" / "storage")
                 if WORKSPACE_ROOT
                 else "~/.tactus/storage"
             )
@@ -1883,6 +1897,8 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
     def get_trace_run(run_id: str):
         """Get a specific execution run by filtering checkpoints by run_id."""
         try:
+            from pathlib import Path as PathLib
+            from tactus.adapters.file_storage import FileStorage
 
             # Get procedure name from query param or try to find it
             procedure = request.args.get("procedure")
@@ -1891,7 +1907,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
 
             # Create storage backend
             storage_dir = (
-                str(Path(WORKSPACE_ROOT) / ".tac" / "storage")
+                str(PathLib(WORKSPACE_ROOT) / ".tac" / "storage")
                 if WORKSPACE_ROOT
                 else "~/.tactus/storage"
             )
@@ -1948,6 +1964,8 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
     def get_run_checkpoints(run_id: str):
         """Get all checkpoints for a specific run."""
         try:
+            from pathlib import Path as PathLib
+            from tactus.adapters.file_storage import FileStorage
 
             # Get procedure name from query param
             procedure = request.args.get("procedure")
@@ -1956,7 +1974,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
 
             # Create storage backend
             storage_dir = (
-                str(Path(WORKSPACE_ROOT) / ".tac" / "storage")
+                str(PathLib(WORKSPACE_ROOT) / ".tac" / "storage")
                 if WORKSPACE_ROOT
                 else "~/.tactus/storage"
             )
@@ -2000,6 +2018,8 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
     def get_checkpoint(run_id: str, position: int):
         """Get a specific checkpoint from a run by filtering by run_id."""
         try:
+            from pathlib import Path as PathLib
+            from tactus.adapters.file_storage import FileStorage
 
             # Get procedure name from query param
             procedure = request.args.get("procedure")
@@ -2008,7 +2028,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
 
             # Create storage backend
             storage_dir = (
-                str(Path(WORKSPACE_ROOT) / ".tac" / "storage")
+                str(PathLib(WORKSPACE_ROOT) / ".tac" / "storage")
                 if WORKSPACE_ROOT
                 else "~/.tactus/storage"
             )
@@ -2061,12 +2081,14 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
     def clear_checkpoints(procedure_id: str):
         """Clear all checkpoints for a procedure to force fresh execution."""
         try:
+            from pathlib import Path as PathLib
+            import os
 
             # Build the checkpoint file path
             storage_dir = (
-                Path(WORKSPACE_ROOT) / ".tac" / "storage"
+                PathLib(WORKSPACE_ROOT) / ".tac" / "storage"
                 if WORKSPACE_ROOT
-                else Path.home() / ".tactus" / "storage"
+                else PathLib.home() / ".tactus" / "storage"
             )
             checkpoint_file = storage_dir / f"{procedure_id}.json"
 
@@ -2092,6 +2114,8 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
     def get_run_statistics(run_id: str):
         """Get statistics for a run by filtering checkpoints by run_id."""
         try:
+            from pathlib import Path as PathLib
+            from tactus.adapters.file_storage import FileStorage
             from collections import Counter
 
             # Get procedure name from query param
@@ -2101,7 +2125,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
 
             # Create storage backend
             storage_dir = (
-                str(Path(WORKSPACE_ROOT) / ".tac" / "storage")
+                str(PathLib(WORKSPACE_ROOT) / ".tac" / "storage")
                 if WORKSPACE_ROOT
                 else "~/.tactus/storage"
             )
@@ -2140,14 +2164,15 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
     def get_run_events(run_id: str):
         """Get all SSE events for a specific run."""
         try:
+            from pathlib import Path as PathLib
 
             # Determine storage directory
             storage_dir = (
-                str(Path(WORKSPACE_ROOT) / ".tac" / "storage")
+                str(PathLib(WORKSPACE_ROOT) / ".tac" / "storage")
                 if WORKSPACE_ROOT
                 else "~/.tactus/storage"
             )
-            events_dir = Path(storage_dir) / "events"
+            events_dir = PathLib(storage_dir) / "events"
             events_file = events_dir / f"{run_id}.json"
 
             if not events_file.exists():
@@ -2171,6 +2196,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
         if coding_assistant is None and WORKSPACE_ROOT:
             try:
                 from tactus.ide.coding_assistant import CodingAssistantAgent
+                from tactus.core.config_manager import ConfigManager
 
                 # Load configuration
                 config_manager = ConfigManager()
@@ -2246,7 +2272,9 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
         """
         try:
             import sys
+            import os
             import uuid
+            import asyncio
 
             # Add backend directory to path so we can import our modules
             backend_dir = os.path.join(
@@ -2486,6 +2514,9 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
 
         def generate():
             """Generator that yields SSE events from the channel."""
+            import asyncio
+            import json
+
             channel = get_sse_channel()
 
             # Create event loop for this thread
@@ -2516,6 +2547,8 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                     else:
                         # Send keepalive comment every second if no events
                         yield ": keepalive\n\n"
+                        import time
+
                         time.sleep(1)
 
             except GeneratorExit:
