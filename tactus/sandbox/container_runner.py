@@ -52,6 +52,32 @@ _LEVEL_MAP = {
 }
 
 
+def _import_tactus_module():
+    """Lazy import for the top-level tactus package."""
+    import tactus
+
+    return tactus
+
+
+def _import_broker_server_components():
+    """Single import for the various broker server helpers we reuse."""
+    from tactus.broker.server import (
+        BrokerMCPManager,
+        HostToolRegistry,
+        OpenAIChatBackend,
+        TcpBrokerServer,
+    )
+
+    return OpenAIChatBackend, TcpBrokerServer, HostToolRegistry, BrokerMCPManager
+
+
+def _import_broker_stdio_components():
+    """Reuse STDIO constants without duplicating the import."""
+    from tactus.broker.stdio import STDIO_REQUEST_PREFIX, STDIO_TRANSPORT_VALUE
+
+    return STDIO_TRANSPORT_VALUE, STDIO_REQUEST_PREFIX
+
+
 class SandboxError(Exception):
     """Raised when sandbox execution fails."""
 
@@ -155,7 +181,8 @@ class ContainerRunner:
             return
 
         # Get current version and source hash
-        from tactus import __version__
+        tactus_module = _import_tactus_module()
+        tactus_version = getattr(tactus_module, "__version__", None)
 
         # Calculate tactus root from this file's location
         # container_runner.py is in tactus/sandbox/, so root is 2 levels up
@@ -169,14 +196,14 @@ class ContainerRunner:
             logger.info("[SANDBOX] No source tree detected, using PyPI-based sandbox image build")
 
         # Check if rebuild is needed
-        if self.docker_manager.needs_rebuild(__version__, current_hash):
+        if self.docker_manager.needs_rebuild(tactus_version, current_hash):
             logger.info("Sandbox image missing or outdated, rebuilding...")
 
             # Build with source hash
             success, msg = self.docker_manager.build_image(
                 dockerfile_path=dockerfile_path,
                 context_path=tactus_root,
-                version=__version__,
+                version=tactus_version,
                 source_hash=current_hash,
                 verbose=False,
             )
@@ -227,9 +254,9 @@ class ContainerRunner:
 
         # Option 2: Find via the tactus module location
         try:
-            import tactus
+            tactus_module = _import_tactus_module()
 
-            tactus_module_path = Path(tactus.__file__).resolve()
+            tactus_module_path = Path(tactus_module.__file__).resolve()
             # Go up from tactus/__init__.py to the repo root
             repo_root = tactus_module_path.parent.parent
             if (repo_root / "tactus").is_dir() and (repo_root / "pyproject.toml").exists():
@@ -519,7 +546,7 @@ class ContainerRunner:
                     broker_mcp_servers = {}
 
             if broker_transport == "stdio":
-                from tactus.broker.stdio import STDIO_TRANSPORT_VALUE
+                STDIO_TRANSPORT_VALUE, _ = _import_broker_stdio_components()
 
                 broker_env = {"TACTUS_BROKER_SOCKET": STDIO_TRANSPORT_VALUE}
             elif broker_transport in ("tcp", "tls"):
@@ -529,7 +556,7 @@ class ContainerRunner:
                         "Set sandbox.network to 'bridge' (or another non-'none' mode)."
                     )
 
-                from tactus.broker.server import OpenAIChatBackend, TcpBrokerServer
+                OpenAIChatBackend, TcpBrokerServer, _, _ = _import_broker_server_components()
 
                 ssl_context = None
                 if broker_transport == "tls":
@@ -699,12 +726,10 @@ class ContainerRunner:
 
         stdio_request_prefix: Optional[str] = None
         if broker_transport == "stdio":
-            from tactus.broker.server import OpenAIChatBackend
-            from tactus.broker.server import HostToolRegistry
-            from tactus.broker.server import BrokerMCPManager
-            from tactus.broker.stdio import STDIO_REQUEST_PREFIX
-
-            stdio_request_prefix = STDIO_REQUEST_PREFIX
+            OpenAIChatBackend, _, HostToolRegistry, BrokerMCPManager = (
+                _import_broker_server_components()
+            )
+            _, stdio_request_prefix = _import_broker_stdio_components()
 
             # Extract OpenAI-specific config if provided
             openai_key = None

@@ -1,13 +1,14 @@
 """Step definitions for DSPy Prediction objects."""
 
+import dspy
 import json
 from behave import given, when, then
+from tactus.dspy import create_prediction, wrap_prediction
 
 
 @when('I create a Prediction with field "{field}" value "{value}"')
 def step_create_prediction_with_field(context, field, value):
     """Create Prediction with single field."""
-    from tactus.dspy import create_prediction
 
     context.prediction = create_prediction(**{field: value})
 
@@ -28,7 +29,6 @@ def step_field_equals_value(context, field, value):
 @when("I create a Prediction with fields:")
 def step_create_prediction_with_fields_table(context):
     """Create Prediction with fields from table."""
-    from tactus.dspy import create_prediction
 
     fields = {}
     for row in context.table:
@@ -84,7 +84,6 @@ def step_each_field_has_correct_value(context):
 @given('a Prediction with field "{field}" value "{value}"')
 def step_given_prediction_with_field_string(context, field, value):
     """Create Prediction with field."""
-    from tactus.dspy import create_prediction
 
     context.prediction = create_prediction(**{field: value})
 
@@ -92,7 +91,6 @@ def step_given_prediction_with_field_string(context, field, value):
 @given('a Prediction with field "{field}" value {value:d}')
 def step_given_prediction_with_field_int(context, field, value):
     """Create Prediction with integer field."""
-    from tactus.dspy import create_prediction
 
     context.prediction = create_prediction(**{field: value})
 
@@ -118,7 +116,6 @@ def step_should_get_int_value(context, value):
 @given('a Prediction without field "{field}"')
 def step_given_prediction_without_field(context, field):
     """Create Prediction without specific field."""
-    from tactus.dspy import create_prediction
 
     context.prediction = create_prediction(other_field="value")
 
@@ -141,7 +138,6 @@ def step_use_prediction_get(context, field):
 @given('a Prediction with fields "{field1}" and "{field2}"')
 def step_given_prediction_with_two_fields(context, field1, field2):
     """Create Prediction with two fields."""
-    from tactus.dspy import create_prediction
 
     context.prediction = create_prediction(**{field1: "value1", field2: "value2"})
 
@@ -167,7 +163,6 @@ def step_should_return_false(context):
 @given("a Prediction with multiple fields")
 def step_given_prediction_with_multiple_fields(context):
     """Create Prediction with multiple fields."""
-    from tactus.dspy import create_prediction
 
     context.prediction = create_prediction(field1="value1", field2="value2", field3="value3")
 
@@ -214,7 +209,6 @@ def step_given_dictionary_with_keys_values(context):
 @when("I create a Prediction from the dictionary")
 def step_create_prediction_from_dict(context):
     """Create Prediction from dictionary."""
-    from tactus.dspy import create_prediction
 
     context.prediction = create_prediction(**context.source_dict)
 
@@ -259,8 +253,6 @@ def step_tactus_procedure_creates_prediction(context):
 @given("a TactusPrediction wrapper")
 def step_given_tactus_prediction_wrapper(context):
     """Create TactusPrediction wrapper."""
-    import dspy
-    from tactus.dspy import wrap_prediction
 
     dspy_pred = dspy.Prediction(answer="42")
     context.prediction = wrap_prediction(dspy_pred)
@@ -293,7 +285,6 @@ def step_should_work_with_dspy_modules(context):
 @when('I create a Prediction with string field "{field}" value "{value}"')
 def step_create_prediction_string_field(context, field, value):
     """Create Prediction with string field."""
-    from tactus.dspy import create_prediction
 
     context.prediction = create_prediction(**{field: value})
 
@@ -315,7 +306,6 @@ def step_value_should_be(context, value):
 @when("I create a Prediction with numeric fields:")
 def step_create_prediction_numeric_fields(context):
     """Create Prediction with numeric fields."""
-    from tactus.dspy import create_prediction
 
     fields = {}
     for row in context.table:
@@ -341,7 +331,6 @@ def step_each_field_maintains_type(context):
 @when('I create a Prediction with boolean field "{field}" value {value}')
 def step_create_prediction_boolean_field(context, field, value):
     """Create Prediction with boolean field."""
-    from tactus.dspy import create_prediction
 
     bool_value = value.lower() == "true"
     context.prediction = create_prediction(**{field: bool_value})
@@ -364,7 +353,6 @@ def step_value_should_be_true(context):
 @when('I create a Prediction with list field "{field}" value {value}')
 def step_create_prediction_list_field(context, field, value):
     """Create Prediction with list field."""
-    from tactus.dspy import create_prediction
     import ast
 
     list_value = ast.literal_eval(value)
@@ -388,7 +376,6 @@ def step_list_contains_all_items(context):
 @when("I create a Prediction with nested field:")
 def step_create_prediction_nested_field(context):
     """Create Prediction with nested field."""
-    from tactus.dspy import create_prediction
 
     nested_data = json.loads(context.text)
     context.prediction = create_prediction(**nested_data)
@@ -417,7 +404,6 @@ def step_given_prediction_schema_with_required(context):
 @when('I create a Prediction missing required field "{field}"')
 def step_create_prediction_missing_required(context, field):
     """Try to create Prediction missing required field."""
-    from tactus.dspy import create_prediction
 
     try:
         # Pass schema from context if available
@@ -437,7 +423,6 @@ def step_given_prediction_schema_with_types(context):
 @when('I create a Prediction with wrong type for "{field}"')
 def step_create_prediction_wrong_type(context, field):
     """Try to create Prediction with wrong type."""
-    from tactus.dspy import create_prediction
 
     try:
         # Pass schema from context if available
@@ -516,7 +501,6 @@ def step_maintain_original_order(context):
 @given('a Prediction with fields "{field1}", "{field2}", "{field3}"')
 def step_given_prediction_three_fields(context, field1, field2, field3):
     """Create Prediction with three fields."""
-    from tactus.dspy import create_prediction
 
     context.prediction = create_prediction(**{field1: "a", field2: "b", field3: "c"})
 
@@ -530,7 +514,6 @@ def step_get_all_field_names(context):
 @given("a Prediction with values")
 def step_given_prediction_with_values(context):
     """Create Prediction with values."""
-    from tactus.dspy import create_prediction
 
     context.prediction = create_prediction(a=1, b=2, c=3)
 
@@ -569,7 +552,6 @@ def step_should_return_none_or_raise(context):
 @when('I try to create a Prediction with field "{field}"')
 def step_try_create_prediction_with_field(context, field):
     """Try to create Prediction with specific field."""
-    from tactus.dspy import create_prediction
 
     try:
         context.prediction = create_prediction(**{field: "value"})
@@ -581,7 +563,6 @@ def step_try_create_prediction_with_field(context, field):
 @given("two Predictions with same fields and values")
 def step_given_two_predictions_same(context):
     """Create two identical Predictions."""
-    from tactus.dspy import create_prediction
 
     context.prediction1 = create_prediction(a=1, b=2)
     context.prediction2 = create_prediction(a=1, b=2)
@@ -602,7 +583,6 @@ def step_should_be_equal(context):
 @given("two Predictions with same fields but different values")
 def step_given_two_predictions_different(context):
     """Create two Predictions with different values."""
-    from tactus.dspy import create_prediction
 
     context.prediction1 = create_prediction(a=1, b=2)
     context.prediction2 = create_prediction(a=1, b=3)
@@ -617,7 +597,6 @@ def step_should_not_be_equal(context):
 @given("a Prediction with various field types")
 def step_given_prediction_various_types(context):
     """Create Prediction with various field types."""
-    from tactus.dspy import create_prediction
 
     context.prediction = create_prediction(
         string_field="text", int_field=42, float_field=3.14, bool_field=True, list_field=[1, 2, 3]
@@ -654,7 +633,6 @@ def step_given_json_string(context):
 @when("I deserialize to Prediction")
 def step_deserialize_to_prediction(context):
     """Deserialize to Prediction."""
-    from tactus.dspy import create_prediction
 
     data = json.loads(context.json_string)
     context.prediction = create_prediction(**data)
@@ -708,7 +686,6 @@ def step_should_be_retrievable(context):
 def step_create_prediction_with_metadata(context):
     """Create Prediction with metadata."""
     config = json.loads(context.text)
-    from tactus.dspy import create_prediction
 
     fields = config.get("fields", {})
     context.prediction = create_prediction(**fields)
@@ -747,11 +724,9 @@ def step_should_get_field_list_abc(context):
 @when("I create a Prediction with fields")
 def step_create_prediction_with_fields_no_table(context):
     """Create Prediction with fields (no table, text block)."""
-    from tactus.dspy import create_prediction
 
     # If text block provided, parse it as JSON
     if hasattr(context, "text") and context.text:
-        import json
 
         fields = json.loads(context.text)
         context.prediction = create_prediction(**fields)
@@ -781,7 +756,6 @@ def step_can_get_prediction_data_as_dict(context):
 @given("a DSPy Prediction object")
 def step_given_dspy_prediction_object(context):
     """Create a DSPy Prediction object."""
-    import dspy
 
     context.dspy_prediction = dspy.Prediction(answer="42", confidence=0.9)
 
@@ -789,7 +763,6 @@ def step_given_dspy_prediction_object(context):
 @when("I wrap it in TactusPrediction")
 def step_wrap_in_tactus_prediction(context):
     """Wrap DSPy Prediction in TactusPrediction."""
-    from tactus.dspy import wrap_prediction
 
     context.prediction = wrap_prediction(context.dspy_prediction)
 
@@ -806,6 +779,5 @@ def step_tactus_prediction_delegates(context):
 @given('a Prediction with field "answer"')
 def step_given_prediction_with_answer_field(context):
     """Create Prediction with answer field."""
-    from tactus.dspy import create_prediction
 
     context.prediction = create_prediction(answer="The answer is 42")

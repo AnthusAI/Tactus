@@ -68,6 +68,60 @@ def _coerce_bool(value: Any) -> bool:
     return bool(value)
 
 
+def _import_config_manager():
+    """Lazy import for ConfigManager to avoid duplicate import statements."""
+    from tactus.core.config_manager import ConfigManager
+
+    return ConfigManager
+
+
+def _import_mocking_components():
+    """Lazy import for mocking helpers to centralize their statements."""
+    from tactus.core.mocking import MockConfig, MockManager, set_current_mock_manager
+
+    return MockConfig, MockManager, set_current_mock_manager
+
+
+def _import_sandbox_components():
+    """Lazy import for sandbox helpers so we only import the module once."""
+    from tactus.sandbox import ContainerRunner, DockerManager, SandboxConfig, is_docker_available
+
+    return ContainerRunner, DockerManager, SandboxConfig, is_docker_available
+
+
+def _import_trace_manager():
+    """Helper to import TraceManager without repeating the module."""
+    from tactus.tracing import TraceManager
+
+    return TraceManager
+
+
+def _import_eval_models():
+    """Import Pydantic eval model helpers in one place."""
+    from tactus.testing.eval_models import (
+        EvaluationConfig,
+        EvaluationThresholds,
+        EvalCase,
+        EvaluatorConfig,
+    )
+
+    return EvaluationConfig, EvaluationThresholds, EvalCase, EvaluatorConfig
+
+
+def _import_test_runner():
+    """Provide access to the shared TactusTestRunner import."""
+    from tactus.testing.test_runner import TactusTestRunner
+
+    return TactusTestRunner
+
+
+def _import_tactus_module():
+    """Lazy import of the top-level tactus package."""
+    import tactus
+
+    return tactus
+
+
 @app.callback(invoke_without_command=True)
 def main_callback(
     ctx: typer.Context,
@@ -82,9 +136,9 @@ def main_callback(
     """Tactus CLI callback for global options."""
     version = _coerce_bool(version)
     if version:
-        from tactus import __version__
+        tactus_module = _import_tactus_module()
 
-        console.print(f"Tactus version: [bold]{__version__}[/bold]")
+        console.print(f"Tactus version: [bold]{tactus_module.__version__}[/bold]")
         raise typer.Exit()
 
     # If no subcommand was invoked and version flag not set, show help
@@ -130,8 +184,7 @@ def load_tactus_config():
         dict: Configuration dictionary, or empty dict if no config found
     """
     try:
-        from tactus.core.config_manager import ConfigManager
-        import json
+        ConfigManager = _import_config_manager()
 
         config_mgr = ConfigManager()
 
@@ -740,7 +793,7 @@ def run(
     hitl_handler = None
 
     # Load configuration cascade
-    from tactus.core.config_manager import ConfigManager
+    ConfigManager = _import_config_manager()
 
     config_manager = ConfigManager()
     merged_config = config_manager.load_cascade(workflow_file)
@@ -766,11 +819,7 @@ def run(
     mcp_servers = merged_config.get("mcp_servers", {})
 
     # Handle sandbox mode
-    from tactus.sandbox import (
-        is_docker_available,
-        SandboxConfig,
-        ContainerRunner,
-    )
+    ContainerRunner, _, SandboxConfig, is_docker_available = _import_sandbox_components()
 
     # Build sandbox config from merged config and CLI flag
     sandbox_config_dict = merged_config.get("sandbox", {})
@@ -799,9 +848,9 @@ def run(
     if "dev_mode" not in sandbox_config_dict:
         repo_root = None
         try:
-            import tactus
+            tactus_module = _import_tactus_module()
 
-            tactus_module_path = Path(tactus.__file__).resolve()
+            tactus_module_path = Path(tactus_module.__file__).resolve()
             repo_root = tactus_module_path.parent.parent
             if not ((repo_root / "tactus").is_dir() and (repo_root / "pyproject.toml").exists()):
                 repo_root = None
@@ -920,7 +969,7 @@ def run(
     runtime.dependency_prompt_handler = _dependency_prompt_handler
 
     # Always create a mock manager so Mocks {} blocks can register tool mocks.
-    from tactus.core.mocking import MockManager, set_current_mock_manager
+    MockConfig, MockManager, set_current_mock_manager = _import_mocking_components()
 
     mock_manager = MockManager()
     runtime.mock_manager = mock_manager
@@ -941,8 +990,6 @@ def run(
         if mock:
             for tool_name in mock:
                 # Register a simple mock that returns a placeholder response
-                from tactus.core.mocking import MockConfig
-
                 mock_manager.register_mock(
                     tool_name,
                     MockConfig(
@@ -954,8 +1001,8 @@ def run(
                         },
                     ),
                 )
-                mock_manager.enable_mock(tool_name)
-                console.print(f"[yellow]Mocking enabled for tool: {tool_name}[/yellow]")
+            mock_manager.enable_mock(tool_name)
+            console.print(f"[yellow]Mocking enabled for tool: {tool_name}[/yellow]")
 
         # Handle specific tool real implementations
         if real:
@@ -1143,7 +1190,7 @@ def sandbox_status():
 
     Displays whether Docker is available and if the sandbox image exists.
     """
-    from tactus.sandbox import is_docker_available, DockerManager
+    _, DockerManager, _, is_docker_available = _import_sandbox_components()
 
     # Check Docker availability
     available, reason = is_docker_available()
@@ -1179,10 +1226,10 @@ def sandbox_rebuild(
 
     Creates the sandbox image used for isolated procedure execution.
     """
-    from pathlib import Path
-    from tactus.sandbox import is_docker_available, DockerManager
+    _, DockerManager, _, is_docker_available = _import_sandbox_components()
     from tactus.sandbox.docker_manager import resolve_dockerfile_path
-    import tactus
+
+    tactus_module = _import_tactus_module()
 
     # Check Docker availability
     available, reason = is_docker_available()
@@ -1191,7 +1238,7 @@ def sandbox_rebuild(
         raise typer.Exit(1)
 
     # Get Tactus package path for build context
-    tactus_path = Path(tactus.__file__).parent.parent
+    tactus_path = Path(tactus_module.__file__).parent.parent
     dockerfile_path, build_mode = resolve_dockerfile_path(tactus_path)
 
     if not dockerfile_path.exists():
@@ -1200,7 +1247,7 @@ def sandbox_rebuild(
         raise typer.Exit(1)
 
     # Get version
-    version = getattr(tactus, "__version__", "dev")
+    version = getattr(tactus_module, "__version__", "dev")
 
     manager = DockerManager()
 
@@ -1439,7 +1486,6 @@ def train(
         raise typer.Exit(1)
 
     try:
-        import json
         from tactus.training.config import load_training_config
         from tactus.training.runner import TrainingRunner
 
@@ -1734,12 +1780,11 @@ def test(
         console.print(Panel(f"Running BDD Tests ({mode_str} mode)", style="blue"))
 
     try:
-        from tactus.testing.test_runner import TactusTestRunner
+        TactusTestRunner = _import_test_runner()
         from tactus.testing.evaluation_runner import TactusEvaluationRunner
         from tactus.testing.mock_tools import create_default_mocks
-        from tactus.validation import TactusValidator
-        from tactus.core.config_manager import ConfigManager
-        import json
+
+        ConfigManager = _import_config_manager()
 
         # Load configuration and export all values as environment variables
         config_mgr = ConfigManager()
@@ -1942,7 +1987,6 @@ def _display_evaluation_results(eval_results):
 def _display_eval_results(report, runs: int, console):
     """Display evaluation results with per-task success rate breakdown."""
     from collections import defaultdict
-    from rich.panel import Panel
     from rich import box
 
     # Group results by original case name
@@ -2089,8 +2133,8 @@ def eval(
 
     try:
         from tactus.testing.pydantic_eval_runner import TactusPydanticEvalRunner
-        from tactus.testing.eval_models import EvaluationConfig, EvalCase, EvaluatorConfig
-        from tactus.validation import TactusValidator
+
+        EvaluationConfig, EvaluationThresholds, EvalCase, EvaluatorConfig = _import_eval_models()
 
         # Validate and extract evaluations config
         validator = TactusValidator()
@@ -2126,8 +2170,6 @@ def eval(
         # Parse thresholds if present
         thresholds = None
         if "thresholds" in eval_dict:
-            from tactus.testing.eval_models import EvaluationThresholds
-
             thresholds = EvaluationThresholds(**eval_dict["thresholds"])
 
         # Create evaluation config
@@ -2264,9 +2306,9 @@ def _display_pydantic_eval_results(report):
 @app.command()
 def version():
     """Show Tactus version."""
-    from tactus import __version__
+    tactus_module = _import_tactus_module()
 
-    console.print(f"Tactus version: [bold]{__version__}[/bold]")
+    console.print(f"Tactus version: [bold]{tactus_module.__version__}[/bold]")
 
 
 @app.command()
@@ -2409,7 +2451,7 @@ def trace_list(
     storage_path: Optional[Path] = typer.Option(None, help="Path for file storage"),
 ):
     """List execution traces."""
-    from tactus.tracing import TraceManager
+    TraceManager = _import_trace_manager()
 
     # Initialize storage
     if storage_path:
@@ -2479,7 +2521,7 @@ def trace_show(
     storage_path: Optional[Path] = typer.Option(None, help="Path for file storage"),
 ):
     """Show detailed trace information."""
-    from tactus.tracing import TraceManager
+    TraceManager = _import_trace_manager()
     from rich.syntax import Syntax
     from rich.json import JSON
 
@@ -2596,7 +2638,7 @@ def trace_export(
     storage_path: Optional[Path] = typer.Option(None, help="Path for file storage"),
 ):
     """Export trace to file."""
-    from tactus.tracing import TraceManager
+    TraceManager = _import_trace_manager()
 
     # Initialize storage
     if storage_path:
@@ -2655,10 +2697,8 @@ def stdlib_test(
     if not isinstance(module, str):
         module = None
 
-    import os
-    import tactus
-    from tactus.validation import TactusValidator
-    from tactus.testing.test_runner import TactusTestRunner
+    TactusTestRunner = _import_test_runner()
+    tactus_module = _import_tactus_module()
 
     if parallel and no_parallel:
         console.print("[red]Error:[/red] --parallel and --no-parallel cannot be used together.")
@@ -2670,7 +2710,7 @@ def stdlib_test(
     os.environ["TACTUS_MOCK_MODE"] = "1"
 
     # Find stdlib spec files
-    package_root = Path(tactus.__file__).parent
+    package_root = Path(tactus_module.__file__).parent
     stdlib_tac_path = package_root / "stdlib" / "tac" / "tactus"
 
     # Find all .spec.tac files

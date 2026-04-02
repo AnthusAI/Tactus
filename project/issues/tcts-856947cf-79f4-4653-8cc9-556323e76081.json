@@ -1,0 +1,37 @@
+{
+  "id": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+  "title": "Remediate rcql Python findings batch 2 (high-throughput)",
+  "description": "",
+  "type": "epic",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-8dbdce66-f645-40af-8d7b-f6664829eef3",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "ea7c4108-9371-4e4a-939f-901dc20b84de",
+      "author": "derek.norrbom",
+      "text": "Batching plan: prioritize low-risk, high-volume import hygiene in parallel. Chunk A: py/repeated-import (11 findings). Chunk B: py/import-and-import-from runtime files (4 findings). Chunk C: py/import-and-import-from test files (19 findings). Defer generated/vendor findings to noise-reduction workflow.",
+      "created_at": "2026-04-02T23:08:46.044351Z"
+    },
+    {
+      "id": "2679fa28-d643-4315-80f8-6456a34b50c7",
+      "author": "derek.norrbom",
+      "text": "Batch 2 result: resolved 34 findings in one cycle (py/repeated-import: 11->0, py/import-and-import-from: 23->0). Fresh rcql python full scan now warning total 352 (was 386). Next fast chunk candidates: py/unused-import (8 non-vendor), py/mixed-returns (9 non-vendor, needs caution), py/empty-except in runtime (52 non-vendor, likely triage/fixes by risk).",
+      "created_at": "2026-04-02T23:19:12.789737Z"
+    },
+    {
+      "id": "5b83d016-1875-48ef-b179-7a8c3e01dc5f",
+      "author": "derek.norrbom",
+      "text": "Verification after formatting: fresh rcql python scan still at warning total 352. Batch 2 reductions preserved (repeated-import and import-and-import-from both at 0 in SARIF).",
+      "created_at": "2026-04-02T23:23:05.692008Z"
+    }
+  ],
+  "created_at": "2026-04-02T23:08:41.297987Z",
+  "updated_at": "2026-04-02T23:23:05.692008Z",
+  "closed_at": null,
+  "custom": {}
+}

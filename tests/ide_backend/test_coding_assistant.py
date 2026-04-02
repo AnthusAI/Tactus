@@ -2,8 +2,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from tactus.ide.coding_assistant import CodingAssistantAgent
 import tactus.ide.coding_assistant as coding_assistant
+
+CodingAssistantAgent = coding_assistant.CodingAssistantAgent
 
 
 class FakeAgent:

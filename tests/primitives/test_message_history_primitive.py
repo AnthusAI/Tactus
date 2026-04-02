@@ -1,5 +1,7 @@
 from tactus.core.message_history_manager import MessageHistoryManager
-from tactus.primitives.message_history import MessageHistoryPrimitive
+import tactus.primitives.message_history as message_history
+
+MessageHistoryPrimitive = message_history.MessageHistoryPrimitive
 
 
 class FakeMessage:
@@ -475,8 +477,6 @@ def test_fallback_types_when_pydantic_ai_missing():
     import importlib
     import sys
     import types
-
-    import tactus.primitives.message_history as message_history
 
     original_pydantic = sys.modules.get("pydantic_ai")
     original_messages = sys.modules.get("pydantic_ai.messages")

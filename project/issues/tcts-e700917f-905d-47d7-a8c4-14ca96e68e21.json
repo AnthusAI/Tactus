@@ -1,0 +1,31 @@
+{
+  "id": "tcts-e700917f-905d-47d7-a8c4-14ca96e68e21",
+  "title": "Fix py/import-and-import-from findings in tests modules",
+  "description": "",
+  "type": "bug",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "4075a1d2-f9e0-4691-810e-ae37896248fe",
+      "author": "derek.norrbom",
+      "text": "Delegating to worker with ownership of test modules flagged by py/import-and-import-from. Keep behavior intact; import-style cleanup only.",
+      "created_at": "2026-04-02T23:08:49.620696Z"
+    },
+    {
+      "id": "623e55da-22bf-45d1-adea-a44047f994b8",
+      "author": "derek.norrbom",
+      "text": "Completed via delegated worker. Fixed py/import-and-import-from across targeted test modules. Verification: ruff on touched tests pass and pytest on touched tests: 404 passed. Fresh rcql python scan confirms py/import-and-import-from count is now 0.",
+      "created_at": "2026-04-02T23:19:09.692641Z"
+    }
+  ],
+  "created_at": "2026-04-02T23:08:46.112798Z",
+  "updated_at": "2026-04-02T23:19:09.706384Z",
+  "closed_at": "2026-04-02T23:19:09.706384Z",
+  "custom": {}
+}

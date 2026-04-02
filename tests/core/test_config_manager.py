@@ -4,7 +4,10 @@ Tests for the configuration manager and cascade system.
 
 import pytest
 import yaml
-from tactus.core.config_manager import ConfigManager, ConfigValue
+import tactus.core.config_manager as config_manager_module
+
+ConfigManager = config_manager_module.ConfigManager
+ConfigValue = config_manager_module.ConfigValue
 
 
 @pytest.fixture
@@ -372,7 +375,6 @@ def test_environment_string_value_mapping(config_manager, monkeypatch):
 
 def test_get_system_config_paths_windows_branch(config_manager, monkeypatch):
     import pathlib
-    import tactus.core.config_manager as config_manager_module
 
     monkeypatch.setattr("os.name", "nt", raising=False)
     monkeypatch.setenv("PROGRAMDATA", r"C:\ProgramData")
@@ -390,8 +392,6 @@ def test_get_user_config_paths_xdg(config_manager, monkeypatch, tmp_path):
 
 
 def test_get_user_config_paths_dedup(config_manager, monkeypatch):
-    import tactus.core.config_manager as config_manager_module
-
     class FakePath:
         def __init__(self, path: str):
             self.path = path

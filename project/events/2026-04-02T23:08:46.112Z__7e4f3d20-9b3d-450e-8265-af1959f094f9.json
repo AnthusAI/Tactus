@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "7e4f3d20-9b3d-450e-8265-af1959f094f9",
+  "issue_id": "tcts-e700917f-905d-47d7-a8c4-14ca96e68e21",
+  "event_type": "issue_created",
+  "occurred_at": "2026-04-02T23:08:46.112Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "assignee": null,
+    "description": "",
+    "issue_type": "bug",
+    "labels": [],
+    "parent": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+    "priority": 2,
+    "status": "open",
+    "title": "Fix py/import-and-import-from findings in tests modules"
+  }
+}

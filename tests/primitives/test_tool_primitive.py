@@ -3,7 +3,10 @@ import typing
 
 import pytest
 
-from tactus.primitives.tool import ToolCall, ToolPrimitive
+import tactus.primitives.tool as tool_mod
+
+ToolCall = tool_mod.ToolCall
+ToolPrimitive = tool_mod.ToolPrimitive
 
 
 class FakeTool:
@@ -308,8 +311,6 @@ def test_tool_repr_includes_call_count():
 
 
 def test_type_checking_import_path():
-    import tactus.primitives.tool as tool_mod
-
     original = typing.TYPE_CHECKING
     try:
         typing.TYPE_CHECKING = True

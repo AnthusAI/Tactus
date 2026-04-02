@@ -1,0 +1,31 @@
+{
+  "id": "tcts-c805f6f1-187f-4aeb-b8ef-cacbf84908a9",
+  "title": "Fix py/import-and-import-from findings in runtime modules",
+  "description": "",
+  "type": "bug",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "642f20d3-24e4-4092-8f17-6fc531a30417",
+      "author": "derek.norrbom",
+      "text": "Delegating to worker with ownership of runtime modules flagged by py/import-and-import-from: tactus/cli/app.py and tactus/sandbox/container_runner.py.",
+      "created_at": "2026-04-02T23:08:49.570267Z"
+    },
+    {
+      "id": "7c533171-8e37-49cf-a1f8-acc4eba1b0a2",
+      "author": "derek.norrbom",
+      "text": "Completed via delegated worker. Fixed py/import-and-import-from in runtime modules tactus/cli/app.py and tactus/sandbox/container_runner.py while preserving behavior. Verification: ruff pass and focused runtime tests pass. Fresh rcql python scan confirms py/import-and-import-from count is now 0.",
+      "created_at": "2026-04-02T23:19:09.691144Z"
+    }
+  ],
+  "created_at": "2026-04-02T23:08:46.112490Z",
+  "updated_at": "2026-04-02T23:19:09.705466Z",
+  "closed_at": "2026-04-02T23:19:09.705466Z",
+  "custom": {}
+}
