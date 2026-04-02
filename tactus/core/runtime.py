@@ -3824,8 +3824,10 @@ class TactusRuntime:
             config["default_model"] = registry.default_model
 
         # The procedure code will be executed separately
-        # Store a placeholder for compatibility
-        config["procedure"] = "-- Procedure function stored in registry"
+        # Only set placeholder if no actual procedure code exists
+        # This preserves Lua code from YAML-wrapped procedures
+        if "procedure" not in config or not config.get("procedure", "").strip():
+            config["procedure"] = "-- Procedure function stored in registry"
 
         return config
 
