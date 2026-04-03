@@ -33,7 +33,7 @@ class StorageBackend(Protocol):
         Raises:
             StorageError: If loading fails
         """
-        ...
+        return None
 
     def save_procedure_metadata(self, procedure_id: str, metadata: ProcedureMetadata) -> None:
         """
@@ -46,7 +46,7 @@ class StorageBackend(Protocol):
         Raises:
             StorageError: If saving fails
         """
-        ...
+        return None
 
     def update_procedure_status(
         self, procedure_id: str, status: str, waiting_on_message_id: Optional[str] = None
@@ -62,7 +62,7 @@ class StorageBackend(Protocol):
         Raises:
             StorageError: If update fails
         """
-        ...
+        return None
 
     def get_state(self, procedure_id: str) -> dict[str, Any]:
         """
@@ -74,7 +74,7 @@ class StorageBackend(Protocol):
         Returns:
             State dictionary
         """
-        ...
+        return None
 
     def set_state(self, procedure_id: str, state: dict[str, Any]) -> None:
         """
@@ -87,4 +87,4 @@ class StorageBackend(Protocol):
         Raises:
             StorageError: If saving fails
         """
-        ...
+        return None

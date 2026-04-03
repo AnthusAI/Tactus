@@ -23,19 +23,19 @@ class ModelStorage(Protocol):
             artifact: Raw bytes of the artifact.
             path: Storage path (relative key or full URI, backend dependent).
         """
-        ...
+        return None
 
     def load(self, uri: str) -> bytes:
         """Load artifact bytes from a URI or key."""
-        ...
+        return None
 
     def exists(self, uri: str) -> bool:
         """Return True if the artifact exists at the given URI/key."""
-        ...
+        return None
 
     def list(self, prefix: Optional[str] = None) -> List[str]:
         """List artifact URIs/keys under an optional prefix."""
-        ...
+        return None
 
 
 class LocalStorage:
