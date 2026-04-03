@@ -74,13 +74,13 @@ class InProcessChannel(ABC):
     @abstractmethod
     def channel_id(self) -> str:
         """Unique identifier for this channel."""
-        ...
+        raise NotImplementedError("Subclasses must define channel_id")
 
     @property
     @abstractmethod
     def capabilities(self) -> ChannelCapabilities:
         """Return channel capabilities."""
-        ...
+        raise NotImplementedError("Subclasses must define capabilities")
 
     async def initialize(self) -> None:
         """
@@ -104,7 +104,7 @@ class InProcessChannel(ABC):
         Returns:
             DeliveryResult with delivery status
         """
-        ...
+        raise NotImplementedError("Subclasses must implement send()")
 
     async def receive(self) -> AsyncIterator[ControlResponse]:
         """

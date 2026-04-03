@@ -15,7 +15,8 @@ class Trainer(Protocol):
 
     def train(
         self, candidate: CandidateConfig, data: DatasetBundle, workdir: str
-    ) -> TrainedModel: ...
+    ) -> TrainedModel:
+        return None
 
 
 class TrainerRegistry:
