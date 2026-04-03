@@ -1,0 +1,25 @@
+{
+  "id": "tcts-bbf2f292-9c2c-4dd3-b869-b67476b54d0e",
+  "title": "Fix CI regression in MockAgentResult new_messages fallback",
+  "description": "",
+  "type": "bug",
+  "status": "in_progress",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "b98f4a62-98e6-47ff-92ae-7613f170f3eb",
+      "author": "derek.norrbom",
+      "text": "CI failed at tests/testing/test_mock_agent_additional.py::test_mock_agent_result_repr_and_new_messages_fallback after narrowing exceptions in MockAgentResult.new_messages. Fixing by preserving graceful fallback on converter failures while keeping explicit handling and diagnostics.",
+      "created_at": "2026-04-03T17:03:53.761215Z"
+    }
+  ],
+  "created_at": "2026-04-03T17:03:48.609612Z",
+  "updated_at": "2026-04-03T17:03:53.761215Z",
+  "closed_at": null,
+  "custom": {}
+}

@@ -1,0 +1,25 @@
+{
+  "id": "tcts-aae3b44c-b92a-4dbd-a916-e6645411c30a",
+  "title": "Fix side-effect-in-assert findings (batch 3)",
+  "description": "",
+  "type": "sub-task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-f4733741-f8e2-47da-8402-6e9abd613ba1",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "5ac8900f-4609-4890-bdb9-4a8eaeb7003a",
+      "author": "derek.norrbom",
+      "text": "Completed: fixed py/side-effect-in-assert in tests/primitives/test_file_primitive.py and tests/core/test_retrieval.py by splitting side-effecting expressions into intermediate values before assertions. Validation: black/ruff on touched files passed; pytest tests/primitives/test_file_primitive.py tests/core/test_retrieval.py -q passed.",
+      "created_at": "2026-04-03T17:03:41.552282Z"
+    }
+  ],
+  "created_at": "2026-04-03T17:00:03.738733Z",
+  "updated_at": "2026-04-03T17:03:41.564747Z",
+  "closed_at": "2026-04-03T17:03:41.564747Z",
+  "custom": {}
+}

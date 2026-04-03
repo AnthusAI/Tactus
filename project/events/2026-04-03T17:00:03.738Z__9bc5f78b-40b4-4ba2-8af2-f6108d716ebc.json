@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "9bc5f78b-40b4-4ba2-8af2-f6108d716ebc",
+  "issue_id": "tcts-aae3b44c-b92a-4dbd-a916-e6645411c30a",
+  "event_type": "issue_created",
+  "occurred_at": "2026-04-03T17:00:03.738Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "assignee": null,
+    "description": "",
+    "issue_type": "sub-task",
+    "labels": [],
+    "parent": "tcts-f4733741-f8e2-47da-8402-6e9abd613ba1",
+    "priority": 2,
+    "status": "open",
+    "title": "Fix side-effect-in-assert findings (batch 3)"
+  }
+}

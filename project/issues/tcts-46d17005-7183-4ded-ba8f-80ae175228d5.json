@@ -1,0 +1,31 @@
+{
+  "id": "tcts-46d17005-7183-4ded-ba8f-80ae175228d5",
+  "title": "Fix py/nested-loops-with-same-variable and py/implicit-string-concatenation-in-list in CLI HITL demos",
+  "description": "",
+  "type": "bug",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-8dbdce66-f645-40af-8d7b-f6664829eef3",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "3322a226-0144-4a6e-9bda-ae326594489d",
+      "author": "derek.norrbom",
+      "text": "Started remediation for CodeQL findings py/nested-loops-with-same-variable and py/implicit-string-concatenation-in-list. Scope limited to tactus/adapters/cli_hitl.py and scripts/demo_context_quality_{short,long}.py.",
+      "created_at": "2026-04-03T17:00:44.041738Z"
+    },
+    {
+      "id": "9bb4a222-c95b-4d01-8aae-8648b488749b",
+      "author": "derek.norrbom",
+      "text": "Implemented fixes: renamed inner loop indices in tactus/adapters/cli_hitl.py to avoid nested-loop variable shadowing; replaced implicit adjacent string literal concatenation inside list items in both demo context quality scripts with explicit concatenation. Validation: black, ruff, pytest tests/adapters -q all pass.",
+      "created_at": "2026-04-03T17:01:40.171797Z"
+    }
+  ],
+  "created_at": "2026-04-03T17:00:41.656659Z",
+  "updated_at": "2026-04-03T17:01:40.171797Z",
+  "closed_at": null,
+  "custom": {}
+}
