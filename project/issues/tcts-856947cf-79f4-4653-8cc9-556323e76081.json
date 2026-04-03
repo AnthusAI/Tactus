@@ -88,10 +88,16 @@
       "author": "derek.norrbom",
       "text": "Batch result: py/multiple-definition reduced 22 -> 9 (remaining are 1 generated LuaParser + vendor mirrors). Fresh rcql python total dropped 178 -> 164.",
       "created_at": "2026-04-03T16:10:21.361906Z"
+    },
+    {
+      "id": "51fe4919-7b3a-42f9-8c87-2c8ef915c06b",
+      "author": "derek.norrbom",
+      "text": "Started py/empty-except remediation task tcts-751065. First chunk removed 10 findings, lowering rule count 58 -> 48 and python total 164 -> 155 after fresh scan.",
+      "created_at": "2026-04-03T16:16:43.318587Z"
     }
   ],
   "created_at": "2026-04-02T23:08:41.297987Z",
-  "updated_at": "2026-04-03T16:10:21.361906Z",
+  "updated_at": "2026-04-03T16:16:43.318587Z",
   "closed_at": null,
   "custom": {}
 }
