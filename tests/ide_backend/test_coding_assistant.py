@@ -97,7 +97,7 @@ def test_process_message_handles_agent_error(monkeypatch, tmp_path):
     agent.agent = BoomAgent()
 
     result = agent.process_message("hello")
-    assert "I encountered an error" in result["response"]
+    assert "internal error" in result["response"].lower()
     assert result["tool_calls"] == []
     assert agent.messages[-1]["role"] == "assistant"
 
