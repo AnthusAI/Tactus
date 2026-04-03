@@ -1,0 +1,37 @@
+{
+  "id": "tcts-061ca691-b8ea-4d03-8561-1fcff4198bdb",
+  "title": "Remove unnecessary pass statements in tactus/testing/mock_dependencies.py",
+  "description": "Scope: tactus/testing/mock_dependencies.py only. Remove py/unnecessary-pass findings around lines 96, 139, 170 with minimal behavior-preserving edits. Validate with ruff on touched file and targeted pytest.",
+  "type": "bug",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-8dbdce66-f645-40af-8d7b-f6664829eef3",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "84127790-8333-4190-b9d5-39a3f2ce025c",
+      "author": "derek.norrbom",
+      "text": "Started work. Inspecting tactus/testing/mock_dependencies.py for py/unnecessary-pass findings at approx lines 96, 139, 170; will apply minimal behavior-preserving edits and validate with ruff + targeted pytest.",
+      "created_at": "2026-04-02T23:57:11.870203Z"
+    },
+    {
+      "id": "c2399a30-c011-4e30-99cf-0de3405dd7db",
+      "author": "derek.norrbom",
+      "text": "Implemented minimal behavior-preserving cleanup in tactus/testing/mock_dependencies.py: removed three unnecessary pass statements from async close/aclose methods (line regions ~96/~139/~170). Validation: ruff check tactus/testing/mock_dependencies.py (pass); python3 -m pytest -q tests/testing/test_mock_dependencies.py tests/testing/test_mock_dependencies_additional.py (12 passed). No commit/push performed per task instruction.",
+      "created_at": "2026-04-02T23:57:27.549689Z"
+    },
+    {
+      "id": "d24c02f3-8e25-4758-b1b8-de20d5dab5e9",
+      "author": "derek.norrbom",
+      "text": "Closed as duplicate/side-track of tcts-a65b67. Work tracked under epic tcts-856947 with consolidated verification.",
+      "created_at": "2026-04-02T23:59:05.465212Z"
+    }
+  ],
+  "created_at": "2026-04-02T23:57:10.176978Z",
+  "updated_at": "2026-04-02T23:59:05.481671Z",
+  "closed_at": "2026-04-02T23:59:05.481671Z",
+  "custom": {}
+}

@@ -1,0 +1,37 @@
+{
+  "id": "tcts-b7b6200c-d663-4ef4-beee-6dd77697d24d",
+  "title": "Bulk-fix py/unnecessary-pass in generated LuaParser",
+  "description": "",
+  "type": "bug",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "9dba84ec-dc02-4044-8b84-b0235a4a9099",
+      "author": "derek.norrbom",
+      "text": "Starting remediation for tactus/validation/generated/LuaParser.py only: apply automated py/unnecessary-pass cleanup with minimal mechanical change, then run syntax + ruff + targeted parser pytest validation.",
+      "created_at": "2026-04-02T23:57:06.544188Z"
+    },
+    {
+      "id": "4d8be59a-838b-43f6-af86-6d6e3a3285d1",
+      "author": "derek.norrbom",
+      "text": "Applied mechanical automated fix only in tactus/validation/generated/LuaParser.py using: ruff check tactus/validation/generated/LuaParser.py --select PIE790 --fix. Result: 65 unnecessary pass statements removed (no additions). Validation run: python3 -m py_compile tactus/validation/generated/LuaParser.py (pass), ruff check tactus/validation/generated/LuaParser.py (pass), python3 -m pytest tests/testing/test_gherkin_parser.py -q (fails due missing optional dep gherkin-official), python3 -m pytest tests/core/test_yaml_parser.py -q (37 passed).",
+      "created_at": "2026-04-02T23:57:31.209389Z"
+    },
+    {
+      "id": "0bd0042a-16c0-42f1-a89c-4606ce43e0c9",
+      "author": "derek.norrbom",
+      "text": "Completed. Mechanical bulk fix in generated tactus/validation/generated/LuaParser.py removed 65 unnecessary pass statements (no manual semantic edits). Verification: py_compile pass, ruff pass, pytest tests/core/test_yaml_parser.py pass.",
+      "created_at": "2026-04-02T23:59:05.466820Z"
+    }
+  ],
+  "created_at": "2026-04-02T23:56:31.655526Z",
+  "updated_at": "2026-04-02T23:59:05.483279Z",
+  "closed_at": "2026-04-02T23:59:05.483279Z",
+  "custom": {}
+}

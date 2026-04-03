@@ -1,0 +1,25 @@
+{
+  "id": "tcts-a65b677c-5632-4142-ba36-615a8c8b4997",
+  "title": "Fix py/unnecessary-pass in tactus/testing/mock_dependencies.py",
+  "description": "",
+  "type": "bug",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "07a44261-e013-4105-9cef-da4c3f1ba50a",
+      "author": "derek.norrbom",
+      "text": "Completed. Removed 3 unnecessary pass statements in tactus/testing/mock_dependencies.py. Verification: ruff check file (pass); pytest tests/testing/test_mock_dependencies.py tests/testing/test_mock_dependencies_additional.py (pass).",
+      "created_at": "2026-04-02T23:59:05.453094Z"
+    }
+  ],
+  "created_at": "2026-04-02T23:56:31.655627Z",
+  "updated_at": "2026-04-02T23:59:05.476523Z",
+  "closed_at": "2026-04-02T23:59:05.476523Z",
+  "custom": {}
+}

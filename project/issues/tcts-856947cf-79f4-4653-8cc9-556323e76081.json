@@ -40,10 +40,22 @@
       "author": "derek.norrbom",
       "text": "Next chunk: py/call-to-non-callable. Starting with the two test findings in tests/primitives/test_tool_primitive.py; production mcp adapter fallback call triaged separately to avoid unintended behavior change.",
       "created_at": "2026-04-02T23:48:36.002752Z"
+    },
+    {
+      "id": "eac9abf7-8a21-415c-b794-dd68b6f8805d",
+      "author": "derek.norrbom",
+      "text": "High-yield chunk selected: py/unnecessary-pass has 68 findings in 2 files (65 in generated LuaParser, 3 in mock_dependencies). Splitting into a safe hand-written fix and a bulk generated-file cleanup path.",
+      "created_at": "2026-04-02T23:56:31.627658Z"
+    },
+    {
+      "id": "9d5741ca-fbf2-4a1d-983c-cd16ff45bd7a",
+      "author": "derek.norrbom",
+      "text": "High-yield batch landed: py/unnecessary-pass remediated across 2 files (65 generated parser + 3 mock_dependencies). Fresh rcql python total dropped to 274 (from 344 pre-batch).",
+      "created_at": "2026-04-02T23:59:07.348126Z"
     }
   ],
   "created_at": "2026-04-02T23:08:41.297987Z",
-  "updated_at": "2026-04-02T23:48:36.002752Z",
+  "updated_at": "2026-04-02T23:59:07.348126Z",
   "closed_at": null,
   "custom": {}
 }
