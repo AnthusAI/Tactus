@@ -39,8 +39,9 @@ def step_create_prediction_with_fields_table(context):
             value = float(value)
             if value.is_integer():
                 value = int(value)
-        except (ValueError, AttributeError):
-            pass
+        except (TypeError, ValueError):
+            # Keep the source value when it is not numeric.
+            value = row["value"]
         fields[field] = value
     context.prediction = create_prediction(**fields)
     # Store the table data for later verification
@@ -202,7 +203,8 @@ def step_given_dictionary_with_keys_values(context):
             try:
                 value = int(value)
             except ValueError:
-                pass
+                # Keep non-integer values unchanged.
+                value = row["value"]
         context.source_dict[key] = value
 
 
@@ -464,9 +466,9 @@ def step_remove_field(context, field):
         if not hasattr(context, "removed_fields"):
             context.removed_fields = []
         context.removed_fields.append(field)
-    except AttributeError:
-        # Field doesn't exist or can't be removed - this is ok for testing
-        pass
+    except AttributeError as exc:
+        # Field doesn't exist or can't be removed - acceptable for this test path.
+        context.remove_field_error = exc
 
 
 @then('the prediction should only have "{field}"')

@@ -53,9 +53,9 @@ class MockAgentResult:
         if self._lua_table_from is not None:
             try:
                 return self._lua_table_from(self._new_messages)
-            except Exception:
+            except (AttributeError, TypeError, ValueError) as exc:
                 # Fall back to raw Python list if conversion fails.
-                pass
+                logger.debug("Failed to convert mock agent messages to Lua table: %s", exc)
         return self._new_messages
 
 
@@ -301,8 +301,8 @@ class MockAgentPrimitive:
         if hasattr(inputs, "items"):
             try:
                 inputs = dict(inputs.items())
-            except (AttributeError, TypeError):
-                pass
+            except (AttributeError, TypeError, ValueError) as exc:
+                logger.debug("Could not coerce mock agent inputs to dict: %s", exc)
 
         # Extract message field for logging
         message = inputs.get("message", "")

@@ -48,16 +48,15 @@ def _clear_behave_modules():
         ]
 
         for mod in modules_to_clear:
-            try:
-                del sys.modules[mod]
-            except KeyError:
-                pass  # Already deleted
+            # Module may have been cleared elsewhere; pop with a default to avoid KeyError.
+            sys.modules.pop(mod, None)
 
         # Invalidate import caches to ensure fresh imports
         importlib.invalidate_caches()
 
     except ImportError:
-        pass
+        # Behave is optional in some test environments.
+        return
 
 
 @pytest.fixture(autouse=True, scope="function")

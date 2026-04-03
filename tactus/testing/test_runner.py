@@ -270,8 +270,12 @@ class TactusTestRunner:
                         # Clean up results file
                         try:
                             results_file.unlink()
-                        except Exception:
-                            pass
+                        except OSError as exc:
+                            logger.debug(
+                                "Could not remove temporary results file %s: %s",
+                                results_file,
+                                exc,
+                            )
                         return scenario_result
 
             # Scenario not found (shouldn't happen)
@@ -480,8 +484,8 @@ class TactusTestRunner:
 
             behave.step_registry.registry.clear()
             logger.debug("Cleared Behave step registry")
-        except ImportError:
-            pass
+        except ImportError as exc:
+            logger.debug("Behave not available during cleanup; skipping registry clear: %s", exc)
 
         # Invalidate import caches
         importlib.invalidate_caches()
