@@ -53,7 +53,7 @@ class MockAgentResult:
         if self._lua_table_from is not None:
             try:
                 return self._lua_table_from(self._new_messages)
-            except (AttributeError, TypeError, ValueError) as exc:
+            except (AttributeError, TypeError, ValueError, RuntimeError) as exc:
                 # Fall back to raw Python list if conversion fails.
                 logger.debug("Failed to convert mock agent messages to Lua table: %s", exc)
         return self._new_messages
