@@ -1,7 +1,6 @@
 # Generated from /work/tactus/validation/grammar/LuaParser.g4 by ANTLR 4.13.1
 # encoding: utf-8
 from antlr4 import *
-from io import StringIO
 import sys
 
 if sys.version_info[1] > 5:
@@ -5144,7 +5143,6 @@ class LuaParser(LuaParserBase):
         _parentctx = self._ctx
         _parentState = self.state
         localctx = LuaParser.ExpContext(self, self._ctx, _parentState)
-        _prevctx = localctx
         _startState = 24
         self.enterRecursionRule(localctx, 24, self.RULE_exp, _p)
         self._la = 0  # Token type
@@ -5208,7 +5206,6 @@ class LuaParser(LuaParserBase):
                 if _alt == 1:
                     if self._parseListeners is not None:
                         self.triggerExitRuleEvent()
-                    _prevctx = localctx
                     self.state = 249
                     self._errHandler.sync(self)
                     la_ = self._interp.adaptivePredict(self._input, 17, self._ctx)
@@ -6355,7 +6352,7 @@ class LuaParser(LuaParserBase):
         return localctx
 
     def sempred(self, localctx: RuleContext, ruleIndex: int, predIndex: int):
-        if self._predicates == None:
+        if self._predicates is None:
             self._predicates = dict()
         self._predicates[12] = self.exp_sempred
         self._predicates[14] = self.prefixexp_sempred
@@ -6389,7 +6386,9 @@ class LuaParser(LuaParserBase):
 
         if predIndex == 7:
             return self.precpred(self._ctx, 1)
+        return None
 
     def prefixexp_sempred(self, localctx: PrefixexpContext, predIndex: int):
         if predIndex == 8:
             return self.IsFunctionCall()
+        return None
