@@ -2189,9 +2189,6 @@ def create_dsl_stubs(
         handle = AgentHandle(agent_name)
 
         # If we have runtime context, create the agent primitive immediately
-        import logging
-
-        logger = logging.getLogger(__name__)
 
         logger.debug(
             f"[AGENT_CREATION] Agent '{agent_name}': runtime_context={bool(_runtime_context)}, has_log_handler={('log_handler' in _runtime_context) if _runtime_context else False}"
@@ -2382,9 +2379,6 @@ def create_dsl_stubs(
         handle = AgentHandle(temporary_agent_name)
 
         # If we have runtime context, create the agent primitive immediately
-        import logging
-
-        logger = logging.getLogger(__name__)
 
         logger.debug(
             f"[AGENT_CREATION] Agent '{temporary_agent_name}': runtime_context={bool(_runtime_context)}, has_log_handler={('log_handler' in _runtime_context) if _runtime_context else False}"
@@ -2628,7 +2622,6 @@ def _make_binding_callback(
 
     This callback is called by Lua's __newindex metatable when assignments happen.
     """
-    import logging
     from tactus.primitives.handles import (
         CompactorHandle,
         ContextHandle,
@@ -2637,7 +2630,7 @@ def _make_binding_callback(
     )
     from tactus.primitives.tool_handle import ToolHandle
 
-    callback_logger = logging.getLogger(__name__)
+    callback_logger = logger
 
     def _tactus_register_binding(name: str, value: Any) -> None:
         """
