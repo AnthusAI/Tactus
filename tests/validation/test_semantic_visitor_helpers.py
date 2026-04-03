@@ -3247,7 +3247,7 @@ def test_extract_nested_tasks_skips_non_task_calls():
 
     class FakeField:
         def __init__(self):
-            self._items = [SimpleNamespace(functioncall=lambda: SimpleNamespace())]
+            self._items = [SimpleNamespace(functioncall=SimpleNamespace)]
 
         def exp(self, _index=None):
             if _index is None:
@@ -3301,7 +3301,7 @@ def test_extract_nested_tasks_reads_name_from_args():
 
     class FakeField:
         def __init__(self):
-            self._items = [SimpleNamespace(functioncall=lambda: SimpleNamespace())]
+            self._items = [SimpleNamespace(functioncall=SimpleNamespace)]
 
         def exp(self, _index=None):
             if _index is None:
@@ -3331,7 +3331,7 @@ def test_extract_nested_tasks_reports_name_mismatch():
 
     class FakeField:
         def __init__(self):
-            self._items = [SimpleNamespace(functioncall=lambda: SimpleNamespace())]
+            self._items = [SimpleNamespace(functioncall=SimpleNamespace)]
 
         def exp(self, _index=None):
             if _index is None:
@@ -3363,7 +3363,7 @@ def test_extract_nested_tasks_skips_missing_child_name():
 
     class FakeField:
         def __init__(self):
-            self._items = [SimpleNamespace(functioncall=lambda: SimpleNamespace())]
+            self._items = [SimpleNamespace(functioncall=SimpleNamespace)]
 
         def exp(self, _index=None):
             if _index is None:
@@ -3394,7 +3394,7 @@ def test_extract_nested_tasks_accepts_matching_name():
 
     class FakeField:
         def __init__(self):
-            self._items = [SimpleNamespace(functioncall=lambda: SimpleNamespace())]
+            self._items = [SimpleNamespace(functioncall=SimpleNamespace)]
 
         def exp(self, _index=None):
             if _index is None:

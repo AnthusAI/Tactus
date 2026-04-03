@@ -55,7 +55,7 @@ async def test_initialize_dependencies_failure(monkeypatch):
         raise RuntimeError("boom")
 
     monkeypatch.setattr("tactus.core.dependencies.ResourceFactory.create_all", fake_create_all)
-    monkeypatch.setattr("tactus.core.dependencies.ResourceManager", lambda: object())
+    monkeypatch.setattr("tactus.core.dependencies.ResourceManager", object)
 
     with pytest.raises(RuntimeError, match="Dependency initialization failed: boom"):
         await runtime._initialize_dependencies()
