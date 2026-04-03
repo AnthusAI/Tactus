@@ -1,0 +1,25 @@
+{
+  "id": "tcts-8d635de9-435e-4992-87ef-f7f38a082d13",
+  "title": "Fix ruff F841 regressions in tactus/ide/server.py",
+  "description": "",
+  "type": "bug",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "@me",
+  "creator": null,
+  "parent": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "bf3ee35f-fce7-4af4-b21c-c9ec4b3c234c",
+      "author": "derek.norrbom",
+      "text": "Fixing CI ruff F841 errors by removing unused exception variable bindings introduced in recent sanitization changes.",
+      "created_at": "2026-04-03T21:57:25.154947Z"
+    }
+  ],
+  "created_at": "2026-04-03T21:57:23.409025Z",
+  "updated_at": "2026-04-03T21:57:35.889735Z",
+  "closed_at": "2026-04-03T21:57:35.889735Z",
+  "custom": {}
+}
