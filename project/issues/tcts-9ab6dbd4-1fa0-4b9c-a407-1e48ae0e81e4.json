@@ -1,0 +1,25 @@
+{
+  "id": "tcts-9ab6dbd4-1fa0-4b9c-a407-1e48ae0e81e4",
+  "title": "Fix py/multiple-definition duplicate test names",
+  "description": "Resolve py/multiple-definition findings caused by duplicate test function names in tests/validation/test_semantic_visitor_helpers.py. Exclude generated and vendor files in this task.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "507f04e9-4cca-44af-bc76-709018650e8d",
+      "author": "derek.norrbom",
+      "text": "Completed: resolved duplicate-definition findings in tests/validation/test_semantic_visitor_helpers.py and removed redundant redefinition in tactus/core/dsl_stubs.py. Validation passed: black/ruff on touched files, pytest suites (361 passed including dsl_stubs + semantic visitor), and fresh rcql python scan.",
+      "created_at": "2026-04-03T16:10:21.188140Z"
+    }
+  ],
+  "created_at": "2026-04-03T16:06:56.667831Z",
+  "updated_at": "2026-04-03T16:10:21.361099Z",
+  "closed_at": "2026-04-03T16:10:21.361099Z",
+  "custom": {}
+}

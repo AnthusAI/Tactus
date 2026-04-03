@@ -76,10 +76,22 @@
       "author": "derek.norrbom",
       "text": "Batch result: py/unnecessary-lambda reduced 40 -> 0 via test-only rewrites. Fresh rcql python total dropped 218 -> 178. Next highest first-party candidates remain py/empty-except (52) and py/multiple-definition (14).",
       "created_at": "2026-04-03T15:39:10.316827Z"
+    },
+    {
+      "id": "46482c1f-83c8-4963-9576-d2d33883dccf",
+      "author": "derek.norrbom",
+      "text": "Next batch selected: py/multiple-definition with focus on duplicate test definitions in tests/validation/test_semantic_visitor_helpers.py. Deferring generated/vendor findings and dsl_stubs review to a separate source-of-truth decision.",
+      "created_at": "2026-04-03T16:06:56.493322Z"
+    },
+    {
+      "id": "6aaa1cab-48c6-45e6-b4e3-e5e91763776f",
+      "author": "derek.norrbom",
+      "text": "Batch result: py/multiple-definition reduced 22 -> 9 (remaining are 1 generated LuaParser + vendor mirrors). Fresh rcql python total dropped 178 -> 164.",
+      "created_at": "2026-04-03T16:10:21.361906Z"
     }
   ],
   "created_at": "2026-04-02T23:08:41.297987Z",
-  "updated_at": "2026-04-03T15:39:10.316827Z",
+  "updated_at": "2026-04-03T16:10:21.361906Z",
   "closed_at": null,
   "custom": {}
 }
