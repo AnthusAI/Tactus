@@ -46,6 +46,14 @@ def _bad_request_response():
     return jsonify({"error": BAD_REQUEST_MESSAGE}), 400
 
 
+def _bad_request_from_value_error(error: ValueError):
+    """Return a sanitized 400 response from a ValueError."""
+    message = str(error).lower()
+    if "escapes workspace" in message:
+        return jsonify({"error": "Path escapes workspace"}), 400
+    return _bad_request_response()
+
+
 def clear_runtime_caches():
     """Clear cached runtime instances. Must be called after create_app() initializes."""
     if _clear_runtime_caches_fn:
@@ -317,8 +325,8 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                 entries.append(entry)
 
             return jsonify({"path": relative_path, "entries": entries})
-        except ValueError:
-            return _bad_request_response()
+        except ValueError as e:
+            return _bad_request_from_value_error(e)
         except Exception as e:
             logger.error("Error listing directory %s: %s", relative_path, e)
             return _internal_error_response()
@@ -349,8 +357,8 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                         "name": path.name,
                     }
                 )
-            except ValueError:
-                return _bad_request_response()
+            except ValueError as e:
+                return _bad_request_from_value_error(e)
             except Exception as e:
                 logger.error("Error reading file %s: %s", file_path, e)
                 return _internal_error_response()
@@ -371,8 +379,8 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                 path.write_text(content)
 
                 return jsonify({"success": True, "path": file_path, "absolutePath": str(path)})
-            except ValueError:
-                return _bad_request_response()
+            except ValueError as e:
+                return _bad_request_from_value_error(e)
             except Exception as e:
                 logger.error("Error writing file %s: %s", file_path, e)
                 return _internal_error_response()
@@ -632,8 +640,8 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                 },
             )
 
-        except ValueError:
-            return _bad_request_response()
+        except ValueError as e:
+            return _bad_request_from_value_error(e)
         except Exception as e:
             logger.error("Error setting up validation: %s", e, exc_info=True)
             return _internal_error_response()
@@ -680,8 +688,8 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             )
         except subprocess.TimeoutExpired:
             return jsonify({"error": "Procedure execution timed out (30s)"}), 408
-        except ValueError:
-            return _bad_request_response()
+        except ValueError as e:
+            return _bad_request_from_value_error(e)
         except Exception as e:
             logger.error("Error running procedure %s: %s", file_path, e)
             return _internal_error_response()
@@ -1263,8 +1271,8 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                 },
             )
 
-        except ValueError:
-            return _bad_request_response()
+        except ValueError as e:
+            return _bad_request_from_value_error(e)
         except Exception as e:
             logger.error("Error setting up streaming execution: %s", e, exc_info=True)
             return _internal_error_response()
@@ -1475,8 +1483,8 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                 },
             )
 
-        except ValueError:
-            return _bad_request_response()
+        except ValueError as e:
+            return _bad_request_from_value_error(e)
         except Exception as e:
             logger.error("Error setting up test execution: %s", e, exc_info=True)
             return _internal_error_response()
@@ -1633,8 +1641,8 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                 },
             )
 
-        except ValueError:
-            return _bad_request_response()
+        except ValueError as e:
+            return _bad_request_from_value_error(e)
         except Exception as e:
             logger.error("Error setting up evaluation execution: %s", e, exc_info=True)
             return _internal_error_response()

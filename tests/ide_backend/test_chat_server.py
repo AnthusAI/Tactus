@@ -184,7 +184,7 @@ def test_stream_message_generator_error_returns_error_event(client, monkeypatch)
 
     body = response.get_data(as_text=True)
     assert "error" in body
-    assert "start failed" in body
+    assert "Internal server error" in body
 
 
 def test_stream_message_outer_error_returns_500(client, monkeypatch):
