@@ -64,10 +64,22 @@
       "author": "derek.norrbom",
       "text": "Batch complete: py/ineffectual-statement first-party findings reduced from 48 to 0 (rule now only 2 vendor mirror hits), py/repeated-import reduced to 0, and fresh rcql python total dropped from 274 to 218. Also fixed CI formatting miss by black-formatting tactus/training/trainers.py and re-running black/ruff gates locally before commit.",
       "created_at": "2026-04-03T15:25:31.990032Z"
+    },
+    {
+      "id": "05373438-8844-4763-89a2-92c043f080b0",
+      "author": "derek.norrbom",
+      "text": "Selected next high-throughput batch: py/unnecessary-lambda (40 first-party findings, concentrated in test files). Chosen over py/empty-except because behavior risk is much lower and likely to reduce findings quickly with minimal CI risk.",
+      "created_at": "2026-04-03T15:35:42.639330Z"
+    },
+    {
+      "id": "a5385557-5c43-4a3f-9c90-e15a7746ed5b",
+      "author": "derek.norrbom",
+      "text": "Batch result: py/unnecessary-lambda reduced 40 -> 0 via test-only rewrites. Fresh rcql python total dropped 218 -> 178. Next highest first-party candidates remain py/empty-except (52) and py/multiple-definition (14).",
+      "created_at": "2026-04-03T15:39:10.316827Z"
     }
   ],
   "created_at": "2026-04-02T23:08:41.297987Z",
-  "updated_at": "2026-04-03T15:25:31.990032Z",
+  "updated_at": "2026-04-03T15:39:10.316827Z",
   "closed_at": null,
   "custom": {}
 }
