@@ -50,6 +50,9 @@ generate-python-parser:
 	sed -i.bak 's/this\./self./g' tactus/validation/generated/LuaParser.py
 	sed -i.bak 's/this\./self./g' tactus/validation/generated/LuaLexer.py
 	rm -f tactus/validation/generated/*.bak
+	@echo "Normalizing generated Python parser style..."
+	python3 -m poetry run ruff check tactus/validation/generated/LuaParser.py --select PIE790 --fix
+	python3 -m poetry run black tactus/validation/generated/LuaParser.py
 	@echo "✓ Python parser generated successfully"
 
 generate-typescript-parser:
@@ -122,7 +125,6 @@ test-docker-sandbox:
 	@echo "Running Docker sandbox integration tests (opt-in)..."
 	@echo "Pre-req: tactus sandbox rebuild --force"
 	TACTUS_RUN_DOCKER_TESTS=1 python3 -m poetry run pytest -m docker -v --tb=short
-
 
 
 

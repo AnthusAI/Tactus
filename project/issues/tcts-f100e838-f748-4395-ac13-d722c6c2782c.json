@@ -1,0 +1,37 @@
+{
+  "id": "tcts-f100e838-f748-4395-ac13-d722c6c2782c",
+  "title": "Harden ANTLR Python generation with post-generation lint normalization",
+  "description": "",
+  "type": "chore",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "b3408c2a-36b2-4517-a204-cd8c20e41f3c",
+      "author": "derek.norrbom",
+      "text": "Implementing source-level fix: make parser generation deterministic and scanner-compliant by running post-generation cleanup (ruff PIE790 fix + black) on generated Python parser files.",
+      "created_at": "2026-04-03T00:05:08.336749Z"
+    },
+    {
+      "id": "09c6aa51-e06e-4152-af5e-5ac618b9b55e",
+      "author": "derek.norrbom",
+      "text": "Implemented source-level fix. Updated Makefile generate-python-parser target to post-process generated LuaParser with  and , and updated validation README manual generation instructions with the same steps. This makes regenerated parser output deterministic and codeql/format-compliant without manual hand edits.",
+      "created_at": "2026-04-03T00:05:33.675577Z"
+    },
+    {
+      "id": "01c4d0e2-7aee-46f3-9d9f-ae020435e58e",
+      "author": "derek.norrbom",
+      "text": "Correction note: post-generation commands are python3 -m poetry run ruff check tactus/validation/generated/LuaParser.py --select PIE790 --fix and python3 -m poetry run black tactus/validation/generated/LuaParser.py.",
+      "created_at": "2026-04-03T00:05:41.253450Z"
+    }
+  ],
+  "created_at": "2026-04-03T00:05:05.953879Z",
+  "updated_at": "2026-04-03T00:05:41.253450Z",
+  "closed_at": "2026-04-03T00:05:33.686971Z",
+  "custom": {}
+}
