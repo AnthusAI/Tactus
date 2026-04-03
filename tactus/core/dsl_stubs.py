@@ -31,6 +31,7 @@ Agent/Tool calls use direct variable access:
     done.last_result()              -- Get last tool result
 """
 
+import logging
 from typing import Any, Callable, Dict, Optional
 
 from .registry import RegistryBuilder
@@ -44,6 +45,8 @@ from tactus.primitives.handles import (
     ModelLookup,
     RetrieverHandle,
 )
+
+logger = logging.getLogger(__name__)
 
 
 # NEW Builder pattern for field types - moved outside function for import
@@ -428,8 +431,8 @@ def create_dsl_stubs(
                 try:
                     task_config["__task_name"] = task_name
                     task_config["__tactus_task_config"] = True
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("Failed to set task metadata markers for '%s': %s", task_name, exc)
             task_config_dict = lua_table_to_dict(task_config)
             if "entry" in task_config_dict and not callable(task_config_dict["entry"]):
                 raise TypeError(f"Task '{task_name}' entry must be a function")
@@ -455,8 +458,8 @@ def create_dsl_stubs(
             if hasattr(task_config, "__setitem__"):
                 try:
                     task_config["__tactus_task_config"] = True
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("Failed to set assignment task metadata marker: %s", exc)
             if hasattr(task_config, "items"):
                 child_tasks = {}
                 for key, value in task_config.items():
@@ -464,15 +467,16 @@ def create_dsl_stubs(
                         continue
                     try:
                         marker = value["__tactus_task_config"]
-                    except Exception:
+                    except Exception as exc:
+                        logger.debug("Failed reading task marker for child '%s': %s", key, exc)
                         marker = False
                     if marker:
                         child_tasks[key] = value
                 if child_tasks:
                     try:
                         task_config["__tactus_child_tasks"] = child_tasks
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        logger.debug("Failed storing child task metadata: %s", exc)
             return task_config
 
         return {}
@@ -1023,8 +1027,8 @@ def create_dsl_stubs(
                         if self.lookup and name in self.lookup._registry:
                             # This is a lookup: Model("name") where model exists
                             return self.lookup(name)
-                    except (TypeError, KeyError):
-                        pass
+                    except (TypeError, KeyError) as exc:
+                        logger.debug("Model lookup probe failed for '%s': %s", name, exc)
                     # This is the start of a definition: Model "name" {...}
                     # Return the curried function from definer
                     return self.definer(name)

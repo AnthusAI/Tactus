@@ -1278,8 +1278,8 @@ class DSPyAgentHandle:
         if hasattr(inputs, "items"):
             try:
                 inputs = dict(inputs.items())
-            except (AttributeError, TypeError):
-                pass
+            except (AttributeError, TypeError) as exc:
+                logger.debug("Agent '%s' could not coerce inputs mapping: %s", self.name, exc)
 
         # Extract message field (the main input)
         message = inputs.get("message")
@@ -1475,8 +1475,10 @@ class DSPyAgentHandle:
         if hasattr(prepared, "items"):
             try:
                 prepared = dict(prepared.items())
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug(
+                    "Agent '%s' prepare output mapping coercion failed: %s", self.name, exc
+                )
         if not isinstance(prepared, dict):
             return {"value": prepared}
         return prepared

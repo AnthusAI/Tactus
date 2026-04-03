@@ -1307,8 +1307,12 @@ class TactusRuntime:
                         ) or command_result.stdout.strip().startswith("["):
                             try:
                                 command_response["json"] = json.loads(command_result.stdout)
-                            except json.JSONDecodeError:
-                                pass
+                            except json.JSONDecodeError as exc:
+                                logger.debug(
+                                    "CLI tool '%s' stdout looked like JSON but failed to decode: %s",
+                                    tool_name,
+                                    exc,
+                                )
 
                         logger.debug("CLI tool '%s' returned: %s", tool_name, command_response)
 
