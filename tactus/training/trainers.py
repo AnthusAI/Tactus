@@ -13,9 +13,7 @@ from tactus.training.types import CandidateConfig, TrainedModel
 class Trainer(Protocol):
     name: str
 
-    def train(
-        self, candidate: CandidateConfig, data: DatasetBundle, workdir: str
-    ) -> TrainedModel:
+    def train(self, candidate: CandidateConfig, data: DatasetBundle, workdir: str) -> TrainedModel:
         return None
 
 
