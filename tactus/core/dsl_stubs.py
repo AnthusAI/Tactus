@@ -1563,7 +1563,6 @@ def create_dsl_stubs(
 
         # Clean up None values from function extraction
         if isinstance(config_dict, list):
-            config_dict = [x for x in config_dict if x is not None]
             # Ignore extra positional entries that can't be mapped to config fields.
             config_dict = {}
 
@@ -1744,7 +1743,6 @@ def create_dsl_stubs(
 
         # Clean up None values from function extraction
         if isinstance(config_dict, list):
-            config_dict = [x for x in config_dict if x is not None]
             # Ignore extra positional entries that can't be mapped to config fields.
             config_dict = {}
 

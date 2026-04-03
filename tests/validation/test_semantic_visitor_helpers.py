@@ -870,9 +870,6 @@ def test_process_dsl_call_with_empty_args():
         def register_custom_step(self, *_args, **_kwargs):
             raise AssertionError("should not be called")
 
-        def register_evaluations(self, *_args, **_kwargs):  # noqa: F811
-            raise AssertionError("should not be called")
-
         def set_default_provider(self, *_args, **_kwargs):
             raise AssertionError("should not be called")
 
@@ -1346,7 +1343,7 @@ def test_extract_function_name_from_terminal_and_var():
     assert visitor._extract_function_name(ctx) == "fallback"
 
 
-def test_extract_single_table_arg_handles_missing_table():  # noqa: F811
+def test_extract_single_table_arg_handles_missing_table_with_explicit_empty_args():
     visitor = TactusDSLVisitor()
 
     class FakeArgsCtx:
@@ -2179,7 +2176,7 @@ def test_visit_functioncall_invokes_process_dsl_call():
     assert called["name"] == "Tool"
 
 
-def test_process_dsl_call_model_name_only():  # noqa: F811
+def test_process_dsl_call_model_name_only_registers_empty_config():
     calls = {}
 
     class Builder:
@@ -2356,7 +2353,7 @@ def test_extract_single_table_arg_non_table_returns_empty():
     assert visitor._extract_single_table_arg(FakeFuncCall()) == {}
 
 
-def test_visit_functioncall_skips_method_call():  # noqa: F811
+def test_visit_functioncall_skips_method_call_without_dispatch():
     called = {"dsl": False}
 
     class Visitor(TactusDSLVisitor):
@@ -2468,7 +2465,7 @@ def test_process_dsl_call_model_name_only_registers():
     assert visitor.builder.calls == [("demo-model", {})]
 
 
-def test_process_dsl_call_toolset_registers():  # noqa: F811
+def test_process_dsl_call_toolset_registers_default_config():
     visitor = TactusDSLVisitor()
 
     class FakeBuilder:
@@ -2637,7 +2634,7 @@ def test_extract_arguments_non_method_chain_uses_all_args():
     assert visitor._extract_arguments(FakeCtx()) == ["first", "second"]
 
 
-def test_extract_literal_value_charstring_single_quote():  # noqa: F811
+def test_extract_literal_value_charstring_single_quote_hi():
     visitor = TactusDSLVisitor()
 
     class FakeStringCtx:
@@ -2742,7 +2739,7 @@ def test_extract_arguments_method_chain_skips_second_args():
     assert visitor._extract_arguments(FakeCtx()) == ["one"]
 
 
-def test_parse_expression_field_builder_with_options():  # noqa: F811
+def test_parse_expression_field_builder_with_options_alt_fixture():
     visitor = TactusDSLVisitor()
 
     visitor._parse_table_constructor = lambda _ctx: {
@@ -2949,7 +2946,7 @@ def test_process_dsl_call_tool_curried_branch():
     assert visitor.errors
 
 
-def test_parse_expression_field_builder_without_table_options():  # noqa: F811
+def test_parse_expression_field_builder_without_table_options_string_fixture():
     visitor = TactusDSLVisitor()
 
     class FakeArgs:
@@ -3218,7 +3215,7 @@ def test_extract_single_table_arg_empty_args_returns_empty():
     assert visitor._extract_single_table_arg(FakeFuncCall()) == {}
 
 
-def test_extract_single_table_arg_without_table_returns_empty():  # noqa: F811
+def test_extract_single_table_arg_without_table_returns_empty_indexable_args():
     visitor = TactusDSLVisitor()
 
     class FakeArgs:
@@ -4071,7 +4068,7 @@ def test_extract_arguments_no_children_skips_method_chain():
     assert visitor._extract_arguments(FakeCtx()) == ["first", "first"]
 
 
-def test_parse_expression_field_builder_without_table_options():  # noqa: F811
+def test_parse_expression_field_builder_without_table_options_tail_variant():
     visitor = TactusDSLVisitor()
 
     class FakeArgs:
@@ -4161,7 +4158,7 @@ def test_parse_expression_field_builder_without_args_returns_defaults():
     assert result == {"type": "string", "required": False}
 
 
-def test_parse_table_constructor_array_element():  # noqa: F811
+def test_parse_table_constructor_array_element_numeric_value():
     visitor = TactusDSLVisitor()
 
     class FakeExp:
