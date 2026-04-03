@@ -94,10 +94,16 @@
       "author": "derek.norrbom",
       "text": "Started py/empty-except remediation task tcts-751065. First chunk removed 10 findings, lowering rule count 58 -> 48 and python total 164 -> 155 after fresh scan.",
       "created_at": "2026-04-03T16:16:43.318587Z"
+    },
+    {
+      "id": "7c4681cc-b39d-4915-b72f-59098eaea698",
+      "author": "derek.norrbom",
+      "text": "Continued py/empty-except remediation reduced rule count from 24 to 17 in this pass; python total now 53 after fresh scan. Generated files remained untouched; fixes were source-only in runtime modules.",
+      "created_at": "2026-04-03T16:35:45.368461Z"
     }
   ],
   "created_at": "2026-04-02T23:08:41.297987Z",
-  "updated_at": "2026-04-03T16:16:43.318587Z",
+  "updated_at": "2026-04-03T16:35:45.368461Z",
   "closed_at": null,
   "custom": {}
 }

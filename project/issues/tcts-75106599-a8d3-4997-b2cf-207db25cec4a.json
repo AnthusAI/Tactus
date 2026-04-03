@@ -16,10 +16,22 @@
       "author": "derek.norrbom",
       "text": "Chunk 1 complete: remediated 10 py/empty-except findings in tactus/cli/app.py, tactus/ide/server.py, tactus/registry/mlflow.py, tactus/dspy/config.py, and tactus/adapters/broker_log.py using explicit handling/logging or queue-control flow. Validation: black/ruff passed on touched files; focused pytest suites passed (156 selected/1 deselected). Fresh rcql python scan: total 164 -> 155; py/empty-except 58 -> 48.",
       "created_at": "2026-04-03T16:16:43.138520Z"
+    },
+    {
+      "id": "1ab16468-59db-424b-8e90-239d73683a55",
+      "author": "derek.norrbom",
+      "text": "Starting chunk 2 on py/empty-except. Scope: tactus/sandbox/container_runner.py and tactus/broker/server.py high-density findings. Constraint: generated files will not be edited directly; only source-owned files are remediated.",
+      "created_at": "2026-04-03T16:31:22.078674Z"
+    },
+    {
+      "id": "119ece2b-8169-42fb-8df1-82e9530ae366",
+      "author": "derek.norrbom",
+      "text": "Chunk 2+3 complete: remediated py/empty-except in tactus/sandbox/container_runner.py, tactus/broker/server.py, tactus/cli/control.py, tactus/adapters/control_loop.py, tactus/dspy/history.py, tactus/adapters/channels/ipc.py, tactus/primitives/model.py, and tactus/primitives/procedure.py. Validation passed: black/ruff on touched files, focused pytest suites (354 passed). Fresh rcql python scan: total 60 -> 53; py/empty-except 24 -> 17.",
+      "created_at": "2026-04-03T16:35:40.312925Z"
     }
   ],
   "created_at": "2026-04-03T16:14:27.017992Z",
-  "updated_at": "2026-04-03T16:16:43.138520Z",
+  "updated_at": "2026-04-03T16:35:40.312925Z",
   "closed_at": null,
   "custom": {}
 }
