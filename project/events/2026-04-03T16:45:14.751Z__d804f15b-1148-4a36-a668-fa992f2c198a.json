@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "d804f15b-1148-4a36-a668-fa992f2c198a",
+  "issue_id": "tcts-8893783c-2ab9-42ff-85f4-bc739a7071f7",
+  "event_type": "issue_created",
+  "occurred_at": "2026-04-03T16:45:14.751Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "assignee": null,
+    "description": "",
+    "issue_type": "sub-task",
+    "labels": [],
+    "parent": "tcts-75106599-a8d3-4997-b2cf-207db25cec4a",
+    "priority": 1,
+    "status": "open",
+    "title": "Remediate py/empty-except in BDD step files"
+  }
+}
