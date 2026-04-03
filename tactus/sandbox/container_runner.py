@@ -261,8 +261,8 @@ class ContainerRunner:
             repo_root = tactus_module_path.parent.parent
             if (repo_root / "tactus").is_dir() and (repo_root / "pyproject.toml").exists():
                 return repo_root
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Unable to locate Tactus source via module path: %s", exc)
 
         # Option 3: Check current working directory
         cwd = Path.cwd()
@@ -296,8 +296,8 @@ class ContainerRunner:
             repo_root = biblicus_module_path.parents[2]
             if (repo_root / "src" / "biblicus").is_dir():
                 return repo_root
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Unable to locate Biblicus source via module path: %s", exc)
 
         if tactus_src_dir:
             sibling = tactus_src_dir.parent / "Biblicus"
@@ -661,7 +661,7 @@ class ContainerRunner:
                     try:
                         await broker_task
                     except asyncio.CancelledError:
-                        pass
+                        logger.debug("[BROKER] Broker task cancelled after container completion")
             else:
                 result = await self._run_container(
                     docker_cmd,
@@ -1316,7 +1316,8 @@ class ContainerRunner:
                     try:
                         process.stdin.close()
                         stdin_closed = True
-                    except Exception:
+                    except Exception as exc:
+                        logger.debug("Failed to close container stdin after result: %s", exc)
                         stdin_closed = True
 
                 if wait_task in done:
@@ -1325,8 +1326,8 @@ class ContainerRunner:
             if not stdin_closed:
                 try:
                     process.stdin.close()
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("Failed to close container stdin during finalization: %s", exc)
 
             try:
                 await asyncio.wait_for(stdout_task, timeout=5)
@@ -1334,8 +1335,10 @@ class ContainerRunner:
                 stdout_task.cancel()
                 try:
                     await stdout_task
-                except Exception:
-                    pass
+                except asyncio.CancelledError:
+                    logger.debug("stdout task cancelled after timeout")
+                except Exception as exc:
+                    logger.debug("stdout task failed while cancelling: %s", exc)
 
             try:
                 await asyncio.wait_for(stderr_task, timeout=5)
@@ -1343,8 +1346,10 @@ class ContainerRunner:
                 stderr_task.cancel()
                 try:
                     await stderr_task
-                except Exception:
-                    pass
+                except asyncio.CancelledError:
+                    logger.debug("stderr task cancelled after timeout")
+                except Exception as exc:
+                    logger.debug("stderr task failed while cancelling: %s", exc)
 
             stdout = stdout_bytes.decode("utf-8", errors="replace")
 
@@ -1388,12 +1393,12 @@ class ContainerRunner:
             try:
                 try:
                     process.stdin.close()
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("Failed closing stdin before killing timed-out container: %s", exc)
                 process.kill()
                 await process.wait()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Failed while terminating timed-out container: %s", exc)
             for task in (stdout_task, stderr_task, wait_task):
                 if task is None:  # pragma: no cover
                     continue
@@ -1401,9 +1406,9 @@ class ContainerRunner:
                 try:
                     await task
                 except asyncio.CancelledError:
-                    pass
-                except Exception:
-                    pass
+                    logger.debug("Container stream task cancelled during timeout cleanup")
+                except Exception as exc:
+                    logger.debug("Container stream task error during timeout cleanup: %s", exc)
             raise
 
     def _handle_container_stderr(self, stderr: str) -> None:

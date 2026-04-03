@@ -257,8 +257,10 @@ class ProcedurePrimitive:
                         "line": debug_info.get("currentline", 0),
                         "function": debug_info.get("name", name),
                     }
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug(
+                "Failed to resolve Lua debug source info for procedure '%s': %s", name, exc
+            )
 
         # If we still don't have source_info, use fallback
         if not source_info:

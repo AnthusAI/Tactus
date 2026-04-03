@@ -289,8 +289,10 @@ class ModelPrimitive:
                         args_payload,
                         mock_result,
                     )
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug(
+                        "Failed to record model mock call for %s: %s", self.model_name, exc
+                    )
                 # Wrap mock result in PredictionResult for API consistency
                 cost = PredictionCost(compute_time_ms=0.0)
                 prediction_result = PredictionResult(

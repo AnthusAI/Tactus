@@ -72,8 +72,8 @@ class ControlCLI:
             try:
                 self._writer.close()
                 await self._writer.wait_closed()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Failed to close control socket cleanly: %s", exc)
 
     async def watch_mode(self) -> None:
         """

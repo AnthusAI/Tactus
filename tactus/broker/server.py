@@ -337,7 +337,7 @@ class _BaseBrokerServer:
                     return
                 raise
             except asyncio.CancelledError:
-                pass
+                logger.debug("[BROKER] Serve task cancelled during shutdown")
 
         if self._mcp_manager is not None:
             try:
@@ -434,12 +434,14 @@ class _BaseBrokerServer:
                     },
                 )
             except Exception:
-                pass
+                logger.debug(
+                    "[BROKER] Failed writing error response to AnyIO stream", exc_info=True
+                )
         finally:
             try:
                 await byte_stream.aclose()
             except Exception:
-                pass
+                logger.debug("[BROKER] Failed closing AnyIO byte stream", exc_info=True)
 
     async def _handle_connection_asyncio(
         self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
@@ -509,13 +511,16 @@ class _BaseBrokerServer:
                     },
                 )
             except Exception:
-                pass
+                logger.debug(
+                    "[BROKER] Failed writing error response to asyncio stream",
+                    exc_info=True,
+                )
         finally:
             try:
                 writer.close()
                 await writer.wait_closed()
             except Exception:
-                pass
+                logger.debug("[BROKER] Failed closing asyncio writer", exc_info=True)
 
     async def _handle_events_emit_asyncio(
         self, req_id: str, params: dict[str, Any], writer: asyncio.StreamWriter
@@ -1560,13 +1565,16 @@ class BrokerServer(_BaseBrokerServer):
                     },
                 )
             except Exception:
-                pass
+                logger.debug(
+                    "[BROKER] Failed writing error response to UDS asyncio writer",
+                    exc_info=True,
+                )
         finally:
             try:
                 writer.close()
                 await writer.wait_closed()
             except Exception:
-                pass
+                logger.debug("[BROKER] Failed closing UDS asyncio writer", exc_info=True)
 
     async def _handle_events_emit_asyncio(
         self,
@@ -1946,6 +1954,6 @@ class TcpBrokerServer(_BaseBrokerServer):
             try:
                 await task
             except asyncio.CancelledError:
-                pass
+                logger.debug("[BROKER] TCP serve task cancelled during shutdown")
 
         await super().aclose()
