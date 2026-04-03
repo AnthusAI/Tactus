@@ -147,6 +147,7 @@ python3 scripts/normalize_generated_python_parser.py
 python3 -m poetry run ruff check tactus/validation/generated/LuaLexer.py tactus/validation/generated/LuaParser.py --select PIE790,E703 --fix
 python3 -m poetry run black tactus/validation/generated/LuaLexer.py
 python3 -m poetry run black tactus/validation/generated/LuaParser.py
+python3 -m poetry run black tactus/validation/generated/LuaParserVisitor.py
 ```
 
 **TypeScript:**
@@ -218,7 +219,6 @@ The antlr4ts code generator has known issues:
 The same `.tac` file works for both:
 - ANTLR validates structure
 - lupa executes the procedure
-
 
 
 
