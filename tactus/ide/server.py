@@ -1024,7 +1024,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                                 yield f"data: {json.dumps(event_dict)}\n\n"
                                 events_sent = True
                             except queue.Empty:
-                                pass
+                                continue
 
                             # Also check for HITL events from SSE channel (container HITL)
                             hitl_event = sse_channel.get_next_event(timeout=0.001)
@@ -1064,7 +1064,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                                         event,
                                     )
                             except queue.Empty:
-                                pass
+                                continue
 
                             # Also check for HITL events from SSE channel
                             hitl_event = sse_channel.get_next_event(timeout=0.001)

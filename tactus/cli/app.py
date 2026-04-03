@@ -1074,8 +1074,11 @@ def run(
 
                     if isinstance(display_result, TactusResult):
                         display_result = display_result.output
-                except Exception:
-                    pass
+                except ImportError as exc:
+                    logging.getLogger(__name__).debug(
+                        "Could not import TactusResult for CLI display formatting: %r",
+                        exc,
+                    )
 
                 console.print(f"  {display_result}")
 
@@ -1116,15 +1119,15 @@ def run(
                 close_result = close_clients()
                 if asyncio.iscoroutine(close_result):
                     asyncio.run(close_result)
-        except Exception:
-            pass
+        except Exception as exc:
+            logging.getLogger(__name__).debug("LiteLLM client cleanup failed: %r", exc)
         try:
             asyncio.run(control_handler.shutdown_channels())
         except RuntimeError:
             # Best-effort cleanup if an event loop is already running.
             pass
-        except Exception:
-            pass
+        except Exception as exc:
+            logging.getLogger(__name__).debug("Channel shutdown cleanup failed: %r", exc)
 
 
 # Sandbox subcommand group

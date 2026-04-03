@@ -139,14 +139,20 @@ class MLflowRegistry:
         for v in existing:
             try:
                 self.client.delete_model_version_tag(name, v.version_id, "tag")
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug(
+                    "Failed removing existing MLflow tag",
+                    extra={"model": name, "version": v.version_id, "tag": tag, "error": str(exc)},
+                )
             try:
                 self.client.set_model_version_tag(
                     name, v.version_id, key="tag", value=f"{tag}-previous"
                 )
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug(
+                    "Failed archiving prior MLflow tag",
+                    extra={"model": name, "version": v.version_id, "tag": tag, "error": str(exc)},
+                )
 
         # Apply new tag
         try:
