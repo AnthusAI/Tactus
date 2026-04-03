@@ -128,6 +128,8 @@ class LSPServer:
             logger.error("Error handling %s: %s", method, e, exc_info=True)
             return self._error_response(msg_id, -32603, str(e))
 
+        return None
+
     def _handle_initialize(self, params: dict[str, Any]) -> dict[str, Any]:
         """Handle initialize request."""
         self.client_capabilities = params.get("capabilities", {})
@@ -237,7 +239,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             workspace_path = Path(WORKSPACE_ROOT)
             return jsonify({"root": str(workspace_path), "name": workspace_path.name})
 
-        elif request.method == "POST":
+        if request.method == "POST":
             data = request.json
             root = data.get("root")
 
@@ -263,6 +265,8 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             except Exception as e:
                 logger.error("Error setting workspace %s: %s", root, e)
                 return jsonify({"error": str(e)}), 500
+
+        return jsonify({"error": f"Method not allowed: {request.method}"}), 405
 
     @app.route("/api/tree", methods=["GET"])
     def tree_operations():
@@ -339,7 +343,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                 logger.error("Error reading file %s: %s", file_path, e)
                 return jsonify({"error": str(e)}), 500
 
-        elif request.method == "POST":
+        if request.method == "POST":
             data = request.json
             file_path = data.get("path")
             content = data.get("content")
@@ -360,6 +364,8 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             except Exception as e:
                 logger.error("Error writing file %s: %s", file_path, e)
                 return jsonify({"error": str(e)}), 500
+
+        return jsonify({"error": f"Method not allowed: {request.method}"}), 405
 
     @app.route("/api/procedure/metadata", methods=["GET"])
     def get_procedure_metadata():

@@ -403,6 +403,8 @@ def create_dsl_stubs(
 
             return _curried
 
+        return None
+
     def _task(name_or_config=None, config=None):
         """
         Task declaration stub.

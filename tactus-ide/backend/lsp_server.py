@@ -64,6 +64,8 @@ class LSPServer:
             logger.error(f"Error handling {method}: {e}", exc_info=True)
             return self._error_response(msg_id, -32603, str(e))
 
+        return None
+
     def handle_notification(self, message: Dict[str, Any]):
         """Handle LSP notification (no response expected)."""
         method = message.get("method")
