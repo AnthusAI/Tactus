@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "dc53335a-614b-48b3-9e66-455751dcbcff",
+  "issue_id": "tcts-76912077-aa81-4069-971e-993ed3ed6531",
+  "event_type": "issue_created",
+  "occurred_at": "2026-04-03T22:06:13.006Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "assignee": null,
+    "description": "",
+    "issue_type": "bug",
+    "labels": [],
+    "parent": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+    "priority": 1,
+    "status": "open",
+    "title": "Fix CI regressions after error-sanitization changes"
+  }
+}
