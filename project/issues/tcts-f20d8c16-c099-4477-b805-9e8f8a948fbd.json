@@ -3,7 +3,7 @@
   "title": "Fix py/unused-local-variable findings in tests and support modules",
   "description": "",
   "type": "bug",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -34,10 +34,22 @@
       "author": "derek.norrbom",
       "text": "Partial complete. Cleared test/support unused-local findings in tests/cli/test_cli_inputs.py, tests/models/test_schema.py, features/steps/result_and_output_steps.py, tactus-ide/backend/lsp_server.py. Remaining py/unused-local-variable findings are primarily in tactus/core/dsl_stubs.py plus generated parser file; keeping issue open for next chunk.",
       "created_at": "2026-04-02T23:34:43.428778Z"
+    },
+    {
+      "id": "54dbbd5d-4ad4-43ac-ad5e-617443627b2d",
+      "author": "derek.norrbom",
+      "text": "Completed remaining first-party py/unused-local-variable cleanup in tactus/core/dsl_stubs.py by removing dead helper functions/assignments and related unused import. Validation: black/ruff on dsl_stubs passed; pytest tests/core/test_dsl_stubs_*.py -q (218 passed). Fresh rcql python scan: warnings 36 -> 29. py/unused-local-variable now reports only one remaining hit in generated tactus/validation/generated/LuaParser.py.",
+      "created_at": "2026-04-03T16:51:56.954220Z"
+    },
+    {
+      "id": "443b98f6-3936-46ff-ad77-12678187b96f",
+      "author": "derek.norrbom",
+      "text": "Closed for first-party scope; only generated parser unused-local remains.",
+      "created_at": "2026-04-03T16:51:56.975968Z"
     }
   ],
   "created_at": "2026-04-02T23:24:00.967254Z",
-  "updated_at": "2026-04-02T23:34:43.428778Z",
-  "closed_at": null,
+  "updated_at": "2026-04-03T16:51:56.975968Z",
+  "closed_at": "2026-04-03T16:51:56.965818Z",
   "custom": {}
 }
