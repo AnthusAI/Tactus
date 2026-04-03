@@ -53,18 +53,14 @@ function detectAwsConflict(
     };
   }
 
-  // Warn if both are set from different sources
-  if (hasProfile && hasCredentials) {
-    return {
-      hasConflict: true,
-      message:
-        'Both AWS profile and explicit credentials are configured. ' +
-        'Explicit credentials typically take precedence over profile. ' +
-        'Consider using only one authentication method to avoid confusion.',
-    };
-  }
-
-  return { hasConflict: false, message: '' };
+  // Both are set here (guarded above), so this conflict always applies.
+  return {
+    hasConflict: true,
+    message:
+      'Both AWS profile and explicit credentials are configured. ' +
+      'Explicit credentials typically take precedence over profile. ' +
+      'Consider using only one authentication method to avoid confusion.',
+  };
 }
 
 interface ConfigFieldViewProps {

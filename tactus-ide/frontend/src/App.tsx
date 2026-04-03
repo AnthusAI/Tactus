@@ -1044,7 +1044,7 @@ const AppContent: React.FC = () => {
                     setFileContent(value);
                     setHasUnsavedChanges(true);
                   }}
-                  filePath={currentFile || undefined}
+                  filePath={currentFile}
                 />
               </div>
             </>
@@ -1173,4 +1173,3 @@ export const App: React.FC = () => {
     </ThemeProvider>
   );
 };
-
