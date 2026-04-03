@@ -266,7 +266,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                 logger.error("Error setting workspace %s: %s", root, e)
                 return jsonify({"error": str(e)}), 500
 
-        return jsonify({"error": f"Method not allowed: {request.method}"}), 405
+        return None
 
     @app.route("/api/tree", methods=["GET"])
     def tree_operations():
@@ -365,7 +365,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                 logger.error("Error writing file %s: %s", file_path, e)
                 return jsonify({"error": str(e)}), 500
 
-        return jsonify({"error": f"Method not allowed: {request.method}"}), 405
+        return None
 
     @app.route("/api/procedure/metadata", methods=["GET"])
     def get_procedure_metadata():
