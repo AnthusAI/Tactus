@@ -3,16 +3,41 @@
   "title": "Triage/fix remaining py/call-to-non-callable in MCP adapter",
   "description": "",
   "type": "bug",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
   "parent": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "aa57edc8-35eb-4645-a7a3-22bc433bcb9c",
+      "author": "derek.norrbom",
+      "text": "Starting focused remediation for py/call-to-non-callable in tactus/adapters/mcp.py with targeted adapter tests and rcql verification.",
+      "created_at": "2026-04-03T17:14:37.563394Z"
+    },
+    {
+      "id": "76cc77b0-fd93-4b7d-a5f5-98fa1b74c2ef",
+      "author": "derek.norrbom",
+      "text": "Continuing this issue: applying narrow callable/type guards in tactus/adapters/mcp.py only, preserving runtime behavior, then validating with black/ruff/pytest tests/adapters/test_mcp_adapter.py.",
+      "created_at": "2026-04-03T17:15:18.275469Z"
+    },
+    {
+      "id": "9a860987-7b94-442c-aa80-eb3280e186aa",
+      "author": "derek.norrbom",
+      "text": "Implemented callable narrowing in tactus/adapters/mcp.py: replaced hasattr+direct-call sites with getattr + callable guards and typed callable casts for list_tools/get_tools/client-call and call_tool/call/execute/tool-call branches. Preserved existing fallback/exception behavior. Validation: python -m poetry run black tactus/adapters/mcp.py (pass), python -m poetry run ruff check tactus/adapters/mcp.py (pass), pytest tests/adapters/test_mcp_adapter.py -q (20 passed).",
+      "created_at": "2026-04-03T17:16:04.121398Z"
+    },
+    {
+      "id": "a63818d4-91d5-4abe-8291-0ebee2304fd8",
+      "author": "derek.norrbom",
+      "text": "Completed and pushed in this chunk: py/call-to-non-callable in tactus/adapters/mcp.py resolved with explicit callable guards/casts; adapter tests and rcql verification passed.",
+      "created_at": "2026-04-03T17:20:07.543238Z"
+    }
+  ],
   "created_at": "2026-04-02T23:52:13.481609Z",
-  "updated_at": "2026-04-02T23:52:13.481609Z",
-  "closed_at": null,
+  "updated_at": "2026-04-03T17:20:07.543238Z",
+  "closed_at": "2026-04-03T17:20:07.526954Z",
   "custom": {}
 }
