@@ -563,8 +563,6 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             def generate_events():
                 """Generator function that yields SSE validation events."""
                 try:
-                    import json
-
                     # Read and validate file
                     content = path.read_text()
                     validator = TactusValidator()
@@ -723,7 +721,6 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                 all_events = []  # Collect all events to save at the end
                 try:
                     # Send start event
-                    import json
                     from tactus.adapters.ide_log import IDELogHandler
                     from tactus.core.runtime import TactusRuntime
                     from tactus.adapters.file_storage import FileStorage
@@ -1286,7 +1283,6 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             def generate_events():
                 """Generator function that yields SSE test events."""
                 try:
-                    import json
                     from tactus.validation import TactusValidator
                     from tactus.testing import TactusTestRunner, GherkinParser
 
@@ -1501,7 +1497,6 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             def generate_events():
                 """Generator function that yields SSE evaluation events."""
                 try:
-                    import json
                     from tactus.validation import TactusValidator
                     from tactus.testing import TactusEvaluationRunner, GherkinParser
 
@@ -2515,7 +2510,6 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
         def generate():
             """Generator that yields SSE events from the channel."""
             import asyncio
-            import json
 
             channel = get_sse_channel()
 

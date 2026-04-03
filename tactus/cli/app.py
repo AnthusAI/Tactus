@@ -131,7 +131,6 @@ def load_tactus_config():
     """
     try:
         from tactus.core.config_manager import ConfigManager
-        import json
 
         config_mgr = ConfigManager()
 
@@ -1439,7 +1438,6 @@ def train(
         raise typer.Exit(1)
 
     try:
-        import json
         from tactus.training.config import load_training_config
         from tactus.training.runner import TrainingRunner
 
@@ -1739,7 +1737,6 @@ def test(
         from tactus.testing.mock_tools import create_default_mocks
         from tactus.validation import TactusValidator
         from tactus.core.config_manager import ConfigManager
-        import json
 
         # Load configuration and export all values as environment variables
         config_mgr = ConfigManager()
