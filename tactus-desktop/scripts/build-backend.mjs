@@ -8,6 +8,7 @@ const __dirname = path.dirname(__filename);
 
 const BACKEND_DIR = path.join(__dirname, '../backend');
 const PROJECT_ROOT = path.join(__dirname, '../..');
+const PYTHON_CMD_PATTERN = /^[A-Za-z0-9_./-]+$/;
 
 function execPromise(command, options = {}) {
   return new Promise((resolve, reject) => {
@@ -32,8 +33,15 @@ async function buildBackend() {
   console.log('========================================\n');
 
   // Detect Python command (prefer environment variable, then python for conda environments)
-  let pythonCmd = process.env.PYTHON_CMD || 'python';
-  if (!process.env.PYTHON_CMD) {
+  let pythonCmd = 'python';
+  const envPythonCmd = process.env.PYTHON_CMD;
+  if (envPythonCmd && PYTHON_CMD_PATTERN.test(envPythonCmd)) {
+    pythonCmd = envPythonCmd;
+  } else if (envPythonCmd) {
+    console.warn(
+      'Ignoring invalid PYTHON_CMD value. Allowed characters: letters, numbers, "_", ".", "/", "-".'
+    );
+  } else {
     try {
       await execPromise('python --version');
     } catch {
