@@ -141,7 +141,8 @@ sed -i 's/this\./self./g' tactus/validation/generated/LuaParser.py
 sed -i 's/this\./self./g' tactus/validation/generated/LuaLexer.py
 
 # Normalize generated parser style to keep static-analysis findings stable
-python3 -m poetry run ruff check tactus/validation/generated/LuaParser.py --select PIE790 --fix
+python3 -m poetry run ruff check tactus/validation/generated/LuaLexer.py tactus/validation/generated/LuaParser.py --select PIE790,E703 --fix
+python3 -m poetry run black tactus/validation/generated/LuaLexer.py
 python3 -m poetry run black tactus/validation/generated/LuaParser.py
 ```
 
@@ -214,7 +215,6 @@ The antlr4ts code generator has known issues:
 The same `.tac` file works for both:
 - ANTLR validates structure
 - lupa executes the procedure
-
 
 
 
