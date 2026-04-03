@@ -52,10 +52,22 @@
       "author": "derek.norrbom",
       "text": "High-yield batch landed: py/unnecessary-pass remediated across 2 files (65 generated parser + 3 mock_dependencies). Fresh rcql python total dropped to 274 (from 344 pre-batch).",
       "created_at": "2026-04-02T23:59:07.348126Z"
+    },
+    {
+      "id": "d7fc7406-1c08-40ba-90cc-8eeb1e7217c8",
+      "author": "derek.norrbom",
+      "text": "Starting next remediation batch: target py/ineffectual-statement findings in first-party Python files, excluding vendored node_modules mirrors. Plan is parallel subagent edits on disjoint file sets plus targeted pytest and lint gates before push.",
+      "created_at": "2026-04-03T15:18:06.154372Z"
+    },
+    {
+      "id": "772b336c-e340-4884-af30-2df567023785",
+      "author": "derek.norrbom",
+      "text": "Batch complete: py/ineffectual-statement first-party findings reduced from 48 to 0 (rule now only 2 vendor mirror hits), py/repeated-import reduced to 0, and fresh rcql python total dropped from 274 to 218. Also fixed CI formatting miss by black-formatting tactus/training/trainers.py and re-running black/ruff gates locally before commit.",
+      "created_at": "2026-04-03T15:25:31.990032Z"
     }
   ],
   "created_at": "2026-04-02T23:08:41.297987Z",
-  "updated_at": "2026-04-02T23:59:07.348126Z",
+  "updated_at": "2026-04-03T15:25:31.990032Z",
   "closed_at": null,
   "custom": {}
 }
