@@ -317,7 +317,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                 entries.append(entry)
 
             return jsonify({"path": relative_path, "entries": entries})
-        except ValueError as e:
+        except ValueError:
             return _bad_request_response()
         except Exception as e:
             logger.error("Error listing directory %s: %s", relative_path, e)
@@ -349,7 +349,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                         "name": path.name,
                     }
                 )
-            except ValueError as e:
+            except ValueError:
                 return _bad_request_response()
             except Exception as e:
                 logger.error("Error reading file %s: %s", file_path, e)
@@ -371,7 +371,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                 path.write_text(content)
 
                 return jsonify({"success": True, "path": file_path, "absolutePath": str(path)})
-            except ValueError as e:
+            except ValueError:
                 return _bad_request_response()
             except Exception as e:
                 logger.error("Error writing file %s: %s", file_path, e)
@@ -632,7 +632,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                 },
             )
 
-        except ValueError as e:
+        except ValueError:
             return _bad_request_response()
         except Exception as e:
             logger.error("Error setting up validation: %s", e, exc_info=True)
@@ -680,7 +680,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             )
         except subprocess.TimeoutExpired:
             return jsonify({"error": "Procedure execution timed out (30s)"}), 408
-        except ValueError as e:
+        except ValueError:
             return _bad_request_response()
         except Exception as e:
             logger.error("Error running procedure %s: %s", file_path, e)
@@ -1263,7 +1263,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                 },
             )
 
-        except ValueError as e:
+        except ValueError:
             return _bad_request_response()
         except Exception as e:
             logger.error("Error setting up streaming execution: %s", e, exc_info=True)
@@ -1475,7 +1475,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                 },
             )
 
-        except ValueError as e:
+        except ValueError:
             return _bad_request_response()
         except Exception as e:
             logger.error("Error setting up test execution: %s", e, exc_info=True)
@@ -1633,7 +1633,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                 },
             )
 
-        except ValueError as e:
+        except ValueError:
             return _bad_request_response()
         except Exception as e:
             logger.error("Error setting up evaluation execution: %s", e, exc_info=True)
@@ -2510,7 +2510,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
 
             return jsonify({"status": "ok", "request_id": request_id})
 
-        except Exception as exc:
+        except Exception:
             logger.exception("Error handling HITL response for %s", request_id)
             return jsonify({"status": "error", "message": BAD_REQUEST_MESSAGE}), 400
 
