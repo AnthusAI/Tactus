@@ -14,12 +14,17 @@ def test_read_write_exists_size(tmp_path):
     base = tmp_path / "workspace"
     primitive = FilePrimitive(base_path=str(base))
 
-    assert primitive.exists("data.txt") is False
+    exists_before_write = primitive.exists("data.txt")
+    assert exists_before_write is False
 
-    assert primitive.write("data.txt", "hello") is True
-    assert primitive.exists("data.txt") is True
-    assert primitive.read("data.txt") == "hello"
-    assert primitive.size("data.txt") == 5
+    write_succeeded = primitive.write("data.txt", "hello")
+    assert write_succeeded is True
+    exists_after_write = primitive.exists("data.txt")
+    assert exists_after_write is True
+    file_contents = primitive.read("data.txt")
+    assert file_contents == "hello"
+    file_size = primitive.size("data.txt")
+    assert file_size == 5
 
 
 def test_read_missing_raises(tmp_path):
@@ -68,12 +73,18 @@ def test_determinism_warning_emitted(tmp_path):
         warnings.simplefilter("always")
         primitive.exists("data.txt")
 
-    assert any("DETERMINISM WARNING" in str(w.message) for w in recorded)
+    warning_messages = [str(w.message) for w in recorded]
+    contains_determinism_warning = any(
+        "DETERMINISM WARNING" in warning_message for warning_message in warning_messages
+    )
+    assert contains_determinism_warning
 
 
 def test_repr_includes_base_path(tmp_path):
     primitive = FilePrimitive(base_path=str(tmp_path))
-    assert str(tmp_path) in repr(primitive)
+    base_path = str(tmp_path)
+    primitive_repr = repr(primitive)
+    assert base_path in primitive_repr
 
 
 def test_write_error_raises_ioerror(tmp_path, monkeypatch):

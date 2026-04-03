@@ -29,24 +29,28 @@ class DummyTable:
 
 def test_get_wikitext2_cache_dir_env(monkeypatch, tmp_path: Path):
     monkeypatch.setenv("TACTUS_WIKITEXT2_CACHE_DIR", str(tmp_path))
-    assert retrieval.get_wikitext2_cache_dir() == tmp_path
+    cache_dir = retrieval.get_wikitext2_cache_dir()
+    assert cache_dir == tmp_path
 
 
 def test_get_wikitext2_cache_dir_default(monkeypatch):
     monkeypatch.delenv("TACTUS_WIKITEXT2_CACHE_DIR", raising=False)
     cache_dir = retrieval.get_wikitext2_cache_dir()
-    assert "tests/fixtures/wikitext-2-raw-v1" in str(cache_dir)
+    cache_dir_string = str(cache_dir)
+    assert "tests/fixtures/wikitext-2-raw-v1" in cache_dir_string
 
 
 def test_get_noaa_afd_cache_dir_env(monkeypatch, tmp_path: Path):
     monkeypatch.setenv("TACTUS_NOAA_AFD_DIR", str(tmp_path))
-    assert retrieval.get_noaa_afd_cache_dir() == tmp_path
+    cache_dir = retrieval.get_noaa_afd_cache_dir()
+    assert cache_dir == tmp_path
 
 
 def test_get_noaa_afd_cache_dir_default(monkeypatch):
     monkeypatch.delenv("TACTUS_NOAA_AFD_DIR", raising=False)
     cache_dir = retrieval.get_noaa_afd_cache_dir()
-    assert "tests/fixtures/noaa_afd" in str(cache_dir)
+    cache_dir_string = str(cache_dir)
+    assert "tests/fixtures/noaa_afd" in cache_dir_string
 
 
 def test_load_wikitext2_texts_invalid_split():
@@ -62,7 +66,8 @@ def test_load_wikitext2_texts_limit(monkeypatch, tmp_path: Path):
         return DummyTable(["one", "two", "three"])
 
     monkeypatch.setattr(retrieval.pq, "read_table", fake_read_table)
-    assert retrieval.load_wikitext2_texts(split="train", limit=2) == ["one", "two"]
+    loaded_texts = retrieval.load_wikitext2_texts(split="train", limit=2)
+    assert loaded_texts == ["one", "two"]
 
 
 def test_load_noaa_afd_texts_missing_dir(monkeypatch, tmp_path: Path):
@@ -77,7 +82,8 @@ def test_load_noaa_afd_texts_limit(monkeypatch, tmp_path: Path):
     (base / "a.txt").write_text("a")
     (base / "b.txt").write_text("b")
     monkeypatch.setattr(retrieval, "get_noaa_afd_cache_dir", lambda: tmp_path)
-    assert retrieval.load_noaa_afd_texts("MFL", limit=1) == ["a"]
+    loaded_texts = retrieval.load_noaa_afd_texts("MFL", limit=1)
+    assert loaded_texts == ["a"]
 
 
 def test_load_noaa_afd_texts_no_limit(monkeypatch, tmp_path: Path):
@@ -86,7 +92,8 @@ def test_load_noaa_afd_texts_no_limit(monkeypatch, tmp_path: Path):
     (base / "a.txt").write_text("a")
     (base / "b.txt").write_text("b")
     monkeypatch.setattr(retrieval, "get_noaa_afd_cache_dir", lambda: tmp_path)
-    assert retrieval.load_noaa_afd_texts("MFL") == ["a", "b"]
+    loaded_texts = retrieval.load_noaa_afd_texts("MFL")
+    assert loaded_texts == ["a", "b"]
 
 
 def test_ensure_wikitext2_raw_downloads_when_missing(monkeypatch, tmp_path: Path):
@@ -101,7 +108,8 @@ def test_ensure_wikitext2_raw_downloads_when_missing(monkeypatch, tmp_path: Path
     monkeypatch.setattr(retrieval, "_download_file", fake_download)
     monkeypatch.setattr(retrieval, "_sha256_matches", lambda _path, _sha: True)
 
-    assert retrieval.ensure_wikitext2_raw() == tmp_path
+    ensured_dir = retrieval.ensure_wikitext2_raw()
+    assert ensured_dir == tmp_path
 
 
 def test_ensure_wikitext2_raw_raises_on_checksum(monkeypatch, tmp_path: Path):
@@ -122,7 +130,8 @@ def test_ensure_wikitext2_raw_raises_on_checksum(monkeypatch, tmp_path: Path):
 
 def test_rank_texts_handles_empty_query():
     texts = ["alpha", "beta"]
-    assert retrieval._rank_texts("", texts) == texts
+    ranked_texts = retrieval._rank_texts("", texts)
+    assert ranked_texts == texts
 
 
 def test_rank_texts_no_matches_returns_all():
@@ -144,8 +153,10 @@ def test_retrieve_wikitext2_truncates(monkeypatch):
         metadata={"split": "train"},
     )
     result = retrieval.retrieve_wikitext2(request)
-    assert result.text.endswith("...")
-    assert len(result.text) <= 10
+    has_ellipsis = result.text.endswith("...")
+    assert has_ellipsis
+    text_length = len(result.text)
+    assert text_length <= 10
 
 
 def test_retrieve_wikitext2_cache_item_limit(monkeypatch):
@@ -179,7 +190,8 @@ def test_retrieve_wikitext2_cache_character_limit(monkeypatch):
     )
     result = retrieval.retrieve_wikitext2(request)
     assert result.evidence_count == 1
-    assert result.text.strip() == "alpha"
+    stripped_text = result.text.strip()
+    assert stripped_text == "alpha"
 
 
 def test_retrieve_wikitext2_skips_empty_snippets(monkeypatch):
@@ -228,7 +240,8 @@ def test_retrieve_wikitext2_cache_character_limit_breaks(monkeypatch):
     )
     result = retrieval.retrieve_wikitext2(request)
     assert result.evidence_count == 1
-    assert result.text.strip() == "alpha"
+    stripped_text = result.text.strip()
+    assert stripped_text == "alpha"
 
 
 def test_retrieve_wikitext2_cache_character_limit_skips_all(monkeypatch):
@@ -341,7 +354,8 @@ def test_retrieve_noaa_afd_cache_character_limit(monkeypatch):
     )
     result = retrieval.retrieve_noaa_afd(request)
     assert result.evidence_count == 1
-    assert result.text.strip() == "storm"
+    stripped_text = result.text.strip()
+    assert stripped_text == "storm"
 
 
 def test_retrieve_noaa_afd_cache_character_limit_skips_all(monkeypatch):
@@ -420,7 +434,8 @@ def test_retrieve_noaa_afd_truncates_with_remaining_chars(monkeypatch):
         metadata={"wfo": "MFL"},
     )
     result = retrieval.retrieve_noaa_afd(request)
-    assert result.text.endswith("...")
+    has_ellipsis = result.text.endswith("...")
+    assert has_ellipsis
 
 
 def test_retrieve_noaa_afd_breaks_when_budget_reached(monkeypatch):
@@ -486,7 +501,8 @@ def test_retrieve_noaa_afd_truncates(monkeypatch):
         metadata={"wfo": "MFL"},
     )
     result = retrieval.retrieve_noaa_afd(request)
-    assert result.text.endswith("...")
+    has_ellipsis = result.text.endswith("...")
+    assert has_ellipsis
 
 
 def test_make_retriever_router_prefers_registry_retriever(monkeypatch):
@@ -502,7 +518,8 @@ def test_make_retriever_router_prefers_registry_retriever(monkeypatch):
         maximum_total_characters=10,
         metadata={"retriever": "search"},
     )
-    assert router(request) == "ok"
+    routed_result = router(request)
+    assert routed_result == "ok"
 
 
 def test_make_retriever_router_uses_registry_retriever_override(monkeypatch):
@@ -518,7 +535,8 @@ def test_make_retriever_router_uses_registry_retriever_override(monkeypatch):
         maximum_total_characters=10,
         metadata={"retriever": "search", "retriever_id": "wikitext2"},
     )
-    assert router(request) == "ok"
+    routed_result = router(request)
+    assert routed_result == "ok"
 
 
 def test_make_retriever_router_ignores_non_dict_retriever_config(monkeypatch):
@@ -534,7 +552,8 @@ def test_make_retriever_router_ignores_non_dict_retriever_config(monkeypatch):
         maximum_total_characters=10,
         metadata={"retriever": "search", "retriever_id": "wikitext2"},
     )
-    assert router(request) == "ok"
+    routed_result = router(request)
+    assert routed_result == "ok"
 
 
 def test_make_retriever_router_missing_retriever_id():
@@ -613,7 +632,8 @@ def test_make_retriever_router_resolves_retriever(monkeypatch):
     request = ContextRetrieverRequest(query="alpha", limit=1, metadata={"retriever_id": "noaa_afd"})
     router = retrieval.make_retriever_router({}, {})
     monkeypatch.setattr(retrieval, "retrieve_noaa_afd", lambda _req: "noaa")
-    assert router(request) == "noaa"
+    routed_result = router(request)
+    assert routed_result == "noaa"
 
 
 def test_make_retriever_router_uses_retriever_registry_fallback(monkeypatch):
@@ -624,7 +644,8 @@ def test_make_retriever_router_uses_retriever_registry_fallback(monkeypatch):
     router = retrieval.make_retriever_router({}, {"search": DummySpec()})
     monkeypatch.setattr(retrieval, "retrieve_wikitext2", lambda _req: "wiki")
     request = ContextRetrieverRequest(query="alpha", limit=1, metadata={"retriever": "search"})
-    assert router(request) == "wiki"
+    routed_result = router(request)
+    assert routed_result == "wiki"
 
 
 def test_make_retriever_router_uses_retriever_type_fallback(monkeypatch):
@@ -635,14 +656,16 @@ def test_make_retriever_router_uses_retriever_type_fallback(monkeypatch):
     router = retrieval.make_retriever_router({}, {"search": DummySpec()})
     monkeypatch.setattr(retrieval, "retrieve_wikitext2", lambda _req: "wiki")
     request = ContextRetrieverRequest(query="alpha", limit=1, metadata={"retriever": "search"})
-    assert router(request) == "wiki"
+    routed_result = router(request)
+    assert routed_result == "wiki"
 
 
 def test_make_retriever_router_biblicus_fallback(monkeypatch):
     router = retrieval.make_retriever_router({}, {})
     monkeypatch.setattr(retrieval, "retrieve_biblicus_context_pack", lambda _req: "biblicus")
     request = ContextRetrieverRequest(query="alpha", limit=1, metadata={"retriever_id": "other"})
-    assert router(request) == "biblicus"
+    routed_result = router(request)
+    assert routed_result == "biblicus"
 
 
 def test_retrieve_biblicus_context_pack_builds_snapshot(tmp_path: Path):
@@ -670,8 +693,10 @@ def test_retrieve_biblicus_context_pack_builds_snapshot(tmp_path: Path):
     result = retrieval.retrieve_biblicus_context_pack(request)
 
     assert result.evidence_count == 1
-    assert "cats" in result.text.lower() or "dogs" in result.text.lower()
-    assert Corpus.open(corpus_root).latest_snapshot_id is not None
+    result_text = result.text.lower()
+    assert "cats" in result_text or "dogs" in result_text
+    opened_corpus = Corpus.open(corpus_root)
+    assert opened_corpus.latest_snapshot_id is not None
 
 
 def test_download_file_writes_bytes(monkeypatch, tmp_path: Path):
@@ -695,17 +720,21 @@ def test_download_file_writes_bytes(monkeypatch, tmp_path: Path):
     )
     target = tmp_path / "file.bin"
     retrieval._download_file("http://example.com", target)
-    assert target.read_bytes() == b"payload"
+    payload = target.read_bytes()
+    assert payload == b"payload"
 
 
 def test_sha256_matches(tmp_path: Path):
     target = tmp_path / "file.txt"
     target.write_text("hello")
     expected = hashlib.sha256(b"hello").hexdigest()
-    assert retrieval._sha256_matches(target, expected)
-    assert not retrieval._sha256_matches(target, "bad")
+    matches_expected = retrieval._sha256_matches(target, expected)
+    assert matches_expected
+    matches_bad_checksum = retrieval._sha256_matches(target, "bad")
+    assert matches_bad_checksum is False
 
 
 def test_sha256_matches_missing_file(tmp_path: Path):
     target = tmp_path / "missing.txt"
-    assert retrieval._sha256_matches(target, "any") is False
+    matches_missing = retrieval._sha256_matches(target, "any")
+    assert matches_missing is False
