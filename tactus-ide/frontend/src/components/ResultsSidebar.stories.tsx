@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { ResultsSidebar } from './ResultsSidebar';
-import { AnyEvent, LogEvent, ExecutionEvent, ValidationEvent, CostEvent, ExecutionSummaryEvent } from '@/types/events';
+import { LogEvent, ExecutionEvent, ValidationEvent, CostEvent, ExecutionSummaryEvent } from '@/types/events';
 
 const meta = {
   title: 'Layout/ResultsSidebar',

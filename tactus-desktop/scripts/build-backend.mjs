@@ -49,7 +49,7 @@ async function buildBackend() {
   // Ensure PyInstaller is installed
   console.log('Checking for PyInstaller...');
   try {
-    const pyiVersion = await execPromise(`${pythonCmd} -m pip show pyinstaller`);
+    await execPromise(`${pythonCmd} -m pip show pyinstaller`);
     console.log('PyInstaller is already installed');
   } catch (error) {
     console.log('PyInstaller not found, installing...');

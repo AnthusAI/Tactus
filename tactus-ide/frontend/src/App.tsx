@@ -6,7 +6,6 @@ import { ResultsSidebar } from './components/ResultsSidebar';
 import { ResizeHandle } from './components/ResizeHandle';
 import { Button } from './components/ui/button';
 import { Logo } from './components/ui/logo';
-import { Separator } from './components/ui/separator';
 import {
   Menubar,
   MenubarContent,
@@ -31,8 +30,6 @@ import {
 } from './components/ui/dialog';
 import { Input } from './components/ui/input';
 import {
-  ChevronLeft,
-  ChevronRight,
   Mail,
   Bell,
   Play,
@@ -45,7 +42,7 @@ import { useEventStream } from './hooks/useEventStream';
 import { ThemeProvider } from './components/theme-provider';
 import { ResultsHistoryState, RunHistory } from './types/results';
 import { ProcedureMetadata } from './types/metadata';
-import { AnyEvent, TestCompletedEvent } from './types/events';
+import { TestCompletedEvent } from './types/events';
 import { ProcedureInputsModal } from './components/ProcedureInputsModal';
 import { TestOptionsModal, TestOptions } from './components/TestOptionsModal';
 import { AboutDialog } from './components/AboutDialog';
@@ -79,16 +76,6 @@ interface RunResult {
   stdout?: string;
   stderr?: string;
   error?: string;
-}
-
-interface ValidationResult {
-  valid: boolean;
-  errors: Array<{
-    message: string;
-    line?: number;
-    column?: number;
-    severity: string;
-  }>;
 }
 
 const AppContent: React.FC = () => {
@@ -134,12 +121,20 @@ const AppContent: React.FC = () => {
 
   // Run/validation state
   const [runResult, setRunResult] = useState<RunResult | null>(null);
-  const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
-  const [isRunning, setIsRunning] = useState(false);
+  const [, setValidationResult] = useState<{
+    valid: boolean;
+    errors: Array<{
+      message: string;
+      line?: number;
+      column?: number;
+      severity: string;
+    }>;
+  } | null>(null);
+  const [isRunning] = useState(false);
   
   // Streaming state
   const [streamUrl, setStreamUrl] = useState<string | null>(null);
-  const { events, isRunning: isStreaming, error: streamError } = useEventStream(streamUrl);
+  const { events, isRunning: isStreaming } = useEventStream(streamUrl);
 
   // Auth error dialog state
   const [authErrorDialogOpen, setAuthErrorDialogOpen] = useState(false);
@@ -160,7 +155,6 @@ const AppContent: React.FC = () => {
 
   // Input modal state
   const [inputModalOpen, setInputModalOpen] = useState(false);
-  const [pendingInputs, setPendingInputs] = useState<Record<string, any> | null>(null);
   const [testOptionsModalOpen, setTestOptionsModalOpen] = useState(false);
   const [aboutDialogOpen, setAboutDialogOpen] = useState(false);
 
@@ -1179,5 +1173,4 @@ export const App: React.FC = () => {
     </ThemeProvider>
   );
 };
-
 

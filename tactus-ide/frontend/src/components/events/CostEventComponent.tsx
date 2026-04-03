@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { CostEvent } from '@/types/events';
 import { Coins, ChevronDown, ChevronRight } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { BaseEventComponent } from './BaseEventComponent';
 import { Timestamp } from '../Timestamp';
 
@@ -204,5 +203,4 @@ export const CostEventComponent: React.FC<CostEventComponentProps> = ({ event, i
     </BaseEventComponent>
   );
 };
-
 
