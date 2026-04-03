@@ -1,0 +1,17 @@
+name: Tactus CodeQL Config
+
+# Scan-time exclusions for non-owned/build artifacts to reduce DB size and runtime.
+paths-ignore:
+  - "**/node_modules/**"
+  - "**/dist/**"
+  - "**/build/**"
+  - "**/out/**"
+  - "**/coverage/**"
+  - "**/.next/**"
+  - "**/.nuxt/**"
+  - "**/.svelte-kit/**"
+  - "**/vendor/**"
+  - "**/.codeql/**"
+  - "**/__pycache__/**"
+  - "**/.mypy_cache/**"
+  - "**/.pytest_cache/**"
