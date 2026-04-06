@@ -378,7 +378,7 @@ def test_get_config_reports_errors(tmp_path, monkeypatch):
     response = client.get("/api/config")
 
     assert response.status_code == 500
-    assert "boom" in response.get_json()["error"]
+    assert response.get_json()["error"] == "Internal server error"
 
 
 def test_save_config_and_validation(tmp_path, monkeypatch):

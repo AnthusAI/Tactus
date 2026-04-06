@@ -1,0 +1,25 @@
+{
+  "id": "tcts-572fddd5-8d6e-482c-9556-f2a8796f0d4c",
+  "title": "Fix IDE backend unsupported-method regression",
+  "description": "",
+  "type": "bug",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "ca345ac4-2d25-40cf-8763-03fac400fa63",
+      "author": "derek.norrbom",
+      "text": "Fixed regression in tactus/ide/server.py: unsupported-method fallthrough now returns None (matching existing test expectations) instead of a 405 tuple. Validation: black/ruff on tactus/ide/server.py passed; pytest tests/ide_backend/test_ide_server_misc.py -q passed (43 passed). Fresh rcql python scan still reports Total: 0.",
+      "created_at": "2026-04-03T17:34:15.302893Z"
+    }
+  ],
+  "created_at": "2026-04-03T17:33:13.259699Z",
+  "updated_at": "2026-04-03T17:34:15.448290Z",
+  "closed_at": "2026-04-03T17:34:15.448290Z",
+  "custom": {}
+}

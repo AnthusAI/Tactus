@@ -187,7 +187,8 @@ def step_execute_turn_with_params(context):
             if value.is_integer():
                 value = int(value)
         except ValueError:
-            pass
+            # Preserve non-numeric table values as strings.
+            value = row["value"]
         params[param] = value
 
     context.turn_params = params

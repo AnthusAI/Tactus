@@ -1,0 +1,31 @@
+{
+  "id": "tcts-a4cf1b4c-1902-45ad-8d30-5f7c66ae7381",
+  "title": "Remediate py/import-and-import-from in CLI app",
+  "description": "",
+  "type": "bug",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "513f9d92-d144-4618-bca6-c348ece9c12e",
+      "author": "derek.norrbom",
+      "text": "Replaced local 'import tactus' uses in tactus/cli/app.py with explicit 'from tactus import __file__/__version__' imports to avoid mixed import styles. Validation: black/ruff on tactus/cli/app.py passed; pytest tests/cli -q passed (332 passed). Fresh rcql python scan: total warnings 29 -> 25 and py/import-and-import-from no longer reports findings.",
+      "created_at": "2026-04-03T16:53:37.552774Z"
+    },
+    {
+      "id": "badcf34d-7402-442c-a548-e53b1cf6e21f",
+      "author": "derek.norrbom",
+      "text": "Closed in this batch.",
+      "created_at": "2026-04-03T16:53:37.587703Z"
+    }
+  ],
+  "created_at": "2026-04-03T16:53:33.675234Z",
+  "updated_at": "2026-04-03T16:53:37.587703Z",
+  "closed_at": "2026-04-03T16:53:37.567531Z",
+  "custom": {}
+}

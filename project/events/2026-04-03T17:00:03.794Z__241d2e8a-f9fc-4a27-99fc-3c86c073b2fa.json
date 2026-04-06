@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "241d2e8a-f9fc-4a27-99fc-3c86c073b2fa",
+  "issue_id": "tcts-9cf0d5ad-195f-495f-942e-aba7b8e31eeb",
+  "event_type": "issue_created",
+  "occurred_at": "2026-04-03T17:00:03.794Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "assignee": null,
+    "description": "",
+    "issue_type": "sub-task",
+    "labels": [],
+    "parent": "tcts-f4733741-f8e2-47da-8402-6e9abd613ba1",
+    "priority": 2,
+    "status": "open",
+    "title": "Fix nested-loop and implicit-string-concat findings (batch 3)"
+  }
+}

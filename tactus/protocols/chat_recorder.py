@@ -33,7 +33,7 @@ class ChatRecorder(Protocol):
         Raises:
             ChatRecorderError: If session creation fails
         """
-        ...
+        return None
 
     async def record_message(self, message: ChatMessage) -> str:
         """
@@ -48,7 +48,7 @@ class ChatRecorder(Protocol):
         Raises:
             ChatRecorderError: If recording fails
         """
-        ...
+        return None
 
     async def end_session(self, session_id: str, status: str = "COMPLETED") -> None:
         """
@@ -61,7 +61,7 @@ class ChatRecorder(Protocol):
         Raises:
             ChatRecorderError: If ending session fails
         """
-        ...
+        return None
 
     async def get_session_messages(
         self, session_id: str, limit: Optional[int] = None
@@ -78,4 +78,4 @@ class ChatRecorder(Protocol):
         Returns:
             List of ChatMessage objects
         """
-        ...
+        return None

@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "d7d58c05-9654-4054-9aa7-62aa34df6051",
+  "issue_id": "tcts-1b7dccef-57dd-489e-9a79-b4f856634e31",
+  "event_type": "issue_created",
+  "occurred_at": "2026-04-03T15:18:36.728Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "assignee": null,
+    "description": "Remediate ineffectual statements in adapters/providers/backends/stdlib/training modules with behavior-preserving explicit placeholders.",
+    "issue_type": "task",
+    "labels": [],
+    "parent": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+    "priority": 1,
+    "status": "open",
+    "title": "Fix py/ineffectual-statement in runtime abstract/base modules"
+  }
+}

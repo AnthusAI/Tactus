@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "71fad4cc-304d-4ae0-a94c-e15cdbbebf0f",
+  "issue_id": "tcts-d02d1db8-36f3-4d40-b722-051773838793",
+  "event_type": "issue_created",
+  "occurred_at": "2026-04-03T21:42:33.463Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "assignee": null,
+    "description": "",
+    "issue_type": "bug",
+    "labels": [],
+    "parent": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+    "priority": 1,
+    "status": "open",
+    "title": "Remediate py/stack-trace-exposure in IDE/backend APIs"
+  }
+}

@@ -3,13 +3,13 @@ import typing
 
 import pytest
 
-from tactus.primitives.handles import (
-    _convert_lua_table,
-    AgentHandle,
-    ModelHandle,
-    AgentLookup,
-    ModelLookup,
-)
+import tactus.primitives.handles as handles
+
+_convert_lua_table = handles._convert_lua_table
+AgentHandle = handles.AgentHandle
+ModelHandle = handles.ModelHandle
+AgentLookup = handles.AgentLookup
+ModelLookup = handles.ModelLookup
 
 
 class FakeLuaTable(dict):
@@ -306,8 +306,6 @@ def test_handle_and_lookup_repr():
 
 
 def test_type_checking_import_path():
-    import tactus.primitives.handles as handles
-
     original = typing.TYPE_CHECKING
     import sys
     import types

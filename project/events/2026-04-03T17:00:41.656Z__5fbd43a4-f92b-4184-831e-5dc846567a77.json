@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "5fbd43a4-f92b-4184-831e-5dc846567a77",
+  "issue_id": "tcts-46d17005-7183-4ded-ba8f-80ae175228d5",
+  "event_type": "issue_created",
+  "occurred_at": "2026-04-03T17:00:41.656Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "assignee": null,
+    "description": "",
+    "issue_type": "bug",
+    "labels": [],
+    "parent": "tcts-8dbdce66-f645-40af-8d7b-f6664829eef3",
+    "priority": 2,
+    "status": "open",
+    "title": "Fix py/nested-loops-with-same-variable and py/implicit-string-concatenation-in-list in CLI HITL demos"
+  }
+}

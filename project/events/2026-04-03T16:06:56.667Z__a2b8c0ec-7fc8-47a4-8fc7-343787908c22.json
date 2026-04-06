@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "a2b8c0ec-7fc8-47a4-8fc7-343787908c22",
+  "issue_id": "tcts-9ab6dbd4-1fa0-4b9c-a407-1e48ae0e81e4",
+  "event_type": "issue_created",
+  "occurred_at": "2026-04-03T16:06:56.667Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "assignee": null,
+    "description": "Resolve py/multiple-definition findings caused by duplicate test function names in tests/validation/test_semantic_visitor_helpers.py. Exclude generated and vendor files in this task.",
+    "issue_type": "task",
+    "labels": [],
+    "parent": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+    "priority": 1,
+    "status": "open",
+    "title": "Fix py/multiple-definition duplicate test names"
+  }
+}

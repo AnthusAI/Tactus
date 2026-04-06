@@ -10,6 +10,7 @@ else:
 
 
 class LuaParserVisitor(ParseTreeVisitor):
+
     # Visit a parse tree produced by LuaParser#start_.
     def visitStart_(self, ctx: LuaParser.Start_Context):
         return self.visitChildren(ctx)

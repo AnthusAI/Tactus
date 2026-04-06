@@ -5,9 +5,12 @@ This module provides the History primitive that maps to DSPy History,
 enabling multi-turn conversation management in Tactus procedures.
 """
 
+import logging
 from typing import Any, Dict, List, Optional
 
 import dspy
+
+logger = logging.getLogger(__name__)
 
 
 class TactusHistory:
@@ -65,8 +68,8 @@ class TactusHistory:
             # It's a Lua table or similar mapping
             try:
                 message = dict(message.items())
-            except (AttributeError, TypeError):
-                pass
+            except (AttributeError, TypeError) as exc:
+                logger.debug("Failed to coerce mapping-like message to dict: %s", exc)
 
         # Check for required keys
         if not isinstance(message, dict):

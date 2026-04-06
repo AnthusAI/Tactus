@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "d4abd6e3-2a11-4d42-846e-56184aee22bd",
+  "issue_id": "tcts-004ce95c-b367-4a57-83c6-e8d5095be91b",
+  "event_type": "issue_created",
+  "occurred_at": "2026-04-02T23:08:46.053Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "assignee": null,
+    "description": "",
+    "issue_type": "bug",
+    "labels": [],
+    "parent": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+    "priority": 2,
+    "status": "open",
+    "title": "Fix py/repeated-import findings across tactus runtime + steps"
+  }
+}

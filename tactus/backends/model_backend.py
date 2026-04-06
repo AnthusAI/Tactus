@@ -20,7 +20,7 @@ class ModelBackend(Protocol):
         Returns:
             Model prediction result
         """
-        ...
+        return None
 
     def predict_sync(self, input_data: Any) -> Any:
         """
@@ -32,4 +32,4 @@ class ModelBackend(Protocol):
         Returns:
             Model prediction result
         """
-        ...
+        return None

@@ -1,0 +1,43 @@
+{
+  "id": "tcts-eb6e2fb6-1a97-49a4-b645-ed5cd76f8ff1",
+  "title": "Remediate first-party py/mixed-returns findings",
+  "description": "",
+  "type": "bug",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "0dfc157d-00b9-477b-b004-9b97dff82fc4",
+      "author": "derek.norrbom",
+      "text": "Starting focused remediation for first-party py/mixed-returns findings in tactus/core/dsl_stubs.py, tactus-ide/backend/lsp_server.py, tactus/ide/server.py, and tactus/validation/semantic_visitor.py. Generated files are explicitly out of scope for this chunk.",
+      "created_at": "2026-04-03T17:14:37.573508Z"
+    },
+    {
+      "id": "b81ab5de-7319-4dc6-85be-ddb7bfd85d1b",
+      "author": "derek.norrbom",
+      "text": "Picking up remediation pass for py/mixed-returns findings on owned files only: tactus/core/dsl_stubs.py, tactus-ide/backend/lsp_server.py, tactus/ide/server.py, tactus/validation/semantic_visitor.py. Goal: make return behavior explicit/consistent without semantic changes; then run black, ruff, and targeted pytest.",
+      "created_at": "2026-04-03T17:15:08.364618Z"
+    },
+    {
+      "id": "7517d2ed-7a1c-4c07-b3ed-8769e187ef34",
+      "author": "derek.norrbom",
+      "text": "Implemented mixed-return remediation in owned files only by making fallthroughs explicit and normalizing return behavior: added explicit 'return None' at the end of both LSPServer.handle_message methods, made _process_dsl_call return type explicit (-> None) with consistent None returns (including in in_function_body and invalid-syntax branches), and added explicit fallthrough return None in _procedure. Validation passed: python -m poetry run black <4 files>; python -m poetry run ruff check <4 files>; pytest tests/core/test_dsl_stubs_*.py tests/validation/test_semantic_visitor_helpers.py tests/cli/test_cli_ide_main.py -q (370 passed).",
+      "created_at": "2026-04-03T17:17:05.917699Z"
+    },
+    {
+      "id": "69a5a3e1-a0ea-4200-82b0-82e79c57ed71",
+      "author": "derek.norrbom",
+      "text": "Completed mixed-returns cleanup in first-party files for this chunk (dsl_stubs, lsp_server, ide/server, semantic_visitor). Remaining findings are now generated-file items plus one non-generated tool signature warning tracked separately.",
+      "created_at": "2026-04-03T17:20:07.554725Z"
+    }
+  ],
+  "created_at": "2026-04-03T17:14:34.060608Z",
+  "updated_at": "2026-04-03T17:20:07.565480Z",
+  "closed_at": "2026-04-03T17:20:07.565480Z",
+  "custom": {}
+}

@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "abbc9d47-acf6-4230-942f-b415d33dc766",
+  "issue_id": "tcts-4a861900-db78-42cb-bf2e-67ac2f3ee654",
+  "event_type": "issue_created",
+  "occurred_at": "2026-04-02T22:53:21.267Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "assignee": null,
+    "description": "",
+    "issue_type": "bug",
+    "labels": [],
+    "parent": "tcts-6603b94e-360c-4d14-90a9-f5291cfb72cb",
+    "priority": 2,
+    "status": "open",
+    "title": "Fix py/missing-call-to-init in procedure callable LuaWithDebug doubles"
+  }
+}

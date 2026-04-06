@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "46bceec0-27e5-488b-bf21-8cd9adbf9aef",
+  "issue_id": "tcts-4f972559-0b6d-4f50-b3c1-3569326240c1",
+  "event_type": "issue_created",
+  "occurred_at": "2026-04-03T15:35:42.835Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "assignee": null,
+    "description": "Fix py/unnecessary-lambda findings in test files only. Goal: remove or inline unnecessary lambda wrappers while preserving test semantics. Main agent will run final black/ruff/pytest and push.",
+    "issue_type": "task",
+    "labels": [],
+    "parent": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+    "priority": 1,
+    "status": "open",
+    "title": "Remediate py/unnecessary-lambda in Python tests (batch)"
+  }
+}

@@ -224,8 +224,9 @@ def step_impl(context, threshold):
     for _ in range(threshold):
         try:
             breaker.call(state["operation"])
-        except Exception:
-            pass
+        except Exception as exc:
+            # Expected while tripping the breaker; retain for debug visibility.
+            state.setdefault("breaker_errors", []).append(exc)
     state["circuit_open"] = breaker.opened
     state["breaker"] = breaker
 

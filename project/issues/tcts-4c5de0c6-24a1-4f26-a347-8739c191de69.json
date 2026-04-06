@@ -1,0 +1,31 @@
+{
+  "id": "tcts-4c5de0c6-24a1-4f26-a347-8739c191de69",
+  "title": "Remediate js/trivial-conditional and js/useless-assignment-to-local findings",
+  "description": "",
+  "type": "bug",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "@me",
+  "creator": null,
+  "parent": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "3309fc4a-89da-4bb6-bc7c-cd4a0ac37c3f",
+      "author": "derek.norrbom",
+      "text": "Starting next JS/TS batch for 7 remaining findings (js/trivial-conditional, js/useless-assignment-to-local).",
+      "created_at": "2026-04-03T20:11:03.432855Z"
+    },
+    {
+      "id": "c5e96768-6e6c-41ec-a30a-f4c3fed2b3d0",
+      "author": "derek.norrbom",
+      "text": "Batch landed in commit 0d55fe2c. Re-scanned JS/TS with fresh DB: 0 total findings in javascript-typescript SARIF.",
+      "created_at": "2026-04-03T20:12:02.863873Z"
+    }
+  ],
+  "created_at": "2026-04-03T20:11:01.586178Z",
+  "updated_at": "2026-04-03T20:12:03.025111Z",
+  "closed_at": "2026-04-03T20:12:03.025111Z",
+  "custom": {}
+}

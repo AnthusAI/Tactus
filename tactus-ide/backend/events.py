@@ -9,11 +9,6 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
-# Import core event types from tactus.protocols
-from tactus.protocols.models import AgentStreamChunkEvent  # noqa: F401
-
-# Import test/evaluation events from tactus.testing
-
 
 class BaseEvent(BaseModel):
     """Base event model for all IDE events."""

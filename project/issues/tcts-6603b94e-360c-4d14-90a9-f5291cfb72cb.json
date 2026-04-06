@@ -1,0 +1,31 @@
+{
+  "id": "tcts-6603b94e-360c-4d14-90a9-f5291cfb72cb",
+  "title": "Remediate rcql Python findings batch 1",
+  "description": "",
+  "type": "epic",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-8dbdce66-f645-40af-8d7b-f6664829eef3",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "0ea4536a-443c-45e6-a6a6-e36d13e15b87",
+      "author": "derek.norrbom",
+      "text": "Intake from rcql --report-only --lang python --limit 10. Findings grouped into: 3 missing-call-to-init in tests, 1 duplicate pair for incomplete-ordering in vendored biplist, 1 duplicate pair for file-not-closed in vendored biplist. Starting with Kanbus bug creation before code edits.",
+      "created_at": "2026-04-02T22:53:21.210133Z"
+    },
+    {
+      "id": "9cfae203-89f3-4a4b-90c2-355db1c4e2fb",
+      "author": "derek.norrbom",
+      "text": "Batch update: fixed and closed 3 py/missing-call-to-init bugs (tcts-b4426c, tcts-ba41d3, tcts-4a8619). Fresh rcql python report now matched=386 (down from 390). Remaining open: vendored biplist findings (tcts-9e3d16, tcts-70e842) and rcql noise-reduction chore (tcts-925e1d). Quality gates: ruff pass, black pass, behave --tags=-skip pass, test-ci.sh currently fails in this environment with many dependency/plugin issues.",
+      "created_at": "2026-04-02T23:05:23.167392Z"
+    }
+  ],
+  "created_at": "2026-04-02T22:53:13.494872Z",
+  "updated_at": "2026-04-02T23:05:23.167392Z",
+  "closed_at": null,
+  "custom": {}
+}

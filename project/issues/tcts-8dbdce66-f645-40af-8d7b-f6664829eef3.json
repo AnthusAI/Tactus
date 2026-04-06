@@ -1,0 +1,18 @@
+{
+  "id": "tcts-8dbdce66-f645-40af-8d7b-f6664829eef3",
+  "title": "Static analysis remediation program",
+  "description": "",
+  "type": "initiative",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-04-02T22:53:12.371326Z",
+  "updated_at": "2026-04-02T22:53:12.371326Z",
+  "closed_at": null,
+  "custom": {}
+}

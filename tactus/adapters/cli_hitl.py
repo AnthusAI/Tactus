@@ -239,13 +239,13 @@ class CLIHITLHandler:
                     self.console.print(
                         "\n[bold]Select multiple options (comma-separated numbers):[/bold]"
                     )
-                    for index, option in enumerate(options, 1):
+                    for option_index, option in enumerate(options, 1):
                         label_text = (
-                            option.get("label", f"Option {index}")
+                            option.get("label", f"Option {option_index}")
                             if isinstance(option, dict)
                             else option
                         )
-                        self.console.print(f"  {index}. [cyan]{label_text}[/cyan]")
+                        self.console.print(f"  {option_index}. [cyan]{label_text}[/cyan]")
 
                     min_selections = metadata.get("min", 0)
                     max_selections = metadata.get("max", len(options))
@@ -290,15 +290,15 @@ class CLIHITLHandler:
                 else:
                     # Single selection
                     self.console.print("\n[bold]Options:[/bold]")
-                    for index, option in enumerate(options, 1):
+                    for option_index, option in enumerate(options, 1):
                         if isinstance(option, dict):
-                            label_text = option.get("label", f"Option {index}")
+                            label_text = option.get("label", f"Option {option_index}")
                             description = option.get("description", "")
-                            self.console.print(f"  {index}. [cyan]{label_text}[/cyan]")
+                            self.console.print(f"  {option_index}. [cyan]{label_text}[/cyan]")
                             if description:
                                 self.console.print(f"     [dim]{description}[/dim]")
                         else:
-                            self.console.print(f"  {index}. [cyan]{option}[/cyan]")
+                            self.console.print(f"  {option_index}. [cyan]{option}[/cyan]")
 
                     while True:
                         choice_str = Prompt.ask("Select option (number)", console=self.console)

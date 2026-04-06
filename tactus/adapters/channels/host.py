@@ -199,7 +199,7 @@ class HostControlChannel(InProcessChannel):
         Args:
             request: The control request to display
         """
-        ...
+        raise NotImplementedError("Subclasses must implement _display_request()")
 
     @abstractmethod
     def _prompt_for_input(self, request: ControlRequest) -> Optional[Any]:
@@ -215,7 +215,7 @@ class HostControlChannel(InProcessChannel):
         Returns:
             The user's response value, or None if cancelled/interrupted
         """
-        ...
+        raise NotImplementedError("Subclasses must implement _prompt_for_input()")
 
     @abstractmethod
     def _show_cancelled(self, reason: str) -> None:
@@ -227,7 +227,7 @@ class HostControlChannel(InProcessChannel):
         Args:
             reason: Reason for cancellation (e.g., "Responded via tactus_cloud")
         """
-        ...
+        raise NotImplementedError("Subclasses must implement _show_cancelled()")
 
     def is_cancelled(self) -> bool:
         """

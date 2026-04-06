@@ -189,7 +189,7 @@ class CodingAssistantAgent:
 
         except Exception as e:
             logger.error(f"Error processing message: {e}", exc_info=True)
-            error_response = f"I encountered an error: {str(e)}"
+            error_response = "I encountered an internal error while processing your request."
 
             self.messages.append({"role": "assistant", "content": error_response})
 

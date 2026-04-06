@@ -712,7 +712,7 @@ class TactusDSLVisitor(LuaParserVisitor):
 
         return None
 
-    def _process_dsl_call(self, function_name: str, ctx: LuaParser.FunctioncallContext):
+    def _process_dsl_call(self, function_name: str, ctx: LuaParser.FunctioncallContext) -> None:
         """Extract arguments and register declaration."""
         argument_values = self._extract_arguments(ctx)
 
@@ -725,7 +725,8 @@ class TactusDSLVisitor(LuaParserVisitor):
         elif function_name == "Agent":  # CamelCase only
             # Skip Agent calls inside function bodies - they're runtime lookups, not declarations
             if self.in_function_body:
-                return self.visitChildren(ctx)
+                self.visitChildren(ctx)
+                return None
 
             if (
                 argument_values and len(argument_values) >= 1
@@ -760,7 +761,8 @@ class TactusDSLVisitor(LuaParserVisitor):
         elif function_name == "Model":  # CamelCase only
             # Skip Model calls inside function bodies - they're runtime lookups, not declarations
             if self.in_function_body:
-                return self.visitChildren(ctx)
+                self.visitChildren(ctx)
+                return None
             if argument_values and len(argument_values) >= 1:
                 # Check if this is assignment syntax (single dict arg) or curried syntax (name + dict)
                 if len(argument_values) == 1 and isinstance(argument_values[0], dict):
@@ -807,7 +809,7 @@ class TactusDSLVisitor(LuaParserVisitor):
                     )
                 else:
                     # Invalid syntax
-                    return
+                    return None
 
                 # Register that this named procedure exists (validation needs to know about 'main')
                 # We use a stub/placeholder since the actual function will be registered at runtime
@@ -962,6 +964,8 @@ class TactusDSLVisitor(LuaParserVisitor):
                     )
                     # Register the toolset (validation only, no runtime impl yet)
                     self.builder.register_toolset(toolset_name, config)
+
+        return None
 
     def _extract_arguments(self, ctx: LuaParser.FunctioncallContext) -> list:
         """Extract function arguments from parse tree.

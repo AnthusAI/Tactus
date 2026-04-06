@@ -43,10 +43,10 @@ class LSPServer:
             if method == "initialize":
                 result = self._handle_initialize(params)
             elif method == "textDocument/didOpen":
-                result = self._handle_did_open(params)
+                self._handle_did_open(params)
                 return None  # Notification, no response
             elif method == "textDocument/didChange":
-                result = self._handle_did_change(params)
+                self._handle_did_change(params)
                 return None  # Notification, no response
             elif method == "textDocument/completion":
                 result = self._handle_completion(params)
@@ -63,6 +63,8 @@ class LSPServer:
         except Exception as e:
             logger.error(f"Error handling {method}: {e}", exc_info=True)
             return self._error_response(msg_id, -32603, str(e))
+
+        return None
 
     def handle_notification(self, message: Dict[str, Any]):
         """Handle LSP notification (no response expected)."""

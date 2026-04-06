@@ -85,7 +85,7 @@ class DummyCLIControlChannel:
 def _patch_runtime_dependencies(
     monkeypatch, *, sandbox_config=None, docker_available=True, validator_factory=None
 ):
-    monkeypatch.setattr("tactus.core.config_manager.ConfigManager", lambda: DummyConfigManager())
+    monkeypatch.setattr("tactus.core.config_manager.ConfigManager", DummyConfigManager)
     monkeypatch.setattr(cli_app, "TactusRuntime", DummyRuntime)
     if validator_factory is None:
 
@@ -474,7 +474,7 @@ def test_run_tactus_result_import_error(tmp_path, monkeypatch):
 
     class BrokenModule:
         def __getattr__(self, _name):
-            raise RuntimeError("boom")
+            raise AttributeError("boom")
 
     monkeypatch.setitem(sys.modules, "tactus.protocols.result", BrokenModule())
 
@@ -748,9 +748,7 @@ def test_run_skips_dev_mode_detection_when_configured(tmp_path, monkeypatch):
     _patch_runtime_dependencies(monkeypatch, sandbox_config=CaptureSandboxConfig)
     monkeypatch.setattr(
         "tactus.core.config_manager.ConfigManager",
-        lambda: type(
-            "Cfg", (), {"load_cascade": lambda *_args: {"sandbox": {"dev_mode": False}}}
-        )(),
+        type("Cfg", (), {"load_cascade": lambda *_args: {"sandbox": {"dev_mode": False}}}),
     )
     monkeypatch.setattr(cli_app.console, "print", lambda *_args, **_kwargs: None)
 
@@ -887,7 +885,7 @@ def test_run_sandbox_defaults_enabled(tmp_path, monkeypatch):
     _patch_runtime_dependencies(monkeypatch, sandbox_config=CaptureSandboxConfig)
     monkeypatch.setattr(
         "tactus.core.config_manager.ConfigManager",
-        lambda: type("Cfg", (), {"load_cascade": lambda *_args: {"sandbox": {}}})(),
+        type("Cfg", (), {"load_cascade": lambda *_args: {"sandbox": {}}}),
     )
     monkeypatch.setattr(cli_app.console, "print", lambda *_args, **_kwargs: None)
 
@@ -922,7 +920,7 @@ def test_run_sandbox_uses_configured_enabled_value(tmp_path, monkeypatch):
     _patch_runtime_dependencies(monkeypatch, sandbox_config=CaptureSandboxConfig)
     monkeypatch.setattr(
         "tactus.core.config_manager.ConfigManager",
-        lambda: type("Cfg", (), {"load_cascade": lambda *_args: {"sandbox": {"enabled": False}}})(),
+        type("Cfg", (), {"load_cascade": lambda *_args: {"sandbox": {"enabled": False}}}),
     )
     monkeypatch.setattr(cli_app.console, "print", lambda *_args, **_kwargs: None)
 

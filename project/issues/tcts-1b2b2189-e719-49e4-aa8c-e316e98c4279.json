@@ -1,0 +1,31 @@
+{
+  "id": "tcts-1b2b2189-e719-49e4-aa8c-e316e98c4279",
+  "title": "Remediate JS/TS security findings (prototype pollution + indirect command injection)",
+  "description": "",
+  "type": "bug",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "@me",
+  "creator": null,
+  "parent": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "461ef43b-fc89-4785-9ffa-889222299f4a",
+      "author": "derek.norrbom",
+      "text": "Starting remediation for js/prototype-pollution-utility and js/indirect-command-line-injection with minimal behavior-safe guards.",
+      "created_at": "2026-04-03T21:29:32.675938Z"
+    },
+    {
+      "id": "3041a77a-2ac0-4594-b62b-dc1e78daa986",
+      "author": "derek.norrbom",
+      "text": "Remediated both findings and verified in quiet mode.\n- build-backend.mjs: sanitize/validate PYTHON_CMD before command construction.\n- PreferencesView.tsx: block prototype keys and switch nested assignment to defineProperty-based updates.\nValidation: rcql -q --lang javascript-typescript --no-fail => Total: 0; cd tactus-ide/frontend && npm run build passed.",
+      "created_at": "2026-04-03T21:33:52.834348Z"
+    }
+  ],
+  "created_at": "2026-04-03T21:29:25.821386Z",
+  "updated_at": "2026-04-03T21:33:53.074455Z",
+  "closed_at": "2026-04-03T21:33:53.074455Z",
+  "custom": {}
+}

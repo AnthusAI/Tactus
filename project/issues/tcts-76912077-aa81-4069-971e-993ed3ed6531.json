@@ -1,0 +1,25 @@
+{
+  "id": "tcts-76912077-aa81-4069-971e-993ed3ed6531",
+  "title": "Fix CI regressions after error-sanitization changes",
+  "description": "",
+  "type": "bug",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "@me",
+  "creator": null,
+  "parent": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "feaaaa69-a7ac-49dd-b30f-ad76ac3b0c3f",
+      "author": "derek.norrbom",
+      "text": "Fixing two CI regressions: retain sanitized SSE error expectation in chat test, and restore safe path-escape bad-request message while keeping generic sanitization for other ValueErrors.",
+      "created_at": "2026-04-03T22:06:20.477712Z"
+    }
+  ],
+  "created_at": "2026-04-03T22:06:13.006005Z",
+  "updated_at": "2026-04-03T22:06:36.293813Z",
+  "closed_at": "2026-04-03T22:06:36.293813Z",
+  "custom": {}
+}

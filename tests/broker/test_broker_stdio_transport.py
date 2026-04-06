@@ -179,7 +179,7 @@ async def test_request_writes_and_yields(monkeypatch):
 
     task = asyncio.create_task(feed_events())
     events = await run_request()
-    await task
+    await asyncio.wait_for(task, timeout=1)
 
     assert events[0]["event"] == "chunk"
     assert events[-1]["event"] == "done"

@@ -5,7 +5,10 @@ import sys
 
 import pytest
 
-from tactus.testing.gherkin_parser import parse_gherkin, GherkinParser
+import tactus.testing.gherkin_parser as gherkin_parser
+
+parse_gherkin = gherkin_parser.parse_gherkin
+GherkinParser = gherkin_parser.GherkinParser
 
 
 def test_parse_gherkin_valid_feature():
@@ -34,8 +37,6 @@ def test_parser_rejects_missing_feature():
 
 
 def test_parser_requires_gherkin_dependency(monkeypatch):
-    import tactus.testing.gherkin_parser as gherkin_parser
-
     monkeypatch.setattr(gherkin_parser, "GHERKIN_AVAILABLE", False)
 
     with pytest.raises(ImportError):
@@ -51,7 +52,7 @@ def test_parse_handles_document_without_feature(monkeypatch):
 
 
 def test_gherkin_import_error_path(monkeypatch):
-    import tactus.testing.gherkin_parser as original_module
+    original_module = gherkin_parser
 
     original_import = builtins.__import__
 

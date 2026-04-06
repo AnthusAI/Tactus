@@ -1,5 +1,7 @@
 from tactus.core.message_history_manager import MessageHistoryManager
-from tactus.primitives.message_history import MessageHistoryPrimitive
+import tactus.primitives.message_history as message_history
+
+MessageHistoryPrimitive = message_history.MessageHistoryPrimitive
 
 
 class FakeMessage:
@@ -309,7 +311,15 @@ def test_get_handles_bad_message_object():
 
     class BadMessage:
         def __getattr__(self, _name):
-            raise RuntimeError("boom")
+            raise AttributeError("missing")
+
+        @property
+        def role(self):
+            raise ValueError("boom")
+
+        @property
+        def content(self):
+            raise ValueError("boom")
 
     manager.shared_history = [BadMessage()]
     messages = history.get()
@@ -378,7 +388,15 @@ def test_serialize_messages_fallback_on_bad_message():
 
     class BadMessage:
         def __getattr__(self, _name):
-            raise RuntimeError("boom")
+            raise AttributeError("missing")
+
+        @property
+        def role(self):
+            raise ValueError("boom")
+
+        @property
+        def content(self):
+            raise ValueError("boom")
 
     result = history._serialize_messages([BadMessage()])
     assert result[0]["role"] == "unknown"
@@ -475,8 +493,6 @@ def test_fallback_types_when_pydantic_ai_missing():
     import importlib
     import sys
     import types
-
-    import tactus.primitives.message_history as message_history
 
     original_pydantic = sys.modules.get("pydantic_ai")
     original_messages = sys.modules.get("pydantic_ai.messages")

@@ -1,0 +1,55 @@
+{
+  "id": "tcts-f100e838-f748-4395-ac13-d722c6c2782c",
+  "title": "Harden ANTLR Python generation with post-generation lint normalization",
+  "description": "",
+  "type": "chore",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "b3408c2a-36b2-4517-a204-cd8c20e41f3c",
+      "author": "derek.norrbom",
+      "text": "Implementing source-level fix: make parser generation deterministic and scanner-compliant by running post-generation cleanup (ruff PIE790 fix + black) on generated Python parser files.",
+      "created_at": "2026-04-03T00:05:08.336749Z"
+    },
+    {
+      "id": "09c6aa51-e06e-4152-af5e-5ac618b9b55e",
+      "author": "derek.norrbom",
+      "text": "Implemented source-level fix. Updated Makefile generate-python-parser target to post-process generated LuaParser with  and , and updated validation README manual generation instructions with the same steps. This makes regenerated parser output deterministic and codeql/format-compliant without manual hand edits.",
+      "created_at": "2026-04-03T00:05:33.675577Z"
+    },
+    {
+      "id": "01c4d0e2-7aee-46f3-9d9f-ae020435e58e",
+      "author": "derek.norrbom",
+      "text": "Correction note: post-generation commands are python3 -m poetry run ruff check tactus/validation/generated/LuaParser.py --select PIE790 --fix and python3 -m poetry run black tactus/validation/generated/LuaParser.py.",
+      "created_at": "2026-04-03T00:05:41.253450Z"
+    },
+    {
+      "id": "559e1dbd-fed1-44b7-95f1-eb0a08430ff6",
+      "author": "derek.norrbom",
+      "text": "Attempted to validate by regenerating parser in this environment, but blocked: Docker unavailable ( not found), Java unavailable, and antlr tool not installed. Build target Generating Python parser from Lua grammar...\nUsing Docker with eclipse-temurin:17-jre...\ndocker run --rm \\\n\t\t-v \"$(pwd)\":/work \\\n\t\t-v /tmp:/tmp \\\n\t\t-w /work \\\n\t\teclipse-temurin:17-jre \\\n\t\tjava -jar /tmp/antlr-4.13.1-complete.jar \\\n\t\t-Dlanguage=Python3 \\\n\t\t-visitor \\\n\t\t-no-listener \\\n\t\t-o /work/tactus/validation/generated \\\n\t\t/work/tactus/validation/grammar/LuaLexer.g4 \\\n\t\t/work/tactus/validation/grammar/LuaParser.g4 fails before generation. Source-level post-generation normalization steps remain in Makefile/README and are ready for environments with Docker/Java.",
+      "created_at": "2026-04-03T00:06:32.060662Z"
+    },
+    {
+      "id": "38269034-ccc6-43ae-8a20-c20475937b60",
+      "author": "derek.norrbom",
+      "text": "Validation run in Docker-enabled shell completed. Generating Python parser from Lua grammar...\nUsing Docker with eclipse-temurin:17-jre...\ndocker run --rm \\\n\t\t-v \"$(pwd)\":/work \\\n\t\t-v /tmp:/tmp \\\n\t\t-w /work \\\n\t\teclipse-temurin:17-jre \\\n\t\tjava -jar /tmp/antlr-4.13.1-complete.jar \\\n\t\t-Dlanguage=Python3 \\\n\t\t-visitor \\\n\t\t-no-listener \\\n\t\t-o /work/tactus/validation/generated \\\n\t\t/work/tactus/validation/grammar/LuaLexer.g4 \\\n\t\t/work/tactus/validation/grammar/LuaParser.g4 regenerated LuaLexer/LuaParser/LuaParserVisitor, applied post-generation normalization, and checks passed (,  on LuaParser, ).",
+      "created_at": "2026-04-03T00:10:14.712459Z"
+    },
+    {
+      "id": "3bc47d07-c113-4cfc-92de-181a20f26d0e",
+      "author": "derek.norrbom",
+      "text": "Correction: validation run was performed from a login shell where Docker is available. Executed make generate-python-parser, then verified with python3 -m poetry run ruff check tactus/validation/generated/LuaParser.py, python3 -m poetry run black --check tactus/validation/generated/LuaParser.py, and python3 -m pytest -q tests/core/test_yaml_parser.py (all passed).",
+      "created_at": "2026-04-03T00:10:17.498289Z"
+    }
+  ],
+  "created_at": "2026-04-03T00:05:05.953879Z",
+  "updated_at": "2026-04-03T00:10:17.498289Z",
+  "closed_at": "2026-04-03T00:05:33.686971Z",
+  "custom": {}
+}

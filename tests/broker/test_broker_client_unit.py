@@ -82,9 +82,7 @@ async def test_request_stdio_filters_request_id(monkeypatch):
             yield event
 
     monkeypatch.setattr("tactus.broker.client._STDIO_TRANSPORT.request", fake_request)
-    monkeypatch.setattr(
-        "tactus.broker.client.uuid.uuid4", lambda: type("u", (), {"hex": "match"})()
-    )
+    monkeypatch.setattr("tactus.broker.client.uuid.uuid4", type("u", (), {"hex": "match"}))
 
     client = BrokerClient("stdio")
     results = []
@@ -115,7 +113,7 @@ async def test_request_unix_socket(monkeypatch):
     monkeypatch.setattr("tactus.broker.client.asyncio.open_unix_connection", fake_open)
     monkeypatch.setattr("tactus.broker.client.read_message", fake_read)
     monkeypatch.setattr("tactus.broker.client.write_message", fake_write)
-    monkeypatch.setattr("tactus.broker.client.uuid.uuid4", lambda: type("u", (), {"hex": "req"})())
+    monkeypatch.setattr("tactus.broker.client.uuid.uuid4", type("u", (), {"hex": "req"}))
 
     client = BrokerClient("/tmp/socket")
     events = []
@@ -159,7 +157,7 @@ async def test_request_tls_sets_ssl_context(monkeypatch):
     monkeypatch.setattr("tactus.broker.client.asyncio.open_connection", fake_open)
     monkeypatch.setattr("tactus.broker.client.read_message", fake_read)
     monkeypatch.setattr("tactus.broker.client.write_message", fake_write)
-    monkeypatch.setattr("tactus.broker.client.uuid.uuid4", lambda: type("u", (), {"hex": "req"})())
+    monkeypatch.setattr("tactus.broker.client.uuid.uuid4", type("u", (), {"hex": "req"}))
 
     client = BrokerClient("tls://localhost:1234")
     events = []
@@ -172,7 +170,7 @@ async def test_request_tls_sets_ssl_context(monkeypatch):
 @pytest.mark.asyncio
 async def test_request_tls_insecure_updates_ssl_context(monkeypatch):
     client = BrokerClient("tls://localhost:1234")
-    monkeypatch.setattr("tactus.broker.client.uuid.uuid4", lambda: type("u", (), {"hex": "req"})())
+    monkeypatch.setattr("tactus.broker.client.uuid.uuid4", type("u", (), {"hex": "req"}))
     monkeypatch.setenv("TACTUS_BROKER_TLS_INSECURE", "yes")
     ssl_module = ssl
 
@@ -210,7 +208,7 @@ async def test_request_tls_insecure_updates_ssl_context(monkeypatch):
 @pytest.mark.asyncio
 async def test_request_tcp_strips_path_and_ignores_mismatch(monkeypatch):
     client = BrokerClient("tcp://localhost:1234/extra")
-    monkeypatch.setattr("tactus.broker.client.uuid.uuid4", lambda: type("u", (), {"hex": "req"})())
+    monkeypatch.setattr("tactus.broker.client.uuid.uuid4", type("u", (), {"hex": "req"}))
 
     class FakeWriter:
         def close(self):
@@ -249,7 +247,7 @@ async def test_request_tcp_strips_path_and_ignores_mismatch(monkeypatch):
 @pytest.mark.asyncio
 async def test_request_tcp_write_message_type_error(monkeypatch):
     client = BrokerClient("tcp://localhost:1234")
-    monkeypatch.setattr("tactus.broker.client.uuid.uuid4", lambda: type("u", (), {"hex": "req"})())
+    monkeypatch.setattr("tactus.broker.client.uuid.uuid4", type("u", (), {"hex": "req"}))
 
     class FakeWriter:
         def close(self):
@@ -275,7 +273,7 @@ async def test_request_tcp_write_message_type_error(monkeypatch):
 @pytest.mark.asyncio
 async def test_request_tcp_close_error_is_ignored(monkeypatch):
     client = BrokerClient("tcp://localhost:1234")
-    monkeypatch.setattr("tactus.broker.client.uuid.uuid4", lambda: type("u", (), {"hex": "req"})())
+    monkeypatch.setattr("tactus.broker.client.uuid.uuid4", type("u", (), {"hex": "req"}))
 
     class FakeWriter:
         def close(self):
@@ -307,7 +305,7 @@ async def test_request_tcp_close_error_is_ignored(monkeypatch):
 @pytest.mark.asyncio
 async def test_request_unix_close_error_is_ignored(monkeypatch):
     client = BrokerClient("/tmp/socket")
-    monkeypatch.setattr("tactus.broker.client.uuid.uuid4", lambda: type("u", (), {"hex": "req"})())
+    monkeypatch.setattr("tactus.broker.client.uuid.uuid4", type("u", (), {"hex": "req"}))
 
     class FakeWriter:
         def close(self):
@@ -386,7 +384,7 @@ async def test_call_tool_ignores_non_terminal_events():
 @pytest.mark.asyncio
 async def test_request_tls_insecure_env_true_branch(monkeypatch):
     client = BrokerClient("tls://localhost:1234")
-    monkeypatch.setattr("tactus.broker.client.uuid.uuid4", lambda: type("u", (), {"hex": "req"})())
+    monkeypatch.setattr("tactus.broker.client.uuid.uuid4", type("u", (), {"hex": "req"}))
     monkeypatch.setenv("TACTUS_BROKER_TLS_INSECURE", "1")
     ssl_module = ssl
 
@@ -424,7 +422,7 @@ async def test_request_tls_insecure_env_true_branch(monkeypatch):
 @pytest.mark.asyncio
 async def test_request_tls_insecure_env_false_branch(monkeypatch):
     client = BrokerClient("tls://localhost:1234")
-    monkeypatch.setattr("tactus.broker.client.uuid.uuid4", lambda: type("u", (), {"hex": "req"})())
+    monkeypatch.setattr("tactus.broker.client.uuid.uuid4", type("u", (), {"hex": "req"}))
     monkeypatch.delenv("TACTUS_BROKER_TLS_INSECURE", raising=False)
 
     class FakeSSLContext:

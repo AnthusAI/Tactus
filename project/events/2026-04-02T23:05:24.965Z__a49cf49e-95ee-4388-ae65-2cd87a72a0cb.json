@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "a49cf49e-95ee-4388-ae65-2cd87a72a0cb",
+  "issue_id": "tcts-0813c8eb-3bb2-4078-898f-e4d481ca5d5b",
+  "event_type": "issue_created",
+  "occurred_at": "2026-04-02T23:05:24.965Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "assignee": null,
+    "description": "",
+    "issue_type": "bug",
+    "labels": [],
+    "parent": "tcts-68f85b19-3f64-406e-8ef0-7ce0bddc3574",
+    "priority": 1,
+    "status": "open",
+    "title": "Stabilize local test-ci.sh execution environment for Poetry/dev deps"
+  }
+}

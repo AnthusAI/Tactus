@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "a3536d52-2b55-49f4-b76a-ce1e78b9b08d",
+  "issue_id": "tcts-9e3d16e0-c97d-4e4a-865b-f716a8ea9790",
+  "event_type": "issue_created",
+  "occurred_at": "2026-04-02T22:53:24.416Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "assignee": null,
+    "description": "",
+    "issue_type": "bug",
+    "labels": [],
+    "parent": "tcts-6603b94e-360c-4d14-90a9-f5291cfb72cb",
+    "priority": 3,
+    "status": "open",
+    "title": "Address py/incomplete-ordering findings in vendored biplist paths"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "id": "tcts-875c46a6-42f3-476a-9907-595958c83187",
+  "title": "Regenerate Lua parser/lexer from source to clear generated Python findings",
+  "description": "",
+  "type": "bug",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "f9fc4946-6b15-4b84-8027-a86fc92cd1ac",
+      "author": "derek.norrbom",
+      "text": "Starting source-level regeneration flow for Lua parser/lexer. Plan: update generator source (LuaLexerBase.py and/or grammar/tooling), run make generate-python-parser, verify tests and rcql, and avoid direct manual edits to generated outputs.",
+      "created_at": "2026-04-03T17:23:22.353204Z"
+    },
+    {
+      "id": "6e3f8d9f-db64-477a-934d-db89d209a0a3",
+      "author": "derek.norrbom",
+      "text": "Implemented source-level fix: added scripts/normalize_generated_python_parser.py and wired it into make generate-python-parser. Regenerated parser/lexer from grammar via Docker. Fresh rcql python scan now reports zero findings (Total: 0). Validation: black/ruff checks passed on generator outputs and script; pytest tests/validation tests/cli/test_validate_command.py -q passed (223 passed).",
+      "created_at": "2026-04-03T17:27:24.589865Z"
+    }
+  ],
+  "created_at": "2026-04-03T17:23:15.113338Z",
+  "updated_at": "2026-04-03T17:27:24.761761Z",
+  "closed_at": "2026-04-03T17:27:24.761761Z",
+  "custom": {}
+}

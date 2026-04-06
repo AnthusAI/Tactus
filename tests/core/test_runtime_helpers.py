@@ -13,8 +13,9 @@ from tactus.core.registry import (
     OutputFieldDeclaration,
     ProcedureRegistry,
 )
-from tactus.core.runtime import TactusRuntime
-from tactus.core import runtime as runtime_module
+import tactus.core.runtime as runtime_module
+
+TactusRuntime = runtime_module.TactusRuntime
 
 
 class DummyState:
@@ -87,8 +88,6 @@ return { greeting = "hi" }
 
 
 def test_runtime_imports_yaml_fallback_when_parser_missing(monkeypatch):
-    import tactus.core.runtime as runtime_module
-
     original_import = builtins.__import__
     module_name = "tactus.core.runtime_missing_yaml"
     loader = importlib.machinery.SourceFileLoader(module_name, runtime_module.__file__)

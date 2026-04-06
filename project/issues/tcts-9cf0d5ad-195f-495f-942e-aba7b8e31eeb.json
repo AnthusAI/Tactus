@@ -1,0 +1,25 @@
+{
+  "id": "tcts-9cf0d5ad-195f-495f-942e-aba7b8e31eeb",
+  "title": "Fix nested-loop and implicit-string-concat findings (batch 3)",
+  "description": "",
+  "type": "sub-task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-f4733741-f8e2-47da-8402-6e9abd613ba1",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "44d808ee-0ecb-44fe-a1dd-a9860d0c03e8",
+      "author": "derek.norrbom",
+      "text": "Completed: fixed py/nested-loops-with-same-variable in tactus/adapters/cli_hitl.py and py/implicit-string-concatenation-in-list in scripts/demo_context_quality_{short,long}.py. Validation: black/ruff passed; pytest tests/adapters -q passed.",
+      "created_at": "2026-04-03T17:03:41.577903Z"
+    }
+  ],
+  "created_at": "2026-04-03T17:00:03.793793Z",
+  "updated_at": "2026-04-03T17:03:41.588880Z",
+  "closed_at": "2026-04-03T17:03:41.588880Z",
+  "custom": {}
+}

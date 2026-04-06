@@ -1,0 +1,31 @@
+{
+  "id": "tcts-7b203a76-cf3e-44e1-afd4-d9232a1112b3",
+  "title": "Fix CI ruff E703 in generated LuaLexer and generation post-step",
+  "description": "",
+  "type": "bug",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "4a486383-487d-4717-8d82-ee0c45ea827c",
+      "author": "derek.norrbom",
+      "text": "Applying immediate fix for generated LuaLexer E703 and hardening generation post-step to normalize both LuaLexer.py and LuaParser.py so this does not regress.",
+      "created_at": "2026-04-03T00:12:55.743054Z"
+    },
+    {
+      "id": "4266b680-d9ea-4a66-8a5f-5b62e18e3751",
+      "author": "derek.norrbom",
+      "text": "Resolved: removed E703 semicolon in generated LuaLexer, updated generation pipeline to normalize BOTH generated files with ruff --select PIE790,E703 --fix and black, and updated validation README instructions accordingly. Verified with CI-equivalent ruff/black checks and parser test.",
+      "created_at": "2026-04-03T00:13:31.720916Z"
+    }
+  ],
+  "created_at": "2026-04-03T00:12:52.142210Z",
+  "updated_at": "2026-04-03T00:13:31.731639Z",
+  "closed_at": "2026-04-03T00:13:31.731639Z",
+  "custom": {}
+}

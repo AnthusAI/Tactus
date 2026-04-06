@@ -1,0 +1,31 @@
+{
+  "id": "tcts-56ecc3ce-60ab-4702-8b02-5cea866e3618",
+  "title": "Fix CI regression from codeql import-hygiene batch",
+  "description": "",
+  "type": "bug",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "88d0d998-765b-44b1-b89b-5a1b93ac06bd",
+      "author": "derek.norrbom",
+      "text": "Investigating failed run 23926590563. Symptom clusters: CLI test/eval commands now returning validation errors; IDE server trace/stream tests returning wrong statuses or missing mock_tools path. Hypothesis: import-hoist refactors in tactus/cli/app.py and tactus/ide/server.py changed monkeypatch-sensitive behavior.",
+      "created_at": "2026-04-02T23:32:12.009902Z"
+    },
+    {
+      "id": "79af8772-9ee0-462d-a7cd-24723a8b7bb0",
+      "author": "derek.norrbom",
+      "text": "Root cause confirmed and fixed: import-hoisting refactor in tactus/cli/app.py and tactus/ide/server.py changed monkeypatch-sensitive runtime behavior, causing CLI validation-path failures and IDE trace/stream endpoint behavior drift in CI. Applied targeted rollback of those two files to pre-refactor behavior and reran failing suites locally: 195 passed, 0 failed across the previously failing test groups.",
+      "created_at": "2026-04-02T23:34:43.607529Z"
+    }
+  ],
+  "created_at": "2026-04-02T23:31:52.836129Z",
+  "updated_at": "2026-04-02T23:34:43.618050Z",
+  "closed_at": "2026-04-02T23:34:43.618050Z",
+  "custom": {}
+}

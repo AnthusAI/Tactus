@@ -1,0 +1,25 @@
+{
+  "id": "tcts-f4733741-f8e2-47da-8402-6e9abd613ba1",
+  "title": "Implement low-risk first-party Python remediation batch",
+  "description": "",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "c04bd81b-cdff-4f8f-b183-ea5bb11b25e1",
+      "author": "derek.norrbom",
+      "text": "Batch complete. Cleared side-effect-in-assert, nested-loops-with-same-variable, implicit-string-concatenation-in-list, and import-own-module findings in first-party code. Fresh rcql scan moved python warning count 25 -> 18.",
+      "created_at": "2026-04-03T17:03:41.625201Z"
+    }
+  ],
+  "created_at": "2026-04-03T16:59:58.483652Z",
+  "updated_at": "2026-04-03T17:03:41.636183Z",
+  "closed_at": "2026-04-03T17:03:41.636183Z",
+  "custom": {}
+}

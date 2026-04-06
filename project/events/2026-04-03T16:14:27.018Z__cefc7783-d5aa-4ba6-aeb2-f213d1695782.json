@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "cefc7783-d5aa-4ba6-aeb2-f213d1695782",
+  "issue_id": "tcts-75106599-a8d3-4997-b2cf-207db25cec4a",
+  "event_type": "issue_created",
+  "occurred_at": "2026-04-03T16:14:27.018Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "assignee": null,
+    "description": "Fix top-confidence py/empty-except findings by replacing bare except clauses with specific exceptions and explicit handling semantics; validate with focused tests and fresh rcql scan.",
+    "issue_type": "task",
+    "labels": [],
+    "parent": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+    "priority": 1,
+    "status": "open",
+    "title": "Remediate py/empty-except in first-party python runtime paths"
+  }
+}

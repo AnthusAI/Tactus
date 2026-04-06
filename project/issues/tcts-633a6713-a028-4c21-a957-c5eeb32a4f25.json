@@ -1,0 +1,25 @@
+{
+  "id": "tcts-633a6713-a028-4c21-a957-c5eeb32a4f25",
+  "title": "Remediate low-risk first-party Python findings batch (imports/asserts/loops/string list)",
+  "description": "",
+  "type": "bug",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "7f279cf3-6821-4d0c-b738-3fedceb96314",
+      "author": "derek.norrbom",
+      "text": "Remediation batch completed via task tcts-f47337. Fresh rcql python scan now reports 18 warnings (down from 25).",
+      "created_at": "2026-04-03T17:03:41.647348Z"
+    }
+  ],
+  "created_at": "2026-04-03T16:59:52.502203Z",
+  "updated_at": "2026-04-03T17:03:41.658514Z",
+  "closed_at": "2026-04-03T17:03:41.658514Z",
+  "custom": {}
+}

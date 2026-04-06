@@ -1,0 +1,31 @@
+{
+  "id": "tcts-d2a68acc-9fa5-425d-9a80-b43c9343c170",
+  "title": "Fix residual py/ineffectual-statement in tests and remaining files",
+  "description": "Address remaining ineffectual statements in tests and any residual first-party files after core batch, then verify with focused rcql report-only check.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "52b0747e-fc59-4ea4-b952-ccda6baa9674",
+      "author": "derek.norrbom",
+      "text": "Worker C starting scope: fix remaining first-party py/ineffectual-statement in tests/broker/test_broker_stdio_transport.py; if clean, opportunistically fix easy py/repeated-import in tactus/cli/app.py and tactus/ide/server.py; run focused pytest + ruff and report results.",
+      "created_at": "2026-04-03T15:19:09.595165Z"
+    },
+    {
+      "id": "7f7d9840-848e-488a-9d36-ce9b4a55759d",
+      "author": "derek.norrbom",
+      "text": "Worker C complete for assigned scope: fixed py/ineffectual-statement in tests/broker/test_broker_stdio_transport.py (replaced bare await statement with await asyncio.wait_for(task, timeout=1)); opportunistically removed redundant json re-imports flagged by py/repeated-import in tactus/cli/app.py and tactus/ide/server.py. Validation: poetry run ruff check on edited files passed; poetry run pytest tests/broker/test_broker_stdio_transport.py passed (8).",
+      "created_at": "2026-04-03T15:20:55.440945Z"
+    }
+  ],
+  "created_at": "2026-04-03T15:18:36.709539Z",
+  "updated_at": "2026-04-03T15:20:56.469261Z",
+  "closed_at": "2026-04-03T15:20:56.469261Z",
+  "custom": {}
+}

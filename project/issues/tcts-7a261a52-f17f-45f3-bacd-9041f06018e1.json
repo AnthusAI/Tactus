@@ -1,0 +1,25 @@
+{
+  "id": "tcts-7a261a52-f17f-45f3-bacd-9041f06018e1",
+  "title": "Fix CI black check failure for generated LuaParserVisitor",
+  "description": "",
+  "type": "bug",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "c045072a-199a-4078-831e-ab5ed3ab066e",
+      "author": "derek.norrbom",
+      "text": "Reproduced CI failure locally: black --check requested reformat for tactus/validation/generated/LuaParserVisitor.py. Fixed by formatting that file and updating generation pipeline/docs so visitor formatting runs as part of make generate-python-parser. Validation: black --check tactus/ tests/ features/steps/ passed; ruff check tactus/ tests/ features/steps/ passed.",
+      "created_at": "2026-04-03T17:31:59.893495Z"
+    }
+  ],
+  "created_at": "2026-04-03T17:31:39.929940Z",
+  "updated_at": "2026-04-03T17:31:59.904617Z",
+  "closed_at": "2026-04-03T17:31:59.904617Z",
+  "custom": {}
+}

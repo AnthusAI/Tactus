@@ -28,7 +28,7 @@ async def test_request_stdio_filters_events(monkeypatch):
     monkeypatch.setattr(
         broker_client, "_STDIO_TRANSPORT", type("T", (), {"request": fake_request})()
     )
-    monkeypatch.setattr(broker_client.uuid, "uuid4", lambda: type("U", (), {"hex": "req"})())
+    monkeypatch.setattr(broker_client.uuid, "uuid4", type("U", (), {"hex": "req"}))
 
     events = []
     async for event in client._request("llm.chat", {"k": "v"}):
@@ -63,7 +63,7 @@ async def test_request_tcp_tls(monkeypatch, tmp_path):
     monkeypatch.setenv("TACTUS_BROKER_TLS_INSECURE", "1")
 
     client = broker_client.BrokerClient("tls://localhost:1234")
-    monkeypatch.setattr(broker_client.uuid, "uuid4", lambda: type("U", (), {"hex": "req"})())
+    monkeypatch.setattr(broker_client.uuid, "uuid4", type("U", (), {"hex": "req"}))
 
     reader = object()
     writer = DummyWriter()
@@ -105,7 +105,7 @@ async def test_request_tcp_tls(monkeypatch, tmp_path):
 @pytest.mark.asyncio
 async def test_request_unix_socket_filters(monkeypatch):
     client = broker_client.BrokerClient("/tmp/broker.sock")
-    monkeypatch.setattr(broker_client.uuid, "uuid4", lambda: type("U", (), {"hex": "req"})())
+    monkeypatch.setattr(broker_client.uuid, "uuid4", type("U", (), {"hex": "req"}))
 
     reader = object()
     writer = DummyWriter()

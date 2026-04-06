@@ -52,6 +52,32 @@ _LEVEL_MAP = {
 }
 
 
+def _import_tactus_module():
+    """Lazy import for the top-level tactus package."""
+    import tactus
+
+    return tactus
+
+
+def _import_broker_server_components():
+    """Single import for the various broker server helpers we reuse."""
+    from tactus.broker.server import (
+        BrokerMCPManager,
+        HostToolRegistry,
+        OpenAIChatBackend,
+        TcpBrokerServer,
+    )
+
+    return OpenAIChatBackend, TcpBrokerServer, HostToolRegistry, BrokerMCPManager
+
+
+def _import_broker_stdio_components():
+    """Reuse STDIO constants without duplicating the import."""
+    from tactus.broker.stdio import STDIO_REQUEST_PREFIX, STDIO_TRANSPORT_VALUE
+
+    return STDIO_TRANSPORT_VALUE, STDIO_REQUEST_PREFIX
+
+
 class SandboxError(Exception):
     """Raised when sandbox execution fails."""
 
@@ -155,7 +181,8 @@ class ContainerRunner:
             return
 
         # Get current version and source hash
-        from tactus import __version__
+        tactus_module = _import_tactus_module()
+        tactus_version = getattr(tactus_module, "__version__", None)
 
         # Calculate tactus root from this file's location
         # container_runner.py is in tactus/sandbox/, so root is 2 levels up
@@ -169,14 +196,14 @@ class ContainerRunner:
             logger.info("[SANDBOX] No source tree detected, using PyPI-based sandbox image build")
 
         # Check if rebuild is needed
-        if self.docker_manager.needs_rebuild(__version__, current_hash):
+        if self.docker_manager.needs_rebuild(tactus_version, current_hash):
             logger.info("Sandbox image missing or outdated, rebuilding...")
 
             # Build with source hash
             success, msg = self.docker_manager.build_image(
                 dockerfile_path=dockerfile_path,
                 context_path=tactus_root,
-                version=__version__,
+                version=tactus_version,
                 source_hash=current_hash,
                 verbose=False,
             )
@@ -227,15 +254,15 @@ class ContainerRunner:
 
         # Option 2: Find via the tactus module location
         try:
-            import tactus
+            tactus_module = _import_tactus_module()
 
-            tactus_module_path = Path(tactus.__file__).resolve()
+            tactus_module_path = Path(tactus_module.__file__).resolve()
             # Go up from tactus/__init__.py to the repo root
             repo_root = tactus_module_path.parent.parent
             if (repo_root / "tactus").is_dir() and (repo_root / "pyproject.toml").exists():
                 return repo_root
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Unable to locate Tactus source via module path: %s", exc)
 
         # Option 3: Check current working directory
         cwd = Path.cwd()
@@ -269,8 +296,8 @@ class ContainerRunner:
             repo_root = biblicus_module_path.parents[2]
             if (repo_root / "src" / "biblicus").is_dir():
                 return repo_root
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Unable to locate Biblicus source via module path: %s", exc)
 
         if tactus_src_dir:
             sibling = tactus_src_dir.parent / "Biblicus"
@@ -519,7 +546,7 @@ class ContainerRunner:
                     broker_mcp_servers = {}
 
             if broker_transport == "stdio":
-                from tactus.broker.stdio import STDIO_TRANSPORT_VALUE
+                STDIO_TRANSPORT_VALUE, _ = _import_broker_stdio_components()
 
                 broker_env = {"TACTUS_BROKER_SOCKET": STDIO_TRANSPORT_VALUE}
             elif broker_transport in ("tcp", "tls"):
@@ -529,7 +556,7 @@ class ContainerRunner:
                         "Set sandbox.network to 'bridge' (or another non-'none' mode)."
                     )
 
-                from tactus.broker.server import OpenAIChatBackend, TcpBrokerServer
+                OpenAIChatBackend, TcpBrokerServer, _, _ = _import_broker_server_components()
 
                 ssl_context = None
                 if broker_transport == "tls":
@@ -634,7 +661,7 @@ class ContainerRunner:
                     try:
                         await broker_task
                     except asyncio.CancelledError:
-                        pass
+                        logger.debug("[BROKER] Broker task cancelled after container completion")
             else:
                 result = await self._run_container(
                     docker_cmd,
@@ -699,12 +726,10 @@ class ContainerRunner:
 
         stdio_request_prefix: Optional[str] = None
         if broker_transport == "stdio":
-            from tactus.broker.server import OpenAIChatBackend
-            from tactus.broker.server import HostToolRegistry
-            from tactus.broker.server import BrokerMCPManager
-            from tactus.broker.stdio import STDIO_REQUEST_PREFIX
-
-            stdio_request_prefix = STDIO_REQUEST_PREFIX
+            OpenAIChatBackend, _, HostToolRegistry, BrokerMCPManager = (
+                _import_broker_server_components()
+            )
+            _, stdio_request_prefix = _import_broker_stdio_components()
 
             # Extract OpenAI-specific config if provided
             openai_key = None
@@ -1291,7 +1316,8 @@ class ContainerRunner:
                     try:
                         process.stdin.close()
                         stdin_closed = True
-                    except Exception:
+                    except Exception as exc:
+                        logger.debug("Failed to close container stdin after result: %s", exc)
                         stdin_closed = True
 
                 if wait_task in done:
@@ -1300,8 +1326,8 @@ class ContainerRunner:
             if not stdin_closed:
                 try:
                     process.stdin.close()
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("Failed to close container stdin during finalization: %s", exc)
 
             try:
                 await asyncio.wait_for(stdout_task, timeout=5)
@@ -1309,8 +1335,10 @@ class ContainerRunner:
                 stdout_task.cancel()
                 try:
                     await stdout_task
-                except Exception:
-                    pass
+                except asyncio.CancelledError:
+                    logger.debug("stdout task cancelled after timeout")
+                except Exception as exc:
+                    logger.debug("stdout task failed while cancelling: %s", exc)
 
             try:
                 await asyncio.wait_for(stderr_task, timeout=5)
@@ -1318,8 +1346,10 @@ class ContainerRunner:
                 stderr_task.cancel()
                 try:
                     await stderr_task
-                except Exception:
-                    pass
+                except asyncio.CancelledError:
+                    logger.debug("stderr task cancelled after timeout")
+                except Exception as exc:
+                    logger.debug("stderr task failed while cancelling: %s", exc)
 
             stdout = stdout_bytes.decode("utf-8", errors="replace")
 
@@ -1363,12 +1393,12 @@ class ContainerRunner:
             try:
                 try:
                     process.stdin.close()
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("Failed closing stdin before killing timed-out container: %s", exc)
                 process.kill()
                 await process.wait()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Failed while terminating timed-out container: %s", exc)
             for task in (stdout_task, stderr_task, wait_task):
                 if task is None:  # pragma: no cover
                     continue
@@ -1376,9 +1406,9 @@ class ContainerRunner:
                 try:
                     await task
                 except asyncio.CancelledError:
-                    pass
-                except Exception:
-                    pass
+                    logger.debug("Container stream task cancelled during timeout cleanup")
+                except Exception as exc:
+                    logger.debug("Container stream task error during timeout cleanup: %s", exc)
             raise
 
     def _handle_container_stderr(self, stderr: str) -> None:

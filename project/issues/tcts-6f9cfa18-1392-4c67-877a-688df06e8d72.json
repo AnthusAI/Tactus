@@ -1,0 +1,31 @@
+{
+  "id": "tcts-6f9cfa18-1392-4c67-877a-688df06e8d72",
+  "title": "Fix py/call-to-non-callable findings in tool primitive tests",
+  "description": "",
+  "type": "bug",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "a143b1d1-c2a8-4705-9c87-fe305fbc45f5",
+      "author": "derek.norrbom",
+      "text": "Applying minimal test-only fix: assert callable() on extracted function before invocation so static analyzer sees guarded call.",
+      "created_at": "2026-04-02T23:48:38.921928Z"
+    },
+    {
+      "id": "e9b88402-2de6-4e98-b9f3-ffed0e1bded6",
+      "author": "derek.norrbom",
+      "text": "Completed targeted test-only remediation in tests/primitives/test_tool_primitive.py. Fresh rcql scan confirms py/call-to-non-callable reduced to a single remaining production finding at tactus/adapters/mcp.py:56.",
+      "created_at": "2026-04-02T23:52:13.284200Z"
+    }
+  ],
+  "created_at": "2026-04-02T23:48:36.011248Z",
+  "updated_at": "2026-04-02T23:52:13.462625Z",
+  "closed_at": "2026-04-02T23:52:13.462625Z",
+  "custom": {}
+}

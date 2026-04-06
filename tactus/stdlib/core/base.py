@@ -45,7 +45,7 @@ class BaseClassifier(ABC):
         Returns:
             ClassifierResult with value, confidence, explanation, etc.
         """
-        ...
+        raise NotImplementedError("Subclasses must implement classify()")
 
     def __call__(self, input_value: Any) -> ClassifierResult:
         """
@@ -202,7 +202,7 @@ class BaseExtractor(ABC):
         Returns:
             ExtractorResult with fields dict and validation info
         """
-        ...
+        raise NotImplementedError("Subclasses must implement extract()")
 
     def __call__(self, input_value: Any) -> ExtractorResult:
         """

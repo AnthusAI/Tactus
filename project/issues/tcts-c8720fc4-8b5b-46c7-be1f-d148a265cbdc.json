@@ -1,0 +1,25 @@
+{
+  "id": "tcts-c8720fc4-8b5b-46c7-be1f-d148a265cbdc",
+  "title": "Fix nested-loop and implicit-string-concat findings",
+  "description": "",
+  "type": "sub-task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-75106599-a8d3-4997-b2cf-207db25cec4a",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "237c7140-caa9-4877-8ef4-493e6ed7c5af",
+      "author": "derek.norrbom",
+      "text": "Closed: created under closed parent by mistake; superseded by a new active task hierarchy for this batch.",
+      "created_at": "2026-04-03T16:59:58.458034Z"
+    }
+  ],
+  "created_at": "2026-04-03T16:59:52.554130Z",
+  "updated_at": "2026-04-03T16:59:58.458034Z",
+  "closed_at": "2026-04-03T16:59:58.446590Z",
+  "custom": {}
+}

@@ -1,6 +1,5 @@
 # Generated from /work/tactus/validation/grammar/LuaLexer.g4 by ANTLR 4.13.1
 from antlr4 import *
-from io import StringIO
 import sys
 
 if sys.version_info[1] > 5:
@@ -5216,6 +5215,7 @@ def serializedATN():
 
 
 class LuaLexer(LuaLexerBase):
+
     atn = ATNDeserializer().deserialize(serializedATN())
 
     decisionsToDFA = [DFA(ds, i) for i, ds in enumerate(atn.decisionToState)]
@@ -5546,3 +5546,4 @@ class LuaLexer(LuaLexerBase):
     def SHEBANG_sempred(self, localctx: RuleContext, predIndex: int):
         if predIndex == 0:
             return self.IsLine1Col0()
+        return None

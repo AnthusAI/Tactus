@@ -32,7 +32,7 @@ def test_cli_run_rejects_bad_param_format(cli_runner, minimal_workflow_file):
 
 
 def test_cli_run_rejects_unknown_storage(cli_runner, minimal_workflow_file, monkeypatch):
-    monkeypatch.setattr("tactus.cli.app.TactusValidator", lambda: FakeValidator())
+    monkeypatch.setattr("tactus.cli.app.TactusValidator", FakeValidator)
     result = cli_runner.invoke(
         app, ["run", str(minimal_workflow_file), "--storage", "unknown", "--no-sandbox"]
     )
@@ -43,7 +43,7 @@ def test_cli_run_rejects_unknown_storage(cli_runner, minimal_workflow_file, monk
 def test_cli_run_requires_docker_when_sandbox_required(
     cli_runner, minimal_workflow_file, monkeypatch
 ):
-    monkeypatch.setattr("tactus.cli.app.TactusValidator", lambda: FakeValidator())
+    monkeypatch.setattr("tactus.cli.app.TactusValidator", FakeValidator)
 
     class FakeConfigManager:
         def load_cascade(self, path):

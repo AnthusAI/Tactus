@@ -21,6 +21,8 @@ from tactus.validation.validator import TactusValidator, ValidationMode
 from tactus.core.registry import ValidationMessage
 
 logger = logging.getLogger(__name__)
+INTERNAL_ERROR_MESSAGE = "Internal server error"
+BAD_REQUEST_MESSAGE = "Invalid request"
 
 # Workspace state
 WORKSPACE_ROOT = None
@@ -32,6 +34,24 @@ _clear_runtime_caches_fn = None
 def _utc_now_iso() -> str:
     """Return an ISO-8601 UTC timestamp with a trailing Z."""
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _internal_error_response():
+    """Return a sanitized 500 response for API clients."""
+    return jsonify({"error": INTERNAL_ERROR_MESSAGE}), 500
+
+
+def _bad_request_response():
+    """Return a sanitized 400 response for API clients."""
+    return jsonify({"error": BAD_REQUEST_MESSAGE}), 400
+
+
+def _bad_request_from_value_error(error: ValueError):
+    """Return a sanitized 400 response from a ValueError."""
+    message = str(error).lower()
+    if "escapes workspace" in message:
+        return jsonify({"error": "Path escapes workspace"}), 400
+    return _bad_request_response()
 
 
 def clear_runtime_caches():
@@ -126,7 +146,9 @@ class LSPServer:
                 return {"jsonrpc": "2.0", "id": msg_id, "result": result}
         except Exception as e:
             logger.error("Error handling %s: %s", method, e, exc_info=True)
-            return self._error_response(msg_id, -32603, str(e))
+            return self._error_response(msg_id, -32603, INTERNAL_ERROR_MESSAGE)
+
+        return None
 
     def _handle_initialize(self, params: dict[str, Any]) -> dict[str, Any]:
         """Handle initialize request."""
@@ -237,7 +259,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             workspace_path = Path(WORKSPACE_ROOT)
             return jsonify({"root": str(workspace_path), "name": workspace_path.name})
 
-        elif request.method == "POST":
+        if request.method == "POST":
             data = request.json
             root = data.get("root")
 
@@ -262,7 +284,9 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                 return jsonify({"success": True, "root": WORKSPACE_ROOT, "name": root_path.name})
             except Exception as e:
                 logger.error("Error setting workspace %s: %s", root, e)
-                return jsonify({"error": str(e)}), 500
+                return _internal_error_response()
+
+        return None
 
     @app.route("/api/tree", methods=["GET"])
     def tree_operations():
@@ -302,10 +326,10 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
 
             return jsonify({"path": relative_path, "entries": entries})
         except ValueError as e:
-            return jsonify({"error": str(e)}), 400
+            return _bad_request_from_value_error(e)
         except Exception as e:
             logger.error("Error listing directory %s: %s", relative_path, e)
-            return jsonify({"error": str(e)}), 500
+            return _internal_error_response()
 
     @app.route("/api/file", methods=["GET", "POST"])
     def file_operations():
@@ -334,12 +358,12 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                     }
                 )
             except ValueError as e:
-                return jsonify({"error": str(e)}), 400
+                return _bad_request_from_value_error(e)
             except Exception as e:
                 logger.error("Error reading file %s: %s", file_path, e)
-                return jsonify({"error": str(e)}), 500
+                return _internal_error_response()
 
-        elif request.method == "POST":
+        if request.method == "POST":
             data = request.json
             file_path = data.get("path")
             content = data.get("content")
@@ -356,10 +380,12 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
 
                 return jsonify({"success": True, "path": file_path, "absolutePath": str(path)})
             except ValueError as e:
-                return jsonify({"error": str(e)}), 400
+                return _bad_request_from_value_error(e)
             except Exception as e:
                 logger.error("Error writing file %s: %s", file_path, e)
-                return jsonify({"error": str(e)}), 500
+                return _internal_error_response()
+
+        return None
 
     @app.route("/api/procedure/metadata", methods=["GET"])
     def get_procedure_metadata():
@@ -502,7 +528,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
 
         except Exception as e:
             logger.error("Error extracting procedure metadata: %s", e, exc_info=True)
-            return jsonify({"error": str(e)}), 500
+            return _internal_error_response()
 
     @app.route("/api/validate", methods=["POST"])
     def validate_procedure():
@@ -542,7 +568,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             )
         except Exception as e:
             logger.error("Error validating code: %s", e)
-            return jsonify({"error": str(e)}), 500
+            return _internal_error_response()
 
     @app.route("/api/validate/stream", methods=["GET"])
     def validate_stream():
@@ -563,8 +589,6 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             def generate_events():
                 """Generator function that yields SSE validation events."""
                 try:
-                    import json
-
                     # Read and validate file
                     content = path.read_text()
                     validator = TactusValidator()
@@ -602,7 +626,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                         "event_type": "execution",
                         "lifecycle_stage": "error",
                         "timestamp": _utc_now_iso(),
-                        "details": {"error": str(e)},
+                        "details": {"error": INTERNAL_ERROR_MESSAGE},
                     }
                     yield f"data: {json.dumps(error_event)}\n\n"
 
@@ -617,10 +641,10 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             )
 
         except ValueError as e:
-            return jsonify({"error": str(e)}), 400
+            return _bad_request_from_value_error(e)
         except Exception as e:
             logger.error("Error setting up validation: %s", e, exc_info=True)
-            return jsonify({"error": str(e)}), 500
+            return _internal_error_response()
 
     @app.route("/api/run", methods=["POST"])
     def run_procedure():
@@ -665,10 +689,10 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
         except subprocess.TimeoutExpired:
             return jsonify({"error": "Procedure execution timed out (30s)"}), 408
         except ValueError as e:
-            return jsonify({"error": str(e)}), 400
+            return _bad_request_from_value_error(e)
         except Exception as e:
             logger.error("Error running procedure %s: %s", file_path, e)
-            return jsonify({"error": str(e)}), 500
+            return _internal_error_response()
 
     @app.route("/api/run/stream", methods=["GET", "POST"])
     def run_procedure_stream():
@@ -697,7 +721,8 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             try:
                 inputs = json.loads(inputs_json) if inputs_json else {}
             except json.JSONDecodeError as e:
-                return jsonify({"error": f"Invalid 'inputs' JSON: {e}"}), 400
+                logger.warning("Invalid 'inputs' JSON: %s", e)
+                return jsonify({"error": "Invalid 'inputs' JSON"}), 400
 
         if not file_path:
             return jsonify({"error": "Missing 'path' parameter"}), 400
@@ -723,7 +748,6 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                 all_events = []  # Collect all events to save at the end
                 try:
                     # Send start event
-                    import json
                     from tactus.adapters.ide_log import IDELogHandler
                     from tactus.core.runtime import TactusRuntime
                     from tactus.adapters.file_storage import FileStorage
@@ -1027,7 +1051,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                                 yield f"data: {json.dumps(event_dict)}\n\n"
                                 events_sent = True
                             except queue.Empty:
-                                pass
+                                continue
 
                             # Also check for HITL events from SSE channel (container HITL)
                             hitl_event = sse_channel.get_next_event(timeout=0.001)
@@ -1067,7 +1091,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                                         event,
                                     )
                             except queue.Empty:
-                                pass
+                                continue
 
                             # Also check for HITL events from SSE channel
                             hitl_event = sse_channel.get_next_event(timeout=0.001)
@@ -1233,7 +1257,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                         "lifecycle_stage": "error",
                         "procedure_id": procedure_id,
                         "timestamp": _utc_now_iso(),
-                        "details": {"error": str(e)},
+                        "details": {"error": INTERNAL_ERROR_MESSAGE},
                     }
                     yield f"data: {json.dumps(error_event)}\n\n"
 
@@ -1248,10 +1272,10 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             )
 
         except ValueError as e:
-            return jsonify({"error": str(e)}), 400
+            return _bad_request_from_value_error(e)
         except Exception as e:
             logger.error("Error setting up streaming execution: %s", e, exc_info=True)
-            return jsonify({"error": str(e)}), 500
+            return _internal_error_response()
 
     @app.route("/api/test/stream", methods=["GET"])
     def test_procedure_stream():
@@ -1286,7 +1310,6 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             def generate_events():
                 """Generator function that yields SSE test events."""
                 try:
-                    import json
                     from tactus.validation import TactusValidator
                     from tactus.testing import TactusTestRunner, GherkinParser
 
@@ -1446,7 +1469,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                         "lifecycle_stage": "error",
                         "procedure_id": procedure_id,
                         "timestamp": _utc_now_iso(),
-                        "details": {"error": str(e)},
+                        "details": {"error": INTERNAL_ERROR_MESSAGE},
                     }
                     yield f"data: {json.dumps(error_event)}\n\n"
 
@@ -1461,10 +1484,10 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             )
 
         except ValueError as e:
-            return jsonify({"error": str(e)}), 400
+            return _bad_request_from_value_error(e)
         except Exception as e:
             logger.error("Error setting up test execution: %s", e, exc_info=True)
-            return jsonify({"error": str(e)}), 500
+            return _internal_error_response()
 
     @app.route("/api/evaluate/stream", methods=["GET"])
     def evaluate_procedure_stream():
@@ -1501,7 +1524,6 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             def generate_events():
                 """Generator function that yields SSE evaluation events."""
                 try:
-                    import json
                     from tactus.validation import TactusValidator
                     from tactus.testing import TactusEvaluationRunner, GherkinParser
 
@@ -1605,7 +1627,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                         "lifecycle_stage": "error",
                         "procedure_id": procedure_id,
                         "timestamp": _utc_now_iso(),
-                        "details": {"error": str(e)},
+                        "details": {"error": INTERNAL_ERROR_MESSAGE},
                     }
                     yield f"data: {json.dumps(error_event)}\n\n"
 
@@ -1620,10 +1642,10 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             )
 
         except ValueError as e:
-            return jsonify({"error": str(e)}), 400
+            return _bad_request_from_value_error(e)
         except Exception as e:
             logger.error("Error setting up evaluation execution: %s", e, exc_info=True)
-            return jsonify({"error": str(e)}), 500
+            return _internal_error_response()
 
     @app.route("/api/pydantic-eval/stream", methods=["GET"])
     def pydantic_eval_stream():
@@ -1796,13 +1818,13 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                     }
                     yield f"data: {json.dumps(result_event)}\n\n"
 
-                except ImportError as e:
+                except ImportError:
                     error_event = {
                         "event_type": "execution",
                         "lifecycle_stage": "error",
                         "procedure_id": procedure_id,
                         "timestamp": _utc_now_iso(),
-                        "details": {"error": f"pydantic_evals not installed: {e}"},
+                        "details": {"error": "pydantic_evals not installed"},
                     }
                     yield f"data: {json.dumps(error_event)}\n\n"
                 except Exception as e:
@@ -1812,7 +1834,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                         "lifecycle_stage": "error",
                         "procedure_id": procedure_id,
                         "timestamp": _utc_now_iso(),
-                        "details": {"error": str(e)},
+                        "details": {"error": INTERNAL_ERROR_MESSAGE},
                     }
                     yield f"data: {json.dumps(error_event)}\n\n"
 
@@ -1828,7 +1850,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
 
         except Exception as e:
             logger.error("Error setting up Pydantic Evals: %s", e, exc_info=True)
-            return jsonify({"error": str(e)}), 500
+            return _internal_error_response()
 
     @app.route("/api/traces/runs", methods=["GET"])
     def list_trace_runs():
@@ -1891,7 +1913,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             return jsonify({"runs": runs_data})
         except Exception as e:
             logger.error("Error listing trace runs: %s", e, exc_info=True)
-            return jsonify({"error": str(e)}), 500
+            return _internal_error_response()
 
     @app.route("/api/traces/runs/<run_id>", methods=["GET"])
     def get_trace_run(run_id: str):
@@ -1958,7 +1980,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             return jsonify(run_dict)
         except Exception as e:
             logger.error("Error getting trace run %s: %s", run_id, e, exc_info=True)
-            return jsonify({"error": str(e)}), 500
+            return _internal_error_response()
 
     @app.route("/api/traces/runs/<run_id>/checkpoints", methods=["GET"])
     def get_run_checkpoints(run_id: str):
@@ -2012,7 +2034,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             return jsonify({"checkpoints": checkpoints_dict})
         except Exception as e:
             logger.error("Error getting checkpoints for run %s: %s", run_id, e, exc_info=True)
-            return jsonify({"error": str(e)}), 500
+            return _internal_error_response()
 
     @app.route("/api/traces/runs/<run_id>/checkpoints/<int:position>", methods=["GET"])
     def get_checkpoint(run_id: str, position: int):
@@ -2075,7 +2097,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                 e,
                 exc_info=True,
             )
-            return jsonify({"error": str(e)}), 500
+            return _internal_error_response()
 
     @app.route("/api/procedures/<procedure_id>/checkpoints", methods=["DELETE"])
     def clear_checkpoints(procedure_id: str):
@@ -2108,7 +2130,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                 e,
                 exc_info=True,
             )
-            return jsonify({"error": str(e)}), 500
+            return _internal_error_response()
 
     @app.route("/api/traces/runs/<run_id>/statistics", methods=["GET"])
     def get_run_statistics(run_id: str):
@@ -2158,7 +2180,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             return jsonify(stats)
         except Exception as e:
             logger.error("Error getting statistics for %s: %s", run_id, e, exc_info=True)
-            return jsonify({"error": str(e)}), 500
+            return _internal_error_response()
 
     @app.route("/api/traces/runs/<run_id>/events", methods=["GET"])
     def get_run_events(run_id: str):
@@ -2185,7 +2207,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             return jsonify({"events": events})
         except Exception as e:
             logger.error("Error getting events for %s: %s", run_id, e, exc_info=True)
-            return jsonify({"error": str(e)}), 500
+            return _internal_error_response()
 
     # Coding Assistant - persistent agent instance per session
     coding_assistant = None
@@ -2258,7 +2280,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
 
         except Exception as e:
             logger.error("Error handling chat message: %s", e, exc_info=True)
-            return jsonify({"error": str(e)}), 500
+            return _internal_error_response()
 
     @app.route("/api/chat/stream", methods=["POST"])
     def chat_stream():
@@ -2325,7 +2347,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
 
                 except Exception as e:
                     logger.error("Error streaming message: %s", e, exc_info=True)
-                    yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
+                    yield f"data: {json.dumps({'type': 'error', 'error': INTERNAL_ERROR_MESSAGE})}\n\n"
                 finally:
                     loop.close()
 
@@ -2341,7 +2363,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
 
         except Exception as e:
             logger.error("Error in stream endpoint: %s", e, exc_info=True)
-            return jsonify({"error": str(e)}), 500
+            return _internal_error_response()
 
     @app.route("/api/chat/reset", methods=["POST"])
     def chat_reset():
@@ -2354,7 +2376,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             return jsonify({"error": "Assistant not initialized"}), 400
         except Exception as e:
             logger.error("Error resetting chat: %s", e, exc_info=True)
-            return jsonify({"error": str(e)}), 500
+            return _internal_error_response()
 
     @app.route("/api/chat/tools", methods=["GET"])
     def chat_tools():
@@ -2367,7 +2389,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             return jsonify({"error": "Assistant not initialized"}), 400
         except Exception as e:
             logger.error("Error getting tools: %s", e, exc_info=True)
-            return jsonify({"error": str(e)}), 500
+            return _internal_error_response()
 
     @app.route("/api/lsp", methods=["POST"])
     def lsp_request():
@@ -2387,7 +2409,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                     {
                         "jsonrpc": "2.0",
                         "id": message.get("id"),
-                        "error": {"code": -32603, "message": str(e)},
+                        "error": {"code": -32603, "message": INTERNAL_ERROR_MESSAGE},
                     }
                 ),
                 500,
@@ -2432,7 +2454,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             return jsonify({"status": "ok"})
         except Exception as e:
             logger.error("Error handling LSP notification: %s", e)
-            return jsonify({"error": str(e)}), 500
+            return _internal_error_response()
 
     # Register config API routes
     try:
@@ -2496,9 +2518,9 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
 
             return jsonify({"status": "ok", "request_id": request_id})
 
-        except Exception as exc:
+        except Exception:
             logger.exception("Error handling HITL response for %s", request_id)
-            return jsonify({"status": "error", "message": str(exc)}), 400
+            return jsonify({"status": "error", "message": BAD_REQUEST_MESSAGE}), 400
 
     @app.route("/api/hitl/stream", methods=["GET"])
     def hitl_stream():
@@ -2515,7 +2537,6 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
         def generate():
             """Generator that yields SSE events from the channel."""
             import asyncio
-            import json
 
             channel = get_sse_channel()
 

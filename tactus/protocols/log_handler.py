@@ -24,4 +24,4 @@ class LogHandler(Protocol):
         Args:
             event: Structured event (LogEvent or ExecutionSummaryEvent)
         """
-        ...
+        return None

@@ -15,7 +15,15 @@ class FakeMessage:
 
 class BrokenMessage:
     def __getattr__(self, _name):
-        raise RuntimeError("boom")
+        raise AttributeError("missing")
+
+    @property
+    def role(self):
+        raise ValueError("boom")
+
+    @property
+    def content(self):
+        raise ValueError("boom")
 
 
 def _messages():

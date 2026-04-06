@@ -1,0 +1,43 @@
+{
+  "id": "tcts-b5becede-7ec5-49bf-a074-6e25a82e8a44",
+  "title": "Remediate py/empty-except in Behave step files",
+  "description": "",
+  "type": "bug",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-6603b94e-360c-4d14-90a9-f5291cfb72cb",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "cd86eaa1-4f6a-4043-94cb-d94c21ded9df",
+      "author": "derek.norrbom",
+      "text": "Scoped to four files only: features/steps/dspy_agent_steps.py, dspy_prediction_steps.py, lua_dsl_validation_steps.py, retry_logic_steps.py. Plan: replace pass-only except handlers with narrowed exceptions and explicit assertion context where intentional.",
+      "created_at": "2026-04-03T16:46:07.561343Z"
+    },
+    {
+      "id": "ca53506c-6543-49fa-bf7f-73a6b032d5fd",
+      "author": "derek.norrbom",
+      "text": "Implemented py/empty-except remediation in 4 scoped step files. Replaced pass-only handlers with explicit fallback assignments or captured exceptions for diagnostics. Validation: python -m poetry run black <4 files> (unchanged) and python -m poetry run ruff check <4 files> (all checks passed).",
+      "created_at": "2026-04-03T16:47:33.084640Z"
+    },
+    {
+      "id": "cd054a43-0e80-4814-82e8-11300e568fad",
+      "author": "derek.norrbom",
+      "text": "Resolved by the same code changes delivered under tcts-889378 in this batch (BDD step-file py/empty-except remediation). Closing to avoid duplicate tracking.",
+      "created_at": "2026-04-03T16:49:34.928921Z"
+    },
+    {
+      "id": "dc7aa0f9-a011-4f0f-a4f6-92ffc1650437",
+      "author": "derek.norrbom",
+      "text": "Closed as duplicate/completed via tcts-889378.",
+      "created_at": "2026-04-03T16:49:34.955047Z"
+    }
+  ],
+  "created_at": "2026-04-03T16:46:05.371430Z",
+  "updated_at": "2026-04-03T16:49:34.955047Z",
+  "closed_at": "2026-04-03T16:49:34.940542Z",
+  "custom": {}
+}

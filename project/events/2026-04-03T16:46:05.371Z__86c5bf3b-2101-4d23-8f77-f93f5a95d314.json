@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "86c5bf3b-2101-4d23-8f77-f93f5a95d314",
+  "issue_id": "tcts-b5becede-7ec5-49bf-a074-6e25a82e8a44",
+  "event_type": "issue_created",
+  "occurred_at": "2026-04-03T16:46:05.371Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "assignee": null,
+    "description": "",
+    "issue_type": "bug",
+    "labels": [],
+    "parent": "tcts-6603b94e-360c-4d14-90a9-f5291cfb72cb",
+    "priority": 2,
+    "status": "open",
+    "title": "Remediate py/empty-except in Behave step files"
+  }
+}

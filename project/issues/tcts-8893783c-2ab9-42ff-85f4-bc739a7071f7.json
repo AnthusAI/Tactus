@@ -1,0 +1,31 @@
+{
+  "id": "tcts-8893783c-2ab9-42ff-85f4-bc739a7071f7",
+  "title": "Remediate py/empty-except in BDD step files",
+  "description": "",
+  "type": "sub-task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-75106599-a8d3-4997-b2cf-207db25cec4a",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "677d6507-4278-4182-bcef-bdbe925a8bb4",
+      "author": "derek.norrbom",
+      "text": "Completed remediation in BDD step files. Removed pass-only except handlers in dspy_agent_steps.py, dspy_prediction_steps.py, lua_dsl_validation_steps.py, and retry_logic_steps.py with explicit fallback/diagnostic behavior. Validation: black/ruff passed on touched files; verified by fresh rcql python scan showing py/empty-except has no remaining matches.",
+      "created_at": "2026-04-03T16:49:17.942909Z"
+    },
+    {
+      "id": "13a282cb-e214-431e-a39f-c33aea69add2",
+      "author": "derek.norrbom",
+      "text": "Closed: done in this batch; py/empty-except cleared for BDD step files.",
+      "created_at": "2026-04-03T16:49:21.662478Z"
+    }
+  ],
+  "created_at": "2026-04-03T16:45:14.751557Z",
+  "updated_at": "2026-04-03T16:49:21.662478Z",
+  "closed_at": "2026-04-03T16:49:21.651323Z",
+  "custom": {}
+}

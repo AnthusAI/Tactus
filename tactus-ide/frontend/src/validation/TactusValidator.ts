@@ -100,14 +100,13 @@ export class TactusValidator {
       const line = lines[lineNum];
       let inString = false;
       let stringChar = '';
-      let inComment = false;
       
       for (let col = 0; col < line.length; col++) {
         const char = line[col];
         const nextChar = line[col + 1];
         
         // Handle multi-line strings [[...]]
-        if (!inString && !inComment && char === '[' && nextChar === '[') {
+        if (!inString && char === '[' && nextChar === '[') {
           inMultiLineString = true;
           multiLineStringLevel++;
           col++; // Skip next [
@@ -126,12 +125,11 @@ export class TactusValidator {
         
         // Handle comments
         if (!inString && char === '-' && nextChar === '-') {
-          inComment = true;
           break;
         }
         
         // Handle strings
-        if ((char === '"' || char === "'") && !inComment) {
+        if (char === '"' || char === "'") {
           if (!inString) {
             inString = true;
             stringChar = char;
@@ -141,7 +139,7 @@ export class TactusValidator {
           continue;
         }
         
-        if (inString || inComment) continue;
+        if (inString) continue;
         
         // Check delimiters
         if (char in pairs) {
@@ -248,7 +246,6 @@ export class TactusValidator {
     }
   }
 }
-
 
 
 

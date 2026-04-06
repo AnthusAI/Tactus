@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { ResultsSidebar } from '../ResultsSidebar';
-import { AnyEvent, ExecutionEvent, LogEvent, CostEvent, ExecutionSummaryEvent, OutputEvent, LoadingEvent } from '@/types/events';
+import { AnyEvent, ExecutionEvent, LogEvent, CostEvent, ExecutionSummaryEvent, LoadingEvent } from '@/types/events';
 
 const meta = {
   title: 'Scenarios/Run',
