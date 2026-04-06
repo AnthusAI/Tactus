@@ -368,6 +368,7 @@ def test_call_subprocedure_uses_lua_debug_info(quiet_debug_log):
 
     class LuaWithDebug(DummyLua):
         def __init__(self, debug):
+            super().__init__(globals_table={"state": {}})
             self._globals = Globals(debug)
 
         def globals(self):
@@ -437,6 +438,7 @@ def test_call_subprocedure_handles_debug_level_errors(quiet_debug_log):
 
     class LuaWithDebug(DummyLua):
         def __init__(self, debug):
+            super().__init__(globals_table={"state": {}})
             self._globals = Globals(debug)
 
         def globals(self):

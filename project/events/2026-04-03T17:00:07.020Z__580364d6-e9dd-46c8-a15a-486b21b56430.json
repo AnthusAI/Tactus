@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "580364d6-e9dd-46c8-a15a-486b21b56430",
+  "issue_id": "tcts-51d683a1-1b9f-4bfb-a953-b37ef8ecdfe5",
+  "event_type": "issue_created",
+  "occurred_at": "2026-04-03T17:00:07.020Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "assignee": null,
+    "description": "",
+    "issue_type": "sub-task",
+    "labels": [],
+    "parent": "tcts-f4733741-f8e2-47da-8402-6e9abd613ba1",
+    "priority": 2,
+    "status": "open",
+    "title": "Fix import-own-module in training datasets"
+  }
+}

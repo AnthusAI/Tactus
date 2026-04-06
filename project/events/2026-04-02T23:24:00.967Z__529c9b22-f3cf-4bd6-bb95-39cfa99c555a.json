@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "529c9b22-f3cf-4bd6-bb95-39cfa99c555a",
+  "issue_id": "tcts-253c3e75-8ba4-4ee2-b0e9-dddc3c312255",
+  "event_type": "issue_created",
+  "occurred_at": "2026-04-02T23:24:00.967Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "assignee": null,
+    "description": "",
+    "issue_type": "bug",
+    "labels": [],
+    "parent": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+    "priority": 2,
+    "status": "open",
+    "title": "Fix py/unused-import findings in non-generated Python modules"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "event_id": "adeb6984-52db-4dc9-89d8-3f217a6965b3",
+  "issue_id": "tcts-76912077-aa81-4069-971e-993ed3ed6531",
+  "event_type": "field_updated",
+  "occurred_at": "2026-04-03T22:06:20.466Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "changes": {
+      "assignee": {
+        "from": null,
+        "to": "@me"
+      }
+    }
+  }
+}

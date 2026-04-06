@@ -101,7 +101,7 @@ class BrokerLogHandler:
                     try:
                         self._queue.task_done()
                     except ValueError:
-                        pass
+                        logger.debug("[BROKER_LOG] task_done called without matching queued item")
         finally:
             event_loop.close()
             logger.debug("[BROKER_LOG] Background worker stopped")

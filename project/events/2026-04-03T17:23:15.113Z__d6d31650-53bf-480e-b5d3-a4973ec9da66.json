@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "d6d31650-53bf-480e-b5d3-a4973ec9da66",
+  "issue_id": "tcts-875c46a6-42f3-476a-9907-595958c83187",
+  "event_type": "issue_created",
+  "occurred_at": "2026-04-03T17:23:15.113Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "assignee": null,
+    "description": "",
+    "issue_type": "bug",
+    "labels": [],
+    "parent": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+    "priority": 1,
+    "status": "open",
+    "title": "Regenerate Lua parser/lexer from source to clear generated Python findings"
+  }
+}

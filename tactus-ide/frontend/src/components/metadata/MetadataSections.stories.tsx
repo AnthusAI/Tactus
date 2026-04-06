@@ -100,14 +100,6 @@ export const ParametersEmpty: ParametersStory = {
 // Outputs Section
 // ============================================================================
 
-const outputsMeta: Meta<typeof OutputsSection> = {
-  title: 'Sidebar/Metadata/OutputsSection',
-  component: OutputsSection,
-  parameters: {
-    layout: 'padded',
-  },
-};
-
 type OutputsStory = StoryObj<typeof OutputsSection>;
 
 export const OutputsWithMixedRequirements: OutputsStory = {
@@ -164,14 +156,6 @@ export const OutputsEmpty: OutputsStory = {
 // Stages Section
 // ============================================================================
 
-const stagesMeta: Meta<typeof StagesSection> = {
-  title: 'Sidebar/Metadata/StagesSection',
-  component: StagesSection,
-  parameters: {
-    layout: 'padded',
-  },
-};
-
 type StagesStory = StoryObj<typeof StagesSection>;
 
 export const StagesMultiple: StagesStory = {
@@ -195,14 +179,6 @@ export const StagesEmpty: StagesStory = {
 // ============================================================================
 // Agents Section
 // ============================================================================
-
-const agentsMeta: Meta<typeof AgentsSection> = {
-  title: 'Sidebar/Metadata/AgentsSection',
-  component: AgentsSection,
-  parameters: {
-    layout: 'padded',
-  },
-};
 
 type AgentsStory = StoryObj<typeof AgentsSection>;
 
@@ -272,14 +248,6 @@ export const AgentsEmpty: AgentsStory = {
 // Tools Section
 // ============================================================================
 
-const toolsMeta: Meta<typeof ToolsSection> = {
-  title: 'Sidebar/Metadata/ToolsSection',
-  component: ToolsSection,
-  parameters: {
-    layout: 'padded',
-  },
-};
-
 type ToolsStory = StoryObj<typeof ToolsSection>;
 
 export const ToolsMany: ToolsStory = {
@@ -303,14 +271,6 @@ export const ToolsEmpty: ToolsStory = {
 // ============================================================================
 // Specifications Section
 // ============================================================================
-
-const specificationsMeta: Meta<typeof SpecificationsSection> = {
-  title: 'Sidebar/Metadata/SpecificationsSection',
-  component: SpecificationsSection,
-  parameters: {
-    layout: 'padded',
-  },
-};
 
 type SpecificationsStory = StoryObj<typeof SpecificationsSection>;
 
@@ -368,14 +328,6 @@ export const SpecificationsMissing: SpecificationsStory = {
 // ============================================================================
 // Evaluations Section
 // ============================================================================
-
-const evaluationsMeta: Meta<typeof EvaluationsSection> = {
-  title: 'Sidebar/Metadata/EvaluationsSection',
-  component: EvaluationsSection,
-  parameters: {
-    layout: 'padded',
-  },
-};
 
 type EvaluationsStory = StoryObj<typeof EvaluationsSection>;
 

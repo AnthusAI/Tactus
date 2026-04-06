@@ -2,7 +2,6 @@ import React from 'react';
 import { 
   TestStartedEvent, 
   TestCompletedEvent,
-  TestScenarioStartedEvent,
   TestScenarioCompletedEvent 
 } from '@/types/events';
 import { CheckCircle, XCircle, PlayCircle, DollarSign, Bot, RotateCw, Wrench, Timer } from 'lucide-react';
@@ -185,5 +184,4 @@ export const TestCompletedEventComponent: React.FC<{ event: TestCompletedEvent; 
     </BaseEventComponent>
   );
 };
-
 

@@ -141,29 +141,28 @@ def step_then_returns_result_object(context):
 
 
 @then("the result should have a data property")
-def step_then_result_has_data(context):
+def step_then_result_has_data(_context):
     """Result should have data property."""
     assert True, "ResultPrimitive has data property"
 
 
 @then("the result should have usage information")
-def step_then_result_has_usage(context):
+def step_then_result_has_usage(_context):
     """Result should have usage info."""
     assert True, "ResultPrimitive has usage property"
 
 
 @then("usage should include {field}")
-def step_then_usage_includes(context, field):
+def step_then_usage_includes(_context, field):
     """Check usage has field."""
     valid_fields = ["total_tokens", "prompt_tokens", "completion_tokens"]
     assert field in valid_fields, f"Usage should have {field}"
 
 
 @then("the result should have {method} method")
-def step_then_result_has_method(context, method):
+def step_then_result_has_method(_context, method):
     """Check result has method."""
-    method_name = method.replace("()", "")
-    assert True, f"ResultPrimitive has {method_name} method"
+    assert True, f"ResultPrimitive has {method.replace('()', '')} method"
 
 
 @then("the procedure should complete successfully")
@@ -248,7 +247,7 @@ def step_then_types_recognized(context):
 
 
 @then("the types should map correctly")
-def step_then_types_map(context):
+def step_then_types_map(_context):
     """Types should map to Python types."""
     # _map_type_string function does this mapping
     assert True, "Types should map correctly to Python types"

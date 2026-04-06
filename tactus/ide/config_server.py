@@ -13,8 +13,14 @@ from flask import Blueprint, request, jsonify
 from typing import Dict, Any, List, Tuple, Optional
 
 logger = logging.getLogger(__name__)
+INTERNAL_ERROR_MESSAGE = "Internal server error"
 
 config_bp = Blueprint("config", __name__, url_prefix="/api/config")
+
+
+def _internal_error_response():
+    """Return a sanitized 500 response for API clients."""
+    return jsonify({"error": INTERNAL_ERROR_MESSAGE}), 500
 
 
 def build_cascade_map(loaded_configs: List[Tuple[str, Dict[str, Any]]]) -> Dict[str, str]:
@@ -256,7 +262,7 @@ def get_config():
 
     except Exception as e:
         logger.error(f"Error loading config: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response()
 
 
 @config_bp.route("", methods=["POST"])
@@ -316,7 +322,7 @@ def save_config():
 
     except Exception as e:
         logger.error(f"Error saving config: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response()
 
 
 @config_bp.route("/save-by-source", methods=["POST"])
@@ -433,7 +439,7 @@ def save_config_by_source():
 
     except Exception as e:
         logger.error(f"Error saving config by source: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response()
 
 
 def _set_nested_value(config: Dict[str, Any], path: str, value: Any) -> None:
@@ -510,7 +516,8 @@ def validate_config():
         try:
             yaml.safe_dump(config)
         except Exception as e:
-            errors.append(f"Config cannot be serialized to YAML: {str(e)}")
+            logger.warning("Config serialization validation failed: %s", e)
+            errors.append("Config cannot be serialized to YAML")
 
         return jsonify(
             {
@@ -522,7 +529,7 @@ def validate_config():
 
     except Exception as e:
         logger.error(f"Error validating config: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response()
 
 
 def register_config_routes(app):

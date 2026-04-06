@@ -13,11 +13,21 @@ The Agent uses:
 """
 
 import asyncio
+import inspect
 import json
 import logging
 import os
+import queue
+import threading
 import time
 from typing import Any, Dict, List, Optional
+
+import dspy
+
+try:
+    import nest_asyncio
+except ImportError:  # pragma: no cover - optional dependency
+    nest_asyncio = None
 
 from tactus.dspy.history import TactusHistory, create_history
 from tactus.dspy.module import TactusModule, create_module
@@ -29,6 +39,48 @@ from tactus.core.message_history_manager import MessageHistoryManager
 from tactus.utils.asyncio_helpers import clear_closed_event_loop
 
 logger = logging.getLogger(__name__)
+
+
+def _run_coroutine_sync(coro):
+    """Run an async coroutine from sync code while handling nested loops."""
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        clear_closed_event_loop()
+        return asyncio.run(coro)
+
+    if nest_asyncio:
+        nest_asyncio.apply(loop)
+        return asyncio.run(coro)
+
+    thread_result = {"value": None, "exception": None}
+
+    def _run_in_thread():
+        try:
+            thread_loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(thread_loop)
+            try:
+                thread_result["value"] = thread_loop.run_until_complete(coro)
+            finally:
+                thread_loop.close()
+        except Exception as error:
+            thread_result["exception"] = error
+
+    worker = threading.Thread(target=_run_in_thread)
+    worker.start()
+    worker.join()
+    if thread_result["exception"]:
+        raise thread_result["exception"]
+    return thread_result["value"]
+
+
+def _import_pydantic_ai_tooling():
+    """Lazily import Pydantic AI runtime helpers."""
+    from pydantic_ai import RunContext
+    from pydantic_ai.models.test import TestModel
+    from pydantic_ai.usage import RunUsage
+
+    return RunContext, TestModel, RunUsage
 
 
 def _normalize_model_for_litellm(model: Optional[str], provider: Optional[str]) -> Optional[str]:
@@ -217,8 +269,6 @@ class DSPyAgentHandle:
 
         Returns zeroed stats if no LM history is available (e.g., mocked calls).
         """
-        import dspy
-
         # Default to zero (e.g., mocks or no LM configured)
         usage_stats = UsageStats()
         cost_stats = CostStats()
@@ -316,8 +366,6 @@ class DSPyAgentHandle:
 
         # If output schema is configured, prefer structured JSON when possible
         if self.output_schema and isinstance(text, str) and text.strip():
-            import json
-
             try:
                 parsed = json.loads(text)
                 return parsed
@@ -394,42 +442,6 @@ class DSPyAgentHandle:
             logger.info(f"Agent '{self.name}' processing toolset {idx}: {type(toolset).__name__}")
             try:
 
-                def _run_async(coro):
-                    import threading
-
-                    try:
-                        loop = asyncio.get_running_loop()
-                        try:
-                            import nest_asyncio
-
-                            nest_asyncio.apply(loop)
-                            return asyncio.run(coro)
-                        except ImportError:
-                            thread_result = {"value": None, "exception": None}
-
-                            def run_in_thread():
-                                try:
-                                    thread_loop = asyncio.new_event_loop()
-                                    asyncio.set_event_loop(thread_loop)
-                                    try:
-                                        thread_result["value"] = thread_loop.run_until_complete(
-                                            coro
-                                        )
-                                    finally:
-                                        thread_loop.close()
-                                except Exception as error:
-                                    thread_result["exception"] = error
-
-                            worker = threading.Thread(target=run_in_thread)
-                            worker.start()
-                            worker.join()
-                            if thread_result["exception"]:
-                                raise thread_result["exception"]
-                            return thread_result["value"]
-                    except RuntimeError:
-                        clear_closed_event_loop()
-                        return asyncio.run(coro)
-
                 # Pydantic AI FunctionToolset has a .tools dict attribute that's directly accessible
                 # This avoids the need for async get_tools() call and RunContext
                 if hasattr(toolset, "tools") and isinstance(toolset.tools, dict):
@@ -439,12 +451,10 @@ class DSPyAgentHandle:
                     )
                 elif hasattr(toolset, "get_tools"):
                     try:
-                        from pydantic_ai import RunContext
-                        from pydantic_ai.models.test import TestModel
-                        from pydantic_ai.usage import RunUsage
+                        RunContext, TestModel, RunUsage = _import_pydantic_ai_tooling()
 
                         ctx = RunContext(deps=None, model=TestModel(), usage=RunUsage())
-                        tools_dict = _run_async(toolset.get_tools(ctx))
+                        tools_dict = _run_coroutine_sync(toolset.get_tools(ctx))
                         pydantic_tools = list(tools_dict.values())
                         logger.info(
                             f"Agent '{self.name}' toolset {idx} has {len(pydantic_tools)} tools (from get_tools)"
@@ -559,47 +569,11 @@ class DSPyAgentHandle:
                     if pydantic_tool.name == tool_name:
                         logger.info(f"[TOOL_EXEC] Found tool '{tool_name}' in toolset")
                         try:
-                            # Call the Pydantic AI tool function
-                            # The tool function might be async (wrapped Lua tools are)
-                            import asyncio
-                            import inspect
-
-                            # Check if the function is async before calling it
                             if inspect.iscoroutinefunction(pydantic_tool.function):
                                 logger.info(
                                     f"[TOOL_EXEC] Tool '{tool_name}' is async, running with nest_asyncio"
                                 )
-                                # Use nest_asyncio to allow running async code from sync context
-                                # even when there's already an event loop running
-                                try:
-                                    import nest_asyncio
-
-                                    nest_asyncio.apply()
-                                except ImportError:
-                                    logger.warning(
-                                        "[TOOL_EXEC] nest_asyncio not available, trying asyncio.run()"
-                                    )
-
-                                # Get the current event loop or create new one
-                                try:
-                                    loop = asyncio.get_event_loop()
-                                    if loop.is_running():
-                                        logger.info(
-                                            "[TOOL_EXEC] Loop is running, using run_until_complete with nest_asyncio"
-                                        )
-                                        # nest_asyncio allows this even though loop is running
-                                        coro = pydantic_tool.function(**tool_args)
-                                        result = loop.run_until_complete(coro)
-                                    else:
-                                        logger.info(
-                                            "[TOOL_EXEC] Loop not running, using run_until_complete"
-                                        )
-                                        coro = pydantic_tool.function(**tool_args)
-                                        result = loop.run_until_complete(coro)
-                                except RuntimeError:
-                                    # No loop at all
-                                    logger.info("[TOOL_EXEC] No event loop, using asyncio.run()")
-                                    result = asyncio.run(pydantic_tool.function(**tool_args))
+                                result = _run_coroutine_sync(pydantic_tool.function(**tool_args))
                             else:
                                 # Function is sync - just call it
                                 logger.info(
@@ -618,46 +592,7 @@ class DSPyAgentHandle:
             elif hasattr(toolset, "call_tool"):
                 logger.info(f"[TOOL_EXEC] Attempting MCP tool '{tool_name}' via toolset")
                 try:
-                    import inspect
-                    from pydantic_ai import RunContext
-                    from pydantic_ai.models.test import TestModel
-                    from pydantic_ai.usage import RunUsage
-
-                    def _run_async(coro):
-                        import threading
-
-                        try:
-                            asyncio.get_running_loop()
-                            try:
-                                import nest_asyncio
-
-                                nest_asyncio.apply()
-                                return asyncio.run(coro)
-                            except ImportError:
-                                thread_result = {"value": None, "exception": None}
-
-                                def run_in_thread():
-                                    try:
-                                        thread_loop = asyncio.new_event_loop()
-                                        asyncio.set_event_loop(thread_loop)
-                                        try:
-                                            thread_result["value"] = thread_loop.run_until_complete(
-                                                coro
-                                            )
-                                        finally:
-                                            thread_loop.close()
-                                    except Exception as error:
-                                        thread_result["exception"] = error
-
-                                worker = threading.Thread(target=run_in_thread)
-                                worker.start()
-                                worker.join()
-                                if thread_result["exception"]:
-                                    raise thread_result["exception"]
-                                return thread_result["value"]
-                        except RuntimeError:
-                            clear_closed_event_loop()
-                            return asyncio.run(coro)
+                    RunContext, TestModel, RunUsage = _import_pydantic_ai_tooling()
 
                     if inspect.iscoroutinefunction(toolset.call_tool):
                         ctx = RunContext(deps=None, model=TestModel(), usage=RunUsage())
@@ -669,12 +604,12 @@ class DSPyAgentHandle:
                                 return None
                             return await toolset.call_tool(tool_name, tool_args, ctx, tool)
 
-                        result = _run_async(_call())
+                        result = _run_coroutine_sync(_call())
                         if result is None:
                             continue
                     else:
                         ctx = RunContext(deps=None, model=TestModel(), usage=RunUsage())
-                        tools = _run_async(toolset.get_tools(ctx))
+                        tools = _run_coroutine_sync(toolset.get_tools(ctx))
                         tool = tools.get(tool_name)
                         if tool is None:
                             continue
@@ -779,7 +714,6 @@ class DSPyAgentHandle:
         if self.log_handler is None:
             return
 
-        import dspy
         from tactus.protocols.models import CostEvent
 
         # Get the current LM
@@ -882,8 +816,6 @@ class DSPyAgentHandle:
         Returns:
             TactusResult with value, usage, and cost_stats
         """
-        import threading
-        import queue
         from tactus.protocols.models import AgentTurnEvent, AgentStreamChunkEvent
 
         # logger.info(f"[STREAMING] Agent '{self.name}' starting streaming turn")
@@ -903,7 +835,7 @@ class DSPyAgentHandle:
 
         def run_streaming_in_thread():
             """Run DSPy streaming in a separate thread with its own event loop."""
-            import dspy as dspy_thread  # Import in thread context
+            dspy_thread = dspy
 
             async def async_streaming():
                 """Async function that runs the streaming module."""
@@ -1346,8 +1278,8 @@ class DSPyAgentHandle:
         if hasattr(inputs, "items"):
             try:
                 inputs = dict(inputs.items())
-            except (AttributeError, TypeError):
-                pass
+            except (AttributeError, TypeError) as exc:
+                logger.debug("Agent '%s' could not coerce inputs mapping: %s", self.name, exc)
 
         # Extract message field (the main input)
         message = inputs.get("message")
@@ -1543,8 +1475,10 @@ class DSPyAgentHandle:
         if hasattr(prepared, "items"):
             try:
                 prepared = dict(prepared.items())
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug(
+                    "Agent '%s' prepare output mapping coercion failed: %s", self.name, exc
+                )
         if not isinstance(prepared, dict):
             return {"value": prepared}
         return prepared

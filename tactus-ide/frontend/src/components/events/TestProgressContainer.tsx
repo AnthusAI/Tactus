@@ -7,7 +7,6 @@ import {
   TestCompletedEvent,
 } from '@/types/events';
 import { CollapsibleTestScenario } from './CollapsibleTestScenario';
-import { TestCompletedEventComponent } from './TestEventComponent';
 import { PlayCircle, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 
 interface TestProgressContainerProps {
@@ -37,7 +36,7 @@ export const TestProgressContainer: React.FC<TestProgressContainerProps> = ({ ev
   const [expandedScenarios, setExpandedScenarios] = useState<Set<string>>(new Set());
 
   // Parse events to build scenario state
-  const { scenarios, testStarted, testCompleted, totalScenarios, currentRunning } = useMemo(() => {
+  const { scenarios, testCompleted, totalScenarios, currentRunning } = useMemo(() => {
     const scenarioMap = new Map<string, ScenarioState>();
     let testStartedEvent: TestStartedEvent | undefined;
     let testCompletedEvent: TestCompletedEvent | undefined;
@@ -82,7 +81,6 @@ export const TestProgressContainer: React.FC<TestProgressContainerProps> = ({ ev
 
     return {
       scenarios: sortedScenarios,
-      testStarted: testStartedEvent,
       testCompleted: testCompletedEvent,
       totalScenarios: total,
       currentRunning: running,

@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "bfe5c4d3-bd05-4430-b0df-567a76acd191",
+  "issue_id": "tcts-bbf2f292-9c2c-4dd3-b869-b67476b54d0e",
+  "event_type": "issue_created",
+  "occurred_at": "2026-04-03T17:03:48.609Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "assignee": null,
+    "description": "",
+    "issue_type": "bug",
+    "labels": [],
+    "parent": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+    "priority": 1,
+    "status": "open",
+    "title": "Fix CI regression in MockAgentResult new_messages fallback"
+  }
+}

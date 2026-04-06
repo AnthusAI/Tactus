@@ -1,0 +1,43 @@
+{
+  "id": "tcts-20771a88-b8d0-414a-b852-4a7a47c25d77",
+  "title": "Remediate py/empty-except in testing support files",
+  "description": "",
+  "type": "sub-task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-75106599-a8d3-4997-b2cf-207db25cec4a",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "47c3cba2-7a7a-4a15-b51d-9a6542a59edc",
+      "author": "derek.norrbom",
+      "text": "Starting remediation pass for py/empty-except in owned files: tests/testing/conftest.py, tactus/testing/context.py, tactus/testing/mock_agent.py, tactus/testing/test_runner.py. Will replace pass-only except blocks with narrow handling + debug logging and run formatting/lint/tests.",
+      "created_at": "2026-04-03T16:45:52.532156Z"
+    },
+    {
+      "id": "abe379ba-3491-43b7-ada1-94c1976a0d8d",
+      "author": "derek.norrbom",
+      "text": "Completed remediation in owned files. Replaced pass-only except blocks with explicit handling (sys.modules.pop default, targeted exceptions, debug logging on intentional fallbacks). Validation: black/ruff clean; pytest tests/testing/test_mock_agent.py tests/testing/test_runtime_integration.py -q => 15 passed, 1 skipped.",
+      "created_at": "2026-04-03T16:47:00.638768Z"
+    },
+    {
+      "id": "b6444101-ad42-42af-a373-7bb8a8ea83cf",
+      "author": "derek.norrbom",
+      "text": "Completed remediation in testing support files. Removed pass-only except handlers in tests/testing/conftest.py, tactus/testing/context.py, tactus/testing/mock_agent.py, and tactus/testing/test_runner.py with narrow exceptions and debug diagnostics. Validation: black/ruff passed; pytest targeted suites passed; fresh rcql python scan shows py/empty-except has no remaining matches.",
+      "created_at": "2026-04-03T16:49:21.674066Z"
+    },
+    {
+      "id": "53f2877c-afd2-483d-8fd5-bf29cd752779",
+      "author": "derek.norrbom",
+      "text": "Closed: done in this batch; py/empty-except cleared for testing support files.",
+      "created_at": "2026-04-03T16:49:21.699803Z"
+    }
+  ],
+  "created_at": "2026-04-03T16:45:14.778792Z",
+  "updated_at": "2026-04-03T16:49:21.699803Z",
+  "closed_at": "2026-04-03T16:49:21.687734Z",
+  "custom": {}
+}

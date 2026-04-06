@@ -70,8 +70,10 @@ def configure_lm(
 
         litellm.disable_aiohttp_transport = True
         litellm.use_aiohttp_transport = False
-    except Exception:
-        pass
+    except ImportError as exc:
+        import logging
+
+        logging.getLogger(__name__).debug("LiteLLM not importable during configure_lm: %r", exc)
 
     # Build configuration
     lm_kwargs = {
@@ -218,8 +220,12 @@ def create_lm(
 
         litellm.disable_aiohttp_transport = True
         litellm.use_aiohttp_transport = False
-    except Exception:
-        pass
+    except ImportError as exc:
+        import logging
+
+        logging.getLogger(__name__).debug(
+            "LiteLLM not importable during create_lm_for_agent: %r", exc
+        )
 
     # Build configuration
     lm_kwargs = {

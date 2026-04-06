@@ -23,7 +23,7 @@ class DummyDockerManager:
 
 def test_sandbox_status_available(monkeypatch):
     monkeypatch.setattr("tactus.sandbox.is_docker_available", lambda: (True, ""))
-    monkeypatch.setattr("tactus.sandbox.DockerManager", lambda: DummyDockerManager())
+    monkeypatch.setattr("tactus.sandbox.DockerManager", DummyDockerManager)
     monkeypatch.setattr(cli_app.console, "print", lambda *_args, **_kwargs: None)
 
     cli_app.sandbox_status()
@@ -31,7 +31,7 @@ def test_sandbox_status_available(monkeypatch):
 
 def test_sandbox_status_unavailable(monkeypatch):
     monkeypatch.setattr("tactus.sandbox.is_docker_available", lambda: (False, "nope"))
-    monkeypatch.setattr("tactus.sandbox.DockerManager", lambda: DummyDockerManager())
+    monkeypatch.setattr("tactus.sandbox.DockerManager", DummyDockerManager)
     monkeypatch.setattr(cli_app.console, "print", lambda *_args, **_kwargs: None)
 
     cli_app.sandbox_status()
@@ -67,7 +67,7 @@ def test_sandbox_rebuild_missing_dockerfile(monkeypatch, tmp_path):
     dummy_file = tmp_path / "Dockerfile"
 
     monkeypatch.setattr("tactus.sandbox.is_docker_available", lambda: (True, ""))
-    monkeypatch.setattr("tactus.sandbox.DockerManager", lambda: DummyDockerManager())
+    monkeypatch.setattr("tactus.sandbox.DockerManager", DummyDockerManager)
     monkeypatch.setattr(
         "tactus.sandbox.docker_manager.resolve_dockerfile_path",
         lambda _path: (dummy_file, "dev"),

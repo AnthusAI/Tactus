@@ -58,7 +58,6 @@ export function useChatSSE(workspaceRoot: string, config: ChatConfig) {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let assistantMessage = '';
-      let hasAssistantMessage = false;
       let currentAssistantMessageIndex: number | null = null;
 
       while (true) {
@@ -119,7 +118,6 @@ export function useChatSSE(workspaceRoot: string, config: ChatConfig) {
                 // Accumulate chunk
                 const chunk = event.content || '';
                 assistantMessage += chunk;
-                hasAssistantMessage = true;
                 
                 console.log('[SSE] Received chunk:', chunk.substring(0, 50), '... (total:', assistantMessage.length, 'chars)');
                 

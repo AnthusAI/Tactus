@@ -72,7 +72,7 @@ def test_sandbox_rebuild_missing_dockerfile(monkeypatch, tmp_path):
         "tactus.sandbox.docker_manager.resolve_dockerfile_path",
         lambda path: (dockerfile, "local"),
     )
-    monkeypatch.setattr("tactus.sandbox.DockerManager", lambda: FakeManager())
+    monkeypatch.setattr("tactus.sandbox.DockerManager", FakeManager)
 
     with pytest.raises(typer.Exit):
         cli_app.sandbox_rebuild()

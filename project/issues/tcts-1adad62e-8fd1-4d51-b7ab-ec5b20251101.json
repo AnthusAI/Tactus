@@ -1,0 +1,31 @@
+{
+  "id": "tcts-1adad62e-8fd1-4d51-b7ab-ec5b20251101",
+  "title": "Fix tool primitive overridden-signature warning",
+  "description": "",
+  "type": "bug",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "12a32d6c-8a70-41cd-bb49-57e114067f3e",
+      "author": "derek.norrbom",
+      "text": "Addressing py/inheritance/incorrect-overridden-signature in tactus/primitives/tool.py by relaxing base record_call signature to match known override call shapes while preserving runtime behavior.",
+      "created_at": "2026-04-03T17:20:10.206001Z"
+    },
+    {
+      "id": "3d080de7-eabf-445c-afef-bc43b394fe2a",
+      "author": "derek.norrbom",
+      "text": "Completed: updated ToolPrimitive.record_call signature to make result optional by default, aligning override/call patterns and clearing py/inheritance/incorrect-overridden-signature. Validation: black/ruff passed on tactus/primitives/tool.py; pytest tests/primitives/test_tool_primitive.py tests/testing/test_mock_tools.py -q passed. Fresh rcql python warnings now 9 (generated-only).",
+      "created_at": "2026-04-03T17:21:02.684947Z"
+    }
+  ],
+  "created_at": "2026-04-03T17:20:07.393800Z",
+  "updated_at": "2026-04-03T17:21:02.840862Z",
+  "closed_at": "2026-04-03T17:21:02.840862Z",
+  "custom": {}
+}

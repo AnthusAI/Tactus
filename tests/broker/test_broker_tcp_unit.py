@@ -80,7 +80,7 @@ async def test_tcp_transport_sends_request_and_yields_events(monkeypatch: pytest
 
     client = BrokerClient("tcp://example.com:1234")
 
-    monkeypatch.setattr("tactus.broker.client.uuid.uuid4", lambda: type("U", (), {"hex": "req"})())
+    monkeypatch.setattr("tactus.broker.client.uuid.uuid4", type("U", (), {"hex": "req"}))
 
     events = []
     async for event in client.llm_chat(
@@ -115,7 +115,7 @@ async def test_tcp_tool_call_returns_result(monkeypatch: pytest.MonkeyPatch):
         return reader, writer
 
     monkeypatch.setattr(asyncio, "open_connection", fake_open_connection)
-    monkeypatch.setattr("tactus.broker.client.uuid.uuid4", lambda: type("U", (), {"hex": "req"})())
+    monkeypatch.setattr("tactus.broker.client.uuid.uuid4", type("U", (), {"hex": "req"}))
 
     client = BrokerClient("tcp://example.com:1234")
     result = await client.call_tool(name="host.ping", args={"x": 1})
@@ -144,7 +144,7 @@ async def test_tcp_tool_call_raises_on_error(monkeypatch: pytest.MonkeyPatch):
         return reader, writer
 
     monkeypatch.setattr(asyncio, "open_connection", fake_open_connection)
-    monkeypatch.setattr("tactus.broker.client.uuid.uuid4", lambda: type("U", (), {"hex": "req"})())
+    monkeypatch.setattr("tactus.broker.client.uuid.uuid4", type("U", (), {"hex": "req"}))
 
     client = BrokerClient("tcp://example.com:1234")
 
@@ -170,7 +170,7 @@ async def test_tls_transport_uses_ssl_context(monkeypatch: pytest.MonkeyPatch):
 
     monkeypatch.setattr(asyncio, "open_connection", fake_open_connection)
     monkeypatch.setenv("TACTUS_BROKER_TLS_INSECURE", "1")
-    monkeypatch.setattr("tactus.broker.client.uuid.uuid4", lambda: type("U", (), {"hex": "req"})())
+    monkeypatch.setattr("tactus.broker.client.uuid.uuid4", type("U", (), {"hex": "req"}))
 
     client = BrokerClient("tls://example.com:443")
 

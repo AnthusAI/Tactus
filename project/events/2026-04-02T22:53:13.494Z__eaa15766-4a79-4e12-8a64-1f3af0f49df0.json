@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "eaa15766-4a79-4e12-8a64-1f3af0f49df0",
+  "issue_id": "tcts-6603b94e-360c-4d14-90a9-f5291cfb72cb",
+  "event_type": "issue_created",
+  "occurred_at": "2026-04-02T22:53:13.494Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "assignee": null,
+    "description": "",
+    "issue_type": "epic",
+    "labels": [],
+    "parent": "tcts-8dbdce66-f645-40af-8d7b-f6664829eef3",
+    "priority": 2,
+    "status": "open",
+    "title": "Remediate rcql Python findings batch 1"
+  }
+}

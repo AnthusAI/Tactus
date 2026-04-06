@@ -122,6 +122,7 @@ def test_from_environment(monkeypatch):
 def test_from_environment_handles_client_errors(monkeypatch):
     class BoomClient(BrokerClient):
         def __init__(self, socket_path):
+            super().__init__(socket_path)
             raise RuntimeError("boom")
 
     monkeypatch.setenv("TACTUS_BROKER_SOCKET", "/tmp/broker.sock")

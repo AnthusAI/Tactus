@@ -435,9 +435,10 @@ def after_scenario(context, scenario):
     # Clean up temporary files
     if hasattr(context, "temp_file") and hasattr(context, "lua_file"):
         try:
-            context.lua_file.unlink()
-        except Exception:
-            pass
+            context.lua_file.unlink(missing_ok=True)
+        except OSError as exc:
+            # Cleanup errors should not mask scenario outcomes; keep for diagnostics.
+            context.cleanup_error = exc
 
 
 @then('the agent system_prompt should contain "{text}"')

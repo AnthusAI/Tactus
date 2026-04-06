@@ -1,0 +1,31 @@
+{
+  "id": "tcts-4a861900-db78-42cb-bf2e-67ac2f3ee654",
+  "title": "Fix py/missing-call-to-init in procedure callable LuaWithDebug doubles",
+  "description": "",
+  "type": "bug",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-6603b94e-360c-4d14-90a9-f5291cfb72cb",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "1e2fb6de-fe44-42e8-9b10-16515bebc9cd",
+      "author": "derek.norrbom",
+      "text": "Started remediation via delegated worker on tests/primitives/test_procedure_callable.py.",
+      "created_at": "2026-04-02T22:53:36.839114Z"
+    },
+    {
+      "id": "9894e1f7-b0f2-4eae-bea3-44c90de05b90",
+      "author": "derek.norrbom",
+      "text": "Implemented fix: both LuaWithDebug test doubles now call super().__init__(globals_table={\"state\": {}}) before replacing globals. Verification: python3 -m pytest -q tests/primitives/test_procedure_callable.py::test_call_subprocedure_uses_lua_debug_info tests/primitives/test_procedure_callable.py::test_call_subprocedure_handles_debug_level_errors (pass). rcql python findings total reduced in fresh scan.",
+      "created_at": "2026-04-02T22:57:25.994537Z"
+    }
+  ],
+  "created_at": "2026-04-02T22:53:21.267315Z",
+  "updated_at": "2026-04-02T22:57:26.004448Z",
+  "closed_at": "2026-04-02T22:57:26.004448Z",
+  "custom": {}
+}

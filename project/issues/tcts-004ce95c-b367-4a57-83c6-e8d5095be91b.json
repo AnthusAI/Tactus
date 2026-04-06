@@ -1,0 +1,31 @@
+{
+  "id": "tcts-004ce95c-b367-4a57-83c6-e8d5095be91b",
+  "title": "Fix py/repeated-import findings across tactus runtime + steps",
+  "description": "",
+  "type": "bug",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "91e10656-f0ff-430d-8726-f5a590f8b142",
+      "author": "derek.norrbom",
+      "text": "Delegating to worker with ownership of: tactus/cli/app.py, tactus/dspy/agent.py, tactus/ide/server.py, features/steps/dspy_prediction_steps.py. Goal: remove redundant function-scope imports flagged by py/repeated-import without behavior change.",
+      "created_at": "2026-04-02T23:08:49.561293Z"
+    },
+    {
+      "id": "d0845e80-c9b2-4843-94a9-056665d0fd9d",
+      "author": "derek.norrbom",
+      "text": "Completed via delegated worker. Removed py/repeated-import findings across tactus/cli/app.py, tactus/dspy/agent.py, tactus/ide/server.py, features/steps/dspy_prediction_steps.py. Verification: ruff check touched files (pass); focused runtime tests pass as part of consolidated run (270 passed). Fresh rcql python scan confirms py/repeated-import count is now 0.",
+      "created_at": "2026-04-02T23:19:09.515276Z"
+    }
+  ],
+  "created_at": "2026-04-02T23:08:46.053752Z",
+  "updated_at": "2026-04-02T23:19:09.692069Z",
+  "closed_at": "2026-04-02T23:19:09.692069Z",
+  "custom": {}
+}

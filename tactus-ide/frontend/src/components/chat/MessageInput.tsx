@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   PromptInput,
   PromptInputTextarea,
@@ -6,7 +6,6 @@ import {
   PromptInputTools,
   PromptInputSubmit
 } from '@/components/ui/ai/prompt-input';
-import { cn } from '@/lib/utils';
 
 interface MessageInputProps {
   onSend: (message: string) => void;

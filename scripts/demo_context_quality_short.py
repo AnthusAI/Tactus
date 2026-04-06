@@ -92,8 +92,10 @@ def _print_story(
     print_context_plan(
         "Request plan",
         [
-            'system("You are a helpful assistant. Use only the provided forecast discussion text as your source. '
-            'Do not claim you lack access; the text above is authoritative.")',
+            (
+                'system("You are a helpful assistant. Use only the provided forecast discussion text as your source. '
+                + 'Do not claim you lack access; the text above is authoritative.")'
+            ),
             "context(noaa_search)",
             "history()",
             'user(template("Forecast discussion:\\n{context.noaa_search}\\n\\nQuestion: {input.question}"))',

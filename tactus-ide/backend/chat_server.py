@@ -13,12 +13,18 @@ import json
 from assistant_service import AssistantService
 
 logger = logging.getLogger(__name__)
+INTERNAL_ERROR_MESSAGE = "Internal server error"
 
 # Create blueprint
 chat_bp = Blueprint("chat", __name__, url_prefix="/api/chat")
 
 # Active conversations
 conversations = {}
+
+
+def _internal_error_response():
+    """Return a sanitized 500 response for API clients."""
+    return jsonify({"error": INTERNAL_ERROR_MESSAGE}), 500
 
 
 def get_or_create_service(workspace_root: str, config: dict) -> AssistantService:
@@ -82,7 +88,7 @@ def start_conversation():
 
     except Exception as e:
         logger.error(f"Error starting conversation: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response()
 
 
 @chat_bp.route("/message", methods=["POST"])
@@ -134,7 +140,7 @@ def send_message():
 
     except Exception as e:
         logger.error(f"Error sending message: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response()
 
 
 @chat_bp.route("/stream", methods=["POST"])
@@ -197,7 +203,7 @@ def stream_message():
 
             except Exception as e:
                 logger.error(f"Error streaming message: {e}", exc_info=True)
-                yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
+                yield f"data: {json.dumps({'type': 'error', 'error': INTERNAL_ERROR_MESSAGE})}\n\n"
             finally:
                 loop.close()
 
@@ -213,7 +219,7 @@ def stream_message():
 
     except Exception as e:
         logger.error(f"Error in stream endpoint: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response()
 
 
 @chat_bp.route("/history/<conversation_id>", methods=["GET"])
@@ -246,7 +252,7 @@ def get_history(conversation_id: str):
 
     except Exception as e:
         logger.error(f"Error getting history: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response()
 
 
 @chat_bp.route("/resume/<conversation_id>", methods=["POST"])
@@ -291,7 +297,7 @@ def resume_conversation(conversation_id: str):
 
     except Exception as e:
         logger.error(f"Error resuming conversation: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response()
 
 
 @chat_bp.route("/<conversation_id>", methods=["DELETE"])
@@ -323,7 +329,7 @@ def clear_conversation(conversation_id: str):
 
     except Exception as e:
         logger.error(f"Error clearing conversation: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response()
 
 
 def register_chat_routes(app):

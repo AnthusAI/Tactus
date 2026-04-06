@@ -314,7 +314,7 @@ class ToolPrimitive:
         self,
         tool_name: str,
         args: dict[str, Any],
-        result: Any,
+        result: Any = None,
         agent_name: Optional[str] = None,
     ) -> None:
         """

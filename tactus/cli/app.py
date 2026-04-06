@@ -131,7 +131,6 @@ def load_tactus_config():
     """
     try:
         from tactus.core.config_manager import ConfigManager
-        import json
 
         config_mgr = ConfigManager()
 
@@ -799,9 +798,9 @@ def run(
     if "dev_mode" not in sandbox_config_dict:
         repo_root = None
         try:
-            import tactus
+            from tactus import __file__ as tactus_file
 
-            tactus_module_path = Path(tactus.__file__).resolve()
+            tactus_module_path = Path(tactus_file).resolve()
             repo_root = tactus_module_path.parent.parent
             if not ((repo_root / "tactus").is_dir() and (repo_root / "pyproject.toml").exists()):
                 repo_root = None
@@ -1075,8 +1074,11 @@ def run(
 
                     if isinstance(display_result, TactusResult):
                         display_result = display_result.output
-                except Exception:
-                    pass
+                except ImportError as exc:
+                    logging.getLogger(__name__).debug(
+                        "Could not import TactusResult for CLI display formatting: %r",
+                        exc,
+                    )
 
                 console.print(f"  {display_result}")
 
@@ -1117,15 +1119,15 @@ def run(
                 close_result = close_clients()
                 if asyncio.iscoroutine(close_result):
                     asyncio.run(close_result)
-        except Exception:
-            pass
+        except Exception as exc:
+            logging.getLogger(__name__).debug("LiteLLM client cleanup failed: %r", exc)
         try:
             asyncio.run(control_handler.shutdown_channels())
         except RuntimeError:
             # Best-effort cleanup if an event loop is already running.
             pass
-        except Exception:
-            pass
+        except Exception as exc:
+            logging.getLogger(__name__).debug("Channel shutdown cleanup failed: %r", exc)
 
 
 # Sandbox subcommand group
@@ -1182,7 +1184,12 @@ def sandbox_rebuild(
     from pathlib import Path
     from tactus.sandbox import is_docker_available, DockerManager
     from tactus.sandbox.docker_manager import resolve_dockerfile_path
-    import tactus
+    from tactus import __file__ as tactus_file
+
+    try:
+        from tactus import __version__ as tactus_version
+    except ImportError:
+        tactus_version = "dev"
 
     # Check Docker availability
     available, reason = is_docker_available()
@@ -1191,7 +1198,7 @@ def sandbox_rebuild(
         raise typer.Exit(1)
 
     # Get Tactus package path for build context
-    tactus_path = Path(tactus.__file__).parent.parent
+    tactus_path = Path(tactus_file).parent.parent
     dockerfile_path, build_mode = resolve_dockerfile_path(tactus_path)
 
     if not dockerfile_path.exists():
@@ -1200,7 +1207,7 @@ def sandbox_rebuild(
         raise typer.Exit(1)
 
     # Get version
-    version = getattr(tactus, "__version__", "dev")
+    version = tactus_version
 
     manager = DockerManager()
 
@@ -1439,7 +1446,6 @@ def train(
         raise typer.Exit(1)
 
     try:
-        import json
         from tactus.training.config import load_training_config
         from tactus.training.runner import TrainingRunner
 
@@ -1739,7 +1745,6 @@ def test(
         from tactus.testing.mock_tools import create_default_mocks
         from tactus.validation import TactusValidator
         from tactus.core.config_manager import ConfigManager
-        import json
 
         # Load configuration and export all values as environment variables
         config_mgr = ConfigManager()
@@ -2656,7 +2661,7 @@ def stdlib_test(
         module = None
 
     import os
-    import tactus
+    from tactus import __file__ as tactus_file
     from tactus.validation import TactusValidator
     from tactus.testing.test_runner import TactusTestRunner
 
@@ -2670,7 +2675,7 @@ def stdlib_test(
     os.environ["TACTUS_MOCK_MODE"] = "1"
 
     # Find stdlib spec files
-    package_root = Path(tactus.__file__).parent
+    package_root = Path(tactus_file).parent
     stdlib_tac_path = package_root / "stdlib" / "tac" / "tactus"
 
     # Find all .spec.tac files

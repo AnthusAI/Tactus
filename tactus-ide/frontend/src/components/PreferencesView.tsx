@@ -140,16 +140,36 @@ export function PreferencesView({ onClose, onSave }: PreferencesViewProps) {
 
   const handleGuiFieldChange = (path: string, value: any) => {
     const keys = path.split('.');
+    for (const key of keys) {
+      if (key === '__proto__' || key === 'prototype' || key === 'constructor') {
+        setErrors(['Invalid configuration path']);
+        return;
+      }
+    }
     const newGuiValues = { ...guiValues };
 
     let current: any = newGuiValues;
     for (let i = 0; i < keys.length - 1; i++) {
-      if (!current[keys[i]]) {
-        current[keys[i]] = {};
+      const key = keys[i];
+      let nextValue = Object.prototype.hasOwnProperty.call(current, key) ? current[key] : undefined;
+      if (typeof nextValue !== 'object' || nextValue === null) {
+        nextValue = {};
+        Object.defineProperty(current, key, {
+          value: nextValue,
+          writable: true,
+          enumerable: true,
+          configurable: true,
+        });
       }
-      current = current[keys[i]];
+      current = nextValue;
     }
-    current[keys[keys.length - 1]] = value;
+    const finalKey = keys[keys.length - 1];
+    Object.defineProperty(current, finalKey, {
+      value,
+      writable: true,
+      enumerable: true,
+      configurable: true,
+    });
 
     setGuiValues(newGuiValues);
   };

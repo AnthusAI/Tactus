@@ -447,7 +447,7 @@ def test_chat_tools_handles_exception(monkeypatch):
 
     response = client.get("/api/chat/tools")
     assert response.status_code == 500
-    assert "boom" in response.get_json()["error"]
+    assert response.get_json()["error"] == "Internal server error"
 
 
 def test_chat_tools_merges_user_config(monkeypatch, tmp_path):
@@ -510,7 +510,7 @@ def test_chat_reset_handles_exception(monkeypatch):
 
     response = client.post("/api/chat/reset")
     assert response.status_code == 500
-    assert "boom" in response.get_json()["error"]
+    assert response.get_json()["error"] == "Internal server error"
 
 
 def test_chat_stream_emits_error_event(monkeypatch):

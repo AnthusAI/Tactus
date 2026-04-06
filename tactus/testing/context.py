@@ -426,8 +426,8 @@ class TactusTestContext:
 
             if isinstance(result, TactusResult):
                 return result.output
-        except Exception:
-            pass
+        except ImportError as exc:
+            logger.debug("Could not import TactusResult while reading output value: %s", exc)
         return result
 
     # Completion methods

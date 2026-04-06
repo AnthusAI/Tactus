@@ -2,10 +2,13 @@ from types import SimpleNamespace
 
 import pytest
 
-from tactus.core.dsl_stubs import create_dsl_stubs, lua_table_to_dict
+import tactus.core.dsl_stubs as dsl_stubs
 from tactus.core.registry import RegistryBuilder
 from tactus.primitives.handles import AgentHandle
 from tactus.primitives.tool_handle import ToolHandle
+
+create_dsl_stubs = dsl_stubs.create_dsl_stubs
+lua_table_to_dict = dsl_stubs.lua_table_to_dict
 
 
 class BrokenLuaTable:
@@ -2289,8 +2292,6 @@ def test_tool_config_source_with_name_registers_source():
 
 
 def test_agent_binding_updates_created_agents_dict(monkeypatch):
-    import tactus.core.dsl_stubs as dsl_stubs
-
     builder = RegistryBuilder()
 
     class DummyAgent:
@@ -2316,8 +2317,6 @@ def test_agent_binding_updates_created_agents_dict(monkeypatch):
 
 
 def test_agent_creation_uses_existing_created_agents(monkeypatch):
-    import tactus.core.dsl_stubs as dsl_stubs
-
     builder = RegistryBuilder()
 
     class DummyAgent:
@@ -2339,8 +2338,6 @@ def test_agent_creation_uses_existing_created_agents(monkeypatch):
 
 
 def test_agent_binding_skips_created_agents_init_when_present(monkeypatch):
-    import tactus.core.dsl_stubs as dsl_stubs
-
     builder = RegistryBuilder()
 
     class DummyAgent:

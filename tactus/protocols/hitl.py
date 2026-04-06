@@ -43,7 +43,7 @@ class HITLHandler(Protocol):
             ProcedureWaitingForHuman: (Optional) To trigger exit-and-resume
             HITLError: If interaction fails
         """
-        ...
+        return None
 
     def check_pending_response(self, procedure_id: str, message_id: str) -> Optional[HITLResponse]:
         """
@@ -59,7 +59,7 @@ class HITLHandler(Protocol):
         Returns:
             HITLResponse if response exists, None otherwise
         """
-        ...
+        return None
 
     def cancel_pending_request(self, procedure_id: str, message_id: str) -> None:
         """
@@ -71,4 +71,4 @@ class HITLHandler(Protocol):
             procedure_id: Unique procedure identifier
             message_id: Message/request ID to cancel
         """
-        ...
+        return None

@@ -58,7 +58,7 @@ class Provider(Protocol):
         Returns:
             True if valid, False otherwise
         """
-        ...
+        return None
 
     @staticmethod
     def get_required_credentials() -> list[str]:
@@ -68,7 +68,7 @@ class Provider(Protocol):
         Returns:
             List of environment variable names needed
         """
-        ...
+        return None
 
     @staticmethod
     def create_config(
@@ -89,4 +89,4 @@ class Provider(Protocol):
         Returns:
             ProviderConfig instance
         """
-        ...
+        return None

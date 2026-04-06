@@ -93,7 +93,6 @@ class MockHTTPClient:
     async def aclose(self):
         """Mock close method (does nothing)."""
         logger.debug("Mock HTTP client closed")
-        pass
 
     def get_calls(self) -> List[tuple]:
         """Get all calls made to this client."""
@@ -136,7 +135,6 @@ class MockDatabase:
     async def close(self):
         """Mock close."""
         logger.debug("Mock database closed")
-        pass
 
 
 class MockRedis:
@@ -167,7 +165,6 @@ class MockRedis:
     async def close(self):
         """Mock close."""
         logger.debug("Mock Redis closed")
-        pass
 
 
 class MockDependencyFactory:

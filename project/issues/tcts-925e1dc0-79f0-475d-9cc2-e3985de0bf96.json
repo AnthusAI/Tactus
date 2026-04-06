@@ -1,0 +1,25 @@
+{
+  "id": "tcts-925e1dc0-79f0-475d-9cc2-e3985de0bf96",
+  "title": "Improve rcql defaults for duplicate/codegen path noise in reports",
+  "description": "",
+  "type": "chore",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-6603b94e-360c-4d14-90a9-f5291cfb72cb",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "5286fbac-27f0-4817-8968-2efedd878dc1",
+      "author": "derek.norrbom",
+      "text": "Next: evaluate rcql defaults/flags for this repo so report batches avoid duplicate .codeql/db mirror artifacts and optionally skip vendored node_modules paths for remediation-focused runs.",
+      "created_at": "2026-04-02T22:57:30.767863Z"
+    }
+  ],
+  "created_at": "2026-04-02T22:53:24.450909Z",
+  "updated_at": "2026-04-02T22:57:30.767863Z",
+  "closed_at": null,
+  "custom": {}
+}

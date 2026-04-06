@@ -1,0 +1,31 @@
+{
+  "id": "tcts-253c3e75-8ba4-4ee2-b0e9-dddc3c312255",
+  "title": "Fix py/unused-import findings in non-generated Python modules",
+  "description": "",
+  "type": "bug",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "1539a662-9d58-443e-b5ab-b6192fac993f",
+      "author": "derek.norrbom",
+      "text": "Delegating in parallel. Scope excludes generated parser/lexer files. Targets: tactus-ide/backend/events.py, tactus/registry/mlflow.py, tactus/primitives/message_history.py, tactus/primitives/session.py.",
+      "created_at": "2026-04-02T23:24:04.743300Z"
+    },
+    {
+      "id": "d67d804a-0da7-45ac-94bb-8151c1fec1d0",
+      "author": "derek.norrbom",
+      "text": "Completed. Removed non-generated unused imports in tactus-ide/backend/events.py, tactus/registry/mlflow.py, tactus/primitives/message_history.py, tactus/primitives/session.py. Fresh rcql shows remaining py/unused-import findings are generated lexer/parser files only.",
+      "created_at": "2026-04-02T23:34:43.605714Z"
+    }
+  ],
+  "created_at": "2026-04-02T23:24:00.967217Z",
+  "updated_at": "2026-04-02T23:34:43.616987Z",
+  "closed_at": "2026-04-02T23:34:43.616987Z",
+  "custom": {}
+}

@@ -73,7 +73,7 @@ def test_predict_sync_with_fake_torch(monkeypatch, tmp_path):
         {},
     )()
     fake_torch.Tensor = FakeTensor
-    fake_torch.tensor = lambda data: FakeTensor(data)
+    fake_torch.tensor = FakeTensor
     fake_torch.no_grad = contextlib.nullcontext
     fake_torch.load = lambda path, map_location=None: FakeModel()
 
@@ -115,7 +115,7 @@ def test_load_model_skips_when_already_loaded(monkeypatch, tmp_path):
 def test_predict_async_runs_sync(monkeypatch, tmp_path):
     fake_torch = type("torch", (), {})()
     fake_torch.Tensor = FakeTensor
-    fake_torch.tensor = lambda data: FakeTensor(data)
+    fake_torch.tensor = FakeTensor
     fake_torch.no_grad = contextlib.nullcontext
     fake_torch.load = lambda path, map_location=None: FakeModel(FakeTensor(4))
 
@@ -148,7 +148,7 @@ def test_predict_sync_missing_torch_raises(monkeypatch, tmp_path):
 def test_predict_sync_accepts_tensor_input(monkeypatch, tmp_path):
     fake_torch = type("torch", (), {})()
     fake_torch.Tensor = FakeTensor
-    fake_torch.tensor = lambda data: FakeTensor(data)
+    fake_torch.tensor = FakeTensor
     fake_torch.no_grad = contextlib.nullcontext
     fake_torch.load = lambda path, map_location=None: FakeModel(FakeTensor(5))
 
@@ -165,7 +165,7 @@ def test_predict_sync_accepts_tensor_input(monkeypatch, tmp_path):
 def test_predict_sync_returns_raw_scalar(monkeypatch, tmp_path):
     fake_torch = type("torch", (), {})()
     fake_torch.Tensor = FakeTensor
-    fake_torch.tensor = lambda data: FakeTensor(data)
+    fake_torch.tensor = FakeTensor
     fake_torch.no_grad = contextlib.nullcontext
     fake_torch.load = lambda path, map_location=None: FakeModel(FakeTensor(3))
 
@@ -181,7 +181,7 @@ def test_predict_sync_returns_raw_scalar(monkeypatch, tmp_path):
 def test_predict_sync_returns_raw_list(monkeypatch, tmp_path):
     fake_torch = type("torch", (), {})()
     fake_torch.Tensor = FakeTensor
-    fake_torch.tensor = lambda data: FakeTensor(data)
+    fake_torch.tensor = FakeTensor
     fake_torch.no_grad = contextlib.nullcontext
     fake_torch.load = lambda path, map_location=None: FakeModel(FakeTensor([1, 2], numel_value=2))
 
@@ -197,7 +197,7 @@ def test_predict_sync_returns_raw_list(monkeypatch, tmp_path):
 def test_predict_sync_label_out_of_range_returns_index(monkeypatch, tmp_path):
     fake_torch = type("torch", (), {})()
     fake_torch.Tensor = FakeTensor
-    fake_torch.tensor = lambda data: FakeTensor(data)
+    fake_torch.tensor = FakeTensor
     fake_torch.no_grad = contextlib.nullcontext
     fake_torch.load = lambda path, map_location=None: FakeModel(FakeTensor([0.1, 0.9]))
 
@@ -217,7 +217,7 @@ def test_predict_sync_label_rounds_scalar(monkeypatch, tmp_path):
 
     fake_torch = type("torch", (), {})()
     fake_torch.Tensor = FakeTensor
-    fake_torch.tensor = lambda data: FakeTensor(data)
+    fake_torch.tensor = FakeTensor
     fake_torch.no_grad = contextlib.nullcontext
     fake_torch.load = lambda path, map_location=None: FakeModel(FloatTensor(1.6, dim_value=0))
 

@@ -336,7 +336,7 @@ class ControlChannel(Protocol):
 
         Examples: 'cli', 'ide', 'tactus_cloud', 'slack'
         """
-        ...
+        return None
 
     @property
     def capabilities(self) -> ChannelCapabilities:
@@ -345,7 +345,7 @@ class ControlChannel(Protocol):
 
         Used for routing decisions and UI adaptation.
         """
-        ...
+        return None
 
     async def initialize(self) -> None:
         """
@@ -355,7 +355,7 @@ class ControlChannel(Protocol):
         initialization (OAuth handshakes, WebSocket connections, etc.)
         when a control request arrives.
         """
-        ...
+        return None
 
     async def send(
         self,
@@ -370,7 +370,7 @@ class ControlChannel(Protocol):
         Returns:
             DeliveryResult with delivery status and external message ID
         """
-        ...
+        return None
 
     async def receive(self) -> AsyncIterator[ControlResponse]:
         """
@@ -385,7 +385,7 @@ class ControlChannel(Protocol):
         Yields:
             ControlResponse as they are received
         """
-        ...
+        return None
 
     async def cancel(self, external_message_id: str, reason: str) -> None:
         """
@@ -395,7 +395,7 @@ class ControlChannel(Protocol):
             external_message_id: Channel-specific message ID from DeliveryResult
             reason: Reason for cancellation (e.g., "Responded via tactus_cloud")
         """
-        ...
+        return None
 
     async def shutdown(self) -> None:
         """
@@ -404,7 +404,7 @@ class ControlChannel(Protocol):
         Called at procedure end or on error. Should clean up resources,
         close connections, etc.
         """
-        ...
+        return None
 
 
 class ControlChannelConfig(BaseModel):

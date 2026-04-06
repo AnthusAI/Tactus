@@ -1,8 +1,6 @@
 from typing import TextIO
 from antlr4 import *
-from antlr4.Token import CommonToken
 import sys
-from typing import TextIO
 
 
 class LuaLexerBase(Lexer):

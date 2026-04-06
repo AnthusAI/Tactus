@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Timer } from 'lucide-react';
-import FlipNumbers from 'react-flip-numbers';
 
 interface DurationProps {
   startTime: string; // ISO timestamp string

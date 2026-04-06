@@ -414,7 +414,7 @@ class ControlLoopHandler:
                 try:
                     await task
                 except asyncio.CancelledError:
-                    pass
+                    logger.debug("Cancelled pending control channel task")
 
             # Return first successful response
             for task in done:
@@ -423,7 +423,7 @@ class ControlLoopHandler:
                     if response:
                         return response
                 except asyncio.CancelledError:
-                    pass
+                    logger.debug("Control channel task was cancelled before result")
                 except Exception as error:
                     logger.debug("Task exception: %s", error)
 

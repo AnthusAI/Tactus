@@ -63,7 +63,7 @@ class ModelRegistry(Protocol):
         Returns:
             ModelVersion object for the registered version
         """
-        ...
+        return None
 
     def resolve(self, name: str, version: Optional[str] = None) -> ModelVersion:
         """
@@ -80,7 +80,7 @@ class ModelRegistry(Protocol):
         Raises:
             KeyError: If model or version not found
         """
-        ...
+        return None
 
     def list_versions(self, name: str) -> List[ModelVersion]:
         """
@@ -92,7 +92,7 @@ class ModelRegistry(Protocol):
         Returns:
             List of ModelVersion objects, sorted by creation time (newest first)
         """
-        ...
+        return None
 
     def promote(self, name: str, version: str, tag: str) -> None:
         """
@@ -109,7 +109,7 @@ class ModelRegistry(Protocol):
         Raises:
             KeyError: If model or version not found
         """
-        ...
+        return None
 
     def log_prediction(
         self,
@@ -129,4 +129,4 @@ class ModelRegistry(Protocol):
             cost: Optional inference cost
             latency_ms: Optional latency in milliseconds
         """
-        ...
+        return None

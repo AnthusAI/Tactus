@@ -1,0 +1,31 @@
+{
+  "id": "tcts-4f972559-0b6d-4f50-b3c1-3569326240c1",
+  "title": "Remediate py/unnecessary-lambda in Python tests (batch)",
+  "description": "Fix py/unnecessary-lambda findings in test files only. Goal: remove or inline unnecessary lambda wrappers while preserving test semantics. Main agent will run final black/ruff/pytest and push.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "a85642c8-4439-43b6-8344-ef3af6859880",
+      "author": "derek.norrbom",
+      "text": "Starting execution: target py/unnecessary-lambda in tests only, with parallel subagent chunks and centralized final black/ruff/pytest gating by main agent before push.",
+      "created_at": "2026-04-03T15:36:12.602648Z"
+    },
+    {
+      "id": "02318e5b-83ef-4bcb-9964-96ee6add9ad1",
+      "author": "derek.norrbom",
+      "text": "Completed: remediated py/unnecessary-lambda in 10 test files (40 findings). Centralized gates passed: black, ruff, and targeted pytest (252 passed). Fresh rcql python scan now 178 total warnings (down from 218), and py/unnecessary-lambda now 0.",
+      "created_at": "2026-04-03T15:39:10.092094Z"
+    }
+  ],
+  "created_at": "2026-04-03T15:35:42.835502Z",
+  "updated_at": "2026-04-03T15:39:10.317024Z",
+  "closed_at": "2026-04-03T15:39:10.317024Z",
+  "custom": {}
+}

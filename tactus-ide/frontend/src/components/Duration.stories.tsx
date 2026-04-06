@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { Duration } from './Duration';
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
 const meta = {
   title: 'Components/Duration',

@@ -5,7 +5,9 @@ import typing
 import pytest
 
 from tactus.primitives.tool import ToolPrimitive
-from tactus.primitives.tool_handle import ToolHandle
+import tactus.primitives.tool_handle as tool_handle
+
+ToolHandle = tool_handle.ToolHandle
 
 
 def test_tool_handle_sync_call_records():
@@ -136,8 +138,6 @@ def test_tool_handle_repr():
 
 
 def test_type_checking_import_path():
-    import tactus.primitives.tool_handle as tool_handle
-
     original = typing.TYPE_CHECKING
     try:
         typing.TYPE_CHECKING = True

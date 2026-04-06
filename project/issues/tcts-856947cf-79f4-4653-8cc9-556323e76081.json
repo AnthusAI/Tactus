@@ -1,0 +1,115 @@
+{
+  "id": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+  "title": "Remediate rcql Python findings batch 2 (high-throughput)",
+  "description": "",
+  "type": "epic",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-8dbdce66-f645-40af-8d7b-f6664829eef3",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "ea7c4108-9371-4e4a-939f-901dc20b84de",
+      "author": "derek.norrbom",
+      "text": "Batching plan: prioritize low-risk, high-volume import hygiene in parallel. Chunk A: py/repeated-import (11 findings). Chunk B: py/import-and-import-from runtime files (4 findings). Chunk C: py/import-and-import-from test files (19 findings). Defer generated/vendor findings to noise-reduction workflow.",
+      "created_at": "2026-04-02T23:08:46.044351Z"
+    },
+    {
+      "id": "2679fa28-d643-4315-80f8-6456a34b50c7",
+      "author": "derek.norrbom",
+      "text": "Batch 2 result: resolved 34 findings in one cycle (py/repeated-import: 11->0, py/import-and-import-from: 23->0). Fresh rcql python full scan now warning total 352 (was 386). Next fast chunk candidates: py/unused-import (8 non-vendor), py/mixed-returns (9 non-vendor, needs caution), py/empty-except in runtime (52 non-vendor, likely triage/fixes by risk).",
+      "created_at": "2026-04-02T23:19:12.789737Z"
+    },
+    {
+      "id": "5b83d016-1875-48ef-b179-7a8c3e01dc5f",
+      "author": "derek.norrbom",
+      "text": "Verification after formatting: fresh rcql python scan still at warning total 352. Batch 2 reductions preserved (repeated-import and import-and-import-from both at 0 in SARIF).",
+      "created_at": "2026-04-02T23:23:05.692008Z"
+    },
+    {
+      "id": "f3727879-c398-40e1-a62b-087092f7a73f",
+      "author": "derek.norrbom",
+      "text": "CI remediation interleaved with batching: fixed regression from run 23926590563 by restoring CLI/IDE server behavior while preserving safe unused-import/local fixes. Current rcql python total is 347 (from 352 pre-batch); remaining high-volume rules still include unnecessary-pass/empty-except/ineffectual-statement and dsl_stubs unused-local.",
+      "created_at": "2026-04-02T23:34:46.027357Z"
+    },
+    {
+      "id": "0bfa7094-552a-4b91-9ec8-e5507976a16d",
+      "author": "derek.norrbom",
+      "text": "Next chunk: py/call-to-non-callable. Starting with the two test findings in tests/primitives/test_tool_primitive.py; production mcp adapter fallback call triaged separately to avoid unintended behavior change.",
+      "created_at": "2026-04-02T23:48:36.002752Z"
+    },
+    {
+      "id": "eac9abf7-8a21-415c-b794-dd68b6f8805d",
+      "author": "derek.norrbom",
+      "text": "High-yield chunk selected: py/unnecessary-pass has 68 findings in 2 files (65 in generated LuaParser, 3 in mock_dependencies). Splitting into a safe hand-written fix and a bulk generated-file cleanup path.",
+      "created_at": "2026-04-02T23:56:31.627658Z"
+    },
+    {
+      "id": "9d5741ca-fbf2-4a1d-983c-cd16ff45bd7a",
+      "author": "derek.norrbom",
+      "text": "High-yield batch landed: py/unnecessary-pass remediated across 2 files (65 generated parser + 3 mock_dependencies). Fresh rcql python total dropped to 274 (from 344 pre-batch).",
+      "created_at": "2026-04-02T23:59:07.348126Z"
+    },
+    {
+      "id": "d7fc7406-1c08-40ba-90cc-8eeb1e7217c8",
+      "author": "derek.norrbom",
+      "text": "Starting next remediation batch: target py/ineffectual-statement findings in first-party Python files, excluding vendored node_modules mirrors. Plan is parallel subagent edits on disjoint file sets plus targeted pytest and lint gates before push.",
+      "created_at": "2026-04-03T15:18:06.154372Z"
+    },
+    {
+      "id": "772b336c-e340-4884-af30-2df567023785",
+      "author": "derek.norrbom",
+      "text": "Batch complete: py/ineffectual-statement first-party findings reduced from 48 to 0 (rule now only 2 vendor mirror hits), py/repeated-import reduced to 0, and fresh rcql python total dropped from 274 to 218. Also fixed CI formatting miss by black-formatting tactus/training/trainers.py and re-running black/ruff gates locally before commit.",
+      "created_at": "2026-04-03T15:25:31.990032Z"
+    },
+    {
+      "id": "05373438-8844-4763-89a2-92c043f080b0",
+      "author": "derek.norrbom",
+      "text": "Selected next high-throughput batch: py/unnecessary-lambda (40 first-party findings, concentrated in test files). Chosen over py/empty-except because behavior risk is much lower and likely to reduce findings quickly with minimal CI risk.",
+      "created_at": "2026-04-03T15:35:42.639330Z"
+    },
+    {
+      "id": "a5385557-5c43-4a3f-9c90-e15a7746ed5b",
+      "author": "derek.norrbom",
+      "text": "Batch result: py/unnecessary-lambda reduced 40 -> 0 via test-only rewrites. Fresh rcql python total dropped 218 -> 178. Next highest first-party candidates remain py/empty-except (52) and py/multiple-definition (14).",
+      "created_at": "2026-04-03T15:39:10.316827Z"
+    },
+    {
+      "id": "46482c1f-83c8-4963-9576-d2d33883dccf",
+      "author": "derek.norrbom",
+      "text": "Next batch selected: py/multiple-definition with focus on duplicate test definitions in tests/validation/test_semantic_visitor_helpers.py. Deferring generated/vendor findings and dsl_stubs review to a separate source-of-truth decision.",
+      "created_at": "2026-04-03T16:06:56.493322Z"
+    },
+    {
+      "id": "6aaa1cab-48c6-45e6-b4e3-e5e91763776f",
+      "author": "derek.norrbom",
+      "text": "Batch result: py/multiple-definition reduced 22 -> 9 (remaining are 1 generated LuaParser + vendor mirrors). Fresh rcql python total dropped 178 -> 164.",
+      "created_at": "2026-04-03T16:10:21.361906Z"
+    },
+    {
+      "id": "51fe4919-7b3a-42f9-8c87-2c8ef915c06b",
+      "author": "derek.norrbom",
+      "text": "Started py/empty-except remediation task tcts-751065. First chunk removed 10 findings, lowering rule count 58 -> 48 and python total 164 -> 155 after fresh scan.",
+      "created_at": "2026-04-03T16:16:43.318587Z"
+    },
+    {
+      "id": "7c4681cc-b39d-4915-b72f-59098eaea698",
+      "author": "derek.norrbom",
+      "text": "Continued py/empty-except remediation reduced rule count from 24 to 17 in this pass; python total now 53 after fresh scan. Generated files remained untouched; fixes were source-only in runtime modules.",
+      "created_at": "2026-04-03T16:35:45.368461Z"
+    },
+    {
+      "id": "0b450bc8-9496-4073-a92a-e6607da5f3c9",
+      "author": "derek.norrbom",
+      "text": "Chunk complete: resolved remaining first-party findings this pass (mcp call-to-non-callable, mixed-returns in first-party files, LuaLexerBase unused import, tool overridden-signature). Fresh rcql python scan now reports 9 warnings, all in generated validation files.",
+      "created_at": "2026-04-03T17:21:02.851636Z"
+    }
+  ],
+  "created_at": "2026-04-02T23:08:41.297987Z",
+  "updated_at": "2026-04-03T17:21:02.851636Z",
+  "closed_at": null,
+  "custom": {}
+}

@@ -971,6 +971,7 @@ def test_run_stream_consolidates_stream_chunks(monkeypatch, tmp_path):
 
     class ChunkLogHandler(FakeIDELogHandler):
         def __init__(self):
+            super().__init__()
             self.events = ide_server.queue.Queue()
             self.events.put(ChunkEvent())
 

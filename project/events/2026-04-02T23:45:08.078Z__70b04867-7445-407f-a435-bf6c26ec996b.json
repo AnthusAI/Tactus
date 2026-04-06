@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "70b04867-7445-407f-a435-bf6c26ec996b",
+  "issue_id": "tcts-f4aa0f14-a02c-4e09-a5e7-e58fa1769d54",
+  "event_type": "issue_created",
+  "occurred_at": "2026-04-02T23:45:08.078Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "assignee": null,
+    "description": "",
+    "issue_type": "bug",
+    "labels": [],
+    "parent": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+    "priority": 2,
+    "status": "open",
+    "title": "Fix py/unexpected-raise-in-special-method findings in tests"
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "id": "tcts-1b7dccef-57dd-489e-9a79-b4f856634e31",
+  "title": "Fix py/ineffectual-statement in runtime abstract/base modules",
+  "description": "Remediate ineffectual statements in adapters/providers/backends/stdlib/training modules with behavior-preserving explicit placeholders.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "fc65e175-e14b-4b18-998f-d085c27ad5c2",
+      "author": "derek.norrbom",
+      "text": "Worker B starting implementation on branch fix/codeql-findings. Scope limited to owned files: stdlib/core/base.py, providers/base.py, adapters/channels/{base,host}.py, backends/model_backend.py, training/trainers.py. Plan: replace ineffectual expression statements with explicit abstract stubs/placeholders, run scoped ruff + focused pytest, then commit and push.",
+      "created_at": "2026-04-03T15:19:18.983948Z"
+    },
+    {
+      "id": "7d39ddb6-72b2-4e4a-aaa8-3b3de5f725d1",
+      "author": "derek.norrbom",
+      "text": "Implemented py/ineffectual-statement remediation in owned files by replacing ellipsis expression bodies with explicit stubs (NotImplementedError in abstract ABC methods; explicit return None stubs in Protocol methods to preserve prior behavior). Verification: poetry run ruff check on 6 edited files passed; focused pytest target passed (33 tests). Note: broad tests/cli run in this VM still has unrelated optional-dependency failures for missing scikit-learn.",
+      "created_at": "2026-04-03T15:21:29.365875Z"
+    },
+    {
+      "id": "0c20b512-5d32-4085-996c-aa968c75d315",
+      "author": "derek.norrbom",
+      "text": "Completed Worker B scope on branch fix/codeql-findings. Remediated py/ineffectual-statement in all 6 owned files, verified with scoped ruff and focused pytest, committed as 8b4155d0, and pushed to origin/fix/codeql-findings.",
+      "created_at": "2026-04-03T15:21:56.309498Z"
+    }
+  ],
+  "created_at": "2026-04-03T15:18:36.728321Z",
+  "updated_at": "2026-04-03T15:21:56.320796Z",
+  "closed_at": "2026-04-03T15:21:56.320796Z",
+  "custom": {}
+}

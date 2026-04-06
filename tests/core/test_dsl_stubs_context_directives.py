@@ -1,11 +1,6 @@
 import pytest
 
-from tactus.core.dsl_stubs import (
-    _normalize_context_pack_entry,
-    _normalize_handle_name,
-    _normalize_template_vars,
-    create_dsl_stubs,
-)
+import tactus.core.dsl_stubs as dsl_stubs
 from tactus.core.registry import RegistryBuilder
 from tactus.primitives.handles import (
     CompactorHandle,
@@ -13,6 +8,11 @@ from tactus.primitives.handles import (
     CorpusHandle,
     RetrieverHandle,
 )
+
+_normalize_context_pack_entry = dsl_stubs._normalize_context_pack_entry
+_normalize_handle_name = dsl_stubs._normalize_handle_name
+_normalize_template_vars = dsl_stubs._normalize_template_vars
+create_dsl_stubs = dsl_stubs.create_dsl_stubs
 
 
 def test_template_directive_and_message_helpers():
@@ -49,8 +49,6 @@ def test_template_directive_with_empty_lua_table():
 
 
 def test_template_directive_with_monkeypatched_empty_vars(monkeypatch):
-    import tactus.core.dsl_stubs as dsl_stubs
-
     monkeypatch.setattr(dsl_stubs, "lua_table_to_dict", lambda _value: [])
     stubs = create_dsl_stubs(RegistryBuilder())
     directive = stubs["template"]("Hello {input.name}", {"a": 1})
@@ -58,8 +56,6 @@ def test_template_directive_with_monkeypatched_empty_vars(monkeypatch):
 
 
 def test_template_directive_with_monkeypatched_empty_vars_again(monkeypatch):
-    import tactus.core.dsl_stubs as dsl_stubs
-
     monkeypatch.setattr(dsl_stubs, "lua_table_to_dict", lambda _value: [])
     stubs = create_dsl_stubs(RegistryBuilder())
     directive = stubs["template"]("Hello {input.name}", {"b": 2})
@@ -67,8 +63,6 @@ def test_template_directive_with_monkeypatched_empty_vars_again(monkeypatch):
 
 
 def test_template_directive_with_list_vars_table(monkeypatch):
-    import tactus.core.dsl_stubs as dsl_stubs
-
     monkeypatch.setattr(dsl_stubs, "lua_table_to_dict", lambda value: value)
     stubs = create_dsl_stubs(RegistryBuilder())
     directive = stubs["template"]("Hello {input.name}", [])
@@ -76,8 +70,6 @@ def test_template_directive_with_list_vars_table(monkeypatch):
 
 
 def test_template_directive_empty_list_branch(monkeypatch):
-    import tactus.core.dsl_stubs as dsl_stubs
-
     monkeypatch.setattr(dsl_stubs, "lua_table_to_dict", lambda _value: [])
     stubs = create_dsl_stubs(RegistryBuilder())
     directive = stubs["template"]("Hello {input.name}", {"c": 3})
@@ -180,8 +172,6 @@ def test_new_context_normalizes_pack_entry_dict_with_name_handle():
 
 
 def test_new_context_normalizes_pack_entry_with_name_via_monkeypatch(monkeypatch):
-    import tactus.core.dsl_stubs as dsl_stubs
-
     monkeypatch.setattr(
         dsl_stubs,
         "lua_table_to_dict",

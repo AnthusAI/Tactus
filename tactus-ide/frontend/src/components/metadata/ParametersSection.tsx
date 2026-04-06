@@ -1,6 +1,6 @@
 import React from 'react';
 import { ParameterDeclaration } from '@/types/metadata';
-import { FileInput, Hash, Type } from 'lucide-react';
+import { FileInput } from 'lucide-react';
 
 interface ParametersSectionProps {
   parameters: Record<string, ParameterDeclaration>;

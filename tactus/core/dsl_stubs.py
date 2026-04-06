@@ -31,12 +31,12 @@ Agent/Tool calls use direct variable access:
     done.last_result()              -- Get last tool result
 """
 
+import logging
 from typing import Any, Callable, Dict, Optional
 
 from .registry import RegistryBuilder
 from tactus.primitives.handles import (
     AgentHandle,
-    AgentLookup,
     CompactorHandle,
     ContextHandle,
     CorpusHandle,
@@ -44,6 +44,8 @@ from tactus.primitives.handles import (
     ModelLookup,
     RetrieverHandle,
 )
+
+logger = logging.getLogger(__name__)
 
 
 # NEW Builder pattern for field types - moved outside function for import
@@ -401,6 +403,8 @@ def create_dsl_stubs(
 
             return _curried
 
+        return None
+
     def _task(name_or_config=None, config=None):
         """
         Task declaration stub.
@@ -428,8 +432,8 @@ def create_dsl_stubs(
                 try:
                     task_config["__task_name"] = task_name
                     task_config["__tactus_task_config"] = True
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("Failed to set task metadata markers for '%s': %s", task_name, exc)
             task_config_dict = lua_table_to_dict(task_config)
             if "entry" in task_config_dict and not callable(task_config_dict["entry"]):
                 raise TypeError(f"Task '{task_name}' entry must be a function")
@@ -455,8 +459,8 @@ def create_dsl_stubs(
             if hasattr(task_config, "__setitem__"):
                 try:
                     task_config["__tactus_task_config"] = True
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("Failed to set assignment task metadata marker: %s", exc)
             if hasattr(task_config, "items"):
                 child_tasks = {}
                 for key, value in task_config.items():
@@ -464,15 +468,16 @@ def create_dsl_stubs(
                         continue
                     try:
                         marker = value["__tactus_task_config"]
-                    except Exception:
+                    except Exception as exc:
+                        logger.debug("Failed reading task marker for child '%s': %s", key, exc)
                         marker = False
                     if marker:
                         child_tasks[key] = value
                 if child_tasks:
                     try:
                         task_config["__tactus_child_tasks"] = child_tasks
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        logger.debug("Failed storing child task metadata: %s", exc)
             return task_config
 
         return {}
@@ -857,60 +862,6 @@ def create_dsl_stubs(
         schema_dict = lua_table_to_dict(schema)
         builder.register_top_level_output(schema_dict)
 
-    # Type shorthand helper functions
-    # OLD type functions - keeping temporarily until examples are updated
-    def _required(type_name: str, description: str = None) -> dict:  # pragma: no cover
-        """Create a required field of given type."""
-        result = {"type": type_name, "required": True}
-        if description:
-            result["description"] = description
-        return result
-
-    def _string(default: str = None, description: str = None) -> dict:  # pragma: no cover
-        """Create an optional string field."""
-        result = {"type": "string", "required": False}
-        if default is not None:
-            result["default"] = default
-        if description:
-            result["description"] = description
-        return result
-
-    def _number(default: float = None, description: str = None) -> dict:  # pragma: no cover
-        """Create an optional number field."""
-        result = {"type": "number", "required": False}
-        if default is not None:
-            result["default"] = default
-        if description:
-            result["description"] = description
-        return result
-
-    def _boolean(default: bool = None, description: str = None) -> dict:  # pragma: no cover
-        """Create an optional boolean field."""
-        result = {"type": "boolean", "required": False}
-        if default is not None:
-            result["default"] = default
-        if description:
-            result["description"] = description
-        return result
-
-    def _array(default: list = None, description: str = None) -> dict:  # pragma: no cover
-        """Create an optional array field."""
-        result = {"type": "array", "required": False}
-        if default is not None:
-            result["default"] = default if default else []
-        if description:
-            result["description"] = description
-        return result
-
-    def _object(default: dict = None, description: str = None) -> dict:  # pragma: no cover
-        """Create an optional object field."""
-        result = {"type": "object", "required": False}
-        if default is not None:
-            result["default"] = default if default else {}
-        if description:
-            result["description"] = description
-        return result
-
     # NEW Builder pattern for field types
     def _field_builder(field_type: str):
         """Create a field builder for the given type."""
@@ -979,7 +930,6 @@ def create_dsl_stubs(
 
     # Create lookup functions for uppercase names (Agent, Model)
     # These allow: Agent("greeter")(), Model("classifier")()  (callable syntax)
-    _Agent = AgentLookup(_agent_registry)
     _Model = ModelLookup(_model_registry)
 
     # For Tool lookup, we'll add __call__ to ToolPrimitive
@@ -1023,8 +973,8 @@ def create_dsl_stubs(
                         if self.lookup and name in self.lookup._registry:
                             # This is a lookup: Model("name") where model exists
                             return self.lookup(name)
-                    except (TypeError, KeyError):
-                        pass
+                    except (TypeError, KeyError) as exc:
+                        logger.debug("Model lookup probe failed for '%s': %s", name, exc)
                     # This is the start of a definition: Model "name" {...}
                     # Return the curried function from definer
                     return self.definer(name)
@@ -1532,163 +1482,6 @@ def create_dsl_stubs(
 
     _mcp_namespace = McpNamespace()
 
-    def _process_tool_config(tool_name, config):  # pragma: no cover
-        """
-        Process tool configuration for both curried and direct syntax.
-
-        Args:
-            tool_name: Name of the tool
-            config: Configuration table
-
-        Returns:
-            ToolHandle
-        """
-        from tactus.primitives.tool_handle import ToolHandle
-
-        # Extract function from config
-        handler_function = None
-        if hasattr(config, "__getitem__"):
-            for index in range(1, 10):
-                try:
-                    candidate_item = config[index]
-                    if callable(candidate_item):
-                        handler_function = candidate_item
-                        config[index] = None
-                        break
-                except (KeyError, TypeError, IndexError):
-                    break
-
-        # Convert to dict
-        config_dict = lua_table_to_dict(config)
-
-        # Clean up None values from function extraction
-        if isinstance(config_dict, list):
-            config_dict = [x for x in config_dict if x is not None]
-            # Ignore extra positional entries that can't be mapped to config fields.
-            config_dict = {}
-
-        # Normalize empty schemas (lua {} -> python []) so tools treat empty schemas
-        # as empty objects, not arrays.
-        if isinstance(config_dict, dict):
-            config_dict["input"] = _normalize_schema(config_dict.get("input", {}))
-            config_dict["output"] = _normalize_schema(config_dict.get("output", {}))
-
-        # Check for legacy handler field
-        if handler_function is None and isinstance(config_dict, dict):
-            handler_function = config_dict.pop("handler", None)
-
-        # Tool sources: allow `use = "..."` (or legacy/internal `source = "..."`) in lieu of a handler.
-        source = None
-        if isinstance(config_dict, dict):
-            source = config_dict.pop("use", None)
-            if source is not None:
-                if "source" in config_dict:
-                    raise TypeError(f"Tool '{tool_name}' cannot specify both 'use' and 'source'")
-                config_dict["source"] = source
-            else:
-                source = config_dict.get("source")
-
-        if handler_function is not None and isinstance(source, str) and source.strip():
-            raise TypeError(
-                f"Tool '{tool_name}' cannot specify both a function and 'use = \"...\"'"
-            )
-
-        is_source_tool = (
-            handler_function is None and isinstance(source, str) and bool(source.strip())
-        )
-
-        if handler_function is None and not is_source_tool:
-            raise TypeError(
-                f"Tool '{tool_name}' requires either a function or 'use = \"...\"'. "
-                'Example: my_tool = Tool { use = "broker.host.ping" }'
-            )
-
-        if is_source_tool:
-            source_str = source.strip()
-
-            def source_tool_handler(args):
-                import asyncio
-                import threading
-
-                # Resolve at call time so runtime toolsets are available.
-                if tool_primitive is None:
-                    raise RuntimeError(
-                        f"Tool '{tool_name}' is not available (tool primitive missing)"
-                    )
-
-                runtime = getattr(tool_primitive, "_runtime", None)
-                if runtime is None:
-                    raise RuntimeError(
-                        f"Tool '{tool_name}' is not available (runtime not connected)"
-                    )
-
-                toolset = runtime.toolset_registry.get(tool_name)
-                if toolset is None:
-                    raise RuntimeError(
-                        f"Tool '{tool_name}' not resolved from source '{source_str}'"
-                    )
-
-                tool_function = tool_primitive._extract_tool_function(toolset, tool_name)
-
-                # Support both tool_fn(**kwargs) and tool_fn(args_dict) styles.
-                # Prefer kwargs (pydantic-ai Tool functions) then fall back to dict.
-                if hasattr(args, "items"):
-                    args_dict = lua_table_to_dict(args)
-                else:
-                    args_dict = args or {}
-                if not isinstance(args_dict, dict):
-                    raise TypeError(f"Tool '{tool_name}' args must be an object/table")
-
-                if asyncio.iscoroutinefunction(tool_function):
-
-                    def run_coroutine_in_thread(coro):
-                        try:
-                            asyncio.get_running_loop()
-                        except RuntimeError:
-                            return asyncio.run(coro)
-
-                        result_container = {"value": None, "exception": None}
-
-                        def run_in_thread():
-                            try:
-                                result_container["value"] = asyncio.run(coro)
-                            except Exception as error:
-                                result_container["exception"] = error
-
-                        thread = threading.Thread(target=run_in_thread)
-                        thread.start()
-                        thread.join()
-
-                        if result_container["exception"] is not None:
-                            raise result_container["exception"]
-                        return result_container["value"]
-
-                    try:
-                        return run_coroutine_in_thread(tool_function(**args_dict))
-                    except TypeError:
-                        return run_coroutine_in_thread(tool_function(args_dict))
-
-                try:
-                    return tool_function(**args_dict)
-                except TypeError:
-                    return tool_function(args_dict)
-
-            handler_function = source_tool_handler
-
-        # Register tool with provided name
-        builder.register_tool(tool_name, config_dict, handler_function)
-        handle = ToolHandle(
-            tool_name,
-            handler_function,
-            tool_primitive,
-            record_calls=not is_source_tool,
-        )
-
-        # Store in registry
-        _tool_registry[tool_name] = handle
-
-        return handle
-
     def _new_tool(name_or_config=None):
         """
         New Tool factory for assignment-based syntax.
@@ -1744,7 +1537,6 @@ def create_dsl_stubs(
 
         # Clean up None values from function extraction
         if isinstance(config_dict, list):
-            config_dict = [x for x in config_dict if x is not None]
             # Ignore extra positional entries that can't be mapped to config fields.
             config_dict = {}
 
@@ -2187,9 +1979,6 @@ def create_dsl_stubs(
         handle = AgentHandle(agent_name)
 
         # If we have runtime context, create the agent primitive immediately
-        import logging
-
-        logger = logging.getLogger(__name__)
 
         logger.debug(
             f"[AGENT_CREATION] Agent '{agent_name}': runtime_context={bool(_runtime_context)}, has_log_handler={('log_handler' in _runtime_context) if _runtime_context else False}"
@@ -2380,9 +2169,6 @@ def create_dsl_stubs(
         handle = AgentHandle(temporary_agent_name)
 
         # If we have runtime context, create the agent primitive immediately
-        import logging
-
-        logger = logging.getLogger(__name__)
 
         logger.debug(
             f"[AGENT_CREATION] Agent '{temporary_agent_name}': runtime_context={bool(_runtime_context)}, has_log_handler={('log_handler' in _runtime_context) if _runtime_context else False}"
@@ -2626,7 +2412,6 @@ def _make_binding_callback(
 
     This callback is called by Lua's __newindex metatable when assignments happen.
     """
-    import logging
     from tactus.primitives.handles import (
         CompactorHandle,
         ContextHandle,
@@ -2635,7 +2420,7 @@ def _make_binding_callback(
     )
     from tactus.primitives.tool_handle import ToolHandle
 
-    callback_logger = logging.getLogger(__name__)
+    callback_logger = logger
 
     def _tactus_register_binding(name: str, value: Any) -> None:
         """

@@ -126,7 +126,7 @@ class NotificationChannel(Protocol):
 
         Examples: 'slack', 'discord', 'teams', 'email'
         """
-        ...
+        return None
 
     @property
     def capabilities(self) -> ChannelCapabilities:
@@ -136,7 +136,7 @@ class NotificationChannel(Protocol):
         Used for routing decisions (e.g., don't send approval requests
         to channels that can't handle interactive responses).
         """
-        ...
+        return None
 
     async def send_notification(
         self,
@@ -162,7 +162,7 @@ class NotificationChannel(Protocol):
         Returns:
             NotificationDeliveryResult with delivery status and message ID
         """
-        ...
+        return None
 
     async def cancel_notification(
         self,
@@ -178,7 +178,7 @@ class NotificationChannel(Protocol):
             external_message_id: Channel-specific message ID from delivery result
             reason: Reason for cancellation (for display)
         """
-        ...
+        return None
 
 
 class NotificationChannelConfig(BaseModel):

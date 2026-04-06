@@ -9,12 +9,11 @@ backend_path = Path(__file__).resolve().parents[2] / "tactus-ide" / "backend"
 sys.path.insert(0, str(backend_path))
 
 import text_editor_tool  # noqa: E402
-from text_editor_tool import (  # noqa: E402
-    view_file,
-    view_directory,
-    str_replace_based_edit_tool,
-)
 from assistant_tools import FileToolsError, PathSecurityError  # noqa: E402
+
+view_file = text_editor_tool.view_file
+view_directory = text_editor_tool.view_directory
+str_replace_based_edit_tool = text_editor_tool.str_replace_based_edit_tool
 
 
 @pytest.fixture

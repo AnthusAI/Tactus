@@ -5,7 +5,8 @@ Provides integration with MCP servers to load and convert tools for use with Pyd
 """
 
 import logging
-from typing import List, Any, Optional, Dict
+from collections.abc import Awaitable, Callable
+from typing import List, Any, Optional, Dict, cast
 from pydantic import create_model, Field
 from pydantic_ai import Tool
 
@@ -44,16 +45,27 @@ class PydanticAIMCPAdapter:
         try:
             # Query MCP server for available tools
             # Common MCP client interface: list_tools() or get_tools()
-            if hasattr(self.mcp_client, "list_tools"):
-                mcp_tools = await self.mcp_client.list_tools()
-            elif hasattr(self.mcp_client, "get_tools"):
-                mcp_tools = await self.mcp_client.get_tools()
+            list_tools = getattr(self.mcp_client, "list_tools", None)
+            if list_tools is not None:
+                if not callable(list_tools):
+                    raise TypeError("MCP client attribute 'list_tools' is not callable")
+                mcp_tools = await list_tools()
             else:
-                # Try calling as a method that returns tools
-                logger.warning(
-                    "MCP client doesn't have list_tools() or get_tools(), trying direct call"
-                )
-                mcp_tools = await self.mcp_client() if callable(self.mcp_client) else []
+                get_tools = getattr(self.mcp_client, "get_tools", None)
+                if get_tools is not None:
+                    if not callable(get_tools):
+                        raise TypeError("MCP client attribute 'get_tools' is not callable")
+                    mcp_tools = await get_tools()
+                else:
+                    # Try calling as a method that returns tools
+                    logger.warning(
+                        "MCP client doesn't have list_tools() or get_tools(), trying direct call"
+                    )
+                    if callable(self.mcp_client):
+                        mcp_client_callable = cast(Callable[[], Awaitable[Any]], self.mcp_client)
+                        mcp_tools = await mcp_client_callable()
+                    else:
+                        mcp_tools = []
         except Exception as error:
             logger.error(f"Failed to load tools from MCP server: {error}", exc_info=True)
             return []
@@ -152,20 +164,32 @@ class PydanticAIMCPAdapter:
 
             try:
                 # Call MCP tool - common interface: call_tool(name, args) or tool.execute(args)
-                if hasattr(self.mcp_client, "call_tool"):
-                    result = await self.mcp_client.call_tool(tool_name, args_dict)
-                elif hasattr(self.mcp_client, "call"):
-                    result = await self.mcp_client.call(tool_name, args_dict)
-                elif hasattr(mcp_tool, "execute"):
-                    result = await mcp_tool.execute(args_dict)
+                call_tool = getattr(self.mcp_client, "call_tool", None)
+                if call_tool is not None:
+                    if not callable(call_tool):
+                        raise TypeError("MCP client attribute 'call_tool' is not callable")
+                    result = await call_tool(tool_name, args_dict)
                 else:
-                    # Try calling as a method
-                    if callable(mcp_tool):
-                        result = await mcp_tool(**args_dict)
+                    call = getattr(self.mcp_client, "call", None)
+                    if call is not None:
+                        if not callable(call):
+                            raise TypeError("MCP client attribute 'call' is not callable")
+                        result = await call(tool_name, args_dict)
                     else:
-                        raise ValueError(
-                            f"Cannot execute MCP tool '{tool_name}': no callable interface found"
-                        )
+                        execute = getattr(mcp_tool, "execute", None)
+                        if execute is not None:
+                            if not callable(execute):
+                                raise TypeError("MCP tool attribute 'execute' is not callable")
+                            result = await execute(args_dict)
+                        else:
+                            # Try calling as a method
+                            if callable(mcp_tool):
+                                mcp_tool_callable = cast(Callable[..., Awaitable[Any]], mcp_tool)
+                                result = await mcp_tool_callable(**args_dict)
+                            else:
+                                raise ValueError(
+                                    f"Cannot execute MCP tool '{tool_name}': no callable interface found"
+                                )
 
                 # Convert result to string
                 if isinstance(result, dict):

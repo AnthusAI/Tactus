@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "a2b0705b-aa0b-4ea1-abd5-52caf6ba6f3f",
+  "issue_id": "tcts-20771a88-b8d0-414a-b852-4a7a47c25d77",
+  "event_type": "issue_created",
+  "occurred_at": "2026-04-03T16:45:14.778Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "assignee": null,
+    "description": "",
+    "issue_type": "sub-task",
+    "labels": [],
+    "parent": "tcts-75106599-a8d3-4997-b2cf-207db25cec4a",
+    "priority": 1,
+    "status": "open",
+    "title": "Remediate py/empty-except in testing support files"
+  }
+}

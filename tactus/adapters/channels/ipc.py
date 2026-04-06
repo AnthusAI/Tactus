@@ -360,4 +360,4 @@ class IPCControlChannel:
                 writer.close()
                 await writer.wait_closed()
             except Exception:
-                pass
+                logger.debug("%s: failed to close client writer (%s)", self.channel_id, client_id)
