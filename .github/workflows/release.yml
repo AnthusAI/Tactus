@@ -91,6 +91,15 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ needs.release.outputs.tag }}
+          # Limit checkout to build-critical paths so Windows can avoid invalid
+          # path entries from non-build metadata directories.
+          sparse-checkout: |
+            pyproject.toml
+            README.md
+            tactus
+            tactus-desktop
+            tactus-ide
+            tactus-lsp-server
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
