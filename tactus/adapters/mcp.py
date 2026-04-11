@@ -139,22 +139,15 @@ class PydanticAIMCPAdapter:
             # Some MCP implementations use 'parameters' instead of 'inputSchema'
             input_schema = mcp_tool.parameters
 
-        # Create Pydantic model from JSON Schema
+        # Validate the schema by attempting to create a Pydantic model
         if input_schema:
             try:
-                args_model = self._json_schema_to_pydantic_model(input_schema, tool_name)
+                self._json_schema_to_pydantic_model(input_schema, tool_name)
             except Exception as error:
                 logger.error(
                     f"Failed to create Pydantic model for tool '{tool_name}': {error}",
                     exc_info=True,
                 )
-                # Fallback: create a simple model that accepts any dict
-                args_model = create_model(
-                    f"{tool_name}Args", **{"args": (Dict[str, Any], Field(default={}))}
-                )
-        else:
-            # No schema - create empty model
-            args_model = create_model(f"{tool_name}Args")
 
         # Capture input_schema for the prepare closure
         _input_schema = input_schema
