@@ -230,7 +230,18 @@ def setup_logging(
     log_format: str = "rich",
     debug: bool = False,
 ) -> None:
-    """Setup CLI logging (level + format)."""
+    """Setup CLI logging (level + format).
+
+    Configures the ``tactus`` named logger (not the root logger) so that
+    libraries loaded by procedures (e.g. Plexus) cannot accidentally strip
+    Tactus's handlers.  All Tactus modules already use
+    ``logging.getLogger(__name__)`` which produces child loggers like
+    ``tactus.core.runtime`` — these propagate to the ``tactus`` logger and
+    inherit its handlers automatically.
+
+    The root logger is also given a basic stderr handler as a safety net for
+    third-party libraries that log via the root logger directly.
+    """
     if log_level is None:
         level = logging.DEBUG if (verbose or debug) else logging.INFO
     else:
@@ -252,7 +263,7 @@ def setup_logging(
         os.environ["TACTUS_TRACE_LLM_MESSAGES"] = "1"
         os.environ["TACTUS_TRACE_CONTEXT"] = "1"
 
-    # Default: rich logs (group repeated timestamps).
+    # Build the handler based on the chosen format.
     if fmt == "rich":
         handler: logging.Handler = RichHandler(
             console=console,
@@ -261,19 +272,26 @@ def setup_logging(
             omit_repeated_times=True,
         )
         handler.setFormatter(logging.Formatter("%(message)s"))
-        logging.basicConfig(level=level, format="%(message)s", handlers=[handler], force=True)
-        return
-
-    # Raw logs: one line per entry, CloudWatch-friendly.
-    if fmt == "raw":
+    elif fmt == "raw":
         handler = logging.StreamHandler(stream=sys.stderr)
         handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
-        logging.basicConfig(level=level, handlers=[handler], force=True)
-        return
+    else:
+        # Terminal logs: no timestamps/levels, color by signal.
+        handler = _TerminalLogHandler(console)
 
-    # Terminal logs: no timestamps/levels, color by signal.
-    handler = _TerminalLogHandler(console)
-    logging.basicConfig(level=level, handlers=[handler], force=True)
+    # Configure the 'tactus' named logger — immune to root-logger hijacking.
+    tactus_logger = logging.getLogger("tactus")
+    tactus_logger.handlers.clear()
+    tactus_logger.addHandler(handler)
+    tactus_logger.setLevel(level)
+    tactus_logger.propagate = False
+
+    # Safety-net: give the root logger a basic stderr handler so third-party
+    # library logs are not silently swallowed.  Use a separate handler instance
+    # so root-logger manipulation can't accidentally remove tactus's handler.
+    root_handler = logging.StreamHandler(stream=sys.stderr)
+    root_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+    logging.basicConfig(level=level, handlers=[root_handler], force=True)
 
 
 def _parse_value(value_str: str, field_type: str) -> Any:

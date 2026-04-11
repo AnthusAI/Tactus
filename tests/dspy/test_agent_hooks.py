@@ -29,6 +29,33 @@ def test_prepare_hook_resolves_system_prompt():
     assert captured["prompt"] == "Context: ok"
 
 
+def test_per_turn_system_prompt_override():
+    captured = {}
+
+    agent = DSPyAgentHandle(
+        name="worker",
+        system_prompt="Default template {params.x}",
+        model=None,
+        module="Raw",
+    )
+
+    def fake_turn(self, opts, prompt_context):
+        captured["prompt"] = prompt_context["system_prompt"]
+        return TactusResult(output="ok")
+
+    agent._turn_without_streaming = MethodType(fake_turn, agent)
+
+    agent._execute_turn(
+        {
+            "message": "hello",
+            "system_prompt": "Override {params.x}",
+            "context": {"x": "1"},
+        }
+    )
+
+    assert captured["prompt"] == "Override 1"
+
+
 def test_message_history_filter_applied():
     captured = {}
 
