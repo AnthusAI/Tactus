@@ -2158,9 +2158,9 @@ class TactusRuntime:
                 "toolsets": filtered_toolsets,
                 "output_schema": output_schema,
                 "temperature": (
-                    model_settings.get("temperature", 0.7)
+                    model_settings.get("temperature", 1 if model_name.startswith("gpt-5") or (model_name and "/gpt-5" in model_name) else 0.7)
                     if model_settings
-                    else agent_config.get("temperature", 0.7)
+                    else agent_config.get("temperature", 1 if model_name.startswith("gpt-5") or (model_name and "/gpt-5" in model_name) else 0.7)
                 ),
                 "max_tokens": (
                     model_settings.get("max_tokens")
@@ -3828,8 +3828,10 @@ class TactusRuntime:
             config["default_model"] = registry.default_model
 
         # The procedure code will be executed separately
-        # Store a placeholder for compatibility
-        config["procedure"] = "-- Procedure function stored in registry"
+        # Only set placeholder if no actual procedure code exists
+        # This preserves Lua code from YAML-wrapped procedures
+        if "procedure" not in config or not config.get("procedure", "").strip():
+            config["procedure"] = "-- Procedure function stored in registry"
 
         return config
 

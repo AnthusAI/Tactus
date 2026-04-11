@@ -248,6 +248,25 @@ class ExecutionSummaryEvent(BaseModel):
     model_config = {"arbitrary_types_allowed": True}
 
 
+class ToolCallStartedEvent(BaseModel):
+    """Event emitted immediately before a tool starts executing.
+
+    Allows the UI to show an in-progress tool call component while the tool runs.
+    A matching ToolCallEvent (with tool_result) will follow when execution completes.
+    """
+
+    event_type: str = Field(default="tool_call_started", description="Event type")
+    agent_name: str = Field(..., description="Agent that called the tool")
+    tool_name: str = Field(..., description="Name of the tool being called")
+    tool_args: Dict[str, Any] = Field(
+        default_factory=dict, description="Arguments passed to the tool"
+    )
+    timestamp: datetime = Field(default_factory=utc_now, description="Event timestamp")
+    procedure_id: Optional[str] = Field(None, description="Procedure identifier")
+
+    model_config = {"arbitrary_types_allowed": True}
+
+
 class ToolCallEvent(BaseModel):
     """Event emitted when a tool is called by an agent."""
 

@@ -480,12 +480,19 @@ class DSPyAgentHandle:
                         # Extract parameter schema from Pydantic AI tool
                         tool_args = None
                         json_schema = pydantic_tool.function_schema.json_schema
-                        if "properties" in json_schema:
+                        if "properties" in json_schema and json_schema["properties"]:
                             # Convert JSON schema properties to DSPy's expected format
                             tool_args = json_schema["properties"]
-                            logger.info(
-                                f"Extracted parameter schema for '{pydantic_tool.name}': {tool_args}"
-                            )
+                        # Fallback: MCP-bridged tools use **kwargs wrappers which
+                        # produce empty function_schema properties.  The original
+                        # MCP input_schema is stashed by PydanticAIMCPAdapter.
+                        if not tool_args and hasattr(pydantic_tool, "_mcp_input_schema"):
+                            mcp_schema = pydantic_tool._mcp_input_schema
+                            if isinstance(mcp_schema, dict) and mcp_schema.get("properties"):
+                                tool_args = mcp_schema["properties"]
+                        logger.info(
+                            f"Extracted parameter schema for '{pydantic_tool.name}': {tool_args}"
+                        )
 
                         dspy_tool = DSPyTool(
                             func=pydantic_tool.function,
@@ -561,6 +568,22 @@ class DSPyAgentHandle:
             Tool execution result
         """
         logger.info(f"[TOOL_EXEC] Executing tool '{tool_name}' with args: {tool_args}")
+
+        # Emit a start event so the UI can show an in-progress tool call component
+        # while the tool is executing (especially important for long-running tools).
+        if self.log_handler is not None:
+            try:
+                from tactus.protocols.models import ToolCallStartedEvent
+                tool_primitive = getattr(self, "_tool_primitive", None)
+                procedure_id = getattr(tool_primitive, "procedure_id", None) if tool_primitive else None
+                self.log_handler.log(ToolCallStartedEvent(
+                    agent_name=self.name,
+                    tool_name=tool_name,
+                    tool_args=tool_args,
+                    procedure_id=procedure_id,
+                ))
+            except Exception as _e:
+                logger.debug(f"[TOOL_EXEC] Could not emit ToolCallStartedEvent: {_e}")
 
         # Find the tool in our toolsets
         for toolset in self.toolsets:
@@ -797,6 +820,43 @@ class DSPyAgentHandle:
         self.log_handler.log(cost_event)
         logger.info(f"[COST] Agent '{self.name}': ${total_cost:.6f} ({total_tokens} tokens)")
 
+    def _log_llm_debug_input(self, prompt_context: Dict[str, Any]) -> None:
+        """Log the full conversation context being sent to the LLM."""
+        logger.info("=" * 80)
+        logger.info(f"[LLM_DEBUG] Agent '{self.name}' — Turn {self._turn_count}")
+        logger.info("=" * 80)
+        logger.info("[LLM_DEBUG] SYSTEM PROMPT:")
+        logger.info(prompt_context.get("system_prompt", "(none)"))
+        logger.info("-" * 40)
+        logger.info("[LLM_DEBUG] HISTORY:")
+        history = prompt_context.get("history", [])
+        if hasattr(history, "messages"):
+            history = history.messages
+        for i, msg in enumerate(history if isinstance(history, list) else []):
+            role = msg.get("role", "?") if isinstance(msg, dict) else "?"
+            content = str(msg.get("content", "")) if isinstance(msg, dict) else str(msg)
+            truncated = content[:500] + "..." if len(content) > 500 else content
+            logger.info(f"  [{i}] {role}: {truncated}")
+        logger.info("-" * 40)
+        logger.info("[LLM_DEBUG] USER MESSAGE:")
+        logger.info(prompt_context.get("user_message", "(none)"))
+        if "tools" in prompt_context:
+            tools = prompt_context["tools"]
+            logger.info(f"[LLM_DEBUG] TOOLS: {len(tools)} available")
+            for t in tools:
+                name = getattr(t, "name", None) or getattr(t, "__name__", str(t))
+                logger.info(f"  - {name}")
+        logger.info("=" * 80)
+
+    def _log_llm_debug_output(self, dspy_result: Any) -> None:
+        """Log the full LLM output."""
+        logger.info("[LLM_DEBUG] MODEL RESPONSE:")
+        if hasattr(dspy_result, "response"):
+            logger.info(dspy_result.response)
+        if hasattr(dspy_result, "tool_calls") and dspy_result.tool_calls:
+            logger.info(f"[LLM_DEBUG] TOOL CALLS: {dspy_result.tool_calls}")
+        logger.info("=" * 80)
+
     def _turn_with_streaming(
         self,
         opts: Dict[str, Any],
@@ -819,6 +879,10 @@ class DSPyAgentHandle:
         from tactus.protocols.models import AgentTurnEvent, AgentStreamChunkEvent
 
         # logger.info(f"[STREAMING] Agent '{self.name}' starting streaming turn")
+
+        # Debug: log full LLM input
+        if os.environ.get("PLEXUS_DEBUG_LLM"):
+            self._log_llm_debug_input(prompt_context)
 
         # Emit turn started event so the UI shows a loading indicator
         self.log_handler.log(
@@ -962,12 +1026,25 @@ class DSPyAgentHandle:
                     f"Missing or invalid API key. Please configure your API key in Settings (Cmd+,)."
                 ) from error
 
+            # Unwrap ExceptionGroup so the real error is visible in logs/pcall
+            if original_error is not error:
+                logger.error(
+                    f"Agent '{self.name}' ExceptionGroup sub-exception: "
+                    f"{type(original_error).__name__}: {original_error}"
+                )
+                raise RuntimeError(
+                    f"Agent '{self.name}' failed: {type(original_error).__name__}: {original_error}"
+                ) from original_error
             raise result_holder["error"]
 
         # If streaming failed to produce a result, fall back to non-streaming
         if result_holder["result"] is None:
             logger.warning(f"Streaming produced no result for agent '{self.name}', falling back")
             return self._turn_without_streaming(opts, prompt_context)
+
+        # Debug: log full LLM output after streaming completes
+        if os.environ.get("PLEXUS_DEBUG_LLM"):
+            self._log_llm_debug_output(result_holder["result"])
 
         # Track new messages for this turn
         new_messages = []
@@ -1101,22 +1178,28 @@ class DSPyAgentHandle:
             all_messages=self._history.get(),
         )
 
-        # Handle tool calls if present
+        # Handle tool calls if present — only record done if not already captured by [TOOL_EXEC]
         if hasattr(wrapped_result, "tool_calls") and wrapped_result.tool_calls:
             tool_primitive = getattr(self, "_tool_primitive", None)
             if tool_primitive and "done" in str(wrapped_result.tool_calls).lower():
-                reason = (
-                    wrapped_result.response
-                    if hasattr(wrapped_result, "response")
-                    else "Task completed"
+                existing = (
+                    tool_primitive.last_call("done")
+                    if hasattr(tool_primitive, "last_call")
+                    else None
                 )
-                logger.info(f"Recording done tool call with reason: {reason}")
-                tool_primitive.record_call(
-                    "done",
-                    {"reason": reason},
-                    {"status": "completed", "reason": reason, "tool": "done"},
-                    agent_name=self.name,
-                )
+                if existing is None:
+                    reason = (
+                        wrapped_result.response
+                        if hasattr(wrapped_result, "response")
+                        else "Task completed"
+                    )
+                    logger.info(f"Recording done tool call with reason: {reason}")
+                    tool_primitive.record_call(
+                        "done",
+                        {"reason": reason},
+                        {"status": "completed", "reason": reason, "tool": "done"},
+                        agent_name=self.name,
+                    )
 
         # Emit turn completed event
         self.log_handler.log(
@@ -1155,8 +1238,16 @@ class DSPyAgentHandle:
         Returns:
             TactusResult with value, usage, and cost_stats
         """
+        # Debug: log full LLM input
+        if os.environ.get("PLEXUS_DEBUG_LLM"):
+            self._log_llm_debug_input(prompt_context)
+
         # Execute the module
         dspy_result = self._module.module(**prompt_context)
+
+        # Debug: log full LLM output
+        if os.environ.get("PLEXUS_DEBUG_LLM"):
+            self._log_llm_debug_output(dspy_result)
 
         # Track new messages for this turn
         new_messages = []
@@ -1217,22 +1308,28 @@ class DSPyAgentHandle:
             all_messages=self._history.get(),
         )
 
-        # Handle tool calls if present
+        # Handle tool calls if present — only record done if not already captured by [TOOL_EXEC]
         if hasattr(wrapped_result, "tool_calls") and wrapped_result.tool_calls:
             tool_primitive = getattr(self, "_tool_primitive", None)
             if tool_primitive and "done" in str(wrapped_result.tool_calls).lower():
-                reason = (
-                    wrapped_result.response
-                    if hasattr(wrapped_result, "response")
-                    else "Task completed"
+                existing = (
+                    tool_primitive.last_call("done")
+                    if hasattr(tool_primitive, "last_call")
+                    else None
                 )
-                logger.info(f"Recording done tool call with reason: {reason}")
-                tool_primitive.record_call(
-                    "done",
-                    {"reason": reason},
-                    {"status": "completed", "reason": reason, "tool": "done"},
-                    agent_name=self.name,
-                )
+                if existing is None:
+                    reason = (
+                        wrapped_result.response
+                        if hasattr(wrapped_result, "response")
+                        else "Task completed"
+                    )
+                    logger.info(f"Recording done tool call with reason: {reason}")
+                    tool_primitive.record_call(
+                        "done",
+                        {"reason": reason},
+                        {"status": "completed", "reason": reason, "tool": "done"},
+                        agent_name=self.name,
+                    )
 
         # Extract usage and cost stats
         usage_stats, cost_stats = self._extract_last_call_stats()
@@ -1331,7 +1428,10 @@ class DSPyAgentHandle:
                         break
 
             if output_text is None:
-                output_text = str(result)
+                if hasattr(result, 'output') and isinstance(result.output, str):
+                    output_text = result.output
+                else:
+                    output_text = str(result)
 
         self.output = output_text
         return result
