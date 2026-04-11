@@ -645,6 +645,11 @@ def run(
         console.print(f"[red]Error:[/red] Workflow file not found: {workflow_file}")
         raise typer.Exit(1)
 
+    workflow_file = workflow_file.resolve()
+    from tactus.cli.dotenv_loader import load_dotenv_next_to_procedure
+
+    load_dotenv_next_to_procedure(workflow_file)
+
     if not isinstance(auto_deps, bool):
         auto_deps = False
     if not isinstance(no_deps, bool):
@@ -1281,6 +1286,11 @@ def validate(
         console.print(f"[red]Error:[/red] Workflow file not found: {workflow_file}")
         raise typer.Exit(1)
 
+    workflow_file = workflow_file.resolve()
+    from tactus.cli.dotenv_loader import load_dotenv_next_to_procedure
+
+    load_dotenv_next_to_procedure(workflow_file)
+
     # Determine format based on extension
     file_format = "lua" if workflow_file.suffix in [".tac", ".lua"] else "yaml"
 
@@ -1749,6 +1759,11 @@ def test(
         console.print(f"[red]Error:[/red] File not found: {procedure_file}")
         raise typer.Exit(1)
 
+    procedure_file = procedure_file.resolve()
+    from tactus.cli.dotenv_loader import load_dotenv_next_to_procedure
+
+    load_dotenv_next_to_procedure(procedure_file)
+
     mode_str = "mocked" if (mock or mock_config) else "real"
     if runs > 1:
         console.print(
@@ -2104,11 +2119,16 @@ def eval(
     debug = _coerce_bool(debug)
 
     setup_logging(verbose=verbose, debug=debug)
-    load_tactus_config()
 
     if not procedure_file.exists():
         console.print(f"[red]Error:[/red] File not found: {procedure_file}")
         raise typer.Exit(1)
+
+    procedure_file = procedure_file.resolve()
+    from tactus.cli.dotenv_loader import load_dotenv_next_to_procedure
+
+    load_dotenv_next_to_procedure(procedure_file)
+    load_tactus_config()
 
     try:
         from tactus.testing.pydantic_eval_runner import TactusPydanticEvalRunner
@@ -2855,6 +2875,9 @@ def control(
 
 def main():
     """Main entry point for the CLI."""
+    from tactus.cli.dotenv_loader import load_dotenv_for_cwd
+
+    load_dotenv_for_cwd()
     # Load configuration before processing any commands
     load_tactus_config()
 
