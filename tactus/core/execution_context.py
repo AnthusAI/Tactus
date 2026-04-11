@@ -219,7 +219,7 @@ class BaseExecutionContext(ExecutionContext):
         On replay, returns cached result from execution log.
         On first execution, runs fn(), records in log, and returns result.
         """
-        logger.info(
+        logger.debug(
             "[CHECKPOINT] checkpoint() called, type=%s, position=%s, current_run_id=%s, "
             "has_log_handler=%s",
             checkpoint_type,
@@ -232,7 +232,7 @@ class BaseExecutionContext(ExecutionContext):
         # Check if we're in replay mode (checkpoint exists at this position)
         if checkpoint_position < len(self.metadata.execution_log):
             checkpoint_entry = self.metadata.execution_log[checkpoint_position]
-            logger.info(
+            logger.debug(
                 "[CHECKPOINT] Found existing checkpoint at position %s: type=%s, run_id=%s, "
                 "result_type=%s",
                 checkpoint_position,
@@ -244,7 +244,7 @@ class BaseExecutionContext(ExecutionContext):
             # CRITICAL: Only replay checkpoints from the CURRENT run
             # Each new run should execute fresh, not use cached results from previous runs
             if checkpoint_entry.run_id != self.current_run_id:
-                logger.info(
+                logger.debug(
                     "[CHECKPOINT] Checkpoint is from DIFFERENT run (checkpoint run_id=%s, "
                     "current run_id=%s), executing fresh (NOT replaying)",
                     checkpoint_entry.run_id,
@@ -254,7 +254,7 @@ class BaseExecutionContext(ExecutionContext):
             # Special case: HITL checkpoints may have result=None if saved before response arrived
             # In this case, re-execute to check for cached response from control loop
             elif checkpoint_entry.result is None and checkpoint_type.startswith("hitl_"):
-                logger.info(
+                logger.debug(
                     "[CHECKPOINT] HITL checkpoint at position %s has no result, re-executing "
                     "to check for cached response",
                     checkpoint_position,
@@ -263,7 +263,7 @@ class BaseExecutionContext(ExecutionContext):
             else:
                 # Normal replay: return cached result from CURRENT run
                 self.metadata.replay_index += 1
-                logger.info(
+                logger.debug(
                     "[CHECKPOINT] REPLAYING checkpoint at position %s, type=%s, run_id=%s, "
                     "returning cached result",
                     checkpoint_position,
@@ -272,7 +272,7 @@ class BaseExecutionContext(ExecutionContext):
                 )
                 return checkpoint_entry.result
         else:
-            logger.info(
+            logger.debug(
                 "[CHECKPOINT] No checkpoint at position %s (only %s checkpoints exist), "
                 "executing fresh",
                 checkpoint_position,

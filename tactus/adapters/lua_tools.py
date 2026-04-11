@@ -46,7 +46,7 @@ class LuaToolsAdapter:
             FunctionToolset with single tool
         """
         wrapped_fn = self._create_wrapped_function(tool_name, tool_spec)
-        logger.info(f"Created single-tool toolset '{tool_name}'")
+        logger.debug(f"Created single-tool toolset '{tool_name}'")
         return FunctionToolset(tools=[wrapped_fn])
 
     def create_lua_toolset(
@@ -79,7 +79,7 @@ class LuaToolsAdapter:
             wrapped_fn = self._create_wrapped_function(tool_name, tool_spec)
             wrapped_functions.append(wrapped_fn)
 
-        logger.info(f"Created Lua toolset '{toolset_name}' with {len(wrapped_functions)} tools")
+        logger.debug(f"Created Lua toolset '{toolset_name}' with {len(wrapped_functions)} tools")
         return FunctionToolset(tools=wrapped_functions)
 
     def create_inline_tools_toolset(
@@ -109,7 +109,7 @@ class LuaToolsAdapter:
             wrapped_fn = self._create_wrapped_function(prefixed_name, tool_spec)
             wrapped_functions.append(wrapped_fn)
 
-        logger.info(
+        logger.debug(
             f"Created inline tools for agent '{agent_name}': {len(wrapped_functions)} tools"
         )
         return FunctionToolset(tools=wrapped_functions)
@@ -141,7 +141,7 @@ class LuaToolsAdapter:
             wrapped_fn = self._create_wrapped_function(prefixed_name, tool_spec)
             wrapped_functions.append(wrapped_fn)
 
-        logger.info(f"Created inline toolset '{toolset_name}': {len(wrapped_functions)} tools")
+        logger.debug(f"Created inline toolset '{toolset_name}': {len(wrapped_functions)} tools")
         return FunctionToolset(tools=wrapped_functions)
 
     def _create_wrapped_function(self, tool_name: str, tool_spec: Dict[str, Any]) -> Callable:

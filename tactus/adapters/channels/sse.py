@@ -68,9 +68,9 @@ class SSEControlChannel(InProcessChannel):
 
     async def initialize(self) -> None:
         """Initialize SSE channel (no-op, Flask SSE already running)."""
-        logger.info("%s: initializing...", self.channel_id)
+        logger.debug("%s: initializing...", self.channel_id)
         # No auth or connection needed - Flask SSE already set up
-        logger.info("%s: ready", self.channel_id)
+        logger.debug("%s: ready", self.channel_id)
 
     async def send(self, request: ControlRequest) -> DeliveryResult:
         """
@@ -78,7 +78,7 @@ class SSEControlChannel(InProcessChannel):
 
         Creates a hitl.request event with rich context and pushes to SSE stream.
         """
-        logger.info(
+        logger.debug(
             "%s: sending notification for %s",
             self.channel_id,
             request.request_id,
@@ -246,7 +246,7 @@ class SSEControlChannel(InProcessChannel):
             request_id: The request being responded to
             value: The response value from the IDE
         """
-        logger.info("%s: received response for %s", self.channel_id, request_id)
+        logger.debug("%s: received response for %s", self.channel_id, request_id)
 
         response = self._build_response(request_id, value)
 
@@ -326,6 +326,6 @@ class SSEControlChannel(InProcessChannel):
 
     async def shutdown(self) -> None:
         """Shutdown SSE channel."""
-        logger.info("%s: shutting down", self.channel_id)
+        logger.debug("%s: shutting down", self.channel_id)
         self._ensure_asyncio_primitives()
         self._shutdown_event.set()

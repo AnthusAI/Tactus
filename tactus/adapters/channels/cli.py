@@ -94,11 +94,11 @@ class CLIControlChannel(HostControlChannel):
 
     async def initialize(self) -> None:
         """Initialize the CLI channel."""
-        logger.info("%s: initializing...", self.channel_id)
+        logger.debug("%s: initializing...", self.channel_id)
         # Check if stdin is a tty
         if not sys.stdin.isatty():
             logger.warning("%s: stdin is not a tty, prompts may not work", self.channel_id)
-        logger.info("%s: ready", self.channel_id)
+        logger.debug("%s: ready", self.channel_id)
 
     def _display_request(self, request: ControlRequest) -> None:
         """

@@ -83,7 +83,7 @@ class ControlLoopHandler:
         self._channels_initialized = False
 
         channel_ids = [c.channel_id for c in channels]
-        logger.info(
+        logger.debug(
             "ControlLoopHandler initialized with %s channels: %s",
             len(channels),
             channel_ids,
@@ -193,7 +193,7 @@ class ControlLoopHandler:
             application_context=application_context,
         )
 
-        logger.info(
+        logger.debug(
             "Control request %s for procedure %s: %s - %s...",
             request.request_id,
             procedure_id,
@@ -218,7 +218,7 @@ class ControlLoopHandler:
         if self.storage:
             cached_response = self.check_pending_response(request.procedure_id, request.request_id)
             if cached_response:
-                logger.info("RESUME: Using cached response for %s", request.request_id)
+                logger.debug("RESUME: Using cached response for %s", request.request_id)
                 return cached_response
 
         # Initialize channels on first use
@@ -241,7 +241,7 @@ class ControlLoopHandler:
         # Log delivery results
         successful = [delivery for delivery in deliveries if delivery.success]
         failed = [delivery for delivery in deliveries if not delivery.success]
-        logger.info(
+        logger.debug(
             "Control request %s: %s successful deliveries, %s failed",
             request.request_id,
             len(successful),
