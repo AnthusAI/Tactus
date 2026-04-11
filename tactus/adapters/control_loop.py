@@ -248,7 +248,10 @@ class ControlLoopHandler:
             len(failed),
         )
         for delivery in failed:
-            logger.warning(
+            # IPC often has zero clients during `tactus run` — not worth a warning if
+            # another channel (e.g. CLI) delivered successfully.
+            log_fn = logger.debug if successful else logger.warning
+            log_fn(
                 "  Failed delivery to %s: %s",
                 delivery.channel_id,
                 delivery.error_message,
@@ -268,7 +271,7 @@ class ControlLoopHandler:
             # Store response for future resume
             if self.storage:
                 self._store_response(request, response)
-                logger.info(
+                logger.debug(
                     "Stored response for %s (enables resume)",
                     request.request_id,
                 )
@@ -388,8 +391,10 @@ class ControlLoopHandler:
         # Check if any channel is synchronous (can respond immediately)
         has_sync_channel = any(c.capabilities.is_synchronous for c in channels)
 
-        # Use longer timeout if we have sync channels
-        timeout = self.immediate_response_timeout if not has_sync_channel else 30.0
+        # Async-only paths need a short wait so the loop can make progress. Host/CLI
+        # channels block on stdin in a thread until the user submits — that may take
+        # minutes; a fixed short timeout incorrectly fails interactive sessions.
+        timeout = None if has_sync_channel else self.immediate_response_timeout
 
         # Create tasks for each channel's receive iterator
         receive_tasks: list[tuple[ControlChannel, asyncio.Task[Optional[ControlResponse]]]] = []
@@ -439,7 +444,7 @@ class ControlLoopHandler:
         """Get first response from a channel's receive iterator."""
         try:
             async for response in channel.receive():
-                logger.info(
+                logger.debug(
                     "Received response from %s: %s",
                     channel.channel_id,
                     response.request_id,

@@ -84,7 +84,7 @@ class HostControlChannel(InProcessChannel):
         Returns:
             DeliveryResult indicating successful delivery
         """
-        logger.info(
+        logger.debug(
             "%s: sending notification for %s",
             self.channel_id,
             request.request_id,

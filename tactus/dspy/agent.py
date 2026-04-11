@@ -829,7 +829,12 @@ class DSPyAgentHandle:
         )
 
         self.log_handler.log(cost_event)
-        logger.info(f"[COST] Agent '{self.name}': ${total_cost:.6f} ({total_tokens} tokens)")
+        logger.debug(
+            "[COST] Agent '%s': $%.6f (%s tokens)",
+            self.name,
+            total_cost,
+            total_tokens,
+        )
 
     def _log_llm_debug_input(self, prompt_context: Dict[str, Any]) -> None:
         """Log the full conversation context being sent to the LLM."""
@@ -1716,7 +1721,8 @@ class DSPyAgentHandle:
 
         if not isinstance(result.output, dict):
             if self.toolsets:
-                logger.warning(
+                # Expected for tool-calling chat agents (e.g. reply-only); not worth a user-visible warning.
+                logger.debug(
                     "Agent '%s' produced non-dict output while using toolsets; skipping output validation",
                     self.name,
                 )

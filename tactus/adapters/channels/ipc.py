@@ -163,7 +163,10 @@ class IPCControlChannel:
                 self._clients.pop(client_id, None)
 
         if successful == 0 and len(self._clients) == 0:
-            logger.warning("%s: no clients connected", self.channel_id)
+            logger.debug(
+                "%s: no IPC clients connected (normal when only using in-process CLI)",
+                self.channel_id,
+            )
 
         # Return DeliveryResult
         return DeliveryResult(

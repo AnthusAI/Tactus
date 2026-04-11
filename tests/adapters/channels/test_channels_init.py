@@ -139,7 +139,7 @@ def test_load_default_channels_with_cli(monkeypatch):
     )
     monkeypatch.setattr(
         "tactus.adapters.channels.cli.CLIControlChannel",
-        lambda: types.SimpleNamespace(id="cli"),
+        lambda **kwargs: types.SimpleNamespace(id="cli"),
     )
 
     channels = load_default_channels()
