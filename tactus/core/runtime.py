@@ -263,7 +263,7 @@ class TactusRuntime:
             # Set .tac file path NOW (before parsing) so source location is available during agent calls
             if self.source_file_path:
                 self.execution_context.set_tac_file(self.source_file_path, source)
-                logger.info("[CHECKPOINT] Set .tac file path EARLY: %s", self.source_file_path)
+                logger.debug("[CHECKPOINT] Set .tac file path EARLY: %s", self.source_file_path)
             else:
                 logger.warning("[CHECKPOINT] .tac file path NOT set - source_file_path is None")
 
@@ -1599,12 +1599,12 @@ class TactusRuntime:
             # DSL toolsets can have:
             # - "tools" field with list of tool names or inline tool definitions
             # - "use" field to import from a file or other source
-            logger.info(f"[TOOLSET_CREATE] '{name}' has no explicit type, checking for tools/use")
+            logger.debug(f"[TOOLSET_CREATE] '{name}' has no explicit type, checking for tools/use")
 
             if "tools" in definition:
                 # Handle tools list (can be tool names or inline definitions)
                 tools_list = definition["tools"]
-                logger.info(
+                logger.debug(
                     f"[TOOLSET_CREATE] '{name}' has tools field with {len(tools_list) if isinstance(tools_list, list) else '?'} items"
                 )
 
@@ -1612,25 +1612,25 @@ class TactusRuntime:
                 has_inline_tools = False
                 if isinstance(tools_list, list):
                     for idx, item in enumerate(tools_list):
-                        logger.info(
+                        logger.debug(
                             f"[TOOLSET_CREATE] Tool {idx}: type={type(item).__name__}, is_dict={isinstance(item, dict)}"
                         )
                         if isinstance(item, dict):
-                            logger.info(f"[TOOLSET_CREATE] Tool {idx} keys: {list(item.keys())}")
+                            logger.debug(f"[TOOLSET_CREATE] Tool {idx} keys: {list(item.keys())}")
                             has_handler = "handler" in item
                             has_callable_1 = 1 in item and callable(item.get(1))
-                            logger.info(
+                            logger.debug(
                                 f"[TOOLSET_CREATE] Tool {idx}: has_handler={has_handler}, has_callable_1={has_callable_1}"
                             )
                             if has_handler or has_callable_1:
                                 has_inline_tools = True
                                 break
 
-                logger.info(f"[TOOLSET_CREATE] '{name}' has_inline_tools={has_inline_tools}")
+                logger.debug(f"[TOOLSET_CREATE] '{name}' has_inline_tools={has_inline_tools}")
 
                 if has_inline_tools:
                     # Create toolset from inline Lua tools
-                    logger.info(f"[TOOLSET_CREATE] Creating inline toolset for '{name}'")
+                    logger.debug(f"[TOOLSET_CREATE] Creating inline toolset for '{name}'")
                     try:
                         from tactus.adapters.lua_tools import LuaToolsAdapter
 
@@ -1640,7 +1640,7 @@ class TactusRuntime:
 
                         # Create a toolset from inline tool definitions
                         toolset = lua_adapter.create_inline_toolset(name, tools_list)
-                        logger.info(
+                        logger.debug(
                             f"[TOOLSET_CREATE] ✓ Created inline toolset '{name}': {toolset}"
                         )
                         return toolset

@@ -88,8 +88,8 @@ class InProcessChannel(ABC):
 
         Default: no-op. Override for auth handshakes, connections, etc.
         """
-        logger.info("%s: initializing...", self.channel_id)
-        logger.info("%s: ready", self.channel_id)
+        logger.debug("%s: initializing...", self.channel_id)
+        logger.debug("%s: ready", self.channel_id)
 
     @abstractmethod
     async def send(self, request: ControlRequest) -> DeliveryResult:
@@ -126,7 +126,7 @@ class InProcessChannel(ABC):
                     self._response_queue.get(),
                     timeout=0.5,
                 )
-                logger.info(
+                logger.debug(
                     "%s: received response for %s",
                     self.channel_id,
                     response.request_id,
@@ -162,7 +162,7 @@ class InProcessChannel(ABC):
         Default: sets shutdown event to stop receive loop.
         Override for additional cleanup (close connections, etc.).
         """
-        logger.info("%s: shutting down", self.channel_id)
+        logger.debug("%s: shutting down", self.channel_id)
         self._ensure_asyncio_primitives()
         self._shutdown_event.set()
 

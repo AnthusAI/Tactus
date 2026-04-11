@@ -41,6 +41,17 @@ from tactus.utils.asyncio_helpers import clear_closed_event_loop
 logger = logging.getLogger(__name__)
 
 
+def _tool_call_name_and_args(tc: Any) -> tuple[Any, Any]:
+    """Normalize tool call entries from DSPy (dict or object with name/args)."""
+    if isinstance(tc, dict):
+        return tc["name"], tc.get("args")
+    name = getattr(tc, "name", None)
+    args = getattr(tc, "args", None)
+    if name is None:
+        raise TypeError(f"Unrecognized tool call shape: {type(tc)!r}")
+    return name, args
+
+
 def _run_coroutine_sync(coro):
     """Run an async coroutine from sync code while handling nested loops."""
     try:
@@ -216,8 +227,7 @@ class DSPyAgentHandle:
         self.response_retry_delay = float(response_config.get("retry_delay", 0.0) or 0.0)
         self.kwargs = kwargs
 
-        # CRITICAL DEBUG: Log handler state at initialization
-        logger.info(
+        logger.debug(
             f"[AGENT_INIT] Agent '{self.name}' initialized with log_handler={log_handler is not None}, "
             f"disable_streaming={disable_streaming}, "
             f"log_handler_type={type(log_handler).__name__ if log_handler else 'None'}, "
@@ -434,20 +444,20 @@ class DSPyAgentHandle:
             logger.error("Cannot import DSPyTool - DSPy installation may be incomplete")
             return []
 
-        logger.info(f"Agent '{self.name}' has {len(self.toolsets)} toolsets to convert")
+        logger.debug(f"Agent '{self.name}' has {len(self.toolsets)} toolsets to convert")
 
         dspy_tools = []
 
         # Convert toolsets to DSPy Tools
         for idx, toolset in enumerate(self.toolsets):
-            logger.info(f"Agent '{self.name}' processing toolset {idx}: {type(toolset).__name__}")
+            logger.debug(f"Agent '{self.name}' processing toolset {idx}: {type(toolset).__name__}")
             try:
 
                 # Pydantic AI FunctionToolset has a .tools dict attribute that's directly accessible
                 # This avoids the need for async get_tools() call and RunContext
                 if hasattr(toolset, "tools") and isinstance(toolset.tools, dict):
                     pydantic_tools = list(toolset.tools.values())
-                    logger.info(
+                    logger.debug(
                         f"Agent '{self.name}' toolset {idx} has {len(pydantic_tools)} tools (from .tools attribute)"
                     )
                 elif hasattr(toolset, "get_tools"):
@@ -457,7 +467,7 @@ class DSPyAgentHandle:
                         ctx = RunContext(deps=None, model=TestModel(), usage=RunUsage())
                         tools_dict = _run_coroutine_sync(toolset.get_tools(ctx))
                         pydantic_tools = list(tools_dict.values())
-                        logger.info(
+                        logger.debug(
                             f"Agent '{self.name}' toolset {idx} has {len(pydantic_tools)} tools (from get_tools)"
                         )
                     except Exception as e:
@@ -474,7 +484,7 @@ class DSPyAgentHandle:
                         pydantic_tool.function_schema, "json_schema"
                     ):
                         # Pydantic AI Tool has: name, description, function_schema.json_schema, function
-                        logger.info(
+                        logger.debug(
                             f"Agent '{self.name}' converting tool: name={pydantic_tool.name}, desc={pydantic_tool.description[:50] if pydantic_tool.description else 'N/A'}..."
                         )
 
@@ -491,7 +501,7 @@ class DSPyAgentHandle:
                             mcp_schema = pydantic_tool._mcp_input_schema
                             if isinstance(mcp_schema, dict) and mcp_schema.get("properties"):
                                 tool_args = mcp_schema["properties"]
-                        logger.info(
+                        logger.debug(
                             f"Extracted parameter schema for '{pydantic_tool.name}': {tool_args}"
                         )
 
@@ -502,7 +512,7 @@ class DSPyAgentHandle:
                             args=tool_args,  # Pass the parameter schema
                         )
                         dspy_tools.append(dspy_tool)
-                        logger.info(
+                        logger.debug(
                             f"Converted tool '{pydantic_tool.name}' to DSPy Tool with args={tool_args}"
                         )
                     elif hasattr(pydantic_tool, "tool_def"):
@@ -519,7 +529,7 @@ class DSPyAgentHandle:
 
                             return _call
 
-                        logger.info(
+                        logger.debug(
                             f"Agent '{self.name}' converting MCP tool: name={tool_name}, desc={tool_desc[:50] if tool_desc else 'N/A'}..."
                         )
                         dspy_tool = DSPyTool(
@@ -529,7 +539,7 @@ class DSPyAgentHandle:
                             args=tool_args,
                         )
                         dspy_tools.append(dspy_tool)
-                        logger.info(
+                        logger.debug(
                             f"Converted MCP tool '{tool_name}' to DSPy Tool with args={tool_args}"
                         )
                     elif hasattr(pydantic_tool, "name") and hasattr(pydantic_tool, "function"):
@@ -542,7 +552,7 @@ class DSPyAgentHandle:
                             args=None,
                         )
                         dspy_tools.append(dspy_tool)
-                        logger.info(f"Converted tool '{tool_name}' to DSPy Tool with args=None")
+                        logger.debug(f"Converted tool '{tool_name}' to DSPy Tool with args=None")
                     else:
                         logger.warning(
                             f"Skipping tool with unsupported type: {type(pydantic_tool)}"
@@ -554,7 +564,7 @@ class DSPyAgentHandle:
                 logger.error(f"Failed to convert toolset {toolset} to DSPy Tools: {e}")
                 logger.error(f"Traceback: {traceback.format_exc()}")
 
-        logger.info(f"Agent '{self.name}' converted {len(dspy_tools)} tools to DSPy format")
+        logger.debug(f"Agent '{self.name}' converted {len(dspy_tools)} tools to DSPy format")
         return dspy_tools
 
     def _execute_tool(self, tool_name: str, tool_args: Dict[str, Any]) -> Any:
@@ -568,7 +578,7 @@ class DSPyAgentHandle:
         Returns:
             Tool execution result
         """
-        logger.info(f"[TOOL_EXEC] Executing tool '{tool_name}' with args: {tool_args}")
+        logger.debug(f"[TOOL_EXEC] Executing tool '{tool_name}' with args: {tool_args}")
 
         # Emit a start event so the UI can show an in-progress tool call component
         # while the tool is executing (especially important for long-running tools).
@@ -591,21 +601,21 @@ class DSPyAgentHandle:
             if hasattr(toolset, "tools") and isinstance(toolset.tools, dict):
                 for pydantic_tool in toolset.tools.values():
                     if pydantic_tool.name == tool_name:
-                        logger.info(f"[TOOL_EXEC] Found tool '{tool_name}' in toolset")
+                        logger.debug(f"[TOOL_EXEC] Found tool '{tool_name}' in toolset")
                         try:
                             if inspect.iscoroutinefunction(pydantic_tool.function):
-                                logger.info(
+                                logger.debug(
                                     f"[TOOL_EXEC] Tool '{tool_name}' is async, running with nest_asyncio"
                                 )
                                 result = _run_coroutine_sync(pydantic_tool.function(**tool_args))
                             else:
                                 # Function is sync - just call it
-                                logger.info(
+                                logger.debug(
                                     f"[TOOL_EXEC] Tool '{tool_name}' is sync, calling directly"
                                 )
                                 result = pydantic_tool.function(**tool_args)
 
-                            logger.info(f"[TOOL_EXEC] Tool '{tool_name}' returned: {result}")
+                            logger.debug(f"[TOOL_EXEC] Tool '{tool_name}' returned: {result}")
                             return result
                         except Exception as e:
                             logger.error(
@@ -614,7 +624,7 @@ class DSPyAgentHandle:
                             )
                             return {"error": str(e)}
             elif hasattr(toolset, "call_tool"):
-                logger.info(f"[TOOL_EXEC] Attempting MCP tool '{tool_name}' via toolset")
+                logger.debug(f"[TOOL_EXEC] Attempting MCP tool '{tool_name}' via toolset")
                 try:
                     RunContext, TestModel, RunUsage = _import_pydantic_ai_tooling()
 
@@ -637,10 +647,10 @@ class DSPyAgentHandle:
                         tool = tools.get(tool_name)
                         if tool is None:
                             continue
-                        logger.info("[TOOL_EXEC] Toolset call_tool is sync, calling directly")
+                        logger.debug("[TOOL_EXEC] Toolset call_tool is sync, calling directly")
                         result = toolset.call_tool(tool_name, tool_args, ctx, tool)
 
-                    logger.info(f"[TOOL_EXEC] MCP tool '{tool_name}' returned: {result}")
+                    logger.debug(f"[TOOL_EXEC] MCP tool '{tool_name}' returned: {result}")
                     return result
                 except Exception as e:
                     logger.error(
@@ -1078,18 +1088,17 @@ class DSPyAgentHandle:
                     if hasattr(result_holder["result"].tool_calls, "tool_calls")
                     else []
                 ):
-                    # logger.info(
-                    #     f"[ASYNC_STREAMING] Processing tool call: "
-                    #     f"name={tc.name} args={tc.args}"
-                    # )
+                    tc_name, tc_args = _tool_call_name_and_args(tc)
                     tool_calls_list.append(
                         {
-                            "id": f"call_{tc.name}",  # Generate a simple ID
+                            "id": f"call_{tc_name}",
                             "type": "function",
                             "function": {
-                                "name": tc.name,
+                                "name": tc_name,
                                 "arguments": (
-                                    json.dumps(tc.args) if isinstance(tc.args, dict) else tc.args
+                                    json.dumps(tc_args)
+                                    if isinstance(tc_args, dict)
+                                    else tc_args
                                 ),
                             },
                         }
@@ -1194,7 +1203,7 @@ class DSPyAgentHandle:
                         if hasattr(wrapped_result, "response")
                         else "Task completed"
                     )
-                    logger.info(f"Recording done tool call with reason: {reason}")
+                    logger.debug(f"Recording done tool call with reason: {reason}")
                     tool_primitive.record_call(
                         "done",
                         {"reason": reason},
@@ -1271,7 +1280,7 @@ class DSPyAgentHandle:
             # Include tool calls in the message if present (before wrapping)
             has_tc = hasattr(dspy_result, "tool_calls")
             tc_value = getattr(dspy_result, "tool_calls", None)
-            logger.info(
+            logger.debug(
                 f"Agent '{self.name}' dspy_result: has_tool_calls={has_tc}, tool_calls={tc_value}"
             )
             if hasattr(dspy_result, "tool_calls") and dspy_result.tool_calls:
@@ -1282,16 +1291,17 @@ class DSPyAgentHandle:
                     if hasattr(dspy_result.tool_calls, "tool_calls")
                     else []
                 ):
+                    tc_name, tc_args = _tool_call_name_and_args(tc)
                     tool_calls_list.append(
                         {
-                            "id": f"call_{tc['name']}",  # Generate a simple ID
+                            "id": f"call_{tc_name}",
                             "type": "function",
                             "function": {
-                                "name": tc["name"],
+                                "name": tc_name,
                                 "arguments": (
-                                    json.dumps(tc["args"])
-                                    if isinstance(tc["args"], dict)
-                                    else tc["args"]
+                                    json.dumps(tc_args)
+                                    if isinstance(tc_args, dict)
+                                    else tc_args
                                 ),
                             },
                         }
@@ -1301,6 +1311,43 @@ class DSPyAgentHandle:
 
             new_messages.append(assistant_msg)
             self._history.add(assistant_msg)
+
+            # Execute tool calls and add tool result messages (OpenAI requires tool
+            # messages for every tool_call_id before the next user turn). Mirrors
+            # _turn_with_streaming_async.
+            if assistant_msg.get("tool_calls"):
+                for tc in assistant_msg["tool_calls"]:
+                    tool_name = tc["function"]["name"]
+                    tool_args_str = tc["function"]["arguments"]
+                    tool_args = (
+                        json.loads(tool_args_str)
+                        if isinstance(tool_args_str, str)
+                        else tool_args_str
+                    )
+                    tool_id = tc["id"]
+                    clean_tool_name = tool_name.replace(f"{self.name}_", "")
+                    tool_primitive = getattr(self, "_tool_primitive", None)
+                    tool_result = None
+                    if tool_primitive:
+                        prior = tool_primitive.last_call(clean_tool_name)
+                        if prior is not None:
+                            tool_result = prior.get("result")
+                    if tool_result is None:
+                        tool_result = self._execute_tool(tool_name, tool_args)
+                    # Else: forward path already ran the tool and recorded it; only sync history.
+                    tool_result_str = (
+                        json.dumps(tool_result)
+                        if isinstance(tool_result, dict)
+                        else str(tool_result)
+                    )
+                    tool_result_msg = {
+                        "role": "tool",
+                        "tool_call_id": tool_id,
+                        "name": tool_name,
+                        "content": tool_result_str,
+                    }
+                    new_messages.append(tool_result_msg)
+                    self._history.add(tool_result_msg)
 
         # Wrap the result with message tracking
         wrapped_result = wrap_prediction(
@@ -1324,7 +1371,7 @@ class DSPyAgentHandle:
                         if hasattr(wrapped_result, "response")
                         else "Task completed"
                     )
-                    logger.info(f"Recording done tool call with reason: {reason}")
+                    logger.debug(f"Recording done tool call with reason: {reason}")
                     tool_primitive.record_call(
                         "done",
                         {"reason": reason},
@@ -1466,7 +1513,7 @@ class DSPyAgentHandle:
 
         if get_current_lm() is None and self.model:
             model_for_litellm = _normalize_model_for_litellm(self.model, self.provider)
-            logger.info(f"Auto-configuring DSPy LM with model: {model_for_litellm}")
+            logger.debug(f"Auto-configuring DSPy LM with model: {model_for_litellm}")
 
             # Build kwargs for configure_lm — omit temperature when None so configure_lm
             # applies defaults (0.0 for most models; omit for GPT-5 family).
@@ -1479,7 +1526,7 @@ class DSPyAgentHandle:
                 config_kwargs["model_type"] = self.model_type
             if self.tool_choice is not None and (self.tools or self.toolsets):
                 config_kwargs["tool_choice"] = self.tool_choice
-                logger.info(f"Configuring LM with tool_choice={self.tool_choice}")
+                logger.debug(f"Configuring LM with tool_choice={self.tool_choice}")
 
             configure_lm(model_for_litellm, **config_kwargs)
 
@@ -1549,7 +1596,7 @@ class DSPyAgentHandle:
         if self.tools or self.toolsets:
             dspy_tools = self._convert_toolsets_to_dspy_tools_sync()
             prompt_context["tools"] = dspy_tools
-            logger.info(f"Agent '{self.name}' passing {len(dspy_tools)} DSPy tools to module")
+            logger.debug(f"Agent '{self.name}' passing {len(dspy_tools)} DSPy tools to module")
 
         # Add any injected context (user_message is already in prompt_context)
         if context:

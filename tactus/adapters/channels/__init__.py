@@ -107,7 +107,7 @@ def load_channels_from_config(
         channel = load_channel(channel_id, init_config)
         if channel:
             channels.append(channel)
-            logger.info("Loaded control channel: %s", channel_id)
+            logger.debug("Loaded control channel: %s", channel_id)
 
     # If no channels configured, use defaults
     if not config.channels:
@@ -137,13 +137,13 @@ def load_default_channels(procedure_id: Optional[str] = None) -> list[ControlCha
         from tactus.adapters.channels.cli import CLIControlChannel
 
         channels.append(CLIControlChannel())
-        logger.info("Loaded CLI control channel (auto-detected tty)")
+        logger.debug("Loaded CLI control channel (auto-detected tty)")
 
     # IPC channel - always enabled for control CLI connectivity
     from tactus.adapters.channels.ipc import IPCControlChannel
 
     channels.append(IPCControlChannel(procedure_id=procedure_id))
-    logger.info("Loaded IPC control channel")
+    logger.debug("Loaded IPC control channel")
 
     return channels
 
