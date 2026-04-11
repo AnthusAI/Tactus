@@ -76,6 +76,10 @@ class LuaSandbox:
         # Setup safe globals
         self._setup_safe_globals()
 
+        # Override byte-oriented Lua string functions with UTF-8-aware versions
+        # to prevent multi-byte character corruption at the Lua/Python boundary
+        self._setup_utf8_safe_strings()
+
         logger.debug("Lua sandbox initialized successfully")
 
     def _attribute_filter(self, obj: Any, attr_name: str, is_setting: bool) -> str:
@@ -316,6 +320,158 @@ class LuaSandbox:
                 return now.strftime("%a %b %d %H:%M:%S %Y")
 
         return self.lua.table(date=safe_date)
+
+    def _setup_utf8_safe_strings(self) -> None:
+        """Override Lua's byte-oriented string functions with UTF-8-aware versions.
+
+        Lua's built-in string library treats strings as raw byte sequences. Operations
+        like string.sub() can split multi-byte UTF-8 characters (e.g. em-dashes are
+        3 bytes: 0xE2 0x80 0x94), producing invalid UTF-8. When lupa converts these
+        corrupted strings back to Python, it raises UnicodeDecodeError.
+
+        This method injects UTF-8-aware replacements for the most dangerous operations:
+        - string.sub: character-based substring instead of byte-based
+        - string.len: character count instead of byte count
+        - string.reverse: reverses characters, not bytes
+
+        A utf8_clean() global is also provided as a safety net for any strings that
+        may have been corrupted by operations we don't override.
+        """
+        self.lua.execute("""
+            -- UTF-8 iterator: yields start_pos, char_string for each character
+            local function utf8_chars(s)
+                local chars = {}
+                local i = 1
+                local len = #s  -- byte length
+                while i <= len do
+                    local b = string.byte(s, i)
+                    local char_len
+                    if b < 128 then
+                        char_len = 1
+                    elseif b >= 194 and b <= 223 then
+                        char_len = 2
+                    elseif b >= 224 and b <= 239 then
+                        char_len = 3
+                    elseif b >= 240 and b <= 244 then
+                        char_len = 4
+                    else
+                        -- Invalid start byte, treat as single byte
+                        char_len = 1
+                    end
+                    -- Clamp to string boundary
+                    if i + char_len - 1 > len then
+                        char_len = len - i + 1
+                    end
+                    chars[#chars + 1] = _orig_string_sub(s, i, i + char_len - 1)
+                    i = i + char_len
+                end
+                return chars
+            end
+
+            -- Save originals before overriding
+            _orig_string_sub = string.sub
+            _orig_string_len = string.len
+            _orig_string_rev = string.reverse
+            _orig_string_byte = string.byte
+
+            -- UTF-8 aware string.sub
+            string.sub = function(s, i, j)
+                if type(s) ~= "string" then return _orig_string_sub(s, i, j) end
+                -- Fast path: ASCII-only strings have no multi-byte characters
+                if not s:find("[\\128-\\255]") then
+                    return _orig_string_sub(s, i, j)
+                end
+                local chars = utf8_chars(s)
+                local n = #chars
+                j = j or n
+                -- Handle negative indices (Lua convention)
+                if i < 0 then i = n + 1 + i end
+                if j < 0 then j = n + 1 + j end
+                if i < 1 then i = 1 end
+                if j > n then j = n end
+                if i > j then return "" end
+                local parts = {}
+                for idx = i, j do
+                    parts[#parts + 1] = chars[idx]
+                end
+                return table.concat(parts)
+            end
+
+            -- UTF-8 aware string.len
+            string.len = function(s)
+                if type(s) ~= "string" then return _orig_string_len(s) end
+                if not s:find("[\\128-\\255]") then
+                    return _orig_string_len(s)
+                end
+                return #utf8_chars(s)
+            end
+
+            -- UTF-8 aware string.reverse
+            string.reverse = function(s)
+                if type(s) ~= "string" then return _orig_string_rev(s) end
+                if not s:find("[\\128-\\255]") then
+                    return _orig_string_rev(s)
+                end
+                local chars = utf8_chars(s)
+                local parts = {}
+                for i = #chars, 1, -1 do
+                    parts[#parts + 1] = chars[i]
+                end
+                return table.concat(parts)
+            end
+
+            -- Global utility: clean invalid UTF-8 sequences in a string
+            function utf8_clean(s)
+                if type(s) ~= "string" then return s end
+                if not s:find("[\\128-\\255]") then return s end
+                local result = {}
+                local i = 1
+                local len = #s
+                while i <= len do
+                    local b = string.byte(s, i)
+                    if b < 128 then
+                        result[#result + 1] = _orig_string_sub(s, i, i)
+                        i = i + 1
+                    elseif b >= 194 and b <= 223 then
+                        if i + 1 <= len
+                            and string.byte(s, i+1) >= 128
+                            and string.byte(s, i+1) <= 191 then
+                            result[#result + 1] = _orig_string_sub(s, i, i+1)
+                            i = i + 2
+                        else
+                            result[#result + 1] = "?"
+                            i = i + 1
+                        end
+                    elseif b >= 224 and b <= 239 then
+                        if i + 2 <= len
+                            and string.byte(s, i+1) >= 128 and string.byte(s, i+1) <= 191
+                            and string.byte(s, i+2) >= 128 and string.byte(s, i+2) <= 191 then
+                            result[#result + 1] = _orig_string_sub(s, i, i+2)
+                            i = i + 3
+                        else
+                            result[#result + 1] = "?"
+                            i = i + 1
+                        end
+                    elseif b >= 240 and b <= 244 then
+                        if i + 3 <= len
+                            and string.byte(s, i+1) >= 128 and string.byte(s, i+1) <= 191
+                            and string.byte(s, i+2) >= 128 and string.byte(s, i+2) <= 191
+                            and string.byte(s, i+3) >= 128 and string.byte(s, i+3) <= 191 then
+                            result[#result + 1] = _orig_string_sub(s, i, i+3)
+                            i = i + 4
+                        else
+                            result[#result + 1] = "?"
+                            i = i + 1
+                        end
+                    else
+                        result[#result + 1] = "?"
+                        i = i + 1
+                    end
+                end
+                return table.concat(result)
+            end
+        """)
+        logger.debug("Installed UTF-8 safe string overrides (sub, len, reverse, utf8_clean)")
 
     def setup_assignment_interception(self, callback: Any) -> None:
         """
