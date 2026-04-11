@@ -224,3 +224,71 @@ def test_log_handler_execution_summary_checkpoint_without_types_or_duration():
         )
     )
     assert any("Checkpoint Summary" in msg for msg in console.messages)
+
+
+def test_chat_transcript_suppresses_tool_cost_checkpoint():
+    console = DummyConsole()
+    handler = CLILogHandler(console=console, transcript_mode="chat")
+    handler.log(CostEvent(
+        agent_name="agent",
+        model="m",
+        provider="openai",
+        prompt_tokens=1,
+        completion_tokens=2,
+        total_tokens=3,
+        prompt_cost=0.1,
+        completion_cost=0.2,
+        total_cost=0.3,
+    ))
+    handler.log(ToolCallEvent(agent_name="a", tool_name="t", tool_args={"x": 1}, tool_result="ok"))
+    handler.log(
+        CheckpointCreatedEvent(
+            checkpoint_position=1,
+            checkpoint_type="agent_turn",
+            duration_ms=5,
+            source_location=None,
+        )
+    )
+    assert console.messages == []
+
+
+def test_chat_transcript_still_streams_assistant_text():
+    console = DummyConsole()
+    handler = CLILogHandler(console=console, transcript_mode="chat")
+    handler.log(AgentStreamChunkEvent(agent_name="a", chunk_text="Hello", accumulated_text="Hello"))
+    assert any("Hello" in msg for msg in console.messages)
+
+
+def test_chat_transcript_agent_completed_emits_newline_only():
+    console = DummyConsole()
+    handler = CLILogHandler(console=console, transcript_mode="chat")
+    handler.log(AgentTurnEvent(agent_name="a", stage="started"))
+    assert console.messages == []
+    handler.log(AgentTurnEvent(agent_name="a", stage="completed", duration_ms=10))
+    assert len(console.messages) == 1
+
+
+def test_chat_transcript_suppresses_fallback_log_event():
+    console = DummyConsole()
+    handler = CLILogHandler(console=console, transcript_mode="chat")
+    handler.log(LogEvent(level="INFO", message="hello", context={"a": 1}))
+    assert console.messages == []
+
+
+def test_chat_transcript_execution_summary_minimal():
+    console = DummyConsole()
+    handler = CLILogHandler(console=console, transcript_mode="chat")
+    handler.log(
+        ExecutionSummaryEvent(
+            result={"ok": True},
+            iterations=2,
+            tools_used=["done", "other"],
+            total_cost=0.5,
+            total_tokens=100,
+        )
+    )
+    joined = " ".join(console.messages)
+    assert "Procedure completed" in joined
+    assert "Total cost" in joined
+    assert "Cost Summary" not in joined
+    assert "Checkpoint Summary" not in joined

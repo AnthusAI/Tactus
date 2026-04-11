@@ -5,12 +5,15 @@ Renders log events using Rich console for beautiful CLI output.
 """
 
 import logging
-from typing import Optional
+from typing import Literal, Optional
+
 from rich.console import Console
 
 from tactus.protocols.models import LogEvent, CostEvent
 
 logger = logging.getLogger(__name__)
+
+TranscriptMode = Literal["chat", "full"]
 
 
 class CLILogHandler:
@@ -19,16 +22,26 @@ class CLILogHandler:
 
     Receives structured log events and renders them with Rich
     for beautiful console output.
+
+    transcript_mode:
+        - ``full``: agent banners, tools, per-turn costs, checkpoints (default for non-TTY).
+        - ``chat``: assistant stream text only during turns; minimal end-of-run summary.
     """
 
-    def __init__(self, console: Optional[Console] = None):
+    def __init__(
+        self,
+        console: Optional[Console] = None,
+        transcript_mode: TranscriptMode = "full",
+    ):
         """
         Initialize CLI log handler.
 
         Args:
             console: Rich Console instance (creates new one if not provided)
+            transcript_mode: ``chat`` for minimal interactive transcript, ``full`` for traces.
         """
         self.console = console or Console()
+        self.transcript_mode: TranscriptMode = transcript_mode
         self.cost_events = []  # Track cost events for aggregation
         logger.debug("CLILogHandler initialized")
 
@@ -77,6 +90,9 @@ class CLILogHandler:
             self._display_execution_summary(event)
             return
 
+        if self.transcript_mode == "chat":
+            return
+
         # Use Rich to format nicely for other events
         if hasattr(event, "context") and event.context:
             # Log with context formatted as part of the message
@@ -97,6 +113,12 @@ class CLILogHandler:
     def _display_agent_turn_event(self, event) -> None:
         """Display agent turn start/complete event."""
 
+        if self.transcript_mode == "chat":
+            if event.stage == "completed":
+                # Separate streamed assistant text from the next block (e.g. HITL prompt).
+                self.console.print()
+            return
+
         if event.stage == "started":
             self.console.print(
                 f"[blue]→ Agent[/blue] [bold]{event.agent_name}[/bold]: [blue]Waiting for response...[/blue]"
@@ -111,6 +133,9 @@ class CLILogHandler:
 
     def _display_tool_call_event(self, event) -> None:
         """Display tool call event."""
+        if self.transcript_mode == "chat":
+            return
+
         import json
 
         # Format arguments compactly if they're simple
@@ -141,6 +166,9 @@ class CLILogHandler:
 
     def _display_checkpoint_event(self, event) -> None:
         """Display checkpoint created event."""
+        if self.transcript_mode == "chat":
+            return
+
         # Format checkpoint type (e.g., "agent_turn" -> "Agent Turn")
         type_display = event.checkpoint_type.replace("_", " ").title()
 
@@ -162,6 +190,9 @@ class CLILogHandler:
         """Display cost event with comprehensive metrics."""
         # Track cost event for aggregation
         self.cost_events.append(event)
+
+        if self.transcript_mode == "chat":
+            return
 
         # Primary metrics - always show
         self.console.print(
@@ -186,6 +217,18 @@ class CLILogHandler:
 
     def _display_execution_summary(self, event) -> None:
         """Display execution summary with cost breakdown."""
+        if self.transcript_mode == "chat":
+            self.console.print(
+                f"\n[green bold]✓ Procedure completed[/green bold]: "
+                f"{event.iterations} iteration(s), {len(event.tools_used)} tool call(s)"
+            )
+            if hasattr(event, "total_cost") and event.total_cost > 0:
+                self.console.print(
+                    f"[green bold]$ Total cost:[/green bold] [green]${event.total_cost:.6f}[/green] "
+                    f"({getattr(event, 'total_tokens', 0):,} tokens)"
+                )
+            return
+
         self.console.print(
             f"\n[green bold]✓ Procedure completed[/green bold]: "
             f"{event.iterations} iterations, {len(event.tools_used)} tools used"

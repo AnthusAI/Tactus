@@ -129,7 +129,8 @@ def test_main_does_not_insert_for_subcommand(monkeypatch):
     assert called["ran"] is True
 
 
-def test_main_does_not_insert_for_missing_file(monkeypatch, tmp_path):
+def test_main_inserts_run_for_missing_tac_path(monkeypatch, tmp_path):
+    """Suffix implies workflow: insert run even if the file is not found yet (run will error clearly)."""
     called = {}
 
     def fake_app():
@@ -143,7 +144,8 @@ def test_main_does_not_insert_for_missing_file(monkeypatch, tmp_path):
 
     cli_app.main()
 
-    assert sys.argv[1] == str(missing)
+    assert sys.argv[1] == "run"
+    assert sys.argv[2] == str(missing)
     assert called["ran"] is True
 
 

@@ -18,7 +18,7 @@ os.environ["PYDANTIC_DISABLE_PLUGINS"] = "1"
 import asyncio
 import json
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 import logging
 import sys
 
@@ -43,6 +43,31 @@ console = Console()
 app = typer.Typer(
     name="tactus", help="Tactus - Workflow automation with Lua DSL", add_completion=False
 )
+
+# Top-level Typer command names (not workflow paths). Used so `tactus train …` is not rewritten.
+_CLI_SUBCOMMAND_NAMES = frozenset(
+    {
+        "run",
+        "validate",
+        "test",
+        "eval",
+        "train",
+        "format",
+        "info",
+        "version",
+        "ide",
+        "control",
+        "trace-list",
+        "trace-show",
+        "trace-export",
+        "sandbox",
+        "models",
+        "stdlib",
+    }
+)
+
+# If argv is `tactus <path>`, treat as `tactus run <path>` when <path> looks like a workflow file.
+_WORKFLOW_FILE_SUFFIXES = (".tac", ".lua", ".yaml", ".yml")
 
 
 def _coerce_bool(value: Any) -> bool:
@@ -90,21 +115,9 @@ def main_callback(
     # If no subcommand was invoked and version flag not set, show help
     if ctx.invoked_subcommand is None:
         protected_args = getattr(ctx, "protected_args", None)
-        if protected_args and protected_args[0] in {
-            "run",
-            "validate",
-            "test",
-            "eval",
-            "version",
-            "ide",
-            "stdlib",
-            "control",
-            "trace-list",
-            "trace-show",
-            "trace-export",
-        }:
+        if protected_args and protected_args[0] in _CLI_SUBCOMMAND_NAMES:
             return
-        if getattr(ctx, "args", None) and ctx.args[0].endswith((".tac", ".lua")):
+        if getattr(ctx, "args", None) and ctx.args[0].endswith(_WORKFLOW_FILE_SUFFIXES):
             workflow_file = Path(ctx.args[0])
             task_name = None
             if len(ctx.args) >= 2 and not ctx.args[1].startswith("-"):
@@ -540,7 +553,12 @@ def run(
     openai_api_key: Optional[str] = typer.Option(
         None, envvar="OPENAI_API_KEY", help="OpenAI API key"
     ),
-    verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose logging"),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-v",
+        help="Full transcript: tools, checkpoints, per-turn costs, and detailed logging",
+    ),
     debug: bool = typer.Option(False, "--debug", help="Enable debug logging + context tracing"),
     log_level: Optional[str] = typer.Option(
         None, "--log-level", help="Log level: debug, info, warning, error, critical"
@@ -596,6 +614,10 @@ def run(
 ):
     """
     Run a Tactus workflow.
+
+    On an interactive terminal, the default is a minimal chat-style transcript
+    (assistant text and prompts). Use --verbose for full traces: tool calls,
+    checkpoints, per-turn costs, and richer logs.
 
     Examples:
 
@@ -890,15 +912,25 @@ def run(
     # This section used to re-parse them, but that would override the
     # properly JSON-parsed values with raw strings
 
+    # Transcript layout: minimal chat on interactive TTY unless verbose/debug
+    if verbose or debug:
+        transcript_mode: Literal["chat", "full"] = "full"
+    elif sys.stdin.isatty():
+        transcript_mode = "chat"
+    else:
+        transcript_mode = "full"
+
     # Create log handler for Rich formatting
     from tactus.adapters.cli_log import CLILogHandler
 
-    log_handler = CLILogHandler(console)
+    log_handler = CLILogHandler(console, transcript_mode=transcript_mode)
 
     # Suppress verbose runtime logging when using structured log handler
     # This prevents duplicate output - we only want the clean structured logs
     logging.getLogger("tactus.core.runtime").setLevel(logging.WARNING)
     logging.getLogger("tactus.primitives").setLevel(logging.WARNING)
+    if transcript_mode == "chat":
+        logging.getLogger("tactus.dspy.agent").setLevel(logging.WARNING)
 
     # Create runtime
     procedure_id = f"cli-{workflow_file.stem}"
@@ -910,11 +942,15 @@ def run(
 
     # Load default channels (CLI if tty, IPC always)
     # Then add CLI with custom console if not already present
-    channels = load_default_channels(procedure_id=procedure_id)
+    channels = load_default_channels(
+        procedure_id=procedure_id,
+        console=console,
+        transcript_mode=transcript_mode,
+    )
 
     # If CLI channel not already loaded (because not tty), add it with custom console
     if not any(c.channel_id == "cli" for c in channels):
-        channels.insert(0, CLIControlChannel(console=console))
+        channels.insert(0, CLIControlChannel(console=console, transcript_mode=transcript_mode))
 
     control_handler = ControlLoopHandler(channels=channels, storage=storage_backend)
     hitl_handler = ControlLoopHITLAdapter(control_handler)
@@ -2881,29 +2917,16 @@ def main():
     # Load configuration before processing any commands
     load_tactus_config()
 
-    # Check if user provided a direct file path (shortcut for 'run' command)
-    # This allows: tactus procedure.tac instead of tactus run procedure.tac
+    # Direct workflow path: `tactus procedure.tac` → `tactus run procedure.tac`
+    # (Suffix-based so it works even when the path is not yet resolvable from CWD.)
     if len(sys.argv) > 1:
         first_arg = sys.argv[1]
-        # Check if it's a file (not a subcommand or option)
-        if not first_arg.startswith("-") and first_arg not in [
-            "run",
-            "validate",
-            "test",
-            "eval",
-            "version",
-            "ide",
-            "stdlib",
-            "control",
-            "trace-list",
-            "trace-show",
-            "trace-export",
-        ]:
-            # Check if it's a file that exists
-            potential_file = Path(first_arg)
-            if potential_file.exists() and potential_file.is_file():
-                # Insert 'run' command before the file path
-                sys.argv.insert(1, "run")
+        if (
+            not first_arg.startswith("-")
+            and first_arg not in _CLI_SUBCOMMAND_NAMES
+            and first_arg.endswith(_WORKFLOW_FILE_SUFFIXES)
+        ):
+            sys.argv.insert(1, "run")
 
     app()
 
