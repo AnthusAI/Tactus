@@ -19,6 +19,7 @@ from typing import Any, Dict, List, Optional, TYPE_CHECKING
 from tactus.core.registry import ProcedureRegistry, RegistryBuilder, TaskDeclaration
 from tactus.core.dsl_stubs import create_dsl_stubs, lua_table_to_dict
 from tactus.core.template_resolver import TemplateResolver
+from tactus.dspy.model_params import default_temperature_for_model
 from tactus.core.message_history_manager import MessageHistoryManager
 from tactus.core.lua_sandbox import LuaSandbox, LuaSandboxError
 from tactus.core.output_validator import OutputValidator, OutputValidationError
@@ -2149,6 +2150,13 @@ class TactusRuntime:
             tool_choice = agent_config.get("tool_choice")
             logger.info(f"Agent '{agent_name}' config has tool_choice={tool_choice}")
 
+            if model_settings is not None and "temperature" in model_settings:
+                resolved_temperature = model_settings["temperature"]
+            elif "temperature" in agent_config:
+                resolved_temperature = agent_config["temperature"]
+            else:
+                resolved_temperature = default_temperature_for_model(model_name)
+
             dspy_config = {
                 "system_prompt": system_prompt_template,
                 "model": model_name,
@@ -2157,11 +2165,7 @@ class TactusRuntime:
                 "tools": filtered_tools,
                 "toolsets": filtered_toolsets,
                 "output_schema": output_schema,
-                "temperature": (
-                    model_settings.get("temperature", 1 if model_name.startswith("gpt-5") or (model_name and "/gpt-5" in model_name) else 0.7)
-                    if model_settings
-                    else agent_config.get("temperature", 1 if model_name.startswith("gpt-5") or (model_name and "/gpt-5" in model_name) else 0.7)
-                ),
+                "temperature": resolved_temperature,
                 "max_tokens": (
                     model_settings.get("max_tokens")
                     if model_settings

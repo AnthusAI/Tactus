@@ -144,7 +144,7 @@ class DSPyAgentHandle:
         toolsets: Optional[List[str]] = None,
         input_schema: Optional[Dict[str, Any]] = None,
         output_schema: Optional[Dict[str, Any]] = None,
-        temperature: float = 0.7,
+        temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
         model_type: Optional[str] = None,
         module: str = "Raw",
@@ -169,7 +169,8 @@ class DSPyAgentHandle:
             toolsets: List of toolset names to include
             input_schema: Optional input schema for validation (default: {message: string})
             output_schema: Optional output schema for validation (default: {response: string})
-            temperature: Model temperature (default: 0.7)
+            temperature: Model temperature; None lets configure_lm use model defaults
+                (0.0 for most models; GPT-5 family omits the parameter).
             max_tokens: Maximum tokens for response
             model_type: Model type for DSPy (e.g., "chat", "responses" for reasoning models)
             module: DSPy module type to use (default: "Raw", case-insensitive). Options:
@@ -1355,6 +1356,7 @@ class DSPyAgentHandle:
                    - tools: List[Any] - Tool/toolset references and toolset expressions to use
                    - temperature: float - Override temperature
                    - max_tokens: int - Override max_tokens
+                   - system_prompt: str - Replace the agent's template for this turn (still resolves {state.*}, {params.*}, etc.)
 
         Returns:
             Result object with response and other fields
@@ -1387,7 +1389,7 @@ class DSPyAgentHandle:
             opts["message"] = message
 
         # Pass remaining fields - some are per-turn overrides, others are context
-        override_keys = {"tools", "temperature", "max_tokens"}
+        override_keys = {"tools", "temperature", "max_tokens", "system_prompt"}
         for key in override_keys:
             if key in inputs:
                 opts[key] = inputs[key]
@@ -1466,7 +1468,8 @@ class DSPyAgentHandle:
             model_for_litellm = _normalize_model_for_litellm(self.model, self.provider)
             logger.info(f"Auto-configuring DSPy LM with model: {model_for_litellm}")
 
-            # Build kwargs for configure_lm
+            # Build kwargs for configure_lm — omit temperature when None so configure_lm
+            # applies defaults (0.0 for most models; omit for GPT-5 family).
             config_kwargs = {}
             if self.temperature is not None:
                 config_kwargs["temperature"] = self.temperature
@@ -1490,8 +1493,11 @@ class DSPyAgentHandle:
         context = opts.get("context") or {}
 
         prepared = self._run_prepare_hook(context, user_message)
+        template = self.system_prompt
+        if "system_prompt" in opts and opts["system_prompt"] is not None:
+            template = opts["system_prompt"]
         system_prompt = self._render_system_prompt(
-            self.system_prompt, context=context, prepared=prepared, user_message=user_message
+            template, context=context, prepared=prepared, user_message=user_message
         )
 
         if self.context_name:
@@ -1918,7 +1924,7 @@ def create_dspy_agent(
         tools=config.get("tools", []),
         toolsets=config.get("toolsets", []),
         output_schema=config.get("output_schema") or config.get("output"),
-        temperature=config.get("temperature", 0.7),
+        temperature=config.get("temperature"),
         max_tokens=config.get("max_tokens"),
         model_type=config.get("model_type"),
         module=config.get("module", "Raw"),
