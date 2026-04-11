@@ -24,6 +24,8 @@ if os.environ.get("DSPY_DISABLE_DISK_CACHE", "").lower() in ("1", "true", "yes")
             try:
                 _old_disk.close()
             except Exception:
+                # Best-effort cleanup: ignore close failures so cache disabling
+                # does not prevent module import or configuration.
                 pass
     from dspy.clients import configure_cache
     configure_cache(enable_disk_cache=False)
