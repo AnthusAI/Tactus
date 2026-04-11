@@ -89,8 +89,11 @@ class ToolHandle:
             normalized_arguments = self._normalize_tool_arguments(args)
 
             # Execute the implementation
+            # MCP tool wrappers use **kwargs, so unpack dict args as keyword arguments
             if self.is_async or asyncio.iscoroutinefunction(self.implementation_function):
                 result = self._run_async(normalized_arguments)
+            elif isinstance(normalized_arguments, dict):
+                result = self.implementation_function(**normalized_arguments)
             else:
                 result = self.implementation_function(normalized_arguments)
 
@@ -240,23 +243,22 @@ class ToolHandle:
         Handles the complexity of running async code from Lua's sync context.
         """
         try:
-            # Try to get a running event loop
-            running_loop = asyncio.get_running_loop()
-
-            # We're in an async context - use nest_asyncio if available
-            try:
-                import nest_asyncio
-
-                nest_asyncio.apply(running_loop)
-                return asyncio.run(self.implementation_function(args))
-            except ImportError:
-                # nest_asyncio not available, fall back to threading
-                return self._run_async_in_thread(args)
-
+            asyncio.get_running_loop()
+            # A loop is already running (we're inside an async context driven by
+            # Tactus/the procedure executor).  Use a dedicated thread with its own
+            # fresh event loop so that asyncio.gather inside the coroutine runs to
+            # TRUE completion.  nest_asyncio's re-entrant run_until_complete can
+            # return prematurely when long-running concurrent tasks are involved —
+            # e.g. it exits as soon as the first gather branch finishes, leaving
+            # the other branch orphaned.
+            return self._run_async_in_thread(args)
         except RuntimeError:
-            # No event loop running - safe to use asyncio.run()
+            # No event loop running - safe to use asyncio.run() directly.
             clear_closed_event_loop()
-            return asyncio.run(self.implementation_function(args))
+            if isinstance(args, dict):
+                return asyncio.run(self.implementation_function(**args))
+            else:
+                return asyncio.run(self.implementation_function(args))
 
     def _lua_table_to_dict(self, lua_table: Any) -> Any:
         """Convert a Lua table to Python dict recursively."""
@@ -284,9 +286,14 @@ class ToolHandle:
                 thread_event_loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(thread_event_loop)
                 try:
-                    thread_result["value"] = thread_event_loop.run_until_complete(
-                        self.implementation_function(args)
-                    )
+                    if isinstance(args, dict):
+                        thread_result["value"] = thread_event_loop.run_until_complete(
+                            self.implementation_function(**args)
+                        )
+                    else:
+                        thread_result["value"] = thread_event_loop.run_until_complete(
+                            self.implementation_function(args)
+                        )
                 finally:
                     thread_event_loop.close()
             except Exception as error:

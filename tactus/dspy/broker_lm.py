@@ -54,7 +54,7 @@ class BrokeredLM(dspy.BaseLM):
         super().__init__(
             model=model,
             model_type=model_type,
-            temperature=temperature if temperature is not None else 0.7,
+            temperature=temperature if temperature is not None else (1 if model.startswith("gpt-5") or "/gpt-5" in model else 0.7),
             max_tokens=max_tokens if max_tokens is not None else 1000,
             cache=False,
             **kwargs,

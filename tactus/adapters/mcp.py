@@ -210,10 +210,10 @@ class PydanticAIMCPAdapter:
                 else:
                     result_str = str(result)
 
-                # Record tool call using the live primitive (resolved at call time)
-                primitive = self._get_primitive()
-                if primitive:
-                    primitive.record_call(tool_name, args_dict, result_str)
+                # NOTE: Do NOT call primitive.record_call here.
+                # The agent loop in agent.py calls record_call after _execute_tool returns,
+                # which covers all tool paths. Calling it here too would emit a duplicate
+                # ToolCallEvent and create two tool call components in the chat UI.
 
                 logger.debug(f"Tool '{tool_name}' returned: {result_str[:100]}...")
                 return result_str
@@ -246,6 +246,12 @@ class PydanticAIMCPAdapter:
             description=tool_description or f"Tool: {tool_name}",
             prepare=_prepare,
         )
+
+        # Attach the original MCP input_schema so DSPy conversion can access
+        # the full parameter schema even though **kwargs produces an empty
+        # function_schema.json_schema["properties"].
+        if _input_schema and isinstance(_input_schema, dict):
+            tool._mcp_input_schema = _input_schema
 
         return tool
 
