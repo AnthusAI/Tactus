@@ -420,6 +420,17 @@ Configuration files (`.yml`) can contain:
 
 ## Environment Variables
 
+### Dotenv files (`.env`)
+
+The **Tactus CLI** loads `.env` and then `.env.local` if they exist (using [python-dotenv](https://github.com/theskumar/python-dotenv)):
+
+1. **Current working directory** — loaded once at startup, before `load_tactus_config()` applies YAML-based config.
+2. **Directory of the procedure file** — when you run `tactus run`, `validate`, `test`, or `eval` with a path to a procedure file, env files next to that file are loaded as well.
+
+Variables already set in the process (including from your shell or an earlier `.env`) are **not** overridden.
+
+Using the `tactus` package as a library without the CLI does not load these files; call `python-dotenv` yourself if you need the same behavior.
+
 Tactus reads these environment variables as fallback configuration:
 
 - `OPENAI_API_KEY` - OpenAI API key
