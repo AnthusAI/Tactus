@@ -89,11 +89,15 @@ class ToolHandle:
             normalized_arguments = self._normalize_tool_arguments(args)
 
             # Execute the implementation
-            # MCP tool wrappers use **kwargs, so unpack dict args as keyword arguments
+            # Try **kwargs first (MCP tool wrappers), fall back to single-arg
+            # call (Lua-defined tool handlers that expect an args dict).
             if self.is_async or asyncio.iscoroutinefunction(self.implementation_function):
                 result = self._run_async(normalized_arguments)
             elif isinstance(normalized_arguments, dict):
-                result = self.implementation_function(**normalized_arguments)
+                try:
+                    result = self.implementation_function(**normalized_arguments)
+                except TypeError:
+                    result = self.implementation_function(normalized_arguments)
             else:
                 result = self.implementation_function(normalized_arguments)
 
@@ -256,7 +260,10 @@ class ToolHandle:
             # No event loop running - safe to use asyncio.run() directly.
             clear_closed_event_loop()
             if isinstance(args, dict):
-                return asyncio.run(self.implementation_function(**args))
+                try:
+                    return asyncio.run(self.implementation_function(**args))
+                except TypeError:
+                    return asyncio.run(self.implementation_function(args))
             else:
                 return asyncio.run(self.implementation_function(args))
 
@@ -287,9 +294,14 @@ class ToolHandle:
                 asyncio.set_event_loop(thread_event_loop)
                 try:
                     if isinstance(args, dict):
-                        thread_result["value"] = thread_event_loop.run_until_complete(
-                            self.implementation_function(**args)
-                        )
+                        try:
+                            thread_result["value"] = thread_event_loop.run_until_complete(
+                                self.implementation_function(**args)
+                            )
+                        except TypeError:
+                            thread_result["value"] = thread_event_loop.run_until_complete(
+                                self.implementation_function(args)
+                            )
                     else:
                         thread_result["value"] = thread_event_loop.run_until_complete(
                             self.implementation_function(args)

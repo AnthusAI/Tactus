@@ -2349,11 +2349,18 @@ def create_dsl_stubs(
 
         # Validate required params
         classes = config_dict.get("classes")
-        model = config_dict.get("model")
+        model = config_dict.get("model") or builder.registry.default_model
         if not classes:
             raise TypeError("ClassifyProcedure requires 'classes'")
         if not model:
-            raise TypeError("ClassifyProcedure requires 'model'")
+            raise TypeError(
+                "ClassifyProcedure requires 'model' — specify it in the config "
+                "or set default_model at the procedure level"
+            )
+        # If model came from default_model, inject into the Lua config
+        # so it flows through to Classify
+        if not config_dict.get("model") and model:
+            config["model"] = model
 
         # Normalize classes (lua_table_to_dict gives us a list)
         if not isinstance(classes, list):

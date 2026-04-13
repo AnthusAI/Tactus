@@ -2080,6 +2080,75 @@ def test_classify_requires_config():
         stubs["Classify"]()
 
 
+def test_classify_procedure_no_model_no_default_raises():
+    """ClassifyProcedure with no model and no default_model raises TypeError."""
+    builder = RegistryBuilder()
+    stubs = create_dsl_stubs(builder)
+
+    config = {
+        "classes": ["YES", "NO"],
+        "system_message": "Classify the text.",
+        "user_message": "{{ text }}",
+    }
+    with pytest.raises(TypeError, match="ClassifyProcedure requires 'model'"):
+        stubs["ClassifyProcedure"](config)
+
+
+def test_classify_procedure_explicit_model():
+    """ClassifyProcedure with explicit model in config succeeds."""
+    builder = RegistryBuilder()
+    stubs = create_dsl_stubs(builder)
+
+    config = {
+        "classes": ["YES", "NO"],
+        "model": "openai/gpt-5.4-nano",
+        "system_message": "Classify the text.",
+        "user_message": "{{ text }}",
+    }
+    # Should not raise — registers the procedure
+    stubs["ClassifyProcedure"](config)
+    assert "main" in builder.registry.named_procedures
+
+
+def test_classify_procedure_inherits_default_model():
+    """ClassifyProcedure without model inherits from default_model."""
+    builder = RegistryBuilder()
+    stubs = create_dsl_stubs(builder)
+
+    # Set default_model at procedure level
+    builder.set_default_model("openai/gpt-5.4-nano")
+
+    config = {
+        "classes": ["YES", "NO"],
+        "system_message": "Classify the text.",
+        "user_message": "{{ text }}",
+    }
+    # Should not raise — model comes from default_model
+    stubs["ClassifyProcedure"](config)
+    assert "main" in builder.registry.named_procedures
+    # Verify the model was injected into the config
+    assert config["model"] == "openai/gpt-5.4-nano"
+
+
+def test_classify_procedure_explicit_model_overrides_default():
+    """Explicit model in config takes precedence over default_model."""
+    builder = RegistryBuilder()
+    stubs = create_dsl_stubs(builder)
+
+    builder.set_default_model("openai/gpt-5.4-nano")
+
+    config = {
+        "classes": ["YES", "NO"],
+        "model": "openai/gpt-5-turbo",
+        "system_message": "Classify the text.",
+        "user_message": "{{ text }}",
+    }
+    stubs["ClassifyProcedure"](config)
+    assert "main" in builder.registry.named_procedures
+    # Explicit model should be preserved, not overwritten by default
+    assert config["model"] == "openai/gpt-5-turbo"
+
+
 def test_procedure_array_only_function_cleans_to_empty_dict():
     builder = RegistryBuilder()
     stubs = create_dsl_stubs(builder)
