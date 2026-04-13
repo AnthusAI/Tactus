@@ -139,6 +139,14 @@ function LLMClassifier:classify(input_text)
         last_output = output
 
         local value = safe_get(output, "value") or safe_get(output, "sentiment")
+        -- Also check "response" key: LLMModel output schema uses {response = "string"},
+        -- so when output validation passes, the text lands in output["response"].
+        if value == nil then
+            local response_text = safe_get(output, "response")
+            if response_text ~= nil and type(response_text) == "string" then
+                value = self:parse_response(response_text)
+            end
+        end
         if value == nil and type(output) == "string" then
             value = self:parse_response(output)
         end
