@@ -3,7 +3,12 @@ from types import SimpleNamespace
 import pytest
 import dspy
 
-from tactus.dspy.module import RawModule, TactusModule, create_module
+from tactus.dspy.module import (
+    RawModule,
+    TactusModule,
+    _drop_orphan_tool_messages,
+    create_module,
+)
 
 
 def test_raw_module_parses_output_fields():
@@ -77,6 +82,21 @@ def test_raw_module_builds_messages_from_history(monkeypatch):
     assert result.response == "ok"
     roles = [msg["role"] for msg in recorded["messages"]]
     assert roles == ["system", "user", "assistant", "user"]
+
+
+def test_drop_orphan_tool_messages_removes_unpaired_tool():
+    fixed = _drop_orphan_tool_messages(
+        [
+            {"role": "system", "content": "s"},
+            {"role": "user", "content": "u"},
+            {"role": "tool", "tool_call_id": "orphan", "content": "{}"},
+            {"role": "assistant", "content": "a", "tool_calls": [{"id": "t1", "function": {"name": "f", "arguments": "{}"}}]},
+            {"role": "tool", "tool_call_id": "t1", "content": "{}"},
+        ]
+    )
+    roles = [m["role"] for m in fixed]
+    assert roles == ["system", "user", "assistant", "tool"]
+    assert fixed[-1]["tool_call_id"] == "t1"
 
 
 def test_raw_module_handles_scalar_lm_response(monkeypatch):

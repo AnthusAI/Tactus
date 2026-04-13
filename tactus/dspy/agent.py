@@ -20,6 +20,7 @@ import os
 import queue
 import threading
 import time
+import uuid
 from typing import Any, Dict, List, Optional
 
 import dspy
@@ -50,6 +51,18 @@ def _tool_call_name_and_args(tc: Any) -> tuple[Any, Any]:
     if name is None:
         raise TypeError(f"Unrecognized tool call shape: {type(tc)!r}")
     return name, args
+
+
+def _tool_call_id_for_history(tc: Any) -> str:
+    """Stable unique id for OpenAI tool rounds; reuse provider id when present."""
+    if isinstance(tc, dict):
+        tid = tc.get("id")
+        if tid:
+            return str(tid)
+    tid = getattr(tc, "id", None)
+    if tid:
+        return str(tid)
+    return f"call_{uuid.uuid4().hex}"
 
 
 def _run_coroutine_sync(coro):
@@ -1096,7 +1109,7 @@ class DSPyAgentHandle:
                     tc_name, tc_args = _tool_call_name_and_args(tc)
                     tool_calls_list.append(
                         {
-                            "id": f"call_{tc_name}",
+                            "id": _tool_call_id_for_history(tc),
                             "type": "function",
                             "function": {
                                 "name": tc_name,
@@ -1299,7 +1312,7 @@ class DSPyAgentHandle:
                     tc_name, tc_args = _tool_call_name_and_args(tc)
                     tool_calls_list.append(
                         {
-                            "id": f"call_{tc_name}",
+                            "id": _tool_call_id_for_history(tc),
                             "type": "function",
                             "function": {
                                 "name": tc_name,
@@ -1409,6 +1422,7 @@ class DSPyAgentHandle:
                    - temperature: float - Override temperature
                    - max_tokens: int - Override max_tokens
                    - system_prompt: str - Replace the agent's template for this turn (still resolves {state.*}, {params.*}, etc.)
+                   - system_prompt_suffix: str - Append after the rendered default agent system prompt (mutually exclusive with system_prompt override for this turn)
 
         Returns:
             Result object with response and other fields
@@ -1441,7 +1455,13 @@ class DSPyAgentHandle:
             opts["message"] = message
 
         # Pass remaining fields - some are per-turn overrides, others are context
-        override_keys = {"tools", "temperature", "max_tokens", "system_prompt"}
+        override_keys = {
+            "tools",
+            "temperature",
+            "max_tokens",
+            "system_prompt",
+            "system_prompt_suffix",
+        }
         for key in override_keys:
             if key in inputs:
                 opts[key] = inputs[key]
@@ -1546,11 +1566,22 @@ class DSPyAgentHandle:
 
         prepared = self._run_prepare_hook(context, user_message)
         template = self.system_prompt
+        suffix_template = None
         if "system_prompt" in opts and opts["system_prompt"] is not None:
             template = opts["system_prompt"]
+        elif "system_prompt_suffix" in opts and opts.get("system_prompt_suffix") is not None:
+            suffix_template = opts["system_prompt_suffix"]
         system_prompt = self._render_system_prompt(
             template, context=context, prepared=prepared, user_message=user_message
         )
+        if suffix_template is not None:
+            suffix_rendered = self._render_system_prompt(
+                suffix_template,
+                context=context,
+                prepared=prepared,
+                user_message=user_message,
+            )
+            system_prompt = f"{system_prompt}\n\n{suffix_rendered}"
 
         if self.context_name:
             if not self.registry or not hasattr(self.registry, "contexts"):
