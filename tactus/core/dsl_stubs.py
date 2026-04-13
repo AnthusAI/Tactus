@@ -2307,15 +2307,21 @@ def create_dsl_stubs(
             ClassifyProcedure {
                 classes = {"Yes", "No"},
                 model = "openai/gpt-5.4-nano",
-                system_message = [[Classification instructions...]],
-                user_message = [[Analyze: <transcript>{{ text }}</transcript>]]
+                system_message = [[
+            Classification instructions...
+            ]],
+                user_message = [[
+            Analyze: <transcript>{{ text }}</transcript>
+            ]]
             }
 
         Legacy syntax (backward compatible):
             ClassifyProcedure {
                 classes = {"Yes", "No"},
                 model = "openai/gpt-5.4-nano",
-                prompt = [[Did the agent greet the customer?]]
+                prompt = [[
+            Did the agent greet the customer?
+            ]]
             }
 
         Params:
