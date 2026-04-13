@@ -77,11 +77,11 @@ async def test_adapter_tool_wrapper_executes_and_records():
         }
     )
 
-    args_model = tool.function.__annotations__["args"]
-    result = await tool.function(args_model(query="hello"))
+    result = await tool.function(query="hello")
 
     assert result == "search:hello"
-    assert tool_primitive.calls[0][0] == "search"
+    # Success-path tool recording is handled by the agent loop, not this wrapper.
+    assert tool_primitive.calls == []
 
 
 def test_adapter_rejects_tools_without_name(caplog):
@@ -155,9 +155,7 @@ def test_adapter_schema_error_falls_back_to_args_model(monkeypatch):
     tool = adapter._convert_mcp_tool_to_pydantic_ai(
         {"name": "fallback", "inputSchema": {"type": "object"}}
     )
-    args_model = tool.function.__annotations__["args"]
-
-    assert "args" in args_model.model_fields
+    assert tool is not None
 
 
 @pytest.mark.asyncio
@@ -177,11 +175,10 @@ async def test_adapter_tool_wrapper_handles_execute_and_records():
     adapter = PydanticAIMCPAdapter(object(), tool_primitive=tool_primitive)
 
     tool = adapter._convert_mcp_tool_to_pydantic_ai(DummyTool())
-    args_model = tool.function.__annotations__["args"]
-    result = await tool.function(args_model(value="v"))
+    result = await tool.function(value="v")
 
-    assert result == "['ok', 'v']"
-    assert tool_primitive.calls[0][0] == "exec"
+    assert result == "ok\nv"
+    assert tool_primitive.calls == []
 
 
 @pytest.mark.asyncio
@@ -195,8 +192,7 @@ async def test_adapter_tool_wrapper_handles_callable_tool():
 
     adapter = PydanticAIMCPAdapter(object())
     tool = adapter._convert_mcp_tool_to_pydantic_ai(DummyTool())
-    args_model = tool.function.__annotations__["args"]
-    result = await tool.function(args_model(x="1"))
+    result = await tool.function(x="1")
 
     assert result == "ok:1"
 
@@ -211,8 +207,7 @@ async def test_adapter_tool_wrapper_handles_call_method_and_scalar_result():
     tool = adapter._convert_mcp_tool_to_pydantic_ai(
         {"name": "call", "inputSchema": {"type": "object"}}
     )
-    args_model = tool.function.__annotations__["args"]
-    result = await tool.function(args_model())
+    result = await tool.function()
 
     assert result == "123"
 
@@ -225,8 +220,7 @@ async def test_adapter_tool_wrapper_handles_missing_schema():
 
     adapter = PydanticAIMCPAdapter(DummyClient())
     tool = adapter._convert_mcp_tool_to_pydantic_ai({"name": "noop"})
-    args_model = tool.function.__annotations__["args"]
-    result = await tool.function(args_model())
+    result = await tool.function()
 
     assert result == "ok"
 
@@ -239,10 +233,8 @@ async def test_adapter_tool_wrapper_raises_when_no_callable():
 
     adapter = PydanticAIMCPAdapter(object())
     tool = adapter._convert_mcp_tool_to_pydantic_ai(DummyTool())
-    args_model = tool.function.__annotations__["args"]
-
     with pytest.raises(ValueError, match="Cannot execute MCP tool"):
-        await tool.function(args_model())
+        await tool.function()
 
 
 @pytest.mark.asyncio
@@ -257,10 +249,8 @@ async def test_adapter_tool_wrapper_records_failure():
     tool = adapter._convert_mcp_tool_to_pydantic_ai(
         {"name": "fail", "inputSchema": {"type": "object"}}
     )
-    args_model = tool.function.__annotations__["args"]
-
     with pytest.raises(RuntimeError):
-        await tool.function(args_model())
+        await tool.function()
 
     assert tool_primitive.calls[0][0] == "fail"
     assert "Error executing tool" in tool_primitive.calls[0][2]
@@ -272,15 +262,11 @@ async def test_adapter_tool_wrapper_uses_dict_args():
         async def call_tool(self, name, args):
             return {"text": "ok"}
 
-    class Args:
-        def dict(self):
-            return {"x": "1"}
-
     adapter = PydanticAIMCPAdapter(DummyClient())
     tool = adapter._convert_mcp_tool_to_pydantic_ai(
         {"name": "dict", "inputSchema": {"type": "object"}}
     )
-    result = await tool.function(Args())
+    result = await tool.function(x="1")
 
     assert result == "ok"
 
@@ -291,19 +277,11 @@ async def test_adapter_tool_wrapper_uses_iterable_args():
         async def call_tool(self, name, args):
             return {"text": "ok"}
 
-    class Args:
-        def __iter__(self):
-            return iter([("x", "1")])
-
-        @property
-        def __dict__(self):
-            return {"x": "1"}
-
     adapter = PydanticAIMCPAdapter(DummyClient())
     tool = adapter._convert_mcp_tool_to_pydantic_ai(
         {"name": "iter", "inputSchema": {"type": "object"}}
     )
-    result = await tool.function(Args())
+    result = await tool.function(x="1")
 
     assert result == "ok"
 

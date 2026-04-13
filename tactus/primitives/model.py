@@ -369,7 +369,11 @@ class ModelPrimitive:
 
     def _emit_cost_event(self, cost: "PredictionCost") -> None:
         """Emit a CostEvent to the execution context log handler for cost tracking."""
-        if self.context is None or self.context.log_handler is None:
+        if self.context is None:
+            return
+
+        log_handler = getattr(self.context, "log_handler", None)
+        if log_handler is None:
             return
         from tactus.protocols.models import CostEvent
 
@@ -386,7 +390,7 @@ class ModelPrimitive:
             total_cost=inference_cost,
             duration_ms=int(cost.compute_time_ms or 0),
         )
-        self.context.log_handler.log(cost_event)
+        log_handler.log(cost_event)
 
     @property
     def total_cost(self) -> float:

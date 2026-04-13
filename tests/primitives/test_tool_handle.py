@@ -82,14 +82,9 @@ async def test_run_async_with_running_loop_and_nest_asyncio(monkeypatch):
 
     monkeypatch.setitem(sys.modules, "nest_asyncio", DummyNest)
 
-    def fake_run(coro):
-        coro.close()
-        return "done"
-
-    monkeypatch.setattr("tactus.primitives.tool_handle.asyncio.run", fake_run)
-
     result = handle.call({"x": 1})
-    assert result == "done"
+    # Running-loop path executes in a helper thread and returns coroutine output.
+    assert result == "ok"
 
 
 @pytest.mark.asyncio

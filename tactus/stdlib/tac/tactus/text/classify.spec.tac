@@ -152,19 +152,31 @@ end)
 --
 -- LLMClassifier uses the Model primitive (type="llm") under the hood, so we
 -- mock the *model name* (stdlib_classify_llm), not an Agent.
-Mocks {
-    stdlib_classify_llm = {
-        conditional = {
-            {when = {text = "How are you?"}, returns = {value = "Yes", confidence = 0.8}},
-            {when = {text = "I love this product!"}, returns = {value = "positive", confidence = 0.93}},
-            {when = {text = "This is terrible"}, returns = {value = "negative", confidence = 0.91}},
-            {when = {text = "The sky is blue"}, returns = {value = "neutral", confidence = 0.78}}
-        }
-    },
+local llm_conditional_mocks = {
+    {when = {text = "How are you?"}, returns = {value = "Yes", confidence = 0.8}},
+    {when = {text = "I love this product!"}, returns = {value = "positive", confidence = 0.93}},
+    {when = {text = "This is terrible"}, returns = {value = "negative", confidence = 0.91}},
+    {when = {text = "The sky is blue"}, returns = {value = "neutral", confidence = 0.78}}
+}
+
+-- LLMModel appends a numeric suffix to model names (e.g. stdlib_classify_llm_1),
+-- so register deterministic mocks for a bounded range used in this spec run.
+local stdlib_mocks = {
     imdb_nb = {
         returns = {label = "positive", confidence = 0.92}
+    },
+    stdlib_classify_llm = {
+        conditional = llm_conditional_mocks
     }
 }
+
+for i = 1, 20 do
+    stdlib_mocks["stdlib_classify_llm_" .. tostring(i)] = {
+        conditional = llm_conditional_mocks
+    }
+end
+
+Mocks(stdlib_mocks)
 
 -- BDD Specifications
 Specification([[

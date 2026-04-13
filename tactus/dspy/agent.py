@@ -1348,7 +1348,11 @@ class DSPyAgentHandle:
                     tool_primitive = getattr(self, "_tool_primitive", None)
                     tool_result = None
                     if tool_primitive:
-                        prior = tool_primitive.last_call(clean_tool_name)
+                        prior = (
+                            tool_primitive.last_call(clean_tool_name)
+                            if hasattr(tool_primitive, "last_call")
+                            else None
+                        )
                         if prior is not None:
                             tool_result = prior.get("result")
                     if tool_result is None:

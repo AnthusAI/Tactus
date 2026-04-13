@@ -273,8 +273,11 @@ def test_raw_module_sanitizes_tool_messages(monkeypatch):
 
     module(system_prompt="", history=history, user_message="next")
 
-    assert recorded["messages"][0]["tool_call_id"] == "id"
-    assert recorded["messages"][0]["tool_calls"][0]["function"]["name"] == "tool"
+    # Orphan tool messages are dropped unless they follow an assistant message
+    # with a matching tool_call id.
+    assert len(recorded["messages"]) == 1
+    assert recorded["messages"][0]["role"] == "user"
+    assert recorded["messages"][0]["content"] == "next"
 
 
 def test_raw_module_sanitizes_tool_calls_list_objects(monkeypatch):

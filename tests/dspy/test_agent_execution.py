@@ -619,7 +619,7 @@ class TestTurns:
 
         monkeypatch.setattr(dspy, "streamify", lambda _module: lambda **_kw: fake_stream())
 
-        with pytest.raises(ExceptionGroup):
+        with pytest.raises(RuntimeError, match="Agent 'agent' failed: ValueError: bad"):
             agent._turn_with_streaming({}, {"history": [], "system_prompt": "", "user_message": ""})
 
 
