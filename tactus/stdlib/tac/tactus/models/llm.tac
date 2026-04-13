@@ -12,6 +12,10 @@
 --   local result = sentiment({text = "great!"})
 --
 
+-- Counter for unique model names, preventing registry collisions when LLMModel
+-- is called multiple times (e.g., in a loop) with the same base name.
+local _llm_model_counter = 0
+
 local function LLMModel(config)
     assert(config.prompt, "LLMModel requires 'prompt'")
     local system_prompt = config.system_prompt or config.prompt
@@ -28,7 +32,13 @@ local function LLMModel(config)
         end
     end
 
-    return Model (config.name or "llm_model") {
+    -- Append a unique counter suffix to avoid registry lookup collisions.
+    -- Without this, Model("llm_classifier") on the 2nd+ call returns the existing
+    -- handle and tries to run inference with the config table as input (wrong path).
+    _llm_model_counter = _llm_model_counter + 1
+    local unique_name = (config.name or "llm_model") .. "_" .. _llm_model_counter
+
+    return Model (unique_name) {
         type = "llm",
         model = model,
         provider = provider,
