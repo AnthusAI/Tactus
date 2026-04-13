@@ -847,6 +847,7 @@ class TactusRuntime:
         if self.storage_backend and self.procedure_id:
             _storage = self.storage_backend
             _proc_id = self.procedure_id
+
             def _on_set(key: str, value: Any) -> None:
                 _storage.state_set(_proc_id, key, value)
 

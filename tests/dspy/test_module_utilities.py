@@ -90,7 +90,11 @@ def test_drop_orphan_tool_messages_removes_unpaired_tool():
             {"role": "system", "content": "s"},
             {"role": "user", "content": "u"},
             {"role": "tool", "tool_call_id": "orphan", "content": "{}"},
-            {"role": "assistant", "content": "a", "tool_calls": [{"id": "t1", "function": {"name": "f", "arguments": "{}"}}]},
+            {
+                "role": "assistant",
+                "content": "a",
+                "tool_calls": [{"id": "t1", "function": {"name": "f", "arguments": "{}"}}],
+            },
             {"role": "tool", "tool_call_id": "t1", "content": "{}"},
         ]
     )

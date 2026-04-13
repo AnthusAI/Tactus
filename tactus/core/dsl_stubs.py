@@ -2362,10 +2362,6 @@ def create_dsl_stubs(
         if not config_dict.get("model") and model:
             config["model"] = model
 
-        # Normalize classes (lua_table_to_dict gives us a list)
-        if not isinstance(classes, list):
-            classes = list(classes)
-
         # --- Message parameter resolution ---
         system_message = config_dict.get("system_message")
         user_message = config_dict.get("user_message")
@@ -2399,7 +2395,7 @@ def create_dsl_stubs(
 
         _resolved_system_message = _normalize_message(system_message)
         _user_message_template = _normalize_message(user_message)
-        _is_legacy_mode = (_user_message_template is None)
+        _is_legacy_mode = _user_message_template is None
 
         # Optional params
         input_field = config_dict.get("input_field", "text")

@@ -229,17 +229,19 @@ def test_log_handler_execution_summary_checkpoint_without_types_or_duration():
 def test_chat_transcript_suppresses_tool_cost_checkpoint():
     console = DummyConsole()
     handler = CLILogHandler(console=console, transcript_mode="chat")
-    handler.log(CostEvent(
-        agent_name="agent",
-        model="m",
-        provider="openai",
-        prompt_tokens=1,
-        completion_tokens=2,
-        total_tokens=3,
-        prompt_cost=0.1,
-        completion_cost=0.2,
-        total_cost=0.3,
-    ))
+    handler.log(
+        CostEvent(
+            agent_name="agent",
+            model="m",
+            provider="openai",
+            prompt_tokens=1,
+            completion_tokens=2,
+            total_tokens=3,
+            prompt_cost=0.1,
+            completion_cost=0.2,
+            total_cost=0.3,
+        )
+    )
     handler.log(ToolCallEvent(agent_name="a", tool_name="t", tool_args={"x": 1}, tool_result="ok"))
     handler.log(
         CheckpointCreatedEvent(

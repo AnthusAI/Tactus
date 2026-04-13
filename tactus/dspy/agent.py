@@ -598,14 +598,19 @@ class DSPyAgentHandle:
         if self.log_handler is not None:
             try:
                 from tactus.protocols.models import ToolCallStartedEvent
+
                 tool_primitive = getattr(self, "_tool_primitive", None)
-                procedure_id = getattr(tool_primitive, "procedure_id", None) if tool_primitive else None
-                self.log_handler.log(ToolCallStartedEvent(
-                    agent_name=self.name,
-                    tool_name=tool_name,
-                    tool_args=tool_args,
-                    procedure_id=procedure_id,
-                ))
+                procedure_id = (
+                    getattr(tool_primitive, "procedure_id", None) if tool_primitive else None
+                )
+                self.log_handler.log(
+                    ToolCallStartedEvent(
+                        agent_name=self.name,
+                        tool_name=tool_name,
+                        tool_args=tool_args,
+                        procedure_id=procedure_id,
+                    )
+                )
             except Exception as _e:
                 logger.debug(f"[TOOL_EXEC] Could not emit ToolCallStartedEvent: {_e}")
 
@@ -1114,9 +1119,7 @@ class DSPyAgentHandle:
                             "function": {
                                 "name": tc_name,
                                 "arguments": (
-                                    json.dumps(tc_args)
-                                    if isinstance(tc_args, dict)
-                                    else tc_args
+                                    json.dumps(tc_args) if isinstance(tc_args, dict) else tc_args
                                 ),
                             },
                         }
@@ -1317,9 +1320,7 @@ class DSPyAgentHandle:
                             "function": {
                                 "name": tc_name,
                                 "arguments": (
-                                    json.dumps(tc_args)
-                                    if isinstance(tc_args, dict)
-                                    else tc_args
+                                    json.dumps(tc_args) if isinstance(tc_args, dict) else tc_args
                                 ),
                             },
                         }
@@ -1502,7 +1503,7 @@ class DSPyAgentHandle:
                         break
 
             if output_text is None:
-                if hasattr(result, 'output') and isinstance(result.output, str):
+                if hasattr(result, "output") and isinstance(result.output, str):
                     output_text = result.output
                 else:
                     output_text = str(result)

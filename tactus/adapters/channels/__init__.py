@@ -146,9 +146,7 @@ def load_default_channels(
         from tactus.adapters.channels.cli import CLIControlChannel
 
         cli_console = console if console is not None else Console()
-        channels.append(
-            CLIControlChannel(console=cli_console, transcript_mode=transcript_mode)
-        )
+        channels.append(CLIControlChannel(console=cli_console, transcript_mode=transcript_mode))
         logger.debug("Loaded CLI control channel (auto-detected tty)")
 
     # IPC channel - always enabled for control CLI connectivity

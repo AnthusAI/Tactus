@@ -17,6 +17,7 @@ import os
 # must also close the already-opened cache to release its file descriptors.
 if os.environ.get("DSPY_DISABLE_DISK_CACHE", "").lower() in ("1", "true", "yes"):
     import dspy
+
     _old_cache = getattr(dspy, "cache", None)
     if _old_cache is not None:
         _old_disk = getattr(_old_cache, "disk_cache", None)
@@ -28,6 +29,7 @@ if os.environ.get("DSPY_DISABLE_DISK_CACHE", "").lower() in ("1", "true", "yes")
                 # does not prevent module import or configuration.
                 pass
     from dspy.clients import configure_cache
+
     configure_cache(enable_disk_cache=False)
 
 from tactus.dspy.agent import DSPyAgentHandle, create_dspy_agent
