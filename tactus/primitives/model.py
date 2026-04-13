@@ -372,6 +372,7 @@ class ModelPrimitive:
         if self.context is None or self.context.log_handler is None:
             return
         from tactus.protocols.models import CostEvent
+
         inference_cost = cost.inference_cost or 0.0
         cost_event = CostEvent(
             agent_name=self.model_name,
