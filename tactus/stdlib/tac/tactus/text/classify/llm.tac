@@ -29,7 +29,7 @@ function LLMClassifier:init(config)
     self.classes = config.classes
     self.prompt = config.prompt
     self.max_retries = config.max_retries or 3
-    self.temperature = config.temperature or 0.3
+    self.temperature = config.temperature
     self.model_id = config.model or "openai/gpt-4o-mini"
     self.confidence_mode = config.confidence_mode or "heuristic"
 
@@ -145,6 +145,10 @@ function LLMClassifier:classify(input_text)
                 response.confidence = conf
             elseif self.confidence_mode == "heuristic" then
                 response.confidence = 0.8
+            end
+            local expl = safe_get(output, "explanation")
+            if expl ~= nil then
+                response.explanation = expl
             end
             return response
         end

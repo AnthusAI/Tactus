@@ -11,6 +11,7 @@ import logging
 from typing import Any, Dict, Optional
 
 from tactus.dspy.agent import DSPyAgentHandle
+from tactus.dspy.model_params import default_temperature_for_model
 from tactus.protocols.cost import CostStats, UsageStats
 
 logger = logging.getLogger(__name__)
@@ -24,7 +25,7 @@ class LLMModelBackend:
         model: str,
         system_prompt: str,
         provider: Optional[str] = None,
-        temperature: float = 0.0,
+        temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
         retries: int = 3,
         retry_prompt: Optional[str] = None,
@@ -40,7 +41,9 @@ class LLMModelBackend:
             model: Model name (in LiteLLM format, e.g., "openai/gpt-4o")
             system_prompt: System prompt describing the classification/extraction task
             provider: Provider name (deprecated, use model instead)
-            temperature: Model temperature (default: 0.0 for deterministic classification)
+            temperature: Model temperature. None (default) applies a model-specific default:
+                gpt-5 family omits temperature entirely; all others use 0.0 for deterministic
+                classification.
             max_tokens: Maximum tokens for response
             retries: Number of retry attempts for invalid responses (default: 3)
             retry_prompt: Prompt to use on retry (default: "Invalid response. Please try again.")
@@ -54,6 +57,10 @@ class LLMModelBackend:
         self.model = model
         self.system_prompt = system_prompt
         self.provider = provider
+        # Apply model-specific default: gpt-5 family → None (omit from API);
+        # all others → 0.0 (deterministic classification).
+        if temperature is None:
+            temperature = default_temperature_for_model(model)
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.retries = retries
@@ -124,13 +131,22 @@ class LLMModelBackend:
 
                 # Extract response text
                 # Agent returns TactusResult with output field (either string or dict)
+                # When the Agent already parsed a JSON response into a dict with the
+                # expected output fields (e.g. value, confidence), use it directly
+                # instead of re-parsing.
                 if isinstance(agent_result.output, dict):
-                    response_text = agent_result.output.get("response", "")
+                    if "response" in agent_result.output:
+                        response_text = agent_result.output["response"]
+                        parsed_result = self._parse_response(response_text)
+                    elif "value" in agent_result.output:
+                        # Agent already parsed the JSON — use the dict directly
+                        parsed_result = dict(agent_result.output)
+                    else:
+                        response_text = str(agent_result.output)
+                        parsed_result = self._parse_response(response_text)
                 else:
                     response_text = str(agent_result.output)
-
-                # Parse the response based on parse_direction
-                parsed_result = self._parse_response(response_text)
+                    parsed_result = self._parse_response(response_text)
 
                 # Update cumulative stats
                 self._update_stats(agent_result)

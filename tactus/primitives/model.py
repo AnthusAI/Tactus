@@ -147,7 +147,7 @@ class ModelPrimitive:
                 model=config["model"],
                 system_prompt=config.get("system_prompt", ""),
                 provider=config.get("provider"),
-                temperature=config.get("temperature", 0.0),
+                temperature=config.get("temperature"),
                 max_tokens=config.get("max_tokens"),
                 retries=config.get("retries", 3),
                 retry_prompt=config.get("retry_prompt"),

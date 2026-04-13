@@ -20,10 +20,10 @@ local function build_system_prompt(config)
     return string.format([[%s
 
 You MUST respond in JSON:
-{"value": "<one of: %s>", "confidence": <0-1 number>}
+{"value": "<one of: %s>", "confidence": <0-1 number>, "explanation": "<brief reasoning>"}
 
 Valid values: %s
-Only one classification is allowed. Do not add extra fields.]],
+Only one classification is allowed.]],
         config.prompt,
         classes_str,
         classes_str
@@ -33,7 +33,7 @@ end
 local function LLMModel(config)
     local system_prompt = config.system_prompt or build_system_prompt(config)
     local retries = config.retries or config.max_retries or 3
-    local temperature = config.temperature or 0.0
+    local temperature = config.temperature
 
     -- Derive provider/model if given as "provider/model"
     local provider = config.provider
@@ -56,7 +56,7 @@ local function LLMModel(config)
         parse_direction = config.parse_direction or "end",
         max_tokens = config.max_tokens,
         input = { text = "string" },
-        output = { value = "string", confidence = "float" },
+        output = { value = "string", confidence = "float", explanation = "string" },
     }
 end
 
