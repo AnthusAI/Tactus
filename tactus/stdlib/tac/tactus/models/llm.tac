@@ -12,27 +12,9 @@
 --   local result = sentiment({text = "great!"})
 --
 
-local function build_system_prompt(config)
-    assert(config.prompt, "LLMModel requires 'prompt'")
-    assert(config.classes, "LLMModel requires 'classes'")
-    local classes_str = table.concat(config.classes, ", ")
-
-    return string.format([[%s
-
-You MUST respond in JSON:
-{"value": "<one of: %s>", "confidence": <0-1 number>, "explanation": "<brief reasoning>"}
-
-Valid values: %s
-Only one classification is allowed.]],
-        config.prompt,
-        classes_str,
-        classes_str
-    )
-end
-
 local function LLMModel(config)
-    local system_prompt = config.system_prompt or build_system_prompt(config)
-    local retries = config.retries or config.max_retries or 3
+    assert(config.prompt, "LLMModel requires 'prompt'")
+    local system_prompt = config.system_prompt or config.prompt
     local temperature = config.temperature
 
     -- Derive provider/model if given as "provider/model"
@@ -52,11 +34,9 @@ local function LLMModel(config)
         provider = provider,
         system_prompt = system_prompt,
         temperature = temperature,
-        retries = retries,
-        parse_direction = config.parse_direction or "end",
         max_tokens = config.max_tokens,
         input = { text = "string" },
-        output = { value = "string", confidence = "float", explanation = "string" },
+        output = { response = "string" },
     }
 end
 

@@ -149,9 +149,6 @@ class ModelPrimitive:
                 provider=config.get("provider"),
                 temperature=config.get("temperature"),
                 max_tokens=config.get("max_tokens"),
-                retries=config.get("retries", 3),
-                retry_prompt=config.get("retry_prompt"),
-                parse_direction=config.get("parse_direction", "end"),
                 mock_manager=self.mock_manager,
                 registry=None,  # TODO: Pass registry when available
                 execution_context=None,  # Don't checkpoint internal agent turns
