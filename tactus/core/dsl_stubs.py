@@ -2294,6 +2294,100 @@ def create_dsl_stubs(
 
         return _classify_fn(config)
 
+    def _new_classify_procedure(config=None):
+        """
+        ClassifyProcedure{} - single-Classify procedure factory.
+
+        Eliminates boilerplate by combining Procedure + Classify into one
+        declaration for the common case of a score that classifies input text.
+
+        Syntax:
+            ClassifyProcedure {
+                classes = {"Yes", "No"},
+                prompt = [[Did the agent greet the customer?]],
+                model = "openai/gpt-5.4-nano"
+            }
+
+        Optional params:
+            input_field   -- input field name (default: "text")
+            temperature   -- forwarded to Classify
+            max_retries   -- forwarded to Classify
+            name          -- forwarded to Classify (model name for mocking)
+        """
+        if config is None:
+            raise TypeError("ClassifyProcedure requires a configuration table")
+
+        config_dict = lua_table_to_dict(config)
+        if isinstance(config_dict, list) and len(config_dict) == 0:
+            config_dict = {}
+
+        # Validate required params
+        classes = config_dict.get("classes")
+        prompt = config_dict.get("prompt")
+        model = config_dict.get("model")
+        if not classes:
+            raise TypeError("ClassifyProcedure requires 'classes'")
+        if not prompt:
+            raise TypeError("ClassifyProcedure requires 'prompt'")
+        if not model:
+            raise TypeError("ClassifyProcedure requires 'model'")
+
+        # Normalize classes (lua_table_to_dict gives us a list)
+        if not isinstance(classes, list):
+            classes = list(classes)
+
+        # Optional params to forward to Classify
+        input_field = config_dict.get("input_field", "text")
+        extra_config = {}
+        for k in ("temperature", "max_retries", "name", "method"):
+            if k in config_dict:
+                extra_config[k] = config_dict[k]
+
+        # Build schemas (same objects field.string{required=true} / field.string{} produce)
+        input_schema = {input_field: FieldDefinition({"type": "string", "required": True})}
+        output_schema = {
+            "value": FieldDefinition({"type": "string", "required": False}),
+            "explanation": FieldDefinition({"type": "string", "required": False}),
+        }
+
+        # Recursive Python-to-Lua converter (matches procedure_callable.py:96-111)
+        def _to_lua(sandbox, value):
+            if isinstance(value, list):
+                t = sandbox.lua.table()
+                for i, item in enumerate(value, 1):
+                    t[i] = _to_lua(sandbox, item)
+                return t
+            elif isinstance(value, dict):
+                t = sandbox.lua.table()
+                for k, v in value.items():
+                    t[k] = _to_lua(sandbox, v)
+                return t
+            return value
+
+        # Build classify config as a Python dict; convert to Lua at call time
+        base_classify_config = {"classes": classes, "prompt": prompt, "model": model}
+        base_classify_config.update(extra_config)
+
+        def _run(lua_input):
+            sandbox = _runtime_context.get("sandbox")
+            input_text = lua_input[input_field]
+
+            classify_config = dict(base_classify_config)
+            classify_config["input"] = input_text
+
+            lua_config = _to_lua(sandbox, classify_config)
+            result = _new_classify(lua_config)
+
+            value = result["value"]
+            explanation = result["explanation"]
+            return {
+                "value": str(value) if value is not None else "ERROR",
+                "explanation": str(explanation) if explanation is not None else "",
+            }
+
+        # Register as main procedure (same call _process_procedure_config makes at line 260)
+        builder.register_named_procedure("main", _run, input_schema, output_schema, {})
+
     binding_callback = _make_binding_callback(
         builder,
         _tool_registry,
@@ -2324,6 +2418,7 @@ def create_dsl_stubs(
         "Compactor": _new_compactor,
         "TaskFunction": _task_function,
         "Classify": _new_classify,  # NEW stdlib: smart classification with retry
+        "ClassifyProcedure": _new_classify_procedure,  # Classify wrapped in standard Procedure
         "Hitl": _hitl,
         "Specification": _specification,
         # BDD Testing
