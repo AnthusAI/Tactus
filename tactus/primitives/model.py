@@ -360,7 +360,32 @@ class ModelPrimitive:
         if cost.inference_cost is not None:
             self._total_inference_cost += cost.inference_cost
 
+        # Emit CostEvent so CostCollectorLogHandler (used by TactusScore) can
+        # aggregate costs from ClassifyProcedure/LLMModel predictions the same
+        # way DSPyAgentHandle does for Agent-based scores.
+        self._emit_cost_event(cost)
+
         return prediction_result
+
+    def _emit_cost_event(self, cost: "PredictionCost") -> None:
+        """Emit a CostEvent to the execution context log handler for cost tracking."""
+        if self.context is None or self.context.log_handler is None:
+            return
+        from tactus.protocols.models import CostEvent
+        inference_cost = cost.inference_cost or 0.0
+        cost_event = CostEvent(
+            agent_name=self.model_name,
+            model=self.config.get("model") or self.model_name,
+            provider=self.config.get("provider") or "unknown",
+            prompt_tokens=cost.tokens_in or 0,
+            completion_tokens=cost.tokens_out or 0,
+            total_tokens=(cost.tokens_in or 0) + (cost.tokens_out or 0),
+            prompt_cost=0.0,
+            completion_cost=inference_cost,
+            total_cost=inference_cost,
+            duration_ms=int(cost.compute_time_ms or 0),
+        )
+        self.context.log_handler.log(cost_event)
 
     @property
     def total_cost(self) -> float:
