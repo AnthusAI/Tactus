@@ -841,7 +841,16 @@ class TactusRuntime:
         """
         # Get state schema from registry if available
         state_schema = self.registry.state_schema if self.registry else {}
-        self.state_primitive = StatePrimitive(state_schema=state_schema)
+
+        # Wire up persistence callback if storage backend is available
+        _on_set = None
+        if self.storage_backend and self.procedure_id:
+            _storage = self.storage_backend
+            _proc_id = self.procedure_id
+            def _on_set(key: str, value: Any) -> None:
+                _storage.state_set(_proc_id, key, value)
+
+        self.state_primitive = StatePrimitive(state_schema=state_schema, on_set=_on_set)
         self.iterations_primitive = IterationsPrimitive()
         self.stop_primitive = StopPrimitive()
 
