@@ -2338,10 +2338,6 @@ def create_dsl_stubs(
 
         # Optional params to forward to Classify
         input_field = config_dict.get("input_field", "text")
-        extra_config = {}
-        for k in ("temperature", "max_retries", "name", "method"):
-            if k in config_dict:
-                extra_config[k] = config_dict[k]
 
         # Build schemas (same objects field.string{required=true} / field.string{} produce)
         input_schema = {input_field: FieldDefinition({"type": "string", "required": True})}
@@ -2350,33 +2346,26 @@ def create_dsl_stubs(
             "explanation": FieldDefinition({"type": "string", "required": False}),
         }
 
-        # Recursive Python-to-Lua converter (matches procedure_callable.py:96-111)
-        def _to_lua(sandbox, value):
-            if isinstance(value, list):
-                t = sandbox.lua.table()
-                for i, item in enumerate(value, 1):
-                    t[i] = _to_lua(sandbox, item)
-                return t
-            elif isinstance(value, dict):
-                t = sandbox.lua.table()
-                for k, v in value.items():
-                    t[k] = _to_lua(sandbox, v)
-                return t
-            return value
-
-        # Build classify config as a Python dict; convert to Lua at call time
-        base_classify_config = {"classes": classes, "prompt": prompt, "model": model}
-        base_classify_config.update(extra_config)
+        # Preserve the original native Lua config table so that the classes table
+        # (and other values) remain native Lua objects.  If we converted to Python
+        # and back with _to_lua(), the resulting table would be a Python-created
+        # lupa object that Lua's table.concat/ipairs cannot iterate — causing
+        # valid_lower to be empty and every classification to return "ERROR".
+        _original_lua_config = config
 
         def _run(lua_input):
             sandbox = _runtime_context.get("sandbox")
             input_text = lua_input[input_field]
 
-            classify_config = dict(base_classify_config)
-            classify_config["input"] = input_text
+            # Build the Classify call config by copying from the original native
+            # Lua config (preserving classes as a native Lua table) and adding input.
+            lua_call_config = sandbox.lua.table()
+            for key in _original_lua_config.keys():
+                if key != "input_field":  # input_field is ClassifyProcedure-only
+                    lua_call_config[key] = _original_lua_config[key]
+            lua_call_config["input"] = input_text
 
-            lua_config = _to_lua(sandbox, classify_config)
-            result = _new_classify(lua_config)
+            result = _new_classify(lua_call_config)
 
             value = result["value"]
             explanation = result["explanation"]
