@@ -1,0 +1,21 @@
+{
+  "id": "tcts-66c29d87-60fb-4ada-ab14-4ede3fd16e28",
+  "title": "Snyk Vulnerability Remediation",
+  "description": "Track remediation of Snyk vulnerabilities.",
+  "type": "initiative",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [
+    "security",
+    "snyk"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-04-14T17:12:28.809253Z",
+  "updated_at": "2026-04-14T17:12:28.809253Z",
+  "closed_at": null,
+  "custom": {}
+}

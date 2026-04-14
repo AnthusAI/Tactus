@@ -1,0 +1,30 @@
+{
+  "id": "tcts-7b7b4cc5-1f85-49d4-8f10-19769c488495",
+  "title": "[Snyk Code] Path Traversal",
+  "description": "## Path Traversal\n\n**Severity:** high\n**Project:** `AnthusAI/Tactus`\n**File:** `tactus/ide/server.py`\n**Location:** line 788, column 37 to line 788, column 64\n**Classes:** CWE-CWE-23\n### Snippet (tactus/ide/server.py:786-790)\n```\n 786 | \n 787 |                     config_manager = ConfigManager()\n 788 |                     merged_config = config_manager.load_cascade(path)\n 789 |                     broker_mcp_servers = {}\n 790 |                     if hasattr(config_manager, \"load_host_mcp_servers\"):\n```\n\n**Issue Key:** 849b4a95-91fa-4326-8709-0f21c95d3b4e\n\n### Details\nPath Traversal\n\n**Fix:** Review and remediate in code.",
+  "type": "sub-task",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-a8688de4-69e7-4dfa-b19e-cea54c9d8ac6",
+  "labels": [
+    "security",
+    "snyk"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-04-14T17:12:28.832106Z",
+  "updated_at": "2026-04-14T17:12:28.832106Z",
+  "closed_at": null,
+  "custom": {
+    "snyk_column": 37,
+    "snyk_end_column": 64,
+    "snyk_end_line": 788,
+    "snyk_file": "tactus/ide/server.py",
+    "snyk_key": "849b4a95-91fa-4326-8709-0f21c95d3b4e",
+    "snyk_line": 788,
+    "snyk_severity": "high",
+    "snyk_type": "code"
+  }
+}

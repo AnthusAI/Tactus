@@ -1,0 +1,24 @@
+{
+  "id": "tcts-2a84b3ec-8dda-4c72-a8d6-0263b6360cbc",
+  "title": "Snyk Code Vulnerabilities",
+  "description": "Security vulnerabilities imported from Snyk.",
+  "type": "epic",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-66c29d87-60fb-4ada-ab14-4ede3fd16e28",
+  "labels": [
+    "security",
+    "snyk",
+    "code"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-04-14T17:12:28.828700Z",
+  "updated_at": "2026-04-14T17:12:28.828700Z",
+  "closed_at": null,
+  "custom": {
+    "snyk_category": "code"
+  }
+}

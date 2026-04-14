@@ -1,0 +1,30 @@
+{
+  "id": "tcts-484c4a71-38fd-4833-80e8-d0c13331a89b",
+  "title": "[Snyk Code] Hardcoded Non-Cryptographic Secret",
+  "description": "## Hardcoded Non-Cryptographic Secret\n\n**Severity:** high\n**Project:** `AnthusAI/Tactus`\n**File:** `features/steps/dspy_lm_steps.py`\n**Location:** line 31, column 63 to line 31, column 70\n**Classes:** CWE-CWE-547\n### Snippet (features/steps/dspy_lm_steps.py:29-33)\n```\n  29 |     from tactus.dspy import configure_lm\n  30 | \n  31 |     context.lm = configure_lm(model, temperature=temperature, api_key=\"test-key\")\n  32 |     context.lm_temperature = temperature\n  33 | \n```\n\n**Issue Key:** 439a62e7-eec9-4842-9b86-459067c4f1cf\n\n### Details\nHardcoded Non-Cryptographic Secret\n\n**Fix:** Review and remediate in code.",
+  "type": "sub-task",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-a8688de4-69e7-4dfa-b19e-cea54c9d8ac6",
+  "labels": [
+    "security",
+    "snyk"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-04-14T17:12:28.831939Z",
+  "updated_at": "2026-04-14T17:12:28.831939Z",
+  "closed_at": null,
+  "custom": {
+    "snyk_column": 63,
+    "snyk_end_column": 70,
+    "snyk_end_line": 31,
+    "snyk_file": "features/steps/dspy_lm_steps.py",
+    "snyk_key": "439a62e7-eec9-4842-9b86-459067c4f1cf",
+    "snyk_line": 31,
+    "snyk_severity": "high",
+    "snyk_type": "code"
+  }
+}

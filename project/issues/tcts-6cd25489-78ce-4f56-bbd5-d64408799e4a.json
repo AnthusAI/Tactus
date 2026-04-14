@@ -1,0 +1,30 @@
+{
+  "id": "tcts-6cd25489-78ce-4f56-bbd5-d64408799e4a",
+  "title": "[Snyk Code] Path Traversal",
+  "description": "## Path Traversal\n\n**Severity:** high\n**Project:** `AnthusAI/Tactus`\n**File:** `tactus/ide/server.py`\n**Location:** line 425, column 22 to line 425, column 45\n**Classes:** CWE-CWE-23\n### Snippet (tactus/ide/server.py:423-427)\n```\n 423 |             # Validate with FULL mode to get registry\n 424 |             validator = TactusValidator()\n 425 |             result = validator.validate_file(str(path), ValidationMode.FULL)\n 426 | \n 427 |             if not result.registry:\n```\n\n**Issue Key:** 054a4437-038f-4918-81b8-82e29f333d1a\n\n### Details\nPath Traversal\n\n**Fix:** Review and remediate in code.",
+  "type": "sub-task",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-a8688de4-69e7-4dfa-b19e-cea54c9d8ac6",
+  "labels": [
+    "security",
+    "snyk"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-04-14T17:12:28.829317Z",
+  "updated_at": "2026-04-14T17:12:28.829317Z",
+  "closed_at": null,
+  "custom": {
+    "snyk_column": 22,
+    "snyk_end_column": 45,
+    "snyk_end_line": 425,
+    "snyk_file": "tactus/ide/server.py",
+    "snyk_key": "054a4437-038f-4918-81b8-82e29f333d1a",
+    "snyk_line": 425,
+    "snyk_severity": "high",
+    "snyk_type": "code"
+  }
+}

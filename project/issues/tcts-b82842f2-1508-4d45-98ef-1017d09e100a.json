@@ -1,0 +1,49 @@
+{
+  "id": "tcts-b82842f2-1508-4d45-98ef-1017d09e100a",
+  "title": "pyproject.toml",
+  "description": "Snyk vulnerabilities found in `pyproject.toml`.",
+  "type": "task",
+  "status": "blocked",
+  "priority": 0,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-306dcfa1-0409-4997-829b-edb4ec4a359c",
+  "labels": [
+    "security",
+    "snyk"
+  ],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "4200cf82-3d97-489b-a14a-e11d3fa48c28",
+      "author": "derek.norrbom",
+      "text": "Starting remediation for critical Snyk findings in pyproject.toml. First pass targets litellm>=1.83.0 and pydantic-ai-slim>=1.56.0, then I will re-scan to verify.",
+      "created_at": "2026-04-14T17:17:16.959546Z"
+    },
+    {
+      "id": "8eb23691-d4ba-44a6-afc2-1094f5c85dde",
+      "author": "derek.norrbom",
+      "text": "Critical remediation pass complete: upgraded litellm==1.83.0 and pydantic-ai-slim==1.56.0 (plus pydantic-evals==1.56.0), regenerated poetry.lock, and verified with Snyk (critical threshold) showing no vulnerable critical paths. Remaining open child issues are non-critical and can be handled in the next pass.",
+      "created_at": "2026-04-14T17:23:46.637106Z"
+    },
+    {
+      "id": "6b21b83e-0982-457f-a88f-07fab2cd82c5",
+      "author": "derek.norrbom",
+      "text": "Starting high-severity remediation pass for pyproject.toml. I will inspect each remaining open P1 child finding, apply minimal safe version upgrades, regenerate lockfile, and verify with a high-threshold Snyk scan.",
+      "created_at": "2026-04-14T18:27:08.365697Z"
+    },
+    {
+      "id": "f980bb04-1087-4965-bc54-e97d9ee7e874",
+      "author": "derek.norrbom",
+      "text": "High-severity remediation pass complete. Fixed and closed: aiohttp advisories (2), lupa, litellm advisories (2), dspy, and pypdf. Current Snyk high-threshold result for pyproject lock: 1 remaining issue (diskcache@5.6.3 via dspy@3.1.3) with no available upgrade/patch; child tcts-2fadc6 moved to blocked pending mitigation or risk-acceptance decision.",
+      "created_at": "2026-04-14T18:34:28.091912Z"
+    }
+  ],
+  "created_at": "2026-04-14T17:12:28.832621Z",
+  "updated_at": "2026-04-14T18:34:30.498885Z",
+  "closed_at": null,
+  "custom": {
+    "snyk_category": "dependency",
+    "snyk_target_file": "pyproject.toml"
+  }
+}

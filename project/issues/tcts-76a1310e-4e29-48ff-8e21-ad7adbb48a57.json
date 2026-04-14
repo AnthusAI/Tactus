@@ -1,0 +1,25 @@
+{
+  "id": "tcts-76a1310e-4e29-48ff-8e21-ad7adbb48a57",
+  "title": "[Snyk] SNYK-JS-SOCKETIOPARSER-15680278 in socket.io-parser@4.2.5",
+  "description": "## Allocation of Resources Without Limits or Throttling\n\n**Severity:** high\n**Package:** socket.io-parser@4.2.5\n**File:** `tactus-ide/frontend/package.json`\n\n**CVSS Score:** 8.7  \n**Snyk Priority Score:** 506/1000\n\n### CVEs\n- [CVE-2026-33151](https://nvd.nist.gov/vuln/detail/CVE-2026-33151)\n\n**Fix:** Pin `socket.io-parser` to version 3.3.5, 3.4.4, 4.2.6 or later.\n\n### Details\n## Overview\n[socket.io-parser](https://www.npmjs.org/package/socket.io-parser) is a socket.io protocol parser\n\nAffected versions of this package are vulnerable to Allocation of Resources Without Limits or Throttling in the `Decoder` class, which accepts an unlimited number of binary attachments. An attacker can exploit this to exhaust server memory.\n## Remediation\nUpgrade `socket.io-parser` to version 3.3.5, 3.4.4, 4.2.6 or higher.\n## References\n- [GitHub Commit](https://github.com/socketio/socket.io/commit/719f9ebab0772ffb882bd614b387e585c1aa75d4)\n- [GitHub Commit](https://github.com/socketio/socket.io/commit/b25738c416c4e32fbff62ee182afa8f6d0dacf78)\n\n\n### Reference\n- [Snyk advisory](https://security.snyk.io/vuln/SNYK-JS-SOCKETIOPARSER-15680278)",
+  "type": "sub-task",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-eb955fde-b492-4bb3-8add-ea6bc1cc39a4",
+  "labels": [
+    "security",
+    "snyk"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-04-14T17:12:28.834271Z",
+  "updated_at": "2026-04-14T17:12:28.834271Z",
+  "closed_at": null,
+  "custom": {
+    "snyk_key": "SNYK-JS-SOCKETIOPARSER-15680278",
+    "snyk_severity": "high",
+    "snyk_type": "package_vulnerability"
+  }
+}

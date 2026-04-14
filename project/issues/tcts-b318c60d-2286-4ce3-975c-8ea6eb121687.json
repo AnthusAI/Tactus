@@ -1,0 +1,30 @@
+{
+  "id": "tcts-b318c60d-2286-4ce3-975c-8ea6eb121687",
+  "title": "[Snyk Code] Path Traversal",
+  "description": "## Path Traversal\n\n**Severity:** high\n**Project:** `AnthusAI/Tactus`\n**File:** `tactus/ide/server.py`\n**Location:** line 186, column 15 to line 186, column 40\n**Classes:** CWE-CWE-23\n### Snippet (tactus/ide/server.py:184-188)\n```\n 184 |     # Normalize the relative path\n 185 |     workspace = Path(WORKSPACE_ROOT).resolve()\n 186 |     target = (workspace / relative_path).resolve()\n 187 | \n 188 |     # Ensure target is within workspace (prevent path traversal)\n```\n\n**Issue Key:** 69fdee9a-130c-4c6e-8b2f-a1633c4b65ac\n\n### Details\nPath Traversal\n\n**Fix:** Review and remediate in code.",
+  "type": "sub-task",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-a8688de4-69e7-4dfa-b19e-cea54c9d8ac6",
+  "labels": [
+    "security",
+    "snyk"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-04-14T17:12:28.829736Z",
+  "updated_at": "2026-04-14T17:12:28.829736Z",
+  "closed_at": null,
+  "custom": {
+    "snyk_column": 15,
+    "snyk_end_column": 40,
+    "snyk_end_line": 186,
+    "snyk_file": "tactus/ide/server.py",
+    "snyk_key": "69fdee9a-130c-4c6e-8b2f-a1633c4b65ac",
+    "snyk_line": 186,
+    "snyk_severity": "high",
+    "snyk_type": "code"
+  }
+}

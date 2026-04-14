@@ -1,0 +1,30 @@
+{
+  "id": "tcts-7c5100eb-69dd-41cc-a82e-93e37453712e",
+  "title": "[Snyk Code] Path Traversal",
+  "description": "## Path Traversal\n\n**Severity:** high\n**Project:** `AnthusAI/Tactus`\n**File:** `tactus/ide/server.py`\n**Location:** line 2609, column 24 to line 2609, column 44\n**Classes:** CWE-CWE-23\n### Snippet (tactus/ide/server.py:2607-2611)\n```\n2607 |             file_path = Path(frontend_dist_dir) / path\n2608 |             if file_path.exists() and file_path.is_file():\n2609 |                 return app.send_static_file(path)\n2610 |             # Otherwise, serve index.html for client-side routing (unless it's an API call)\n2611 |             if not path.startswith(\"api/\"):\n```\n\n**Issue Key:** e9129a79-a8c2-4fe9-bc77-0a9f0101acba\n\n### Details\nPath Traversal\n\n**Fix:** Review and remediate in code.",
+  "type": "sub-task",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-a8688de4-69e7-4dfa-b19e-cea54c9d8ac6",
+  "labels": [
+    "security",
+    "snyk"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-04-14T17:12:28.831437Z",
+  "updated_at": "2026-04-14T17:12:28.831437Z",
+  "closed_at": null,
+  "custom": {
+    "snyk_column": 24,
+    "snyk_end_column": 44,
+    "snyk_end_line": 2609,
+    "snyk_file": "tactus/ide/server.py",
+    "snyk_key": "e9129a79-a8c2-4fe9-bc77-0a9f0101acba",
+    "snyk_line": 2609,
+    "snyk_severity": "high",
+    "snyk_type": "code"
+  }
+}
