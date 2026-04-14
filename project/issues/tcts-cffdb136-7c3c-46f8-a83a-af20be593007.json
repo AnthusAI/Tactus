@@ -1,0 +1,25 @@
+{
+  "id": "tcts-cffdb136-7c3c-46f8-a83a-af20be593007",
+  "title": "Fix release desktop build checkout failure on Windows invalid path in project/events",
+  "description": "",
+  "type": "bug",
+  "status": "closed",
+  "priority": 1,
+  "assignee": "@me",
+  "creator": null,
+  "parent": "tcts-856947cf-79f4-4653-8cc9-556323e76081",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "425703a0-9e73-4000-9d6b-59243fb3bc62",
+      "author": "derek.norrbom",
+      "text": "Patched release desktop-build checkout to sparse-checkout build-critical paths, excluding project metadata paths with Windows-invalid filenames.",
+      "created_at": "2026-04-06T17:16:23.897892Z"
+    }
+  ],
+  "created_at": "2026-04-06T17:15:58.700774Z",
+  "updated_at": "2026-04-06T17:16:23.908776Z",
+  "closed_at": "2026-04-06T17:16:23.908776Z",
+  "custom": {}
+}

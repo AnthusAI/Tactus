@@ -41,6 +41,26 @@ class DummyConfigManager:
         return merged
 
 
+@pytest.fixture(autouse=True)
+def _restore_logging_state():
+    """Prevent setup_logging tests from leaking logger state across the suite."""
+    tactus_logger = logging.getLogger("tactus")
+    root_logger = logging.getLogger()
+    prior_tactus_handlers = list(tactus_logger.handlers)
+    prior_tactus_level = tactus_logger.level
+    prior_tactus_propagate = tactus_logger.propagate
+    prior_root_handlers = list(root_logger.handlers)
+    prior_root_level = root_logger.level
+
+    yield
+
+    tactus_logger.handlers = prior_tactus_handlers
+    tactus_logger.setLevel(prior_tactus_level)
+    tactus_logger.propagate = prior_tactus_propagate
+    root_logger.handlers = prior_root_handlers
+    root_logger.setLevel(prior_root_level)
+
+
 def test_load_tactus_config_sets_env(monkeypatch, tmp_path):
     (tmp_path / "system.yml").write_text("placeholder")
     (tmp_path / "user.yml").write_text("placeholder")
@@ -117,8 +137,10 @@ def test_setup_logging_terminal_handler(monkeypatch):
 
     cli_app.setup_logging(log_format="terminal")
 
+    tactus_logger = logging.getLogger("tactus")
     assert "handlers" in captured
-    assert isinstance(captured["handlers"][0], cli_app._TerminalLogHandler)
+    assert isinstance(captured["handlers"][0], logging.StreamHandler)
+    assert isinstance(tactus_logger.handlers[0], cli_app._TerminalLogHandler)
 
 
 def test_setup_logging_raw_handler(monkeypatch):
@@ -131,7 +153,9 @@ def test_setup_logging_raw_handler(monkeypatch):
 
     cli_app.setup_logging(log_format="raw")
 
+    tactus_logger = logging.getLogger("tactus")
     assert isinstance(captured["handlers"][0], logging.StreamHandler)
+    assert isinstance(tactus_logger.handlers[0], logging.StreamHandler)
 
 
 def test_setup_logging_rich_handler(monkeypatch):
@@ -144,7 +168,9 @@ def test_setup_logging_rich_handler(monkeypatch):
 
     cli_app.setup_logging(log_format="rich", verbose=True)
 
-    assert isinstance(captured["handlers"][0], cli_app.RichHandler)
+    tactus_logger = logging.getLogger("tactus")
+    assert isinstance(captured["handlers"][0], logging.StreamHandler)
+    assert isinstance(tactus_logger.handlers[0], cli_app.RichHandler)
 
 
 def test_terminal_log_handler_styles(monkeypatch):

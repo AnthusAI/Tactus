@@ -79,7 +79,7 @@ class IPCControlChannel:
         if self._initialized:
             return
 
-        logger.info("%s: initializing...", self.channel_id)
+        logger.debug("%s: initializing...", self.channel_id)
         self._ensure_response_queue()
 
         # Remove old socket file if it exists
@@ -97,7 +97,7 @@ class IPCControlChannel:
         os.chmod(self.socket_path, 0o600)
 
         self._initialized = True
-        logger.info(
+        logger.debug(
             "%s: ready (listening on %s)",
             self.channel_id,
             self.socket_path,
@@ -113,7 +113,7 @@ class IPCControlChannel:
         Returns:
             DeliveryResult with success/failure info
         """
-        logger.info(
+        logger.debug(
             "%s: sending notification for %s",
             self.channel_id,
             request.request_id,
@@ -163,7 +163,10 @@ class IPCControlChannel:
                 self._clients.pop(client_id, None)
 
         if successful == 0 and len(self._clients) == 0:
-            logger.warning("%s: no clients connected", self.channel_id)
+            logger.debug(
+                "%s: no IPC clients connected (normal when only using in-process CLI)",
+                self.channel_id,
+            )
 
         # Return DeliveryResult
         return DeliveryResult(

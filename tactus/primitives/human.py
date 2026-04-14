@@ -191,7 +191,7 @@ class HumanPrimitive:
         timeout = options_dict.get("timeout")
         default = options_dict.get("default")
 
-        logger.info("Human input requested: %s...", message[:50])
+        logger.debug("Human input requested: %s...", message[:50])
 
         # CRITICAL: Wrap HITL call in checkpoint for transparent durability
         def checkpoint_fn():

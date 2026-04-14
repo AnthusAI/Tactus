@@ -93,6 +93,63 @@ default_model: "gpt-4o-mini"
 
 **Security**: Sidecar files can contain file paths and command execution. Only use trusted sidecar files.
 
+---
+
+## Agent retry configuration (built-in)
+
+Agents can opt into **built-in retries** for a single agent turn (one LLM call + tool execution + optional output validation).
+
+This is configured **in the agent declaration** (inside your `.tac` file), not via global YAML.
+
+### Recommended: `retry = { ... }`
+
+In an `Agent { ... }` block you can add:
+
+```lua
+agent = Agent {
+  name = "agent",
+  model = "openai/gpt-4o-mini",
+  system_prompt = "…",
+  retry = {
+    enabled = true,
+    attempts = 3,                    -- total attempts (first try + 2 retries)
+    delay_seconds = 0.5,             -- base delay between attempts
+    backoff = "exponential",         -- "constant" | "exponential"
+    max_delay_seconds = 0,           -- optional cap (0 = no cap)
+    jitter = false,                  -- optional randomize delay
+    on = "infra_plus_validation",    -- "infra_only" | "validation_only" | "infra_plus_validation"
+  },
+}
+```
+
+Notes:
+- Retries truncate the agent’s message history back to the start of the attempted turn.
+- Authentication/configuration failures (e.g. missing API key) are not helped by retry and fail fast.
+
+### Which retry layer should you use?
+
+Tactus now has **three different retry shapes**, and they solve different problems:
+
+- **Standard-library retry** (`max_retries` on helpers like classification/extraction): use this when a specific helper is enforcing a narrow output contract such as "must be one of these labels."
+- **Agent retry** (`retry = { ... }` on `Agent { ... }`): use this when you want to retry a **single agent turn** because the provider failed or the agent returned an invalid structured payload.
+- **Procedure loop** (`max_turns`, `max_attempts`, or your own Lua loop): use this when the workflow itself needs another step, another draft, more user input, or a deterministic quality/fixup pass.
+
+Rule of thumb:
+
+- If the same agent call should simply be tried again, use **Agent retry**.
+- If the model needs **new feedback or new control flow**, use a **procedure loop**.
+- If you are using a higher-level stdlib helper that already owns the prompt/validation loop, prefer its built-in **`max_retries`**.
+
+### Legacy: `response = { retries = ..., retry_delay = ... }`
+
+Older procedures may use:
+
+```lua
+response = { retries = 1, retry_delay = 0.25 }
+```
+
+This remains supported. If both `retry` and `response` are present, `retry` takes precedence.
+
 ## Sandbox Configuration
 
 Tactus runs procedures in Docker containers by default for security isolation. You can configure sandbox behavior at any configuration level (user, project, or sidecar).
@@ -419,6 +476,17 @@ Configuration files (`.yml`) can contain:
 ```
 
 ## Environment Variables
+
+### Dotenv files (`.env`)
+
+The **Tactus CLI** loads `.env` and then `.env.local` if they exist (using [python-dotenv](https://github.com/theskumar/python-dotenv)):
+
+1. **Current working directory** — loaded once at startup, before `load_tactus_config()` applies YAML-based config.
+2. **Directory of the procedure file** — when you run `tactus run`, `validate`, `test`, or `eval` with a path to a procedure file, env files next to that file are loaded as well.
+
+Variables already set in the process (including from your shell or an earlier `.env`) are **not** overridden.
+
+Using the `tactus` package as a library without the CLI does not load these files; call `python-dotenv` yourself if you need the same behavior.
 
 Tactus reads these environment variables as fallback configuration:
 

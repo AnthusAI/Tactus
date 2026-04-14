@@ -8,13 +8,43 @@ supporting various prediction strategies like Predict, ChainOfThought, etc.
 import json
 import logging
 import os
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import dspy
 
 from tactus.dspy.signature import create_signature
 
 logger = logging.getLogger(__name__)
+
+
+def _drop_orphan_tool_messages(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Remove tool messages with no matching assistant tool_calls (OpenAI rejects those sequences)."""
+    out: List[Dict[str, Any]] = []
+    for msg in messages:
+        if msg.get("role") != "tool":
+            out.append(msg)
+            continue
+        tid = msg.get("tool_call_id")
+        if not tid:
+            logger.warning("[RAWMODULE] Dropping tool message without tool_call_id")
+            continue
+        j = len(out) - 1
+        while j >= 0 and out[j].get("role") == "tool":
+            j -= 1
+        valid = False
+        if j >= 0 and out[j].get("role") == "assistant":
+            for tc in out[j].get("tool_calls") or []:
+                if isinstance(tc, dict) and tc.get("id") == tid:
+                    valid = True
+                    break
+        if valid:
+            out.append(msg)
+        else:
+            logger.warning(
+                "[RAWMODULE] Dropping orphan tool message tool_call_id=%r",
+                tid,
+            )
+    return out
 
 
 class RawModule(dspy.Module):
@@ -187,6 +217,8 @@ class RawModule(dspy.Module):
                 logger.debug(
                     f"[RAWMODULE] Passing {len(litellm_tools)} tools to LM with tool_choice={kwargs.get('tool_choice')}"
                 )
+
+        messages = _drop_orphan_tool_messages(messages)
 
         # Log summary of messages being sent
         logger.debug(f"[RAWMODULE] Sending {len(messages)} messages to LM")

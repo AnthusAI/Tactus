@@ -1,6 +1,8 @@
 from datetime import datetime, timedelta, timezone
+from io import StringIO
 
 import pytest
+from rich.console import Console
 
 from tactus.adapters.channels.cli import CLIControlChannel, format_time_ago
 from tactus.protocols.control import (
@@ -83,7 +85,23 @@ def test_display_request_renders_sections():
 
     joined = " ".join(channel.console.messages)
     assert "Account 42" in joined
-    assert "Previous decisions" in joined
+    assert "Earlier in this session" in joined
+
+
+def test_display_request_does_not_render_procedure_inputs_panel():
+    """Startup fields belong in the run log; CLI INPUT must not repeat bordered tables."""
+    buf = StringIO()
+    console = Console(file=buf, width=120, force_terminal=True, color_system="standard")
+    channel = CLIControlChannel(console=console)
+    request = _make_request()
+    request.input_summary = {"kickoff": "hello"}
+    request.prior_interactions = []
+
+    channel._display_request(request)
+
+    out = buf.getvalue()
+    assert "kickoff" not in out
+    assert "Procedure inputs" not in out
 
 
 def test_display_request_without_optional_sections():
@@ -97,6 +115,17 @@ def test_display_request_without_optional_sections():
 
     joined = " ".join(channel.console.messages)
     assert "Previous decisions" not in joined
+
+
+def test_display_request_chat_mode_omits_procedure_header():
+    buf = StringIO()
+    console = Console(file=buf, width=120, force_terminal=True, color_system="standard")
+    channel = CLIControlChannel(console=console, transcript_mode="chat")
+    request = _make_request()
+    channel._display_request(request)
+    out = buf.getvalue()
+    assert "●" not in out
+    assert "since start" not in out
 
 
 def test_handle_input_with_options(monkeypatch):

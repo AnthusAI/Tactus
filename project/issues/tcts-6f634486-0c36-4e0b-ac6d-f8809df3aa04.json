@@ -1,0 +1,32 @@
+{
+  "id": "tcts-6f634486-0c36-4e0b-ac6d-f8809df3aa04",
+  "title": "[Snyk] SNYK-PYTHON-DSPY-13832222 in dspy@2.5.7",
+  "description": "## Improper Isolation or Compartmentalization\n\n**Severity:** high\n**Package:** dspy@2.5.7\n**File:** `pyproject.toml`\n\n**CVSS Score:** 8.2  \n**Exploit Maturity:** proof-of-concept  \n**Snyk Priority Score:** 731/1000\n\n### CVEs\n- [CVE-2025-12695](https://nvd.nist.gov/vuln/detail/CVE-2025-12695)\n\n**Fix:** Upgrade `dspy` to version 3.1.2 or later.\n\n### Details\n## Overview\n[dspy](https://pypi.org/project/dspy) is a DSPy\n\nAffected versions of this package are vulnerable to Improper Isolation or Compartmentalization via the `PythonInterpreter` class. An attacker can access arbitrary files by executing untrusted code within the sandbox.\n## Remediation\nUpgrade `dspy` to version 3.1.2 or higher.\n## References\n- [GitHub Commit](https://github.com/stanfordnlp/dspy/commit/f32edbdbc2a001aed41152912c2dafebfd196365)\n- [Vulnerable Code](https://github.com/stanfordnlp/dspy/blob/5e72f7bbb609f28abe7fa2490812b5ed5dd8d8a6/dspy/primitives/python_interpreter.py#L13)\n\n\n### Reference\n- [Snyk advisory](https://security.snyk.io/vuln/SNYK-PYTHON-DSPY-13832222)",
+  "type": "sub-task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-b82842f2-1508-4d45-98ef-1017d09e100a",
+  "labels": [
+    "security",
+    "snyk"
+  ],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "1095ac64-74f6-4e5b-b277-423524487168",
+      "author": "derek.norrbom",
+      "text": "Resolved: upgraded dspy constraint to >=3.1.2 (with python_version < 3.15 marker to satisfy resolver), regenerated poetry.lock, and verified this advisory is no longer present in high-threshold Snyk scan.",
+      "created_at": "2026-04-14T18:28:25.888342Z"
+    }
+  ],
+  "created_at": "2026-04-14T17:12:28.832885Z",
+  "updated_at": "2026-04-14T18:28:31.827405Z",
+  "closed_at": "2026-04-14T18:28:31.827405Z",
+  "custom": {
+    "snyk_key": "SNYK-PYTHON-DSPY-13832222",
+    "snyk_severity": "high",
+    "snyk_type": "package_vulnerability"
+  }
+}

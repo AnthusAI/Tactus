@@ -1,0 +1,25 @@
+{
+  "id": "tcts-9d56421a-38ed-4ac3-b927-66855d46aeb8",
+  "title": "[Snyk] SNYK-PYTHON-FLASKCORS-9668954 in flask-cors@5.0.0",
+  "description": "## SNYK-PYTHON-FLASKCORS-9668954\n\n**Severity:** high\n**Package:** flask-cors@5.0.0\n**File:** `tactus-ide/backend/requirements.txt`\n\n### CVEs\n- [CVE-2024-6866](https://nvd.nist.gov/vuln/detail/CVE-2024-6866)\n\n**Fix:** Pin `flask-cors` to a patched version.\n\n### Reference\n- [Snyk advisory](https://security.snyk.io/vuln/SNYK-PYTHON-FLASKCORS-9668954)",
+  "type": "sub-task",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-e034e004-c1af-4c28-b2b1-e64a3b81f141",
+  "labels": [
+    "security",
+    "snyk"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-04-14T17:12:28.833935Z",
+  "updated_at": "2026-04-14T17:12:28.833935Z",
+  "closed_at": null,
+  "custom": {
+    "snyk_key": "SNYK-PYTHON-FLASKCORS-9668954",
+    "snyk_severity": "high",
+    "snyk_type": "package_vulnerability"
+  }
+}

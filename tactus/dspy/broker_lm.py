@@ -19,6 +19,7 @@ from asyncer import syncify
 from litellm import ModelResponse, ModelResponseStream
 
 from tactus.broker.client import BrokerClient
+from tactus.dspy.model_params import default_temperature_for_model
 
 logger = logging.getLogger(__name__)
 
@@ -51,10 +52,13 @@ class BrokeredLM(dspy.BaseLM):
         if model_type != "chat":
             raise ValueError("BrokeredLM currently supports only model_type='chat'")
 
+        if temperature is None:
+            temperature = default_temperature_for_model(model)
+
         super().__init__(
             model=model,
             model_type=model_type,
-            temperature=temperature if temperature is not None else 0.7,
+            temperature=temperature,
             max_tokens=max_tokens if max_tokens is not None else 1000,
             cache=False,
             **kwargs,

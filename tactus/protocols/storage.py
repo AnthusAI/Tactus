@@ -88,3 +88,17 @@ class StorageBackend(Protocol):
             StorageError: If saving fails
         """
         return None
+
+    def state_set(self, procedure_id: str, key: str, value: Any) -> None:
+        """
+        Set a single state key.
+
+        Args:
+            procedure_id: Unique procedure identifier
+            key: State key to set
+            value: Value to store
+
+        Raises:
+            StorageError: If saving fails
+        """
+        return None

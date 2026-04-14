@@ -25,8 +25,6 @@ class TestLLMModelBackend:
         assert backend.model == "openai/gpt-4o-mini"
         assert backend.system_prompt == "Classify sentiment as positive or negative"
         assert backend.temperature == 0.0
-        assert backend.retries == 3
-        assert backend.parse_direction == "end"
 
     def test_llm_backend_predict_success(self):
         """Test LLM backend successfully predicts with valid response."""
@@ -45,7 +43,7 @@ class TestLLMModelBackend:
 
         result = backend.predict_sync({"text": "I love this!"})
 
-        assert result["result"] == {"label": "positive", "confidence": 0.95}
+        assert result["result"] == '{"label": "positive", "confidence": 0.95}'
         assert result["usage"]["prompt_tokens"] == 10
         assert result["usage"]["completion_tokens"] == 20
         assert result["cost"]["total_cost"] == 0.0003
@@ -70,7 +68,10 @@ class TestLLMModelBackend:
 
         result = backend.predict_sync({"text": "Great!"})
 
-        assert result["result"] == {"label": "positive"}
+        assert (
+            result["result"]
+            == '{"label": "positive"} This is because the text expresses happiness.'
+        )
 
     def test_llm_backend_parse_direction_end(self):
         """Test LLM backend parses from end for chain-of-thought."""
@@ -92,10 +93,13 @@ class TestLLMModelBackend:
 
         result = backend.predict_sync({"text": "Amazing!"})
 
-        assert result["result"] == {"label": "positive"}
+        assert (
+            result["result"]
+            == 'Let me analyze this text. The sentiment is clearly positive. {"label": "positive"}'
+        )
 
     def test_llm_backend_retry_on_invalid_response(self):
-        """Test LLM backend retries on invalid response."""
+        """Test LLM backend returns raw response text without JSON retries/parsing."""
         backend = LLMModelBackend(
             model="openai/gpt-4o-mini",
             system_prompt="Classify",
@@ -118,11 +122,11 @@ class TestLLMModelBackend:
 
         result = backend.predict_sync({"text": "Good"})
 
-        assert result["result"] == {"label": "positive"}
-        assert backend._agent.call_count == 2
+        assert result["result"] == "Not JSON at all"
+        assert backend._agent.call_count == 1
 
     def test_llm_backend_fails_after_max_retries(self):
-        """Test LLM backend fails after exhausting retries."""
+        """Test LLM backend surfaces raw response when content is not JSON."""
         backend = LLMModelBackend(
             model="openai/gpt-4o-mini",
             system_prompt="Classify",
@@ -137,12 +141,10 @@ class TestLLMModelBackend:
         )
 
         backend._agent = MagicMock(return_value=invalid_result)
+        result = backend.predict_sync({"text": "Test"})
 
-        with pytest.raises(ValueError, match="failed to produce valid output after"):
-            backend.predict_sync({"text": "Test"})
-
-        # Should call retries + 1 times
-        assert backend._agent.call_count == 3
+        assert result["result"] == "Not JSON"
+        assert backend._agent.call_count == 1
 
     def test_llm_backend_cost_tracking(self):
         """Test LLM backend tracks cumulative costs."""
@@ -288,7 +290,7 @@ class TestModelPrimitiveLLMBackend:
         backend._agent.assert_called_once()
         call_args = backend._agent.call_args[0][0]
         assert call_args["message"] == "Hello world"
-        assert result["result"] == {"label": "positive"}
+        assert result["result"] == '{"label": "positive"}'
 
     def test_llm_backend_string_output_from_agent(self):
         """Test LLM backend when agent_result.output is string instead of dict."""
@@ -307,10 +309,10 @@ class TestModelPrimitiveLLMBackend:
 
         result = backend.predict_sync({"text": "Bad product"})
 
-        assert result["result"] == {"label": "negative"}
+        assert result["result"] == '{"label": "negative"}'
 
     def test_llm_backend_parse_error_start_no_json(self):
-        """Test LLM backend raises error when no JSON found at start."""
+        """Test LLM backend returns raw text when no JSON is present."""
         backend = LLMModelBackend(
             model="openai/gpt-4o-mini",
             system_prompt="Classify",
@@ -325,12 +327,12 @@ class TestModelPrimitiveLLMBackend:
             cost_stats=CostStats(prompt_cost=0.0001, completion_cost=0.0001, total_cost=0.0002),
         )
         backend._agent = MagicMock(return_value=mock_result)
+        result = backend.predict_sync({"text": "Test"})
 
-        with pytest.raises(ValueError, match="failed to produce valid output after"):
-            backend.predict_sync({"text": "Test"})
+        assert result["result"] == "This text does not start with JSON"
 
     def test_llm_backend_parse_error_start_invalid_json(self):
-        """Test LLM backend when JSON at start is invalid."""
+        """Test LLM backend returns raw text when JSON-looking content is invalid."""
         backend = LLMModelBackend(
             model="openai/gpt-4o-mini",
             system_prompt="Classify",
@@ -345,12 +347,12 @@ class TestModelPrimitiveLLMBackend:
             cost_stats=CostStats(prompt_cost=0.0001, completion_cost=0.0001, total_cost=0.0002),
         )
         backend._agent = MagicMock(return_value=mock_result)
+        result = backend.predict_sync({"text": "Test"})
 
-        with pytest.raises(ValueError, match="failed to produce valid output after"):
-            backend.predict_sync({"text": "Test"})
+        assert result["result"] == "{invalid json here}"
 
     def test_llm_backend_parse_error_end_no_json(self):
-        """Test LLM backend raises error when no JSON found at end."""
+        """Test LLM backend returns raw text when response does not end with JSON."""
         backend = LLMModelBackend(
             model="openai/gpt-4o-mini",
             system_prompt="Classify",
@@ -365,12 +367,12 @@ class TestModelPrimitiveLLMBackend:
             cost_stats=CostStats(prompt_cost=0.0001, completion_cost=0.0001, total_cost=0.0002),
         )
         backend._agent = MagicMock(return_value=mock_result)
+        result = backend.predict_sync({"text": "Test"})
 
-        with pytest.raises(ValueError, match="failed to produce valid output after"):
-            backend.predict_sync({"text": "Test"})
+        assert result["result"] == "This text does not end with JSON at all"
 
     def test_llm_backend_parse_error_end_invalid_json(self):
-        """Test LLM backend when response ends with } but has invalid JSON."""
+        """Test LLM backend returns raw text for invalid JSON fragments."""
         backend = LLMModelBackend(
             model="openai/gpt-4o-mini",
             system_prompt="Classify",
@@ -385,9 +387,9 @@ class TestModelPrimitiveLLMBackend:
             cost_stats=CostStats(prompt_cost=0.0001, completion_cost=0.0001, total_cost=0.0002),
         )
         backend._agent = MagicMock(return_value=mock_result)
+        result = backend.predict_sync({"text": "Test"})
 
-        with pytest.raises(ValueError, match="No valid JSON found at end of response"):
-            backend.predict_sync({"text": "Test"})
+        assert result["result"] == "Some reasoning text {invalid json here}"
 
     def test_llm_backend_agent_exception_propagates(self):
         """Test that exceptions from agent propagate correctly."""

@@ -13,9 +13,11 @@ The control loop uses a publish-subscribe pattern with namespace-based routing:
 - Subscribers can be observers (read-only) or responders (can provide input)
 """
 
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 import logging
 import sys
+
+from rich.console import Console
 
 from tactus.protocols.control import ControlChannel, ControlLoopConfig
 
@@ -107,7 +109,7 @@ def load_channels_from_config(
         channel = load_channel(channel_id, init_config)
         if channel:
             channels.append(channel)
-            logger.info("Loaded control channel: %s", channel_id)
+            logger.debug("Loaded control channel: %s", channel_id)
 
     # If no channels configured, use defaults
     if not config.channels:
@@ -116,7 +118,12 @@ def load_channels_from_config(
     return channels
 
 
-def load_default_channels(procedure_id: Optional[str] = None) -> list[ControlChannel]:
+def load_default_channels(
+    procedure_id: Optional[str] = None,
+    *,
+    console: Optional[Console] = None,
+    transcript_mode: Literal["chat", "full"] = "full",
+) -> list[ControlChannel]:
     """
     Load default control channels based on context.
 
@@ -126,6 +133,8 @@ def load_default_channels(procedure_id: Optional[str] = None) -> list[ControlCha
 
     Args:
         procedure_id: Optional procedure ID for IPC socket path
+        console: Optional Rich console for the CLI channel (default: new Console())
+        transcript_mode: CLI transcript layout (``chat`` or ``full``)
 
     Returns:
         List of enabled ControlChannel instances
@@ -136,14 +145,15 @@ def load_default_channels(procedure_id: Optional[str] = None) -> list[ControlCha
     if sys.stdin.isatty():
         from tactus.adapters.channels.cli import CLIControlChannel
 
-        channels.append(CLIControlChannel())
-        logger.info("Loaded CLI control channel (auto-detected tty)")
+        cli_console = console if console is not None else Console()
+        channels.append(CLIControlChannel(console=cli_console, transcript_mode=transcript_mode))
+        logger.debug("Loaded CLI control channel (auto-detected tty)")
 
     # IPC channel - always enabled for control CLI connectivity
     from tactus.adapters.channels.ipc import IPCControlChannel
 
     channels.append(IPCControlChannel(procedure_id=procedure_id))
-    logger.info("Loaded IPC control channel")
+    logger.debug("Loaded IPC control channel")
 
     return channels
 

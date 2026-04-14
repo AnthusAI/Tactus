@@ -19,6 +19,7 @@ from typing import Any, Dict, List, Optional, TYPE_CHECKING
 from tactus.core.registry import ProcedureRegistry, RegistryBuilder, TaskDeclaration
 from tactus.core.dsl_stubs import create_dsl_stubs, lua_table_to_dict
 from tactus.core.template_resolver import TemplateResolver
+from tactus.dspy.model_params import default_temperature_for_model
 from tactus.core.message_history_manager import MessageHistoryManager
 from tactus.core.lua_sandbox import LuaSandbox, LuaSandboxError
 from tactus.core.output_validator import OutputValidator, OutputValidationError
@@ -262,7 +263,7 @@ class TactusRuntime:
             # Set .tac file path NOW (before parsing) so source location is available during agent calls
             if self.source_file_path:
                 self.execution_context.set_tac_file(self.source_file_path, source)
-                logger.info("[CHECKPOINT] Set .tac file path EARLY: %s", self.source_file_path)
+                logger.debug("[CHECKPOINT] Set .tac file path EARLY: %s", self.source_file_path)
             else:
                 logger.warning("[CHECKPOINT] .tac file path NOT set - source_file_path is None")
 
@@ -840,7 +841,17 @@ class TactusRuntime:
         """
         # Get state schema from registry if available
         state_schema = self.registry.state_schema if self.registry else {}
-        self.state_primitive = StatePrimitive(state_schema=state_schema)
+
+        # Wire up persistence callback if storage backend is available
+        _on_set = None
+        if self.storage_backend and self.procedure_id:
+            _storage = self.storage_backend
+            _proc_id = self.procedure_id
+
+            def _on_set(key: str, value: Any) -> None:
+                _storage.state_set(_proc_id, key, value)
+
+        self.state_primitive = StatePrimitive(state_schema=state_schema, on_set=_on_set)
         self.iterations_primitive = IterationsPrimitive()
         self.stop_primitive = StopPrimitive()
 
@@ -1598,12 +1609,12 @@ class TactusRuntime:
             # DSL toolsets can have:
             # - "tools" field with list of tool names or inline tool definitions
             # - "use" field to import from a file or other source
-            logger.info(f"[TOOLSET_CREATE] '{name}' has no explicit type, checking for tools/use")
+            logger.debug(f"[TOOLSET_CREATE] '{name}' has no explicit type, checking for tools/use")
 
             if "tools" in definition:
                 # Handle tools list (can be tool names or inline definitions)
                 tools_list = definition["tools"]
-                logger.info(
+                logger.debug(
                     f"[TOOLSET_CREATE] '{name}' has tools field with {len(tools_list) if isinstance(tools_list, list) else '?'} items"
                 )
 
@@ -1611,25 +1622,25 @@ class TactusRuntime:
                 has_inline_tools = False
                 if isinstance(tools_list, list):
                     for idx, item in enumerate(tools_list):
-                        logger.info(
+                        logger.debug(
                             f"[TOOLSET_CREATE] Tool {idx}: type={type(item).__name__}, is_dict={isinstance(item, dict)}"
                         )
                         if isinstance(item, dict):
-                            logger.info(f"[TOOLSET_CREATE] Tool {idx} keys: {list(item.keys())}")
+                            logger.debug(f"[TOOLSET_CREATE] Tool {idx} keys: {list(item.keys())}")
                             has_handler = "handler" in item
                             has_callable_1 = 1 in item and callable(item.get(1))
-                            logger.info(
+                            logger.debug(
                                 f"[TOOLSET_CREATE] Tool {idx}: has_handler={has_handler}, has_callable_1={has_callable_1}"
                             )
                             if has_handler or has_callable_1:
                                 has_inline_tools = True
                                 break
 
-                logger.info(f"[TOOLSET_CREATE] '{name}' has_inline_tools={has_inline_tools}")
+                logger.debug(f"[TOOLSET_CREATE] '{name}' has_inline_tools={has_inline_tools}")
 
                 if has_inline_tools:
                     # Create toolset from inline Lua tools
-                    logger.info(f"[TOOLSET_CREATE] Creating inline toolset for '{name}'")
+                    logger.debug(f"[TOOLSET_CREATE] Creating inline toolset for '{name}'")
                     try:
                         from tactus.adapters.lua_tools import LuaToolsAdapter
 
@@ -1639,7 +1650,7 @@ class TactusRuntime:
 
                         # Create a toolset from inline tool definitions
                         toolset = lua_adapter.create_inline_toolset(name, tools_list)
-                        logger.info(
+                        logger.debug(
                             f"[TOOLSET_CREATE] ✓ Created inline toolset '{name}': {toolset}"
                         )
                         return toolset
@@ -2149,6 +2160,13 @@ class TactusRuntime:
             tool_choice = agent_config.get("tool_choice")
             logger.info(f"Agent '{agent_name}' config has tool_choice={tool_choice}")
 
+            if model_settings is not None and "temperature" in model_settings:
+                resolved_temperature = model_settings["temperature"]
+            elif "temperature" in agent_config:
+                resolved_temperature = agent_config["temperature"]
+            else:
+                resolved_temperature = default_temperature_for_model(model_name)
+
             dspy_config = {
                 "system_prompt": system_prompt_template,
                 "model": model_name,
@@ -2157,11 +2175,7 @@ class TactusRuntime:
                 "tools": filtered_tools,
                 "toolsets": filtered_toolsets,
                 "output_schema": output_schema,
-                "temperature": (
-                    model_settings.get("temperature", 0.7)
-                    if model_settings
-                    else agent_config.get("temperature", 0.7)
-                ),
+                "temperature": resolved_temperature,
                 "max_tokens": (
                     model_settings.get("max_tokens")
                     if model_settings
@@ -3828,8 +3842,10 @@ class TactusRuntime:
             config["default_model"] = registry.default_model
 
         # The procedure code will be executed separately
-        # Store a placeholder for compatibility
-        config["procedure"] = "-- Procedure function stored in registry"
+        # Only set placeholder if no actual procedure code exists
+        # This preserves Lua code from YAML-wrapped procedures
+        if "procedure" not in config or not config.get("procedure", "").strip():
+            config["procedure"] = "-- Procedure function stored in registry"
 
         return config
 

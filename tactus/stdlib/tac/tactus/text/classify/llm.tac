@@ -29,21 +29,19 @@ function LLMClassifier:init(config)
     self.classes = config.classes
     self.prompt = config.prompt
     self.max_retries = config.max_retries or 3
-    self.temperature = config.temperature or 0.3
+    self.temperature = config.temperature
     self.model_id = config.model or "openai/gpt-4o-mini"
     self.confidence_mode = config.confidence_mode or "heuristic"
+    self.parse_direction = config.parse_direction or "end"
 
     -- Build Model primitive instance.
     -- Note: in mocked mode, Mocks { <model_name> = ... } can override this call
     -- deterministically without spinning up any real provider interactions.
     self.model = models.LLMModel {
         name = self.name or "llm_classifier",
-        classes = self.classes,
         prompt = self.prompt,
         model = self.model_id,
         temperature = self.temperature,
-        retries = self.max_retries,
-        parse_direction = "end",
     }
 end
 
@@ -52,31 +50,47 @@ function LLMClassifier:parse_response(response)
         return nil
     end
 
-    -- Get first line
-    local first_line = response:match("^([^\n]+)")
-    if not first_line then
-        first_line = response
-    end
-
-    -- Clean up formatting
-    first_line = first_line:gsub("[%*\"'`:%.]", ""):gsub("^%s+", ""):gsub("%s+$", "")
-    local first_line_lower = first_line:lower()
-
     -- Create case-insensitive lookup
     local value_map = {}
     for _, v in ipairs(self.classes) do
         value_map[v:lower()] = v
     end
 
-    -- Exact match (case-insensitive)
-    if value_map[first_line_lower] then
-        return value_map[first_line_lower]
+    -- Split response into lines for scanning
+    local lines = {}
+    for line in (response .. "\n"):gmatch("([^\n]*)\n") do
+        local trimmed = line:gsub("^%s+", ""):gsub("%s+$", "")
+        if trimmed ~= "" then
+            table.insert(lines, trimmed)
+        end
     end
 
-    -- Prefix match
-    for v_lower, v_original in pairs(value_map) do
-        if first_line_lower:find("^" .. v_lower) then
-            return v_original
+    -- Determine scan order: "start" = first line first, "end" = last line first
+    local candidates = {}
+    if self.parse_direction == "start" then
+        candidates = lines
+    else
+        for i = #lines, 1, -1 do
+            table.insert(candidates, lines[i])
+        end
+    end
+
+    for _, line in ipairs(candidates) do
+        -- Clean up formatting markers
+        local cleaned = line:gsub("[%*\"'`]", ""):gsub("^%s+", ""):gsub("%s+$", "")
+        local cleaned_lower = cleaned:lower()
+
+        -- Exact match (case-insensitive)
+        if value_map[cleaned_lower] then
+            return value_map[cleaned_lower]
+        end
+
+        -- Check if line contains a valid class (handles "Answer: No." patterns)
+        for v_lower, v_original in pairs(value_map) do
+            -- Match class as a whole word within the line
+            if cleaned_lower:find("%f[%a]" .. v_lower .. "%f[%A]") then
+                return v_original
+            end
         end
     end
 
@@ -125,6 +139,14 @@ function LLMClassifier:classify(input_text)
         last_output = output
 
         local value = safe_get(output, "value") or safe_get(output, "sentiment")
+        -- Also check "response" key: LLMModel output schema uses {response = "string"},
+        -- so when output validation passes, the text lands in output["response"].
+        if value == nil then
+            local response_text = safe_get(output, "response")
+            if response_text ~= nil and type(response_text) == "string" then
+                value = self:parse_response(response_text)
+            end
+        end
         if value == nil and type(output) == "string" then
             value = self:parse_response(output)
         end
@@ -145,6 +167,10 @@ function LLMClassifier:classify(input_text)
                 response.confidence = conf
             elseif self.confidence_mode == "heuristic" then
                 response.confidence = 0.8
+            end
+            local expl = safe_get(output, "explanation")
+            if expl ~= nil then
+                response.explanation = expl
             end
             return response
         end

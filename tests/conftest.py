@@ -5,9 +5,35 @@ Provides global fixtures and configuration for all tests.
 """
 
 import os
+import logging
 from pathlib import Path
 
 import pytest
+
+
+@pytest.fixture(autouse=True)
+def isolate_logging_state():
+    """
+    Keep logger mutations from leaking between tests.
+
+    Several CLI tests reconfigure logging globally via setup_logging(); restoring
+    state per test keeps caplog-based assertions deterministic across the suite.
+    """
+    tactus_logger = logging.getLogger("tactus")
+    root_logger = logging.getLogger()
+    prior_tactus_handlers = list(tactus_logger.handlers)
+    prior_tactus_level = tactus_logger.level
+    prior_tactus_propagate = tactus_logger.propagate
+    prior_root_handlers = list(root_logger.handlers)
+    prior_root_level = root_logger.level
+
+    yield
+
+    tactus_logger.handlers = prior_tactus_handlers
+    tactus_logger.setLevel(prior_tactus_level)
+    tactus_logger.propagate = prior_tactus_propagate
+    root_logger.handlers = prior_root_handlers
+    root_logger.setLevel(prior_root_level)
 
 
 def pytest_configure(config):

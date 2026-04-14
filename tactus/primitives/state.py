@@ -23,16 +23,19 @@ class StatePrimitive:
     progress, accumulate results, and coordinate between agents.
     """
 
-    def __init__(self, state_schema: Optional[Dict[str, Any]] = None):
+    def __init__(self, state_schema: Optional[Dict[str, Any]] = None, on_set: Optional[Any] = None):
         """
         Initialize state storage.
 
         Args:
             state_schema: Optional state schema with field definitions and defaults
+            on_set: Optional callback(key, value) called after any state mutation.
+                    Used to persist state to external storage (e.g. database).
         """
         self._state_values: dict[str, Any] = {}
         self._state = self._state_values
         self._schema_definitions: dict[str, Any] = state_schema or {}
+        self._on_set = on_set
 
         # Initialize state with defaults from schema
         for state_key, schema_field_definition in self._schema_definitions.items():
@@ -88,6 +91,11 @@ class StatePrimitive:
 
         self._state_values[key] = value
         logger.debug("State.set('%s', %s)", key, value)
+        if self._on_set:
+            try:
+                self._on_set(key, value)
+            except Exception as e:
+                logger.warning("State.set on_set callback failed for key '%s': %s", key, e)
 
     def increment(self, key: str, amount: float = 1) -> float:
         """
@@ -113,8 +121,12 @@ class StatePrimitive:
 
         new_value = current_value + amount
         self._state_values[key] = new_value
-
         logger.debug("State.increment('%s', %s) = %s", key, amount, new_value)
+        if self._on_set:
+            try:
+                self._on_set(key, new_value)
+            except Exception as e:
+                logger.warning("State.increment on_set callback failed for key '%s': %s", key, e)
         return new_value
 
     def append(self, key: str, value: Any) -> None:
@@ -141,6 +153,11 @@ class StatePrimitive:
             value,
             len(self._state_values[key]),
         )
+        if self._on_set:
+            try:
+                self._on_set(key, self._state_values[key])
+            except Exception as e:
+                logger.warning("State.append on_set callback failed for key '%s': %s", key, e)
 
     def all(self) -> dict[str, Any]:
         """

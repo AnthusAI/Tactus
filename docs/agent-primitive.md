@@ -79,6 +79,25 @@ This is a key safety/reliability technique:
 
 - tool call -> summarize -> tool call -> summarize -> done
 
+## Dynamic system prompts (templates + per-turn override)
+
+The agent’s `system_prompt` string is **re-rendered every turn** using [`TemplateResolver`](../tactus/core/template_resolver.py) markers:
+
+- **`{params.*}`** — values from the **call** that are not reserved keys (`message`, `tools`, `temperature`, `max_tokens`, `system_prompt`). For example, `my_agent({ message = "Hi", topic = "bugs" })` exposes `{params.topic}`.
+- **`{state.*}`** — procedure `State` (e.g. `{state.still_needed}` for a checklist the procedure updates in Lua before each turn).
+- **`{prepared.*}`**, **`{context.*}`**, **`{env.*}`** — as documented in the template resolver.
+
+You can also **replace the template for one turn** (still resolved the same way):
+
+```lua
+my_agent({
+  message = "Continue.",
+  system_prompt = "You are a focused reviewer.\n\nContext: {params.topic}\nOpen issues: {state.still_needed}",
+})
+```
+
+Use this when building the whole instruction string in procedure code is clearer than a single static `Agent { system_prompt = ... }` block.
+
 ## The testing story: mock agents in CI
 
 In CI, you usually do not want to call a real LLM. You want deterministic behavior.

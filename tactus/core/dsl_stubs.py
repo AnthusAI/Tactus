@@ -34,6 +34,8 @@ Agent/Tool calls use direct variable access:
 import logging
 from typing import Any, Callable, Dict, Optional
 
+from jinja2 import Environment, BaseLoader
+
 from .registry import RegistryBuilder
 from tactus.primitives.handles import (
     AgentHandle,
@@ -2294,6 +2296,185 @@ def create_dsl_stubs(
 
         return _classify_fn(config)
 
+    def _new_classify_procedure(config=None):
+        """
+        ClassifyProcedure{} - single-Classify procedure factory.
+
+        Eliminates boilerplate by combining Procedure + Classify into one
+        declaration for the common case of a score that classifies input text.
+
+        Recommended syntax:
+            ClassifyProcedure {
+                classes = {"Yes", "No"},
+                model = "openai/gpt-5.4-nano",
+                system_message = [[
+            Classification instructions...
+            ]],
+                user_message = [[
+            Analyze: <transcript>{{ text }}</transcript>
+            ]]
+            }
+
+        Legacy syntax (backward compatible):
+            ClassifyProcedure {
+                classes = {"Yes", "No"},
+                model = "openai/gpt-5.4-nano",
+                prompt = [[
+            Did the agent greet the customer?
+            ]]
+            }
+
+        Params:
+            classes        -- (required) list of valid classification values
+            model          -- (required) model identifier e.g. "openai/gpt-5.4-nano"
+            system_message -- classification instructions (LLM system prompt);
+                              string or list of strings (joined with double newlines)
+            user_message   -- Jinja2 template for user message;
+                              available vars: {{ text }}, {{ metadata.field }}, {{ results }}
+            prompt         -- alias for user_message when system_message is present;
+                              when used alone, becomes the system prompt (legacy mode)
+
+        Optional params:
+            input_field   -- input field name (default: "text")
+            temperature   -- forwarded to Classify
+            max_retries   -- forwarded to Classify
+            name          -- forwarded to Classify (model name for mocking)
+        """
+        if config is None:
+            raise TypeError("ClassifyProcedure requires a configuration table")
+
+        config_dict = lua_table_to_dict(config)
+        if isinstance(config_dict, list) and len(config_dict) == 0:
+            config_dict = {}
+
+        # Validate required params
+        classes = config_dict.get("classes")
+        model = config_dict.get("model") or builder.registry.default_model
+        if not classes:
+            raise TypeError("ClassifyProcedure requires 'classes'")
+        if not model:
+            raise TypeError(
+                "ClassifyProcedure requires 'model' — specify it in the config "
+                "or set default_model at the procedure level"
+            )
+        # If model came from default_model, inject into the Lua config
+        # so it flows through to Classify
+        if not config_dict.get("model") and model:
+            config["model"] = model
+
+        # --- Message parameter resolution ---
+        system_message = config_dict.get("system_message")
+        user_message = config_dict.get("user_message")
+        prompt = config_dict.get("prompt")
+
+        if system_message and user_message:
+            pass  # New mode: both explicitly provided
+        elif system_message and prompt:
+            user_message = prompt  # prompt aliases user_message
+        elif prompt and not system_message and not user_message:
+            system_message = prompt  # Legacy: prompt is system, raw text as input
+            user_message = None
+        elif user_message and not system_message:
+            raise TypeError(
+                "ClassifyProcedure: 'user_message' requires 'system_message'. "
+                "Provide system_message with classification instructions."
+            )
+        else:
+            raise TypeError(
+                "ClassifyProcedure requires 'system_message' + 'user_message', "
+                "or 'prompt' (legacy mode)"
+            )
+
+        # --- Normalize messages (string or list-of-strings → string) ---
+        def _normalize_message(msg):
+            if isinstance(msg, str):
+                return msg
+            elif isinstance(msg, list):
+                return "\n\n".join(str(part) for part in msg)
+            return str(msg) if msg is not None else None
+
+        _resolved_system_message = _normalize_message(system_message)
+        _user_message_template = _normalize_message(user_message)
+        _is_legacy_mode = _user_message_template is None
+
+        # Optional params
+        input_field = config_dict.get("input_field", "text")
+
+        # Build schemas — include metadata and results so the runtime passes them through
+        input_schema = {
+            input_field: FieldDefinition({"type": "string", "required": True}),
+            "metadata": FieldDefinition({"type": "object", "required": False}),
+            "results": FieldDefinition({"type": "array", "required": False}),
+        }
+        output_schema = {
+            "value": FieldDefinition({"type": "string", "required": False}),
+            "explanation": FieldDefinition({"type": "string", "required": False}),
+        }
+
+        # Preserve the original native Lua config table so that the classes table
+        # remains a native Lua object (required for table.concat/ipairs in LLMClassifier).
+        _original_lua_config = config
+
+        # Keys that are ClassifyProcedure-only and should not be forwarded to Classify
+        _skip_keys = {"input_field", "system_message", "user_message"}
+
+        def _run(lua_input):
+            sandbox = _runtime_context.get("sandbox")
+            input_text = lua_input[input_field]
+
+            if _is_legacy_mode:
+                classify_input = str(input_text)
+            else:
+                # Build Jinja2 template context from input
+                try:
+                    raw_metadata = lua_input["metadata"]
+                except (KeyError, TypeError):
+                    raw_metadata = None
+                try:
+                    raw_results = lua_input["results"]
+                except (KeyError, TypeError):
+                    raw_results = None
+
+                metadata_dict = lua_table_to_dict(raw_metadata) if raw_metadata is not None else {}
+                if isinstance(metadata_dict, list) and not metadata_dict:
+                    metadata_dict = {}
+                results_list = lua_table_to_dict(raw_results) if raw_results is not None else []
+
+                env = Environment(loader=BaseLoader())
+                template = env.from_string(_user_message_template)
+                classify_input = template.render(
+                    text=str(input_text),
+                    metadata=metadata_dict,
+                    results=results_list,
+                )
+
+            # Build Classify config preserving native Lua classes table
+            lua_call_config = sandbox.lua.table()
+            for key in _original_lua_config.keys():
+                if key in _skip_keys:
+                    continue
+                # In new mode, skip 'prompt' — we replace it with system_message
+                if not _is_legacy_mode and key == "prompt":
+                    continue
+                lua_call_config[key] = _original_lua_config[key]
+
+            # Set system prompt (Classify's 'prompt' key)
+            if not _is_legacy_mode:
+                lua_call_config["prompt"] = _resolved_system_message
+
+            lua_call_config["input"] = classify_input
+            result = _new_classify(lua_call_config)
+
+            value = result["value"]
+            explanation = result["explanation"]
+            return {
+                "value": str(value) if value is not None else "ERROR",
+                "explanation": str(explanation) if explanation is not None else "",
+            }
+
+        # Register as main procedure (same call _process_procedure_config makes at line 260)
+        builder.register_named_procedure("main", _run, input_schema, output_schema, {})
+
     binding_callback = _make_binding_callback(
         builder,
         _tool_registry,
@@ -2324,6 +2505,7 @@ def create_dsl_stubs(
         "Compactor": _new_compactor,
         "TaskFunction": _task_function,
         "Classify": _new_classify,  # NEW stdlib: smart classification with retry
+        "ClassifyProcedure": _new_classify_procedure,  # Classify wrapped in standard Procedure
         "Hitl": _hitl,
         "Specification": _specification,
         # BDD Testing

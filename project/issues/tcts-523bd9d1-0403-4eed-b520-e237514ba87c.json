@@ -1,0 +1,30 @@
+{
+  "id": "tcts-523bd9d1-0403-4eed-b520-e237514ba87c",
+  "title": "[Snyk Code] Path Traversal",
+  "description": "## Path Traversal\n\n**Severity:** high\n**Project:** `AnthusAI/Tactus`\n**File:** `tactus/ide/server.py`\n**Location:** line 2118, column 17 to line 2118, column 26\n**Classes:** CWE-CWE-23\n### Snippet (tactus/ide/server.py:2116-2120)\n```\n2116 | \n2117 |             if checkpoint_file.exists():\n2118 |                 os.remove(checkpoint_file)\n2119 |                 logger.info(\"Cleared checkpoints for procedure: %s\", procedure_id)\n2120 |                 return jsonify(\n```\n\n**Issue Key:** 56bce1e1-d092-49f4-9324-fdacd6b4e468\n\n### Details\nPath Traversal\n\n**Fix:** Review and remediate in code.",
+  "type": "sub-task",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-a8688de4-69e7-4dfa-b19e-cea54c9d8ac6",
+  "labels": [
+    "security",
+    "snyk"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-04-14T17:12:28.829538Z",
+  "updated_at": "2026-04-14T17:12:28.829538Z",
+  "closed_at": null,
+  "custom": {
+    "snyk_column": 17,
+    "snyk_end_column": 26,
+    "snyk_end_line": 2118,
+    "snyk_file": "tactus/ide/server.py",
+    "snyk_key": "56bce1e1-d092-49f4-9324-fdacd6b4e468",
+    "snyk_line": 2118,
+    "snyk_severity": "high",
+    "snyk_type": "code"
+  }
+}

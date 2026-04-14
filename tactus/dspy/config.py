@@ -9,6 +9,8 @@ from typing import Optional, Any
 
 import dspy
 
+from tactus.dspy.model_params import default_temperature_for_model
+
 # Global reference to the current LM configuration
 _current_lm: Optional[dspy.BaseLM] = None
 
@@ -17,7 +19,7 @@ def configure_lm(
     model: str,
     api_key: Optional[str] = None,
     api_base: Optional[str] = None,
-    temperature: float = 0.7,
+    temperature: Optional[float] = None,
     max_tokens: Optional[int] = None,
     model_type: Optional[str] = None,
     **kwargs: Any,
@@ -35,7 +37,8 @@ def configure_lm(
         model: Model identifier in LiteLLM format (e.g., "openai/gpt-4o")
         api_key: API key (optional, can use environment variables)
         api_base: Custom API base URL (optional)
-        temperature: Sampling temperature (default: 0.7)
+        temperature: Sampling temperature. If omitted, GPT-5 family omits the
+            parameter; other models default to 0.0 (deterministic when supported).
         max_tokens: Maximum tokens in response (optional)
         model_type: Model type (e.g., "chat", "responses" for reasoning models)
         **kwargs: Additional LiteLLM parameters
@@ -75,14 +78,18 @@ def configure_lm(
 
         logging.getLogger(__name__).debug("LiteLLM not importable during configure_lm: %r", exc)
 
-    # Build configuration
+    if temperature is None:
+        temperature = default_temperature_for_model(model)
+
+    # Build configuration — omit temperature for GPT-5 family (unsupported / not accepted).
     lm_kwargs = {
-        "temperature": temperature,
         # IMPORTANT: Disable caching to enable streaming. With cache=True (default),
         # DSPy returns cached responses which breaks streamify()'s ability to stream.
         "cache": False,
         **kwargs,
     }
+    if temperature is not None:
+        lm_kwargs["temperature"] = temperature
 
     if api_key:
         lm_kwargs["api_key"] = api_key
@@ -119,11 +126,11 @@ def configure_lm(
         adapter = ChatAdapter()
 
     use_native = getattr(adapter, "use_native_function_calling", None)
-    logger.info(f"[ADAPTER] Created ChatAdapter with use_native_function_calling={use_native}")
+    logger.debug(f"[ADAPTER] Created ChatAdapter with use_native_function_calling={use_native}")
 
     # Set as global default with adapter
     dspy.configure(lm=lm, adapter=adapter)
-    logger.info(f"[ADAPTER] Configured DSPy with adapter: {adapter}")
+    logger.debug(f"[ADAPTER] Configured DSPy with adapter: {adapter}")
     _current_lm = lm
 
     return lm
@@ -174,7 +181,7 @@ def create_lm(
     model: str,
     api_key: Optional[str] = None,
     api_base: Optional[str] = None,
-    temperature: float = 0.7,
+    temperature: Optional[float] = None,
     max_tokens: Optional[int] = None,
     model_type: Optional[str] = None,
     **kwargs: Any,
@@ -194,7 +201,7 @@ def create_lm(
         model: Model identifier in LiteLLM format (e.g., "openai/gpt-4o")
         api_key: API key (optional, can use environment variables)
         api_base: Custom API base URL (optional)
-        temperature: Sampling temperature (default: 0.7)
+        temperature: Sampling temperature; if omitted, same defaults as configure_lm.
         max_tokens: Maximum tokens in response (optional)
         model_type: Model type (e.g., "chat", "responses" for reasoning models)
         **kwargs: Additional LiteLLM parameters
@@ -227,13 +234,17 @@ def create_lm(
             "LiteLLM not importable during create_lm_for_agent: %r", exc
         )
 
+    if temperature is None:
+        temperature = default_temperature_for_model(model)
+
     # Build configuration
     lm_kwargs = {
-        "temperature": temperature,
         # IMPORTANT: Disable caching to enable streaming
         "cache": False,
         **kwargs,
     }
+    if temperature is not None:
+        lm_kwargs["temperature"] = temperature
 
     if api_key:
         lm_kwargs["api_key"] = api_key

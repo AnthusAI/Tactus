@@ -73,6 +73,12 @@ make test-examples-fast               # examples without slow/integration
 make test-examples-bdd                # only examples with BDD specs
 ```
 
+## LLM Debug Mode
+
+Set `PLEXUS_DEBUG_LLM=1` to log the full input and output of every LLM call made by a Tactus agent. This is implemented in `tactus/dspy/agent.py` in the `_log_llm_debug_input` and `_log_llm_debug_output` methods, called from both `_turn_without_streaming` and `_turn_with_streaming`.
+
+The debug output includes: system prompt, conversation history (with role labels), user message, available tools, model response text, and tool calls. All output goes to the Python logger (stderr via Rich).
+
 ## CI debugging
 
 Use `gh` (never scrape with curl):

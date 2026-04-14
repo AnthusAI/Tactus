@@ -11,9 +11,9 @@ from typing import Optional, Any
 from datetime import datetime, timezone
 
 from rich.console import Console
+from rich.markup import escape
 from rich.prompt import Prompt, Confirm
 from rich.panel import Panel
-from rich.table import Table
 
 from tactus.protocols.control import (
     ControlRequest,
@@ -22,6 +22,7 @@ from tactus.protocols.control import (
     ChannelCapabilities,
 )
 from tactus.adapters.channels.host import HostControlChannel
+from tactus.adapters.cli_log import TranscriptMode
 
 logger = logging.getLogger(__name__)
 
@@ -63,15 +64,21 @@ class CLIControlChannel(HostControlChannel):
         # ... wait for response via receive() or cancellation
     """
 
-    def __init__(self, console: Optional[Console] = None):
+    def __init__(
+        self,
+        console: Optional[Console] = None,
+        transcript_mode: TranscriptMode = "full",
+    ):
         """
         Initialize CLI control channel.
 
         Args:
             console: Rich Console instance (creates new one if not provided)
+            transcript_mode: ``chat`` omits the procedure header line before HITL prompts.
         """
         super().__init__()
         self.console = console or Console()
+        self.transcript_mode = transcript_mode
 
     @property
     def channel_id(self) -> str:
@@ -94,60 +101,78 @@ class CLIControlChannel(HostControlChannel):
 
     async def initialize(self) -> None:
         """Initialize the CLI channel."""
-        logger.info("%s: initializing...", self.channel_id)
+        logger.debug("%s: initializing...", self.channel_id)
         # Check if stdin is a tty
         if not sys.stdin.isatty():
             logger.warning("%s: stdin is not a tty, prompts may not work", self.channel_id)
-        logger.info("%s: ready", self.channel_id)
+        logger.debug("%s: ready", self.channel_id)
 
     def _display_request(self, request: ControlRequest) -> None:
         """
-        Display the control request with rich formatting.
+        Display the control request before collecting stdin.
 
-        Shows:
-        - Procedure name and subject
-        - Elapsed time
-        - Input summary (if provided)
-        - Prior interactions (if any)
-        - The message and options
+        INPUT/SELECT use plain lines only — bordered Rich panels looked like empty
+        \"chat boxes\" next to the live › prompt. Procedure inputs stay in the run
+        log upstream; we do not repeat them here.
 
         Args:
             request: The control request to display
         """
+        raw_msg = (request.message or "").strip()
+        chat_like = request.request_type in (
+            ControlRequestType.INPUT,
+            ControlRequestType.SELECT,
+        )
+
+        if self.transcript_mode == "chat":
+            # Procedure already printed the transcript; a single blank line before ›
+            # (avoid two bare prints — that doubled vertical gap after the assistant).
+            if request.prior_interactions:
+                self.console.print()
+                self.console.print("[dim]Earlier in this session:[/dim]")
+                for interaction in request.prior_interactions:
+                    responder = interaction.responded_by or interaction.channel_id
+                    self.console.print(f"  [dim]•[/dim] {responder}: {interaction.response_value}")
+            self.console.print()
+            if chat_like and raw_msg:
+                self.console.print(f"[blue]{escape(raw_msg)}[/blue]")
+            elif not chat_like:
+                self.console.print(
+                    Panel(
+                        request.message,
+                        title=f"[bold]{request.request_type.value.upper()}[/bold]",
+                        style="yellow",
+                    )
+                )
+            return
+
         self.console.print()
 
-        # Header: procedure name and subject
-        header = f"[bold]{request.procedure_name}[/bold]"
-        if request.subject:
-            header += f": [cyan]{request.subject}[/cyan]"
-        self.console.print(header)
+        subj = f" · {request.subject}" if request.subject else ""
+        self.console.print(
+            f"[bold cyan]●[/bold cyan] [bold]{request.procedure_name}[/bold]{subj} "
+            f"[dim]· {format_time_ago(request.started_at)} since start[/dim]"
+        )
 
-        # Timing
-        self.console.print(f"[dim]Started {format_time_ago(request.started_at)} ago[/dim]")
-
-        # Input summary
-        if request.input_summary:
-            table = Table(title="Input Data", show_header=False, box=None)
-            for key, value in request.input_summary.items():
-                table.add_row(f"[dim]{key}:[/dim]", str(value))
-            self.console.print(Panel(table, border_style="dim"))
-
-        # Prior interactions
         if request.prior_interactions:
-            self.console.print("\n[dim]Previous decisions:[/dim]")
+            self.console.print("\n[dim]Earlier in this session:[/dim]")
             for interaction in request.prior_interactions:
                 responder = interaction.responded_by or interaction.channel_id
                 self.console.print(f"  [dim]•[/dim] {responder}: {interaction.response_value}")
 
-        # The message
         self.console.print()
-        self.console.print(
-            Panel(
-                request.message,
-                title=f"[bold]{request.request_type.value.upper()}[/bold]",
-                style="yellow",
+
+        if chat_like:
+            if raw_msg:
+                self.console.print(f"[blue]{escape(raw_msg)}[/blue]")
+        else:
+            self.console.print(
+                Panel(
+                    request.message,
+                    title=f"[bold]{request.request_type.value.upper()}[/bold]",
+                    style="yellow",
+                )
             )
-        )
 
     def _prompt_for_input(self, request: ControlRequest) -> Optional[Any]:
         """
@@ -198,14 +223,17 @@ class CLIControlChannel(HostControlChannel):
             return None
 
         default = str(request.default_value) if request.default_value is not None else None
+        placeholder = (request.metadata or {}).get("placeholder") or ""
 
         try:
             # Check if there are options
             if request.options:
                 return self._handle_options(request.options, default)
             else:
-                # Free-form input
-                value = Prompt.ask("Enter value", default=default, console=self.console)
+                # Rich appends ": " after the prompt — keep the label minimal (avoid "Your reply:" noise).
+                if placeholder:
+                    self.console.print(f"[dim]{escape(str(placeholder))}[/dim]")
+                value = Prompt.ask("›", default=default, console=self.console)
                 return value if not self.is_cancelled() else None
         except (EOFError, KeyboardInterrupt):
             return None
@@ -225,7 +253,7 @@ class CLIControlChannel(HostControlChannel):
         while not self.is_cancelled():
             try:
                 choice_str = Prompt.ask(
-                    "Select option (number)",
+                    "›",
                     default=default,
                     console=self.console,
                 )

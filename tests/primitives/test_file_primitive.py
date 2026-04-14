@@ -51,10 +51,10 @@ def test_size_missing_raises(tmp_path):
         primitive.size("missing.txt")
 
 
-def test_resolve_path_rejects_absolute(tmp_path):
+def test_resolve_path_accepts_absolute(tmp_path):
     primitive = FilePrimitive(base_path=str(tmp_path))
-    with pytest.raises(ValueError, match="Absolute paths not allowed"):
-        primitive._resolve_path(str(tmp_path / "abs.txt"))
+    resolved = primitive._resolve_path(str(tmp_path / "abs.txt"))
+    assert resolved == (tmp_path / "abs.txt").resolve()
 
 
 def test_resolve_path_rejects_traversal(tmp_path):
