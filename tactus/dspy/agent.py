@@ -313,6 +313,9 @@ class DSPyAgentHandle:
         # Track conversation state
         self._turn_count = 0
 
+        # Last turn's text output (accessible from Lua as agent.output)
+        self.output: Optional[str] = None
+
         # Cumulative cost/usage stats (monotonic across turns)
         self._cumulative_usage = UsageStats()
         self._cumulative_cost = CostStats()
