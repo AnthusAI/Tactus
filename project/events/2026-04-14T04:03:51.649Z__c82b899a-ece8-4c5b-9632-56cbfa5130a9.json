@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "c82b899a-ece8-4c5b-9632-56cbfa5130a9",
+  "issue_id": "tcts-4998f2a2-8c14-4384-bbe4-c9ee425db3ad",
+  "event_type": "issue_created",
+  "occurred_at": "2026-04-14T04:03:51.649Z",
+  "actor_id": "ryan",
+  "payload": {
+    "assignee": null,
+    "description": "",
+    "issue_type": "bug",
+    "labels": [],
+    "parent": "tcts-8dbdce66-f645-40af-8d7b-f6664829eef3",
+    "priority": 2,
+    "status": "open",
+    "title": "Recheck develop CI after new pushes"
+  }
+}
