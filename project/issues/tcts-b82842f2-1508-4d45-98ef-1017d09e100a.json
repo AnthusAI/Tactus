@@ -1,0 +1,24 @@
+{
+  "id": "tcts-b82842f2-1508-4d45-98ef-1017d09e100a",
+  "title": "pyproject.toml",
+  "description": "Snyk vulnerabilities found in `pyproject.toml`.",
+  "type": "task",
+  "status": "open",
+  "priority": 0,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-306dcfa1-0409-4997-829b-edb4ec4a359c",
+  "labels": [
+    "security",
+    "snyk"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-04-14T17:12:28.832621Z",
+  "updated_at": "2026-04-14T17:12:28.832621Z",
+  "closed_at": null,
+  "custom": {
+    "snyk_category": "dependency",
+    "snyk_target_file": "pyproject.toml"
+  }
+}

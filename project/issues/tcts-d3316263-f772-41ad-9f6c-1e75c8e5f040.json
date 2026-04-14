@@ -1,0 +1,30 @@
+{
+  "id": "tcts-d3316263-f772-41ad-9f6c-1e75c8e5f040",
+  "title": "[Snyk Code] Path Traversal",
+  "description": "## Path Traversal\n\n**Severity:** high\n**Project:** `AnthusAI/Tactus`\n**File:** `tactus/ide/server.py`\n**Location:** line 280, column 17 to line 280, column 25\n**Classes:** CWE-CWE-23\n### Snippet (tactus/ide/server.py:278-282)\n```\n 278 |                 # Set workspace root and change working directory\n 279 |                 WORKSPACE_ROOT = str(root_path)\n 280 |                 os.chdir(WORKSPACE_ROOT)\n 281 | \n 282 |                 logger.info(\"Workspace set to: %s\", WORKSPACE_ROOT)\n```\n\n**Issue Key:** aca3741d-b4d6-46ab-82a8-a306b7f9dea1\n\n### Details\nPath Traversal\n\n**Fix:** Review and remediate in code.",
+  "type": "sub-task",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-a8688de4-69e7-4dfa-b19e-cea54c9d8ac6",
+  "labels": [
+    "security",
+    "snyk"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-04-14T17:12:28.830757Z",
+  "updated_at": "2026-04-14T17:12:28.830757Z",
+  "closed_at": null,
+  "custom": {
+    "snyk_column": 17,
+    "snyk_end_column": 25,
+    "snyk_end_line": 280,
+    "snyk_file": "tactus/ide/server.py",
+    "snyk_key": "aca3741d-b4d6-46ab-82a8-a306b7f9dea1",
+    "snyk_line": 280,
+    "snyk_severity": "high",
+    "snyk_type": "code"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "id": "tcts-37f15c39-656f-4d26-8f1a-94a2313eb01a",
+  "title": "[Snyk] SNYK-PYTHON-LITELLM-15928842 in litellm@1.81.1",
+  "description": "## Use of Password Hash With Insufficient Computational Effort\n\n**Severity:** high\n**Package:** litellm@1.81.1\n**File:** `pyproject.toml`\n\n**CVSS Score:** 8.6  \n**Snyk Priority Score:** 716/1000\n\n### CVEs\nNo CVE assigned.\n\n**Fix:** Upgrade `litellm` to version 1.83.0 or later.\n\n### Details\n## Overview\n[litellm](https://pypi.org/project/litellm) is a Library to easily interface with LLM API providers\n\nAffected versions of this package are vulnerable to Use of Password Hash With Insufficient Computational Effort via the `user/info`, `user/update`, and `spend/users` API endpoints, which return password hash fields in responses to any authenticated user. An attacker can gain unauthorized access to other user accounts and escalate privileges by retrieving password hashes and using them to authenticate directly through the `v2/login` endpoint.\n## Remediation\nUpgrade `litellm` to version 1.83.0 or higher.\n## References\n- [GitHub Advisory](https://github.com/BerriAI/litellm/security/advisories/GHSA-69x8-hrgq-fjj8)\n- [GitHub Commit](https://github.com/BerriAI/litellm/commit/53ac4c5459514ed668cea689bbe7187b910e7d9e)\n\n\n### Reference\n- [Snyk advisory](https://security.snyk.io/vuln/SNYK-PYTHON-LITELLM-15928842)",
+  "type": "sub-task",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-b82842f2-1508-4d45-98ef-1017d09e100a",
+  "labels": [
+    "security",
+    "snyk"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-04-14T17:12:28.833400Z",
+  "updated_at": "2026-04-14T17:12:28.833400Z",
+  "closed_at": null,
+  "custom": {
+    "snyk_key": "SNYK-PYTHON-LITELLM-15928842",
+    "snyk_severity": "high",
+    "snyk_type": "package_vulnerability"
+  }
+}
