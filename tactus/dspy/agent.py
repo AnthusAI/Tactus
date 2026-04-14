@@ -18,6 +18,7 @@ import json
 import logging
 import os
 import queue
+import random
 import threading
 import time
 import uuid
@@ -238,6 +239,63 @@ class DSPyAgentHandle:
         response_config = kwargs.get("response") or {}
         self.response_retries = int(response_config.get("retries", 0) or 0)
         self.response_retry_delay = float(response_config.get("retry_delay", 0.0) or 0.0)
+
+        # First-class Agent retry configuration (preferred over response.retries).
+        #
+        # Backwards compatibility:
+        # - If `retry` is absent, we keep the old behavior driven by response.retries.
+        # - If `retry` is present, it overrides the legacy response-based settings.
+        retry_config = kwargs.get("retry")
+        if retry_config is None:
+            retry_config = {}
+        if hasattr(retry_config, "items"):
+            try:
+                retry_config = dict(retry_config.items())
+            except Exception:
+                retry_config = {}
+        if not isinstance(retry_config, dict):
+            retry_config = {}
+
+        # `attempts` counts total attempts (including the first).
+        attempts_raw = retry_config.get("attempts")
+        if attempts_raw is None:
+            # Allow legacy-ish spelling inside retry config.
+            retries_raw = retry_config.get("retries")
+            if retries_raw is not None:
+                try:
+                    attempts_raw = int(retries_raw) + 1
+                except Exception:
+                    attempts_raw = None
+
+        enabled_raw = retry_config.get("enabled")
+        if enabled_raw is None:
+            # If attempts is explicitly set > 1, treat that as enabled.
+            try:
+                enabled_raw = int(attempts_raw or 0) > 1
+            except Exception:
+                enabled_raw = False
+
+        self.retry_enabled = bool(enabled_raw)
+        self.retry_attempts = max(1, int(attempts_raw or 1)) if self.retry_enabled else 1
+        self.retry_delay_seconds = float(
+            retry_config.get("delay_seconds", retry_config.get("delay", 0.0)) or 0.0
+        )
+        self.retry_max_delay_seconds = float(retry_config.get("max_delay_seconds", 0.0) or 0.0)
+        self.retry_backoff = str(retry_config.get("backoff", "constant") or "constant").lower()
+        self.retry_jitter = bool(retry_config.get("jitter", False))
+        # What to retry:
+        # - infra_only: retry runtime/transport-ish failures, not validation-style ValueErrors
+        # - validation_only: retry validation-style ValueErrors, not infra
+        # - infra_plus_validation: retry both (default when retry is enabled)
+        self.retry_on = str(
+            retry_config.get("on", "infra_plus_validation") or "infra_plus_validation"
+        ).lower()
+
+        # If retry is enabled, it supersedes legacy response retry settings.
+        if self.retry_enabled:
+            self.response_retries = 0
+            self.response_retry_delay = 0.0
+
         self.kwargs = kwargs
 
         logger.debug(
@@ -1720,6 +1778,8 @@ class DSPyAgentHandle:
         prompt_context: Dict[str, Any],
     ) -> TactusResult:
         attempts = max(self.response_retries, 0) + 1
+        if getattr(self, "retry_enabled", False):
+            attempts = max(1, int(getattr(self, "retry_attempts", 1) or 1))
         history_length = len(self._history)
 
         for attempt in range(attempts):
@@ -1734,12 +1794,47 @@ class DSPyAgentHandle:
                 self._validate_output(result)
                 return result
             except Exception as error:
+                # Never retry cancellation / shutdown signals.
+                if isinstance(error, (KeyboardInterrupt, SystemExit, asyncio.CancelledError)):
+                    raise
+
+                if getattr(self, "retry_enabled", False):
+                    # Decide if this exception is eligible for retry.
+                    retry_on = getattr(self, "retry_on", "infra_plus_validation")
+                    is_validation = isinstance(error, ValueError)
+                    if retry_on == "infra_only" and is_validation:
+                        raise
+                    if retry_on == "validation_only" and not is_validation:
+                        raise
+
+                    # Authentication/config errors are not helped by retry.
+                    err_l = str(error).lower()
+                    if "api key" in err_l or "api_key" in err_l or "authentication" in err_l:
+                        raise
+
                 if attempt >= attempts - 1:
                     logger.debug("Agent '%s' turn failed: %s", self.name, error, exc_info=True)
                     raise
                 self._history.truncate(history_length)
-                if self.response_retry_delay > 0:
-                    time.sleep(self.response_retry_delay)
+
+                delay = 0.0
+                if getattr(self, "retry_enabled", False):
+                    base = float(getattr(self, "retry_delay_seconds", 0.0) or 0.0)
+                    if base > 0:
+                        if getattr(self, "retry_backoff", "constant") == "exponential":
+                            delay = base * (2**attempt)
+                        else:
+                            delay = base
+                        max_d = float(getattr(self, "retry_max_delay_seconds", 0.0) or 0.0)
+                        if max_d and delay > max_d:
+                            delay = max_d
+                        if getattr(self, "retry_jitter", False) and delay > 0:
+                            delay = random.random() * delay
+                else:
+                    delay = float(self.response_retry_delay or 0.0)
+
+                if delay > 0:
+                    time.sleep(delay)
 
         raise RuntimeError("Unexpected retry loop exit")  # pragma: no cover
 
