@@ -3,7 +3,7 @@
   "title": "[Snyk] SNYK-PYTHON-LITELLM-15907831 in litellm@1.81.1",
   "description": "## User Impersonation\n\n**Severity:** critical\n**Package:** litellm@1.81.1\n**File:** `pyproject.toml`\n\n**CVSS Score:** 9.4  \n**Snyk Priority Score:** 756/1000\n\n### CVEs\n- [CVE-2026-35030](https://nvd.nist.gov/vuln/detail/CVE-2026-35030)\n\n**Fix:** Upgrade `litellm` to version 1.83.0 or later.\n\n### Details\n## Overview\n[litellm](https://pypi.org/project/litellm) is a Library to easily interface with LLM API providers\n\nAffected versions of this package are vulnerable to User Impersonation in the `get_oidc_userinfo` function. An attacker can gain unauthorized access to another user's identity and permissions by crafting a token with the same initial 20 characters as a legitimate user's cached token. \r\n\r\n**Note:** This is only exploitable if JWT/OIDC authentication is enabled and the OIDC userinfo cache is active.\r\n\r\n## Workaround \r\nThis vulnerability can be mitigated by disabling OIDC userinfo caching (set cache TTL to 0) or disabling JWT authentication entirely.\n## Remediation\nUpgrade `litellm` to version 1.83.0 or higher.\n## References\n- [GitHub Commit](https://github.com/BerriAI/litellm/commit/57c05459ae9b4e607bfb35228ec13a3ee8586ce4)\n- [Maintainer's Advisory](https://github.com/BerriAI/litellm/security/advisories/GHSA-jjhc-v7c2-5hh6)\n\n\n### Reference\n- [Snyk advisory](https://security.snyk.io/vuln/SNYK-PYTHON-LITELLM-15907831)",
   "type": "sub-task",
-  "status": "open",
+  "status": "closed",
   "priority": 0,
   "assignee": null,
   "creator": null,
@@ -13,10 +13,17 @@
     "snyk"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "49c4fbde-13a5-4c0f-8738-5d3b473455aa",
+      "author": "derek.norrbom",
+      "text": "Resolved in this change: litellm upgraded to 1.83.0 in pyproject.toml, poetry.lock regenerated, and Snyk critical scan now reports no vulnerable paths.",
+      "created_at": "2026-04-14T17:23:56.461901Z"
+    }
+  ],
   "created_at": "2026-04-14T17:12:28.832808Z",
-  "updated_at": "2026-04-14T17:12:28.832808Z",
-  "closed_at": null,
+  "updated_at": "2026-04-14T17:23:58.009510Z",
+  "closed_at": "2026-04-14T17:23:58.009510Z",
   "custom": {
     "snyk_key": "SNYK-PYTHON-LITELLM-15907831",
     "snyk_severity": "critical",

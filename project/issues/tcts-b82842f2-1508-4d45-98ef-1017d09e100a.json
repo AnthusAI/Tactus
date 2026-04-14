@@ -3,7 +3,7 @@
   "title": "pyproject.toml",
   "description": "Snyk vulnerabilities found in `pyproject.toml`.",
   "type": "task",
-  "status": "open",
+  "status": "in_progress",
   "priority": 0,
   "assignee": null,
   "creator": null,
@@ -13,9 +13,22 @@
     "snyk"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "4200cf82-3d97-489b-a14a-e11d3fa48c28",
+      "author": "derek.norrbom",
+      "text": "Starting remediation for critical Snyk findings in pyproject.toml. First pass targets litellm>=1.83.0 and pydantic-ai-slim>=1.56.0, then I will re-scan to verify.",
+      "created_at": "2026-04-14T17:17:16.959546Z"
+    },
+    {
+      "id": "8eb23691-d4ba-44a6-afc2-1094f5c85dde",
+      "author": "derek.norrbom",
+      "text": "Critical remediation pass complete: upgraded litellm==1.83.0 and pydantic-ai-slim==1.56.0 (plus pydantic-evals==1.56.0), regenerated poetry.lock, and verified with Snyk (critical threshold) showing no vulnerable critical paths. Remaining open child issues are non-critical and can be handled in the next pass.",
+      "created_at": "2026-04-14T17:23:46.637106Z"
+    }
+  ],
   "created_at": "2026-04-14T17:12:28.832621Z",
-  "updated_at": "2026-04-14T17:12:28.832621Z",
+  "updated_at": "2026-04-14T17:23:46.637106Z",
   "closed_at": null,
   "custom": {
     "snyk_category": "dependency",
