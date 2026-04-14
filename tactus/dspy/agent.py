@@ -1043,7 +1043,7 @@ class DSPyAgentHandle:
 
             # Unwrap ExceptionGroup to find the real error
             original_error = error
-            if hasattr(error, "__class__") and error.__class__.__name__ == "ExceptionGroup":
+            if hasattr(error, "__class__") and error.__class__.__name__.endswith("ExceptionGroup"):
                 # Python 3.11+ ExceptionGroup
                 if hasattr(error, "exceptions") and error.exceptions:
                     original_error = error.exceptions[0]
