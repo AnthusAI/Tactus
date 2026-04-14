@@ -2,6 +2,57 @@
 
 <!-- version list -->
 
+## v0.46.0 (2026-04-14)
+
+### Bug Fixes
+
+- Merge pull request #54 from AnthusAI/develop
+  ([`0785e50`](https://github.com/AnthusAI/Tactus/commit/0785e5056ad4c6b37caebc88243e4764264fbd23))
+
+- **agent**: Preserve done() tool recording from MCP execution path
+  ([`c742f6d`](https://github.com/AnthusAI/Tactus/commit/c742f6df8012f4a54648922dc4e68ccccc1d28f0))
+
+- **dspy**: Stable tool call IDs, orphan message cleanup, system_prompt_suffix
+  ([`edbaf21`](https://github.com/AnthusAI/Tactus/commit/edbaf213ac37743441c12efded399397bb96e1a4))
+
+- **dspy**: Tool history + ToolCall shape; demote chatty logs to DEBUG
+  ([`0f62064`](https://github.com/AnthusAI/Tactus/commit/0f6206463dd2eae330c0031db8c49ae5390a3185))
+
+- **llm**: Correct temperature handling for gpt-5 family models
+  ([`bc61755`](https://github.com/AnthusAI/Tactus/commit/bc61755c3cf66409b4cbfbd90c5daeed3b0bafad))
+
+- **mcp**: Accept **kwargs in tool_wrapper and defer tool_primitive lookup
+  ([`fb0d041`](https://github.com/AnthusAI/Tactus/commit/fb0d041a86b739edda6d72949870ec957d496d13))
+
+- **mcp**: Remove unused args_model variable to fix ruff F841 lint error
+  ([`46d7ec9`](https://github.com/AnthusAI/Tactus/commit/46d7ec9b28fc4102df96b2cf945db98bc2405386))
+
+- **runtime**: Preserve YAML procedure code in _registry_to_config
+  ([`cf2e480`](https://github.com/AnthusAI/Tactus/commit/cf2e480875bdf808b1702c3db54bde8fd71b7945))
+
+- **sandbox**: Add UTF-8 safe string overrides to prevent UnicodeDecodeError
+  ([`12ac099`](https://github.com/AnthusAI/Tactus/commit/12ac099191fe27a43bafb19373f179661855e2f8))
+
+### Chores
+
+- **pm**: Add snyk security findings tasks
+  ([`b9445a7`](https://github.com/AnthusAI/Tactus/commit/b9445a789f77465ca5a621c8139f685b0e07fa05))
+
+### Features
+
+- **cli**: Auto-load .env from cwd and procedure directory
+  ([`0beb75e`](https://github.com/AnthusAI/Tactus/commit/0beb75e9c77b5662a2c3a43cdca335cb9e46397d))
+
+- **cli**: Chat-mode transcript, subcommand routing, and logging cleanup
+  ([`1195120`](https://github.com/AnthusAI/Tactus/commit/11951200e324b4065caa9f607723caa55b00fe7b))
+
+- **dspy**: Model-aware temperature defaults and tactus logger isolation
+  ([`35180e6`](https://github.com/AnthusAI/Tactus/commit/35180e6ed213917b0c53b524af4978ab4c26d680))
+
+- **state**: Persist state mutations to storage backend via on_set callback
+  ([`2db3c68`](https://github.com/AnthusAI/Tactus/commit/2db3c68c3e270d59a56d04790c93b00cbe9b168c))
+
+
 ## v0.45.3 (2026-04-06)
 
 
