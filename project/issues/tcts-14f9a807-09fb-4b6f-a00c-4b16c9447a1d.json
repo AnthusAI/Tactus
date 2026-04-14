@@ -3,7 +3,7 @@
   "title": "[Snyk] SNYK-PYTHON-AIOHTTP-15873738 in aiohttp@3.13.3",
   "description": "## Server-side Request Forgery (SSRF)\n\n**Severity:** high\n**Package:** aiohttp@3.13.3\n**File:** `pyproject.toml`\n\n**CVSS Score:** 8.7  \n**Snyk Priority Score:** 721/1000\n\n### CVEs\n- [CVE-2026-34515](https://nvd.nist.gov/vuln/detail/CVE-2026-34515)\n\n**Fix:** Pin `aiohttp` to version 3.13.4 or later.\n\n### Details\n## Overview\n\nAffected versions of this package are vulnerable to Server-side Request Forgery (SSRF) in the static resource handler on Windows. An attacker can extract NTLMv2 credential hashes by accessing specially crafted remote paths, potentially leading to credential theft.\n## Remediation\nUpgrade `aiohttp` to version 3.13.4 or higher.\n## References\n- [GitHub Advisory](https://github.com/aio-libs/aiohttp/security/advisories/GHSA-p998-jp59-783m)\n- [GitHub Commit](https://github.com/aio-libs/aiohttp/commit/0ae2aa076c84573df83fc1fdc39eec0f5862fe3d)\n\n\n### Reference\n- [Snyk advisory](https://security.snyk.io/vuln/SNYK-PYTHON-AIOHTTP-15873738)",
   "type": "sub-task",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -13,10 +13,17 @@
     "snyk"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "7d90f7c7-1e95-4138-a479-0adabcf17af8",
+      "author": "derek.norrbom",
+      "text": "Resolved: enforced aiohttp>=3.13.4 via pyproject dependency constraints and regenerated poetry.lock; high-threshold Snyk scan no longer reports this advisory.",
+      "created_at": "2026-04-14T18:28:20.529953Z"
+    }
+  ],
   "created_at": "2026-04-14T17:12:28.833228Z",
-  "updated_at": "2026-04-14T17:12:28.833228Z",
-  "closed_at": null,
+  "updated_at": "2026-04-14T18:28:28.891216Z",
+  "closed_at": "2026-04-14T18:28:28.891216Z",
   "custom": {
     "snyk_key": "SNYK-PYTHON-AIOHTTP-15873738",
     "snyk_severity": "high",

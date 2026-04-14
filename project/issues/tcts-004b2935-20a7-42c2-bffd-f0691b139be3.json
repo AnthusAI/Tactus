@@ -3,7 +3,7 @@
   "title": "[Snyk] SNYK-PYTHON-AIOHTTP-15873732 in aiohttp@3.13.3",
   "description": "## Allocation of Resources Without Limits or Throttling\n\n**Severity:** high\n**Package:** aiohttp@3.13.3\n**File:** `pyproject.toml`\n\n**CVSS Score:** 8.7  \n**Snyk Priority Score:** 721/1000\n\n### CVEs\n- [CVE-2026-34516](https://nvd.nist.gov/vuln/detail/CVE-2026-34516)\n\n**Fix:** Pin `aiohttp` to version 3.13.4 or later.\n\n### Details\n## Overview\n\nAffected versions of this package are vulnerable to Allocation of Resources Without Limits or Throttling in the processing of multipart headers. An attacker can cause excessive memory consumption by sending a response with an unusually large number of multipart headers.\n## Remediation\nUpgrade `aiohttp` to version 3.13.4 or higher.\n## References\n- [GitHub Advisory](https://github.com/aio-libs/aiohttp/security/advisories/GHSA-m5qp-6w8w-w647)\n- [GitHub Commit](https://github.com/aio-libs/aiohttp/commit/8a74257b3804c9aac0bf644af93070f68f6c5a6f)\n- [GitHub Release](https://github.com/aio-libs/aiohttp/releases/tag/v3.13.4)\n\n\n### Reference\n- [Snyk advisory](https://security.snyk.io/vuln/SNYK-PYTHON-AIOHTTP-15873732)",
   "type": "sub-task",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -13,10 +13,17 @@
     "snyk"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "12b84f4d-5233-48f8-8985-5637302eb234",
+      "author": "derek.norrbom",
+      "text": "Resolved: enforced aiohttp>=3.13.4 via pyproject dependency constraints and regenerated poetry.lock; high-threshold Snyk scan no longer reports this advisory.",
+      "created_at": "2026-04-14T18:28:20.503791Z"
+    }
+  ],
   "created_at": "2026-04-14T17:12:28.833157Z",
-  "updated_at": "2026-04-14T17:12:28.833157Z",
-  "closed_at": null,
+  "updated_at": "2026-04-14T18:28:28.890402Z",
+  "closed_at": "2026-04-14T18:28:28.890402Z",
   "custom": {
     "snyk_key": "SNYK-PYTHON-AIOHTTP-15873732",
     "snyk_severity": "high",

@@ -3,7 +3,7 @@
   "title": "[Snyk] SNYK-PYTHON-LITELLM-15928842 in litellm@1.81.1",
   "description": "## Use of Password Hash With Insufficient Computational Effort\n\n**Severity:** high\n**Package:** litellm@1.81.1\n**File:** `pyproject.toml`\n\n**CVSS Score:** 8.6  \n**Snyk Priority Score:** 716/1000\n\n### CVEs\nNo CVE assigned.\n\n**Fix:** Upgrade `litellm` to version 1.83.0 or later.\n\n### Details\n## Overview\n[litellm](https://pypi.org/project/litellm) is a Library to easily interface with LLM API providers\n\nAffected versions of this package are vulnerable to Use of Password Hash With Insufficient Computational Effort via the `user/info`, `user/update`, and `spend/users` API endpoints, which return password hash fields in responses to any authenticated user. An attacker can gain unauthorized access to other user accounts and escalate privileges by retrieving password hashes and using them to authenticate directly through the `v2/login` endpoint.\n## Remediation\nUpgrade `litellm` to version 1.83.0 or higher.\n## References\n- [GitHub Advisory](https://github.com/BerriAI/litellm/security/advisories/GHSA-69x8-hrgq-fjj8)\n- [GitHub Commit](https://github.com/BerriAI/litellm/commit/53ac4c5459514ed668cea689bbe7187b910e7d9e)\n\n\n### Reference\n- [Snyk advisory](https://security.snyk.io/vuln/SNYK-PYTHON-LITELLM-15928842)",
   "type": "sub-task",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -13,10 +13,17 @@
     "snyk"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "eaadb0ae-0cc3-436c-8295-c43bb1d8402e",
+      "author": "derek.norrbom",
+      "text": "Resolved by prior critical remediation: litellm pinned to 1.83.0 and lock regenerated. Confirmed absent in current high-threshold Snyk scan.",
+      "created_at": "2026-04-14T18:28:25.884844Z"
+    }
+  ],
   "created_at": "2026-04-14T17:12:28.833400Z",
-  "updated_at": "2026-04-14T17:12:28.833400Z",
-  "closed_at": null,
+  "updated_at": "2026-04-14T18:28:31.831706Z",
+  "closed_at": "2026-04-14T18:28:31.831706Z",
   "custom": {
     "snyk_key": "SNYK-PYTHON-LITELLM-15928842",
     "snyk_severity": "high",

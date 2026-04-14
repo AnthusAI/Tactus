@@ -3,7 +3,7 @@
   "title": "[Snyk] SNYK-PYTHON-LUPA-15954200 in lupa@2.6",
   "description": "## Arbitrary Code Injection\n\n**Severity:** high\n**Package:** lupa@2.6\n**File:** `pyproject.toml`\n\n**CVSS Score:** 7.9  \n**Exploit Maturity:** proof-of-concept  \n**Snyk Priority Score:** 788/1000\n\n### CVEs\n- [CVE-2026-34444](https://nvd.nist.gov/vuln/detail/CVE-2026-34444)\n\n**Fix:** Upgrade `lupa` to version 2.7 or later.\n\n### Details\n## Overview\n[lupa](https://pypi.org/project/lupa) is a Python wrapper around Lua and LuaJIT\n\nAffected versions of this package are vulnerable to Arbitrary Code Injection incomplete enforcement of the `attribute_filter` in the `getattr` and `setattr` built-in functions. An attacker can execute arbitrary commands in the host environment by bypassing attribute access restrictions through built-in functions when untrusted Lua code is allowed to access Python builtins.\n## Remediation\nUpgrade `lupa` to version 2.7 or higher.\n## References\n- [GitHub Advisory](https://github.com/scoder/lupa/security/advisories/GHSA-69v7-xpr6-6gjm)\n- [GitHub Commit](https://github.com/scoder/lupa/commit/220b449ef8252fe5ec08bcd4757b44112b66a0a9)\n\n\n### Reference\n- [Snyk advisory](https://security.snyk.io/vuln/SNYK-PYTHON-LUPA-15954200)",
   "type": "sub-task",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -13,10 +13,17 @@
     "snyk"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "2d40ec27-c241-4d46-a68c-b1734e12a731",
+      "author": "derek.norrbom",
+      "text": "Resolved: upgraded lupa constraint to >=2.7 in pyproject and regenerated poetry.lock; high-threshold Snyk scan no longer reports this advisory.",
+      "created_at": "2026-04-14T18:28:20.533967Z"
+    }
+  ],
   "created_at": "2026-04-14T17:12:28.833478Z",
-  "updated_at": "2026-04-14T17:12:28.833478Z",
-  "closed_at": null,
+  "updated_at": "2026-04-14T18:28:28.949561Z",
+  "closed_at": "2026-04-14T18:28:28.949561Z",
   "custom": {
     "snyk_key": "SNYK-PYTHON-LUPA-15954200",
     "snyk_severity": "high",
