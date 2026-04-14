@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "dc43bc3c-8eec-41d7-aa72-a620f36ca73f",
+  "issue_id": "tcts-7b50eb33-0ed1-4e4f-937d-de201b5b9fb7",
+  "event_type": "issue_created",
+  "occurred_at": "2026-04-13T23:16:41.184Z",
+  "actor_id": "ryan",
+  "payload": {
+    "assignee": null,
+    "description": "Recover Tactus Release workflow failures on run 24369458395 (black formatting + rcql quality finding py/unused-local-variable).",
+    "issue_type": "bug",
+    "labels": [],
+    "parent": "tcts-8dbdce66-f645-40af-8d7b-f6664829eef3",
+    "priority": 1,
+    "status": "open",
+    "title": "Fix develop Release CI failures from 2026-04-13 runs"
+  }
+}
