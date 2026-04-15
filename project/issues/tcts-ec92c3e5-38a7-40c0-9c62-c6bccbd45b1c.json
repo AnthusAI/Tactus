@@ -3,7 +3,7 @@
   "title": "Fix ClassifyProcedure dropping explanation when model returns nested output payload",
   "description": "ClassifyProcedure sometimes receives model output as {output: <text>} instead of {response: <text>}, causing output validation warnings, retries, and empty explanation fields despite successful classification. Implement a canonical extraction path in stdlib classifier to normalize structured model output and preserve explanation deterministically.",
   "type": "bug",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -28,10 +28,16 @@
       "author": "derek",
       "text": "Applied strict contract changes in code: llm_backend now returns result={response=<text>} (not raw string), removed model-layer output auto-wrap compatibility path, and classify.llm now parses/derives explanation only from structured response.",
       "created_at": "2026-04-15T21:15:36.564898838Z"
+    },
+    {
+      "id": "fc170ee5-8cf9-405f-871d-6ca39a05ce25",
+      "author": "derek",
+      "text": "Implemented and shipped via PR #55: strict structured LLM output contract for ClassifyProcedure path, explanation extraction aligned, tests updated/passing, PR opened to develop and release PR opened develop->main (#56).",
+      "created_at": "2026-04-15T22:36:49.873392479Z"
     }
   ],
   "created_at": "2026-04-15T21:08:02.088587942Z",
-  "updated_at": "2026-04-15T21:15:36.564898838Z",
-  "closed_at": null,
+  "updated_at": "2026-04-15T22:36:49.884032029Z",
+  "closed_at": "2026-04-15T22:36:49.884032029Z",
   "custom": {}
 }
