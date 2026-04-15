@@ -2,8 +2,7 @@
 LLM model backend for inference using language models.
 
 This backend uses an Agent internally to handle LLM interactions.
-It returns the raw completion text; callers (e.g. LLMClassifier) are
-responsible for parsing the class value out of the response.
+It returns structured output that matches the stdlib LLM model schema.
 """
 
 import json
@@ -99,7 +98,7 @@ class LLMModelBackend:
         Returns:
             Dict with prediction result, cost, and usage stats:
             {
-                "result": <parsed output>,
+                "result": {"response": <raw text>},
                 "cost": {"total": 0.001, "input": 0.0005, "output": 0.0005},
                 "usage": {"input_tokens": 100, "output_tokens": 50, "total_tokens": 150}
             }
@@ -123,7 +122,7 @@ class LLMModelBackend:
         self._update_stats(agent_result)
 
         return {
-            "result": response_text,
+            "result": {"response": response_text},
             "cost": agent_result.cost_stats.model_dump(),
             "usage": agent_result.usage.model_dump(),
         }

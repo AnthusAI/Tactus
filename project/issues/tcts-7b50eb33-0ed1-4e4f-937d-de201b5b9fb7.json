@@ -1,0 +1,67 @@
+{
+  "id": "tcts-7b50eb33-0ed1-4e4f-937d-de201b5b9fb7",
+  "title": "Fix develop Release CI failures from 2026-04-13 runs",
+  "description": "Recover Tactus Release workflow failures on run 24369458395 (black formatting + rcql quality finding py/unused-local-variable).",
+  "type": "bug",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-8dbdce66-f645-40af-8d7b-f6664829eef3",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "66d53cea-bb9d-4e83-8c47-880bf045ee7f",
+      "author": "ryan",
+      "text": "Initial triage complete. Failing run: 24369458395 (and PR run 24369460667). Root causes: (1) black --check fails on 7 files, (2) rcql standard-findings reports one warning: py/unused-local-variable at tactus/core/dsl_stubs.py:2367 (unused reassignment of classes).",
+      "created_at": "2026-04-13T23:16:48.660360Z"
+    },
+    {
+      "id": "6b0a363f-3196-4769-8012-0a98ef6e131a",
+      "author": "ryan",
+      "text": "Progress: Implemented CI remediation for run 24369458395 / PR #52. Changes made: removed dead local-variable assignment in tactus/core/dsl_stubs.py that triggered py/unused-local-variable; applied Black formatting to the 7 files flagged by release CI. Local validation: black --check tactus/ tests/ features/steps/ passed; uvx --from run-codeql rcql --mode standard-findings -v --limit 50 now reports 0 matched findings across actions/javascript-typescript/python. Next: commit + push develop and confirm GitHub Release checks green.",
+      "created_at": "2026-04-13T23:24:00.646092Z"
+    },
+    {
+      "id": "20577adf-17ea-443e-a8c1-c68d40043ce0",
+      "author": "ryan",
+      "text": "Progress update: pushed commit f66dc143 to develop.\n\nRoot causes fixed:\n- Logging test side effect in tests/cli/test_app_helpers.py left tactus logger in propagate=false state and suppressed caplog across later tests.\n- MCP adapter wrapper tests were stale after switch to **kwargs tool signatures and agent-level success recording.\n- LLM backend tests expected removed JSON parsing/retry behavior.\n- Agent/model primitive edge cases needed guardrails (missing last_call, missing context.log_handler).\n- classify.spec LLM mocks did not match new suffixed model names (stdlib_classify_llm_N).\n\nValidation run locally:\n- black --check tactus/ tests/ features/steps/ \u2705\n- rcql --mode standard-findings -v --limit 50 \u2705 (0 findings)\n- previously failing test cluster \u2705 (467 passed)\n- classify.spec BDD \u2705\n\nAwaiting GitHub Actions Release run on develop for final close.",
+      "created_at": "2026-04-13T23:46:56.794824Z"
+    },
+    {
+      "id": "bb01555a-f913-4708-8068-3c233d6784fa",
+      "author": "ryan",
+      "text": "Follow-up fix pushed: 25890430 on develop.\n\nNew CI signal from run 24372836080 showed logging-capture assertions failing again across unrelated modules. Root cause was an additional setup_logging test file () mutating global logging state without restoring it.\n\nAction taken: added autouse logging-state restore fixture to tests/cli/test_cli_logging.py (same isolation pattern as test_app_helpers).\n\nLocal verification:\n- pytest tests/cli/test_cli_logging.py + representative previously failing caplog tests \u2705\n- black --check for updated files \u2705\n\nWaiting for new Release runs on develop and PR #52.",
+      "created_at": "2026-04-13T23:55:45.011581Z"
+    },
+    {
+      "id": "90565a1a-c515-4c6b-b85f-fdaf46210908",
+      "author": "ryan",
+      "text": "Follow-up fix pushed: 25890430 on develop.\n\nNew CI signal from run 24372836080 showed logging-capture assertions failing again across unrelated modules. Root cause was an additional setup_logging test file (tests/cli/test_cli_logging.py) mutating global logging state without restoring it.\n\nAction taken: added an autouse logging-state restore fixture to tests/cli/test_cli_logging.py (same isolation pattern as test_app_helpers).\n\nLocal verification:\n- pytest for test_cli_logging plus representative caplog tests passed\n- black --check for updated files passed\n\nWaiting for new Release runs on develop and PR #52.",
+      "created_at": "2026-04-13T23:55:49.574378Z"
+    },
+    {
+      "id": "005a2f0b-898e-489a-aa6a-08b16ee8d1ec",
+      "author": "ryan",
+      "text": "Second follow-up fix pushed: adfce4f6 on develop.\n\nThe previous run still showed logging-capture flakes in many modules. To eliminate cross-file leakage comprehensively, I added an autouse fixture in tests/conftest.py that snapshots and restores tactus/root logger handlers, levels, and propagate flags around every test.\n\nThis makes caplog assertions deterministic regardless of test ordering.\n\nLocal validation:\n- targeted cluster of all previously failing caplog tests passed\n- black --check on touched files passed",
+      "created_at": "2026-04-14T00:04:46.631468Z"
+    },
+    {
+      "id": "8842156c-dda1-4065-b33f-0ddcf8b4dd11",
+      "author": "ryan",
+      "text": "Third follow-up fix pushed: a02b709f on develop.\n\nPR run 24373445594 failed only on Python 3.10 for tests/dspy/test_agent_execution.py::TestTurns::test_turn_with_streaming_exception_group. Root cause: agent error unwrapping only recognized class name ExceptionGroup; Python 3.10 path emits BaseExceptionGroup.\n\nAction taken: broadened unwrap condition to class names ending with ExceptionGroup so both ExceptionGroup and BaseExceptionGroup are normalized consistently.\n\nValidation:\n- targeted exception-group test passed locally\n- black formatting re-run on touched file",
+      "created_at": "2026-04-14T00:12:29.382803Z"
+    },
+    {
+      "id": "8515648d-db8a-493a-b7c0-d1bf3427026d",
+      "author": "ryan",
+      "text": "Final verification complete:\n- Release push run 24373687356 (develop @ a02b709f) = SUCCESS\n- Release PR run 24373688480 (PR #52) = SUCCESS\n- VSCode Extension CI run 24373688410 = SUCCESS\n- PR #52 check suite is green\n\nClosing issue.",
+      "created_at": "2026-04-14T00:25:24.147476Z"
+    }
+  ],
+  "created_at": "2026-04-13T23:16:41.183912Z",
+  "updated_at": "2026-04-14T00:25:24.576084Z",
+  "closed_at": "2026-04-14T00:25:24.576084Z",
+  "custom": {}
+}
