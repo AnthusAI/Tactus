@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "4e957d5d-d117-4c9f-b714-7461056b1c6f",
+  "issue_id": "tcts-ec92c3e5-38a7-40c0-9c62-c6bccbd45b1c",
+  "event_type": "issue_created",
+  "occurred_at": "2026-04-15T21:08:02.088Z",
+  "actor_id": "derek",
+  "payload": {
+    "assignee": null,
+    "description": "ClassifyProcedure sometimes receives model output as {output: <text>} instead of {response: <text>}, causing output validation warnings, retries, and empty explanation fields despite successful classification. Implement a canonical extraction path in stdlib classifier to normalize structured model output and preserve explanation deterministically.",
+    "issue_type": "bug",
+    "labels": [],
+    "parent": null,
+    "priority": 1,
+    "status": "open",
+    "title": "Fix ClassifyProcedure dropping explanation when model returns nested output payload"
+  }
+}
