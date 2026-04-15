@@ -1,0 +1,30 @@
+{
+  "id": "tcts-e9440747-1ad9-4895-bf6c-fcf500b78f39",
+  "title": "[Snyk Code] Path Traversal",
+  "description": "## Path Traversal\n\n**Severity:** high\n**Project:** `AnthusAI/Tactus`\n**File:** `tactus/ide/server.py`\n**Location:** line 1244, column 29 to line 1244, column 38\n**Classes:** CWE-CWE-23\n### Snippet (tactus/ide/server.py:1242-1246)\n```\n1242 |                         events_file = events_dir / f\"{run_id}.json\"\n1243 |                         with open(events_file, \"w\") as f:\n1244 |                             json.dump(consolidated_events, f, indent=2)\n1245 |                     except Exception as e:\n1246 |                         logger.error(\n```\n\n**Issue Key:** cfd77dbc-bb8a-4d62-b2cb-06684ff6f3e8\n\n### Details\nPath Traversal\n\n**Fix:** Review and remediate in code.",
+  "type": "sub-task",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-a8688de4-69e7-4dfa-b19e-cea54c9d8ac6",
+  "labels": [
+    "security",
+    "snyk"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-04-14T17:12:28.830225Z",
+  "updated_at": "2026-04-14T17:12:28.830225Z",
+  "closed_at": null,
+  "custom": {
+    "snyk_column": 29,
+    "snyk_end_column": 38,
+    "snyk_end_line": 1244,
+    "snyk_file": "tactus/ide/server.py",
+    "snyk_key": "cfd77dbc-bb8a-4d62-b2cb-06684ff6f3e8",
+    "snyk_line": 1244,
+    "snyk_severity": "high",
+    "snyk_type": "code"
+  }
+}

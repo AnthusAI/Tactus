@@ -110,3 +110,8 @@ type_colors:
   story: yellow
   chore: green
   event: bright_blue
+
+snyk:
+  org_id: dbec85a8-d7a0-482a-b5c4-eb609a451b53
+  min_severity: high
+  repo: AnthusAI/Tactus

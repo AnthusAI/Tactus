@@ -43,7 +43,7 @@ class TestLLMModelBackend:
 
         result = backend.predict_sync({"text": "I love this!"})
 
-        assert result["result"] == '{"label": "positive", "confidence": 0.95}'
+        assert result["result"] == {"response": '{"label": "positive", "confidence": 0.95}'}
         assert result["usage"]["prompt_tokens"] == 10
         assert result["usage"]["completion_tokens"] == 20
         assert result["cost"]["total_cost"] == 0.0003
@@ -68,10 +68,9 @@ class TestLLMModelBackend:
 
         result = backend.predict_sync({"text": "Great!"})
 
-        assert (
-            result["result"]
-            == '{"label": "positive"} This is because the text expresses happiness.'
-        )
+        assert result["result"] == {
+            "response": '{"label": "positive"} This is because the text expresses happiness.'
+        }
 
     def test_llm_backend_parse_direction_end(self):
         """Test LLM backend parses from end for chain-of-thought."""
@@ -93,10 +92,9 @@ class TestLLMModelBackend:
 
         result = backend.predict_sync({"text": "Amazing!"})
 
-        assert (
-            result["result"]
-            == 'Let me analyze this text. The sentiment is clearly positive. {"label": "positive"}'
-        )
+        assert result["result"] == {
+            "response": 'Let me analyze this text. The sentiment is clearly positive. {"label": "positive"}'
+        }
 
     def test_llm_backend_retry_on_invalid_response(self):
         """Test LLM backend returns raw response text without JSON retries/parsing."""
@@ -122,7 +120,7 @@ class TestLLMModelBackend:
 
         result = backend.predict_sync({"text": "Good"})
 
-        assert result["result"] == "Not JSON at all"
+        assert result["result"] == {"response": "Not JSON at all"}
         assert backend._agent.call_count == 1
 
     def test_llm_backend_fails_after_max_retries(self):
@@ -143,7 +141,7 @@ class TestLLMModelBackend:
         backend._agent = MagicMock(return_value=invalid_result)
         result = backend.predict_sync({"text": "Test"})
 
-        assert result["result"] == "Not JSON"
+        assert result["result"] == {"response": "Not JSON"}
         assert backend._agent.call_count == 1
 
     def test_llm_backend_cost_tracking(self):
@@ -290,7 +288,7 @@ class TestModelPrimitiveLLMBackend:
         backend._agent.assert_called_once()
         call_args = backend._agent.call_args[0][0]
         assert call_args["message"] == "Hello world"
-        assert result["result"] == '{"label": "positive"}'
+        assert result["result"] == {"response": '{"label": "positive"}'}
 
     def test_llm_backend_string_output_from_agent(self):
         """Test LLM backend when agent_result.output is string instead of dict."""
@@ -309,7 +307,7 @@ class TestModelPrimitiveLLMBackend:
 
         result = backend.predict_sync({"text": "Bad product"})
 
-        assert result["result"] == '{"label": "negative"}'
+        assert result["result"] == {"response": '{"label": "negative"}'}
 
     def test_llm_backend_parse_error_start_no_json(self):
         """Test LLM backend returns raw text when no JSON is present."""
@@ -329,7 +327,7 @@ class TestModelPrimitiveLLMBackend:
         backend._agent = MagicMock(return_value=mock_result)
         result = backend.predict_sync({"text": "Test"})
 
-        assert result["result"] == "This text does not start with JSON"
+        assert result["result"] == {"response": "This text does not start with JSON"}
 
     def test_llm_backend_parse_error_start_invalid_json(self):
         """Test LLM backend returns raw text when JSON-looking content is invalid."""
@@ -349,7 +347,7 @@ class TestModelPrimitiveLLMBackend:
         backend._agent = MagicMock(return_value=mock_result)
         result = backend.predict_sync({"text": "Test"})
 
-        assert result["result"] == "{invalid json here}"
+        assert result["result"] == {"response": "{invalid json here}"}
 
     def test_llm_backend_parse_error_end_no_json(self):
         """Test LLM backend returns raw text when response does not end with JSON."""
@@ -369,7 +367,7 @@ class TestModelPrimitiveLLMBackend:
         backend._agent = MagicMock(return_value=mock_result)
         result = backend.predict_sync({"text": "Test"})
 
-        assert result["result"] == "This text does not end with JSON at all"
+        assert result["result"] == {"response": "This text does not end with JSON at all"}
 
     def test_llm_backend_parse_error_end_invalid_json(self):
         """Test LLM backend returns raw text for invalid JSON fragments."""
@@ -389,7 +387,7 @@ class TestModelPrimitiveLLMBackend:
         backend._agent = MagicMock(return_value=mock_result)
         result = backend.predict_sync({"text": "Test"})
 
-        assert result["result"] == "Some reasoning text {invalid json here}"
+        assert result["result"] == {"response": "Some reasoning text {invalid json here}"}
 
     def test_llm_backend_agent_exception_propagates(self):
         """Test that exceptions from agent propagate correctly."""

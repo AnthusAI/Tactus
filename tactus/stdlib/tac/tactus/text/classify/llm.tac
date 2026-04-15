@@ -4,7 +4,7 @@
 -- - Retry logic for invalid responses
 -- - Multiple class support
 -- - Configurable confidence modes
--- - Response parsing with fallbacks
+-- - Response parsing from structured model output
 
 -- Load dependencies
 local base = require("tactus.text.classify.base")
@@ -122,6 +122,42 @@ function LLMClassifier:classify(input_text)
         return nil
     end
 
+    local function derive_explanation(raw_text, class_value)
+        if type(raw_text) ~= "string" then
+            return nil
+        end
+
+        local trimmed = raw_text:gsub("^%s+", ""):gsub("%s+$", "")
+        if trimmed == "" then
+            return nil
+        end
+
+        local lines = {}
+        for line in (trimmed .. "\n"):gmatch("([^\n]*)\n") do
+            local l = line:gsub("^%s+", ""):gsub("%s+$", "")
+            if l ~= "" then
+                table.insert(lines, l)
+            end
+        end
+
+        if #lines == 0 then
+            return nil
+        end
+
+        local last_line = lines[#lines]:gsub("[%*\"'`]", "")
+        local last_lower = last_line:lower()
+        local class_lower = class_value and tostring(class_value):lower() or nil
+        if class_lower ~= nil and last_lower == class_lower then
+            table.remove(lines, #lines)
+        end
+
+        if #lines == 0 then
+            return nil
+        end
+
+        return table.concat(lines, "\n")
+    end
+
     local last_output = nil
     for attempt = 1, self.max_retries + 1 do
         local result = self.model({text = input_text})
@@ -147,10 +183,6 @@ function LLMClassifier:classify(input_text)
                 value = self:parse_response(response_text)
             end
         end
-        if value == nil and type(output) == "string" then
-            value = self:parse_response(output)
-        end
-
         local canonical = nil
         if value ~= nil then
             canonical = valid_lower[tostring(value):lower()]
@@ -169,6 +201,10 @@ function LLMClassifier:classify(input_text)
                 response.confidence = 0.8
             end
             local expl = safe_get(output, "explanation")
+            if expl == nil then
+                local response_text = safe_get(output, "response")
+                expl = derive_explanation(response_text, canonical)
+            end
             if expl ~= nil then
                 response.explanation = expl
             end

@@ -1,0 +1,24 @@
+{
+  "id": "tcts-61e7db3d-a647-479a-9b51-aa87c9173e7c",
+  "title": "tactus-vscode/client/package.json",
+  "description": "Snyk vulnerabilities found in `tactus-vscode/client/package.json`.",
+  "type": "task",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-306dcfa1-0409-4997-829b-edb4ec4a359c",
+  "labels": [
+    "security",
+    "snyk"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-04-14T17:12:28.834355Z",
+  "updated_at": "2026-04-14T17:12:28.834355Z",
+  "closed_at": null,
+  "custom": {
+    "snyk_category": "dependency",
+    "snyk_target_file": "tactus-vscode/client/package.json"
+  }
+}

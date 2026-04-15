@@ -1,0 +1,24 @@
+{
+  "id": "tcts-e034e004-c1af-4c28-b2b1-e64a3b81f141",
+  "title": "tactus-ide/backend/requirements.txt",
+  "description": "Snyk vulnerabilities found in `tactus-ide/backend/requirements.txt`.",
+  "type": "task",
+  "status": "open",
+  "priority": 0,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-306dcfa1-0409-4997-829b-edb4ec4a359c",
+  "labels": [
+    "security",
+    "snyk"
+  ],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-04-14T17:12:28.833554Z",
+  "updated_at": "2026-04-14T17:12:28.833554Z",
+  "closed_at": null,
+  "custom": {
+    "snyk_category": "dependency",
+    "snyk_target_file": "tactus-ide/backend/requirements.txt"
+  }
+}
