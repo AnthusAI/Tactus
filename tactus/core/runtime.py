@@ -852,6 +852,42 @@ class TactusRuntime:
                 _storage.state_set(_proc_id, key, value)
 
         self.state_primitive = StatePrimitive(state_schema=state_schema, on_set=_on_set)
+
+        # Pre-populate state from storage backend if available.
+        # This allows continuation detection: Lua code can call State.get("iterations")
+        # and find the prior accumulated state from a previous run.
+        # We bypass on_set here (direct dict access) to avoid re-persisting unchanged values.
+        # Python lists/dicts must be converted to Lua tables so that Lua's type() check
+        # returns "table" and length operator # works correctly.
+        if self.storage_backend and self.procedure_id:
+            try:
+                existing_metadata = self.storage_backend.load_procedure_metadata(self.procedure_id)
+                if existing_metadata and existing_metadata.state:
+
+                    def _to_lua_value(value: Any) -> Any:
+                        """Recursively convert Python list/dict to Lua table."""
+                        if isinstance(value, list):
+                            lua_table = self.lua_sandbox.lua.table()
+                            for _i, _item in enumerate(value, 1):
+                                lua_table[_i] = _to_lua_value(_item)
+                            return lua_table
+                        elif isinstance(value, dict):
+                            lua_table = self.lua_sandbox.lua.table()
+                            for _k, _v in value.items():
+                                lua_table[_k] = _to_lua_value(_v)
+                            return lua_table
+                        return value
+
+                    for _state_key, _state_value in existing_metadata.state.items():
+                        self.state_primitive._state_values[_state_key] = _to_lua_value(_state_value)
+                    logger.info(
+                        "Preloaded %d state keys from storage backend for procedure %s",
+                        len(existing_metadata.state),
+                        self.procedure_id,
+                    )
+            except Exception as _preload_err:
+                logger.warning("Could not preload state from storage backend: %s", _preload_err)
+
         self.iterations_primitive = IterationsPrimitive()
         self.stop_primitive = StopPrimitive()
 
