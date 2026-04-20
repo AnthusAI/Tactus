@@ -1,0 +1,18 @@
+{
+  "id": "tcts-9916e7f0-28e6-4046-a3b2-a16c20b1897f",
+  "title": "State preload for continuation detection",
+  "description": "",
+  "type": "epic",
+  "status": "in_progress",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-04-20T17:11:10.779476Z",
+  "updated_at": "2026-04-20T17:11:15.727777Z",
+  "closed_at": null,
+  "custom": {}
+}
