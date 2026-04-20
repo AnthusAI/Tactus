@@ -861,10 +861,9 @@ class TactusRuntime:
         # returns "table" and length operator # works correctly.
         if self.storage_backend and self.procedure_id:
             try:
-                existing_metadata = self.storage_backend.load_procedure_metadata(
-                    self.procedure_id
-                )
+                existing_metadata = self.storage_backend.load_procedure_metadata(self.procedure_id)
                 if existing_metadata and existing_metadata.state:
+
                     def _to_lua_value(value: Any) -> Any:
                         """Recursively convert Python list/dict to Lua table."""
                         if isinstance(value, list):
@@ -880,18 +879,14 @@ class TactusRuntime:
                         return value
 
                     for _state_key, _state_value in existing_metadata.state.items():
-                        self.state_primitive._state_values[_state_key] = (
-                            _to_lua_value(_state_value)
-                        )
+                        self.state_primitive._state_values[_state_key] = _to_lua_value(_state_value)
                     logger.info(
                         "Preloaded %d state keys from storage backend for procedure %s",
                         len(existing_metadata.state),
                         self.procedure_id,
                     )
             except Exception as _preload_err:
-                logger.warning(
-                    "Could not preload state from storage backend: %s", _preload_err
-                )
+                logger.warning("Could not preload state from storage backend: %s", _preload_err)
 
         self.iterations_primitive = IterationsPrimitive()
         self.stop_primitive = StopPrimitive()
