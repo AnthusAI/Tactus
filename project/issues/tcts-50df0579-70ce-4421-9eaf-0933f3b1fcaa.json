@@ -16,10 +16,16 @@
       "author": "ryan",
       "text": "Landing runtime state-preload change from local workspace: preload persisted procedure state into State primitive during runtime setup to support continuation detection and State.get-based branching in Lua procedures. Will validate with focused runtime tests and full CI via PR.",
       "created_at": "2026-04-20T17:11:20.616538Z"
+    },
+    {
+      "id": "c61e7b95-d0b8-472a-ac91-97e471ae77e6",
+      "author": "ryan",
+      "text": "Initial PR #58 CI failed on black --check for tactus/core/runtime.py. Applied black formatting in commit 0bfb845f and pushed; awaiting rerun.",
+      "created_at": "2026-04-20T17:14:29.283439Z"
     }
   ],
   "created_at": "2026-04-20T17:11:15.714659Z",
-  "updated_at": "2026-04-20T17:11:20.616538Z",
+  "updated_at": "2026-04-20T17:14:29.283439Z",
   "closed_at": null,
   "custom": {}
 }
