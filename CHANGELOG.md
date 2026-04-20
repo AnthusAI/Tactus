@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.46.1 (2026-04-15)
+
+### Chores
+
+- **pm**: Record final kanbus closure artifacts for tcts-ec92c3
+  ([`000c154`](https://github.com/AnthusAI/Tactus/commit/000c1543086db011e310281d6f2324b6af8eda90))
+
+
 ## v0.46.0 (2026-04-14)
 
 ### Bug Fixes
