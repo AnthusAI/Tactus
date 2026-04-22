@@ -3,7 +3,7 @@
   "title": "Address py/incomplete-ordering findings in vendored biplist paths",
   "description": "",
   "type": "bug",
-  "status": "open",
+  "status": "closed",
   "priority": 3,
   "assignee": null,
   "creator": null,
@@ -16,10 +16,16 @@
       "author": "derek.norrbom",
       "text": "Triage: finding points to vendored third-party file under tactus-desktop/node_modules/dmg-builder/vendor/biplist plus duplicated .codeql/db-python mirror path. Not patched yet; proposal is to reduce rcql noise by path scoping/exclusion rather than editing vendored upstream code directly.",
       "created_at": "2026-04-02T22:57:30.625356Z"
+    },
+    {
+      "id": "dccace19-8f73-4720-9a0e-8d402c7de07e",
+      "author": "derek.norrbom",
+      "text": "Closing from fresh verification: current local rcql Python scan reports 0 total findings (SARIF: .codeql/reports/python-code-quality.sarif), and GitHub Security Standard findings also report 0. Vendored biplist finding task is no longer active.",
+      "created_at": "2026-04-22T22:53:03.179036Z"
     }
   ],
   "created_at": "2026-04-02T22:53:24.415926Z",
-  "updated_at": "2026-04-02T22:57:30.625356Z",
-  "closed_at": null,
+  "updated_at": "2026-04-22T22:53:03.189630Z",
+  "closed_at": "2026-04-22T22:53:03.189630Z",
   "custom": {}
 }

@@ -3,7 +3,7 @@
   "title": "Improve rcql defaults for duplicate/codegen path noise in reports",
   "description": "",
   "type": "chore",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -16,10 +16,16 @@
       "author": "derek.norrbom",
       "text": "Next: evaluate rcql defaults/flags for this repo so report batches avoid duplicate .codeql/db mirror artifacts and optionally skip vendored node_modules paths for remediation-focused runs.",
       "created_at": "2026-04-02T22:57:30.767863Z"
+    },
+    {
+      "id": "079f9a08-f9fc-4f8d-92d1-dd9dec27c46b",
+      "author": "derek.norrbom",
+      "text": "Closing as complete/obsolete: duplicate/codegen noise mitigation is no longer blocking remediation since fresh rcql Python scan is now clean (0 findings).",
+      "created_at": "2026-04-22T22:53:03.227005Z"
     }
   ],
   "created_at": "2026-04-02T22:53:24.450909Z",
-  "updated_at": "2026-04-02T22:57:30.767863Z",
-  "closed_at": null,
+  "updated_at": "2026-04-22T22:53:03.239360Z",
+  "closed_at": "2026-04-22T22:53:03.239360Z",
   "custom": {}
 }
