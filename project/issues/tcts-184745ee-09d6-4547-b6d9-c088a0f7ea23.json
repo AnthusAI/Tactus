@@ -3,7 +3,7 @@
   "title": "Investigate and fix release workflow not publishing to PyPI",
   "description": "Release badge is failing and PyPI publication appears to have stopped since February. Investigate failing GitHub Actions release runs and reusable workflow behavior, identify root cause, and apply fix.",
   "type": "bug",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -28,10 +28,16 @@
       "author": "derek.norrbom",
       "text": "Findings update: Release badge failure on main is currently caused by desktop-builds windows checkout failing on invalid Windows path project/events/2026-02-23T22:37:19.414Z__70e6158e-1fcd-481a-b094-535ec0aa23b9.json (colon in filename). PyPI publication stopped after workflow migration to reusable semantic-release pipeline. Historical successful run 22379649490 on 2026-02-25 included explicit twine upload --skip-existing dist/* step. Current reusable workflow run 23662438326 on 2026-03-27 runs semantic-release publish successfully but does not emit upload logs and PyPI latest remains 0.44.1 while GitHub release reached v0.45.1. Likely regression is removal of explicit twine upload in migration commits 96bfae8b and 16b30d86.",
       "created_at": "2026-03-27T19:08:06.314706Z"
+    },
+    {
+      "id": "3ba441aa-7989-4cee-9908-301dac2499e4",
+      "author": "derek.norrbom",
+      "text": "Closing as complete: CI release workflow now successfully publishes to PyPI. Prior publish regression has been resolved and deployment is currently healthy.",
+      "created_at": "2026-04-22T22:55:54.707936Z"
     }
   ],
   "created_at": "2026-03-27T19:06:28.119280Z",
-  "updated_at": "2026-03-27T19:08:06.314706Z",
-  "closed_at": null,
+  "updated_at": "2026-04-22T22:55:54.719156Z",
+  "closed_at": "2026-04-22T22:55:54.719156Z",
   "custom": {}
 }
