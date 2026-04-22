@@ -3,7 +3,7 @@
   "title": "Fix griffe import break in tactus runtime dependency graph",
   "description": "Root cause: pydantic-ai import path expects python module 'griffe', but latest resolved griffe 2.x packaging in downstream installs does not provide importable module for current stack, causing runtime ModuleNotFoundError in Tactus and downstream Plexus tests. Implement upstream dependency fix in Tactus and validate by local install in Plexus.",
   "type": "task",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -86,10 +86,16 @@
       "author": "derek",
       "text": "Implemented Tactus migration to shared reusable semantic-release workflow in platform-ci. release job now calls AnthusAI/platform-ci/.github/workflows/semantic-release-reusable.yml@main with anthusbot and pypi secrets; desktop build job continues to gate on needs.release.outputs and consume tag/version outputs. Validated workflow YAML parse.",
       "created_at": "2026-03-19T17:08:45.023316086Z"
+    },
+    {
+      "id": "ced137f4-6788-4cf7-a2ab-d351f9a08278",
+      "author": "derek.norrbom",
+      "text": "Closing as complete: griffe import/runtime dependency break has been addressed and downstream validation passed.",
+      "created_at": "2026-04-22T22:59:31.798868Z"
     }
   ],
   "created_at": "2026-03-18T22:51:06.304250337Z",
-  "updated_at": "2026-03-19T17:08:45.023316086Z",
-  "closed_at": null,
+  "updated_at": "2026-04-22T22:59:31.810054Z",
+  "closed_at": "2026-04-22T22:59:31.810054Z",
   "custom": {}
 }

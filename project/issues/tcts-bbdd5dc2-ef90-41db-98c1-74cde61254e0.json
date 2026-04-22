@@ -3,7 +3,7 @@
   "title": "Automate GitHub ruleset sync as IaC",
   "description": "Add ruleset desired-state file and workflow to check drift on PR/feature branches and apply on main or manual dispatch using RULESET_ADMIN_TOKEN.",
   "type": "task",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -25,10 +25,16 @@
       "author": "derek.norrbom",
       "text": "Enhanced ruleset IaC sync to avoid hardcoded IDs: `scripts/sync-rulesets.sh` now resolves rulesets by desired `name` + `target`, updates when found, and creates missing rulesets in apply mode. Desired-state JSON no longer requires `id` (removed from `infra/github-rulesets/main-branch-protection.json`). Verified: `./scripts/sync-rulesets.sh check` reports in sync.",
       "created_at": "2026-03-13T22:31:22.505591Z"
+    },
+    {
+      "id": "2f931b8d-8f64-48e3-a746-b7028f352613",
+      "author": "derek.norrbom",
+      "text": "Closing as complete: GitHub ruleset sync automation is implemented and in use as IaC.",
+      "created_at": "2026-04-22T22:59:31.820228Z"
     }
   ],
   "created_at": "2026-03-13T22:27:53.942559Z",
-  "updated_at": "2026-03-13T22:31:22.505591Z",
-  "closed_at": null,
+  "updated_at": "2026-04-22T22:59:31.831041Z",
+  "closed_at": "2026-04-22T22:59:31.831041Z",
   "custom": {}
 }

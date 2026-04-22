@@ -3,7 +3,7 @@
   "title": "Harden GitHub Actions workflow permissions and pin external actions",
   "description": "Address CodeQL actions warnings by adding explicit GITHUB_TOKEN permissions to vscode-extension workflow and pinning external actions to immutable SHAs in vscode-extension and release workflows without changing behavior.",
   "type": "bug",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -22,10 +22,16 @@
       "author": "derek.norrbom",
       "text": "Implemented workflow hardening changes and validated with fresh rcql actions scan. Results: Total 0 warnings after changes. Updated files: .github/workflows/vscode-extension.yml and .github/workflows/release.yml.",
       "created_at": "2026-03-30T15:40:59.536362Z"
+    },
+    {
+      "id": "76113f07-cdf5-4f20-9af4-9c402756f43b",
+      "author": "derek.norrbom",
+      "text": "Closing as complete: Actions workflow hardening landed (permissions + pinned external actions) and validation scans are clean.",
+      "created_at": "2026-04-22T22:59:31.778084Z"
     }
   ],
   "created_at": "2026-03-30T15:40:15.125829Z",
-  "updated_at": "2026-03-30T15:40:59.536362Z",
-  "closed_at": null,
+  "updated_at": "2026-04-22T22:59:31.788680Z",
+  "closed_at": "2026-04-22T22:59:31.788680Z",
   "custom": {}
 }
