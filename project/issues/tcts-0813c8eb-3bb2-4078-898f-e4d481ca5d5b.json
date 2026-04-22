@@ -3,7 +3,7 @@
   "title": "Stabilize local test-ci.sh execution environment for Poetry/dev deps",
   "description": "",
   "type": "bug",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -22,10 +22,16 @@
       "author": "derek.norrbom",
       "text": "Additional gate observation during batch 2: behave --tags=-skip failed in current local env (31 features passed, 35 failed, 188 undefined steps) after dependency churn around pydantic-ai. Indicates local BDD environment drift; not tied to this import-hygiene code change set.",
       "created_at": "2026-04-02T23:23:05.522118Z"
+    },
+    {
+      "id": "5b370a2f-6e83-45f1-9042-16b41d802a4e",
+      "author": "derek.norrbom",
+      "text": "Closing as complete: root package has fully migrated to Poetry and this environment-stability concern is no longer active. We have been running with Poetry for weeks and CI quality gates are passing in normal workflows.",
+      "created_at": "2026-04-22T22:45:57.109056Z"
     }
   ],
   "created_at": "2026-04-02T23:05:24.964962Z",
-  "updated_at": "2026-04-02T23:23:05.522118Z",
-  "closed_at": null,
+  "updated_at": "2026-04-22T22:45:57.120324Z",
+  "closed_at": "2026-04-22T22:45:57.120324Z",
   "custom": {}
 }
