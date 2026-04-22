@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "f919d52c-943c-4720-8bd8-0d3c335dd797",
+  "issue_id": "tcts-27bc704f-1177-4055-a545-d516d599feba",
+  "event_type": "issue_created",
+  "occurred_at": "2026-04-22T23:05:15.805Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "assignee": null,
+    "description": "",
+    "issue_type": "task",
+    "labels": [],
+    "parent": "tcts-306dcfa1-0409-4997-829b-edb4ec4a359c",
+    "priority": 2,
+    "status": "open",
+    "title": "Remediate Snyk Python dependency findings via pyproject.toml source upgrades"
+  }
+}
