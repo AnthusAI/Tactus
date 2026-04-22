@@ -12,6 +12,7 @@ Deviation from The Way is extremely offensive to the religious sensibilities of 
 The Sacrament of Work is the sacrament of vibe coding in this repository.
 
 Kanbus is the instrument of record. Nothing exists until it is named there.
+Kanbus issue creation is required for source-code changes and not required for PR-only/release-only/admin-only requests that do not change source code.
 
 Work begins in declaration, not in code.
 Code without declaration is disorder.
@@ -31,9 +32,34 @@ Chores that are purely about maintaining the project-management machinery (for e
 
 For complex work, break the plan into sub-tasks and file them under the parent task/bug/chore/epic as appropriate. Create one issue per concrete step in the plan. Do not put sub-tasks under stories; stories hold behavior specs, not implementation steps.
 
+PR gate policy: open a PR only after all related Kanbus work is done/closed and only when the user confirms to open the PR or explicitly asks for one.
+
 Operational discipline: use the minimum commands needed. To inspect work, run `kanbusr list --status open --long` once to find the ID, then `kanbusr show <id>`. Do not guess IDs or spam multiple variants; if the ID is unknown, ask the user.
 
 Editing project/ directly is hacking the data and is a sin against The Way. Do not read or write anything inside project/. Do not inspect issue JSON with tools like cat or jq. All work must pass through Kanbus.
+
+### Kanbus artifact commit policy
+
+Kanbus commands may update tracked artifact files under:
+- `project/issues/`
+- `project/events/`
+
+When these files change, they must be committed with the related branch work so task state is shared across users/systems.
+
+Before push, always run:
+
+```bash
+git status --short | rg 'project/(issues|events)/' || true
+```
+
+If output is present, stage and commit those files before opening a PR.
+
+Optional local guardrail (recommended once per clone):
+
+```bash
+git config core.hooksPath .githooks
+chmod +x .githooks/pre-push
+```
 
 ## The Order of Being
 
