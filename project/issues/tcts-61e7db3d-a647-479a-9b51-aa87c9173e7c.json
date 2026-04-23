@@ -3,7 +3,7 @@
   "title": "tactus-vscode/client/package.json",
   "description": "Snyk vulnerabilities found in `tactus-vscode/client/package.json`.",
   "type": "task",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -13,10 +13,23 @@
     "snyk"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "1cc89276-5d3d-4c8c-b5e7-024c831fb17d",
+      "author": "derek.norrbom",
+      "text": "Starting remediation for tactus-vscode/client/package.json. Plan: run Snyk for this manifest, upgrade parent dependencies to pull fixed minimatch/brace-expansion transitives, refresh lockfile, then re-test and close child findings.",
+      "created_at": "2026-04-23T22:41:04.087595Z"
+    },
+    {
+      "id": "a13ac5c6-b404-4754-b2c4-7dedec1b80dc",
+      "author": "derek.norrbom",
+      "text": "Remediation complete for tactus-vscode/client/package.json. Applied parent-level upgrade vscode-languageclient ^9.0.1 -> ^9.0.2-next.1, refreshed package-lock, validated TypeScript compile (client tsconfig), and verified with Snyk (low threshold) showing 0 vulnerable paths.",
+      "created_at": "2026-04-23T22:42:00.334827Z"
+    }
+  ],
   "created_at": "2026-04-14T17:12:28.834355Z",
-  "updated_at": "2026-04-14T17:12:28.834355Z",
-  "closed_at": null,
+  "updated_at": "2026-04-23T22:42:00.345637Z",
+  "closed_at": "2026-04-23T22:42:00.345637Z",
   "custom": {
     "snyk_category": "dependency",
     "snyk_target_file": "tactus-vscode/client/package.json"
