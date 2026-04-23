@@ -3,7 +3,7 @@
   "title": "[Snyk] SNYK-PYTHON-FLASKCORS-9668954 in flask-cors@5.0.0",
   "description": "## SNYK-PYTHON-FLASKCORS-9668954\n\n**Severity:** high\n**Package:** flask-cors@5.0.0\n**File:** `tactus-ide/backend/requirements.txt`\n\n### CVEs\n- [CVE-2024-6866](https://nvd.nist.gov/vuln/detail/CVE-2024-6866)\n\n**Fix:** Pin `flask-cors` to a patched version.\n\n### Reference\n- [Snyk advisory](https://security.snyk.io/vuln/SNYK-PYTHON-FLASKCORS-9668954)",
   "type": "sub-task",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -13,10 +13,17 @@
     "snyk"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "dccd8ac1-2f7d-4ca8-aec4-ece58488cae3",
+      "author": "derek.norrbom",
+      "text": "Closing as remediated/obsolete: fresh Snyk verification on tactus-ide/backend/requirements.txt (full dependency resolution in isolated venv) reports no high/critical findings and no vulnerable paths.",
+      "created_at": "2026-04-23T22:26:51.458200Z"
+    }
+  ],
   "created_at": "2026-04-14T17:12:28.833935Z",
-  "updated_at": "2026-04-14T17:12:28.833935Z",
-  "closed_at": null,
+  "updated_at": "2026-04-23T22:26:51.470053Z",
+  "closed_at": "2026-04-23T22:26:51.470053Z",
   "custom": {
     "snyk_key": "SNYK-PYTHON-FLASKCORS-9668954",
     "snyk_severity": "high",

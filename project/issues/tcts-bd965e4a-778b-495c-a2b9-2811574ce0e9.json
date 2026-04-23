@@ -3,7 +3,7 @@
   "title": "[Snyk] SNYK-PYTHON-PYTHONSOCKETIO-13450297 in python-socketio@5.11.0",
   "description": "## SNYK-PYTHON-PYTHONSOCKETIO-13450297\n\n**Severity:** high\n**Package:** python-socketio@5.11.0\n**File:** `tactus-ide/backend/requirements.txt`\n\n### CVEs\n- [CVE-2025-61765](https://nvd.nist.gov/vuln/detail/CVE-2025-61765)\n\n**Fix:** Pin `python-socketio` to a patched version.\n\n### Reference\n- [Snyk advisory](https://security.snyk.io/vuln/SNYK-PYTHON-PYTHONSOCKETIO-13450297)",
   "type": "sub-task",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -13,10 +13,17 @@
     "snyk"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "1debe320-60ca-4367-92ee-680f3ca9fa95",
+      "author": "derek.norrbom",
+      "text": "Closing as remediated/obsolete: fresh Snyk verification on tactus-ide/backend/requirements.txt (full dependency resolution in isolated venv) reports no high/critical findings and no vulnerable paths.",
+      "created_at": "2026-04-23T22:26:51.480960Z"
+    }
+  ],
   "created_at": "2026-04-14T17:12:28.834054Z",
-  "updated_at": "2026-04-14T17:12:28.834054Z",
-  "closed_at": null,
+  "updated_at": "2026-04-23T22:26:51.492250Z",
+  "closed_at": "2026-04-23T22:26:51.492250Z",
   "custom": {
     "snyk_key": "SNYK-PYTHON-PYTHONSOCKETIO-13450297",
     "snyk_severity": "high",

@@ -3,7 +3,7 @@
   "title": "tactus-ide/frontend/package.json",
   "description": "Snyk vulnerabilities found in `tactus-ide/frontend/package.json`.",
   "type": "task",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -13,10 +13,23 @@
     "snyk"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "1da61ee7-5aec-4866-937d-29ed6f749fd2",
+      "author": "derek.norrbom",
+      "text": "Starting remediation for tactus-ide/frontend/package.json with parent-first strategy. I will run Snyk, identify the parent dependency introducing socket.io-parser, upgrade parent package(s), refresh lockfile, and verify clean scan before closing.",
+      "created_at": "2026-04-23T22:42:37.527053Z"
+    },
+    {
+      "id": "11520ca0-fc62-46b8-89a7-3769f3e979e5",
+      "author": "derek.norrbom",
+      "text": "Remediation complete for tactus-ide/frontend/package.json. Applied parent-first fix by refreshing lockfile under existing socket.io-client range so transitive socket.io-parser resolved to 4.2.6 (fixed). Verified with Snyk low-threshold scan: 0 vulnerable paths.",
+      "created_at": "2026-04-23T22:43:32.290873Z"
+    }
+  ],
   "created_at": "2026-04-14T17:12:28.834141Z",
-  "updated_at": "2026-04-14T17:12:28.834141Z",
-  "closed_at": null,
+  "updated_at": "2026-04-23T22:43:32.300917Z",
+  "closed_at": "2026-04-23T22:43:32.300917Z",
   "custom": {
     "snyk_category": "dependency",
     "snyk_target_file": "tactus-ide/frontend/package.json"
