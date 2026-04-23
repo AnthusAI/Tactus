@@ -3,7 +3,7 @@
   "title": "tactus-ide/backend/requirements.txt",
   "description": "Snyk vulnerabilities found in `tactus-ide/backend/requirements.txt`.",
   "type": "task",
-  "status": "open",
+  "status": "closed",
   "priority": 0,
   "assignee": null,
   "creator": null,
@@ -13,10 +13,23 @@
     "snyk"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "79075808-cb04-4d8c-abe2-cf218da3c3ad",
+      "author": "derek.norrbom",
+      "text": "Starting next dependency remediation pass on tactus-ide/backend/requirements.txt. Plan: run Snyk on this manifest, apply direct/source package upgrades for fixable findings (avoid transitive-only pins where possible), then re-test and close remediated child findings.",
+      "created_at": "2026-04-23T22:26:07.533279Z"
+    },
+    {
+      "id": "761077a9-b9d3-4b19-a451-00ee0c19d895",
+      "author": "derek.norrbom",
+      "text": "Verification complete: Snyk scan against tactus-ide/backend/requirements.txt in an isolated environment with full dependency installation tested 21 dependencies and found no vulnerable paths at high/critical threshold. Closing task and child findings.",
+      "created_at": "2026-04-23T22:26:54.220774Z"
+    }
+  ],
   "created_at": "2026-04-14T17:12:28.833554Z",
-  "updated_at": "2026-04-14T17:12:28.833554Z",
-  "closed_at": null,
+  "updated_at": "2026-04-23T22:26:54.230966Z",
+  "closed_at": "2026-04-23T22:26:54.230966Z",
   "custom": {
     "snyk_category": "dependency",
     "snyk_target_file": "tactus-ide/backend/requirements.txt"
