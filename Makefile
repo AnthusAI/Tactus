@@ -1,5 +1,5 @@
 .PHONY: help generate-parsers generate-python-parser generate-typescript-parser test-parsers clean-generated dev-ide test-examples test-examples-fast test-examples-parallel test-examples-bdd
-.PHONY: test-docker-sandbox
+.PHONY: test-docker-sandbox mcp-fixtures-install mcp-fixtures-smoke
 
 help:
 	@echo "Tactus Parser Generation and Testing"
@@ -20,6 +20,10 @@ help:
 	@echo ""
 	@echo "Docker Sandbox Testing:"
 	@echo "  test-docker-sandbox     - Run opt-in Docker sandbox smoke tests"
+	@echo ""
+	@echo "MCP Fixtures:"
+	@echo "  mcp-fixtures-install    - Install isolated MCP fixture dependencies"
+	@echo "  mcp-fixtures-smoke      - Verify isolated MCP fixture environment"
 	@echo ""
 	@echo "Requirements:"
 	@echo "  - Docker must be running (for parser generation)"
@@ -130,4 +134,10 @@ test-docker-sandbox:
 	@echo "Pre-req: tactus sandbox rebuild --force"
 	TACTUS_RUN_DOCKER_TESTS=1 python3 -m poetry run pytest -m docker -v --tb=short
 
+# Isolated MCP fixture dependency environment (separate from root lock)
+mcp-fixtures-install:
+	cd tools/mcp-fixtures && python3 -m poetry install
+
+mcp-fixtures-smoke: mcp-fixtures-install
+	cd tools/mcp-fixtures && python3 -m poetry run python -c "import fastmcp; print(fastmcp.__version__)"
 

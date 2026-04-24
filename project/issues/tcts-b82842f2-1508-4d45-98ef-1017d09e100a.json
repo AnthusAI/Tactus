@@ -73,10 +73,16 @@
       "author": "derek.norrbom",
       "text": "Medium-severity pass complete using parent-first upgrades in pyproject/lock: bumped direct dependency pypdf to >=6.10.2 in pyproject.toml and refreshed lock for pypdf, requests, and pygments (now pypdf 6.10.2, requests 2.33.1, pygments 2.20.0). Fresh Snyk low-threshold scan no longer reports medium findings; remaining issues are the known high blockers (litellm advisory with dotenv conflict and diskcache via dspy).",
       "created_at": "2026-04-23T22:38:17.341659Z"
+    },
+    {
+      "id": "892f64b9-111d-4795-ae40-46830edf25fd",
+      "author": "derek.norrbom",
+      "text": "Update after fastmcp isolation: root litellm upgrade is now unblocked and applied (1.83.0 -> 1.83.7). Fresh Snyk high scan now reports only no-patch findings: diskcache via dspy (tracked in tcts-2fadc6) and litellm arbitrary-code-injection advisory with no direct patch path. Keeping parent task blocked pending mitigation/risk-acceptance decision for no-patch issues.",
+      "created_at": "2026-04-24T16:16:25.787823Z"
     }
   ],
   "created_at": "2026-04-14T17:12:28.832621Z",
-  "updated_at": "2026-04-23T22:38:17.352262Z",
+  "updated_at": "2026-04-24T16:16:25.797928Z",
   "closed_at": null,
   "custom": {
     "snyk_category": "dependency",
