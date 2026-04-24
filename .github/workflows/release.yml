@@ -46,7 +46,6 @@ jobs:
         if: matrix.python-version == '3.12'
         run: |
           cd tools/mcp-fixtures
-          python -m poetry lock --no-update
           python -m poetry install
           python -m poetry run python -c "import fastmcp; print(fastmcp.__version__)"
 
