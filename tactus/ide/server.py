@@ -801,8 +801,6 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                     log_handler = IDELogHandler()
 
                     # Create storage backend
-                    from pathlib import Path as PathLib
-
                     storage_dir = str(_workspace_storage_dir())
                     storage_backend = FileStorage(storage_dir=storage_dir)
 
@@ -1260,8 +1258,6 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
 
                     # Save consolidated events to disk
                     try:
-                        from pathlib import Path as PathLib
-
                         events_dir = _workspace_storage_dir() / "events"
                         events_dir.mkdir(parents=True, exist_ok=True)
                         events_file = events_dir / f"{run_id}.json"
