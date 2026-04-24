@@ -1,0 +1,25 @@
+{
+  "id": "tcts-0bab5e86-3100-4e28-a961-4b9f445731d5",
+  "title": "Raise Biblicus minimum for max_exemplars compatibility",
+  "description": "",
+  "type": "chore",
+  "status": "in_progress",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "e540b717-eb82-448a-b314-786c4e358339",
+      "author": "derek",
+      "text": "Starting branch/PR workflow for Biblicus dependency floor update; will branch from develop, run targeted validation, push, and open PR to develop.",
+      "created_at": "2026-04-24T23:25:20.720843688Z"
+    }
+  ],
+  "created_at": "2026-04-24T23:25:14.583283245Z",
+  "updated_at": "2026-04-24T23:25:20.720843688Z",
+  "closed_at": null,
+  "custom": {}
+}
