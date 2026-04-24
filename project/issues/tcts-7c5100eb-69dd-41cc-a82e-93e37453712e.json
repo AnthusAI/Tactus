@@ -3,7 +3,7 @@
   "title": "[Snyk Code] Path Traversal",
   "description": "## Path Traversal\n\n**Severity:** high\n**Project:** `AnthusAI/Tactus`\n**File:** `tactus/ide/server.py`\n**Location:** line 2609, column 24 to line 2609, column 44\n**Classes:** CWE-CWE-23\n### Snippet (tactus/ide/server.py:2607-2611)\n```\n2607 |             file_path = Path(frontend_dist_dir) / path\n2608 |             if file_path.exists() and file_path.is_file():\n2609 |                 return app.send_static_file(path)\n2610 |             # Otherwise, serve index.html for client-side routing (unless it's an API call)\n2611 |             if not path.startswith(\"api/\"):\n```\n\n**Issue Key:** e9129a79-a8c2-4fe9-bc77-0a9f0101acba\n\n### Details\nPath Traversal\n\n**Fix:** Review and remediate in code.",
   "type": "sub-task",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -13,10 +13,17 @@
     "snyk"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "ed6d3349-7647-4a96-aca8-f5fe43bfabdd",
+      "author": "derek.norrbom",
+      "text": "Closing as remediated: fresh Snyk Code high-threshold scan now reports zero open issues in this repository.",
+      "created_at": "2026-04-24T15:56:07.684254Z"
+    }
+  ],
   "created_at": "2026-04-14T17:12:28.831437Z",
-  "updated_at": "2026-04-14T17:12:28.831437Z",
-  "closed_at": null,
+  "updated_at": "2026-04-24T15:56:07.695090Z",
+  "closed_at": "2026-04-24T15:56:07.695090Z",
   "custom": {
     "snyk_column": 24,
     "snyk_end_column": 44,

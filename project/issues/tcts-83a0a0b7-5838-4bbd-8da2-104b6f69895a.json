@@ -3,7 +3,7 @@
   "title": "[Snyk Code] Hardcoded Non-Cryptographic Secret",
   "description": "## Hardcoded Non-Cryptographic Secret\n\n**Severity:** high\n**Project:** `AnthusAI/Tactus`\n**File:** `features/steps/dspy_lm_steps.py`\n**Location:** line 320, column 42 to line 320, column 49\n**Classes:** CWE-CWE-547\n### Snippet (features/steps/dspy_lm_steps.py:318-322)\n```\n 318 | \n 319 |     try:\n 320 |         context.lm = configure_lm(model, api_key=\"test-key\")\n 321 |         # Force error for clearly invalid models\n 322 |         if \"invalid\" in model.lower() or \"/\" not in model:\n```\n\n**Issue Key:** 540878a2-bcb3-46f3-b082-111862fc2aa9\n\n### Details\nHardcoded Non-Cryptographic Secret\n\n**Fix:** Review and remediate in code.",
   "type": "sub-task",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -13,10 +13,17 @@
     "snyk"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "dd760653-e237-404d-a147-9a735de4c37e",
+      "author": "derek.norrbom",
+      "text": "Closing as remediated: fresh Snyk Code high-threshold scan now reports zero open issues in this repository.",
+      "created_at": "2026-04-24T15:56:07.708019Z"
+    }
+  ],
   "created_at": "2026-04-14T17:12:28.831282Z",
-  "updated_at": "2026-04-14T17:12:28.831282Z",
-  "closed_at": null,
+  "updated_at": "2026-04-24T15:56:07.721320Z",
+  "closed_at": "2026-04-24T15:56:07.721320Z",
   "custom": {
     "snyk_column": 42,
     "snyk_end_column": 49,

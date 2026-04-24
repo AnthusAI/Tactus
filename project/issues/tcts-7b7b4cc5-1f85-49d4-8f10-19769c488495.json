@@ -3,7 +3,7 @@
   "title": "[Snyk Code] Path Traversal",
   "description": "## Path Traversal\n\n**Severity:** high\n**Project:** `AnthusAI/Tactus`\n**File:** `tactus/ide/server.py`\n**Location:** line 788, column 37 to line 788, column 64\n**Classes:** CWE-CWE-23\n### Snippet (tactus/ide/server.py:786-790)\n```\n 786 | \n 787 |                     config_manager = ConfigManager()\n 788 |                     merged_config = config_manager.load_cascade(path)\n 789 |                     broker_mcp_servers = {}\n 790 |                     if hasattr(config_manager, \"load_host_mcp_servers\"):\n```\n\n**Issue Key:** 849b4a95-91fa-4326-8709-0f21c95d3b4e\n\n### Details\nPath Traversal\n\n**Fix:** Review and remediate in code.",
   "type": "sub-task",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -13,10 +13,17 @@
     "snyk"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "c549cd05-fa19-4935-b4fe-947419e13a63",
+      "author": "derek.norrbom",
+      "text": "Closing as remediated: fresh Snyk Code high-threshold scan now reports zero open issues in this repository.",
+      "created_at": "2026-04-24T15:56:07.659304Z"
+    }
+  ],
   "created_at": "2026-04-14T17:12:28.832106Z",
-  "updated_at": "2026-04-14T17:12:28.832106Z",
-  "closed_at": null,
+  "updated_at": "2026-04-24T15:56:07.670840Z",
+  "closed_at": "2026-04-24T15:56:07.670840Z",
   "custom": {
     "snyk_column": 37,
     "snyk_end_column": 64,
