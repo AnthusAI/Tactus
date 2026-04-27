@@ -3,7 +3,7 @@
   "title": "Align release reusable workflow inputs with hardened platform-ci contract",
   "description": "",
   "type": "chore",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -28,10 +28,16 @@
       "author": "derek.norrbom",
       "text": "Updated Tactus release workflow to strict semantic-release reusable contract: replaced install_command with semantic_release_requirement input.",
       "created_at": "2026-03-23T18:02:08.839302Z"
+    },
+    {
+      "id": "e53299dd-06f7-43d0-8c01-e95de2208bed",
+      "author": "derek.norrbom",
+      "text": "Closing as complete: release reusable workflow input alignment is finished and operating with the hardened platform-ci contract.",
+      "created_at": "2026-04-22T22:59:31.757225Z"
     }
   ],
   "created_at": "2026-03-23T18:01:26.167919Z",
-  "updated_at": "2026-03-23T18:02:08.839302Z",
-  "closed_at": null,
+  "updated_at": "2026-04-22T22:59:31.767711Z",
+  "closed_at": "2026-04-22T22:59:31.767711Z",
   "custom": {}
 }

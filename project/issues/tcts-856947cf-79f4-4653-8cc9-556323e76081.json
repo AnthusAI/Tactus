@@ -3,7 +3,7 @@
   "title": "Remediate rcql Python findings batch 2 (high-throughput)",
   "description": "",
   "type": "epic",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -106,10 +106,16 @@
       "author": "derek.norrbom",
       "text": "Chunk complete: resolved remaining first-party findings this pass (mcp call-to-non-callable, mixed-returns in first-party files, LuaLexerBase unused import, tool overridden-signature). Fresh rcql python scan now reports 9 warnings, all in generated validation files.",
       "created_at": "2026-04-03T17:21:02.851636Z"
+    },
+    {
+      "id": "ac9d516a-896e-4640-a804-a33c2a6792ac",
+      "author": "derek.norrbom",
+      "text": "Closing batch 2 as complete: high-throughput remediation landed and cumulative result is a clean rcql Python scan (0 findings).",
+      "created_at": "2026-04-22T22:53:03.270561Z"
     }
   ],
   "created_at": "2026-04-02T23:08:41.297987Z",
-  "updated_at": "2026-04-03T17:21:02.851636Z",
-  "closed_at": null,
+  "updated_at": "2026-04-22T22:53:03.281592Z",
+  "closed_at": "2026-04-22T22:53:03.281592Z",
   "custom": {}
 }

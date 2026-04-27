@@ -3,7 +3,7 @@
   "title": "Poetry migration for root package",
   "description": "Migrate root Python packaging to Poetry-compatible metadata and lockfile; update CI/docs and validate.",
   "type": "epic",
-  "status": "open",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -14,9 +14,16 @@
     "python"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "f302aade-80f0-46c9-ba8a-bd0346aab87c",
+      "author": "derek.norrbom",
+      "text": "Closing epic as complete: Poetry migration for the root package has landed and is operational (metadata/lockfile/workflows/docs aligned in active use).",
+      "created_at": "2026-04-22T22:45:57.130610Z"
+    }
+  ],
   "created_at": "2026-03-13T20:23:10.370368Z",
-  "updated_at": "2026-03-13T20:23:10.370368Z",
-  "closed_at": null,
+  "updated_at": "2026-04-22T22:45:57.142181Z",
+  "closed_at": "2026-04-22T22:45:57.142181Z",
   "custom": {}
 }

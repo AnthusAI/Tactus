@@ -3,7 +3,7 @@
   "title": "[Snyk] SNYK-JS-MINIMATCH-15353389 in minimatch@5.1.6",
   "description": "## Inefficient Algorithmic Complexity\n\n**Severity:** high\n**Package:** minimatch@5.1.6\n**File:** `tactus-vscode/client/package.json`\n\n**CVSS Score:** 8.7  \n**Exploit Maturity:** proof-of-concept  \n**Snyk Priority Score:** 542/1000\n\n### CVEs\n- [CVE-2026-27903](https://nvd.nist.gov/vuln/detail/CVE-2026-27903)\n\n**Fix:** Pin `minimatch` to version 3.1.3, 4.2.5, 5.1.8, 6.2.2, 7.4.8, 8.0.6, 9.0.7, 10.2.3 or later.\n\n### Details\n## Overview\n[minimatch](https://www.npmjs.com/package/minimatch) is a minimal matching utility.\n\nAffected versions of this package are vulnerable to Inefficient Algorithmic Complexity via the `matchOne` function. An attacker can cause significant delays in processing and stall the event loop by supplying specially crafted glob patterns containing multiple non-adjacent GLOBSTAR segments.\n## Remediation\nUpgrade `minimatch` to version 3.1.3, 4.2.5, 5.1.8, 6.2.2, 7.4.8, 8.0.6, 9.0.7, 10.2.3 or higher.\n## References\n- [GitHub Commit](https://github.com/isaacs/minimatch/commit/0bf499aa45f5059b56809cc3b75ff3eafeb8d748)\n\n\n### Reference\n- [Snyk advisory](https://security.snyk.io/vuln/SNYK-JS-MINIMATCH-15353389)",
   "type": "sub-task",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -13,10 +13,17 @@
     "snyk"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "315f5af8-ad50-43e0-b6ef-2b609498ab22",
+      "author": "derek.norrbom",
+      "text": "Closed via parent dependency upgrade: tactus-vscode/client now uses vscode-languageclient^9.0.2-next.1, which pulls minimatch from fixed major lines. Fresh Snyk scan for tactus-vscode/client/package.json reports no vulnerable paths.",
+      "created_at": "2026-04-23T22:42:00.293728Z"
+    }
+  ],
   "created_at": "2026-04-14T17:12:28.834550Z",
-  "updated_at": "2026-04-14T17:12:28.834550Z",
-  "closed_at": null,
+  "updated_at": "2026-04-23T22:42:00.304736Z",
+  "closed_at": "2026-04-23T22:42:00.304736Z",
   "custom": {
     "snyk_key": "SNYK-JS-MINIMATCH-15353389",
     "snyk_severity": "high",

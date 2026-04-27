@@ -1,13 +1,3 @@
-## Git Flow
-
-This project uses **Git Flow**. The `dev` branch is the integration branch for all feature work. **Never push directly to `main`.**
-
-- **Feature branches** branch from `dev` and merge back into `dev`.
-- **Release branches** branch from `dev` and merge into both `main` and `dev`.
-- **Hotfix branches** branch from `main` and merge into both `main` and `dev`.
-
-When Cursor Cloud assigns you a feature branch (e.g. `cursor/some-task-xxxx`), it should be based on `dev`, not `main`.
-
 ## Project management with Kanbus
 
 Use Kanbus for task management.
@@ -16,10 +6,19 @@ When: Create/update the Kanbus task before coding; close it only after the chang
 How: See CONTRIBUTING_AGENT.md for the Kanbus workflow, hierarchy, status rules, priorities, command examples, and the sins to avoid. Never inspect project/ or issue JSON directly (including with cat or jq); use Kanbus commands only.
 Performance: Prefer kanbusr (Rust) when available; kanbus (Python) is equivalent but slower.
 Warning: Editing project/ directly is a sin against The Way. Do not read or write anything in project/; work only through Kanbus.
+Artifact sync rule: If Kanbus operations create or update files under `project/issues/` or `project/events/`, stage and commit those artifact files in the same branch before opening a PR.
 
-## Landing the Plane (Session Completion)
+## SOP compliance
 
-**When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
+** When completing an epic/milestone/task/feature/fix, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds AND the CI passes in GitHub, which you need to check with `gh`.  Set a timer and wait for it to finish, and if it's not done yet then wait longer.  Iterate on fixing the problem until CI passes in GitHub Actions.
+
+## Git Flow policy (mandatory)
+
+- This repository uses git-flow. Do not commit directly to `develop` or `main`.
+- Start every change on a dedicated branch from `develop` (for example `feature/...`, `bugfix/...`, or `chore/...`).
+- Commit and push only to that branch, then open a PR into `develop` only when all related Kanbus tasks are `done`/`closed` and the user confirms to open a PR (or explicitly requests a PR).
+- Only merge to `main` via PR from `develop` after required checks pass.
+- If you accidentally commit to `develop` or `main`, stop and ask before applying any history rewrite or revert strategy.
 
 **MANDATORY WORKFLOW:**
 

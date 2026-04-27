@@ -37,10 +37,46 @@
       "author": "derek.norrbom",
       "text": "High-severity remediation pass complete. Fixed and closed: aiohttp advisories (2), lupa, litellm advisories (2), dspy, and pypdf. Current Snyk high-threshold result for pyproject lock: 1 remaining issue (diskcache@5.6.3 via dspy@3.1.3) with no available upgrade/patch; child tcts-2fadc6 moved to blocked pending mitigation or risk-acceptance decision.",
       "created_at": "2026-04-14T18:34:28.091912Z"
+    },
+    {
+      "id": "f9b93a8c-3db3-4bed-b1fd-83e85b2dcdf5",
+      "author": "derek.norrbom",
+      "text": "Continuing work on this canonical task. Next step: resolve remaining open/blocked high-severity child findings from previous pass, prioritizing source upgrades over transitive pins.",
+      "created_at": "2026-04-22T23:05:49.898266Z"
+    },
+    {
+      "id": "b6d737e8-e83e-422a-93ab-20b9cf44b8d8",
+      "author": "derek.norrbom",
+      "text": "Current pyproject remediation status: all prior critical/high findings are resolved except diskcache via dspy. Applied source constraint hardening to keep dspy on latest compatible line with litellm security baseline: dspy>=3.1.3,<3.2.0. Verified with poetry lock and targeted DSPy tests (tests/dspy/test_config.py: 10 passed). Remaining blocker is child tcts-2fadc6 with no available upstream fix.",
+      "created_at": "2026-04-22T23:07:38.403107Z"
+    },
+    {
+      "id": "7226f619-950b-49cf-ac8e-0e0f27b20993",
+      "author": "derek.norrbom",
+      "text": "Fresh Snyk CLI verification (poetry lock, high threshold) now reports 4 high issues: litellm@1.83.0 (one fixable via 1.83.7 + one no-patch advisory), mako@1.3.10 (fixable via 1.3.11), and diskcache@5.6.3 (no fix). Starting remediation pass for the fixable items first (litellm and mako) via source/dependency upgrades and lock regeneration, then re-testing.",
+      "created_at": "2026-04-22T23:08:25.434371Z"
+    },
+    {
+      "id": "223dc4fe-5a75-4954-8677-6c693ceb69c8",
+      "author": "derek.norrbom",
+      "text": "Validation update: Snyk high scan after lock refresh now shows 3 remaining issues (down from 4); mako advisory cleared via lock update to mako 1.3.11. Remaining blockers are litellm advisories and diskcache. litellm fixable advisory recommends >=1.83.7, but all current fixed litellm builds pin python-dotenv==1.0.1 while fastmcp (including latest 3.2.4) requires python-dotenv>=1.1.0, so resolver cannot satisfy both in current dependency model.",
+      "created_at": "2026-04-22T23:10:31.585534Z"
+    },
+    {
+      "id": "45abbf6d-74bb-49b1-b53a-34f9e8b7bd1d",
+      "author": "derek.norrbom",
+      "text": "Starting medium-severity remediation pass for pyproject.toml with a parent-first strategy: upgrade direct dependencies where possible (no new transitive pins), refresh poetry.lock, and re-run Snyk at low threshold.",
+      "created_at": "2026-04-23T22:37:13.382318Z"
+    },
+    {
+      "id": "eba94798-3a30-4f25-b4f1-22e4c22b8ba2",
+      "author": "derek.norrbom",
+      "text": "Medium-severity pass complete using parent-first upgrades in pyproject/lock: bumped direct dependency pypdf to >=6.10.2 in pyproject.toml and refreshed lock for pypdf, requests, and pygments (now pypdf 6.10.2, requests 2.33.1, pygments 2.20.0). Fresh Snyk low-threshold scan no longer reports medium findings; remaining issues are the known high blockers (litellm advisory with dotenv conflict and diskcache via dspy).",
+      "created_at": "2026-04-23T22:38:17.341659Z"
     }
   ],
   "created_at": "2026-04-14T17:12:28.832621Z",
-  "updated_at": "2026-04-14T18:34:30.498885Z",
+  "updated_at": "2026-04-23T22:38:17.352262Z",
   "closed_at": null,
   "custom": {
     "snyk_category": "dependency",

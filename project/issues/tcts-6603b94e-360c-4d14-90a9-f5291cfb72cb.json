@@ -3,7 +3,7 @@
   "title": "Remediate rcql Python findings batch 1",
   "description": "",
   "type": "epic",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 2,
   "assignee": null,
   "creator": null,
@@ -22,10 +22,16 @@
       "author": "derek.norrbom",
       "text": "Batch update: fixed and closed 3 py/missing-call-to-init bugs (tcts-b4426c, tcts-ba41d3, tcts-4a8619). Fresh rcql python report now matched=386 (down from 390). Remaining open: vendored biplist findings (tcts-9e3d16, tcts-70e842) and rcql noise-reduction chore (tcts-925e1d). Quality gates: ruff pass, black pass, behave --tags=-skip pass, test-ci.sh currently fails in this environment with many dependency/plugin issues.",
       "created_at": "2026-04-02T23:05:23.167392Z"
+    },
+    {
+      "id": "9944f754-77fd-42ea-bf1a-59f90338e6e0",
+      "author": "derek.norrbom",
+      "text": "Closing batch 1 as complete: all tracked findings for this batch are now resolved or no longer present; fresh rcql Python scan reports 0 total findings.",
+      "created_at": "2026-04-22T22:53:03.250040Z"
     }
   ],
   "created_at": "2026-04-02T22:53:13.494872Z",
-  "updated_at": "2026-04-02T23:05:23.167392Z",
-  "closed_at": null,
+  "updated_at": "2026-04-22T22:53:03.260344Z",
+  "closed_at": "2026-04-22T22:53:03.260344Z",
   "custom": {}
 }
