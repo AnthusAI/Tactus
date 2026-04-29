@@ -22,6 +22,7 @@ import random
 import threading
 import time
 import uuid
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 import dspy
@@ -41,6 +42,14 @@ from tactus.core.message_history_manager import MessageHistoryManager
 from tactus.utils.asyncio_helpers import clear_closed_event_loop
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_MAX_TOOL_FOLLOWUP_ROUNDS = 16
+
+
+@dataclass(frozen=True)
+class ToolExecutionOutcome:
+    had_tool_calls: bool = False
+    terminal_done_called: bool = False
 
 
 def _tool_call_name_and_args(tc: Any) -> tuple[Any, Any]:
@@ -239,6 +248,10 @@ class DSPyAgentHandle:
         response_config = kwargs.get("response") or {}
         self.response_retries = int(response_config.get("retries", 0) or 0)
         self.response_retry_delay = float(response_config.get("retry_delay", 0.0) or 0.0)
+        self.max_tool_followup_rounds = int(
+            kwargs.get("max_tool_followup_rounds", DEFAULT_MAX_TOOL_FOLLOWUP_ROUNDS)
+            or DEFAULT_MAX_TOOL_FOLLOWUP_ROUNDS
+        )
 
         # First-class Agent retry configuration (preferred over response.retries).
         #
@@ -985,7 +998,7 @@ class DSPyAgentHandle:
         tool_primitive = getattr(self, "_tool_primitive", None)
         if not tool_primitive:
             return
-        clean_tool_name = tool_name.replace(f"{self.name}_", "")
+        clean_tool_name = self._normalize_tool_name(tool_name)
         try:
             tool_primitive.record_call(
                 clean_tool_name,
@@ -996,16 +1009,27 @@ class DSPyAgentHandle:
         except Exception:
             logger.debug("Failed to record tool execution for '%s'", clean_tool_name, exc_info=True)
 
+    def _normalize_tool_name(self, tool_name: Any) -> str:
+        name = str(tool_name or "")
+        prefix = f"{self.name}_"
+        if name.startswith(prefix):
+            return name[len(prefix) :]
+        return name
+
+    def _is_terminal_done_tool(self, tool_name: Any) -> bool:
+        return self._normalize_tool_name(tool_name) == "done"
+
     def _execute_assistant_tool_calls(
         self,
         assistant_msg: Dict[str, Any],
         new_messages: List[Dict[str, Any]],
-    ) -> bool:
+    ) -> ToolExecutionOutcome:
         """Execute tool calls from an assistant message and append tool messages to history."""
         tool_calls = assistant_msg.get("tool_calls") or []
         if not tool_calls:
-            return False
+            return ToolExecutionOutcome()
 
+        terminal_done_called = False
         for tc in tool_calls:
             tool_name = tc["function"]["name"]
             tool_args_str = tc["function"]["arguments"]
@@ -1016,6 +1040,7 @@ class DSPyAgentHandle:
 
             tool_result = self._execute_tool(tool_name, tool_args)
             self._record_tool_execution(tool_name, tool_args, tool_result)
+            terminal_done_called = terminal_done_called or self._is_terminal_done_tool(tool_name)
 
             tool_result_str = (
                 json.dumps(tool_result) if isinstance(tool_result, dict) else str(tool_result)
@@ -1028,8 +1053,13 @@ class DSPyAgentHandle:
             }
             new_messages.append(tool_result_msg)
             self._history.add(tool_result_msg)
+            if terminal_done_called:
+                break
 
-        return True
+        return ToolExecutionOutcome(
+            had_tool_calls=True,
+            terminal_done_called=terminal_done_called,
+        )
 
     @staticmethod
     def _is_usable_assistant_text(text: Any) -> bool:
@@ -1173,6 +1203,7 @@ class DSPyAgentHandle:
 
         current_prompt_context = prompt_context
         forced_synthesis = False
+        tool_followup_rounds = 0
         while True:
             try:
                 dspy_result = _stream_once(current_prompt_context)
@@ -1196,8 +1227,16 @@ class DSPyAgentHandle:
             new_messages.append(assistant_msg)
             self._history.add(assistant_msg)
 
-            had_tool_calls = self._execute_assistant_tool_calls(assistant_msg, new_messages)
-            if had_tool_calls:
+            tool_outcome = self._execute_assistant_tool_calls(assistant_msg, new_messages)
+            if tool_outcome.had_tool_calls:
+                if tool_outcome.terminal_done_called:
+                    break
+                tool_followup_rounds += 1
+                if tool_followup_rounds > self.max_tool_followup_rounds:
+                    raise RuntimeError(
+                        f"Agent '{self.name}' exceeded max tool follow-up rounds "
+                        f"({self.max_tool_followup_rounds}) without producing a final response"
+                    )
                 current_prompt_context = self._tool_followup_prompt_context(prompt_context)
                 continue
 
@@ -1289,6 +1328,7 @@ class DSPyAgentHandle:
 
         current_prompt_context = prompt_context
         forced_synthesis = False
+        tool_followup_rounds = 0
         while True:
             dspy_result = self._module.module(**current_prompt_context)
             if os.environ.get("PLEXUS_DEBUG_LLM"):
@@ -1303,8 +1343,16 @@ class DSPyAgentHandle:
             new_messages.append(assistant_msg)
             self._history.add(assistant_msg)
 
-            had_tool_calls = self._execute_assistant_tool_calls(assistant_msg, new_messages)
-            if had_tool_calls:
+            tool_outcome = self._execute_assistant_tool_calls(assistant_msg, new_messages)
+            if tool_outcome.had_tool_calls:
+                if tool_outcome.terminal_done_called:
+                    break
+                tool_followup_rounds += 1
+                if tool_followup_rounds > self.max_tool_followup_rounds:
+                    raise RuntimeError(
+                        f"Agent '{self.name}' exceeded max tool follow-up rounds "
+                        f"({self.max_tool_followup_rounds}) without producing a final response"
+                    )
                 current_prompt_context = self._tool_followup_prompt_context(prompt_context)
                 continue
 

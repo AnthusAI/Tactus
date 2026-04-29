@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "c0ef5c3c-370b-42b5-bf20-83f97dbca628",
+  "issue_id": "tcts-374b7763-fc81-434f-8672-09e217aed2a3",
+  "event_type": "issue_created",
+  "occurred_at": "2026-04-29T04:18:14.502Z",
+  "actor_id": "ryan",
+  "payload": {
+    "assignee": null,
+    "description": "Release CI is hanging in pytest because the DSPy agent tool loop keeps re-invoking terminal done tool calls. Fix terminal done detection for done/agent_done, add a loop cap for repeated non-terminal tools, and add regression tests.",
+    "issue_type": "bug",
+    "labels": [],
+    "parent": null,
+    "priority": 0,
+    "status": "open",
+    "title": "Fix DSPy tool loop terminal done handling"
+  }
+}
