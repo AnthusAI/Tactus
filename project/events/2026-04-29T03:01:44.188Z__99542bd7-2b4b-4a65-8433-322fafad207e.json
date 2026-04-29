@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "99542bd7-2b4b-4a65-8433-322fafad207e",
+  "issue_id": "tcts-95c70987-7f96-4be2-86e7-d0ba514f0fba",
+  "event_type": "issue_created",
+  "occurred_at": "2026-04-29T03:01:44.188Z",
+  "actor_id": "ryan",
+  "payload": {
+    "title": "Fix DSPy agent multi-tool turn loop",
+    "description": "Feature: Agent tool loops finalize from tool results\n\nScenario: An agent calls a tool and then answers\nGiven a DSPy agent receives a user turn that requires a tool\nWhen the model returns a tool call and then receives the tool result\nThen Tactus calls the model again with updated history\nAnd the final assistant answer can use the tool result\n\nScenario: An agent chains tools before answering\nGiven a DSPy agent needs multiple tool calls in one user turn\nWhen the model returns more tool calls after a tool result\nThen Tactus continues the tool loop\nAnd stops only when the model returns a normal assistant answer\n\nScenario: A terminal turn has no text\nGiven the model returns no further tool calls and no usable assistant text\nWhen Tactus detects the missing final answer\nThen it performs one explicit final synthesis call from the current history.",
+    "issue_type": "bug",
+    "status": "open",
+    "priority": 1,
+    "assignee": null,
+    "parent": null,
+    "labels": []
+  }
+}

@@ -45,6 +45,12 @@ class DummyToolPrimitive:
     def record_call(self, tool_name, tool_args, tool_result, agent_name=None):
         self.calls.append((tool_name, tool_args, tool_result, agent_name))
 
+    def last_call(self, tool_name):
+        for call in reversed(self.calls):
+            if call[0] == tool_name:
+                return call
+        return None
+
 
 class DummyToolCalls:
     def __init__(self, tool_calls):
@@ -446,12 +452,16 @@ class TestCostEvents:
 class TestTurns:
     def test_turn_without_streaming_records_done_tool(self, monkeypatch):
         class DummyModule:
+            calls = 0
+
             def __call__(self, **_kw):
+                self.calls += 1
                 tool_calls = DummyToolCalls([{"name": "done", "args": {"reason": "ok"}}])
                 return dspy.Prediction(response="ok", tool_calls=tool_calls)
 
+        module = DummyModule()
         agent = _make_agent(monkeypatch)
-        agent._module = types.SimpleNamespace(module=DummyModule())
+        agent._module = types.SimpleNamespace(module=module)
         agent._tool_primitive = DummyToolPrimitive()
         agent._turn_count = 1
 
@@ -463,16 +473,55 @@ class TestTurns:
         )
 
         assert result.output == "ok"
+        assert module.calls == 1
         assert agent._tool_primitive.calls[0][0] == "done"
+
+    def test_turn_without_streaming_done_skips_later_tools(self, monkeypatch):
+        class DummyModule:
+            def __call__(self, **_kw):
+                tool_calls = DummyToolCalls(
+                    [
+                        {"name": "done", "args": {"reason": "ok"}},
+                        {"name": "lookup", "args": {"id": 1}},
+                    ]
+                )
+                return dspy.Prediction(response="ok", tool_calls=tool_calls)
+
+        executed_tools = []
+        agent = _make_agent(monkeypatch)
+        agent._module = types.SimpleNamespace(module=DummyModule())
+        agent._tool_primitive = DummyToolPrimitive()
+        agent._turn_count = 1
+
+        def execute_tool(name, args):
+            executed_tools.append((name, args))
+            return {"status": "ok"}
+
+        monkeypatch.setattr(agent, "_execute_tool", execute_tool)
+        monkeypatch.setattr(agent, "_extract_last_call_stats", lambda: (UsageStats(), CostStats()))
+        monkeypatch.setattr(agent, "_emit_cost_event", lambda: None)
+
+        result = agent._turn_without_streaming(
+            {"message": "hi"}, {"history": [], "system_prompt": "", "user_message": "hi"}
+        )
+
+        assert result.output == "ok"
+        assert executed_tools == [("done", {"reason": "ok"})]
 
     def test_turn_without_streaming_initial_message(self, monkeypatch):
         class DummyModule:
-            def __call__(self, **_kw):
-                tool_calls = DummyToolCalls([{"name": "noop", "args": {"x": 1}}])
-                return dspy.Prediction(response="ok", tool_calls=tool_calls)
+            calls = 0
 
+            def __call__(self, **_kw):
+                self.calls += 1
+                if self.calls == 1:
+                    tool_calls = DummyToolCalls([{"name": "noop", "args": {"x": 1}}])
+                    return dspy.Prediction(response="ok", tool_calls=tool_calls)
+                return dspy.Prediction(response="ok")
+
+        module = DummyModule()
         agent = _make_agent(monkeypatch, initial_message="hello")
-        agent._module = types.SimpleNamespace(module=DummyModule())
+        agent._module = types.SimpleNamespace(module=module)
         agent._turn_count = 1
 
         monkeypatch.setattr(agent, "_extract_last_call_stats", lambda: (UsageStats(), CostStats()))
@@ -546,14 +595,17 @@ class TestTurns:
         agent._tool_primitive = DummyToolPrimitive()
         agent._turn_count = 1
 
+        stream_calls = {"count": 0}
         tool_calls = DummyToolCalls([types.SimpleNamespace(name="agent_tool", args={"x": 1})])
-        final_prediction = dspy.Prediction(response="done", tool_calls=tool_calls)
+        tool_prediction = dspy.Prediction(response="using tool", tool_calls=tool_calls)
+        final_prediction = dspy.Prediction(response="done")
 
         async def fake_stream():
+            stream_calls["count"] += 1
             yield DummyChunk("a")
             yield "b"
             yield 123
-            yield final_prediction
+            yield tool_prediction if stream_calls["count"] == 1 else final_prediction
 
         monkeypatch.setattr(dspy, "streamify", lambda _module: lambda **_kw: fake_stream())
         monkeypatch.setattr(
@@ -571,6 +623,59 @@ class TestTurns:
         assert any(isinstance(e, AgentTurnEvent) and e.stage == "completed" for e in handler.events)
         assert any(isinstance(e, AgentStreamChunkEvent) for e in handler.events)
         assert agent._tool_primitive.calls[0][0] == "tool"
+        assert stream_calls["count"] == 2
+
+    def test_turn_without_streaming_chained_tool_then_final_text(self, monkeypatch):
+        class DummyModule:
+            calls = 0
+
+            def __call__(self, **_kw):
+                self.calls += 1
+                if self.calls == 1:
+                    tool_calls = DummyToolCalls([{"name": "lookup", "args": {"id": 1}}])
+                    return dspy.Prediction(response="", tool_calls=tool_calls)
+                return dspy.Prediction(response="final answer")
+
+        module = DummyModule()
+        agent = _make_agent(monkeypatch)
+        agent._module = types.SimpleNamespace(module=module)
+        agent._tool_primitive = DummyToolPrimitive()
+        agent._turn_count = 1
+
+        monkeypatch.setattr(agent, "_execute_tool", lambda name, args: {"value": "tool result"})
+        monkeypatch.setattr(agent, "_extract_last_call_stats", lambda: (UsageStats(), CostStats()))
+        monkeypatch.setattr(agent, "_emit_cost_event", lambda: None)
+
+        result = agent._turn_without_streaming(
+            {"message": "hi"}, {"history": [], "system_prompt": "", "user_message": "hi"}
+        )
+
+        assert result.output == "final answer"
+        assert module.calls == 2
+        assert agent._tool_primitive.calls[0][0] == "lookup"
+
+    def test_turn_without_streaming_repeated_non_terminal_tools_hits_limit(self, monkeypatch):
+        class DummyModule:
+            calls = 0
+
+            def __call__(self, **_kw):
+                self.calls += 1
+                tool_calls = DummyToolCalls([{"name": "lookup", "args": {"id": self.calls}}])
+                return dspy.Prediction(response="", tool_calls=tool_calls)
+
+        module = DummyModule()
+        agent = _make_agent(monkeypatch, max_tool_followup_rounds=2)
+        agent._module = types.SimpleNamespace(module=module)
+        agent._turn_count = 1
+
+        monkeypatch.setattr(agent, "_execute_tool", lambda name, args: {"value": "again"})
+
+        with pytest.raises(RuntimeError, match="exceeded max tool follow-up rounds"):
+            agent._turn_without_streaming(
+                {"message": "hi"}, {"history": [], "system_prompt": "", "user_message": "hi"}
+            )
+
+        assert module.calls == 3
 
     def test_turn_with_streaming_fallback_on_no_result(self, monkeypatch):
         handler = DummyLogHandler()
@@ -889,6 +994,7 @@ class TestStreamingBranches:
         agent = _make_agent(monkeypatch, log_handler=handler)
         agent._tool_primitive = DummyToolPrimitive()
         agent._turn_count = 1
+        stream_calls = {"count": 0}
 
         tool_calls = DummyToolCalls(
             [types.SimpleNamespace(name="agent_done", args={"reason": "ok"})]
@@ -896,6 +1002,7 @@ class TestStreamingBranches:
         final_prediction = dspy.Prediction(response="done", tool_calls=tool_calls)
 
         async def fake_stream():
+            stream_calls["count"] += 1
             yield final_prediction
 
         monkeypatch.setattr(dspy, "streamify", lambda _module: lambda **_kw: fake_stream())
@@ -908,8 +1015,9 @@ class TestStreamingBranches:
         )
 
         assert result.output == "done"
+        assert stream_calls["count"] == 1
         assert agent._tool_primitive.calls[0][0] == "done"
-        assert agent._tool_primitive.calls[1][0] == "done"
+        assert len(agent._tool_primitive.calls) == 1
 
     def test_streaming_timeout_branch(self, monkeypatch):
         handler = DummyLogHandler()
@@ -961,11 +1069,14 @@ class TestStreamingBranches:
         agent = _make_agent(monkeypatch, log_handler=handler)
         agent._turn_count = 1
 
+        stream_calls = {"count": 0}
         tool_calls = DummyToolCalls([types.SimpleNamespace(name="agent_tool", args={})])
-        final_prediction = dspy.Prediction(response="ok", tool_calls=tool_calls)
+        tool_prediction = dspy.Prediction(response="ok", tool_calls=tool_calls)
+        final_prediction = dspy.Prediction(response="ok")
 
         async def fake_stream():
-            yield final_prediction
+            stream_calls["count"] += 1
+            yield tool_prediction if stream_calls["count"] == 1 else final_prediction
 
         monkeypatch.setattr(dspy, "streamify", lambda _module: lambda **_kw: fake_stream())
         monkeypatch.setattr(agent, "_execute_tool", lambda name, args: {"status": "ok"})
@@ -977,6 +1088,7 @@ class TestStreamingBranches:
         )
 
         assert result.output == "ok"
+        assert stream_calls["count"] == 2
 
     def test_streaming_empty_chunks(self, monkeypatch):
         handler = DummyLogHandler()

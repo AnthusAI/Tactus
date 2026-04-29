@@ -1,0 +1,31 @@
+{
+  "id": "tcts-95c70987-7f96-4be2-86e7-d0ba514f0fba",
+  "title": "Fix DSPy agent multi-tool turn loop",
+  "description": "Feature: Agent tool loops finalize from tool results\n\nScenario: An agent calls a tool and then answers\nGiven a DSPy agent receives a user turn that requires a tool\nWhen the model returns a tool call and then receives the tool result\nThen Tactus calls the model again with updated history\nAnd the final assistant answer can use the tool result\n\nScenario: An agent chains tools before answering\nGiven a DSPy agent needs multiple tool calls in one user turn\nWhen the model returns more tool calls after a tool result\nThen Tactus continues the tool loop\nAnd stops only when the model returns a normal assistant answer\n\nScenario: A terminal turn has no text\nGiven the model returns no further tool calls and no usable assistant text\nWhen Tactus detects the missing final answer\nThen it performs one explicit final synthesis call from the current history.",
+  "type": "bug",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "357fa1c6-7cbd-4746-a7f5-0aa840e9f37b",
+      "author": "ryan",
+      "text": "Implemented DSPy agent tool-loop fix locally: streaming and non-streaming turns now repeat model calls after tool execution using updated history and blank follow-up user input; forced synthesis is only used when a terminal cycle has no usable text. Live Plexus console smoke verified tool call plus final answer.",
+      "created_at": "2026-04-29T03:01:48.855153Z"
+    },
+    {
+      "id": "41959537-593d-4d58-9fcb-be87c9214246",
+      "author": "ryan",
+      "text": "Verification before commit: pytest tests/dspy/test_agent_tool_loop.py passed (6 tests); ruff check passed for tactus/dspy/agent.py and tests/dspy/test_agent_tool_loop.py; black --check passed for both files.",
+      "created_at": "2026-04-29T03:03:16.489513Z"
+    }
+  ],
+  "created_at": "2026-04-29T03:01:44.188176Z",
+  "updated_at": "2026-04-29T03:03:16.929071Z",
+  "closed_at": "2026-04-29T03:03:16.929071Z",
+  "custom": {}
+}

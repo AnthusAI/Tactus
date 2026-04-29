@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "ce943fa0-d4a6-47bc-98fd-5a952da4a5e6",
+  "issue_id": "tcts-50df0579-70ce-4421-9eaf-0933f3b1fcaa",
+  "event_type": "issue_created",
+  "occurred_at": "2026-04-20T17:11:15.714Z",
+  "actor_id": "ryan",
+  "payload": {
+    "assignee": null,
+    "description": "",
+    "issue_type": "bug",
+    "labels": [],
+    "parent": "tcts-9916e7f0-28e6-4046-a3b2-a16c20b1897f",
+    "priority": 1,
+    "status": "open",
+    "title": "Preload persisted state into runtime State primitive for continuation detection"
+  }
+}
