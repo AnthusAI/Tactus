@@ -268,13 +268,14 @@ class StdlibModuleLoader:
             if not name.startswith("_"):
                 items[name] = obj
 
-        for name, raw_obj in inspect.getmembers_static(type(module)):
-            if name.startswith("_") or name in items:
-                continue
-            if isinstance(raw_obj, property):
-                continue
-            if callable(raw_obj):
-                items[name] = getattr(module, name)
+        for cls in reversed(type(module).__mro__):
+            for name, raw_obj in getattr(cls, "__dict__", {}).items():
+                if name.startswith("_") or name in items:
+                    continue
+                if isinstance(raw_obj, property):
+                    continue
+                if callable(raw_obj) or isinstance(raw_obj, (staticmethod, classmethod)):
+                    items[name] = getattr(module, name)
 
         return list(items.items())
 
