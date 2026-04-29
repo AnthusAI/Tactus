@@ -38,8 +38,7 @@ def validate_python_module_name(name: str) -> None:
         raise ValueError("Host modules cannot use the reserved 'tactus.' namespace")
     if not HOST_MODULE_NAME_PATTERN.match(name):
         raise ValueError(
-            "Host module names must be dotted identifiers, e.g. 'plexus' or "
-            "'vendor.module'"
+            "Host module names must be dotted identifiers, e.g. 'plexus' or " "'vendor.module'"
         )
 
 
