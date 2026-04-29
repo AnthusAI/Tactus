@@ -1,9 +1,10 @@
 """
 Python stdlib module loader for Tactus.
 
-Provides a mechanism to load Python modules from tactus/stdlib/
-via Lua's require() function. Only modules with the "tactus." prefix
-can be loaded, ensuring user code cannot import arbitrary Python modules.
+Provides a mechanism to load Python modules from tactus/stdlib/ and
+host-registered Python modules via Lua's require() function. Only modules with
+the "tactus." prefix or explicit host registrations can be loaded, ensuring user
+code cannot import arbitrary Python modules.
 """
 
 import importlib.util
@@ -11,6 +12,7 @@ import inspect
 import logging
 import sys
 from pathlib import Path
+from types import ModuleType
 from typing import Any, Callable, Dict
 
 logger = logging.getLogger(__name__)
@@ -23,18 +25,30 @@ class StdlibModuleLoader:
     Security: Only loads from the stdlib path, never user directories.
     """
 
-    def __init__(self, lua_sandbox, base_path: str):
+    def __init__(
+        self,
+        lua_sandbox,
+        base_path: str,
+        host_modules: Dict[str, Any] | None = None,
+    ):
         """
         Initialize the stdlib loader.
 
         Args:
             lua_sandbox: LuaSandbox instance for table creation
             base_path: Base path for file operations (passed to modules)
+            host_modules: Explicit host-provided modules keyed by require() name.
         """
         self.lua_sandbox = lua_sandbox
         self.base_path = base_path
         self.stdlib_path = self._get_stdlib_path()
         self.loaded_modules: Dict[str, Any] = {}
+        self.host_modules: Dict[str, Any] = dict(host_modules or {})
+
+    def register_host_module(self, name: str, module: Any) -> None:
+        """Register a host-provided module object for Lua require()."""
+        self.host_modules[name] = module
+        self.loaded_modules.pop(name, None)
 
     def _get_stdlib_path(self) -> Path:
         """Get the stdlib directory path."""
@@ -45,7 +59,7 @@ class StdlibModuleLoader:
 
     def create_loader_function(self) -> Callable:
         """
-        Create the loader function to inject into Lua's package.loaders.
+        Create the stdlib loader function to inject into Lua's package.loaders.
 
         Returns:
             Python function that Lua can call as a module loader
@@ -61,7 +75,7 @@ class StdlibModuleLoader:
             Returns:
                 Lua table with module functions, or None if not found
             """
-            # Only handle tactus.* modules (stdlib)
+            # Only handle tactus.* modules from stdlib after host lookup.
             if not module_name.startswith("tactus."):
                 return None
 
@@ -91,6 +105,31 @@ class StdlibModuleLoader:
                 raise RuntimeError(f"Failed to load module '{module_name}': {e}")
 
         return python_stdlib_loader
+
+    def create_host_loader_function(self) -> Callable:
+        """Create a loader for explicit host modules.
+
+        This loader is intended to run before filesystem `.tac` searchers so a
+        host capability such as `require("plexus")` cannot be shadowed by a
+        local `plexus.tac` file.
+        """
+
+        def host_module_loader(module_name: str):
+            if module_name not in self.host_modules:
+                return None
+            return self._load_host_module(module_name, self.host_modules[module_name])
+
+        return host_module_loader
+
+    def _load_host_module(self, module_name: str, module: Any) -> Any:
+        """Convert an explicit host module object into a Lua module table."""
+        if module_name in self.loaded_modules:
+            return self.loaded_modules[module_name]
+
+        lua_table = self._create_lua_module_from_object(module)
+        self.loaded_modules[module_name] = lua_table
+        logger.debug(f"Loaded host Python module: {module_name}")
+        return lua_table
 
     def _load_python_module(self, module_name: str, path: Path) -> Any:
         """
@@ -191,6 +230,53 @@ class StdlibModuleLoader:
             lua_table[name] = wrapped
 
         return lua_table
+
+    def _create_lua_module_from_object(self, module: Any, *, _depth: int = 0) -> Any:
+        """Create a Lua module table from a host-provided Python object.
+
+        Host modules may be Python modules, dicts, or ordinary objects with
+        public callables / namespace attributes. Private attributes are skipped.
+        """
+        if _depth > 8:
+            raise RuntimeError("Host module nesting is too deep")
+
+        lua_table = self.lua_sandbox.lua.table()
+        for name, obj in self._host_module_items(module):
+            if not isinstance(name, str) or name.startswith("_"):
+                continue
+            if inspect.ismodule(obj) or inspect.isclass(obj):
+                continue
+            if callable(obj):
+                lua_table[name] = self._wrap_function(obj, name)
+            elif isinstance(obj, (str, int, float, bool, dict, list, tuple)) or obj is None:
+                lua_table[name] = self._python_to_lua(obj)
+            elif hasattr(obj, "__dict__"):
+                lua_table[name] = self._create_lua_module_from_object(obj, _depth=_depth + 1)
+
+        return lua_table
+
+    def _host_module_items(self, module: Any) -> list[tuple[str, Any]]:
+        """Return public host module members without evaluating object properties."""
+        if isinstance(module, dict):
+            return list(module.items())
+
+        if isinstance(module, ModuleType):
+            return [(name, getattr(module, name)) for name in dir(module)]
+
+        items: dict[str, Any] = {}
+        for name, obj in getattr(module, "__dict__", {}).items():
+            if not name.startswith("_"):
+                items[name] = obj
+
+        for name, raw_obj in inspect.getmembers_static(type(module)):
+            if name.startswith("_") or name in items:
+                continue
+            if isinstance(raw_obj, property):
+                continue
+            if callable(raw_obj):
+                items[name] = getattr(module, name)
+
+        return list(items.items())
 
     def _wrap_function(self, func: Callable, name: str) -> Callable:
         """

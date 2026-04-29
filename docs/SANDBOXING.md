@@ -53,6 +53,7 @@ Each layer addresses a different security concern:
 - **Restricted VM:** Lua procedures run in a sandboxed virtual machine
 - **Limited stdlib:** Only safe standard library functions are exposed
 - **Tool-mediated access:** All I/O operations must go through registered tools
+- **Host-registered modules:** Embedding applications may explicitly register Python-backed modules for `require()`
 - **No eval:** Dynamic code execution is disabled
 
 ## Example: Embeddable Safety
@@ -80,6 +81,49 @@ Lua sandboxing **cannot** protect against:
 - Agents consuming excessive memory or CPU
 
 For these threats, you need **OS-level sandboxing** (Docker or cloud).
+
+## Host-Registered Python Modules
+
+Embedding applications can expose application-specific capabilities to Lua
+without adding those capabilities to the Tactus standard library. Register the
+module on a runtime before execution:
+
+```python
+from tactus import TactusRuntime
+
+runtime = TactusRuntime(procedure_id="example")
+runtime.register_python_module("plexus", plexus_module)
+
+result = await runtime.execute(
+    """
+    local plexus = require("plexus")
+    local score = plexus.score.info({ id = "score_123" })
+    return { name = score.name }
+    """,
+    format="lua",
+)
+```
+
+Host modules are explicit capabilities:
+
+- Names must be dotted identifiers such as `plexus` or `vendor.analytics`.
+- The `tactus.*` namespace is reserved for the Tactus standard library.
+- Host modules are per-runtime and are not arbitrary Python imports.
+- Host modules resolve before local `.tac` files, so a local file cannot shadow
+  an explicit capability such as `require("plexus")`.
+- Tactus stdlib Python modules remain fallback behavior after `.tac` searchers,
+  preserving the existing Tactus-first loading order for `tactus.*`.
+- Re-registering a host module clears Lua's `require` cache for that name.
+
+Security guidance:
+
+- Treat every host module as a capability grant. Do not register broad objects
+  that expose filesystem, network, secrets, or process control unless that is
+  the intended capability.
+- Prefer narrow facade objects with explicit public methods.
+- Private attributes and dangerous Python attributes remain blocked by the Lua
+  sandbox attribute filter, but capability design is still the host
+  application's responsibility.
 
 ---
 

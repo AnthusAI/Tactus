@@ -2,7 +2,9 @@
 
 import json
 import pytest
+from tactus.adapters.memory import MemoryStorage
 from tactus.core.lua_sandbox import LuaSandbox
+from tactus.core.runtime import TactusRuntime
 
 
 class TestRequirePythonModule:
@@ -88,6 +90,27 @@ class TestRequirePythonModule:
         # Should load the .tac version
         result = sandbox.execute('local m = require("mymodule"); return m')
         assert result["type"] == "tac_module"
+
+    def test_host_module_preferred_over_local_tac_file(self, tmp_path):
+        """Test explicit host capabilities cannot be shadowed by local .tac files."""
+
+        (tmp_path / "plexus.tac").write_text("""
+            return {
+                source = "local_tac"
+            }
+        """)
+
+        sandbox = LuaSandbox(
+            base_path=str(tmp_path),
+            python_modules={"plexus": {"source": lambda: "host_module"}},
+        )
+
+        result = sandbox.execute("""
+            local plexus = require("plexus")
+            return plexus.source()
+        """)
+
+        assert result == "host_module"
 
     def test_exception_propagation(self, tmp_path):
         """Test that Python exceptions become Lua errors."""
@@ -200,3 +223,171 @@ class TestRequirePythonModule:
 
         assert data["message"] == "Hello"
         assert data["items"] == ["apple", "banana", "cherry"]
+
+    def test_require_host_registered_python_module(self, tmp_path):
+        """Test require('plexus') can resolve an explicit host module."""
+
+        class Scores:
+            def info(self, args):
+                return {
+                    "id": args["id"],
+                    "name": "Compliance Tone",
+                    "versions": ["v1", "v2"],
+                }
+
+        class Plexus:
+            def __init__(self):
+                self.score = Scores()
+
+            def ping(self):
+                return "pong"
+
+        sandbox = LuaSandbox(base_path=str(tmp_path), python_modules={"plexus": Plexus()})
+
+        result = sandbox.execute("""
+            local plexus = require("plexus")
+            local score = plexus.score.info({id = "score_1"})
+            return {
+                ping = plexus.ping(),
+                score_id = score.id,
+                score_name = score.name,
+                first_version = score.versions[1],
+                version_count = #score.versions
+            }
+        """)
+
+        assert result["ping"] == "pong"
+        assert result["score_id"] == "score_1"
+        assert result["score_name"] == "Compliance Tone"
+        assert result["first_version"] == "v1"
+        assert result["version_count"] == 2
+
+    def test_host_module_registration_does_not_evaluate_properties(self, tmp_path):
+        """Test host object properties are not evaluated while building the Lua module."""
+
+        class HostModule:
+            @property
+            def dangerous(self):
+                raise AssertionError("property should not be evaluated")
+
+            def safe(self):
+                return "ok"
+
+        sandbox = LuaSandbox(base_path=str(tmp_path), python_modules={"host": HostModule()})
+
+        result = sandbox.execute("""
+            local host = require("host")
+            return {
+                safe = host.safe(),
+                dangerous_is_nil = host.dangerous == nil
+            }
+        """)
+
+        assert result["safe"] == "ok"
+        assert result["dangerous_is_nil"] == True  # noqa: E712
+
+    def test_register_host_module_after_sandbox_creation(self, tmp_path):
+        """Test a host module can be registered after sandbox initialization."""
+
+        sandbox = LuaSandbox(base_path=str(tmp_path))
+        sandbox.register_python_module("host", {"answer": lambda: 42})
+
+        result = sandbox.execute("""
+            local host = require("host")
+            return host.answer()
+        """)
+
+        assert result == 42
+
+    def test_reregister_host_module_clears_lua_require_cache(self, tmp_path):
+        """Test re-registering a host module updates subsequent require() calls."""
+
+        sandbox = LuaSandbox(base_path=str(tmp_path))
+        sandbox.register_python_module("host", {"value": lambda: "first"})
+
+        first = sandbox.execute("""
+            local host = require("host")
+            return host.value()
+        """)
+
+        sandbox.register_python_module("host", {"value": lambda: "second"})
+
+        second = sandbox.execute("""
+            local host = require("host")
+            return host.value()
+        """)
+
+        assert first == "first"
+        assert second == "second"
+
+    def test_initial_host_modules_validate_reserved_namespace(self, tmp_path):
+        """Test constructor-supplied modules cannot use tactus.*."""
+
+        with pytest.raises(Exception) as exc_info:
+            LuaSandbox(
+                base_path=str(tmp_path),
+                python_modules={"tactus.fake": {"value": lambda: 1}},
+            )
+
+        assert "reserved" in str(exc_info.value).lower()
+
+    def test_host_module_name_must_be_dotted_identifier(self, tmp_path):
+        """Test host module names cannot be path-like or empty."""
+
+        sandbox = LuaSandbox(base_path=str(tmp_path))
+
+        for name in ["", "plexus/tools", "plexus-tools", "1plexus"]:
+            with pytest.raises(Exception) as exc_info:
+                sandbox.register_python_module(name, {"value": lambda: 1})
+            assert "module name" in str(exc_info.value).lower()
+
+    def test_unregistered_host_module_is_not_available(self, tmp_path):
+        """Test unknown non-stdlib modules remain unavailable."""
+        sandbox = LuaSandbox(base_path=str(tmp_path))
+
+        result = sandbox.execute("""
+            local status, err = pcall(function()
+                return require("not_registered")
+            end)
+            return {status = status, has_error = err ~= nil}
+        """)
+
+        assert result["status"] == False  # noqa: E712
+        assert result["has_error"] == True  # noqa: E712
+
+    def test_host_module_cannot_use_reserved_tactus_namespace(self, tmp_path):
+        """Test hosts cannot override the reserved tactus.* namespace."""
+        sandbox = LuaSandbox(base_path=str(tmp_path))
+
+        with pytest.raises(Exception) as exc_info:
+            sandbox.register_python_module("tactus.fake", {"value": lambda: 1})
+
+        assert "reserved" in str(exc_info.value).lower()
+
+    @pytest.mark.asyncio
+    async def test_runtime_register_python_module(self, tmp_path):
+        """Test TactusRuntime exposes host modules to Lua execution."""
+
+        class HostModule:
+            def ping(self):
+                return {"message": "pong"}
+
+        runtime = TactusRuntime(
+            procedure_id="host-module-test",
+            storage_backend=MemoryStorage(),
+            hitl_handler=object(),
+            source_file_path=str(tmp_path / "procedure.tac"),
+        )
+        runtime.register_python_module("host", HostModule())
+
+        result = await runtime.execute(
+            """
+            local host = require("host")
+            local response = host.ping()
+            return response.message
+            """,
+            format="lua",
+        )
+
+        assert result["success"] == True  # noqa: E712
+        assert result["result"] == "pong"
