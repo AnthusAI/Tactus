@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.46.4 (2026-04-29)
+
+### Bug Fixes
+
+- Remove obsolete uv.lock file, cleaning up project dependencies.
+  ([`49020b6`](https://github.com/AnthusAI/Tactus/commit/49020b6e97da8cf76483197aa0ca566ebb8d69ee))
+
+
 ## v0.46.3 (2026-04-27)
 
 
