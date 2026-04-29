@@ -42,6 +42,13 @@ jobs:
           python -m pip install poetry
           python -m poetry install --extras "dev ml"
 
+      - name: Validate isolated MCP fixture environment
+        if: matrix.python-version == '3.12'
+        run: |
+          cd tools/mcp-fixtures
+          python -m poetry install
+          python -m poetry run python -c "import fastmcp; print(fastmcp.__version__)"
+
       - name: Run ruff linting
         run: python -m poetry run ruff check tactus/ tests/ features/steps/
 

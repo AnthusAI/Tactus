@@ -8,14 +8,16 @@ import json
 import logging
 import os
 import queue
+import re
 import subprocess
 import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from flask import Flask, request, jsonify, Response, stream_with_context
+from flask import Flask, request, jsonify, Response, stream_with_context, send_from_directory
 from flask_cors import CORS
 from typing import Any, Optional
+from werkzeug.utils import safe_join
 
 from tactus.validation.validator import TactusValidator, ValidationMode
 from tactus.core.registry import ValidationMessage
@@ -26,6 +28,7 @@ BAD_REQUEST_MESSAGE = "Invalid request"
 
 # Workspace state
 WORKSPACE_ROOT = None
+_SAFE_STORAGE_ID = re.compile(r"^[A-Za-z0-9._-]+$")
 
 # Global cache clearing function - set by create_app()
 _clear_runtime_caches_fn = None
@@ -181,9 +184,15 @@ def _resolve_workspace_path(relative_path: str) -> Path:
     if not WORKSPACE_ROOT:
         raise ValueError("No workspace folder selected")
 
+    if "\x00" in relative_path:
+        raise ValueError("Invalid path")
+
     # Normalize the relative path
     workspace = Path(WORKSPACE_ROOT).resolve()
-    target = (workspace / relative_path).resolve()
+    joined = safe_join(str(workspace), relative_path or ".")
+    if joined is None:
+        raise ValueError(f"Path '{relative_path}' escapes workspace")
+    target = Path(joined).resolve()
 
     # Ensure target is within workspace (prevent path traversal)
     try:
@@ -192,6 +201,27 @@ def _resolve_workspace_path(relative_path: str) -> Path:
         raise ValueError(f"Path '{relative_path}' escapes workspace")
 
     return target
+
+
+def _workspace_storage_dir() -> Path:
+    """Return the resolved storage directory path for IDE runtime artifacts."""
+    if WORKSPACE_ROOT:
+        return _resolve_workspace_path(".tac/storage")
+    return (Path.home() / ".tactus" / "storage").resolve()
+
+
+def _resolve_workspace_root(root: str) -> Path:
+    """Resolve and validate a requested workspace root path."""
+    if "\x00" in root:
+        raise ValueError("Invalid workspace root")
+    return Path(root).expanduser().resolve()
+
+
+def _validate_storage_identifier(identifier: str, field_name: str) -> str:
+    """Validate URL-derived identifiers used in storage file paths."""
+    if not identifier or not _SAFE_STORAGE_ID.fullmatch(identifier):
+        raise ValueError(f"Invalid {field_name}")
+    return identifier
 
 
 def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optional[str] = None):
@@ -267,7 +297,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                 return jsonify({"error": "Missing 'root' parameter"}), 400
 
             try:
-                root_path = Path(root).resolve()
+                root_path = _resolve_workspace_root(root)
 
                 if not root_path.exists():
                     return jsonify({"error": f"Path does not exist: {root}"}), 404
@@ -275,9 +305,8 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                 if not root_path.is_dir():
                     return jsonify({"error": f"Path is not a directory: {root}"}), 400
 
-                # Set workspace root and change working directory
+                # Set workspace root for request-scoped path resolution.
                 WORKSPACE_ROOT = str(root_path)
-                os.chdir(WORKSPACE_ROOT)
 
                 logger.info("Workspace set to: %s", WORKSPACE_ROOT)
 
@@ -772,13 +801,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                     log_handler = IDELogHandler()
 
                     # Create storage backend
-                    from pathlib import Path as PathLib
-
-                    storage_dir = (
-                        str(PathLib(WORKSPACE_ROOT) / ".tac" / "storage")
-                        if WORKSPACE_ROOT
-                        else "~/.tactus/storage"
-                    )
+                    storage_dir = str(_workspace_storage_dir())
                     storage_backend = FileStorage(storage_dir=storage_dir)
 
                     # Load configuration cascade for this procedure
@@ -1235,9 +1258,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
 
                     # Save consolidated events to disk
                     try:
-                        from pathlib import Path as PathLib
-
-                        events_dir = PathLib(storage_dir) / "events"
+                        events_dir = _workspace_storage_dir() / "events"
                         events_dir.mkdir(parents=True, exist_ok=True)
                         events_file = events_dir / f"{run_id}.json"
                         with open(events_file, "w") as f:
@@ -2103,16 +2124,8 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
     def clear_checkpoints(procedure_id: str):
         """Clear all checkpoints for a procedure to force fresh execution."""
         try:
-            from pathlib import Path as PathLib
-            import os
-
-            # Build the checkpoint file path
-            storage_dir = (
-                PathLib(WORKSPACE_ROOT) / ".tac" / "storage"
-                if WORKSPACE_ROOT
-                else PathLib.home() / ".tactus" / "storage"
-            )
-            checkpoint_file = storage_dir / f"{procedure_id}.json"
+            safe_procedure_id = _validate_storage_identifier(procedure_id, "procedure_id")
+            checkpoint_file = _workspace_storage_dir() / f"{safe_procedure_id}.json"
 
             if checkpoint_file.exists():
                 os.remove(checkpoint_file)
@@ -2123,6 +2136,8 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             else:
                 return jsonify({"success": True, "message": "No checkpoints found"}), 200
 
+        except ValueError as e:
+            return _bad_request_from_value_error(e)
         except Exception as e:
             logger.error(
                 "Error clearing checkpoints for %s: %s",
@@ -2186,16 +2201,8 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
     def get_run_events(run_id: str):
         """Get all SSE events for a specific run."""
         try:
-            from pathlib import Path as PathLib
-
-            # Determine storage directory
-            storage_dir = (
-                str(PathLib(WORKSPACE_ROOT) / ".tac" / "storage")
-                if WORKSPACE_ROOT
-                else "~/.tactus/storage"
-            )
-            events_dir = PathLib(storage_dir) / "events"
-            events_file = events_dir / f"{run_id}.json"
+            safe_run_id = _validate_storage_identifier(run_id, "run_id")
+            events_file = _workspace_storage_dir() / "events" / f"{safe_run_id}.json"
 
             if not events_file.exists():
                 return jsonify({"error": f"Events not found for run {run_id}"}), 404
@@ -2205,6 +2212,8 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
                 events = json.load(f)
 
             return jsonify({"events": events})
+        except ValueError as e:
+            return _bad_request_from_value_error(e)
         except Exception as e:
             logger.error("Error getting events for %s: %s", run_id, e, exc_info=True)
             return _internal_error_response()
@@ -2604,9 +2613,9 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
         def serve_static_or_frontend(path):
             """Serve static files or index.html for client-side routing."""
             # If the file exists, serve it
-            file_path = Path(frontend_dist_dir) / path
-            if file_path.exists() and file_path.is_file():
-                return app.send_static_file(path)
+            file_path = safe_join(frontend_dist_dir, path)
+            if file_path and Path(file_path).is_file():
+                return send_from_directory(frontend_dist_dir, path)
             # Otherwise, serve index.html for client-side routing (unless it's an API call)
             if not path.startswith("api/"):
                 return app.send_static_file("index.html")

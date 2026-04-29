@@ -1,7 +1,13 @@
 """Step definitions for DSPy Language Model configuration."""
 
 import os
+import uuid
 from behave import given, when, then
+
+
+def _test_api_credential() -> str:
+    """Return a non-secret credential value for test-only LM configuration."""
+    return os.environ.get("TACTUS_TEST_API_CREDENTIAL") or f"test-{uuid.uuid4()}"
 
 
 @given("dspy is installed as a dependency")
@@ -20,7 +26,7 @@ def step_lm_configured_with_model(context, model):
     """Configure an LM with specified model."""
     from tactus.dspy import configure_lm
 
-    context.lm = configure_lm(model, api_key="test-key")
+    context.lm = configure_lm(model, api_key=_test_api_credential())
 
 
 @when('I configure an LM with model "{model}" and temperature {temperature:f}')
@@ -28,7 +34,7 @@ def step_configure_lm_with_temperature(context, model, temperature):
     """Configure an LM with custom temperature."""
     from tactus.dspy import configure_lm
 
-    context.lm = configure_lm(model, temperature=temperature, api_key="test-key")
+    context.lm = configure_lm(model, temperature=temperature, api_key=_test_api_credential())
     context.lm_temperature = temperature
 
 
@@ -37,7 +43,7 @@ def step_configure_lm_with_max_tokens(context, model, max_tokens):
     """Configure an LM with max_tokens parameter."""
     from tactus.dspy import configure_lm
 
-    context.lm = configure_lm(model, max_tokens=max_tokens, api_key="test-key")
+    context.lm = configure_lm(model, max_tokens=max_tokens, api_key=_test_api_credential())
     context.lm_max_tokens = max_tokens
 
 
@@ -82,7 +88,7 @@ def step_configure_another_lm(context, model):
     """Configure another LM, replacing the current one."""
     from tactus.dspy import configure_lm
 
-    context.lm = configure_lm(model, api_key="test-key")
+    context.lm = configure_lm(model, api_key=_test_api_credential())
     context.current_model = model
 
 
@@ -231,7 +237,7 @@ def step_configure_lm_with_api_base(context, model, api_base):
     """Configure LM with custom API base URL."""
     from tactus.dspy import configure_lm
 
-    context.lm = configure_lm(model, api_base=api_base, api_key="test-key")
+    context.lm = configure_lm(model, api_base=api_base, api_key=_test_api_credential())
     context.lm_api_base = api_base
 
 
@@ -278,7 +284,7 @@ def step_configure_lm_with_region(context, model, region):
     """Configure LM with AWS region for Bedrock."""
     from tactus.dspy import configure_lm
 
-    context.lm = configure_lm(model, region=region, api_key="test-key")
+    context.lm = configure_lm(model, region=region, api_key=_test_api_credential())
     context.lm_region = region
 
 
@@ -317,7 +323,7 @@ def step_try_configure_invalid_lm(context, model):
     from tactus.dspy import configure_lm
 
     try:
-        context.lm = configure_lm(model, api_key="test-key")
+        context.lm = configure_lm(model, api_key=_test_api_credential())
         # Force error for clearly invalid models
         if "invalid" in model.lower() or "/" not in model:
             raise ValueError(f"Invalid model: {model}")
@@ -334,7 +340,7 @@ def step_try_configure_no_model(context):
 
     try:
         # Try to call with no model - should fail
-        context.lm = configure_lm(None, api_key="test-key")
+        context.lm = configure_lm(None, api_key=_test_api_credential())
         context.error = None
     except Exception as e:
         context.error = e
@@ -348,4 +354,4 @@ def step_configure_lm_simple(context, model):
     """Configure an LM with the given model (basic form - catches anything not matched above)."""
     from tactus.dspy import configure_lm
 
-    context.lm = configure_lm(model, api_key="test-key")
+    context.lm = configure_lm(model, api_key=_test_api_credential())

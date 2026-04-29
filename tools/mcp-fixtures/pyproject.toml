@@ -1,0 +1,13 @@
+[tool.poetry]
+name = "tactus-mcp-fixtures"
+version = "0.1.0"
+description = "Isolated tooling environment for MCP test fixtures used by Tactus."
+authors = ["Anthus <info@anthus.ai>"]
+package-mode = false
+
+[tool.poetry.dependencies]
+python = ">=3.10,<4.0"
+fastmcp = ">=3.2.4,<3.3.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = ">=8.0"

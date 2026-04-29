@@ -3,7 +3,7 @@
   "title": "AnthusAI/Tactus",
   "description": "Snyk vulnerabilities found in `AnthusAI/Tactus`.",
   "type": "task",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -13,10 +13,23 @@
     "snyk"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "b7cb533d-a069-4682-aebd-b669ea1dc502",
+      "author": "derek.norrbom",
+      "text": "Starting Snyk Code remediation batch. Plan: fetch current Snyk Code findings, group by repeated rule/file pattern (path traversal and hardcoded non-crypto secret), remediate first high-yield cluster, re-run Snyk Code verification, and close corresponding child tasks.",
+      "created_at": "2026-04-24T15:50:15.447799Z"
+    },
+    {
+      "id": "80d0b587-5db5-4be4-8a14-e3dc8f1e2406",
+      "author": "derek.norrbom",
+      "text": "Snyk Code remediation batch complete. Implemented path-validation hardening in tactus/ide/server.py and removed hardcoded test credential literals from features/steps/dspy_lm_steps.py. Validation: snyk code test --severity-threshold=high now reports Total issues: 0; pytest tests/ide_backend/test_ide_server*.py -q passes.",
+      "created_at": "2026-04-24T15:56:07.910140Z"
+    }
+  ],
   "created_at": "2026-04-14T17:12:28.828868Z",
-  "updated_at": "2026-04-14T17:12:28.828868Z",
-  "closed_at": null,
+  "updated_at": "2026-04-24T15:56:07.922955Z",
+  "closed_at": "2026-04-24T15:56:07.922955Z",
   "custom": {
     "snyk_category": "code",
     "snyk_target_file": "AnthusAI/Tactus"

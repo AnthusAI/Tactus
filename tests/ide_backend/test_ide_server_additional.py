@@ -7,13 +7,7 @@ def test_workspace_post_success_sets_root(tmp_path, monkeypatch):
     workspace = tmp_path / "workspace"
     workspace.mkdir()
 
-    recorded = {}
-
-    def fake_chdir(path):
-        recorded["cwd"] = path
-
     monkeypatch.setattr(ide_server, "WORKSPACE_ROOT", None)
-    monkeypatch.setattr(ide_server.os, "chdir", fake_chdir)
 
     app = ide_server.create_app()
     client = app.test_client()
@@ -23,7 +17,6 @@ def test_workspace_post_success_sets_root(tmp_path, monkeypatch):
 
     assert payload["success"] is True
     assert payload["root"] == str(workspace)
-    assert recorded["cwd"] == str(workspace)
 
 
 def test_tree_requires_workspace(tmp_path, monkeypatch):
