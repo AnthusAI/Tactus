@@ -1,0 +1,25 @@
+{
+  "id": "tcts-0ca82e56-44be-42c5-b857-6846762eb0fa",
+  "title": "Install Biblicus reinforcement-memory support by default",
+  "description": "",
+  "type": "epic",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "710bfb05-780c-4dc7-a525-373d4045de59",
+      "author": "derek",
+      "text": "Epic complete: core biblicus reinforcement-memory dependency is now enforced in Tactus packaging.",
+      "created_at": "2026-04-29T20:43:32.386349591Z"
+    }
+  ],
+  "created_at": "2026-04-29T20:41:56.514341432Z",
+  "updated_at": "2026-04-29T20:43:32.386349591Z",
+  "closed_at": "2026-04-29T20:43:32.377183007Z",
+  "custom": {}
+}

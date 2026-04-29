@@ -1,0 +1,43 @@
+{
+  "id": "tcts-3fb6063a-0f3d-4533-a797-e4ce4817da7f",
+  "title": "Make biblicus reinforcement-memory extra a core Tactus dependency",
+  "description": "",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-0ca82e56-44be-42c5-b857-6846762eb0fa",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "08409ea2-ae89-4f9a-ac3a-1d9a7ce24f90",
+      "author": "derek",
+      "text": "Updating pyproject core dependency from biblicus to biblicus[reinforcement-memory] and regenerating poetry.lock so RCA dependencies install by default with tactus.",
+      "created_at": "2026-04-29T20:42:02.883250805Z"
+    },
+    {
+      "id": "fbf0e6b1-d7b2-45a7-be41-89da6772f1a4",
+      "author": "derek",
+      "text": "Implemented in commit ccf8b812: pyproject now requires biblicus[reinforcement-memory] as a core dependency; poetry.lock regenerated to include virtuus via biblicus reinforcement-memory extra. Validation: poetry check.",
+      "created_at": "2026-04-29T20:43:09.361948043Z"
+    },
+    {
+      "id": "108866f7-0a2d-4849-a7b1-5062d212835f",
+      "author": "derek",
+      "text": "Reopened for CI regression: fix failing streaming branch test on PR #69.",
+      "created_at": "2026-04-29T20:56:36.805950117Z"
+    },
+    {
+      "id": "130b0f7b-df5b-4f3b-b9ef-10684c96e68e",
+      "author": "derek",
+      "text": "Addressed CI flake in streaming branch tests: hardened test_streaming_unknown_chunk_type_skips queue fake to return ('done', None) when sequence is exhausted instead of raising IndexError. Validation: targeted pytest for streaming branch tests (2 passed).",
+      "created_at": "2026-04-29T21:00:11.146879382Z"
+    }
+  ],
+  "created_at": "2026-04-29T20:41:56.598602458Z",
+  "updated_at": "2026-04-29T21:00:14.700764582Z",
+  "closed_at": "2026-04-29T21:00:14.700764582Z",
+  "custom": {}
+}
