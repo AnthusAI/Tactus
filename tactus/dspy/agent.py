@@ -952,6 +952,110 @@ class DSPyAgentHandle:
             logger.info(f"[LLM_DEBUG] TOOL CALLS: {dspy_result.tool_calls}")
         logger.info("=" * 80)
 
+    @staticmethod
+    def _to_tool_calls_list(dspy_result: Any) -> List[Dict[str, Any]]:
+        """Convert DSPy tool_calls payload to history-compatible OpenAI tool call dicts."""
+        if not hasattr(dspy_result, "tool_calls") or not dspy_result.tool_calls:
+            return []
+
+        tool_calls_list: List[Dict[str, Any]] = []
+        raw_calls = (
+            dspy_result.tool_calls.tool_calls
+            if hasattr(dspy_result.tool_calls, "tool_calls")
+            else []
+        )
+        for tc in raw_calls:
+            tc_name, tc_args = _tool_call_name_and_args(tc)
+            tool_calls_list.append(
+                {
+                    "id": _tool_call_id_for_history(tc),
+                    "type": "function",
+                    "function": {
+                        "name": tc_name,
+                        "arguments": json.dumps(tc_args) if isinstance(tc_args, dict) else tc_args,
+                    },
+                }
+            )
+        return tool_calls_list
+
+    def _record_tool_execution(
+        self, tool_name: str, tool_args: Dict[str, Any], tool_result: Any
+    ) -> None:
+        """Record tool execution in ToolPrimitive when available."""
+        tool_primitive = getattr(self, "_tool_primitive", None)
+        if not tool_primitive:
+            return
+        clean_tool_name = tool_name.replace(f"{self.name}_", "")
+        try:
+            tool_primitive.record_call(
+                clean_tool_name,
+                tool_args,
+                tool_result,
+                agent_name=self.name,
+            )
+        except Exception:
+            logger.debug("Failed to record tool execution for '%s'", clean_tool_name, exc_info=True)
+
+    def _execute_assistant_tool_calls(
+        self,
+        assistant_msg: Dict[str, Any],
+        new_messages: List[Dict[str, Any]],
+    ) -> bool:
+        """Execute tool calls from an assistant message and append tool messages to history."""
+        tool_calls = assistant_msg.get("tool_calls") or []
+        if not tool_calls:
+            return False
+
+        for tc in tool_calls:
+            tool_name = tc["function"]["name"]
+            tool_args_str = tc["function"]["arguments"]
+            tool_args = (
+                json.loads(tool_args_str) if isinstance(tool_args_str, str) else tool_args_str
+            )
+            tool_id = tc["id"]
+
+            tool_result = self._execute_tool(tool_name, tool_args)
+            self._record_tool_execution(tool_name, tool_args, tool_result)
+
+            tool_result_str = (
+                json.dumps(tool_result) if isinstance(tool_result, dict) else str(tool_result)
+            )
+            tool_result_msg = {
+                "role": "tool",
+                "tool_call_id": tool_id,
+                "name": tool_name,
+                "content": tool_result_str,
+            }
+            new_messages.append(tool_result_msg)
+            self._history.add(tool_result_msg)
+
+        return True
+
+    @staticmethod
+    def _is_usable_assistant_text(text: Any) -> bool:
+        return isinstance(text, str) and text.strip() != ""
+
+    def _synthesis_prompt_context(self, prompt_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Build a one-shot finalization prompt context for no-text terminal turns."""
+        synthesized = dict(prompt_context)
+        synthesized["user_message"] = (
+            "Provide the final user-facing answer now using prior tool results. "
+            "Do not call tools."
+        )
+        return synthesized
+
+    def _tool_followup_prompt_context(self, prompt_context: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Build prompt context for the next model call after tool execution.
+
+        Important: the original turn user_message must not be re-sent after tools run.
+        Follow-up calls should rely on accumulated history (assistant tool call + tool results).
+        """
+        followup = dict(prompt_context)
+        followup["history"] = self._history_from_messages(self._history.get())
+        followup["user_message"] = ""
+        return followup
+
     def _turn_with_streaming(
         self,
         opts: Dict[str, Any],
@@ -973,299 +1077,140 @@ class DSPyAgentHandle:
         """
         from tactus.protocols.models import AgentTurnEvent, AgentStreamChunkEvent
 
-        # logger.info(f"[STREAMING] Agent '{self.name}' starting streaming turn")
+        def _stream_once(current_prompt_context: Dict[str, Any]) -> Any:
+            # Queue for passing chunks from streaming thread to main thread
+            chunk_queue = queue.Queue()
+            result_holder = {"result": None, "error": None}
 
-        # Debug: log full LLM input
+            def run_streaming_in_thread():
+                dspy_thread = dspy
+
+                async def async_streaming():
+                    try:
+                        streaming_module = dspy_thread.streamify(self._module.module)
+                        stream = streaming_module(**current_prompt_context)
+                        async for value in stream:
+                            if isinstance(value, dspy_thread.Prediction):
+                                result_holder["result"] = value
+                            elif hasattr(value, "choices") and value.choices:
+                                delta = value.choices[0].delta
+                                if hasattr(delta, "content") and delta.content:
+                                    chunk_queue.put(("chunk", delta.content))
+                            elif isinstance(value, str) and value:
+                                chunk_queue.put(("chunk", value))
+                    except Exception as e:
+                        result_holder["error"] = e
+                    finally:
+                        chunk_queue.put(("done", None))
+
+                asyncio.run(async_streaming())
+
+            streaming_thread = threading.Thread(target=run_streaming_in_thread, daemon=True)
+            streaming_thread.start()
+            accumulated_text = ""
+            while True:
+                try:
+                    msg_type, msg_data = chunk_queue.get(timeout=120.0)
+                    if msg_type == "done":
+                        break
+                    if msg_type == "chunk" and msg_data:
+                        accumulated_text += msg_data
+                        self.log_handler.log(
+                            AgentStreamChunkEvent(
+                                agent_name=self.name,
+                                chunk_text=msg_data,
+                                accumulated_text=accumulated_text,
+                            )
+                        )
+                except queue.Empty:
+                    break
+            streaming_thread.join(timeout=5.0)
+
+            if result_holder["error"] is not None:
+                error = result_holder["error"]
+                original_error = error
+                if hasattr(error, "__class__") and error.__class__.__name__.endswith(
+                    "ExceptionGroup"
+                ):
+                    if hasattr(error, "exceptions") and error.exceptions:
+                        original_error = error.exceptions[0]
+                error_str = str(original_error).lower()
+                error_type = str(type(original_error).__name__)
+                if "authenticationerror" in error_type.lower() or "api_key" in error_str:
+                    from tactus.core.exceptions import TactusRuntimeError
+
+                    raise TactusRuntimeError(
+                        f"API authentication failed for agent '{self.name}': "
+                        f"Missing or invalid API key. Please configure your API key in Settings (Cmd+,)."
+                    ) from error
+                if original_error is not error:
+                    logger.error(
+                        f"Agent '{self.name}' ExceptionGroup sub-exception: "
+                        f"{type(original_error).__name__}: {original_error}"
+                    )
+                    raise RuntimeError(
+                        f"Agent '{self.name}' failed: {type(original_error).__name__}: {original_error}"
+                    ) from original_error
+                raise result_holder["error"]
+
+            if result_holder["result"] is None:
+                raise RuntimeError("Streaming produced no result")
+            return result_holder["result"]
+
         if os.environ.get("PLEXUS_DEBUG_LLM"):
             self._log_llm_debug_input(prompt_context)
 
-        # Emit turn started event so the UI shows a loading indicator
-        self.log_handler.log(
-            AgentTurnEvent(
-                agent_name=self.name,
-                stage="started",
-            )
-        )
-        # logger.info(f"[STREAMING] Agent '{self.name}' emitted AgentTurnEvent(started)")
+        self.log_handler.log(AgentTurnEvent(agent_name=self.name, stage="started"))
 
-        # Queue for passing chunks from streaming thread to main thread
-        chunk_queue = queue.Queue()
-        result_holder = {"result": None, "error": None}
-
-        def run_streaming_in_thread():
-            """Run DSPy streaming in a separate thread with its own event loop."""
-            dspy_thread = dspy
-
-            async def async_streaming():
-                """Async function that runs the streaming module."""
-                try:
-                    # Create a streaming version of the module using DSPy's streamify
-                    # NOTE: streamify() automatically enables streaming on the LM
-                    # We do NOT need to use settings.context(stream=True) - that actually breaks it!
-                    streaming_module = dspy_thread.streamify(self._module.module)
-                    # logger.info(
-                    #     f"[STREAMING] Agent '{self.name}' created streaming module"
-                    # )
-
-                    # Call the streaming module - it returns an async generator
-                    stream = streaming_module(**prompt_context)
-
-                    chunk_count = 0
-                    async for value in stream:
-                        chunk_count += 1
-                        # Check for final Prediction first
-                        if isinstance(value, dspy_thread.Prediction):
-                            # Final prediction - this is the result
-                            # logger.info(
-                            #     f"[STREAMING] Agent '{self.name}' received final Prediction"
-                            # )
-                            result_holder["result"] = value
-                        # Check for ModelResponseStream (the actual streaming chunks!)
-                        elif hasattr(value, "choices") and value.choices:
-                            delta = value.choices[0].delta
-                            if hasattr(delta, "content") and delta.content:
-                                # logger.info(
-                                #     f"[STREAMING] Agent '{self.name}' "
-                                #     f"chunk #{chunk_count}: '{delta.content}'"
-                                # )
-                                chunk_queue.put(("chunk", delta.content))
-                        # String chunks (shouldn't happen with DSPy but handle it anyway)
-                        elif isinstance(value, str):
-                            # logger.info(
-                            #     f"[STREAMING] Agent '{self.name}' "
-                            #     f"got STRING chunk, len={len(value)}"
-                            # )
-                            if value:
-                                chunk_queue.put(("chunk", value))
-                        else:
-                            pass
-
-                    # logger.info(
-                    #     f"[STREAMING] Agent '{self.name}' "
-                    #     f"stream finished, processed {chunk_count} values"
-                    # )
-
-                except Exception as e:
-                    # logger.error(
-                    #     f"[STREAMING] Agent '{self.name}' error: {e}",
-                    #     exc_info=True,
-                    # )
-                    result_holder["error"] = e
-                finally:
-                    # Signal end of stream
-                    chunk_queue.put(("done", None))
-
-            # Run the async function in this thread's new event loop
-            asyncio.run(async_streaming())
-
-        # Start streaming in a separate thread
-        streaming_thread = threading.Thread(target=run_streaming_in_thread, daemon=True)
-        streaming_thread.start()
-
-        # Consume chunks from the queue and emit events in the main thread
-        accumulated_text = ""
-        emitted_count = 0
-        # logger.info(f"[STREAMING] Agent '{self.name}' consuming chunks from queue")
-
-        while True:
-            try:
-                msg_type, msg_data = chunk_queue.get(timeout=120.0)  # 2 minute timeout
-                if msg_type == "done":
-                    break
-                elif msg_type == "chunk" and msg_data:
-                    accumulated_text += msg_data
-                    emitted_count += 1
-                    event = AgentStreamChunkEvent(
-                        agent_name=self.name,
-                        chunk_text=msg_data,
-                        accumulated_text=accumulated_text,
-                    )
-                    # logger.info(
-                    #     f"[STREAMING] Agent '{self.name}' emitting chunk "
-                    #     f"{emitted_count}, len={len(msg_data)}"
-                    # )
-                    self.log_handler.log(event)
-            except queue.Empty:
-                # logger.warning(
-                #     f"[STREAMING] Agent '{self.name}' timeout waiting for chunks"
-                # )
-                break
-
-        # Wait for thread to complete
-        streaming_thread.join(timeout=5.0)
-
-        # logger.info(
-        #     f"[STREAMING] Agent '{self.name}' finished, emitted {emitted_count} events"
-        # )
-
-        # Check for errors
-        if result_holder["error"] is not None:
-            error = result_holder["error"]
-
-            # Unwrap ExceptionGroup to find the real error
-            original_error = error
-            if hasattr(error, "__class__") and error.__class__.__name__.endswith("ExceptionGroup"):
-                # Python 3.11+ ExceptionGroup
-                if hasattr(error, "exceptions") and error.exceptions:
-                    original_error = error.exceptions[0]
-
-            # Check if it's an authentication error (in original or wrapped)
-            error_str = str(original_error).lower()
-            error_type = str(type(original_error).__name__)
-
-            if "authenticationerror" in error_type.lower() or "api_key" in error_str:
-                from tactus.core.exceptions import TactusRuntimeError
-
-                raise TactusRuntimeError(
-                    f"API authentication failed for agent '{self.name}': "
-                    f"Missing or invalid API key. Please configure your API key in Settings (Cmd+,)."
-                ) from error
-
-            # Unwrap ExceptionGroup so the real error is visible in logs/pcall
-            if original_error is not error:
-                logger.error(
-                    f"Agent '{self.name}' ExceptionGroup sub-exception: "
-                    f"{type(original_error).__name__}: {original_error}"
-                )
-                raise RuntimeError(
-                    f"Agent '{self.name}' failed: {type(original_error).__name__}: {original_error}"
-                ) from original_error
-            raise result_holder["error"]
-
-        # If streaming failed to produce a result, fall back to non-streaming
-        if result_holder["result"] is None:
-            logger.warning(f"Streaming produced no result for agent '{self.name}', falling back")
-            return self._turn_without_streaming(opts, prompt_context)
-
-        # Debug: log full LLM output after streaming completes
-        if os.environ.get("PLEXUS_DEBUG_LLM"):
-            self._log_llm_debug_output(result_holder["result"])
-
-        # Track new messages for this turn
-        new_messages = []
-
-        # Determine user message
+        new_messages: List[Dict[str, Any]] = []
         user_message = opts.get("message")
         if self._turn_count == 1 and not user_message and self.initial_message:
             user_message = self.initial_message
-
-        # Add user message to new_messages if present
         if user_message:
             user_msg = {"role": "user", "content": user_message}
             new_messages.append(user_msg)
             self._history.add(user_msg)
 
-        # Add assistant response to new_messages
-        if hasattr(result_holder["result"], "response"):
-            assistant_msg = {"role": "assistant", "content": result_holder["result"].response}
-
-            # Include tool calls in the message if present (before wrapping)
-            if (
-                hasattr(result_holder["result"], "tool_calls")
-                and result_holder["result"].tool_calls
-            ):
-                # Convert tool calls to JSON-serializable format
-                # logger.info("[ASYNC_STREAMING] Converting tool_calls to dict format")
-                tool_calls_list = []
-                for tc in (
-                    result_holder["result"].tool_calls.tool_calls
-                    if hasattr(result_holder["result"].tool_calls, "tool_calls")
-                    else []
-                ):
-                    tc_name, tc_args = _tool_call_name_and_args(tc)
-                    tool_calls_list.append(
-                        {
-                            "id": _tool_call_id_for_history(tc),
-                            "type": "function",
-                            "function": {
-                                "name": tc_name,
-                                "arguments": (
-                                    json.dumps(tc_args) if isinstance(tc_args, dict) else tc_args
-                                ),
-                            },
-                        }
+        current_prompt_context = prompt_context
+        forced_synthesis = False
+        while True:
+            try:
+                dspy_result = _stream_once(current_prompt_context)
+            except RuntimeError as error:
+                if str(error) == "Streaming produced no result":
+                    logger.warning(
+                        f"Streaming produced no result for agent '{self.name}', falling back"
                     )
-                # logger.info(
-                #     f"[ASYNC_STREAMING] Built tool_calls_list with "
-                #     f"{len(tool_calls_list)} items"
-                # )
-                if tool_calls_list:
-                    assistant_msg["tool_calls"] = tool_calls_list
-                    # logger.info("[ASYNC_STREAMING] Added tool_calls to assistant_msg")
+                    return self._turn_without_streaming(opts, prompt_context)
+                raise
+
+            if os.environ.get("PLEXUS_DEBUG_LLM"):
+                self._log_llm_debug_output(dspy_result)
+
+            assistant_text = getattr(dspy_result, "response", "")
+            assistant_msg: Dict[str, Any] = {"role": "assistant", "content": assistant_text}
+            tool_calls_list = self._to_tool_calls_list(dspy_result)
+            if tool_calls_list:
+                assistant_msg["tool_calls"] = tool_calls_list
 
             new_messages.append(assistant_msg)
             self._history.add(assistant_msg)
 
-            # Execute tool calls and add tool result messages to history
-            if assistant_msg.get("tool_calls"):
-                # logger.info(
-                #     f"[ASYNC_STREAMING] Agent '{self.name}' executing "
-                #     f"{len(assistant_msg['tool_calls'])} tool calls"
-                # )
-                for tc in assistant_msg["tool_calls"]:
-                    tool_name = tc["function"]["name"]
-                    tool_args_str = tc["function"]["arguments"]
-                    tool_args = (
-                        json.loads(tool_args_str)
-                        if isinstance(tool_args_str, str)
-                        else tool_args_str
-                    )
-                    tool_id = tc["id"]
+            had_tool_calls = self._execute_assistant_tool_calls(assistant_msg, new_messages)
+            if had_tool_calls:
+                current_prompt_context = self._tool_followup_prompt_context(prompt_context)
+                continue
 
-                    # logger.info(
-                    #     f"[ASYNC_STREAMING] Executing tool: {tool_name} "
-                    #     f"with args: {tool_args}"
-                    # )
+            if self._is_usable_assistant_text(assistant_text):
+                break
 
-                    # Execute the tool using toolsets
-                    tool_result = self._execute_tool(tool_name, tool_args)
-                    # logger.info(
-                    #     f"[ASYNC_STREAMING] Tool executed successfully: {tool_result}"
-                    # )
+            if forced_synthesis:
+                break
+            forced_synthesis = True
+            current_prompt_context = self._synthesis_prompt_context(prompt_context)
 
-                    # Record the tool call so Lua can check if it was called
-                    tool_primitive = getattr(self, "_tool_primitive", None)
-                    if tool_primitive:
-                        # Remove agent name prefix from tool name if present
-                        # Tool names are stored as "agent_name_tool_name" in the primitive
-                        clean_tool_name = tool_name.replace(f"{self.name}_", "")
-                        tool_primitive.record_call(
-                            clean_tool_name, tool_args, tool_result, agent_name=self.name
-                        )
-                        # logger.info(
-                        #     f"[ASYNC_STREAMING] Recorded tool call: {clean_tool_name}"
-                        # )
-
-                    # Add tool result to history in OpenAI's expected format
-                    # OpenAI requires: role="tool", tool_call_id=<id>, content=<result>
-                    tool_result_str = (
-                        json.dumps(tool_result)
-                        if isinstance(tool_result, dict)
-                        else str(tool_result)
-                    )
-                    tool_result_msg = {
-                        "role": "tool",
-                        "tool_call_id": tool_id,
-                        "name": tool_name,
-                        "content": tool_result_str,
-                    }
-                    # logger.info(
-                    #     f"[ASYNC_STREAMING] Created tool result message: {tool_result_msg}"
-                    # )
-                    new_messages.append(tool_result_msg)
-                    # logger.info(
-                    #     f"[ASYNC_STREAMING] Added tool result to new_messages, "
-                    #     f"count={len(new_messages)}"
-                    # )
-                    self._history.add(tool_result_msg)
-                    # logger.info(
-                    #     f"[ASYNC_STREAMING] Added tool result to history for "
-                    #     f"tool_call_id={tool_id}, history size={len(self._history)}"
-                    # )
-
-        # Wrap the result with message tracking
         wrapped_result = wrap_prediction(
-            result_holder["result"],
+            dspy_result,
             new_messages=new_messages,
             all_messages=self._history.get(),
         )
@@ -1330,110 +1275,47 @@ class DSPyAgentHandle:
         Returns:
             TactusResult with value, usage, and cost_stats
         """
-        # Debug: log full LLM input
         if os.environ.get("PLEXUS_DEBUG_LLM"):
             self._log_llm_debug_input(prompt_context)
 
-        # Execute the module
-        dspy_result = self._module.module(**prompt_context)
-
-        # Debug: log full LLM output
-        if os.environ.get("PLEXUS_DEBUG_LLM"):
-            self._log_llm_debug_output(dspy_result)
-
-        # Track new messages for this turn
-        new_messages = []
-
-        # Determine user message
+        new_messages: List[Dict[str, Any]] = []
         user_message = opts.get("message")
         if self._turn_count == 1 and not user_message and self.initial_message:
             user_message = self.initial_message
-
-        # Add user message to new_messages if present
         if user_message:
             user_msg = {"role": "user", "content": user_message}
             new_messages.append(user_msg)
             self._history.add(user_msg)
 
-        # Add assistant response to new_messages
-        if hasattr(dspy_result, "response"):
-            assistant_msg = {"role": "assistant", "content": dspy_result.response}
+        current_prompt_context = prompt_context
+        forced_synthesis = False
+        while True:
+            dspy_result = self._module.module(**current_prompt_context)
+            if os.environ.get("PLEXUS_DEBUG_LLM"):
+                self._log_llm_debug_output(dspy_result)
 
-            # Include tool calls in the message if present (before wrapping)
-            has_tc = hasattr(dspy_result, "tool_calls")
-            tc_value = getattr(dspy_result, "tool_calls", None)
-            logger.debug(
-                f"Agent '{self.name}' dspy_result: has_tool_calls={has_tc}, tool_calls={tc_value}"
-            )
-            if hasattr(dspy_result, "tool_calls") and dspy_result.tool_calls:
-                # Convert tool calls to JSON-serializable format
-                tool_calls_list = []
-                for tc in (
-                    dspy_result.tool_calls.tool_calls
-                    if hasattr(dspy_result.tool_calls, "tool_calls")
-                    else []
-                ):
-                    tc_name, tc_args = _tool_call_name_and_args(tc)
-                    tool_calls_list.append(
-                        {
-                            "id": _tool_call_id_for_history(tc),
-                            "type": "function",
-                            "function": {
-                                "name": tc_name,
-                                "arguments": (
-                                    json.dumps(tc_args) if isinstance(tc_args, dict) else tc_args
-                                ),
-                            },
-                        }
-                    )
-                if tool_calls_list:
-                    assistant_msg["tool_calls"] = tool_calls_list
+            assistant_text = getattr(dspy_result, "response", "")
+            assistant_msg: Dict[str, Any] = {"role": "assistant", "content": assistant_text}
+            tool_calls_list = self._to_tool_calls_list(dspy_result)
+            if tool_calls_list:
+                assistant_msg["tool_calls"] = tool_calls_list
 
             new_messages.append(assistant_msg)
             self._history.add(assistant_msg)
 
-            # Execute tool calls and add tool result messages (OpenAI requires tool
-            # messages for every tool_call_id before the next user turn). Mirrors
-            # _turn_with_streaming_async.
-            if assistant_msg.get("tool_calls"):
-                for tc in assistant_msg["tool_calls"]:
-                    tool_name = tc["function"]["name"]
-                    tool_args_str = tc["function"]["arguments"]
-                    tool_args = (
-                        json.loads(tool_args_str)
-                        if isinstance(tool_args_str, str)
-                        else tool_args_str
-                    )
-                    tool_id = tc["id"]
-                    clean_tool_name = tool_name.replace(f"{self.name}_", "")
-                    tool_primitive = getattr(self, "_tool_primitive", None)
-                    tool_result = None
-                    if tool_primitive:
-                        prior = (
-                            tool_primitive.last_call(clean_tool_name)
-                            if hasattr(tool_primitive, "last_call")
-                            else None
-                        )
-                        if prior is not None:
-                            tool_result = prior.get("result")
-                    if tool_result is None:
-                        tool_result = self._execute_tool(tool_name, tool_args)
-                    # Else: forward path already ran the tool and recorded it; only sync history.
-                    tool_result_str = (
-                        json.dumps(tool_result)
-                        if isinstance(tool_result, dict)
-                        else str(tool_result)
-                    )
-                    tool_result_msg = {
-                        "role": "tool",
-                        "tool_call_id": tool_id,
-                        "name": tool_name,
-                        "content": tool_result_str,
-                    }
-                    new_messages.append(tool_result_msg)
-                    self._history.add(tool_result_msg)
+            had_tool_calls = self._execute_assistant_tool_calls(assistant_msg, new_messages)
+            if had_tool_calls:
+                current_prompt_context = self._tool_followup_prompt_context(prompt_context)
+                continue
 
-        # Wrap the result with message tracking
+            if self._is_usable_assistant_text(assistant_text):
+                break
+
+            if forced_synthesis:
+                break
+            forced_synthesis = True
+            current_prompt_context = self._synthesis_prompt_context(prompt_context)
+
         wrapped_result = wrap_prediction(
             dspy_result,
             new_messages=new_messages,
