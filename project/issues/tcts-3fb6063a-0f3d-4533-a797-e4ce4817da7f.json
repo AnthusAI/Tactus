@@ -22,10 +22,22 @@
       "author": "derek",
       "text": "Implemented in commit ccf8b812: pyproject now requires biblicus[reinforcement-memory] as a core dependency; poetry.lock regenerated to include virtuus via biblicus reinforcement-memory extra. Validation: poetry check.",
       "created_at": "2026-04-29T20:43:09.361948043Z"
+    },
+    {
+      "id": "108866f7-0a2d-4849-a7b1-5062d212835f",
+      "author": "derek",
+      "text": "Reopened for CI regression: fix failing streaming branch test on PR #69.",
+      "created_at": "2026-04-29T20:56:36.805950117Z"
+    },
+    {
+      "id": "130b0f7b-df5b-4f3b-b9ef-10684c96e68e",
+      "author": "derek",
+      "text": "Addressed CI flake in streaming branch tests: hardened test_streaming_unknown_chunk_type_skips queue fake to return ('done', None) when sequence is exhausted instead of raising IndexError. Validation: targeted pytest for streaming branch tests (2 passed).",
+      "created_at": "2026-04-29T21:00:11.146879382Z"
     }
   ],
   "created_at": "2026-04-29T20:41:56.598602458Z",
-  "updated_at": "2026-04-29T20:43:32.367351797Z",
-  "closed_at": "2026-04-29T20:43:32.367351797Z",
+  "updated_at": "2026-04-29T21:00:14.700764582Z",
+  "closed_at": "2026-04-29T21:00:14.700764582Z",
   "custom": {}
 }

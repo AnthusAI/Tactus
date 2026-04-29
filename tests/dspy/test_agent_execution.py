@@ -1171,7 +1171,9 @@ class TestStreamingBranches:
         results = [("noop", "data"), ("done", None)]
 
         def fake_get(self, *args, **kwargs):
-            return results.pop(0)
+            if results:
+                return results.pop(0)
+            return ("done", None)
 
         monkeypatch.setattr(queue.Queue, "get", fake_get)
 
