@@ -254,12 +254,25 @@ class TactusRuntime:
 
             sandbox_base_path = self._resolve_sandbox_base_path()
 
-            self.lua_sandbox = LuaSandbox(
-                execution_context=None,
-                strict_determinism=strict_determinism,
-                base_path=sandbox_base_path,
-                python_modules=self.python_modules,
-            )
+            try:
+                self.lua_sandbox = LuaSandbox(
+                    execution_context=None,
+                    strict_determinism=strict_determinism,
+                    base_path=sandbox_base_path,
+                    python_modules=self.python_modules,
+                )
+            except TypeError as exc:
+                if "python_modules" not in str(exc):
+                    raise
+                self.lua_sandbox = LuaSandbox(
+                    execution_context=None,
+                    strict_determinism=strict_determinism,
+                    base_path=sandbox_base_path,
+                )
+                register_module = getattr(self.lua_sandbox, "register_python_module", None)
+                if callable(register_module):
+                    for name, module in self.python_modules.items():
+                        register_module(name, module)
 
             # 0.5. Create execution context EARLY so it's available during DSL parsing
             # This is critical for immediate agent creation during parsing

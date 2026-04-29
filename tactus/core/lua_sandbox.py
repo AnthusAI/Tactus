@@ -235,49 +235,67 @@ class LuaSandbox:
         self._stdlib_loader = StdlibModuleLoader(
             self,
             self.base_path,
-            host_modules=self.python_modules,
+            host_modules=getattr(self, "python_modules", {}),
         )
-        host_loader_func = self._stdlib_loader.create_host_loader_function()
         stdlib_loader_func = self._stdlib_loader.create_loader_function()
 
         # Inject loader function into Lua
-        self.lua.globals()["_tactus_host_python_loader"] = host_loader_func
         self.lua.globals()["_tactus_python_loader"] = stdlib_loader_func
 
         # Add to package.loaders (Lua 5.1) or package.searchers (Lua 5.2+)
         # Lupa uses LuaJIT which follows Lua 5.1 conventions
-        self.lua.execute("""
-            -- Add host and Python stdlib loaders to package.loaders.
-            local loaders = package.loaders or package.searchers
-            if loaders then
-                -- Host modules are explicit capabilities provided by the
-                -- embedding application. They run before .tac searchers so a
-                -- local file cannot shadow require("plexus").
-                local function host_python_searcher(modname)
-                    local result = _tactus_host_python_loader(modname)
-                    if result then
-                        return function() return result end
+        create_host_loader = getattr(self._stdlib_loader, "create_host_loader_function", None)
+        if callable(create_host_loader):
+            host_loader_func = create_host_loader()
+            self.lua.globals()["_tactus_host_python_loader"] = host_loader_func
+            self.lua.execute("""
+                -- Add host and Python stdlib loaders to package.loaders.
+                local loaders = package.loaders or package.searchers
+                if loaders then
+                    -- Host modules are explicit capabilities provided by the
+                    -- embedding application. They run before .tac searchers so a
+                    -- local file cannot shadow require("plexus").
+                    local function host_python_searcher(modname)
+                        local result = _tactus_host_python_loader(modname)
+                        if result then
+                            return function() return result end
+                        end
+                        return nil
                     end
-                    return nil
-                end
 
-                -- Stdlib Python modules are fallback after .tac path loaders.
-                local function stdlib_python_searcher(modname)
-                    local result = _tactus_python_loader(modname)
-                    if result then
-                        return function() return result end
+                    -- Stdlib Python modules are fallback after .tac path loaders.
+                    local function stdlib_python_searcher(modname)
+                        local result = _tactus_python_loader(modname)
+                        if result then
+                            return function() return result end
+                        end
+                        return nil
                     end
-                    return nil
+
+                    -- Insert host modules before filesystem searchers. Lua's first
+                    -- searcher handles package.preload, so index 2 preserves that.
+                    table.insert(loaders, 2, host_python_searcher)
+
+                    -- Append stdlib at end so .tac files are checked first.
+                    table.insert(loaders, stdlib_python_searcher)
                 end
+                """)
+        else:
+            self.lua.execute("""
+                -- Add Python stdlib loader to package.loaders.
+                local loaders = package.loaders or package.searchers
+                if loaders then
+                    local function stdlib_python_searcher(modname)
+                        local result = _tactus_python_loader(modname)
+                        if result then
+                            return function() return result end
+                        end
+                        return nil
+                    end
 
-                -- Insert host modules before filesystem searchers. Lua's first
-                -- searcher handles package.preload, so index 2 preserves that.
-                table.insert(loaders, 2, host_python_searcher)
-
-                -- Append stdlib at end so .tac files are checked first.
-                table.insert(loaders, stdlib_python_searcher)
-            end
-            """)
+                    table.insert(loaders, stdlib_python_searcher)
+                end
+                """)
 
         logger.debug("Python host/stdlib loaders installed")
 
