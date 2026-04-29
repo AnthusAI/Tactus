@@ -3,7 +3,7 @@
   "title": "pyproject.toml",
   "description": "Snyk vulnerabilities found in `pyproject.toml`.",
   "type": "task",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 0,
   "assignee": null,
   "creator": null,
@@ -103,11 +103,17 @@
       "author": "derek.norrbom",
       "text": "Implemented dependency updates on fix/snyk-remediation: litellm now 1.83.14 with python_version <3.14 marker in root, and tools/mcp-fixtures fastmcp upgraded to 3.2.4 (<3.3.0). Regenerated both lockfiles. Validation: ruff/black passed, behave passed, mcp-fixtures install+import smoke passed. Local test-ci still fails due environment extras not loading under Python 3.14 (missing pydantic-evals/mlflow/scikit-learn), consistent with pre-existing local env behavior. Snyk results: root still shows 2 high issues with no patch path (diskcache via dspy, litellm 1.83.14 advisory); mcp-fixtures scan is clean.",
       "created_at": "2026-04-29T17:24:58.822383Z"
+    },
+    {
+      "id": "1b80876d-c0d9-4821-9323-ef6d244fb139",
+      "author": "derek.norrbom",
+      "text": "Dependency remediation completed on this branch: litellm upgraded to 1.83.14 with python_version<3.14 marker, fastmcp upgraded to 3.2.4 in isolated mcp-fixtures env, lockfiles regenerated, CI passed on Python 3.10/3.11/3.12. Remaining findings are no-patch upstream advisories (diskcache via dspy and litellm advisory) and are tracked for risk handling.",
+      "created_at": "2026-04-29T18:23:12.818889Z"
     }
   ],
   "created_at": "2026-04-14T17:12:28.832621Z",
-  "updated_at": "2026-04-29T17:24:58.822383Z",
-  "closed_at": null,
+  "updated_at": "2026-04-29T18:23:12.829429Z",
+  "closed_at": "2026-04-29T18:23:12.829429Z",
   "custom": {
     "snyk_category": "dependency",
     "snyk_target_file": "pyproject.toml"
