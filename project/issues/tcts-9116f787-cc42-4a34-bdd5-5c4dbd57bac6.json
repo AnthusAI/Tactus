@@ -1,0 +1,40 @@
+{
+  "id": "tcts-9116f787-cc42-4a34-bdd5-5c4dbd57bac6",
+  "title": "Implement Tactus runtime GPT-5 controls",
+  "description": "Add runtime, agent, model, backend, and DSPy config support for reasoning_effort and verbosity.",
+  "type": "task",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-5f92fe70-3a01-465c-9982-687ec28025a3",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "9972f909-5549-4fc8-8708-3a9e7fa0482d",
+      "author": "ryan",
+      "text": "Started implementation on feature/tactus-score-reasoning-verbosity. Scope is runtime-level reasoning_effort and verbosity propagation through agent and LLM-backed model execution.",
+      "created_at": "2026-04-29T22:09:23.372707Z"
+    },
+    {
+      "id": "9d5b1e13-38ff-409d-b32e-a8a6e7644ea0",
+      "author": "ryan",
+      "text": "Implemented runtime support for reasoning_effort and verbosity across TactusRuntime, DSPy agent configuration, configure_lm/create_lm, LLMModelBackend, ModelPrimitive, immediate DSL stubs, and YAML validation. Focused tests pass. Full ruff and black pass. behave --tags=-skip passes. test-ci.sh is blocked locally because /usr/local/bin/python3 lacks Poetry; direct pytest tests/ is blocked by missing moto in the local environment.",
+      "created_at": "2026-04-29T22:21:30.856720Z"
+    },
+    {
+      "id": "0cbe6e11-4712-4d2f-98dc-05396a6bfe5f",
+      "author": "ryan",
+      "text": "Closing implementation task: code implementation complete. Added Tactus runtime fields, propagation through agents/models/configuration, validation, and focused coverage. Release follow-up filed as tcts-da6da4.",
+      "created_at": "2026-04-29T22:21:45.981225Z"
+    }
+  ],
+  "created_at": "2026-04-29T22:09:18.678440Z",
+  "updated_at": "2026-04-29T22:21:45.994208Z",
+  "closed_at": "2026-04-29T22:21:45.994208Z",
+  "custom": {
+    "project_label": "tcts",
+    "source": "shared"
+  }
+}

@@ -26,6 +26,8 @@ class LLMModelBackend:
         provider: Optional[str] = None,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
+        reasoning_effort: Optional[str] = None,
+        verbosity: Optional[str] = None,
         mock_manager: Optional[Any] = None,
         registry: Optional[Any] = None,
         execution_context: Optional[Any] = None,
@@ -41,6 +43,8 @@ class LLMModelBackend:
             temperature: Model temperature. None applies a model-specific default:
                 gpt-5 family omits temperature entirely; all others use 0.0.
             max_tokens: Maximum tokens for response
+            reasoning_effort: Optional GPT-5-family reasoning effort control
+            verbosity: Optional GPT-5-family response verbosity control
             mock_manager: Optional MockManager instance for testing
             registry: Optional Registry instance
             execution_context: Optional ExecutionContext (not used by internal Agent)
@@ -54,6 +58,8 @@ class LLMModelBackend:
             temperature = default_temperature_for_model(model)
         self.temperature = temperature
         self.max_tokens = max_tokens
+        self.reasoning_effort = reasoning_effort
+        self.verbosity = verbosity
         self.mock_manager = mock_manager
         self.registry = registry
         # Note: execution_context not passed to Agent - we don't checkpoint internal turns
@@ -67,6 +73,8 @@ class LLMModelBackend:
             provider=provider,
             temperature=temperature,
             max_tokens=max_tokens,
+            reasoning_effort=reasoning_effort,
+            verbosity=verbosity,
             mock_manager=mock_manager,
             registry=registry,
             execution_context=None,  # Don't checkpoint internal agent turns

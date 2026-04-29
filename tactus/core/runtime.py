@@ -19,6 +19,7 @@ from typing import Any, Dict, List, Optional, TYPE_CHECKING
 from tactus.core.registry import ProcedureRegistry, RegistryBuilder, TaskDeclaration
 from tactus.core.dsl_stubs import create_dsl_stubs, lua_table_to_dict
 from tactus.core.template_resolver import TemplateResolver
+from tactus.dspy.config import validate_gpt5_controls
 from tactus.dspy.model_params import default_temperature_for_model
 from tactus.core.message_history_manager import MessageHistoryManager
 from tactus.core.lua_sandbox import LuaSandbox, LuaSandboxError, validate_python_module_name
@@ -86,6 +87,8 @@ class TactusRuntime:
         external_config: Optional[Dict[str, Any]] = None,
         run_id: Optional[str] = None,
         source_file_path: Optional[str] = None,
+        reasoning_effort: Optional[str] = None,
+        verbosity: Optional[str] = None,
     ):
         """
         Initialize the Tactus runtime.
@@ -104,7 +107,11 @@ class TactusRuntime:
             external_config: Optional external config (from .tac.yml) to merge with DSL config
             run_id: Optional run identifier for tagging checkpoints
             source_file_path: Optional path to the .tac file being executed (for accurate source locations)
+            reasoning_effort: Optional GPT-5-family reasoning effort control
+            verbosity: Optional GPT-5-family response verbosity control
         """
+        validate_gpt5_controls(reasoning_effort=reasoning_effort, verbosity=verbosity)
+
         self.procedure_id = procedure_id
         self.storage_backend = storage_backend
 
@@ -150,6 +157,8 @@ class TactusRuntime:
         self.dependency_prompt_handler = None
         self.run_id = run_id
         self.source_file_path = source_file_path
+        self.reasoning_effort = reasoning_effort
+        self.verbosity = verbosity
         self.python_modules: Dict[str, Any] = {}
 
         # Will be initialized during setup
@@ -2235,6 +2244,19 @@ class TactusRuntime:
             else:
                 resolved_temperature = default_temperature_for_model(model_name)
 
+            resolved_reasoning_effort = self.reasoning_effort
+            resolved_verbosity = self.verbosity
+            if model_settings is not None:
+                if (
+                    "reasoning_effort" in model_settings
+                    or "openai_reasoning_effort" in model_settings
+                ):
+                    resolved_reasoning_effort = model_settings.get(
+                        "reasoning_effort", model_settings.get("openai_reasoning_effort")
+                    )
+                if "verbosity" in model_settings:
+                    resolved_verbosity = model_settings["verbosity"]
+
             dspy_config = {
                 "system_prompt": system_prompt_template,
                 "model": model_name,
@@ -2262,6 +2284,10 @@ class TactusRuntime:
                 "message_history_filter": message_history_filter,
                 "response": agent_config.get("response"),
             }
+            if resolved_reasoning_effort is not None:
+                dspy_config["reasoning_effort"] = resolved_reasoning_effort
+            if resolved_verbosity is not None:
+                dspy_config["verbosity"] = resolved_verbosity
             logger.info(
                 f"Agent '{agent_name}' dspy_config has tool_choice={dspy_config.get('tool_choice')}"
             )
@@ -2314,6 +2340,8 @@ class TactusRuntime:
                     config=model_config,
                     context=self.execution_context,
                     mock_manager=self.mock_manager,
+                    reasoning_effort=self.reasoning_effort,
+                    verbosity=self.verbosity,
                 )
 
                 self.models[model_name] = model_primitive
@@ -3588,6 +3616,8 @@ class TactusRuntime:
             "execution_context": self.execution_context,
             "log_handler": self.log_handler,
             "sandbox": sandbox,
+            "reasoning_effort": self.reasoning_effort,
+            "verbosity": self.verbosity,
             "_created_agents": {},  # Will be populated during parsing
             "is_parsing": True,  # Stubs can use this to defer runtime-only behavior
         }

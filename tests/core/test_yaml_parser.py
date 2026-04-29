@@ -38,7 +38,9 @@ def test_parse_valid_config_with_params_outputs_and_model_settings():
         "temperature": 0.7,
         "top_p": 0.5,
         "max_tokens": 10,
-        "openai_reasoning_effort": "low",
+        "openai_reasoning_effort": "xhigh",
+        "reasoning_effort": "minimal",
+        "verbosity": "low",
     }
     yaml_content = yaml.safe_dump(config)
 
@@ -258,6 +260,8 @@ def test_agent_model_name_type_and_empty():
         {"name": "gpt-4o", "max_tokens": 0},
         {"name": "gpt-4o", "max_tokens": "bad"},
         {"name": "gpt-4o", "openai_reasoning_effort": "invalid"},
+        {"name": "gpt-4o", "reasoning_effort": "invalid"},
+        {"name": "gpt-4o", "verbosity": "invalid"},
     ],
 )
 def test_agent_model_invalid_settings(model_value):
