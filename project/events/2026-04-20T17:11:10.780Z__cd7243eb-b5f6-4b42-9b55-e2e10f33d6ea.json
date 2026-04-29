@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "cd7243eb-b5f6-4b42-9b55-e2e10f33d6ea",
+  "issue_id": "tcts-9916e7f0-28e6-4046-a3b2-a16c20b1897f",
+  "event_type": "issue_created",
+  "occurred_at": "2026-04-20T17:11:10.780Z",
+  "actor_id": "ryan",
+  "payload": {
+    "assignee": null,
+    "description": "",
+    "issue_type": "epic",
+    "labels": [],
+    "parent": null,
+    "priority": 1,
+    "status": "open",
+    "title": "State preload for continuation detection"
+  }
+}
