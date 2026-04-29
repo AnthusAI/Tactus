@@ -32,7 +32,7 @@ dependencies = [
     "pydantic-ai-slim==1.56.0",
     "griffe<2",
     "logfire>=4.20.0",
-    "litellm==1.83.7",
+    "litellm==1.83.14; python_version < '3.14'",
     "aiohttp>=3.13.4",
     "opentelemetry-api>=1.39.1",
     "opentelemetry-sdk>=1.39.1",

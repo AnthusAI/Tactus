@@ -85,10 +85,28 @@
       "author": "derek.norrbom",
       "text": "Starting dependency refresh cycle: first step is merging latest develop into fix/snyk-remediation to rebase remediation work on current baseline.",
       "created_at": "2026-04-29T17:14:51.849649Z"
+    },
+    {
+      "id": "351ba75d-3496-4c34-8cd9-1ac548304465",
+      "author": "derek.norrbom",
+      "text": "Merged latest origin/develop into fix/snyk-remediation and pushed merge commit 590a4b1c. Branch is now rebased to current baseline; ready for litellm/fastmcp remediation changes.",
+      "created_at": "2026-04-29T17:15:25.069391Z"
+    },
+    {
+      "id": "538411d0-680c-4ac1-8bba-30a63ccc5bd3",
+      "author": "derek.norrbom",
+      "text": "Implementing dependency remediation now: plan is to apply a Python marker for litellm (<3.14), upgrade litellm and fastmcp, regenerate poetry.lock, then validate with lint/tests/Snyk and CI.",
+      "created_at": "2026-04-29T17:16:27.812627Z"
+    },
+    {
+      "id": "b17ce4e2-e1f9-4c69-ab94-53b1d192403a",
+      "author": "derek.norrbom",
+      "text": "Implemented dependency updates on fix/snyk-remediation: litellm now 1.83.14 with python_version <3.14 marker in root, and tools/mcp-fixtures fastmcp upgraded to 3.2.4 (<3.3.0). Regenerated both lockfiles. Validation: ruff/black passed, behave passed, mcp-fixtures install+import smoke passed. Local test-ci still fails due environment extras not loading under Python 3.14 (missing pydantic-evals/mlflow/scikit-learn), consistent with pre-existing local env behavior. Snyk results: root still shows 2 high issues with no patch path (diskcache via dspy, litellm 1.83.14 advisory); mcp-fixtures scan is clean.",
+      "created_at": "2026-04-29T17:24:58.822383Z"
     }
   ],
   "created_at": "2026-04-14T17:12:28.832621Z",
-  "updated_at": "2026-04-29T17:14:51.849649Z",
+  "updated_at": "2026-04-29T17:24:58.822383Z",
   "closed_at": null,
   "custom": {
     "snyk_category": "dependency",
