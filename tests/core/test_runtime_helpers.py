@@ -544,9 +544,20 @@ async def test_setup_models_registers_models(monkeypatch):
 
     created = []
 
+    runtime.reasoning_effort = "low"
+    runtime.verbosity = "high"
+
     class DummyModel:
-        def __init__(self, model_name, config, context, mock_manager):
-            created.append((model_name, config, context, mock_manager))
+        def __init__(
+            self,
+            model_name,
+            config,
+            context,
+            mock_manager,
+            reasoning_effort=None,
+            verbosity=None,
+        ):
+            created.append((model_name, config, context, mock_manager, reasoning_effort, verbosity))
 
     monkeypatch.setattr("tactus.primitives.model.ModelPrimitive", DummyModel)
 
@@ -554,6 +565,7 @@ async def test_setup_models_registers_models(monkeypatch):
 
     assert runtime.models["demo"]
     assert created[0][0] == "demo"
+    assert created[0][4:] == ("low", "high")
 
 
 @pytest.mark.asyncio
