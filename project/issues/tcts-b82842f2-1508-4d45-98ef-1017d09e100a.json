@@ -3,7 +3,7 @@
   "title": "pyproject.toml",
   "description": "Snyk vulnerabilities found in `pyproject.toml`.",
   "type": "task",
-  "status": "blocked",
+  "status": "in_progress",
   "priority": 0,
   "assignee": null,
   "creator": null,
@@ -79,10 +79,16 @@
       "author": "derek.norrbom",
       "text": "Update after fastmcp isolation: root litellm upgrade is now unblocked and applied (1.83.0 -> 1.83.7). Fresh Snyk high scan now reports only no-patch findings: diskcache via dspy (tracked in tcts-2fadc6) and litellm arbitrary-code-injection advisory with no direct patch path. Keeping parent task blocked pending mitigation/risk-acceptance decision for no-patch issues.",
       "created_at": "2026-04-24T16:16:25.787823Z"
+    },
+    {
+      "id": "b294d597-8da0-4313-86af-4071a851359a",
+      "author": "derek.norrbom",
+      "text": "Starting dependency refresh cycle: first step is merging latest develop into fix/snyk-remediation to rebase remediation work on current baseline.",
+      "created_at": "2026-04-29T17:14:51.849649Z"
     }
   ],
   "created_at": "2026-04-14T17:12:28.832621Z",
-  "updated_at": "2026-04-24T16:16:25.797928Z",
+  "updated_at": "2026-04-29T17:14:51.849649Z",
   "closed_at": null,
   "custom": {
     "snyk_category": "dependency",

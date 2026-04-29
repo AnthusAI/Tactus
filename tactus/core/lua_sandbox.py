@@ -4,7 +4,8 @@ Lua Sandbox - Safe, restricted Lua execution environment.
 Provides a sandboxed Lua runtime with:
 - Data format libraries restricted to working directory (Csv, Tsv, Parquet, Hdf5, Excel)
 - File and Json primitives injected separately by runtime
-- require() available but restricted to loading .tac files from working directory only
+- require() available but restricted to host-registered modules, .tac files from
+  working directory, and Tactus stdlib modules
 - No dangerous operations (debug, io, loadfile, dofile removed)
 - Only whitelisted primitives available
 - Resource limits on CPU time and memory
@@ -12,6 +13,7 @@ Provides a sandboxed Lua runtime with:
 
 import logging
 import os
+import re
 from typing import Any, Optional
 
 try:
@@ -24,6 +26,20 @@ except ImportError:
     LuaRuntime = None
 
 logger = logging.getLogger(__name__)
+HOST_MODULE_NAME_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$")
+
+
+def validate_python_module_name(name: str) -> None:
+    """Validate a host-provided Lua require() module name."""
+
+    if not name or not isinstance(name, str):
+        raise ValueError("Module name must be a non-empty string")
+    if name.startswith("tactus."):
+        raise ValueError("Host modules cannot use the reserved 'tactus.' namespace")
+    if not HOST_MODULE_NAME_PATTERN.match(name):
+        raise ValueError(
+            "Host module names must be dotted identifiers, e.g. 'plexus' or " "'vendor.module'"
+        )
 
 
 class LuaSandboxError(Exception):
@@ -40,6 +56,7 @@ class LuaSandbox:
         execution_context: Optional[Any] = None,
         strict_determinism: bool = False,
         base_path: Optional[str] = None,
+        python_modules: Optional[dict[str, Any]] = None,
     ):
         """
         Initialize the Lua sandbox.
@@ -48,6 +65,7 @@ class LuaSandbox:
             execution_context: Optional ExecutionContext for checkpoint scope tracking
             strict_determinism: If True, raise errors instead of warnings for non-deterministic ops
             base_path: Optional base path for file operations and require(). Defaults to cwd.
+            python_modules: Optional host-provided Python modules available via require().
         """
         if not LUPA_AVAILABLE:
             raise LuaSandboxError("lupa library not available. Install with: pip install lupa")
@@ -60,6 +78,13 @@ class LuaSandbox:
         # This ensures file I/O libraries and require() always use the same base path,
         # even if the working directory changes later
         self.base_path = base_path or os.getcwd()
+        self.python_modules = {}
+        for name, module in (python_modules or {}).items():
+            try:
+                validate_python_module_name(name)
+            except ValueError as exc:
+                raise LuaSandboxError(str(exc)) from exc
+            self.python_modules[name] = module
 
         # Create Lua runtime with safety restrictions
         self.lua = LuaRuntime(
@@ -207,35 +232,92 @@ class LuaSandbox:
         from tactus.stdlib.loader import StdlibModuleLoader
 
         # Create loader instance
-        self._stdlib_loader = StdlibModuleLoader(self, self.base_path)
-        loader_func = self._stdlib_loader.create_loader_function()
+        self._stdlib_loader = StdlibModuleLoader(
+            self,
+            self.base_path,
+            host_modules=getattr(self, "python_modules", {}),
+        )
+        stdlib_loader_func = self._stdlib_loader.create_loader_function()
 
         # Inject loader function into Lua
-        self.lua.globals()["_tactus_python_loader"] = loader_func
+        self.lua.globals()["_tactus_python_loader"] = stdlib_loader_func
 
         # Add to package.loaders (Lua 5.1) or package.searchers (Lua 5.2+)
         # Lupa uses LuaJIT which follows Lua 5.1 conventions
-        self.lua.execute("""
-            -- Add Python stdlib loader to package.loaders
-            -- Append at end so .tac files are checked first (Tactus-first architecture)
-            local loaders = package.loaders or package.searchers
-            if loaders then
-                -- Create wrapper that returns a loader function (Lua convention)
-                local function python_searcher(modname)
-                    local result = _tactus_python_loader(modname)
-                    if result then
-                        -- Return a loader function that returns the module
-                        return function() return result end
+        create_host_loader = getattr(self._stdlib_loader, "create_host_loader_function", None)
+        if callable(create_host_loader):
+            host_loader_func = create_host_loader()
+            self.lua.globals()["_tactus_host_python_loader"] = host_loader_func
+            self.lua.execute("""
+                -- Add host and Python stdlib loaders to package.loaders.
+                local loaders = package.loaders or package.searchers
+                if loaders then
+                    -- Host modules are explicit capabilities provided by the
+                    -- embedding application. They run before .tac searchers so a
+                    -- local file cannot shadow require("plexus").
+                    local function host_python_searcher(modname)
+                        local result = _tactus_host_python_loader(modname)
+                        if result then
+                            return function() return result end
+                        end
+                        return nil
                     end
-                    return nil
+
+                    -- Stdlib Python modules are fallback after .tac path loaders.
+                    local function stdlib_python_searcher(modname)
+                        local result = _tactus_python_loader(modname)
+                        if result then
+                            return function() return result end
+                        end
+                        return nil
+                    end
+
+                    -- Insert host modules before filesystem searchers. Lua's first
+                    -- searcher handles package.preload, so index 2 preserves that.
+                    table.insert(loaders, 2, host_python_searcher)
+
+                    -- Append stdlib at end so .tac files are checked first.
+                    table.insert(loaders, stdlib_python_searcher)
                 end
+                """)
+        else:
+            self.lua.execute("""
+                -- Add Python stdlib loader to package.loaders.
+                local loaders = package.loaders or package.searchers
+                if loaders then
+                    local function stdlib_python_searcher(modname)
+                        local result = _tactus_python_loader(modname)
+                        if result then
+                            return function() return result end
+                        end
+                        return nil
+                    end
 
-                -- Append at end (.tac path loader runs first, Python is fallback)
-                table.insert(loaders, python_searcher)
-            end
-            """)
+                    table.insert(loaders, stdlib_python_searcher)
+                end
+                """)
 
-        logger.debug("Python stdlib loader installed")
+        logger.debug("Python host/stdlib loaders installed")
+
+    def register_python_module(self, name: str, module: Any) -> None:
+        """Register a host-provided Python module for Lua require().
+
+        Registered modules are resolved by the same safe Python loader used for
+        the Tactus stdlib. They are per-sandbox and do not expand filesystem
+        search paths or enable arbitrary Python imports.
+        """
+
+        try:
+            validate_python_module_name(name)
+        except ValueError as exc:
+            raise LuaSandboxError(str(exc)) from exc
+
+        self.python_modules[name] = module
+        if hasattr(self, "_stdlib_loader"):
+            self._stdlib_loader.register_host_module(name, module)
+        package = self.lua.globals()["package"]
+        if package and package["loaded"]:
+            package["loaded"][name] = None
 
     def _setup_safe_globals(self) -> None:
         """Setup safe global functions and utilities."""
