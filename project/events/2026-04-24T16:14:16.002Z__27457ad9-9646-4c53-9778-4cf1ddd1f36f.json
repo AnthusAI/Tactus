@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "27457ad9-9646-4c53-9778-4cf1ddd1f36f",
+  "issue_id": "tcts-9f90547a-e362-4f52-b005-8590ca111cb3",
+  "event_type": "issue_created",
+  "occurred_at": "2026-04-24T16:14:16.002Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "assignee": null,
+    "description": "",
+    "issue_type": "sub-task",
+    "labels": [],
+    "parent": "tcts-b82842f2-1508-4d45-98ef-1017d09e100a",
+    "priority": 2,
+    "status": "open",
+    "title": "Isolate fastmcp into separate locked tooling env to unblock litellm upgrades"
+  }
+}

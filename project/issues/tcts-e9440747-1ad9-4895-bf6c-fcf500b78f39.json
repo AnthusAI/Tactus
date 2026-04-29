@@ -3,7 +3,7 @@
   "title": "[Snyk Code] Path Traversal",
   "description": "## Path Traversal\n\n**Severity:** high\n**Project:** `AnthusAI/Tactus`\n**File:** `tactus/ide/server.py`\n**Location:** line 1244, column 29 to line 1244, column 38\n**Classes:** CWE-CWE-23\n### Snippet (tactus/ide/server.py:1242-1246)\n```\n1242 |                         events_file = events_dir / f\"{run_id}.json\"\n1243 |                         with open(events_file, \"w\") as f:\n1244 |                             json.dump(consolidated_events, f, indent=2)\n1245 |                     except Exception as e:\n1246 |                         logger.error(\n```\n\n**Issue Key:** cfd77dbc-bb8a-4d62-b2cb-06684ff6f3e8\n\n### Details\nPath Traversal\n\n**Fix:** Review and remediate in code.",
   "type": "sub-task",
-  "status": "open",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -13,10 +13,17 @@
     "snyk"
   ],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "bb42a32d-29ef-41e3-86f3-b2d637b58cfb",
+      "author": "derek.norrbom",
+      "text": "Closing as remediated: fresh Snyk Code high-threshold scan now reports zero open issues in this repository.",
+      "created_at": "2026-04-24T15:56:07.857368Z"
+    }
+  ],
   "created_at": "2026-04-14T17:12:28.830225Z",
-  "updated_at": "2026-04-14T17:12:28.830225Z",
-  "closed_at": null,
+  "updated_at": "2026-04-24T15:56:07.874229Z",
+  "closed_at": "2026-04-24T15:56:07.874229Z",
   "custom": {
     "snyk_column": 29,
     "snyk_end_column": 38,

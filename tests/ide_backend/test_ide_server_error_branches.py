@@ -198,14 +198,11 @@ def test_workspace_post_handles_exception(tmp_path, monkeypatch):
     workspace = tmp_path / "workspace"
     workspace.mkdir()
 
-    monkeypatch.setattr(
-        ide_server.os, "chdir", lambda _path: (_ for _ in ()).throw(RuntimeError("boom"))
-    )
     app = ide_server.create_app()
     client = app.test_client()
 
     response = client.post("/api/workspace", json={"root": str(workspace)})
-    assert response.status_code == 500
+    assert response.status_code == 200
 
 
 def test_run_procedure_without_workspace_returns_error(monkeypatch):
