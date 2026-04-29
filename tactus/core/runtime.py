@@ -21,7 +21,7 @@ from tactus.core.dsl_stubs import create_dsl_stubs, lua_table_to_dict
 from tactus.core.template_resolver import TemplateResolver
 from tactus.dspy.model_params import default_temperature_for_model
 from tactus.core.message_history_manager import MessageHistoryManager
-from tactus.core.lua_sandbox import LuaSandbox, LuaSandboxError
+from tactus.core.lua_sandbox import LuaSandbox, LuaSandboxError, validate_python_module_name
 from tactus.core.output_validator import OutputValidator, OutputValidationError
 from tactus.core.execution_context import BaseExecutionContext
 from tactus.core.exceptions import ProcedureWaitingForHuman, TactusRuntimeError
@@ -150,6 +150,7 @@ class TactusRuntime:
         self.dependency_prompt_handler = None
         self.run_id = run_id
         self.source_file_path = source_file_path
+        self.python_modules: Dict[str, Any] = {}
 
         # Will be initialized during setup
         self.config: Optional[Dict[str, Any]] = None  # Legacy YAML support
@@ -198,6 +199,23 @@ class TactusRuntime:
 
         logger.info("TactusRuntime initialized for procedure %s", procedure_id)
 
+    def register_python_module(self, name: str, module: Any) -> None:
+        """Register a host-provided Python module for Lua require().
+
+        This is intentionally a host-extension hook, not a stdlib import path.
+        The module is available only to this runtime instance and is resolved by
+        the sandbox's safe Python loader during `require(name)`.
+        """
+
+        try:
+            validate_python_module_name(name)
+        except ValueError as exc:
+            raise TactusRuntimeError(str(exc)) from exc
+
+        self.python_modules[name] = module
+        if self.lua_sandbox is not None:
+            self.lua_sandbox.register_python_module(name, module)
+
     async def execute(
         self,
         source: str,
@@ -236,11 +254,25 @@ class TactusRuntime:
 
             sandbox_base_path = self._resolve_sandbox_base_path()
 
-            self.lua_sandbox = LuaSandbox(
-                execution_context=None,
-                strict_determinism=strict_determinism,
-                base_path=sandbox_base_path,
-            )
+            try:
+                self.lua_sandbox = LuaSandbox(
+                    execution_context=None,
+                    strict_determinism=strict_determinism,
+                    base_path=sandbox_base_path,
+                    python_modules=self.python_modules,
+                )
+            except TypeError as exc:
+                if "python_modules" not in str(exc):
+                    raise
+                self.lua_sandbox = LuaSandbox(
+                    execution_context=None,
+                    strict_determinism=strict_determinism,
+                    base_path=sandbox_base_path,
+                )
+                register_module = getattr(self.lua_sandbox, "register_python_module", None)
+                if callable(register_module):
+                    for name, module in self.python_modules.items():
+                        register_module(name, module)
 
             # 0.5. Create execution context EARLY so it's available during DSL parsing
             # This is critical for immediate agent creation during parsing
