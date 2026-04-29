@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "56364174-84e1-41f5-89a0-e357eae9750a",
+  "issue_id": "tcts-3fb6063a-0f3d-4533-a797-e4ce4817da7f",
+  "event_type": "issue_created",
+  "occurred_at": "2026-04-29T20:41:56.598Z",
+  "actor_id": "derek",
+  "payload": {
+    "assignee": null,
+    "description": "",
+    "issue_type": "task",
+    "labels": [],
+    "parent": "tcts-0ca82e56-44be-42c5-b857-6846762eb0fa",
+    "priority": 1,
+    "status": "open",
+    "title": "Make biblicus reinforcement-memory extra a core Tactus dependency"
+  }
+}

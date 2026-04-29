@@ -1,0 +1,18 @@
+{
+  "id": "tcts-0ca82e56-44be-42c5-b857-6846762eb0fa",
+  "title": "Install Biblicus reinforcement-memory support by default",
+  "description": "",
+  "type": "epic",
+  "status": "in_progress",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-04-29T20:41:56.514341432Z",
+  "updated_at": "2026-04-29T20:42:02.860677280Z",
+  "closed_at": null,
+  "custom": {}
+}
