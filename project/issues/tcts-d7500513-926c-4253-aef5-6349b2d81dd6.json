@@ -1,0 +1,18 @@
+{
+  "id": "tcts-d7500513-926c-4253-aef5-6349b2d81dd6",
+  "title": "Propagate GPT-5 controls through Tactus runtime",
+  "description": "Feature: Runtime GPT-5 controls\n\nScenario: Runtime configures agent model controls\nGiven a runtime has reasoning_effort and verbosity\nWhen an agent configures its DSPy LM\nThen both settings reach the LiteLLM request kwargs\n\nScenario: Runtime configures LLM-backed models\nGiven a ClassifyProcedure uses an LLMModel\nWhen runtime reasoning_effort and verbosity are set\nThen the LLM backend receives and forwards both settings\n\nScenario: Responses mode is used\nGiven model_type is responses\nWhen verbosity is set\nThen verbosity is sent as text.verbosity",
+  "type": "story",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-5f92fe70-3a01-465c-9982-687ec28025a3",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-04-29T22:09:18.678297Z",
+  "updated_at": "2026-04-29T22:09:18.678297Z",
+  "closed_at": null,
+  "custom": {}
+}

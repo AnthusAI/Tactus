@@ -35,13 +35,22 @@ def test_agent_auto_config_uses_normalized_model(monkeypatch):
 
     called = {}
 
-    def fake_configure_lm(model: str, **_kwargs):
+    def fake_configure_lm(model: str, **kwargs):
         called["model"] = model
+        called["kwargs"] = kwargs
         return None
 
     monkeypatch.setattr("tactus.dspy.config.configure_lm", fake_configure_lm)
 
-    agent = DSPyAgentHandle(name="agent", provider="openai", model="gpt-4o-mini")
+    agent = DSPyAgentHandle(
+        name="agent",
+        provider="openai",
+        model="gpt-4o-mini",
+        reasoning_effort="xhigh",
+        verbosity="low",
+    )
     agent({"message": "hello"})
 
     assert called["model"] == "openai/gpt-4o-mini"
+    assert called["kwargs"]["reasoning_effort"] == "xhigh"
+    assert called["kwargs"]["verbosity"] == "low"

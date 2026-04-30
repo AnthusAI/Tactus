@@ -26,9 +26,26 @@ class V1AgentConfig:
         return dict(self._data)
 
 
+@pytest.mark.parametrize(
+    "kwargs,error_match",
+    [
+        ({"reasoning_effort": "invalid"}, "reasoning_effort"),
+        ({"verbosity": "invalid"}, "verbosity"),
+    ],
+)
+def test_runtime_rejects_invalid_gpt5_controls(kwargs, error_match):
+    with pytest.raises(ValueError, match=error_match):
+        runtime_module.TactusRuntime(procedure_id="proc", hitl_handler=object(), **kwargs)
+
+
 @pytest.mark.asyncio
 async def test_setup_agents_accepts_v1_agent_config_and_model_settings(monkeypatch):
-    runtime = runtime_module.TactusRuntime(procedure_id="proc", hitl_handler=object())
+    runtime = runtime_module.TactusRuntime(
+        procedure_id="proc",
+        hitl_handler=object(),
+        reasoning_effort="minimal",
+        verbosity="high",
+    )
     runtime.lua_sandbox = DummyLuaSandbox()
     runtime.toolset_registry = {}
     runtime.config = {}
@@ -62,6 +79,52 @@ async def test_setup_agents_accepts_v1_agent_config_and_model_settings(monkeypat
     assert captured["name"] == "agent"
     assert captured["config"]["model"] == "openai/gpt-4o"
     assert captured["config"]["temperature"] == 0.5
+    assert captured["config"]["reasoning_effort"] == "minimal"
+    assert captured["config"]["verbosity"] == "high"
+
+
+@pytest.mark.asyncio
+async def test_setup_agents_model_settings_override_runtime_gpt5_controls(monkeypatch):
+    runtime = runtime_module.TactusRuntime(
+        procedure_id="proc",
+        hitl_handler=object(),
+        reasoning_effort="low",
+        verbosity="medium",
+    )
+    runtime.lua_sandbox = DummyLuaSandbox()
+    runtime.toolset_registry = {}
+    runtime.config = {}
+    runtime.registry = SimpleNamespace(agents={})
+    runtime.agents = {}
+
+    captured = {}
+
+    def _create_agent(_name, config, **_kwargs):
+        captured["config"] = config
+        return SimpleNamespace()
+
+    runtime.registry.agents = {
+        "agent": {
+            "system_prompt": "system",
+            "provider": "openai",
+            "model": {
+                "name": "gpt-5-mini",
+                "reasoning_effort": "xhigh",
+                "verbosity": "low",
+            },
+        }
+    }
+
+    async def _noop_dependencies():
+        return None
+
+    monkeypatch.setattr(runtime, "_initialize_dependencies", _noop_dependencies)
+    monkeypatch.setattr("tactus.dspy.agent.create_dspy_agent", _create_agent)
+
+    await runtime._setup_agents(context={})
+
+    assert captured["config"]["reasoning_effort"] == "xhigh"
+    assert captured["config"]["verbosity"] == "low"
 
 
 @pytest.mark.asyncio

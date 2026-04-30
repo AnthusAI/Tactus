@@ -80,6 +80,8 @@ def test_configure_lm_passes_lm_kwargs(monkeypatch):
         temperature=0.2,
         max_tokens=123,
         model_type="responses",
+        reasoning_effort="high",
+        verbosity="low",
     )
 
     assert captured["model"] == "openai/gpt-4o"
@@ -88,6 +90,33 @@ def test_configure_lm_passes_lm_kwargs(monkeypatch):
     assert captured["kwargs"]["model_type"] == "responses"
     assert captured["kwargs"]["api_key"] == "key"
     assert captured["kwargs"]["api_base"] == "http://base"
+    assert captured["kwargs"]["reasoning_effort"] == "high"
+    assert captured["kwargs"]["text"]["verbosity"] == "low"
+
+
+def test_configure_lm_passes_chat_mode_gpt5_controls(monkeypatch):
+    dspy_config.reset_lm_configuration()
+
+    captured = {}
+
+    class FakeLM:
+        def __init__(self, model, **kwargs):
+            captured["model"] = model
+            captured["kwargs"] = kwargs
+
+    monkeypatch.delenv("TACTUS_BROKER_SOCKET", raising=False)
+    monkeypatch.setattr(dspy_config.dspy, "LM", FakeLM)
+    monkeypatch.setattr(dspy_config.dspy, "configure", lambda **_kwargs: None)
+
+    dspy_config.configure_lm(
+        "openai/gpt-5-mini",
+        model_type="chat",
+        reasoning_effort="xhigh",
+        verbosity="medium",
+    )
+
+    assert captured["kwargs"]["reasoning_effort"] == "xhigh"
+    assert captured["kwargs"]["verbosity"] == "medium"
 
 
 def test_reset_lm_configuration_clears_state(monkeypatch):
@@ -129,6 +158,9 @@ def test_create_lm_passes_kwargs(monkeypatch):
         temperature=0.1,
         max_tokens=55,
         model_type="responses",
+        reasoning_effort="minimal",
+        verbosity="high",
+        text={"format": {"type": "text"}},
         extra="value",
     )
 
@@ -138,6 +170,11 @@ def test_create_lm_passes_kwargs(monkeypatch):
     assert captured["kwargs"]["temperature"] == 0.1
     assert captured["kwargs"]["max_tokens"] == 55
     assert captured["kwargs"]["model_type"] == "responses"
+    assert captured["kwargs"]["reasoning_effort"] == "minimal"
+    assert captured["kwargs"]["text"] == {
+        "format": {"type": "text"},
+        "verbosity": "high",
+    }
     assert captured["kwargs"]["extra"] == "value"
 
 
@@ -159,3 +196,18 @@ def test_create_lm_omits_optional_fields_when_none(monkeypatch):
     assert "api_base" not in captured["kwargs"]
     assert "max_tokens" not in captured["kwargs"]
     assert "model_type" not in captured["kwargs"]
+    assert "reasoning_effort" not in captured["kwargs"]
+    assert "verbosity" not in captured["kwargs"]
+    assert "text" not in captured["kwargs"]
+
+
+@pytest.mark.parametrize("reasoning_effort", ["", "max", "extreme"])
+def test_configure_lm_rejects_invalid_reasoning_effort(reasoning_effort):
+    with pytest.raises(ValueError, match="reasoning_effort"):
+        dspy_config.configure_lm("openai/gpt-5-mini", reasoning_effort=reasoning_effort)
+
+
+@pytest.mark.parametrize("verbosity", ["", "minimal", "verbose"])
+def test_create_lm_rejects_invalid_verbosity(verbosity):
+    with pytest.raises(ValueError, match="verbosity"):
+        dspy_config.create_lm("openai/gpt-5-mini", verbosity=verbosity)

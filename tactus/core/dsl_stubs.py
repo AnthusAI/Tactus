@@ -626,6 +626,8 @@ def create_dsl_stubs(
                         config=config_dict,
                         context=_runtime_context.get("execution_context"),
                         mock_manager=_runtime_context.get("mock_manager"),
+                        reasoning_effort=_runtime_context.get("reasoning_effort"),
+                        verbosity=_runtime_context.get("verbosity"),
                     )
                     handle._set_primitive(primitive)
                     _runtime_context.setdefault("_created_models", {})[model_name] = primitive
@@ -2013,6 +2015,16 @@ def create_dsl_stubs(
                 # Add log_handler from runtime context
                 if "log_handler" in _runtime_context:
                     agent_config["log_handler"] = _runtime_context["log_handler"]
+                if (
+                    _runtime_context.get("reasoning_effort") is not None
+                    and "reasoning_effort" not in agent_config
+                ):
+                    agent_config["reasoning_effort"] = _runtime_context["reasoning_effort"]
+                if (
+                    _runtime_context.get("verbosity") is not None
+                    and "verbosity" not in agent_config
+                ):
+                    agent_config["verbosity"] = _runtime_context["verbosity"]
 
                 agent_primitive = create_dspy_agent(
                     agent_name,
@@ -2199,6 +2211,16 @@ def create_dsl_stubs(
                 # Add log_handler from runtime context
                 if "log_handler" in _runtime_context:
                     agent_config["log_handler"] = _runtime_context["log_handler"]
+                if (
+                    _runtime_context.get("reasoning_effort") is not None
+                    and "reasoning_effort" not in agent_config
+                ):
+                    agent_config["reasoning_effort"] = _runtime_context["reasoning_effort"]
+                if (
+                    _runtime_context.get("verbosity") is not None
+                    and "verbosity" not in agent_config
+                ):
+                    agent_config["verbosity"] = _runtime_context["verbosity"]
 
                 logger.debug(
                     f"[AGENT_CREATION] Creating agent immediately: name={temporary_agent_name}, has_log_handler={'log_handler' in agent_config}"

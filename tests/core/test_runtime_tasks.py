@@ -16,6 +16,19 @@ def _runtime_with_registry(registry):
     return runtime
 
 
+def _runtime_for_parse(tmp_path, sandbox):
+    runtime = TactusRuntime.__new__(TactusRuntime)
+    runtime.lua_sandbox = sandbox
+    runtime.mock_manager = None
+    runtime.execution_context = None
+    runtime.log_handler = None
+    runtime.agents = {}
+    runtime.source_file_path = str(tmp_path / "main.tac")
+    runtime.reasoning_effort = None
+    runtime.verbosity = None
+    return runtime
+
+
 def test_execute_workflow_selects_single_task():
     registry = SimpleNamespace(
         tasks={"fetch": TaskDeclaration(name="fetch")}, retrievers={}, named_procedures={}
@@ -564,13 +577,7 @@ def test_parse_declarations_includes_tasks_with_namespace(tmp_path):
     include_file = tmp_path / "tasks.tac"
     include_file.write_text(include_source)
 
-    runtime = TactusRuntime.__new__(TactusRuntime)
-    runtime.lua_sandbox = FakeSandbox(include_source)
-    runtime.mock_manager = None
-    runtime.execution_context = None
-    runtime.log_handler = None
-    runtime.agents = {}
-    runtime.source_file_path = str(tmp_path / "main.tac")
+    runtime = _runtime_for_parse(tmp_path, FakeSandbox(include_source))
 
     registry = runtime._parse_declarations('IncludeTasks("tasks.tac")')
 
@@ -607,13 +614,7 @@ def test_parse_declarations_extends_include_queue(tmp_path):
     (tmp_path / "tasks.tac").write_text(include_source)
     (tmp_path / "nested.tac").write_text(nested_source)
 
-    runtime = TactusRuntime.__new__(TactusRuntime)
-    runtime.lua_sandbox = FakeSandbox(include_source, nested_source)
-    runtime.mock_manager = None
-    runtime.execution_context = None
-    runtime.log_handler = None
-    runtime.agents = {}
-    runtime.source_file_path = str(tmp_path / "main.tac")
+    runtime = _runtime_for_parse(tmp_path, FakeSandbox(include_source, nested_source))
 
     registry = runtime._parse_declarations('IncludeTasks("tasks.tac")')
 
@@ -648,13 +649,7 @@ def test_parse_declarations_skips_empty_include_paths(tmp_path, monkeypatch):
 
     monkeypatch.setattr("tactus.core.runtime.create_dsl_stubs", fake_create_dsl_stubs)
 
-    runtime = TactusRuntime.__new__(TactusRuntime)
-    runtime.lua_sandbox = FakeSandbox()
-    runtime.mock_manager = None
-    runtime.execution_context = None
-    runtime.log_handler = None
-    runtime.agents = {}
-    runtime.source_file_path = str(tmp_path / "main.tac")
+    runtime = _runtime_for_parse(tmp_path, FakeSandbox())
 
     registry = runtime._parse_declarations("IncludeTasks(nil)")
 
@@ -687,13 +682,7 @@ def test_parse_declarations_rejects_non_task_include(tmp_path):
     include_file = tmp_path / "tasks.tac"
     include_file.write_text(include_source)
 
-    runtime = TactusRuntime.__new__(TactusRuntime)
-    runtime.lua_sandbox = FakeSandbox(include_source)
-    runtime.mock_manager = None
-    runtime.execution_context = None
-    runtime.log_handler = None
-    runtime.agents = {}
-    runtime.source_file_path = str(tmp_path / "main.tac")
+    runtime = _runtime_for_parse(tmp_path, FakeSandbox(include_source))
 
     with pytest.raises(
         TactusRuntimeError, match="IncludeTasks files must only contain Task declarations"
@@ -725,13 +714,7 @@ def test_parse_declarations_detects_include_cycle(tmp_path):
     include_file = tmp_path / "tasks.tac"
     include_file.write_text(include_source)
 
-    runtime = TactusRuntime.__new__(TactusRuntime)
-    runtime.lua_sandbox = FakeSandbox(include_source)
-    runtime.mock_manager = None
-    runtime.execution_context = None
-    runtime.log_handler = None
-    runtime.agents = {}
-    runtime.source_file_path = str(tmp_path / "main.tac")
+    runtime = _runtime_for_parse(tmp_path, FakeSandbox(include_source))
 
     with pytest.raises(TactusRuntimeError, match="IncludeTasks cycle detected"):
         runtime._parse_declarations('IncludeTasks("tasks.tac")')
@@ -753,13 +736,7 @@ def test_parse_declarations_missing_include_file(tmp_path):
             self._globals["IncludeTasks"]("missing.tac")
             return None
 
-    runtime = TactusRuntime.__new__(TactusRuntime)
-    runtime.lua_sandbox = FakeSandbox()
-    runtime.mock_manager = None
-    runtime.execution_context = None
-    runtime.log_handler = None
-    runtime.agents = {}
-    runtime.source_file_path = str(tmp_path / "main.tac")
+    runtime = _runtime_for_parse(tmp_path, FakeSandbox())
 
     with pytest.raises(TactusRuntimeError, match="Included tasks file not found"):
         runtime._parse_declarations('IncludeTasks("missing.tac")')
@@ -790,13 +767,7 @@ def test_parse_declarations_include_lua_error(tmp_path):
     include_file = tmp_path / "tasks.tac"
     include_file.write_text(include_source)
 
-    runtime = TactusRuntime.__new__(TactusRuntime)
-    runtime.lua_sandbox = FakeSandbox(include_source)
-    runtime.mock_manager = None
-    runtime.execution_context = None
-    runtime.log_handler = None
-    runtime.agents = {}
-    runtime.source_file_path = str(tmp_path / "main.tac")
+    runtime = _runtime_for_parse(tmp_path, FakeSandbox(include_source))
 
     with pytest.raises(TactusRuntimeError, match="Failed to execute IncludeTasks file"):
         runtime._parse_declarations('IncludeTasks("tasks.tac")')
@@ -827,13 +798,7 @@ def test_parse_declarations_rejects_duplicate_namespace(tmp_path):
     include_file = tmp_path / "tasks.tac"
     include_file.write_text(include_source)
 
-    runtime = TactusRuntime.__new__(TactusRuntime)
-    runtime.lua_sandbox = FakeSandbox(include_source)
-    runtime.mock_manager = None
-    runtime.execution_context = None
-    runtime.log_handler = None
-    runtime.agents = {}
-    runtime.source_file_path = str(tmp_path / "main.tac")
+    runtime = _runtime_for_parse(tmp_path, FakeSandbox(include_source))
 
     with pytest.raises(TactusRuntimeError, match="Duplicate task namespace"):
         runtime._parse_declarations('IncludeTasks("tasks.tac", "extras")')

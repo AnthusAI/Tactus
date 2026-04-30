@@ -34,6 +34,8 @@ class ModelPrimitive:
         config: dict,
         context: Optional[ExecutionContext] = None,
         mock_manager: Optional[Any] = None,
+        reasoning_effort: Optional[str] = None,
+        verbosity: Optional[str] = None,
     ):
         """
         Initialize model primitive.
@@ -46,11 +48,15 @@ class ModelPrimitive:
                 - output: Optional output schema
                 - Backend-specific config (endpoint, path, etc.)
             context: Execution context for checkpointing
+            reasoning_effort: Optional runtime-level GPT-5-family reasoning effort control
+            verbosity: Optional runtime-level GPT-5-family response verbosity control
         """
         self.model_name = model_name
         self.config = config
         self.context = context
         self.mock_manager = mock_manager
+        self.reasoning_effort = reasoning_effort
+        self.verbosity = verbosity
 
         # Resolve input/output schemas to Pydantic models
         self.input_schema_dict = config.get("input", {})
@@ -149,6 +155,8 @@ class ModelPrimitive:
                 provider=config.get("provider"),
                 temperature=config.get("temperature"),
                 max_tokens=config.get("max_tokens"),
+                reasoning_effort=self.reasoning_effort,
+                verbosity=self.verbosity,
                 mock_manager=self.mock_manager,
                 registry=None,  # TODO: Pass registry when available
                 execution_context=None,  # Don't checkpoint internal agent turns

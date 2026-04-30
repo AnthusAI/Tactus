@@ -204,6 +204,8 @@ class ProcedureYAMLParser:
                         "timeout",
                         # OpenAI reasoning models (o1, GPT-5)
                         "openai_reasoning_effort",
+                        "reasoning_effort",
+                        "verbosity",
                         # Extra fields
                         "extra_headers",
                         "extra_body",
@@ -246,13 +248,24 @@ class ProcedureYAMLParser:
                                 f"Agent '{agent_name}' max_tokens must be a positive integer"
                             )
 
-                    if "openai_reasoning_effort" in model_value:
-                        reasoning_effort = model_value["openai_reasoning_effort"]
-                        valid_efforts = ["low", "medium", "high"]
+                    for reasoning_key in ("openai_reasoning_effort", "reasoning_effort"):
+                        if reasoning_key not in model_value:
+                            continue
+                        reasoning_effort = model_value[reasoning_key]
+                        valid_efforts = ["none", "minimal", "low", "medium", "high", "xhigh"]
                         if reasoning_effort not in valid_efforts:
                             raise ProcedureConfigError(
-                                f"Agent '{agent_name}' openai_reasoning_effort must be one of: {', '.join(valid_efforts)}. "
+                                f"Agent '{agent_name}' {reasoning_key} must be one of: {', '.join(valid_efforts)}. "
                                 f"Got: {reasoning_effort}"
+                            )
+
+                    if "verbosity" in model_value:
+                        verbosity = model_value["verbosity"]
+                        valid_verbosity = ["low", "medium", "high"]
+                        if verbosity not in valid_verbosity:
+                            raise ProcedureConfigError(
+                                f"Agent '{agent_name}' verbosity must be one of: {', '.join(valid_verbosity)}. "
+                                f"Got: {verbosity}"
                             )
                 else:
                     raise ProcedureConfigError(

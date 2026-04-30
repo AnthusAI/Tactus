@@ -1,0 +1,18 @@
+{
+  "id": "tcts-5f92fe70-3a01-465c-9982-687ec28025a3",
+  "title": "Support runtime reasoning and verbosity controls",
+  "description": "Add first-class runtime support for reasoning_effort and verbosity so host applications can configure GPT-5-family controls for Tactus agents and LLM-backed models.\n\nDefinition of Done:\n- Runtime accepts reasoning_effort and verbosity.\n- Settings propagate through agents, LLMModelBackend, ModelPrimitive, and DSPy LM configuration.\n- Chat and Responses API shapes are covered by tests.\n- Targeted tests pass.",
+  "type": "epic",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-04-29T22:09:04.273139Z",
+  "updated_at": "2026-04-29T22:09:04.273139Z",
+  "closed_at": null,
+  "custom": {}
+}
