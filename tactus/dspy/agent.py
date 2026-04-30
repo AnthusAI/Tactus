@@ -181,6 +181,8 @@ class DSPyAgentHandle:
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
         model_type: Optional[str] = None,
+        reasoning_effort: Optional[str] = None,
+        verbosity: Optional[str] = None,
         module: str = "Raw",
         initial_message: Optional[str] = None,
         registry: Any = None,
@@ -207,6 +209,8 @@ class DSPyAgentHandle:
                 (0.0 for most models; GPT-5 family omits the parameter).
             max_tokens: Maximum tokens for response
             model_type: Model type for DSPy (e.g., "chat", "responses" for reasoning models)
+            reasoning_effort: Optional GPT-5-family reasoning effort control
+            verbosity: Optional GPT-5-family response verbosity control
             module: DSPy module type to use (default: "Raw", case-insensitive). Options:
                 - "Raw": Minimal formatting, direct LM calls (lowest token overhead)
                 - "Predict": Simple pass-through prediction (no reasoning traces)
@@ -236,6 +240,8 @@ class DSPyAgentHandle:
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.model_type = model_type
+        self.reasoning_effort = reasoning_effort
+        self.verbosity = verbosity
         self.module = module
         self.initial_message = initial_message
         self.registry = registry
@@ -1545,6 +1551,10 @@ class DSPyAgentHandle:
                 config_kwargs["max_tokens"] = self.max_tokens
             if self.model_type is not None:
                 config_kwargs["model_type"] = self.model_type
+            if self.reasoning_effort is not None:
+                config_kwargs["reasoning_effort"] = self.reasoning_effort
+            if self.verbosity is not None:
+                config_kwargs["verbosity"] = self.verbosity
             if self.tool_choice is not None and (self.tools or self.toolsets):
                 config_kwargs["tool_choice"] = self.tool_choice
                 logger.debug(f"Configuring LM with tool_choice={self.tool_choice}")
@@ -2044,6 +2054,8 @@ def create_dspy_agent(
         temperature=config.get("temperature"),
         max_tokens=config.get("max_tokens"),
         model_type=config.get("model_type"),
+        reasoning_effort=config.get("reasoning_effort"),
+        verbosity=config.get("verbosity"),
         module=config.get("module", "Raw"),
         initial_message=config.get("initial_message"),
         registry=registry,
@@ -2067,6 +2079,8 @@ def create_dspy_agent(
                 "temperature",
                 "max_tokens",
                 "model_type",
+                "reasoning_effort",
+                "verbosity",
                 "module",
                 "initial_message",
                 "log_handler",

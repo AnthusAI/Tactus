@@ -26,6 +26,28 @@ class TestLLMModelBackend:
         assert backend.system_prompt == "Classify sentiment as positive or negative"
         assert backend.temperature == 0.0
 
+    def test_llm_backend_passes_gpt5_controls_to_agent(self, monkeypatch):
+        """Test LLM backend forwards runtime GPT-5 controls to its internal agent."""
+        captured = {}
+
+        class FakeAgent:
+            def __init__(self, **kwargs):
+                captured.update(kwargs)
+
+        monkeypatch.setattr("tactus.backends.llm_backend.DSPyAgentHandle", FakeAgent)
+
+        backend = LLMModelBackend(
+            model="openai/gpt-5-mini",
+            system_prompt="Classify sentiment",
+            reasoning_effort="minimal",
+            verbosity="high",
+        )
+
+        assert backend.reasoning_effort == "minimal"
+        assert backend.verbosity == "high"
+        assert captured["reasoning_effort"] == "minimal"
+        assert captured["verbosity"] == "high"
+
     def test_llm_backend_predict_success(self):
         """Test LLM backend successfully predicts with valid response."""
         backend = LLMModelBackend(
@@ -191,6 +213,26 @@ class TestModelPrimitiveLLMBackend:
 
         assert isinstance(model.backend, LLMModelBackend)
         assert model.backend.model == "openai/gpt-4o-mini"
+
+    def test_model_primitive_passes_runtime_gpt5_controls_to_llm_backend(self):
+        """Test Model primitive forwards runtime GPT-5 controls to type='llm' backend."""
+        config = {
+            "type": "llm",
+            "model": "openai/gpt-5-mini",
+            "system_prompt": "Classify sentiment",
+            "input": {"text": "string"},
+            "output": {"label": "string", "confidence": "float"},
+        }
+
+        model = ModelPrimitive(
+            "sentiment_classifier",
+            config,
+            reasoning_effort="xhigh",
+            verbosity="low",
+        )
+
+        assert model.backend.reasoning_effort == "xhigh"
+        assert model.backend.verbosity == "low"
 
     def test_model_primitive_llm_predict(self):
         """Test Model primitive predict with LLM backend."""

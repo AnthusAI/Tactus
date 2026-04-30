@@ -14,6 +14,44 @@ from tactus.dspy.model_params import default_temperature_for_model
 # Global reference to the current LM configuration
 _current_lm: Optional[dspy.BaseLM] = None
 
+REASONING_EFFORT_VALUES = {"none", "minimal", "low", "medium", "high", "xhigh"}
+VERBOSITY_VALUES = {"low", "medium", "high"}
+
+
+def validate_gpt5_controls(
+    reasoning_effort: Optional[str] = None,
+    verbosity: Optional[str] = None,
+) -> None:
+    """Validate optional GPT-5-family reasoning and verbosity controls."""
+    if reasoning_effort is not None and reasoning_effort not in REASONING_EFFORT_VALUES:
+        allowed = ", ".join(sorted(REASONING_EFFORT_VALUES))
+        raise ValueError(f"reasoning_effort must be one of: {allowed}. Got: {reasoning_effort}")
+
+    if verbosity is not None and verbosity not in VERBOSITY_VALUES:
+        allowed = ", ".join(sorted(VERBOSITY_VALUES))
+        raise ValueError(f"verbosity must be one of: {allowed}. Got: {verbosity}")
+
+
+def _apply_gpt5_controls(
+    lm_kwargs: dict[str, Any],
+    *,
+    reasoning_effort: Optional[str] = None,
+    verbosity: Optional[str] = None,
+    model_type: Optional[str] = None,
+) -> None:
+    validate_gpt5_controls(reasoning_effort=reasoning_effort, verbosity=verbosity)
+
+    if reasoning_effort is not None:
+        lm_kwargs["reasoning_effort"] = reasoning_effort
+
+    if verbosity is not None:
+        if model_type == "responses":
+            text_config = dict(lm_kwargs.get("text") or {})
+            text_config["verbosity"] = verbosity
+            lm_kwargs["text"] = text_config
+        else:
+            lm_kwargs["verbosity"] = verbosity
+
 
 def configure_lm(
     model: str,
@@ -22,6 +60,8 @@ def configure_lm(
     temperature: Optional[float] = None,
     max_tokens: Optional[int] = None,
     model_type: Optional[str] = None,
+    reasoning_effort: Optional[str] = None,
+    verbosity: Optional[str] = None,
     **kwargs: Any,
 ) -> dspy.BaseLM:
     """
@@ -41,6 +81,8 @@ def configure_lm(
             parameter; other models default to 0.0 (deterministic when supported).
         max_tokens: Maximum tokens in response (optional)
         model_type: Model type (e.g., "chat", "responses" for reasoning models)
+        reasoning_effort: Optional GPT-5-family reasoning effort control
+        verbosity: Optional GPT-5-family response verbosity control
         **kwargs: Additional LiteLLM parameters
 
     Returns:
@@ -99,6 +141,12 @@ def configure_lm(
         lm_kwargs["max_tokens"] = max_tokens
     if model_type:
         lm_kwargs["model_type"] = model_type
+    _apply_gpt5_controls(
+        lm_kwargs,
+        reasoning_effort=reasoning_effort,
+        verbosity=verbosity,
+        model_type=model_type,
+    )
 
     # If running inside the secretless runtime container, use the brokered LM.
     if os.environ.get("TACTUS_BROKER_SOCKET"):
@@ -184,6 +232,8 @@ def create_lm(
     temperature: Optional[float] = None,
     max_tokens: Optional[int] = None,
     model_type: Optional[str] = None,
+    reasoning_effort: Optional[str] = None,
+    verbosity: Optional[str] = None,
     **kwargs: Any,
 ) -> dspy.LM:
     """
@@ -204,6 +254,8 @@ def create_lm(
         temperature: Sampling temperature; if omitted, same defaults as configure_lm.
         max_tokens: Maximum tokens in response (optional)
         model_type: Model type (e.g., "chat", "responses" for reasoning models)
+        reasoning_effort: Optional GPT-5-family reasoning effort control
+        verbosity: Optional GPT-5-family response verbosity control
         **kwargs: Additional LiteLLM parameters
 
     Returns:
@@ -254,6 +306,12 @@ def create_lm(
         lm_kwargs["max_tokens"] = max_tokens
     if model_type:
         lm_kwargs["model_type"] = model_type
+    _apply_gpt5_controls(
+        lm_kwargs,
+        reasoning_effort=reasoning_effort,
+        verbosity=verbosity,
+        model_type=model_type,
+    )
 
     # Create LM without setting as global default
     return dspy.LM(model, **lm_kwargs)
