@@ -1,0 +1,31 @@
+{
+  "id": "tcts-49b04127-450c-418d-8c22-1288565bd74f",
+  "title": "Implement chat-recorder steering injection",
+  "description": "Pass the procedure chat recorder into DSPy agents and inject pending steering messages into agent history before the next LLM call. Validate with focused tests and push a feature branch for GitHub CI.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-fd36be07-f3b0-48bf-b766-dc747c2d8134",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "fbff6175-5564-4d18-9204-fa23907f0213",
+      "author": "ryan",
+      "text": "Added focused tests for chat-recorder steering injection: runtime setup now asserts chat_recorder is passed into agent config; DSPy agent tests assert steering messages append a system message and advance per-agent watermark, including the no-message watermark path.",
+      "created_at": "2026-05-05T22:54:29.798303Z"
+    },
+    {
+      "id": "dbda8577-147c-4524-ad25-9991a0325811",
+      "author": "ryan",
+      "text": "Implemented chat-recorder steering injection. Validation: focused pytest steering/runtime coverage passed, affected pytest files passed, ruff check . passed, black --check . passed, ./test-ci.sh passed, behave --tags=-skip passed.",
+      "created_at": "2026-05-05T23:07:55.674892Z"
+    }
+  ],
+  "created_at": "2026-05-05T22:53:31.491363Z",
+  "updated_at": "2026-05-05T23:08:37.266339Z",
+  "closed_at": "2026-05-05T23:08:37.266339Z",
+  "custom": {}
+}

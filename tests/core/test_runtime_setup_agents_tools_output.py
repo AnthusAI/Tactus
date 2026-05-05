@@ -558,6 +558,46 @@ async def test_setup_agents_message_history_filter(monkeypatch):  # noqa: F811
 
 
 @pytest.mark.asyncio
+async def test_setup_agents_passes_chat_recorder_to_agent_config(monkeypatch):
+    chat_recorder = object()
+    runtime = runtime_module.TactusRuntime(
+        procedure_id="proc",
+        hitl_handler=object(),
+        chat_recorder=chat_recorder,
+    )
+    runtime.lua_sandbox = DummyLuaSandbox()
+    runtime.toolset_registry = {}
+    runtime.config = {}
+    runtime.registry = SimpleNamespace(
+        agents={
+            "agent": {
+                "system_prompt": "sys",
+                "provider": "openai",
+                "model": "gpt-4o",
+            }
+        }
+    )
+    runtime.agents = {}
+
+    async def _noop_dependencies():
+        return None
+
+    monkeypatch.setattr(runtime, "_initialize_dependencies", _noop_dependencies)
+
+    captured = {}
+
+    def fake_agent(name, config, **_kwargs):
+        captured["config"] = config
+        return SimpleNamespace()
+
+    monkeypatch.setattr("tactus.dspy.agent.create_dspy_agent", fake_agent)
+
+    await runtime._setup_agents(context={})
+
+    assert captured["config"]["chat_recorder"] is chat_recorder
+
+
+@pytest.mark.asyncio
 async def test_setup_agents_inline_tools_callable_entry(monkeypatch):
     runtime = runtime_module.TactusRuntime(procedure_id="proc", hitl_handler=object())
     runtime.lua_sandbox = DummyLuaSandbox()

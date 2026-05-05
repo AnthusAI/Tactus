@@ -1,0 +1,25 @@
+{
+  "id": "tcts-fd36be07-f3b0-48bf-b766-dc747c2d8134",
+  "title": "Procedure steering delivery",
+  "description": "Ship Tactus support for injecting pending user steering messages into a running agent so procedure runs can pick up operator guidance before the next LLM turn.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "7154f14a-0fdf-46c3-93fc-2e0822853ac1",
+      "author": "ryan",
+      "text": "Epic complete for this change: procedure chat recorder now reaches agents and pending steering is injected before LLM turns.",
+      "created_at": "2026-05-05T23:08:34.254707Z"
+    }
+  ],
+  "created_at": "2026-05-05T22:53:22.532406Z",
+  "updated_at": "2026-05-05T23:08:37.266031Z",
+  "closed_at": "2026-05-05T23:08:37.266031Z",
+  "custom": {}
+}
