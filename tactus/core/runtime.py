@@ -2279,6 +2279,7 @@ class TactusRuntime:
                 "disable_streaming": agent_config.get("disable_streaming", False),
                 "initial_message": initial_message,
                 "log_handler": self.log_handler,
+                "chat_recorder": self.chat_recorder,
                 "tool_choice": tool_choice,  # Pass through tool_choice
                 "prepare": agent_config.get("prepare"),
                 "message_history_filter": message_history_filter,
