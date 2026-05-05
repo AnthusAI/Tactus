@@ -1,0 +1,43 @@
+{
+  "id": "tcts-39ee1b51-4928-4851-b0aa-48c9605c1519",
+  "title": "Upgrade biblicus to v1.11.1 with reinforcement-memory extra",
+  "description": "",
+  "type": "bug",
+  "status": "in_progress",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-306dcfa1-0409-4997-829b-edb4ec4a359c",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "58e5f2e8-d61e-4a19-a882-7e88a1c58a2d",
+      "author": "derek.norrbom",
+      "text": "Started work: will move existing pyproject/lock changes off develop to a dedicated branch, verify biblicus extra is preserved, run full quality gates, then push and monitor CI to green.",
+      "created_at": "2026-05-05T23:16:46.951531Z"
+    },
+    {
+      "id": "587d9211-33d9-44c4-9f00-261303a742f0",
+      "author": "derek.norrbom",
+      "text": "Branch created: bugfix/biblicus-1.11.1-upgrade. Verified dependency entry now includes biblicus[reinforcement-memory] at >=1.11.1,<2.0.0 and requires-python is capped at <3.14 to satisfy solver constraints. Starting full quality gates.",
+      "created_at": "2026-05-05T23:17:04.539451Z"
+    },
+    {
+      "id": "d805f565-317c-444b-abd0-3a1f64b6e8f4",
+      "author": "derek.norrbom",
+      "text": "Validation on Python 3.11.15: ruff and black passed; ./test-ci.sh passed (4155 passed, 73 skipped). behave --tags=-skip failed with pre-existing undefined step definitions across many feature files (188 undefined steps / 184 failing scenarios), unrelated to biblicus bump. Proceeding with dependency update commit including Kanbus artifacts.",
+      "created_at": "2026-05-05T23:30:51.126935Z"
+    },
+    {
+      "id": "31b22788-fe78-48d1-a30b-edb8e7e92264",
+      "author": "derek.norrbom",
+      "text": "Implementation committed and pushed on branch bugfix/biblicus-1.11.1-upgrade. PR requested by user for merge into develop; handoff in progress for CI monitoring on PR run.",
+      "created_at": "2026-05-05T23:34:30.847419Z"
+    }
+  ],
+  "created_at": "2026-05-05T23:16:44.141460Z",
+  "updated_at": "2026-05-05T23:34:30.847419Z",
+  "closed_at": null,
+  "custom": {}
+}
