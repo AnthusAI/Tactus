@@ -248,6 +248,7 @@ class DSPyAgentHandle:
         self.mock_manager = mock_manager
         self.log_handler = log_handler
         self.disable_streaming = disable_streaming
+        self.chat_recorder = kwargs.get("chat_recorder")
         self.tool_choice = kwargs.get("tool_choice")  # Extract tool_choice from kwargs
         self.prepare = kwargs.get("prepare")
         self.message_history_filter = kwargs.get("message_history_filter") or kwargs.get("filter")
@@ -1569,6 +1570,7 @@ class DSPyAgentHandle:
             user_message = self.initial_message
 
         context = opts.get("context") or {}
+        self._inject_pending_steering()
 
         prepared = self._run_prepare_hook(context, user_message)
         template = self.system_prompt
@@ -1710,6 +1712,58 @@ class DSPyAgentHandle:
         manager = MessageHistoryManager()
         filter_context = {"context": context, "prepared": prepared, "input": context}
         return manager._apply_filter(messages, self.message_history_filter, filter_context)
+
+    def _inject_pending_steering(self) -> None:
+        """Inject new procedure steering notes once per agent before the next LLM call."""
+        chat_recorder = getattr(self, "chat_recorder", None)
+        state_primitive = getattr(self, "_state_primitive", None)
+        if not chat_recorder or not state_primitive:
+            return
+
+        get_messages = getattr(chat_recorder, "get_steering_messages", None)
+        if not callable(get_messages):
+            return
+
+        watermark_key = f"procedure_steering_watermark:{self.name}"
+        try:
+            after = state_primitive.get(watermark_key) or ""
+            result = get_messages(
+                after=after,
+                agent_name=self.name,
+                limit=20,
+            )
+            messages = result.get("messages", []) if isinstance(result, dict) else []
+            watermark = result.get("watermark") if isinstance(result, dict) else None
+            if not messages:
+                if watermark and watermark != after:
+                    state_primitive.set(watermark_key, watermark)
+                return
+
+            lines = ["=== USER STEERING RECEIVED MID-RUN ==="]
+            for index, message in enumerate(messages, start=1):
+                created_at = message.get("created_at") or "unknown time"
+                content = str(message.get("content") or "").strip()
+                lines.append(f"{index}. [{created_at}] {content}")
+            lines.append(
+                "Treat this as advisory operator guidance for this and future procedure work."
+            )
+            lines.append("=== END USER STEERING ===")
+            self._history.add({"role": "system", "content": "\n".join(lines)})
+            state_primitive.set(
+                watermark_key,
+                watermark or messages[-1].get("created_at") or after,
+            )
+            logger.info(
+                "Injected %d steering message(s) into agent '%s'",
+                len(messages),
+                self.name,
+            )
+        except Exception as exc:
+            logger.warning(
+                "Failed to inject procedure steering into agent '%s': %s",
+                self.name,
+                exc,
+            )
 
     @staticmethod
     def _history_from_messages(messages: List[Dict[str, Any]]):

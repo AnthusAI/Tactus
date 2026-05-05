@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "60390383-c1c5-4ad4-a701-f74f025a0a8e",
+  "issue_id": "tcts-f5ec6f57-ab94-43c0-a764-111db834da5a",
+  "event_type": "issue_created",
+  "occurred_at": "2026-05-05T22:53:27.272Z",
+  "actor_id": "ryan",
+  "payload": {
+    "assignee": null,
+    "description": "As a procedure operator, I want pending steering messages added to an active agent before its next LLM call, so that long-running procedures can respond to newly supplied guidance without restarting.\n\nFeature: Mid-run procedure steering\n\nScenario: Pending steering is injected once before an agent turn\nGiven a running Tactus agent has a chat recorder with steering messages after its stored watermark\nWhen the agent prepares its next LLM turn\nThen the steering messages are appended to agent history as a system message\nAnd the agent stores a new watermark so the same steering is not injected again.",
+    "issue_type": "story",
+    "labels": [],
+    "parent": "tcts-fd36be07-f3b0-48bf-b766-dc747c2d8134",
+    "priority": 1,
+    "status": "open",
+    "title": "Agent injects pending steering"
+  }
+}

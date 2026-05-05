@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "4f363321-bf5b-496a-ae8d-78d9ac822240",
+  "issue_id": "tcts-49b04127-450c-418d-8c22-1288565bd74f",
+  "event_type": "issue_created",
+  "occurred_at": "2026-05-05T22:53:31.491Z",
+  "actor_id": "ryan",
+  "payload": {
+    "assignee": null,
+    "description": "Pass the procedure chat recorder into DSPy agents and inject pending steering messages into agent history before the next LLM call. Validate with focused tests and push a feature branch for GitHub CI.",
+    "issue_type": "task",
+    "labels": [],
+    "parent": "tcts-fd36be07-f3b0-48bf-b766-dc747c2d8134",
+    "priority": 1,
+    "status": "open",
+    "title": "Implement chat-recorder steering injection"
+  }
+}

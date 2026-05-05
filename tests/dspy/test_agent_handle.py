@@ -16,6 +16,73 @@ def _make_agent(monkeypatch, **kwargs):
     return DSPyAgentHandle(name="agent", model="openai/gpt-4o", **kwargs)
 
 
+class FakeStatePrimitive:
+    def __init__(self, initial=None):
+        self.values = dict(initial or {})
+
+    def get(self, key):
+        return self.values.get(key)
+
+    def set(self, key, value):
+        self.values[key] = value
+
+
+def test_inject_pending_steering_adds_system_message_and_watermark(monkeypatch):
+    calls = []
+
+    class FakeChatRecorder:
+        def get_steering_messages(self, **kwargs):
+            calls.append(kwargs)
+            return {
+                "watermark": "2026-05-05T12:01:00Z",
+                "messages": [
+                    {
+                        "created_at": "2026-05-05T12:00:00Z",
+                        "content": "Focus on retry behavior.",
+                    }
+                ],
+            }
+
+    agent = _make_agent(monkeypatch, chat_recorder=FakeChatRecorder())
+    agent._state_primitive = FakeStatePrimitive(
+        {"procedure_steering_watermark:agent": "2026-05-05T11:59:00Z"}
+    )
+
+    agent._inject_pending_steering()
+
+    assert calls == [
+        {
+            "after": "2026-05-05T11:59:00Z",
+            "agent_name": "agent",
+            "limit": 20,
+        }
+    ]
+    assert agent._state_primitive.get("procedure_steering_watermark:agent") == (
+        "2026-05-05T12:01:00Z"
+    )
+    history = agent.get_history()
+    assert len(history) == 1
+    assert history[0]["role"] == "system"
+    assert "USER STEERING RECEIVED MID-RUN" in history[0]["content"]
+    assert "Focus on retry behavior." in history[0]["content"]
+
+
+def test_inject_pending_steering_updates_empty_watermark_without_history(monkeypatch):
+    class FakeChatRecorder:
+        def get_steering_messages(self, **_kwargs):
+            return {"watermark": "2026-05-05T12:02:00Z", "messages": []}
+
+    agent = _make_agent(monkeypatch, chat_recorder=FakeChatRecorder())
+    agent._state_primitive = FakeStatePrimitive()
+
+    agent._inject_pending_steering()
+
+    assert agent.get_history() == []
+    assert agent._state_primitive.get("procedure_steering_watermark:agent") == (
+        "2026-05-05T12:02:00Z"
+    )
+
+
 def test_add_usage_and_cost_accumulates(monkeypatch):
     agent = _make_agent(monkeypatch)
     usage = UsageStats(prompt_tokens=1, completion_tokens=2, total_tokens=3)

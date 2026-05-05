@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "8114e1c4-dcae-436c-aaa6-ca18f3aea1a3",
+  "issue_id": "tcts-fd36be07-f3b0-48bf-b766-dc747c2d8134",
+  "event_type": "issue_created",
+  "occurred_at": "2026-05-05T22:53:22.533Z",
+  "actor_id": "ryan",
+  "payload": {
+    "assignee": null,
+    "description": "Ship Tactus support for injecting pending user steering messages into a running agent so procedure runs can pick up operator guidance before the next LLM turn.",
+    "issue_type": "epic",
+    "labels": [],
+    "parent": null,
+    "priority": 1,
+    "status": "open",
+    "title": "Procedure steering delivery"
+  }
+}
