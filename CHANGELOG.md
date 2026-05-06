@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.48.0 (2026-05-06)
+
+### Features
+
+- **agent**: Inject pending procedure steering
+  ([`a52f34d`](https://github.com/AnthusAI/Tactus/commit/a52f34d7860761b1b66b3872a81d34840f8a506f))
+
+
 ## v0.47.0 (2026-04-30)
 
 
