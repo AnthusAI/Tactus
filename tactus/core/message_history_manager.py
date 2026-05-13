@@ -8,7 +8,7 @@ Aligned with pydantic-ai's message_history concept.
 """
 
 from datetime import datetime, timezone
-from typing import Any, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 try:
     from pydantic_ai.messages import ModelMessage
@@ -18,6 +18,11 @@ except ImportError:
 
 from .registry import MessageHistoryConfiguration
 
+try:
+    from .compaction_strategies import CompactionStrategy
+except ImportError:
+    CompactionStrategy = None  # type: ignore
+
 
 class MessageHistoryManager:
     """Manages per-agent message histories with filtering.
@@ -26,12 +31,27 @@ class MessageHistoryManager:
     maintains the message_history lists that get passed to agent.run_sync().
     """
 
-    def __init__(self):
-        """Initialize message history manager."""
+    def __init__(
+        self,
+        compaction_strategy: Optional["CompactionStrategy"] = None,
+        auto_compact: bool = False,
+        max_tokens: Optional[int] = None,
+    ):
+        """Initialize message history manager.
+
+        Args:
+            compaction_strategy: Strategy for compacting history when over budget
+            auto_compact: If True, automatically compact on get_history_for_agent() when needed
+            max_tokens: Maximum token budget for history (triggers compaction when exceeded)
+        """
         self.histories: dict[str, list[ModelMessage]] = {}
         self.shared_history: list[ModelMessage] = []
         self._next_message_id = 1
         self._checkpoints: dict[str, int] = {}
+        self.compaction_strategy = compaction_strategy
+        self.auto_compact = auto_compact
+        self.max_tokens = max_tokens
+        self._compaction_metadata: dict[str, Dict[str, Any]] = {}
 
     def get_history_for_agent(
         self,
@@ -55,7 +75,11 @@ class MessageHistoryManager:
         """
         if message_history_config is None:
             # Default: own history, no filter
-            return self.histories.get(agent_name, [])
+            selected_messages = self.histories.get(agent_name, [])
+            # Apply auto-compaction if enabled
+            if self.auto_compact and self.compaction_strategy and self.max_tokens:
+                selected_messages = self._maybe_compact(agent_name, selected_messages)
+            return selected_messages
 
         # Determine source
         if message_history_config.source == "own":
@@ -71,6 +95,10 @@ class MessageHistoryManager:
             selected_messages = self._apply_filter(
                 selected_messages, message_history_config.filter, context
             )
+
+        # Apply auto-compaction if enabled
+        if self.auto_compact and self.compaction_strategy and self.max_tokens:
+            selected_messages = self._maybe_compact(agent_name, selected_messages)
 
         return selected_messages
 
@@ -352,3 +380,86 @@ class MessageHistoryManager:
                 return getattr(message, "role", "")
             except Exception:
                 return ""
+
+    def _maybe_compact(
+        self,
+        agent_name: str,
+        messages: list[ModelMessage],
+    ) -> list[ModelMessage]:
+        """Apply compaction if history exceeds token budget.
+
+        Args:
+            agent_name: Name of the agent (for metadata storage)
+            messages: Messages to potentially compact
+
+        Returns:
+            Original or compacted messages
+        """
+        if not messages:
+            return messages
+
+        # Estimate tokens
+        estimated_tokens = self._estimate_tokens(messages)
+
+        # Check if compaction needed
+        if not self.compaction_strategy.should_compact(
+            self._messages_to_dicts(messages),
+            estimated_tokens,
+            self.max_tokens,
+        ):
+            return messages
+
+        # Compact
+        dict_messages = self._messages_to_dicts(messages)
+        compacted_dicts, metadata = self.compaction_strategy.compact(
+            dict_messages,
+            self.max_tokens,
+        )
+
+        # Store metadata
+        self._store_compaction_metadata(agent_name, metadata)
+
+        # Convert back to ModelMessage format
+        compacted_messages = self._dicts_to_messages(compacted_dicts)
+
+        return compacted_messages
+
+    def _estimate_tokens(self, messages: list[ModelMessage]) -> int:
+        """Estimate token count for messages using 4 chars/token heuristic."""
+        total_chars = sum(self._estimate_message_chars(msg) for msg in messages)
+        return total_chars // 4
+
+    def _messages_to_dicts(self, messages: list[ModelMessage]) -> list[Dict[str, Any]]:
+        """Convert ModelMessage list to dict list for compaction strategy."""
+        dict_messages = []
+        for msg in messages:
+            if isinstance(msg, dict):
+                dict_messages.append(msg)
+            else:
+                # Convert pydantic_ai ModelMessage to dict
+                try:
+                    dict_messages.append({
+                        "role": getattr(msg, "role", ""),
+                        "content": getattr(msg, "content", ""),
+                    })
+                except Exception:
+                    dict_messages.append({"role": "unknown", "content": str(msg)})
+        return dict_messages
+
+    def _dicts_to_messages(self, dicts: list[Dict[str, Any]]) -> list[ModelMessage]:
+        """Convert dict list back to ModelMessage format."""
+        # For now, just return dicts as-is since ModelMessage can be dict
+        # In the future, could convert to proper pydantic_ai ModelMessage objects
+        return [self._ensure_message_metadata(d) for d in dicts]
+
+    def _store_compaction_metadata(self, agent_name: str, metadata: Dict[str, Any]) -> None:
+        """Store compaction metadata for an agent."""
+        self._compaction_metadata[agent_name] = metadata
+
+    def get_compaction_metadata(self, agent_name: str) -> Optional[Dict[str, Any]]:
+        """Retrieve compaction metadata for an agent.
+
+        Returns:
+            Compaction metadata dict or None if no compaction has occurred
+        """
+        return self._compaction_metadata.get(agent_name)
