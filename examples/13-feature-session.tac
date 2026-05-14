@@ -33,11 +33,11 @@ Procedure {
         -- Get the conversation history (message_history in pydantic-ai terms)
         local history = MessageHistory.get()
 
-        -- Count messages (Python list doesn't support # operator in Lua)
-        local count = 0
-        for msg in python.iter(history) do
-            count = count + 1
-            Log.info("Message " .. count, {role = msg.role, content = msg.content})
+        -- Count messages (now returns Lua table we can iterate natively)
+        local count = #history
+        for i = 1, count do
+            local msg = history[i]
+            Log.info("Message " .. i, {role = msg.role, content = msg.content})
         end
 
         Log.info("Conversation history", {length = count})

@@ -41,16 +41,53 @@ class MessageHistoryPrimitive:
     - Save/load message history state
     """
 
-    def __init__(self, message_history_manager=None, agent_name: Optional[str] = None):
+    def __init__(
+        self,
+        message_history_manager=None,
+        agent_name: Optional[str] = None,
+        lua_sandbox=None,
+    ):
         """
         Initialize MessageHistory primitive.
 
         Args:
             message_history_manager: MessageHistoryManager instance
             agent_name: Name of the agent this message history belongs to
+            lua_sandbox: LuaSandbox instance for Python->Lua conversion
         """
         self.message_history_manager = message_history_manager
         self.agent_name = agent_name
+        self.lua_sandbox = lua_sandbox
+
+    def _python_to_lua(self, value: Any):
+        """
+        Recursively convert Python dicts/lists to Lua tables.
+
+        Args:
+            value: Python value to convert
+
+        Returns:
+            Lua table or primitive value
+        """
+        if not self.lua_sandbox:
+            return value
+
+        if isinstance(value, dict):
+            # Convert dict to Lua table
+            lua_table = self.lua_sandbox.lua.table()
+            for k, v in value.items():
+                lua_table[k] = self._python_to_lua(v)
+            return lua_table
+
+        if isinstance(value, (list, tuple)):
+            # Convert list to Lua array (1-indexed)
+            lua_table = self.lua_sandbox.lua.table()
+            for i, item in enumerate(value, start=1):
+                lua_table[i] = self._python_to_lua(item)
+            return lua_table
+
+        # Primitive values (str, int, float, bool, None) pass through
+        return value
 
     def append(self, message_payload: dict[str, Any]) -> None:
         """
@@ -117,10 +154,10 @@ class MessageHistoryPrimitive:
             end
         """
         if not self.message_history_manager:
-            return []
+            return self._python_to_lua([])
         messages = self._get_history_ref()
-
-        return self._serialize_messages(messages)
+        serialized = self._serialize_messages(messages)
+        return self._python_to_lua(serialized)
 
     def replace(self, messages: list[Any]) -> None:
         """
@@ -179,45 +216,49 @@ class MessageHistoryPrimitive:
     def head(self, n: int) -> list[dict[str, Any]]:
         """Return the first N messages without mutating history."""
         if not self.message_history_manager:
-            return []
+            return self._python_to_lua([])
         messages = self._get_history_ref()
         limit = max(int(n or 0), 0)
-        return self._serialize_messages(messages[:limit])
+        serialized = self._serialize_messages(messages[:limit])
+        return self._python_to_lua(serialized)
 
     def tail(self, n: int) -> list[dict[str, Any]]:
         """Return the last N messages without mutating history."""
         if not self.message_history_manager:
-            return []
+            return self._python_to_lua([])
         messages = self._get_history_ref()
         limit = max(int(n or 0), 0)
-        return self._serialize_messages(messages[-limit:] if limit > 0 else [])
+        serialized = self._serialize_messages(messages[-limit:] if limit > 0 else [])
+        return self._python_to_lua(serialized)
 
     def slice(self, options: dict[str, Any]) -> list[dict[str, Any]]:
         """Return a slice of messages using 1-based start/stop indices."""
         if not self.message_history_manager:
-            return []
+            return self._python_to_lua([])
         normalized_options = self._normalize_options(options)
         if not normalized_options:
-            return []
+            return self._python_to_lua([])
         messages = self._get_history_ref()
         start = normalized_options.get("start")
         stop = normalized_options.get("stop")
         start_index = max(int(start or 1) - 1, 0)
         stop_index = int(stop) if stop is not None else None
         sliced = messages[start_index:stop_index]
-        return self._serialize_messages(sliced)
+        serialized = self._serialize_messages(sliced)
+        return self._python_to_lua(serialized)
 
     def tail_tokens(
         self, max_tokens: int, options: Optional[dict[str, Any]] = None
     ) -> list[dict[str, Any]]:
         """Return the last messages that fit within the token budget."""
         if not self.message_history_manager:
-            return []
+            return self._python_to_lua([])
         messages = self._get_history_ref()
         token_filtered_messages = self.message_history_manager._filter_tail_tokens(
             messages, max_tokens
         )
-        return self._serialize_messages(token_filtered_messages)
+        serialized = self._serialize_messages(token_filtered_messages)
+        return self._python_to_lua(serialized)
 
     def keep_head(self, n: int) -> None:
         """Keep only the first N messages."""

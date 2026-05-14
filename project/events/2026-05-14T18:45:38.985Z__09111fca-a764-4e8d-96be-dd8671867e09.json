@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "09111fca-a764-4e8d-96be-dd8671867e09",
+  "issue_id": "tcts-de549c29-e906-4fd5-bd2a-3e2dba5d3b6c",
+  "event_type": "issue_created",
+  "occurred_at": "2026-05-14T18:45:38.985Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "title": "Add tail_tokens method to MessageHistory for token budgeting",
+    "description": "",
+    "issue_type": "task",
+    "status": "open",
+    "priority": 1,
+    "assignee": null,
+    "parent": null,
+    "labels": []
+  }
+}
