@@ -15,16 +15,12 @@ Procedure {
     },
     function(input)
         local function count_messages(messages)
-            local count = 0
-            for _ in python.iter(messages) do
-                count = count + 1
-            end
-            return count
+            return #messages
         end
 
         local function all_have_ids(messages)
-            for msg in python.iter(messages) do
-                if msg.id == nil then
+            for i = 1, #messages do
+                if messages[i].id == nil then
                     return false
                 end
             end
