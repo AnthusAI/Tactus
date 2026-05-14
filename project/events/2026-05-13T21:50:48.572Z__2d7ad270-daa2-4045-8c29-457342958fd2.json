@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "2d7ad270-daa2-4045-8c29-457342958fd2",
+  "issue_id": "tcts-16ad7838-787f-463c-b8b5-0112f9e659e9",
+  "event_type": "issue_created",
+  "occurred_at": "2026-05-13T21:50:48.572Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "title": "Implement CompactionStrategy interface",
+    "description": "",
+    "issue_type": "task",
+    "status": "open",
+    "priority": 1,
+    "assignee": null,
+    "parent": "tcts-fbc21a51-cf4a-42fe-8d34-83c37ae8eefa",
+    "labels": []
+  }
+}

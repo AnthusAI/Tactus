@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "67849e62-a2f2-4f43-8a57-3ca1f4b62a6a",
+  "issue_id": "tcts-8af073b2-3701-4ae7-b670-739015acb266",
+  "event_type": "issue_created",
+  "occurred_at": "2026-05-13T21:51:01.912Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "title": "Extend MessageHistoryManager with auto-compaction",
+    "description": "",
+    "issue_type": "task",
+    "status": "open",
+    "priority": 1,
+    "assignee": null,
+    "parent": "tcts-fbc21a51-cf4a-42fe-8d34-83c37ae8eefa",
+    "labels": []
+  }
+}

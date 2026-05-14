@@ -1,0 +1,31 @@
+{
+  "id": "tcts-16ad7838-787f-463c-b8b5-0112f9e659e9",
+  "title": "Implement CompactionStrategy interface",
+  "description": "",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-fbc21a51-cf4a-42fe-8d34-83c37ae8eefa",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "41a1a251-829c-4f5d-bee7-c45130f94dc8",
+      "author": "derek.norrbom",
+      "text": "## Scope\n\nCreate pluggable compaction strategy interface in new file `tactus/core/compaction_strategies.py`.\n\n## Implementation\n\n**CompactionStrategy ABC**:\n- `should_compact(messages, estimated_tokens, max_tokens) -> bool`\n- `compact(messages, max_tokens) -> Tuple[List[Dict], Dict[str, Any]]`\n\n**RollingSummaryStrategy**:\n- Constructor: `llm_backend`, `recent_window`, `summary_prompt_template`\n- Compaction logic:\n  1. Preserve system messages at start\n  2. Generate LLM summary of middle messages\n  3. Keep last `recent_window` messages uncompressed\n  4. Return: `[system] + [summary as SYSTEM] + [recent]`\n- Metadata: `{summary, tokens_before, tokens_after, messages_summarized, messages_retained}`\n\n**DEFAULT_SUMMARY_PROMPT constant**: Generic conversation summarization template\n\n## Testing\n\nUnit tests for:\n- CompactionStrategy interface contract\n- RollingSummaryStrategy.should_compact() triggers when over budget\n- Summary generation and insertion\n- Token estimation\n- Metadata correctness\n\n## Related\n\nSupports Plexus epic `plx-e923c4` task `plx-068711` (ConsoleAgent configuration).",
+      "created_at": "2026-05-13T21:50:57.915087Z"
+    },
+    {
+      "id": "bc4f441c-c208-4087-803f-d7c4c62166ee",
+      "author": "derek.norrbom",
+      "text": "## Completed\n\nImplemented CompactionStrategy interface and RollingSummaryStrategy in Tactus.\n\n**New file: `tactus/core/compaction_strategies.py`** (246 lines)\n- `CompactionStrategy` ABC with `should_compact()` and `compact()` methods\n- `RollingSummaryStrategy` implementation:\n  - Preserves leading system messages\n  - Generates LLM summary of middle messages via configured LLM backend\n  - Keeps recent N messages uncompressed (configurable window)\n  - Returns compacted history + metadata (tokens saved, messages summarized, summary text)\n- `DEFAULT_SUMMARY_PROMPT` constant for generic conversation summarization\n- Handles edge cases: empty history, LLM failures, multipart content\n\n**New file: `tests/core/test_compaction_strategies.py`** (239 lines)\n- 13 tests covering CompactionStrategy interface contract, RollingSummaryStrategy logic, token estimation, metadata structure\n\nAll 13 tests green. Committed as `a9652787`.\n\nThis provides the reusable compaction primitive for Plexus console chat and any other Tactus agent.",
+      "created_at": "2026-05-13T21:53:56.169289Z"
+    }
+  ],
+  "created_at": "2026-05-13T21:50:48.572129Z",
+  "updated_at": "2026-05-13T21:53:56.169289Z",
+  "closed_at": "2026-05-13T21:53:55.782753Z",
+  "custom": {}
+}

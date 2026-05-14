@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "28a1ca55-477d-432b-9931-4a688737c48e",
+  "issue_id": "tcts-fbc21a51-cf4a-42fe-8d34-83c37ae8eefa",
+  "event_type": "issue_created",
+  "occurred_at": "2026-05-13T21:50:30.852Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "title": "Message history auto-compaction for long conversations",
+    "description": "",
+    "issue_type": "epic",
+    "status": "open",
+    "priority": 1,
+    "assignee": null,
+    "parent": null,
+    "labels": []
+  }
+}

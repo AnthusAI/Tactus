@@ -1,0 +1,31 @@
+{
+  "id": "tcts-8af073b2-3701-4ae7-b670-739015acb266",
+  "title": "Extend MessageHistoryManager with auto-compaction",
+  "description": "",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-fbc21a51-cf4a-42fe-8d34-83c37ae8eefa",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "5a8101bf-8334-426e-b4e4-ca7cd656ad6c",
+      "author": "derek.norrbom",
+      "text": "## Scope\n\nExtend `tactus/core/message_history_manager.py` to automatically compact history when over budget.\n\n## Implementation\n\n**Constructor parameters**:\n- `compaction_strategy: Optional[CompactionStrategy] = None`\n- `auto_compact: bool = False`\n- `max_tokens: Optional[int] = None`\n\n**Extend `get_history()`**:\n- If `auto_compact` enabled, estimate tokens in history\n- If over `max_tokens`, call `compaction_strategy.compact()`\n- Store compaction metadata via `_store_compaction_metadata(agent_name, metadata)`\n- Return compacted history transparently\n\n**New methods**:\n- `_estimate_tokens(messages) -> int` (4 chars/token heuristic)\n- `_store_compaction_metadata(agent_name, metadata)`\n- `get_compaction_metadata(agent_name) -> Optional[Dict]`\n\n## Testing\n\nUnit tests for:\n- Auto-compaction triggers when over budget\n- No compaction when under budget\n- Compaction metadata storage/retrieval\n- Integration with existing filter functions\n- Token estimation accuracy\n\n## Dependencies\n\nRequires `tcts-16ad78` (CompactionStrategy interface) to be complete.\n\n## Related\n\nSupports Plexus epic `plx-e923c4` task `plx-068711` (ConsoleAgent configuration).",
+      "created_at": "2026-05-13T21:51:10.416324Z"
+    },
+    {
+      "id": "419cec3e-fa62-46ba-a69a-167696cc74d4",
+      "author": "derek.norrbom",
+      "text": "## Completed\n\nExtended Tactus MessageHistoryManager with transparent auto-compaction capability.\n\n**Modified: `tactus/core/message_history_manager.py`** (+119 lines, -4 lines)\n- Constructor now accepts: `compaction_strategy`, `auto_compact`, `max_tokens`\n- `get_history_for_agent()` automatically compacts when history exceeds token budget\n- Compaction happens transparently \u2014 callers see compacted history without manual intervention\n- New methods:\n  - `_maybe_compact()` \u2014 checks budget and triggers compaction\n  - `_estimate_tokens()` \u2014 estimates token count using 4 chars/token heuristic\n  - `_messages_to_dicts()`, `_dicts_to_messages()` \u2014 format conversion for strategy interface\n  - `_store_compaction_metadata()`, `get_compaction_metadata()` \u2014 metadata storage/retrieval\n\n**New file: `tests/core/test_message_history_manager_compaction.py`** (322 lines)\n- 14 tests covering:\n  - Constructor configuration\n  - Auto-compaction triggers (over/under budget, enabled/disabled)\n  - Compaction metadata storage per-agent\n  - Integration with RollingSummaryStrategy\n  - Edge cases (empty history, pydantic_ai ModelMessage objects, re-compaction)\n\nAll 27 Tactus tests green (13 compaction_strategies + 14 message_history_manager_compaction).\n\nCommitted as `92f407e2`.\n\nThis completes the Tactus-side primitives. Plexus can now configure MessageHistoryManager with auto-compaction for console chat.",
+      "created_at": "2026-05-13T21:58:13.201625Z"
+    }
+  ],
+  "created_at": "2026-05-13T21:51:01.911932Z",
+  "updated_at": "2026-05-13T21:58:13.201625Z",
+  "closed_at": "2026-05-13T21:58:12.829575Z",
+  "custom": {}
+}

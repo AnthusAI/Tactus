@@ -1,0 +1,31 @@
+{
+  "id": "tcts-fbc21a51-cf4a-42fe-8d34-83c37ae8eefa",
+  "title": "Message history auto-compaction for long conversations",
+  "description": "",
+  "type": "epic",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "f6f41f64-d2f5-489f-94d9-0ae5e423be5a",
+      "author": "derek.norrbom",
+      "text": "## Epic Purpose\n\nAdd auto-compaction capability to Tactus MessageHistoryManager to support long conversations without manual overflow handling.\n\n## Context\n\n**Related Plexus work**: Epic `plx-e923c4` in Plexus repo refactors console chat to use Tactus infrastructure. This Tactus epic delivers the reusable compaction primitives that Plexus (and other Tactus users) will leverage.\n\n**Problem**: Current MessageHistoryManager has no built-in mechanism to handle history that exceeds token budgets. Agents must manually detect overflow and handle compaction, leading to duplicated logic across consumers.\n\n**Solution**: Add pluggable `CompactionStrategy` interface and automatic compaction in `MessageHistoryManager.get_history()`.\n\n## Goals\n\n1. **CompactionStrategy interface**: Pluggable ABC with `should_compact()` and `compact()` methods\n2. **RollingSummaryStrategy**: LLM-generated summaries of old turns, preserving recent N messages uncompressed\n3. **Auto-compaction**: Transparent compaction when `auto_compact=True` and history exceeds configured budget\n4. **Compaction metadata**: Store and retrieve summary text, tokens saved, message counts\n\n## Architectural Boundary\n\n**Tactus** (this epic):\n- Generic CompactionStrategy interface\n- RollingSummaryStrategy with LLM-based summarization\n- Auto-compaction in MessageHistoryManager\n- Compaction metadata storage\n\n**Plexus** (epic `plx-e923c4`):\n- Console-specific compaction configuration (recent window size, summary prompt style)\n- S3 audit artifact upload\n- Privacy filtering\n- Tool access mode enforcement\n\n## Definition of Done\n\n- [ ] CompactionStrategy ABC in `tactus/core/compaction_strategies.py`\n- [ ] RollingSummaryStrategy implementation\n- [ ] MessageHistoryManager extended with auto-compaction\n- [ ] Compaction metadata storage and retrieval\n- [ ] All tests green\n- [ ] Plexus can configure and use auto-compaction",
+      "created_at": "2026-05-13T21:50:44.416077Z"
+    },
+    {
+      "id": "dd3f958b-bd79-4cb6-b416-47ae12b27b95",
+      "author": "derek.norrbom",
+      "text": "## Epic Complete\n\nAll Tactus-side work for message history auto-compaction is complete.\n\n**Delivered:**\n1. `CompactionStrategy` interface (task `tcts-16ad78`, commit `a9652787`)\n2. `RollingSummaryStrategy` implementation (task `tcts-16ad78`, commit `a9652787`)\n3. Auto-compaction in `MessageHistoryManager` (task `tcts-8af073`, commit `92f407e2`)\n\n**Files added:**\n- `tactus/core/compaction_strategies.py` (246 lines)\n- `tests/core/test_compaction_strategies.py` (239 lines, 13 tests)\n- `tests/core/test_message_history_manager_compaction.py` (322 lines, 14 tests)\n\n**Files modified:**\n- `tactus/core/message_history_manager.py` (+119 lines)\n\n**All 27 tests green.**\n\nThis provides reusable compaction primitives for Plexus console chat and any other Tactus agent needing long-conversation support.\n\nNext step: Plexus epic `plx-e923c4` will leverage these primitives in console chat.",
+      "created_at": "2026-05-13T21:58:22.311952Z"
+    }
+  ],
+  "created_at": "2026-05-13T21:50:30.852440Z",
+  "updated_at": "2026-05-13T21:58:22.311952Z",
+  "closed_at": "2026-05-13T21:58:21.938759Z",
+  "custom": {}
+}
