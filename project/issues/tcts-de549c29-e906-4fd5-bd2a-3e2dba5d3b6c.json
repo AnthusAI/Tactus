@@ -1,0 +1,25 @@
+{
+  "id": "tcts-de549c29-e906-4fd5-bd2a-3e2dba5d3b6c",
+  "title": "Add tail_tokens method to MessageHistory for token budgeting",
+  "description": "",
+  "type": "task",
+  "status": "in_progress",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "c1d58a45-4e13-4180-8c4e-bb162e7dbeb0",
+      "author": "derek.norrbom",
+      "text": "## Scope\n\nAdd token-budgeted history filtering to MessageHistory primitive for Plexus console chat.\n\n## Implementation\n\n**Extend MessageHistory primitive** (`tactus/primitives/message_history.py`)\n- Add `tail_tokens(max_tokens)` method - returns last N messages that fit within token budget\n- Add `_estimate_tokens(messages)` helper - 4 chars/token heuristic\n- Already has `tail(n)` for message count - this is token-based equivalent\n\n**Signature**:\n```python\ndef tail_tokens(self, max_tokens: int) -> list[dict[str, Any]]:\n    \"\"\"Return last messages that fit within token budget.\"\"\"\n```\n\n## Testing\n\nUnit tests for:\n- Empty history returns empty list\n- Single message under budget\n- Multiple messages fitting exactly\n- Messages exceeding budget (returns subset)\n- Very large messages\n- Multipart content handling\n\n## Usage (in TAC)\n\n```lua\nMessageHistory.replace(history)\nlocal filtered = MessageHistory.tail_tokens(8000)\n-- Returns last messages fitting in 8000 token budget\n```\n\n## Notes\n\nThis is deterministic token budgeting only - no LLM calls, no compaction, no summarization.",
+      "created_at": "2026-05-14T18:45:51.928490Z"
+    }
+  ],
+  "created_at": "2026-05-14T18:45:38.984976Z",
+  "updated_at": "2026-05-14T18:46:00.071658Z",
+  "closed_at": null,
+  "custom": {}
+}
