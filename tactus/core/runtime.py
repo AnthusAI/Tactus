@@ -518,7 +518,8 @@ class TactusRuntime:
                 procedure_id=self.procedure_id, log_handler=self.log_handler
             )
             self.message_history_primitive = MessageHistoryPrimitive(
-                message_history_manager=self.message_history_manager
+                message_history_manager=self.message_history_manager,
+                lua_sandbox=self.lua_sandbox,
             )
             self.json_primitive = JsonPrimitive(lua_sandbox=self.lua_sandbox)
             self.retry_primitive = RetryPrimitive()
