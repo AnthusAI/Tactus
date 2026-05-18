@@ -1,0 +1,25 @@
+{
+  "id": "tcts-bd06e886-e062-46be-81e7-f9fce3c73c49",
+  "title": "Fix declaration parsing with partial runtime test instances",
+  "description": "CI reports tests/core/test_runtime_tasks.py failures because declaration parsing now reads TactusRuntime.max_tokens, but several tests construct partial runtime instances without running __init__. Runtime context construction should tolerate those existing partial instances while preserving runtime defaults for normal construction.",
+  "type": "bug",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "9db7c9b8-7c46-42cd-b15a-46538e1d0c4c",
+      "author": "derek.norrbom",
+      "text": "Fixed by making declaration runtime context read optional model-control attributes with getattr(..., None). Verified tests/core/test_runtime_tasks.py and related runtime/model tests pass, plus Black and Ruff.",
+      "created_at": "2026-05-18T17:25:03.959514Z"
+    }
+  ],
+  "created_at": "2026-05-18T17:24:34.870882Z",
+  "updated_at": "2026-05-18T17:25:03.959514Z",
+  "closed_at": "2026-05-18T17:25:03.947875Z",
+  "custom": {}
+}

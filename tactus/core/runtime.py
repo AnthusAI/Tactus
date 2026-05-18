@@ -3642,10 +3642,10 @@ class TactusRuntime:
             "execution_context": self.execution_context,
             "log_handler": self.log_handler,
             "sandbox": sandbox,
-            "reasoning_effort": self.reasoning_effort,
-            "verbosity": self.verbosity,
-            "max_tokens": self.max_tokens,
-            "temperature": self.temperature,
+            "reasoning_effort": getattr(self, "reasoning_effort", None),
+            "verbosity": getattr(self, "verbosity", None),
+            "max_tokens": getattr(self, "max_tokens", None),
+            "temperature": getattr(self, "temperature", None),
             "_created_agents": {},  # Will be populated during parsing
             "is_parsing": True,  # Stubs can use this to defer runtime-only behavior
         }
