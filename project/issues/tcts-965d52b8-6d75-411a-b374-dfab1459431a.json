@@ -1,0 +1,18 @@
+{
+  "id": "tcts-965d52b8-6d75-411a-b374-dfab1459431a",
+  "title": "Thread runtime model controls through Model and Agent construction",
+  "description": "Story: tcts-2c82d6. Ensure Model(), LLMModelBackend, and Agent setup resolve model controls from local config first, then runtime defaults, then provider defaults.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-8a3c5694-07f3-42ad-8f41-9747e139d9e2",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-05-18T16:50:10.402771Z",
+  "updated_at": "2026-05-18T16:54:56.181349Z",
+  "closed_at": "2026-05-18T16:54:56.181349Z",
+  "custom": {}
+}

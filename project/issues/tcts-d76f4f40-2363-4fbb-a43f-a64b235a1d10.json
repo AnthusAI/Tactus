@@ -1,0 +1,18 @@
+{
+  "id": "tcts-d76f4f40-2363-4fbb-a43f-a64b235a1d10",
+  "title": "Support ClassifyProcedure local overrides without dropping runtime defaults",
+  "description": "Story: tcts-2c82d6. ClassifyProcedure should accept local reasoning_effort, verbosity, max_tokens, and temperature values and pass only explicit overrides over inherited runtime defaults.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-8a3c5694-07f3-42ad-8f41-9747e139d9e2",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-05-18T16:50:10.421549Z",
+  "updated_at": "2026-05-18T16:54:56.192387Z",
+  "closed_at": "2026-05-18T16:54:56.192387Z",
+  "custom": {}
+}

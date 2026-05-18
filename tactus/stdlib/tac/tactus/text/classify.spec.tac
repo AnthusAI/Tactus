@@ -42,6 +42,8 @@ local result = fuzzy:classify("helo")
 - `model`: Model identifier (e.g., "openai/gpt-4o-mini")
 - `temperature`: LLM temperature (default: 0.3)
 - `max_tokens`: Maximum output tokens (optional)
+- `reasoning_effort`: GPT-5-family reasoning effort override (optional)
+- `verbosity`: GPT-5-family response verbosity override (optional)
 - `max_retries`: Maximum retry attempts (default: 3)
 - `confidence_mode`: "heuristic" or "none" (default: "heuristic")
 
@@ -90,12 +92,34 @@ Step("max_tokens (.+)", function(ctx, max_tokens)
     test_state.classifier_config.max_tokens = tonumber(max_tokens)
 end)
 
+Step("reasoning_effort \"(.+)\"", function(ctx, reasoning_effort)
+    test_state.classifier_config.reasoning_effort = reasoning_effort
+end)
+
+Step("verbosity \"(.+)\"", function(ctx, verbosity)
+    test_state.classifier_config.verbosity = verbosity
+end)
+
 Step("the classifier max_tokens should be (.+)", function(ctx, expected)
     assert(test_state.classifier, "No classifier found")
     local expected_number = tonumber(expected)
     assert(test_state.classifier.max_tokens == expected_number,
         "Expected max_tokens " .. tostring(expected_number) ..
         " but got " .. tostring(test_state.classifier.max_tokens))
+end)
+
+Step("the classifier reasoning_effort should be \"(.+)\"", function(ctx, expected)
+    assert(test_state.classifier, "No classifier found")
+    assert(test_state.classifier.reasoning_effort == expected,
+        "Expected reasoning_effort " .. tostring(expected) ..
+        " but got " .. tostring(test_state.classifier.reasoning_effort))
+end)
+
+Step("the classifier verbosity should be \"(.+)\"", function(ctx, expected)
+    assert(test_state.classifier, "No classifier found")
+    assert(test_state.classifier.verbosity == expected,
+        "Expected verbosity " .. tostring(expected) ..
+        " but got " .. tostring(test_state.classifier.verbosity))
 end)
 
 Step("a fuzzy classifier expecting \"(.+)\"", function(ctx, expected)
@@ -217,6 +241,15 @@ Feature: Classification Class Hierarchy
     And max_tokens 1200
     When I create the classifier
     Then the classifier max_tokens should be 1200
+
+  Scenario: LLM classification with GPT-5 local controls
+    Given an LLM classifier with classes "Yes" and "No"
+    And prompt "Is this a question?"
+    And reasoning_effort "medium"
+    And verbosity "low"
+    When I create the classifier
+    Then the classifier reasoning_effort should be "medium"
+    And the classifier verbosity should be "low"
 
   Scenario: LLM negative sentiment
     Given an LLM classifier with classes "positive", "negative", and "neutral"

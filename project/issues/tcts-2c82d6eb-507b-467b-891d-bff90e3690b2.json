@@ -1,0 +1,31 @@
+{
+  "id": "tcts-2c82d6eb-507b-467b-891d-bff90e3690b2",
+  "title": "Runtime defaults and local overrides drive LLM classification",
+  "description": "Feature: Unified runtime model controls\n  Scenario: Runtime defaults reach LLM-backed ClassifyProcedure\n    Given TactusRuntime is configured with reasoning_effort, verbosity, max_tokens, and temperature\n    When ClassifyProcedure builds an LLM classifier without local overrides\n    Then the underlying LLM model receives those runtime defaults\n\n  Scenario: ClassifyProcedure overrides runtime defaults\n    Given TactusRuntime is configured with model defaults\n    And ClassifyProcedure declares different values for one or more model controls\n    When it builds the LLM classifier\n    Then ClassifyProcedure values override runtime defaults\n    And omitted ClassifyProcedure values inherit runtime defaults\n\n  Scenario: Existing procedure-local config remains valid\n    Given an existing ClassifyProcedure already declares model controls in its config\n    When the procedure runs under runtime defaults\n    Then the local config keeps the same precedence and behavior",
+  "type": "story",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-8a3c5694-07f3-42ad-8f41-9747e139d9e2",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "618024d7-c302-4049-8841-d03cbb8bd760",
+      "author": "derek.norrbom",
+      "text": "Planning complete. Implementation target: one precedence chain for LLM controls: local ClassifyProcedure/Model config, then TactusRuntime defaults, then provider defaults.",
+      "created_at": "2026-05-18T16:50:10.468743Z"
+    },
+    {
+      "id": "99d0afff-82b3-44d4-ad8e-05016b49eeac",
+      "author": "derek.norrbom",
+      "text": "Implemented and verified. TactusRuntime now carries max_tokens and temperature defaults; Model/Agent/ClassifyProcedure paths resolve local config over runtime defaults.",
+      "created_at": "2026-05-18T16:54:56.234623Z"
+    }
+  ],
+  "created_at": "2026-05-18T16:49:55.423507Z",
+  "updated_at": "2026-05-18T16:54:56.234623Z",
+  "closed_at": "2026-05-18T16:54:56.212789Z",
+  "custom": {}
+}

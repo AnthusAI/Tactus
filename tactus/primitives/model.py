@@ -36,6 +36,8 @@ class ModelPrimitive:
         mock_manager: Optional[Any] = None,
         reasoning_effort: Optional[str] = None,
         verbosity: Optional[str] = None,
+        max_tokens: Optional[int] = None,
+        temperature: Optional[float] = None,
     ):
         """
         Initialize model primitive.
@@ -50,6 +52,8 @@ class ModelPrimitive:
             context: Execution context for checkpointing
             reasoning_effort: Optional runtime-level GPT-5-family reasoning effort control
             verbosity: Optional runtime-level GPT-5-family response verbosity control
+            max_tokens: Optional runtime-level maximum response token control
+            temperature: Optional runtime-level sampling temperature control
         """
         self.model_name = model_name
         self.config = config
@@ -57,6 +61,8 @@ class ModelPrimitive:
         self.mock_manager = mock_manager
         self.reasoning_effort = reasoning_effort
         self.verbosity = verbosity
+        self.max_tokens = max_tokens
+        self.temperature = temperature
 
         # Resolve input/output schemas to Pydantic models
         self.input_schema_dict = config.get("input", {})
@@ -149,14 +155,27 @@ class ModelPrimitive:
         if model_type == "llm":
             from tactus.backends.llm_backend import LLMModelBackend
 
+            resolved_temperature = (
+                config["temperature"] if "temperature" in config else self.temperature
+            )
+            resolved_max_tokens = (
+                config["max_tokens"] if "max_tokens" in config else self.max_tokens
+            )
+            resolved_reasoning_effort = (
+                config["reasoning_effort"]
+                if "reasoning_effort" in config
+                else config.get("openai_reasoning_effort", self.reasoning_effort)
+            )
+            resolved_verbosity = config["verbosity"] if "verbosity" in config else self.verbosity
+
             return LLMModelBackend(
                 model=config["model"],
                 system_prompt=config.get("system_prompt", ""),
                 provider=config.get("provider"),
-                temperature=config.get("temperature"),
-                max_tokens=config.get("max_tokens"),
-                reasoning_effort=self.reasoning_effort,
-                verbosity=self.verbosity,
+                temperature=resolved_temperature,
+                max_tokens=resolved_max_tokens,
+                reasoning_effort=resolved_reasoning_effort,
+                verbosity=resolved_verbosity,
                 mock_manager=self.mock_manager,
                 registry=None,  # TODO: Pass registry when available
                 execution_context=None,  # Don't checkpoint internal agent turns
