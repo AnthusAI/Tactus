@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "483dacf7-bed8-424d-a927-91934d16344f",
+  "issue_id": "tcts-9786ffe6-ed65-4ea7-90c8-56157c98c333",
+  "event_type": "issue_created",
+  "occurred_at": "2026-05-18T15:48:03.021Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "assignee": null,
+    "description": "Feature: ClassifyProcedure token limits\n\nScenario: LLM classification forwards max_tokens\nGiven a ClassifyProcedure config includes max_tokens\nWhen it builds the LLM-backed classifier\nThen the underlying LLMModel receives the same max_tokens value\n\nScenario: LLM classification omits max_tokens by default\nGiven a ClassifyProcedure config does not include max_tokens\nWhen it builds the LLM-backed classifier\nThen the underlying LLMModel keeps its existing default token behavior",
+    "issue_type": "story",
+    "labels": [],
+    "parent": "tcts-5f92fe70-3a01-465c-9982-687ec28025a3",
+    "priority": 1,
+    "status": "open",
+    "title": "ClassifyProcedure supports max_tokens"
+  }
+}

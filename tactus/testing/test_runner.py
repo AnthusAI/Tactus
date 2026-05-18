@@ -482,7 +482,12 @@ class TactusTestRunner:
         try:
             import behave.step_registry
 
-            behave.step_registry.registry.clear()
+            registry = behave.step_registry.registry
+            if hasattr(registry, "clear"):
+                registry.clear()
+            else:
+                for definitions in getattr(registry, "steps", {}).values():
+                    definitions.clear()
             logger.debug("Cleared Behave step registry")
         except ImportError as exc:
             logger.debug("Behave not available during cleanup; skipping registry clear: %s", exc)

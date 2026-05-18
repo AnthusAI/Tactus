@@ -1,0 +1,25 @@
+{
+  "id": "tcts-9786ffe6-ed65-4ea7-90c8-56157c98c333",
+  "title": "ClassifyProcedure supports max_tokens",
+  "description": "Feature: ClassifyProcedure token limits\n\nScenario: LLM classification forwards max_tokens\nGiven a ClassifyProcedure config includes max_tokens\nWhen it builds the LLM-backed classifier\nThen the underlying LLMModel receives the same max_tokens value\n\nScenario: LLM classification omits max_tokens by default\nGiven a ClassifyProcedure config does not include max_tokens\nWhen it builds the LLM-backed classifier\nThen the underlying LLMModel keeps its existing default token behavior",
+  "type": "story",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-5f92fe70-3a01-465c-9982-687ec28025a3",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "4c0349c1-b522-475a-9fdd-3ded319a0913",
+      "author": "derek.norrbom",
+      "text": "Implemented ClassifyProcedure max_tokens support in Tactus stdlib: LLMClassifier now stores config.max_tokens and passes it to LLMModel. Added BDD coverage in classify.spec.tac. Validated with poetry run pytest -q tests/stdlib/test_stdlib_specs.py -k classify tests/testing/test_test_runner_additional.py.",
+      "created_at": "2026-05-18T15:53:54.232254Z"
+    }
+  ],
+  "created_at": "2026-05-18T15:48:03.021793Z",
+  "updated_at": "2026-05-18T15:53:54.242391Z",
+  "closed_at": "2026-05-18T15:53:54.242391Z",
+  "custom": {}
+}

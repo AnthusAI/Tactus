@@ -1,4 +1,5 @@
 from pathlib import Path
+import sys
 
 import pytest
 
@@ -98,6 +99,32 @@ def test_cleanup_handles_missing_behave_registry(tmp_path, monkeypatch):
 
     runner.cleanup()
 
+    assert not runner.work_dir.exists()
+
+
+def test_cleanup_clears_behave_registry_without_clear_method(tmp_path, monkeypatch):
+    runner = TactusTestRunner(Path(tmp_path / "proc.tac"))
+    runner.work_dir = tmp_path / "work"
+    runner.work_dir.mkdir()
+
+    class Registry:
+        def __init__(self):
+            self.steps = {
+                "given": [object()],
+                "when": [object()],
+                "then": [object()],
+                "step": [object()],
+            }
+
+    registry = Registry()
+    fake_step_registry = type("StepRegistryModule", (), {"registry": registry})()
+    fake_behave = type("BehaveModule", (), {"step_registry": fake_step_registry})()
+    monkeypatch.setitem(sys.modules, "behave", fake_behave)
+    monkeypatch.setitem(sys.modules, "behave.step_registry", fake_step_registry)
+
+    runner.cleanup()
+
+    assert all(not definitions for definitions in registry.steps.values())
     assert not runner.work_dir.exists()
 
 
