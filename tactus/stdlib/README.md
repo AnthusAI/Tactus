@@ -28,6 +28,7 @@ tactus/stdlib/
 │   │   └── naive_bayes.tac       # Naive Bayes model helper (registry-backed)
 │   │   └── hf_sequence_classifier.tac   # Hugging Face sequence classifier helper
 │   ├── deepgram/                # Deepgram JSON utilities
+│   ├── web/                     # Web research facade
 │   ├── generate/                # LLM-based generation
 │   ├── retrievers/              # Search/retrieval systems
 │   ├── corpora/                 # Corpus management
@@ -39,6 +40,7 @@ tactus/stdlib/
 ├── text/classify/               # Python helpers for classify
 │   └── similarity.py            # rapidfuzz-backed string similarity
 ├── io/                          # Python I/O modules (json, csv, file, etc.)
+├── web/                         # Python provider adapters for web research
 ├── biblicus/                    # Python Biblicus bindings
 ├── core/                        # Shared Python utilities
 └── loader.py                    # Python module loader for require()
@@ -51,6 +53,7 @@ tactus/stdlib/
 - Ensembles & A/B: Model primitive supports `type = "ensemble"` (vote/average) and `type = "ab_test"` routing with metadata (`arm_index`)
 - `tactus.text.extract` - Structured extraction utilities
 - `tactus.deepgram` - Deepgram JSON transcript utilities
+- `tactus.web` - Web research providers for raw search and sourced synthesis
 - `tactus.generate` - LLM-based generation helpers
 - `tactus.retrievers.*` - Search/retrieval systems
 - `tactus.io.*` - File I/O helpers (json, csv, tsv, file)
@@ -59,6 +62,7 @@ tactus/stdlib/
 ### New in this release
 
 - Deepgram JSON utilities (`tactus.deepgram`) are now included by default: flatten transcripts, expose structured segments, and extract timestamped quotes with behavior covered by `tactus/stdlib/tac/tactus/deepgram.spec.tac`.
+- Web research utilities (`tactus.web`) expose OpenAI Responses `web_search` for source-aware search and synthesis. Perplexity Search and Gemini Deep Research APIs are reserved for future stdlib milestones.
 
 ## Usage
 
@@ -104,6 +108,22 @@ local classifier = models.HFSequenceClassifierModel{
     model = "distilbert-base-uncased-finetuned-sst-2-english"
 }
 local classifier_result = classifier({text = "great movie"})
+
+-- Web research
+local web = require("tactus.web")
+local search = web.search{
+    provider = "openai",
+    query = "automated publication systems",
+    model = "gpt-5.4-mini",
+    allowed_domains = {"openai.com"},
+    return_token_budget = "unlimited",
+}
+local synthesis = web.synthesize{
+    provider = "openai",
+    query = "Summarize recent evidence about automated publication QA systems.",
+    model = "gpt-5.4-mini",
+    reasoning_effort = "low",
+}
 
 -- Hugging Face sequence classifier training (full hyperparameter control)
 Model "imdb_bert" {
