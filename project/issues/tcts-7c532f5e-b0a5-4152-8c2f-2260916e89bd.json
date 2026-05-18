@@ -1,0 +1,35 @@
+{
+  "id": "tcts-7c532f5e-b0a5-4152-8c2f-2260916e89bd",
+  "title": "Add web research stdlib module",
+  "description": "Implement tactus.web with Perplexity search, OpenAI web_search synthesis, normalized outputs, tests, and Papyrus thin procedure documentation. Keep changes uncommitted until the user's 7:30 PM commit window.",
+  "type": "task",
+  "status": "in_progress",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [
+    "stdlib",
+    "web",
+    "papyrus"
+  ],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "18136a24-7ff4-4f55-a228-c0fca0454854",
+      "author": "ryan",
+      "text": "Starting implementation on feature/tactus-web-stdlib from origin/develop. Scope: reusable Tactus stdlib web module, offline/mockable tests, Papyrus documentation-only integration. No commits before the user's 7:30 PM window.",
+      "created_at": "2026-05-18T13:36:45.787510Z"
+    },
+    {
+      "id": "7c29fecb-1fca-4482-af7d-d7230dadf97c",
+      "author": "ryan",
+      "text": "Implemented OpenAI-first tactus.web in the local branch. Perplexity is now reserved/planned only because no API access is available. Local Poetry tests pass for provider mapping, normalized outputs, missing-key behavior, and mocked stdlib specs. Live OpenAI search is blocked until OPENAI_API_KEY is injected into the Tactus process.",
+      "created_at": "2026-05-18T13:47:43.664731Z"
+    }
+  ],
+  "created_at": "2026-05-18T13:36:41.902826Z",
+  "updated_at": "2026-05-18T13:47:43.664731Z",
+  "closed_at": null,
+  "custom": {}
+}

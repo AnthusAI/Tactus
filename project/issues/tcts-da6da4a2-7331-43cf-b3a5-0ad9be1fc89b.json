@@ -3,16 +3,23 @@
   "title": "Release Tactus package with GPT-5 controls",
   "description": "Publish a Tactus package version containing runtime reasoning_effort and verbosity support so downstream repos can depend on it from package indexes.\n\nDefinition of Done:\n- Tactus feature branch is merged through the normal review path.\n- A new package version is published and installable.\n- Release notes mention TactusRuntime reasoning_effort and verbosity support.",
   "type": "task",
-  "status": "open",
+  "status": "in_progress",
   "priority": 2,
   "assignee": null,
   "creator": null,
   "parent": "tcts-5f92fe70-3a01-465c-9982-687ec28025a3",
   "labels": [],
   "dependencies": [],
-  "comments": [],
+  "comments": [
+    {
+      "id": "1081f527-d24b-47eb-b0b8-38f502dc3033",
+      "author": "ryan",
+      "text": "Starting release readiness pass: verify changed files, run CI-equivalent gates locally, then commit with semantic feat message and push branch for CI validation.",
+      "created_at": "2026-05-18T19:18:59.102200Z"
+    }
+  ],
   "created_at": "2026-04-29T22:21:36.722540Z",
-  "updated_at": "2026-04-29T22:21:36.722540Z",
+  "updated_at": "2026-05-18T19:18:59.121573Z",
   "closed_at": null,
   "custom": {}
 }

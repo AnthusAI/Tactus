@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "event_id": "7c851d6c-86e5-4d44-b9d3-2163f4d73b18",
+  "issue_id": "tcts-7c532f5e-b0a5-4152-8c2f-2260916e89bd",
+  "event_type": "issue_created",
+  "occurred_at": "2026-05-18T13:36:41.903Z",
+  "actor_id": "ryan",
+  "payload": {
+    "title": "Add web research stdlib module",
+    "description": "Implement tactus.web with Perplexity search, OpenAI web_search synthesis, normalized outputs, tests, and Papyrus thin procedure documentation. Keep changes uncommitted until the user's 7:30 PM commit window.",
+    "issue_type": "task",
+    "status": "open",
+    "priority": 1,
+    "assignee": null,
+    "parent": null,
+    "labels": [
+      "stdlib",
+      "web",
+      "papyrus"
+    ]
+  }
+}
