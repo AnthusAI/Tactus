@@ -10,6 +10,7 @@ Orchestrates:
 """
 
 import io
+import json
 import logging
 import time
 import uuid
@@ -91,6 +92,7 @@ class TactusRuntime:
         verbosity: Optional[str] = None,
         max_tokens: Optional[int] = None,
         temperature: Optional[float] = None,
+        reset_state_on_execute: bool = False,
     ):
         """
         Initialize the Tactus runtime.
@@ -113,6 +115,8 @@ class TactusRuntime:
             verbosity: Optional GPT-5-family response verbosity control
             max_tokens: Optional runtime-level maximum response token control
             temperature: Optional runtime-level sampling temperature control
+            reset_state_on_execute: When true, clear persisted procedure state
+                at the start of each execute() call.
         """
         validate_gpt5_controls(reasoning_effort=reasoning_effort, verbosity=verbosity)
         if max_tokens is not None and (
@@ -176,6 +180,7 @@ class TactusRuntime:
         self.verbosity = verbosity
         self.max_tokens = max_tokens
         self.temperature = temperature
+        self.reset_state_on_execute = reset_state_on_execute
         self.python_modules: Dict[str, Any] = {}
 
         # Will be initialized during setup
@@ -242,6 +247,28 @@ class TactusRuntime:
         if self.lua_sandbox is not None:
             self.lua_sandbox.register_python_module(name, module)
 
+    def _reset_persisted_state(self) -> None:
+        """Clear persisted mutable state for this procedure when requested."""
+        if not self.storage_backend or not self.procedure_id:
+            return
+        load = getattr(self.storage_backend, "load_procedure_metadata", None)
+        save = getattr(self.storage_backend, "save_procedure_metadata", None)
+        if not callable(load) or not callable(save):
+            return
+        try:
+            metadata = load(self.procedure_id)
+            if metadata is not None and hasattr(metadata, "state"):
+                state = getattr(metadata, "state")
+                if isinstance(state, dict):
+                    state.clear()
+            save(self.procedure_id, metadata)
+        except Exception as exc:
+            logger.debug(
+                "Failed to reset persisted state for procedure %s: %s",
+                self.procedure_id,
+                exc,
+            )
+
     async def execute(
         self,
         source: str,
@@ -272,6 +299,8 @@ class TactusRuntime:
         chat_session_id = None
         self.context = context or {}  # Store context for param merging
         self.task_name = task_name
+        if self.reset_state_on_execute:
+            self._reset_persisted_state()
 
         try:
             # 0. Setup Lua sandbox FIRST (needed for both YAML and Lua DSL)
@@ -2001,13 +2030,6 @@ class TactusRuntime:
                 # Already a dict
                 agent_config = agent_config_raw
 
-            # Skip if agent was already created during immediate initialization
-            if agent_name in self.agents:
-                logger.debug(
-                    f"Agent '{agent_name}' already created during parsing - skipping setup"
-                )
-                continue
-
             logger.info(f"Setting up agent: {agent_name}")
 
             # Get agent prompts (initial_message needs template processing, system_prompt is dynamic)
@@ -2316,6 +2338,40 @@ class TactusRuntime:
                 f"Agent '{agent_name}' dspy_config has tool_choice={dspy_config.get('tool_choice')}"
             )
 
+            # Reuse only when the effective agent configuration is unchanged.
+            # This avoids stale parse-phase or cross-procedure agent bleed while preserving
+            # speed for repeated execute() calls with identical configs.
+            agent_signature = self._build_agent_signature(
+                agent_config=agent_config,
+                model_name=model_name,
+                default_toolset_names=default_toolset_names,
+                explicit_tools_config=agent_tools_config,
+                output_schema=output_schema,
+                dspy_config=dspy_config,
+            )
+
+            existing_agent = self.agents.get(agent_name)
+            if (
+                existing_agent is not None
+                and getattr(existing_agent, "_tactus_agent_signature", None) == agent_signature
+            ):
+                self._refresh_existing_agent(existing_agent, context)
+                # Rebind Lua global for this execute() call to the reusable agent.
+                # Parsing can create placeholder/immediate agents each run; without this
+                # rebinding the workflow may call a stale parse-phase primitive.
+                self.lua_sandbox.lua.globals()[agent_name] = existing_agent
+                logger.debug(
+                    "Agent '%s' reused with matching signature for current execution",
+                    agent_name,
+                )
+                continue
+
+            if existing_agent is not None:
+                logger.info(
+                    "Agent '%s' configuration changed or is parse-phase; recreating",
+                    agent_name,
+                )
+
             # Create DSPy agent with registry, mock_manager, and execution_context
             agent_primitive = create_dspy_agent(
                 agent_name,
@@ -2329,6 +2385,7 @@ class TactusRuntime:
             agent_primitive._tool_primitive = self.tool_primitive
             agent_primitive._state_primitive = self.state_primitive
             agent_primitive._context = context
+            agent_primitive._tactus_agent_signature = agent_signature
 
             self.agents[agent_name] = agent_primitive
 
@@ -2339,6 +2396,73 @@ class TactusRuntime:
             logger.debug("Updated Lua global %r to new agent with toolsets", agent_name)
 
             logger.info(f"Agent '{agent_name}' configured successfully with model '{model_name}'")
+
+    @staticmethod
+    def _stable_signature_value(value: Any) -> Any:
+        """Normalize values to a JSON-stable representation for signature hashing."""
+        if value is None or isinstance(value, (str, int, float, bool)):
+            return value
+        if isinstance(value, dict):
+            return {
+                str(key): TactusRuntime._stable_signature_value(item)
+                for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))
+            }
+        if isinstance(value, (list, tuple, set)):
+            return [TactusRuntime._stable_signature_value(item) for item in value]
+        if callable(value):
+            return "<callable>"
+        if hasattr(value, "model_dump"):
+            return TactusRuntime._stable_signature_value(value.model_dump())
+        if hasattr(value, "dict"):
+            return TactusRuntime._stable_signature_value(value.dict())
+        return f"<{value.__class__.__name__}>"
+
+    def _build_agent_signature(
+        self,
+        *,
+        agent_config: dict[str, Any],
+        model_name: str,
+        default_toolset_names: list[Any],
+        explicit_tools_config: Any,
+        output_schema: Any,
+        dspy_config: dict[str, Any],
+    ) -> str:
+        """Build a stable signature for agent reuse decisions."""
+        payload = {
+            "agent_config": self._stable_signature_value(agent_config),
+            "model_name": model_name,
+            "default_toolset_names": self._stable_signature_value(default_toolset_names),
+            "explicit_tools_config": self._stable_signature_value(explicit_tools_config),
+            "output_schema": self._stable_signature_value(output_schema),
+            "resolved_temperature": dspy_config.get("temperature"),
+            "resolved_max_tokens": dspy_config.get("max_tokens"),
+            "resolved_reasoning_effort": dspy_config.get("reasoning_effort"),
+            "resolved_verbosity": dspy_config.get("verbosity"),
+            "tool_choice": dspy_config.get("tool_choice"),
+            "message_history_filter": self._stable_signature_value(
+                dspy_config.get("message_history_filter")
+            ),
+        }
+        return json.dumps(payload, sort_keys=True, separators=(",", ":"))
+
+    def _refresh_existing_agent(self, existing_agent: Any, context: dict[str, Any]) -> None:
+        """Refresh per-execution bindings on a reusable agent."""
+        if hasattr(existing_agent, "_context"):
+            existing_agent._context = context or {}
+        if hasattr(existing_agent, "_state_primitive"):
+            existing_agent._state_primitive = self.state_primitive
+        if hasattr(existing_agent, "_tool_primitive"):
+            existing_agent._tool_primitive = self.tool_primitive
+        if hasattr(existing_agent, "execution_context"):
+            existing_agent.execution_context = self.execution_context
+        if hasattr(existing_agent, "clear_history"):
+            try:
+                existing_agent.clear_history()
+            except Exception as exc:
+                logger.debug(
+                    "Agent history reset failed during reuse refresh: %s",
+                    exc,
+                )
 
     async def _setup_models(self):
         """
@@ -2521,10 +2645,10 @@ class TactusRuntime:
             if agent_name in agent_registry:
                 handle = agent_registry[agent_name]
                 if isinstance(handle, AgentHandle):
-                    # Only enhance if not already connected
-                    if handle._primitive is None:
+                    # Connect or refresh when the handle points to a stale primitive.
+                    if handle._primitive is None or handle._primitive is not primitive:
                         handle._set_primitive(primitive, self.execution_context)
-                        logger.info(f"Enhanced AgentHandle '{agent_name}' (fallback)")
+                        logger.info(f"Enhanced AgentHandle '{agent_name}' (fallback/refresh)")
                         enhanced_count += 1
                     else:
                         # For immediate agents: primitive is already connected but execution_context might be None
