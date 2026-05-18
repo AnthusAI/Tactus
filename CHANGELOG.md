@@ -2,6 +2,24 @@
 
 <!-- version list -->
 
+## v0.50.0 (2026-05-18)
+
+### Bug Fixes
+
+- **runtime**: Tolerate partial declaration runtimes
+  ([`5574bc1`](https://github.com/AnthusAI/Tactus/commit/5574bc1ee2a3c52c885201fc84aa75dac8488bd6))
+
+### Code Style
+
+- **runtime**: Format model primitive
+  ([`6ea905a`](https://github.com/AnthusAI/Tactus/commit/6ea905a6793324cc20350b02985f5d7782d4d8ed))
+
+### Features
+
+- **runtime**: Unify model control defaults
+  ([`a61b531`](https://github.com/AnthusAI/Tactus/commit/a61b531d5a9c5aa97bc61e8a9f8e32b281c0fc6d))
+
+
 ## v0.49.0 (2026-05-14)
 
 ### Bug Fixes
