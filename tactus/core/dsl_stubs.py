@@ -628,6 +628,8 @@ def create_dsl_stubs(
                         mock_manager=_runtime_context.get("mock_manager"),
                         reasoning_effort=_runtime_context.get("reasoning_effort"),
                         verbosity=_runtime_context.get("verbosity"),
+                        max_tokens=_runtime_context.get("max_tokens"),
+                        temperature=_runtime_context.get("temperature"),
                     )
                     handle._set_primitive(primitive)
                     _runtime_context.setdefault("_created_models", {})[model_name] = primitive
@@ -2025,6 +2027,16 @@ def create_dsl_stubs(
                     and "verbosity" not in agent_config
                 ):
                     agent_config["verbosity"] = _runtime_context["verbosity"]
+                if (
+                    _runtime_context.get("max_tokens") is not None
+                    and "max_tokens" not in agent_config
+                ):
+                    agent_config["max_tokens"] = _runtime_context["max_tokens"]
+                if (
+                    _runtime_context.get("temperature") is not None
+                    and "temperature" not in agent_config
+                ):
+                    agent_config["temperature"] = _runtime_context["temperature"]
 
                 agent_primitive = create_dspy_agent(
                     agent_name,
@@ -2221,6 +2233,16 @@ def create_dsl_stubs(
                     and "verbosity" not in agent_config
                 ):
                     agent_config["verbosity"] = _runtime_context["verbosity"]
+                if (
+                    _runtime_context.get("max_tokens") is not None
+                    and "max_tokens" not in agent_config
+                ):
+                    agent_config["max_tokens"] = _runtime_context["max_tokens"]
+                if (
+                    _runtime_context.get("temperature") is not None
+                    and "temperature" not in agent_config
+                ):
+                    agent_config["temperature"] = _runtime_context["temperature"]
 
                 logger.debug(
                     f"[AGENT_CREATION] Creating agent immediately: name={temporary_agent_name}, has_log_handler={'log_handler' in agent_config}"
@@ -2359,6 +2381,9 @@ def create_dsl_stubs(
         Optional params:
             input_field   -- input field name (default: "text")
             temperature   -- forwarded to Classify
+            max_tokens    -- forwarded to Classify
+            reasoning_effort -- forwarded to Classify
+            verbosity     -- forwarded to Classify
             max_retries   -- forwarded to Classify
             name          -- forwarded to Classify (model name for mocking)
         """

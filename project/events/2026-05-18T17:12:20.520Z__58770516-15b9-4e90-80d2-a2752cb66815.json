@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "58770516-15b9-4e90-80d2-a2752cb66815",
+  "issue_id": "tcts-79c73efd-5018-434c-8855-9e8d74ac2ae7",
+  "event_type": "issue_created",
+  "occurred_at": "2026-05-18T17:12:20.520Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "assignee": null,
+    "description": "GitHub Actions failed on python -m poetry run black --check tactus/ tests/ features/steps/ because tactus/primitives/model.py needs formatting after the unified runtime model controls change.",
+    "issue_type": "bug",
+    "labels": [],
+    "parent": null,
+    "priority": 1,
+    "status": "open",
+    "title": "Fix Black formatting for unified model controls"
+  }
+}

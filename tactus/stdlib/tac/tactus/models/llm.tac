@@ -45,6 +45,8 @@ local function LLMModel(config)
         system_prompt = system_prompt,
         temperature = temperature,
         max_tokens = config.max_tokens,
+        reasoning_effort = config.reasoning_effort,
+        verbosity = config.verbosity,
         input = { text = "string" },
         output = { response = "string" },
     }

@@ -1,0 +1,25 @@
+{
+  "id": "tcts-79c73efd-5018-434c-8855-9e8d74ac2ae7",
+  "title": "Fix Black formatting for unified model controls",
+  "description": "GitHub Actions failed on python -m poetry run black --check tactus/ tests/ features/steps/ because tactus/primitives/model.py needs formatting after the unified runtime model controls change.",
+  "type": "bug",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "06e7558a-a7ec-46a4-953d-173ee76a25fc",
+      "author": "derek.norrbom",
+      "text": "Applied Black to tactus/primitives/model.py and verified poetry run black --check tactus/ tests/ features/steps/ passes.",
+      "created_at": "2026-05-18T17:12:34.916539Z"
+    }
+  ],
+  "created_at": "2026-05-18T17:12:20.520022Z",
+  "updated_at": "2026-05-18T17:12:34.916539Z",
+  "closed_at": "2026-05-18T17:12:34.906192Z",
+  "custom": {}
+}

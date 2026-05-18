@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "d766df73-c07c-497e-8068-c885e35bba6f",
+  "issue_id": "tcts-5e5f00b6-75e0-48cb-8cd1-839988813601",
+  "event_type": "issue_created",
+  "occurred_at": "2026-05-18T16:50:10.377Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "assignee": null,
+    "description": "Story: tcts-2c82d6. Extend TactusRuntime and its execution context so max_tokens and temperature are runtime-level defaults alongside reasoning_effort and verbosity.",
+    "issue_type": "task",
+    "labels": [],
+    "parent": "tcts-8a3c5694-07f3-42ad-8f41-9747e139d9e2",
+    "priority": 1,
+    "status": "open",
+    "title": "Add runtime defaults for max_tokens and temperature"
+  }
+}

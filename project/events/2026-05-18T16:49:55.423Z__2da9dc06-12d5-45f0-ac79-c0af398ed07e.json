@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "2da9dc06-12d5-45f0-ac79-c0af398ed07e",
+  "issue_id": "tcts-2c82d6eb-507b-467b-891d-bff90e3690b2",
+  "event_type": "issue_created",
+  "occurred_at": "2026-05-18T16:49:55.423Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "assignee": null,
+    "description": "Feature: Unified runtime model controls\n  Scenario: Runtime defaults reach LLM-backed ClassifyProcedure\n    Given TactusRuntime is configured with reasoning_effort, verbosity, max_tokens, and temperature\n    When ClassifyProcedure builds an LLM classifier without local overrides\n    Then the underlying LLM model receives those runtime defaults\n\n  Scenario: ClassifyProcedure overrides runtime defaults\n    Given TactusRuntime is configured with model defaults\n    And ClassifyProcedure declares different values for one or more model controls\n    When it builds the LLM classifier\n    Then ClassifyProcedure values override runtime defaults\n    And omitted ClassifyProcedure values inherit runtime defaults\n\n  Scenario: Existing procedure-local config remains valid\n    Given an existing ClassifyProcedure already declares model controls in its config\n    When the procedure runs under runtime defaults\n    Then the local config keeps the same precedence and behavior",
+    "issue_type": "story",
+    "labels": [],
+    "parent": "tcts-8a3c5694-07f3-42ad-8f41-9747e139d9e2",
+    "priority": 1,
+    "status": "open",
+    "title": "Runtime defaults and local overrides drive LLM classification"
+  }
+}

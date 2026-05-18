@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "5da68a30-b043-46c7-b970-568b6c0ea078",
+  "issue_id": "tcts-9b60b998-aa7e-4d1b-b0cb-78db49ee2b12",
+  "event_type": "issue_created",
+  "occurred_at": "2026-05-18T15:50:07.644Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "assignee": null,
+    "description": "Feature: Stdlib spec cleanup\n\nScenario: Runner cleanup works with current Behave StepRegistry\nGiven a stdlib BDD spec run completes\nWhen TactusTestRunner cleanup runs\nThen cleanup does not require StepRegistry.clear to exist\nAnd the focused stdlib spec test can report the actual scenario result.",
+    "issue_type": "bug",
+    "labels": [],
+    "parent": "tcts-5f92fe70-3a01-465c-9982-687ec28025a3",
+    "priority": 1,
+    "status": "open",
+    "title": "Stdlib spec runner cleanup supports current Behave registry"
+  }
+}

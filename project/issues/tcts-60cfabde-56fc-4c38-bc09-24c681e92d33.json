@@ -1,0 +1,18 @@
+{
+  "id": "tcts-60cfabde-56fc-4c38-bc09-24c681e92d33",
+  "title": "Cover unified model-control resolution with executable specs",
+  "description": "Story: tcts-2c82d6. Add or update specs/tests for runtime default inheritance, procedure-level overrides, and existing local ClassifyProcedure config behavior.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-8a3c5694-07f3-42ad-8f41-9747e139d9e2",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-05-18T16:50:10.440496Z",
+  "updated_at": "2026-05-18T16:54:56.202832Z",
+  "closed_at": "2026-05-18T16:54:56.202832Z",
+  "custom": {}
+}

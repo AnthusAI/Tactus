@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "b594c40c-45ee-4509-a0d2-44e3a6fd9e67",
+  "issue_id": "tcts-bd06e886-e062-46be-81e7-f9fce3c73c49",
+  "event_type": "issue_created",
+  "occurred_at": "2026-05-18T17:24:34.871Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "assignee": null,
+    "description": "CI reports tests/core/test_runtime_tasks.py failures because declaration parsing now reads TactusRuntime.max_tokens, but several tests construct partial runtime instances without running __init__. Runtime context construction should tolerate those existing partial instances while preserving runtime defaults for normal construction.",
+    "issue_type": "bug",
+    "labels": [],
+    "parent": null,
+    "priority": 1,
+    "status": "open",
+    "title": "Fix declaration parsing with partial runtime test instances"
+  }
+}
