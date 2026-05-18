@@ -2,6 +2,22 @@
 
 <!-- version list -->
 
+## v0.49.0 (2026-05-14)
+
+### Bug Fixes
+
+- **release**: Trigger semantic-release after non-releasable squash merge
+  ([`1f62454`](https://github.com/AnthusAI/Tactus/commit/1f62454272dce63e98ffc243b97b22fb9d9d441e))
+
+- **tcts-de549c**: Update examples to use native Lua iteration for MessageHistory
+  ([`ffaed5e`](https://github.com/AnthusAI/Tactus/commit/ffaed5e977f3d2cb782096c3bde8e23f385b9ea7))
+
+### Features
+
+- **tcts-de549c**: Fix MessageHistory list return values for Lua iteration
+  ([`bc6ce95`](https://github.com/AnthusAI/Tactus/commit/bc6ce951daabeac0bb7b171658efe7c0cf7fbb44))
+
+
 ## v0.48.1 (2026-05-06)
 
 
