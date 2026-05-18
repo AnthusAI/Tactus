@@ -41,6 +41,7 @@ local result = fuzzy:classify("helo")
 - `prompt` (required): Classification instruction
 - `model`: Model identifier (e.g., "openai/gpt-4o-mini")
 - `temperature`: LLM temperature (default: 0.3)
+- `max_tokens`: Maximum output tokens (optional)
 - `max_retries`: Maximum retry attempts (default: 3)
 - `confidence_mode`: "heuristic" or "none" (default: "heuristic")
 
@@ -83,6 +84,18 @@ end)
 
 Step("prompt \"(.+)\"", function(ctx, prompt)
     test_state.classifier_config.prompt = prompt
+end)
+
+Step("max_tokens (.+)", function(ctx, max_tokens)
+    test_state.classifier_config.max_tokens = tonumber(max_tokens)
+end)
+
+Step("the classifier max_tokens should be (.+)", function(ctx, expected)
+    assert(test_state.classifier, "No classifier found")
+    local expected_number = tonumber(expected)
+    assert(test_state.classifier.max_tokens == expected_number,
+        "Expected max_tokens " .. tostring(expected_number) ..
+        " but got " .. tostring(test_state.classifier.max_tokens))
 end)
 
 Step("a fuzzy classifier expecting \"(.+)\"", function(ctx, expected)
@@ -197,6 +210,13 @@ Feature: Classification Class Hierarchy
     And prompt "What is the sentiment?"
     When I classify "I love this product!"
     Then the result value should be "positive"
+
+  Scenario: LLM classification with max_tokens
+    Given an LLM classifier with classes "Yes" and "No"
+    And prompt "Is this a question?"
+    And max_tokens 1200
+    When I create the classifier
+    Then the classifier max_tokens should be 1200
 
   Scenario: LLM negative sentiment
     Given an LLM classifier with classes "positive", "negative", and "neutral"

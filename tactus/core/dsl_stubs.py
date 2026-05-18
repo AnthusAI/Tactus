@@ -2359,6 +2359,7 @@ def create_dsl_stubs(
         Optional params:
             input_field   -- input field name (default: "text")
             temperature   -- forwarded to Classify
+            max_tokens    -- forwarded to Classify
             max_retries   -- forwarded to Classify
             name          -- forwarded to Classify (model name for mocking)
         """

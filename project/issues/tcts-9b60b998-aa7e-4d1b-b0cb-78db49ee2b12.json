@@ -1,0 +1,25 @@
+{
+  "id": "tcts-9b60b998-aa7e-4d1b-b0cb-78db49ee2b12",
+  "title": "Stdlib spec runner cleanup supports current Behave registry",
+  "description": "Feature: Stdlib spec cleanup\n\nScenario: Runner cleanup works with current Behave StepRegistry\nGiven a stdlib BDD spec run completes\nWhen TactusTestRunner cleanup runs\nThen cleanup does not require StepRegistry.clear to exist\nAnd the focused stdlib spec test can report the actual scenario result.",
+  "type": "bug",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-5f92fe70-3a01-465c-9982-687ec28025a3",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "1dff0caa-ca98-4af1-ab56-3ae89a812cea",
+      "author": "derek.norrbom",
+      "text": "Fixed validation blocker found while running the new stdlib BDD spec in the Poetry Python 3.11 environment: TactusTestRunner.cleanup now clears Behave registries that expose steps but no clear() method. Added focused cleanup coverage.",
+      "created_at": "2026-05-18T15:53:54.298669Z"
+    }
+  ],
+  "created_at": "2026-05-18T15:50:07.644185Z",
+  "updated_at": "2026-05-18T15:53:54.312969Z",
+  "closed_at": "2026-05-18T15:53:54.312969Z",
+  "custom": {}
+}
