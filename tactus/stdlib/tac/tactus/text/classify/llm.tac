@@ -31,6 +31,8 @@ function LLMClassifier:init(config)
     self.max_retries = config.max_retries or 3
     self.temperature = config.temperature
     self.max_tokens = config.max_tokens
+    self.reasoning_effort = config.reasoning_effort
+    self.verbosity = config.verbosity
     self.model_id = config.model or "openai/gpt-4o-mini"
     self.confidence_mode = config.confidence_mode or "heuristic"
     self.parse_direction = config.parse_direction or "end"
@@ -44,6 +46,8 @@ function LLMClassifier:init(config)
         model = self.model_id,
         temperature = self.temperature,
         max_tokens = self.max_tokens,
+        reasoning_effort = self.reasoning_effort,
+        verbosity = self.verbosity,
     }
 end
 

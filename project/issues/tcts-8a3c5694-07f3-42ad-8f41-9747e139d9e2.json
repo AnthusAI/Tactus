@@ -1,0 +1,18 @@
+{
+  "id": "tcts-8a3c5694-07f3-42ad-8f41-9747e139d9e2",
+  "title": "Unified Tactus runtime model controls",
+  "description": "Define one final control-resolution model for LLM-backed Tactus execution: root/runtime defaults are available to all model construction paths, and local procedure/model config explicitly overrides those defaults. This avoids split-brain handling where some controls live at runtime and others only work inside ClassifyProcedure config.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-05-18T16:49:39.867088Z",
+  "updated_at": "2026-05-18T16:54:56.223615Z",
+  "closed_at": "2026-05-18T16:54:56.223615Z",
+  "custom": {}
+}

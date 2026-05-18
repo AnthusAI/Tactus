@@ -215,7 +215,7 @@ class TestModelPrimitiveLLMBackend:
         assert model.backend.model == "openai/gpt-4o-mini"
 
     def test_model_primitive_passes_runtime_gpt5_controls_to_llm_backend(self):
-        """Test Model primitive forwards runtime GPT-5 controls to type='llm' backend."""
+        """Test Model primitive forwards runtime controls to type='llm' backend."""
         config = {
             "type": "llm",
             "model": "openai/gpt-5-mini",
@@ -229,10 +229,42 @@ class TestModelPrimitiveLLMBackend:
             config,
             reasoning_effort="xhigh",
             verbosity="low",
+            max_tokens=800,
+            temperature=0.0,
         )
 
         assert model.backend.reasoning_effort == "xhigh"
         assert model.backend.verbosity == "low"
+        assert model.backend.max_tokens == 800
+        assert model.backend.temperature == 0.0
+
+    def test_model_primitive_local_llm_config_overrides_runtime_controls(self):
+        """Test type='llm' config overrides runtime defaults one field at a time."""
+        config = {
+            "type": "llm",
+            "model": "openai/gpt-5-mini",
+            "system_prompt": "Classify sentiment",
+            "temperature": 0.1,
+            "max_tokens": 1200,
+            "reasoning_effort": "minimal",
+            "verbosity": "medium",
+            "input": {"text": "string"},
+            "output": {"label": "string", "confidence": "float"},
+        }
+
+        model = ModelPrimitive(
+            "sentiment_classifier",
+            config,
+            reasoning_effort="xhigh",
+            verbosity="low",
+            max_tokens=800,
+            temperature=0.0,
+        )
+
+        assert model.backend.reasoning_effort == "minimal"
+        assert model.backend.verbosity == "medium"
+        assert model.backend.max_tokens == 1200
+        assert model.backend.temperature == 0.1
 
     def test_model_primitive_llm_predict(self):
         """Test Model primitive predict with LLM backend."""

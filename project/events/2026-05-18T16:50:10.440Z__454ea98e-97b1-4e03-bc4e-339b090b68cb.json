@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "454ea98e-97b1-4e03-bc4e-339b090b68cb",
+  "issue_id": "tcts-60cfabde-56fc-4c38-bc09-24c681e92d33",
+  "event_type": "issue_created",
+  "occurred_at": "2026-05-18T16:50:10.440Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "assignee": null,
+    "description": "Story: tcts-2c82d6. Add or update specs/tests for runtime default inheritance, procedure-level overrides, and existing local ClassifyProcedure config behavior.",
+    "issue_type": "task",
+    "labels": [],
+    "parent": "tcts-8a3c5694-07f3-42ad-8f41-9747e139d9e2",
+    "priority": 1,
+    "status": "open",
+    "title": "Cover unified model-control resolution with executable specs"
+  }
+}

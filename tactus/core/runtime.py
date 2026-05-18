@@ -89,6 +89,8 @@ class TactusRuntime:
         source_file_path: Optional[str] = None,
         reasoning_effort: Optional[str] = None,
         verbosity: Optional[str] = None,
+        max_tokens: Optional[int] = None,
+        temperature: Optional[float] = None,
     ):
         """
         Initialize the Tactus runtime.
@@ -109,8 +111,21 @@ class TactusRuntime:
             source_file_path: Optional path to the .tac file being executed (for accurate source locations)
             reasoning_effort: Optional GPT-5-family reasoning effort control
             verbosity: Optional GPT-5-family response verbosity control
+            max_tokens: Optional runtime-level maximum response token control
+            temperature: Optional runtime-level sampling temperature control
         """
         validate_gpt5_controls(reasoning_effort=reasoning_effort, verbosity=verbosity)
+        if max_tokens is not None and (
+            not isinstance(max_tokens, int) or isinstance(max_tokens, bool) or max_tokens <= 0
+        ):
+            raise ValueError(f"max_tokens must be a positive integer. Got: {max_tokens}")
+        if temperature is not None and (
+            not isinstance(temperature, (int, float))
+            or isinstance(temperature, bool)
+            or temperature < 0
+            or temperature > 2
+        ):
+            raise ValueError(f"temperature must be a number between 0 and 2. Got: {temperature}")
 
         self.procedure_id = procedure_id
         self.storage_backend = storage_backend
@@ -159,6 +174,8 @@ class TactusRuntime:
         self.source_file_path = source_file_path
         self.reasoning_effort = reasoning_effort
         self.verbosity = verbosity
+        self.max_tokens = max_tokens
+        self.temperature = temperature
         self.python_modules: Dict[str, Any] = {}
 
         # Will be initialized during setup
@@ -2242,11 +2259,14 @@ class TactusRuntime:
                 resolved_temperature = model_settings["temperature"]
             elif "temperature" in agent_config:
                 resolved_temperature = agent_config["temperature"]
+            elif self.temperature is not None:
+                resolved_temperature = self.temperature
             else:
                 resolved_temperature = default_temperature_for_model(model_name)
 
             resolved_reasoning_effort = self.reasoning_effort
             resolved_verbosity = self.verbosity
+            resolved_max_tokens = self.max_tokens
             if model_settings is not None:
                 if (
                     "reasoning_effort" in model_settings
@@ -2257,6 +2277,12 @@ class TactusRuntime:
                     )
                 if "verbosity" in model_settings:
                     resolved_verbosity = model_settings["verbosity"]
+                if "max_tokens" in model_settings:
+                    resolved_max_tokens = model_settings["max_tokens"]
+                elif "max_tokens" in agent_config:
+                    resolved_max_tokens = agent_config["max_tokens"]
+            elif "max_tokens" in agent_config:
+                resolved_max_tokens = agent_config["max_tokens"]
 
             dspy_config = {
                 "system_prompt": system_prompt_template,
@@ -2267,11 +2293,7 @@ class TactusRuntime:
                 "toolsets": filtered_toolsets,
                 "output_schema": output_schema,
                 "temperature": resolved_temperature,
-                "max_tokens": (
-                    model_settings.get("max_tokens")
-                    if model_settings
-                    else agent_config.get("max_tokens")
-                ),
+                "max_tokens": resolved_max_tokens,
                 "model_type": (
                     model_settings.get("model_type")
                     if model_settings
@@ -2344,6 +2366,8 @@ class TactusRuntime:
                     mock_manager=self.mock_manager,
                     reasoning_effort=self.reasoning_effort,
                     verbosity=self.verbosity,
+                    max_tokens=self.max_tokens,
+                    temperature=self.temperature,
                 )
 
                 self.models[model_name] = model_primitive
@@ -3620,6 +3644,8 @@ class TactusRuntime:
             "sandbox": sandbox,
             "reasoning_effort": self.reasoning_effort,
             "verbosity": self.verbosity,
+            "max_tokens": self.max_tokens,
+            "temperature": self.temperature,
             "_created_agents": {},  # Will be populated during parsing
             "is_parsing": True,  # Stubs can use this to defer runtime-only behavior
         }

@@ -31,6 +31,8 @@ class V1AgentConfig:
     [
         ({"reasoning_effort": "invalid"}, "reasoning_effort"),
         ({"verbosity": "invalid"}, "verbosity"),
+        ({"max_tokens": 0}, "max_tokens"),
+        ({"temperature": 3}, "temperature"),
     ],
 )
 def test_runtime_rejects_invalid_gpt5_controls(kwargs, error_match):
@@ -45,6 +47,8 @@ async def test_setup_agents_accepts_v1_agent_config_and_model_settings(monkeypat
         hitl_handler=object(),
         reasoning_effort="minimal",
         verbosity="high",
+        max_tokens=900,
+        temperature=0.2,
     )
     runtime.lua_sandbox = DummyLuaSandbox()
     runtime.toolset_registry = {}
@@ -79,6 +83,7 @@ async def test_setup_agents_accepts_v1_agent_config_and_model_settings(monkeypat
     assert captured["name"] == "agent"
     assert captured["config"]["model"] == "openai/gpt-4o"
     assert captured["config"]["temperature"] == 0.5
+    assert captured["config"]["max_tokens"] == 900
     assert captured["config"]["reasoning_effort"] == "minimal"
     assert captured["config"]["verbosity"] == "high"
 
@@ -90,6 +95,8 @@ async def test_setup_agents_model_settings_override_runtime_gpt5_controls(monkey
         hitl_handler=object(),
         reasoning_effort="low",
         verbosity="medium",
+        max_tokens=900,
+        temperature=0.2,
     )
     runtime.lua_sandbox = DummyLuaSandbox()
     runtime.toolset_registry = {}
@@ -111,6 +118,8 @@ async def test_setup_agents_model_settings_override_runtime_gpt5_controls(monkey
                 "name": "gpt-5-mini",
                 "reasoning_effort": "xhigh",
                 "verbosity": "low",
+                "max_tokens": 1200,
+                "temperature": 0.0,
             },
         }
     }
@@ -125,6 +134,8 @@ async def test_setup_agents_model_settings_override_runtime_gpt5_controls(monkey
 
     assert captured["config"]["reasoning_effort"] == "xhigh"
     assert captured["config"]["verbosity"] == "low"
+    assert captured["config"]["max_tokens"] == 1200
+    assert captured["config"]["temperature"] == 0.0
 
 
 @pytest.mark.asyncio
