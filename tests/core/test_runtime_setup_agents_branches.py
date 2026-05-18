@@ -40,6 +40,21 @@ def test_runtime_rejects_invalid_gpt5_controls(kwargs, error_match):
         runtime_module.TactusRuntime(procedure_id="proc", hitl_handler=object(), **kwargs)
 
 
+def test_stable_signature_value_distinguishes_different_callables():
+    def first_callable():
+        return "first"
+
+    def second_callable():
+        return "second"
+
+    first = runtime_module.TactusRuntime._stable_signature_value(first_callable)
+    second = runtime_module.TactusRuntime._stable_signature_value(second_callable)
+
+    assert first["__callable__"] is True
+    assert second["__callable__"] is True
+    assert first != second
+
+
 @pytest.mark.asyncio
 async def test_setup_agents_accepts_v1_agent_config_and_model_settings(monkeypatch):
     runtime = runtime_module.TactusRuntime(

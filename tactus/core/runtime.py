@@ -2410,7 +2410,22 @@ class TactusRuntime:
         if isinstance(value, (list, tuple, set)):
             return [TactusRuntime._stable_signature_value(item) for item in value]
         if callable(value):
-            return "<callable>"
+            code_obj = getattr(value, "__code__", None)
+            return {
+                "__callable__": True,
+                "module": getattr(value, "__module__", None),
+                "qualname": getattr(value, "__qualname__", None),
+                "name": getattr(value, "__name__", None),
+                "code": (
+                    {
+                        "filename": getattr(code_obj, "co_filename", None),
+                        "firstlineno": getattr(code_obj, "co_firstlineno", None),
+                        "name": getattr(code_obj, "co_name", None),
+                    }
+                    if code_obj is not None
+                    else None
+                ),
+            }
         if hasattr(value, "model_dump"):
             return TactusRuntime._stable_signature_value(value.model_dump())
         if hasattr(value, "dict"):
