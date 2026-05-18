@@ -158,7 +158,9 @@ class ModelPrimitive:
             resolved_temperature = (
                 config["temperature"] if "temperature" in config else self.temperature
             )
-            resolved_max_tokens = config["max_tokens"] if "max_tokens" in config else self.max_tokens
+            resolved_max_tokens = (
+                config["max_tokens"] if "max_tokens" in config else self.max_tokens
+            )
             resolved_reasoning_effort = (
                 config["reasoning_effort"]
                 if "reasoning_effort" in config
