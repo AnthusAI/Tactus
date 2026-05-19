@@ -40,6 +40,21 @@ def test_runtime_rejects_invalid_gpt5_controls(kwargs, error_match):
         runtime_module.TactusRuntime(procedure_id="proc", hitl_handler=object(), **kwargs)
 
 
+def test_stable_signature_value_distinguishes_different_callables():
+    def first_callable():
+        return "first"
+
+    def second_callable():
+        return "second"
+
+    first = runtime_module.TactusRuntime._stable_signature_value(first_callable)
+    second = runtime_module.TactusRuntime._stable_signature_value(second_callable)
+
+    assert first["__callable__"] is True
+    assert second["__callable__"] is True
+    assert first != second
+
+
 @pytest.mark.asyncio
 async def test_setup_agents_accepts_v1_agent_config_and_model_settings(monkeypatch):
     runtime = runtime_module.TactusRuntime(
@@ -281,7 +296,7 @@ async def test_setup_agents_infers_provider_prefix_for_bedrock_model(monkeypatch
 
 
 @pytest.mark.asyncio
-async def test_setup_agents_skips_existing(monkeypatch):
+async def test_setup_agents_reuses_existing_when_signature_matches(monkeypatch):
     runtime = runtime_module.TactusRuntime(procedure_id="proc", hitl_handler=object())
     runtime.lua_sandbox = DummyLuaSandbox()
     runtime.toolset_registry = {}
@@ -295,18 +310,61 @@ async def test_setup_agents_skips_existing(monkeypatch):
             }
         }
     )
-    runtime.agents = {"agent": SimpleNamespace()}
+    reused_agent = SimpleNamespace(
+        _tactus_agent_signature="sig-match",
+        clear_history=lambda: None,
+    )
+    runtime.agents = {"agent": reused_agent}
 
     async def _noop_dependencies():
         return None
 
     monkeypatch.setattr(runtime, "_initialize_dependencies", _noop_dependencies)
+    monkeypatch.setattr(runtime, "_build_agent_signature", lambda **_kwargs: "sig-match")
     monkeypatch.setattr(
         "tactus.dspy.agent.create_dspy_agent",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("should not create")),
     )
 
     await runtime._setup_agents(context={})
+    assert runtime.agents["agent"] is reused_agent
+
+
+@pytest.mark.asyncio
+async def test_setup_agents_recreates_existing_when_signature_changes(monkeypatch):
+    runtime = runtime_module.TactusRuntime(procedure_id="proc", hitl_handler=object())
+    runtime.lua_sandbox = DummyLuaSandbox()
+    runtime.toolset_registry = {}
+    runtime.config = {}
+    runtime.registry = SimpleNamespace(
+        agents={
+            "agent": {
+                "system_prompt": "system",
+                "provider": "openai",
+                "model": "gpt-4o",
+            }
+        }
+    )
+    runtime.agents = {"agent": SimpleNamespace(_tactus_agent_signature="old-sig")}
+
+    async def _noop_dependencies():
+        return None
+
+    created = {}
+
+    def _create_agent(name, _config, **_kwargs):
+        agent = SimpleNamespace()
+        created["name"] = name
+        created["agent"] = agent
+        return agent
+
+    monkeypatch.setattr(runtime, "_initialize_dependencies", _noop_dependencies)
+    monkeypatch.setattr(runtime, "_build_agent_signature", lambda **_kwargs: "new-sig")
+    monkeypatch.setattr("tactus.dspy.agent.create_dspy_agent", _create_agent)
+
+    await runtime._setup_agents(context={})
+    assert created["name"] == "agent"
+    assert runtime.agents["agent"] is created["agent"]
 
 
 @pytest.mark.asyncio
