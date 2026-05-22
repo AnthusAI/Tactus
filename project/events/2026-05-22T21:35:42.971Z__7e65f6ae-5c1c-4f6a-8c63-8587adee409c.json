@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "7e65f6ae-5c1c-4f6a-8c63-8587adee409c",
+  "issue_id": "tcts-274c6797-feab-4f3e-93ae-a0e86e66d9d8",
+  "event_type": "issue_created",
+  "occurred_at": "2026-05-22T21:35:42.971Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "assignee": null,
+    "description": "",
+    "issue_type": "chore",
+    "labels": [],
+    "parent": "tcts-6722aa33-8386-4309-9f07-6ac6d0023761",
+    "priority": 2,
+    "status": "open",
+    "title": "Move biblicus[reinforcement-memory] to optional [rca] extra"
+  }
+}
