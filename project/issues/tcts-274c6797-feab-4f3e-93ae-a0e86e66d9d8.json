@@ -1,0 +1,25 @@
+{
+  "id": "tcts-274c6797-feab-4f3e-93ae-a0e86e66d9d8",
+  "title": "Move biblicus[reinforcement-memory] to optional [rca] extra",
+  "description": "",
+  "type": "chore",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-6722aa33-8386-4309-9f07-6ac6d0023761",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "7a245736-fb2d-43f0-9e28-42698fc20c26",
+      "author": "derek.norrbom",
+      "text": "Moved biblicus[reinforcement-memory] to new [rca] optional extra. PR #86 open against develop.",
+      "created_at": "2026-05-22T21:52:10.105345Z"
+    }
+  ],
+  "created_at": "2026-05-22T21:35:42.971152Z",
+  "updated_at": "2026-05-22T21:52:10.105345Z",
+  "closed_at": "2026-05-22T21:52:10.094852Z",
+  "custom": {}
+}
