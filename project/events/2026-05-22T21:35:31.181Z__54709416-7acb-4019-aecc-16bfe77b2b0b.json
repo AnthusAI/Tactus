@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "54709416-7acb-4019-aecc-16bfe77b2b0b",
+  "issue_id": "tcts-6722aa33-8386-4309-9f07-6ac6d0023761",
+  "event_type": "issue_created",
+  "occurred_at": "2026-05-22T21:35:31.181Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "assignee": null,
+    "description": "",
+    "issue_type": "epic",
+    "labels": [],
+    "parent": null,
+    "priority": 2,
+    "status": "open",
+    "title": "Make biblicus reinforcement-memory ML stack optional"
+  }
+}

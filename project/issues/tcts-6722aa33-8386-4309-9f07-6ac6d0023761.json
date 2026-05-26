@@ -1,0 +1,25 @@
+{
+  "id": "tcts-6722aa33-8386-4309-9f07-6ac6d0023761",
+  "title": "Make biblicus reinforcement-memory ML stack optional",
+  "description": "",
+  "type": "epic",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "22f705d5-1438-456f-a853-9645fa59eb8f",
+      "author": "derek.norrbom",
+      "text": "Move `biblicus[reinforcement-memory]` from core dependencies to a new `[rca]` optional extra in Tactus's pyproject.toml.\n\n**Why:** The `biblicus[reinforcement-memory]` extra pulls in `bertopic` → `sentence-transformers` → `torch` (~900MB+). This makes every consumer of `tactus` download PyTorch and NVIDIA CUDA packages even when they never use RCA/rubric-memory functionality (e.g. the Plexus console chat worker Lambda).\n\n**What is out of scope:** No changes to Tactus runtime logic. The RCA toolset and all existing tactus functionality remain identical — this is purely a packaging change so lightweight consumers can opt out of the ML stack.\n\n**Definition of Done:** `pip install tactus` (bare) does NOT install torch/sentence-transformers. `pip install tactus[rca]` still installs the full biblicus reinforcement-memory stack. CI passes.",
+      "created_at": "2026-05-22T21:35:40.552807Z"
+    }
+  ],
+  "created_at": "2026-05-22T21:35:31.181024Z",
+  "updated_at": "2026-05-22T21:35:40.552807Z",
+  "closed_at": null,
+  "custom": {}
+}
