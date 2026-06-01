@@ -1,0 +1,43 @@
+{
+  "id": "tcts-7dd2281a-6ca3-4144-bd34-8ee85ce9a726",
+  "title": "Bump biblicus to v1.11.3 in Poetry",
+  "description": "",
+  "type": "task",
+  "status": "in_progress",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-6722aa33-8386-4309-9f07-6ac6d0023761",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "c72ba9e0-bf0e-4847-b737-3068dcfb6249",
+      "author": "derek.norrbom",
+      "text": "Starting work: update Poetry dependency  to version 1.11.3, refresh lockfile, run targeted quality checks, and commit Kanbus artifacts with code changes.",
+      "created_at": "2026-06-01T23:14:49.958457Z"
+    },
+    {
+      "id": "f28bd3a2-c73a-4594-a54b-ff3461fe380d",
+      "author": "derek.norrbom",
+      "text": "Correction: update Poetry dependency biblicus to version 1.11.3, refresh lockfile, run targeted quality checks, and commit Kanbus artifacts with code changes.",
+      "created_at": "2026-06-01T23:14:56.504387Z"
+    },
+    {
+      "id": "524d0099-155f-4b03-a917-281ff0b11f4d",
+      "author": "derek.norrbom",
+      "text": "Updated pyproject constraints to biblicus>=1.11.3,<2.0.0 (core + rca extra) and regenerated poetry.lock with poetry update biblicus. Resolver upgraded biblicus 1.11.1 -> 1.11.3 and transitive pypdf 6.10.2 -> 6.12.2.",
+      "created_at": "2026-06-01T23:15:20.867045Z"
+    },
+    {
+      "id": "b1f1db8b-4ea8-4367-a213-80006a290be7",
+      "author": "derek.norrbom",
+      "text": "Validation results: ruff check . passed, black --check . passed, ./test-ci.sh passed (4175 passed, 73 skipped), behave --tags=-skip failed with many pre-existing undefined steps/scenario failures across unrelated features.",
+      "created_at": "2026-06-01T23:20:33.593827Z"
+    }
+  ],
+  "created_at": "2026-06-01T23:14:46.351157Z",
+  "updated_at": "2026-06-01T23:20:33.593827Z",
+  "closed_at": null,
+  "custom": {}
+}

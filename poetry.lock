@@ -489,14 +489,14 @@ vision = ["Pillow (>=9.2.0)", "accelerate (>=0.19.0)"]
 
 [[package]]
 name = "biblicus"
-version = "1.11.1"
+version = "1.11.3"
 description = "Command line interface and Python library for corpus ingestion, retrieval, and evaluation."
 optional = false
 python-versions = "<3.14,>=3.10"
 groups = ["main"]
 files = [
-    {file = "biblicus-1.11.1-py3-none-any.whl", hash = "sha256:238859e2ef016d7845134dd901fe60af7142217890fa847d745c81ed48e5f007"},
-    {file = "biblicus-1.11.1.tar.gz", hash = "sha256:8e40cdd8314e5487f935bcc27df905860cc5fc303658e44a9492d185d8374d0a"},
+    {file = "biblicus-1.11.3-py3-none-any.whl", hash = "sha256:ed1e85183aafebe34d818cd576c7df8dc053d6cc33590f185265100089ced273"},
+    {file = "biblicus-1.11.3.tar.gz", hash = "sha256:23a120a41bb27a952c24c3cd40afd010c70b31d8531f7f7f22d13d8d58842fdc"},
 ]
 
 [package.dependencies]
@@ -507,7 +507,7 @@ lxml = ">=6.1.0"
 numpy = ">=1.24"
 pydantic = ">=2.0"
 pygments = ">=2.20.0"
-pypdf = ">=6.10.2"
+pypdf = ">=6.12.1"
 python-dotenv = ">=1.2.2"
 PyYAML = ">=6.0"
 virtuus = {version = ">=0.5.0", optional = true, markers = "extra == \"reinforcement-memory\""}
@@ -5920,25 +5920,26 @@ diagrams = ["jinja2", "railroad-diagrams"]
 
 [[package]]
 name = "pypdf"
-version = "6.10.2"
+version = "6.12.2"
 description = "A pure-python PDF library capable of splitting, merging, cropping, and transforming PDF files"
 optional = false
 python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "pypdf-6.10.2-py3-none-any.whl", hash = "sha256:aa53be9826655b51c96741e5d7983ca224d898ac0a77896e64636810517624aa"},
-    {file = "pypdf-6.10.2.tar.gz", hash = "sha256:7d09ce108eff6bf67465d461b6ef352dcb8d84f7a91befc02f904455c6eea11d"},
+    {file = "pypdf-6.12.2-py3-none-any.whl", hash = "sha256:67b2699357a1f3f4c945940ea80826349ee507c9e2577724a14b4941982c104d"},
+    {file = "pypdf-6.12.2.tar.gz", hash = "sha256:111669eb6680c04495ae0c113a1476e3bf93a95761d23c7406b591c80a6490b1"},
 ]
 
 [package.dependencies]
 typing_extensions = {version = ">=4.0", markers = "python_version < \"3.11\""}
 
 [package.extras]
-crypto = ["cryptography"]
+crypto = ["cryptography (>3.0)"]
 cryptodome = ["PyCryptodome"]
 dev = ["flit", "pip-tools", "pre-commit", "pytest-cov", "pytest-socket", "pytest-timeout", "pytest-xdist", "wheel"]
 docs = ["myst_parser", "sphinx", "sphinx_rtd_theme"]
-full = ["Pillow (>=8.0.0)", "cryptography"]
+fonts = ["fonttools"]
+full = ["Pillow (>=8.0.0)", "cryptography (>3.0)", "fonttools"]
 image = ["Pillow (>=8.0.0)"]
 
 [[package]]
@@ -8623,4 +8624,4 @@ slack = ["slack-sdk"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.14"
-content-hash = "0d6d09348ac09900223da0ef1c52c204cce4c38d4551a9f1a77e255f6009a3d2"
+content-hash = "49ab3cbd023eb8cd1dbf53b633e00dc33f7d89852de3eb9cabac317f34cc1fe4"
