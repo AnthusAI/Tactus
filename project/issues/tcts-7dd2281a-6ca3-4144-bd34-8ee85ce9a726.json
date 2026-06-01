@@ -3,7 +3,7 @@
   "title": "Bump biblicus to v1.11.3 in Poetry",
   "description": "",
   "type": "task",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -34,10 +34,22 @@
       "author": "derek.norrbom",
       "text": "Validation results: ruff check . passed, black --check . passed, ./test-ci.sh passed (4175 passed, 73 skipped), behave --tags=-skip failed with many pre-existing undefined steps/scenario failures across unrelated features.",
       "created_at": "2026-06-01T23:20:33.593827Z"
+    },
+    {
+      "id": "63903757-0386-4dd3-b72d-e819f21d2259",
+      "author": "derek.norrbom",
+      "text": "Code change landed on branch chore/biblicus-1.11.3 and pushed to origin. Opening PR to develop as requested for integration CI run.",
+      "created_at": "2026-06-01T23:25:46.050935Z"
+    },
+    {
+      "id": "57772ff6-cdbc-4fd1-a507-eb07228ebf1d",
+      "author": "derek.norrbom",
+      "text": "Completed: bumped biblicus to 1.11.3 in pyproject + lockfile, pushed branch chore/biblicus-1.11.3, and opening PR to develop for full integration CI.",
+      "created_at": "2026-06-01T23:25:53.403944Z"
     }
   ],
   "created_at": "2026-06-01T23:14:46.351157Z",
-  "updated_at": "2026-06-01T23:20:33.593827Z",
-  "closed_at": null,
+  "updated_at": "2026-06-01T23:25:53.414033Z",
+  "closed_at": "2026-06-01T23:25:53.414033Z",
   "custom": {}
 }
