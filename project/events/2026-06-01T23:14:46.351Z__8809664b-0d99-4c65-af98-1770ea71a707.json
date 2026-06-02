@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "8809664b-0d99-4c65-af98-1770ea71a707",
+  "issue_id": "tcts-7dd2281a-6ca3-4144-bd34-8ee85ce9a726",
+  "event_type": "issue_created",
+  "occurred_at": "2026-06-01T23:14:46.351Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "assignee": null,
+    "description": "",
+    "issue_type": "task",
+    "labels": [],
+    "parent": "tcts-6722aa33-8386-4309-9f07-6ac6d0023761",
+    "priority": 1,
+    "status": "open",
+    "title": "Bump biblicus to v1.11.3 in Poetry"
+  }
+}
