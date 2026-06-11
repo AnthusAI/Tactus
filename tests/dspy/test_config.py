@@ -178,6 +178,25 @@ def test_create_lm_passes_kwargs(monkeypatch):
     assert captured["kwargs"]["extra"] == "value"
 
 
+def test_create_lm_uses_brokered_lm(monkeypatch):
+    captured = {}
+
+    class FakeLM:
+        def __init__(self, model, **kwargs):
+            captured["model"] = model
+            captured["kwargs"] = kwargs
+
+    monkeypatch.setenv("TACTUS_BROKER_SOCKET", "sock")
+    monkeypatch.setattr("tactus.dspy.broker_lm.BrokeredLM", FakeLM)
+
+    lm = dspy_config.create_lm("openai/gpt-4o", api_key="secret", api_base="http://x")
+
+    assert lm is not None
+    assert captured["model"] == "openai/gpt-4o"
+    assert "api_key" not in captured["kwargs"]
+    assert "api_base" not in captured["kwargs"]
+
+
 def test_create_lm_omits_optional_fields_when_none(monkeypatch):
     captured = {}
 

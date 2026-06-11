@@ -1,0 +1,18 @@
+{
+  "id": "tcts-d5ae0846-375b-4288-800e-5a4b239e9c28",
+  "title": "Isolate LLM configuration across runtime calls",
+  "description": "Ensure separate LLM-backed agents and model helpers use their own configured model parameters instead of inheriting process-global DSPy state. No client-specific context is included.",
+  "type": "epic",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-06-11T21:24:44.906634782Z",
+  "updated_at": "2026-06-11T21:56:35.439638013Z",
+  "closed_at": "2026-06-11T21:56:35.439638013Z",
+  "custom": {}
+}

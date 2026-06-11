@@ -53,6 +53,16 @@ def _apply_gpt5_controls(
             lm_kwargs["verbosity"] = verbosity
 
 
+def create_adapter() -> Any:
+    """Create the DSPy adapter Tactus uses for LM calls."""
+    from dspy.adapters.chat_adapter import ChatAdapter
+
+    try:
+        return ChatAdapter(use_native_function_calling=True)
+    except TypeError:
+        return ChatAdapter()
+
+
 def configure_lm(
     model: str,
     api_key: Optional[str] = None,
@@ -162,17 +172,11 @@ def configure_lm(
         # Create and configure the standard DSPy LM (LiteLLM-backed)
         lm = dspy.LM(model, **lm_kwargs)
 
-    # Create adapter with native function calling enabled
-    from dspy.adapters.chat_adapter import ChatAdapter
     import logging
 
     logger = logging.getLogger(__name__)
 
-    try:
-        adapter = ChatAdapter(use_native_function_calling=True)
-    except TypeError:
-        adapter = ChatAdapter()
-
+    adapter = create_adapter()
     use_native = getattr(adapter, "use_native_function_calling", None)
     logger.debug(f"[ADAPTER] Created ChatAdapter with use_native_function_calling={use_native}")
 
@@ -312,6 +316,15 @@ def create_lm(
         verbosity=verbosity,
         model_type=model_type,
     )
+
+    import os
+
+    if os.environ.get("TACTUS_BROKER_SOCKET"):
+        from tactus.dspy.broker_lm import BrokeredLM
+
+        lm_kwargs.pop("api_key", None)
+        lm_kwargs.pop("api_base", None)
+        return BrokeredLM(model, **lm_kwargs)
 
     # Create LM without setting as global default
     return dspy.LM(model, **lm_kwargs)
