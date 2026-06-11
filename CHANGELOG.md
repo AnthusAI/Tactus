@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.51.3 (2026-06-02)
+
+### Bug Fixes
+
+- Merge pull request #89 from AnthusAI/develop
+  ([`77c7754`](https://github.com/AnthusAI/Tactus/commit/77c77547d9b81e8e46390645d4e6a9c50c2bfb8a))
+
+
 ## v0.51.2 (2026-05-26)
 
 
