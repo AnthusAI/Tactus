@@ -22,6 +22,7 @@ import random
 import threading
 import time
 import uuid
+from contextlib import nullcontext
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
@@ -251,6 +252,8 @@ class DSPyAgentHandle:
         self.chat_recorder = kwargs.get("chat_recorder")
         self.tool_choice = kwargs.get("tool_choice")  # Extract tool_choice from kwargs
         self.prepare = kwargs.get("prepare")
+        self._agent_lm = None
+        self._agent_lm_key = None
         self.message_history_filter = kwargs.get("message_history_filter") or kwargs.get("filter")
         response_config = kwargs.get("response") or {}
         self.response_retries = int(response_config.get("retries", 0) or 0)
@@ -1140,7 +1143,8 @@ class DSPyAgentHandle:
                     finally:
                         chunk_queue.put(("done", None))
 
-                asyncio.run(async_streaming())
+                with self._dspy_lm_context(opts):
+                    asyncio.run(async_streaming())
 
             streaming_thread = threading.Thread(target=run_streaming_in_thread, daemon=True)
             streaming_thread.start()
@@ -1536,32 +1540,6 @@ class DSPyAgentHandle:
                 logger.debug(f"Agent '{self.name}' returning mock response")
                 return mock_response
 
-        # Auto-configure LM if not already configured
-        from tactus.dspy.config import get_current_lm, configure_lm
-
-        if get_current_lm() is None and self.model:
-            model_for_litellm = _normalize_model_for_litellm(self.model, self.provider)
-            logger.debug(f"Auto-configuring DSPy LM with model: {model_for_litellm}")
-
-            # Build kwargs for configure_lm — omit temperature when None so configure_lm
-            # applies defaults (0.0 for most models; omit for GPT-5 family).
-            config_kwargs = {}
-            if self.temperature is not None:
-                config_kwargs["temperature"] = self.temperature
-            if self.max_tokens is not None:
-                config_kwargs["max_tokens"] = self.max_tokens
-            if self.model_type is not None:
-                config_kwargs["model_type"] = self.model_type
-            if self.reasoning_effort is not None:
-                config_kwargs["reasoning_effort"] = self.reasoning_effort
-            if self.verbosity is not None:
-                config_kwargs["verbosity"] = self.verbosity
-            if self.tool_choice is not None and (self.tools or self.toolsets):
-                config_kwargs["tool_choice"] = self.tool_choice
-                logger.debug(f"Configuring LM with tool_choice={self.tool_choice}")
-
-            configure_lm(model_for_litellm, **config_kwargs)
-
         # Extract options
         user_message = opts.get("message")
 
@@ -1781,12 +1759,13 @@ class DSPyAgentHandle:
 
         for attempt in range(attempts):
             try:
-                if self._should_stream():
-                    logger.debug(f"Agent '{self.name}' using streaming mode")
-                    result = self._turn_with_streaming(opts, prompt_context)
-                else:
-                    logger.debug(f"Agent '{self.name}' using non-streaming mode")
-                    result = self._turn_without_streaming(opts, prompt_context)
+                with self._dspy_lm_context(opts):
+                    if self._should_stream():
+                        logger.debug(f"Agent '{self.name}' using streaming mode")
+                        result = self._turn_with_streaming(opts, prompt_context)
+                    else:
+                        logger.debug(f"Agent '{self.name}' using non-streaming mode")
+                        result = self._turn_without_streaming(opts, prompt_context)
 
                 self._validate_output(result)
                 return result
@@ -1834,6 +1813,55 @@ class DSPyAgentHandle:
                     time.sleep(delay)
 
         raise RuntimeError("Unexpected retry loop exit")  # pragma: no cover
+
+    def _agent_lm_config(self, opts: Optional[Dict[str, Any]] = None) -> tuple[str, Dict[str, Any]]:
+        """Return the normalized model and LM kwargs for this agent turn."""
+        opts = opts or {}
+        model_for_litellm = _normalize_model_for_litellm(self.model, self.provider)
+        config_kwargs: Dict[str, Any] = {}
+
+        temperature = opts.get("temperature", self.temperature)
+        max_tokens = opts.get("max_tokens", self.max_tokens)
+
+        if temperature is not None:
+            config_kwargs["temperature"] = temperature
+        if max_tokens is not None:
+            config_kwargs["max_tokens"] = max_tokens
+        if self.model_type is not None:
+            config_kwargs["model_type"] = self.model_type
+        if self.reasoning_effort is not None:
+            config_kwargs["reasoning_effort"] = self.reasoning_effort
+        if self.verbosity is not None:
+            config_kwargs["verbosity"] = self.verbosity
+        if self.tool_choice is not None and (self.tools or self.toolsets):
+            config_kwargs["tool_choice"] = self.tool_choice
+
+        return model_for_litellm, config_kwargs
+
+    def _get_agent_lm(self, opts: Optional[Dict[str, Any]] = None) -> Any:
+        """Create or reuse the LM configured for this agent, independent of DSPy globals."""
+        from tactus.dspy.config import create_lm
+
+        model_for_litellm, config_kwargs = self._agent_lm_config(opts)
+        cache_key = (model_for_litellm, tuple(sorted(config_kwargs.items())))
+        if self._agent_lm is None or self._agent_lm_key != cache_key:
+            logger.debug(
+                "Creating scoped DSPy LM for agent '%s' with model: %s",
+                self.name,
+                model_for_litellm,
+            )
+            self._agent_lm = create_lm(model_for_litellm, **config_kwargs)
+            self._agent_lm_key = cache_key
+        return self._agent_lm
+
+    def _dspy_lm_context(self, opts: Optional[Dict[str, Any]] = None):
+        if not self.model:
+            return nullcontext()
+
+        from tactus.dspy.config import create_adapter
+
+        lm = self._get_agent_lm(opts)
+        return dspy.context(lm=lm, adapter=create_adapter())
 
     def _validate_output(self, result: TactusResult) -> None:
         if not self._explicit_output_schema:

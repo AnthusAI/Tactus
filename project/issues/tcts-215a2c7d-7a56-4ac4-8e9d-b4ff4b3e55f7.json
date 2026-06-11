@@ -1,0 +1,37 @@
+{
+  "id": "tcts-215a2c7d-7a56-4ac4-8e9d-b4ff4b3e55f7",
+  "title": "Implement scoped DSPy LM usage for runtime LLM calls",
+  "description": "Add focused regression coverage for mixed LLM-backed calls in one runtime, then update the Tactus DSPy integration so each call uses the agent or model configuration it was constructed with. Keep the fix generic and avoid score-specific guards.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-d5ae0846-375b-4288-800e-5a4b239e9c28",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "9fd535d8-3b6a-462b-be82-06d21f1ddcb8",
+      "author": "derek",
+      "text": "Starting test-first work. Initial diagnosis: LLM-backed runtime calls currently depend on process-global DSPy LM state, so a later call can inherit an earlier call's model or generation parameters. Public task intentionally contains no client-specific context.",
+      "created_at": "2026-06-11T21:25:04.489622621Z"
+    },
+    {
+      "id": "07b76c38-d734-491d-9329-44aaf4341c8f",
+      "author": "derek",
+      "text": "Implemented scoped DSPy LM selection for agent calls so sequential agents do not inherit an earlier global LM configuration. Restored the local py311 environment via editable Tactus dev install after an accidental ad hoc dependency install; package state now matches Tactus declared pydantic pins. Validation: tests/dspy passed (294 tests), affected DSPy/model subset passed (134 tests), pydantic-eval subset passed (55 tests), ruff check passed, black --check passed, git diff --check passed. Full test-ci.sh was attempted before the environment repair and reached 4,144 passed before failing only because pydantic-evals was missing from the environment.",
+      "created_at": "2026-06-11T21:45:48.635451883Z"
+    },
+    {
+      "id": "0df8bcb1-885b-4e6b-83ef-ae252299594e",
+      "author": "derek",
+      "text": "User reran the focused validation after installing the Tactus checkout editable into the actual Plexus evaluation environment; all requested checks passed, and the original evaluation no longer shows repeated label-only explanations when using the fixed Tactus package.",
+      "created_at": "2026-06-11T21:56:20.419239907Z"
+    }
+  ],
+  "created_at": "2026-06-11T21:24:59.057890349Z",
+  "updated_at": "2026-06-11T21:56:35.419015849Z",
+  "closed_at": "2026-06-11T21:56:35.419015849Z",
+  "custom": {}
+}
