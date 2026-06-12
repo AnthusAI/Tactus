@@ -862,21 +862,22 @@ class TestCallAndExecute:
         )
 
         monkeypatch.setattr("tactus.dspy.config.get_current_lm", lambda: None)
-        configure_calls = {}
+        create_lm_calls = {}
 
-        def fake_configure(model, **kwargs):
-            configure_calls["model"] = model
-            configure_calls["kwargs"] = kwargs
+        def fake_create_lm(model, **kwargs):
+            create_lm_calls["model"] = model
+            create_lm_calls["kwargs"] = kwargs
+            return object()
 
-        monkeypatch.setattr("tactus.dspy.config.configure_lm", fake_configure)
+        monkeypatch.setattr("tactus.dspy.config.create_lm", fake_create_lm)
         monkeypatch.setattr(agent, "_convert_toolsets_to_dspy_tools_sync", lambda: ["tool"])
         monkeypatch.setattr(agent, "_should_stream", lambda: True)
         monkeypatch.setattr(agent, "_turn_with_streaming", lambda _opts, ctx: ctx)
 
         result = agent._execute_turn({"message": "hi", "context": {"x": 1}})
 
-        assert configure_calls["model"] == "openai/gpt-4o-mini"
-        assert configure_calls["kwargs"]["tool_choice"] == "auto"
+        assert create_lm_calls["model"] == "openai/gpt-4o-mini"
+        assert create_lm_calls["kwargs"]["tool_choice"] == "auto"
         assert result["tools"] == ["tool"]
         assert result["context"] == {"x": 1}
 
@@ -932,18 +933,19 @@ class TestCallAndExecute:
         agent.tool_choice = None
 
         monkeypatch.setattr("tactus.dspy.config.get_current_lm", lambda: None)
-        configure_calls = {}
+        create_lm_calls = {}
 
-        def fake_configure(model, **kwargs):
-            configure_calls["model"] = model
-            configure_calls["kwargs"] = kwargs
+        def fake_create_lm(model, **kwargs):
+            create_lm_calls["model"] = model
+            create_lm_calls["kwargs"] = kwargs
+            return object()
 
-        monkeypatch.setattr("tactus.dspy.config.configure_lm", fake_configure)
+        monkeypatch.setattr("tactus.dspy.config.create_lm", fake_create_lm)
         monkeypatch.setattr(agent, "_should_stream", lambda: False)
         monkeypatch.setattr(agent, "_turn_without_streaming", lambda _opts, _ctx: "ok")
 
         assert agent._execute_turn({"message": "hi"}) == "ok"
-        assert configure_calls["kwargs"] == {}
+        assert create_lm_calls["kwargs"] == {}
 
 
 class TestStreamingBranches:

@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "b2d6b8c3-f020-4d71-be38-129398122b0a",
+  "issue_id": "tcts-beb32a03-9f7f-41f6-8768-8de9a8c3a975",
+  "event_type": "issue_created",
+  "occurred_at": "2026-06-11T21:24:54.106Z",
+  "actor_id": "derek",
+  "payload": {
+    "assignee": null,
+    "description": "As a Tactus procedure author, I want each LLM-backed call to use its own configured model and token settings, so that a procedure can combine classification and generation without one call inheriting another call's configuration.\n\nFeature: LLM configuration isolation\n\nScenario: Two LLM-backed calls use separate configurations in one runtime\nGiven a Tactus procedure defines two LLM-backed calls with different model identifiers and token limits\nWhen the procedure executes the calls sequentially\nThen each call is invoked with its own configured model identifier\nAnd each call is invoked with its own configured token limit\nAnd the second call does not inherit the first call's configuration.",
+    "issue_type": "story",
+    "labels": [],
+    "parent": "tcts-d5ae0846-375b-4288-800e-5a4b239e9c28",
+    "priority": 1,
+    "status": "open",
+    "title": "Keep sequential LLM calls on their configured models"
+  }
+}
