@@ -1,0 +1,25 @@
+{
+  "id": "tcts-ebf30a26-6122-4015-ae66-8c826f020be1",
+  "title": "Split runtime dependencies from non-runtime tooling",
+  "description": "Move dependencies only needed for IDE serving, documentation rendering, testing/BDD, training, model registry backends, and optional file-format utilities out of the default Tactus install. Keep the execution runtime dependencies available through a runtime-focused install path for downstream scoring consumers.",
+  "type": "task",
+  "status": "in_progress",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-3e56a87c-25b7-4fee-88ae-2757e578ca2d",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "b827cde9-2e71-4fd9-afa7-a014c97a5c7b",
+      "author": "derek.norrbom",
+      "text": "Confirmed downstream scoring uses both LangGraphScore and TactusScore. The dependency split must keep Tactus execution runtime support available, while moving IDE, docs, testing, training, registry backends, and optional file-format dependencies behind extras.",
+      "created_at": "2026-07-21T19:29:19.768120Z"
+    }
+  ],
+  "created_at": "2026-07-21T19:28:50.505690Z",
+  "updated_at": "2026-07-21T19:29:19.768120Z",
+  "closed_at": null,
+  "custom": {}
+}
