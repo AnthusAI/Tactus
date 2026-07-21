@@ -28,10 +28,22 @@
       "author": "derek.norrbom",
       "text": "Split lightweight model validation/default helpers out of the DSPy package so importing the core runtime no longer initializes DSPy or LiteLLM. Exact runtime-image Tactus score registration improved from 4,218 ms to 625 ms before packaged bytecode; combined refactor plus bytecode measured 194 ms. Validation: python -m pytest tests/unit/test_runtime_import_boundaries.py tests/dspy/test_model_params.py tests/core/test_runtime*.py tests/dspy/test_config.py tests/dspy/test_config_utilities.py tests/dspy/test_config_adapter_fallback.py -q (325 passed).",
       "created_at": "2026-07-21T20:45:05.334203Z"
+    },
+    {
+      "id": "5603643b-0353-437a-99fb-503ad1ae560a",
+      "author": "derek.norrbom",
+      "text": "Branch CI could not install dependencies because pyproject.toml had changed significantly since poetry.lock was generated. Reopening to regenerate and validate the lockfile so the optimized runtime branch remains installable.",
+      "created_at": "2026-07-21T20:48:24.609204Z"
+    },
+    {
+      "id": "535bebf8-6ad1-4f73-9f01-809ffa092e5a",
+      "author": "derek.norrbom",
+      "text": "Scoring import optimization remains fully validated. Release CI is blocked before tests by the pre-existing stale repository development lock from the earlier extras split; both Poetry 2.3 and CI-matched 2.4 entered multi-minute CPU-bound resolution, so no lock hash was forged. Recorded a dedicated follow-up bug for that repository tooling issue.",
+      "created_at": "2026-07-21T20:58:36.382917Z"
     }
   ],
   "created_at": "2026-07-21T19:28:50.505690Z",
-  "updated_at": "2026-07-21T20:47:40.874384Z",
-  "closed_at": "2026-07-21T20:47:40.874384Z",
+  "updated_at": "2026-07-21T20:58:36.406826Z",
+  "closed_at": "2026-07-21T20:58:36.406826Z",
   "custom": {}
 }

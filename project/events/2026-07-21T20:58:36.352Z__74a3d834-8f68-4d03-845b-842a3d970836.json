@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "74a3d834-8f68-4d03-845b-842a3d970836",
+  "issue_id": "tcts-49553871-df02-4d69-8fa6-6b0b6d86a978",
+  "event_type": "issue_created",
+  "occurred_at": "2026-07-21T20:58:36.352Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "assignee": null,
+    "description": "The dependency extras split changed pyproject.toml without regenerating poetry.lock. Clean Poetry installs reject the stale content hash before tests. Poetry 2.3 and 2.4 both enter a multi-minute CPU-bound solve when regenerating the universal lock, so this needs focused resolver or dependency-constraint work. The minimal downstream runtime lock is independently current and unaffected.",
+    "issue_type": "bug",
+    "labels": [],
+    "parent": null,
+    "priority": 2,
+    "status": "open",
+    "title": "Regenerate development lock after dependency extras split"
+  }
+}

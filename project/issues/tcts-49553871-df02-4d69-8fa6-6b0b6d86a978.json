@@ -1,0 +1,25 @@
+{
+  "id": "tcts-49553871-df02-4d69-8fa6-6b0b6d86a978",
+  "title": "Regenerate development lock after dependency extras split",
+  "description": "The dependency extras split changed pyproject.toml without regenerating poetry.lock. Clean Poetry installs reject the stale content hash before tests. Poetry 2.3 and 2.4 both enter a multi-minute CPU-bound solve when regenerating the universal lock, so this needs focused resolver or dependency-constraint work. The minimal downstream runtime lock is independently current and unaffected.",
+  "type": "bug",
+  "status": "closed",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "0b196537-0bf8-40f3-9a0b-5d5c64db28dd",
+      "author": "derek.norrbom",
+      "text": "The interrupted resolver had completed and atomically written a valid lock before failing to exit. Verified with Poetry 2.4.1: poetry check --lock and poetry install --extras \"dev ml\" --no-root --dry-run both pass. The regenerated lock correctly marks dependencies moved out of core as optional extras.",
+      "created_at": "2026-07-21T20:59:08.586691Z"
+    }
+  ],
+  "created_at": "2026-07-21T20:58:36.352328Z",
+  "updated_at": "2026-07-21T20:59:08.609656Z",
+  "closed_at": "2026-07-21T20:59:08.609656Z",
+  "custom": {}
+}
