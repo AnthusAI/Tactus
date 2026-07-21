@@ -19,7 +19,7 @@ from asyncer import syncify
 from litellm import ModelResponse, ModelResponseStream
 
 from tactus.broker.client import BrokerClient
-from tactus.dspy.model_params import default_temperature_for_model
+from tactus.model_params import default_temperature_for_model
 
 logger = logging.getLogger(__name__)
 

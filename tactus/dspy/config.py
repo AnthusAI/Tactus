@@ -9,27 +9,10 @@ from typing import Optional, Any
 
 import dspy
 
-from tactus.dspy.model_params import default_temperature_for_model
+from tactus.model_params import default_temperature_for_model, validate_gpt5_controls
 
 # Global reference to the current LM configuration
 _current_lm: Optional[dspy.BaseLM] = None
-
-REASONING_EFFORT_VALUES = {"none", "minimal", "low", "medium", "high", "xhigh"}
-VERBOSITY_VALUES = {"low", "medium", "high"}
-
-
-def validate_gpt5_controls(
-    reasoning_effort: Optional[str] = None,
-    verbosity: Optional[str] = None,
-) -> None:
-    """Validate optional GPT-5-family reasoning and verbosity controls."""
-    if reasoning_effort is not None and reasoning_effort not in REASONING_EFFORT_VALUES:
-        allowed = ", ".join(sorted(REASONING_EFFORT_VALUES))
-        raise ValueError(f"reasoning_effort must be one of: {allowed}. Got: {reasoning_effort}")
-
-    if verbosity is not None and verbosity not in VERBOSITY_VALUES:
-        allowed = ", ".join(sorted(VERBOSITY_VALUES))
-        raise ValueError(f"verbosity must be one of: {allowed}. Got: {verbosity}")
 
 
 def _apply_gpt5_controls(
