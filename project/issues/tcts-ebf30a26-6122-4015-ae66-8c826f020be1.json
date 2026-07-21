@@ -16,10 +16,22 @@
       "author": "derek.norrbom",
       "text": "Confirmed downstream scoring uses both LangGraphScore and TactusScore. The dependency split must keep Tactus execution runtime support available, while moving IDE, docs, testing, training, registry backends, and optional file-format dependencies behind extras.",
       "created_at": "2026-07-21T19:29:19.768120Z"
+    },
+    {
+      "id": "4387c1d1-e153-47b3-8a1e-75f6c23cd99d",
+      "author": "derek.norrbom",
+      "text": "Cold-path profiling shows TactusScore registration spends 4.2s locally importing TactusRuntime; runtime.py imports DSPy configuration at module load, which pulls DSPy/LiteLLM before execution. Expanding the dependency split work to make the core runtime import lightweight while preserving agent execution behavior.",
+      "created_at": "2026-07-21T20:32:19.241369Z"
+    },
+    {
+      "id": "cbb68116-8ead-4b0c-b609-cfa8d487df74",
+      "author": "derek.norrbom",
+      "text": "Split lightweight model validation/default helpers out of the DSPy package so importing the core runtime no longer initializes DSPy or LiteLLM. Exact runtime-image Tactus score registration improved from 4,218 ms to 625 ms before packaged bytecode; combined refactor plus bytecode measured 194 ms. Validation: python -m pytest tests/unit/test_runtime_import_boundaries.py tests/dspy/test_model_params.py tests/core/test_runtime*.py tests/dspy/test_config.py tests/dspy/test_config_utilities.py tests/dspy/test_config_adapter_fallback.py -q (325 passed).",
+      "created_at": "2026-07-21T20:45:05.334203Z"
     }
   ],
   "created_at": "2026-07-21T19:28:50.505690Z",
-  "updated_at": "2026-07-21T19:29:19.768120Z",
+  "updated_at": "2026-07-21T20:45:05.334203Z",
   "closed_at": null,
   "custom": {}
 }
