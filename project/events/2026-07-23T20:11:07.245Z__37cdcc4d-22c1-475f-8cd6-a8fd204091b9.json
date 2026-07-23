@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "37cdcc4d-22c1-475f-8cd6-a8fd204091b9",
+  "issue_id": "tcts-25fbc89d-d706-4526-bf70-568f0d028e45",
+  "event_type": "issue_created",
+  "occurred_at": "2026-07-23T20:11:07.245Z",
+  "actor_id": "ryan.porter",
+  "payload": {
+    "title": "Eliminate repeated agent preparation on interactive turns",
+    "description": "As a runtime integrator, I want prewarmed agent configuration and optional steering behavior to be honored exactly, so that short interactive turns do not repeat avoidable preparation.\n\nFeature: Reusable interactive agent preparation\n\nScenario: Agent-level model controls match prewarming\nGiven an agent declares reasoning effort and verbosity\nAnd the same model stack was prewarmed\nWhen the agent begins a turn\nThen it reuses the prewarmed model and adapter\nAnd does not initialize the LM during the request\n\nScenario: Steering is disabled for a directly driven interactive agent\nGiven an agent is configured with steering disabled\nWhen it begins a turn\nThen it does not query the chat recorder for mid-run steering messages\nAnd it still responds to the directly supplied user message.",
+    "issue_type": "bug",
+    "status": "open",
+    "priority": 1,
+    "assignee": null,
+    "parent": "tcts-d9498f3c-22ef-45b3-b6cd-5012b994764a",
+    "labels": []
+  }
+}

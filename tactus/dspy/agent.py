@@ -185,6 +185,7 @@ class DSPyAgentHandle:
         reasoning_effort: Optional[str] = None,
         verbosity: Optional[str] = None,
         request_timeout: Optional[float] = None,
+        steering_enabled: bool = True,
         module: str = "Raw",
         initial_message: Optional[str] = None,
         registry: Any = None,
@@ -214,6 +215,7 @@ class DSPyAgentHandle:
             reasoning_effort: Optional GPT-5-family reasoning effort control
             verbosity: Optional GPT-5-family response verbosity control
             request_timeout: Provider request timeout in seconds for streaming and non-streaming calls
+            steering_enabled: Whether to query the chat recorder for mid-run steering
             module: DSPy module type to use (default: "Raw", case-insensitive). Options:
                 - "Raw": Minimal formatting, direct LM calls (lowest token overhead)
                 - "Predict": Simple pass-through prediction (no reasoning traces)
@@ -246,6 +248,7 @@ class DSPyAgentHandle:
         self.reasoning_effort = reasoning_effort
         self.verbosity = verbosity
         self.request_timeout = request_timeout
+        self.steering_enabled = steering_enabled
         self.module = module
         self.initial_message = initial_message
         self.registry = registry
@@ -1782,6 +1785,8 @@ class DSPyAgentHandle:
 
     def _inject_pending_steering(self) -> None:
         """Inject new procedure steering notes once per agent before the next LLM call."""
+        if not self.steering_enabled:
+            return
         chat_recorder = getattr(self, "chat_recorder", None)
         state_primitive = getattr(self, "_state_primitive", None)
         if not chat_recorder or not state_primitive:
@@ -2253,6 +2258,7 @@ def create_dspy_agent(
         reasoning_effort=config.get("reasoning_effort"),
         verbosity=config.get("verbosity"),
         request_timeout=config.get("request_timeout"),
+        steering_enabled=config.get("steering_enabled", True),
         module=config.get("module", "Raw"),
         initial_message=config.get("initial_message"),
         registry=registry,
@@ -2279,6 +2285,7 @@ def create_dspy_agent(
                 "reasoning_effort",
                 "verbosity",
                 "request_timeout",
+                "steering_enabled",
                 "module",
                 "initial_message",
                 "log_handler",

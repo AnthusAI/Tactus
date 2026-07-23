@@ -95,6 +95,17 @@ initialization, provider dispatch, the first streamed chunk, and provider
 completion. `provider_request_started` includes the rendered prompt context so
 integrations can capture it without replacing private Agent methods.
 
+Agents query their chat recorder for mid-run operator steering by default.
+Directly driven interactive agents can disable that remote check when each
+turn already supplies the latest user message:
+
+```lua
+assistant = Agent {
+  model = "openai/gpt-4o-mini",
+  steering_enabled = false,
+}
+```
+
 ## Per-turn capability control (important)
 
 Tactus supports per-call overrides so you can change an agent's capabilities on a specific turn.

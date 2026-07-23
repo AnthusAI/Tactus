@@ -83,6 +83,27 @@ def test_inject_pending_steering_updates_empty_watermark_without_history(monkeyp
     )
 
 
+def test_agent_with_steering_disabled_does_not_query_chat_recorder(monkeypatch):
+    calls = []
+
+    class FakeChatRecorder:
+        def get_steering_messages(self, **kwargs):
+            calls.append(kwargs)
+            return {"watermark": "", "messages": []}
+
+    agent = _make_agent(
+        monkeypatch,
+        chat_recorder=FakeChatRecorder(),
+        steering_enabled=False,
+    )
+    agent._state_primitive = FakeStatePrimitive()
+
+    agent._inject_pending_steering()
+
+    assert calls == []
+    assert agent.get_history() == []
+
+
 def test_add_usage_and_cost_accumulates(monkeypatch):
     agent = _make_agent(monkeypatch)
     usage = UsageStats(prompt_tokens=1, completion_tokens=2, total_tokens=3)
