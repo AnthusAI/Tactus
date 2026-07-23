@@ -184,6 +184,7 @@ class DSPyAgentHandle:
         model_type: Optional[str] = None,
         reasoning_effort: Optional[str] = None,
         verbosity: Optional[str] = None,
+        request_timeout: Optional[float] = None,
         module: str = "Raw",
         initial_message: Optional[str] = None,
         registry: Any = None,
@@ -212,6 +213,7 @@ class DSPyAgentHandle:
             model_type: Model type for DSPy (e.g., "chat", "responses" for reasoning models)
             reasoning_effort: Optional GPT-5-family reasoning effort control
             verbosity: Optional GPT-5-family response verbosity control
+            request_timeout: Provider request timeout in seconds for streaming and non-streaming calls
             module: DSPy module type to use (default: "Raw", case-insensitive). Options:
                 - "Raw": Minimal formatting, direct LM calls (lowest token overhead)
                 - "Predict": Simple pass-through prediction (no reasoning traces)
@@ -243,6 +245,7 @@ class DSPyAgentHandle:
         self.model_type = model_type
         self.reasoning_effort = reasoning_effort
         self.verbosity = verbosity
+        self.request_timeout = request_timeout
         self.module = module
         self.initial_message = initial_message
         self.registry = registry
@@ -254,6 +257,12 @@ class DSPyAgentHandle:
         self.prepare = kwargs.get("prepare")
         self._agent_lm = None
         self._agent_lm_key = None
+        self._agent_adapter = None
+        lifecycle_hooks = kwargs.get("lifecycle_hooks") or []
+        if callable(lifecycle_hooks):
+            lifecycle_hooks = [lifecycle_hooks]
+        self.lifecycle_hooks = list(lifecycle_hooks)
+        self._model_request_count = 0
         self.message_history_filter = kwargs.get("message_history_filter") or kwargs.get("filter")
         response_config = kwargs.get("response") or {}
         self.response_retries = int(response_config.get("retries", 0) or 0)
@@ -1121,6 +1130,13 @@ class DSPyAgentHandle:
             # Queue for passing chunks from streaming thread to main thread
             chunk_queue = queue.Queue()
             result_holder = {"result": None, "error": None}
+            # Ensure lazy client/adapter initialization is complete before the
+            # provider dispatch timestamp, even when this private helper is
+            # exercised directly by a host or focused test.
+            if self.model:
+                self._get_agent_lm(opts)
+            request_id = self._provider_request_started(current_prompt_context)
+            first_chunk_emitted = False
 
             def run_streaming_in_thread():
                 dspy_thread = dspy
@@ -1155,6 +1171,12 @@ class DSPyAgentHandle:
                     if msg_type == "done":
                         break
                     if msg_type == "chunk" and msg_data:
+                        if not first_chunk_emitted:
+                            self._emit_lifecycle_event(
+                                "provider_first_chunk",
+                                request_id=request_id,
+                            )
+                            first_chunk_emitted = True
                         accumulated_text += msg_data
                         self.log_handler.log(
                             AgentStreamChunkEvent(
@@ -1168,6 +1190,11 @@ class DSPyAgentHandle:
             streaming_thread.join(timeout=5.0)
 
             if result_holder["error"] is not None:
+                self._emit_lifecycle_event(
+                    "provider_request_completed",
+                    request_id=request_id,
+                    metadata={"status": "failed"},
+                )
                 error = result_holder["error"]
                 original_error = error
                 if hasattr(error, "__class__") and error.__class__.__name__.endswith(
@@ -1195,7 +1222,17 @@ class DSPyAgentHandle:
                 raise result_holder["error"]
 
             if result_holder["result"] is None:
+                self._emit_lifecycle_event(
+                    "provider_request_completed",
+                    request_id=request_id,
+                    metadata={"status": "failed"},
+                )
                 raise RuntimeError("Streaming produced no result")
+            self._emit_lifecycle_event(
+                "provider_request_completed",
+                request_id=request_id,
+                metadata={"status": "completed"},
+            )
             return result_holder["result"]
 
         if os.environ.get("PLEXUS_DEBUG_LLM"):
@@ -1341,7 +1378,21 @@ class DSPyAgentHandle:
         forced_synthesis = False
         tool_followup_rounds = 0
         while True:
-            dspy_result = self._module.module(**current_prompt_context)
+            request_id = self._provider_request_started(current_prompt_context)
+            try:
+                dspy_result = self._module.module(**current_prompt_context)
+            except Exception:
+                self._emit_lifecycle_event(
+                    "provider_request_completed",
+                    request_id=request_id,
+                    metadata={"status": "failed"},
+                )
+                raise
+            self._emit_lifecycle_event(
+                "provider_request_completed",
+                request_id=request_id,
+                metadata={"status": "completed"},
+            )
             if os.environ.get("PLEXUS_DEBUG_LLM"):
                 self._log_llm_debug_output(dspy_result)
 
@@ -1466,6 +1517,7 @@ class DSPyAgentHandle:
             "tools",
             "temperature",
             "max_tokens",
+            "request_timeout",
             "system_prompt",
             "system_prompt_suffix",
         }
@@ -1529,6 +1581,8 @@ class DSPyAgentHandle:
         Returns:
             Result object with response and other fields
         """
+        self._emit_lifecycle_event("agent_preparation_started")
+
         # Execute the turn (inlined from old turn() method)
         self._turn_count += 1
         logger.debug(f"Agent '{self.name}' turn {self._turn_count}")
@@ -1624,7 +1678,42 @@ class DSPyAgentHandle:
         if context:
             prompt_context["context"] = context
 
+        self._emit_lifecycle_event("agent_preparation_completed")
         return self._turn_with_retries(opts, prompt_context)
+
+    def _emit_lifecycle_event(
+        self,
+        phase: str,
+        *,
+        request_id: Optional[str] = None,
+        prompt_context: Optional[Dict[str, Any]] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Any:
+        """Emit a supported agent lifecycle event to configured observers."""
+        from tactus.protocols.models import AgentLifecycleEvent
+
+        event = AgentLifecycleEvent(
+            agent_name=self.name,
+            phase=phase,
+            request_id=request_id,
+            prompt_context=prompt_context,
+            metadata=metadata or {},
+        )
+        if self.log_handler is not None:
+            self.log_handler.log(event)
+        for hook in self.lifecycle_hooks:
+            hook(event)
+        return event
+
+    def _provider_request_started(self, prompt_context: Dict[str, Any]) -> str:
+        self._model_request_count += 1
+        request_id = f"{self.name}:{self._model_request_count}"
+        self._emit_lifecycle_event(
+            "provider_request_started",
+            request_id=request_id,
+            prompt_context=prompt_context,
+        )
+        return request_id
 
     def _run_prepare_hook(
         self, context: Dict[str, Any], user_message: Optional[str]
@@ -1833,6 +1922,9 @@ class DSPyAgentHandle:
             config_kwargs["reasoning_effort"] = self.reasoning_effort
         if self.verbosity is not None:
             config_kwargs["verbosity"] = self.verbosity
+        request_timeout = opts.get("request_timeout", self.request_timeout)
+        if request_timeout is not None:
+            config_kwargs["request_timeout"] = request_timeout
         if self.tool_choice is not None and (self.tools or self.toolsets):
             config_kwargs["tool_choice"] = self.tool_choice
 
@@ -1840,7 +1932,12 @@ class DSPyAgentHandle:
 
     def _get_agent_lm(self, opts: Optional[Dict[str, Any]] = None) -> Any:
         """Create or reuse the LM configured for this agent, independent of DSPy globals."""
-        from tactus.dspy.config import create_lm
+        from tactus.dspy.config import (
+            create_adapter,
+            create_lm,
+            get_prewarmed_adapter,
+            get_prewarmed_lm,
+        )
 
         model_for_litellm, config_kwargs = self._agent_lm_config(opts)
         cache_key = (model_for_litellm, tuple(sorted(config_kwargs.items())))
@@ -1850,18 +1947,35 @@ class DSPyAgentHandle:
                 self.name,
                 model_for_litellm,
             )
-            self._agent_lm = create_lm(model_for_litellm, **config_kwargs)
+            self._agent_lm = get_prewarmed_lm(model_for_litellm, **config_kwargs)
+            self._agent_adapter = get_prewarmed_adapter(model_for_litellm, **config_kwargs)
+            if self._agent_lm is None:
+                self._emit_lifecycle_event("lm_initialization_started")
+                self._agent_lm = create_lm(model_for_litellm, **config_kwargs)
+                self._agent_adapter = create_adapter()
+                self._emit_lifecycle_event("lm_initialization_completed")
+            elif self._agent_adapter is None:
+                self._agent_adapter = create_adapter()
             self._agent_lm_key = cache_key
         return self._agent_lm
+
+    def prewarm(self, opts: Optional[Dict[str, Any]] = None) -> Any:
+        """Initialize this agent's LM client and adapter without making a request."""
+        from tactus.dspy.config import prewarm_lm
+
+        model_for_litellm, config_kwargs = self._agent_lm_config(opts)
+        warmed = prewarm_lm(model_for_litellm, **config_kwargs)
+        self._agent_lm = warmed.lm
+        self._agent_adapter = warmed.adapter
+        self._agent_lm_key = (model_for_litellm, tuple(sorted(config_kwargs.items())))
+        return warmed
 
     def _dspy_lm_context(self, opts: Optional[Dict[str, Any]] = None):
         if not self.model:
             return nullcontext()
 
-        from tactus.dspy.config import create_adapter
-
         lm = self._get_agent_lm(opts)
-        return dspy.context(lm=lm, adapter=create_adapter())
+        return dspy.context(lm=lm, adapter=self._agent_adapter)
 
     def _validate_output(self, result: TactusResult) -> None:
         if not self._explicit_output_schema:
@@ -2138,6 +2252,7 @@ def create_dspy_agent(
         model_type=config.get("model_type"),
         reasoning_effort=config.get("reasoning_effort"),
         verbosity=config.get("verbosity"),
+        request_timeout=config.get("request_timeout"),
         module=config.get("module", "Raw"),
         initial_message=config.get("initial_message"),
         registry=registry,
@@ -2163,6 +2278,7 @@ def create_dspy_agent(
                 "model_type",
                 "reasoning_effort",
                 "verbosity",
+                "request_timeout",
                 "module",
                 "initial_message",
                 "log_handler",
@@ -2170,3 +2286,20 @@ def create_dspy_agent(
             ]
         },
     )
+
+
+def prewarm_agent_runtime(
+    model: str,
+    *,
+    provider: Optional[str] = None,
+    **config: Any,
+) -> Any:
+    """Prewarm the Agent LM stack without making a provider request.
+
+    The returned handle contains the configured LM and adapter. A later Agent
+    with the same effective configuration reuses those prepared objects.
+    """
+    from tactus.dspy.config import prewarm_lm
+
+    normalized_model = _normalize_model_for_litellm(model, provider)
+    return prewarm_lm(normalized_model, **config)

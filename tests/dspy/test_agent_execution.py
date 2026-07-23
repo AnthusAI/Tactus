@@ -8,7 +8,12 @@ import pytest
 
 from tactus.dspy.agent import DSPyAgentHandle, create_dspy_agent
 from tactus.protocols.cost import CostStats, UsageStats
-from tactus.protocols.models import AgentStreamChunkEvent, AgentTurnEvent, CostEvent
+from tactus.protocols.models import (
+    AgentLifecycleEvent,
+    AgentStreamChunkEvent,
+    AgentTurnEvent,
+    CostEvent,
+)
 
 try:
     ExceptionGroup
@@ -622,6 +627,19 @@ class TestTurns:
         assert any(isinstance(e, AgentTurnEvent) and e.stage == "started" for e in handler.events)
         assert any(isinstance(e, AgentTurnEvent) and e.stage == "completed" for e in handler.events)
         assert any(isinstance(e, AgentStreamChunkEvent) for e in handler.events)
+        lifecycle_phases = [
+            event.phase for event in handler.events if isinstance(event, AgentLifecycleEvent)
+        ]
+        assert lifecycle_phases == [
+            "lm_initialization_started",
+            "lm_initialization_completed",
+            "provider_request_started",
+            "provider_first_chunk",
+            "provider_request_completed",
+            "provider_request_started",
+            "provider_first_chunk",
+            "provider_request_completed",
+        ]
         assert agent._tool_primitive.calls[0][0] == "tool"
         assert stream_calls["count"] == 2
 

@@ -33,6 +33,9 @@ Rule of thumb:
 
 Agents are called like functions.
 
+The callable form is the canonical API. Use `agent({message = "..."})`; do not
+build new workflows around the legacy `.turn()` spelling.
+
 ```lua
 my_agent = Agent {
   model = "openai/gpt-4o-mini",
@@ -60,6 +63,37 @@ Agents are non-deterministic by nature; you typically structure correctness arou
 - explicit procedure state
 - bounded loops and stopping conditions
 - specifications (BDD) that assert observable behavior
+
+## Request timeout, prewarming, and lifecycle telemetry
+
+Set `request_timeout` on an Agent when provider requests need a bounded timeout.
+The same value applies to streaming and non-streaming calls:
+
+```lua
+assistant = Agent {
+  model = "openai/gpt-4o-mini",
+  request_timeout = 60,
+}
+```
+
+Python hosts that keep workers warm can initialize the complete DSPy/LiteLLM
+stack without sending an inference request:
+
+```python
+from tactus.dspy import prewarm_agent_runtime
+
+prewarm_agent_runtime(
+    "openai/gpt-4o-mini",
+    request_timeout=60,
+)
+```
+
+Agents reuse a matching prewarmed model client and adapter. Runtime integrators
+can observe supported `AgentLifecycleEvent` records through the normal log
+handler or an Agent's `lifecycle_hooks`. Events cover agent preparation, LM
+initialization, provider dispatch, the first streamed chunk, and provider
+completion. `provider_request_started` includes the rendered prompt context so
+integrations can capture it without replacing private Agent methods.
 
 ## Per-turn capability control (important)
 

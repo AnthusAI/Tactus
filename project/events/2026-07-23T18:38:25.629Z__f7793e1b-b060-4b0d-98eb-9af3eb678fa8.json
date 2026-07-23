@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "f7793e1b-b060-4b0d-98eb-9af3eb678fa8",
+  "issue_id": "tcts-d9498f3c-22ef-45b3-b6cd-5012b994764a",
+  "event_type": "issue_created",
+  "occurred_at": "2026-07-23T18:38:25.629Z",
+  "actor_id": "ryan.porter",
+  "payload": {
+    "title": "Harden public agent runtime integration",
+    "description": "Purpose: provide stable, supported Tactus APIs for model setup, lifecycle telemetry, serialization, and prewarming so consumers do not replace private runtime methods.\n\nDefinition of Done:\n- Agent configuration and lifecycle hooks are public and tested.\n- LLM prewarming moves import/setup work outside interactive requests.\n- Pydantic JSON serialization is native.\n- Release artifacts and documentation are published with full CI green.",
+    "issue_type": "epic",
+    "status": "open",
+    "priority": 1,
+    "assignee": null,
+    "parent": null,
+    "labels": []
+  }
+}

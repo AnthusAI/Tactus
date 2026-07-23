@@ -1,0 +1,37 @@
+{
+  "id": "tcts-49b8a0a5-ede7-4f4b-b489-6e3d9f44d9bf",
+  "title": "Implement and release supported agent lifecycle APIs",
+  "description": "Implement the approved behavior specifications, update documentation, run all Tactus quality gates, and publish the next patch release for Plexus consumption.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-d9498f3c-22ef-45b3-b6cd-5012b994764a",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "2c7cf29a-5bde-426e-bf0d-3dbbc6130b13",
+      "author": "ryan.porter",
+      "text": "Added failing specifications first for request-timeout propagation, no-inference prewarming, lifecycle events, and native Pydantic JSON serialization. Confirmed five expected failures, then implemented the supported APIs. Focused DSPy/JSON suite is now 312 passing; targeted Ruff passes and Black formatting is clean after one mechanical reformat. Next: full Tactus gates, review, commit, and PR/release workflow.",
+      "created_at": "2026-07-23T19:01:48.083293Z"
+    },
+    {
+      "id": "33946b97-ba21-4cc3-a907-36e6d87474e1",
+      "author": "ryan.porter",
+      "text": "Implemented supported request timeouts, lifecycle telemetry, no-inference prewarming, native Pydantic JSON serialization, and canonical callable Agent documentation. Added failing specifications before implementation. Full verification passed: Ruff, Black, 4,184 unit tests passed with 73 skipped and 63 deselected, and 449 BDD scenarios passed with 5 skipped. Implementation is ready for feature-branch PR; the patch release follows merge through the repository release workflow.",
+      "created_at": "2026-07-23T19:24:55.628270Z"
+    },
+    {
+      "id": "ba3dfc76-b42a-4ff8-99c7-7c8d079bb635",
+      "author": "ryan.porter",
+      "text": "Implementation and release gates are complete; feature-branch PR and automated patch publication are the remaining delivery operations.",
+      "created_at": "2026-07-23T19:25:59.780204Z"
+    }
+  ],
+  "created_at": "2026-07-23T18:38:41.998459Z",
+  "updated_at": "2026-07-23T19:25:59.780204Z",
+  "closed_at": "2026-07-23T19:25:59.549822Z",
+  "custom": {}
+}

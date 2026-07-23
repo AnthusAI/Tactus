@@ -1,0 +1,25 @@
+{
+  "id": "tcts-5e1bb8ac-ee97-4302-b6f3-1ab93f0619b9",
+  "title": "Expose supported agent runtime lifecycle APIs",
+  "description": "As a runtime integrator, I want supported configuration, observability, serialization, and prewarming APIs, so that applications can integrate without replacing private Tactus methods.\n\nFeature: Supported agent runtime lifecycle\n\nScenario: Prewarm model infrastructure\nGiven an agent model configuration\nWhen the runtime prewarms it without inference\nThen model imports and adapter construction complete before the first turn\nAnd no provider request is sent\n\nScenario: Observe model lifecycle\nGiven an agent turn\nWhen it prepares and streams a model response\nThen supported lifecycle events identify preparation, LM initialization, request dispatch, first chunk, and completion\n\nScenario: Configure request timeout\nGiven an agent request timeout\nWhen a streaming or non-streaming turn runs\nThen the scoped language model receives that timeout\n\nScenario: Serialize runtime events\nGiven a Pydantic runtime event\nWhen Json.encode serializes it\nThen valid JSON is returned without consumer patches.",
+  "type": "story",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-d9498f3c-22ef-45b3-b6cd-5012b994764a",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "ad3cea90-2d5a-4fe0-addf-d5db3c38e091",
+      "author": "ryan.porter",
+      "text": "All specified runtime lifecycle behaviors are implemented and verified.",
+      "created_at": "2026-07-23T19:25:59.356749Z"
+    }
+  ],
+  "created_at": "2026-07-23T18:38:41.731563Z",
+  "updated_at": "2026-07-23T19:25:59.356749Z",
+  "closed_at": "2026-07-23T19:25:59.160216Z",
+  "custom": {}
+}
