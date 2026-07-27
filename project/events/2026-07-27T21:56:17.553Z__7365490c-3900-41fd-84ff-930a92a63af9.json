@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "event_id": "7365490c-3900-41fd-84ff-930a92a63af9",
+  "issue_id": "tcts-5958173c-ece4-450a-910b-22580a014665",
+  "event_type": "issue_created",
+  "occurred_at": "2026-07-27T21:56:17.553Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "assignee": null,
+    "description": "As a maintainer of the private repository, I want quality checks to run only on production Python 3.11 so that GitHub Actions minutes are conserved while retaining the full matrix configuration for restoration when the repository is public again.",
+    "issue_type": "chore",
+    "labels": [
+      "github",
+      "ci"
+    ],
+    "parent": "tcts-cb2464fa-75fc-4ae2-b2d4-3146898fc2f0",
+    "priority": 2,
+    "status": "open",
+    "title": "Temporarily run quality checks on Python 3.11"
+  }
+}

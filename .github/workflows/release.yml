@@ -4,10 +4,11 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - '**'
+      # Keep post-merge release automation, but do not test every branch push.
+      - main
   pull_request:
     branches:
-      - '**'
+      - main
 
 concurrency:
   group: release-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
@@ -22,7 +23,10 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.10', '3.11', '3.12']
+        # Temporarily limit private-repository Actions usage to the production
+        # runtime. Restore the full matrix when the repository is public again:
+        # python-version: ['3.10', '3.11', '3.12']
+        python-version: ['3.11']
 
     steps:
       - name: Checkout code
@@ -43,7 +47,9 @@ jobs:
           python -m poetry install --extras "dev ml"
 
       - name: Validate isolated MCP fixture environment
-        if: matrix.python-version == '3.12'
+        # Run once on the active matrix version. When restoring the full
+        # matrix, change this back to Python 3.12.
+        if: matrix.python-version == '3.11'
         run: |
           cd tools/mcp-fixtures
           python -m poetry install
@@ -53,7 +59,9 @@ jobs:
         run: python -m poetry run ruff check tactus/ tests/ features/steps/
 
       - name: Run black formatting check
-        if: matrix.python-version == '3.12'
+        # Run once on the active matrix version. When restoring the full
+        # matrix, change this back to Python 3.12.
+        if: matrix.python-version == '3.11'
         run: python -m poetry run black --check tactus/ tests/ features/steps/
 
       - name: Run pytest tests
