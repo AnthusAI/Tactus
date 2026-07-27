@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "4288d0b2-b81c-4a5b-89c9-ac8bc1d8af85",
+  "issue_id": "tcts-fc1d7cb4-063f-41d3-b9bf-480a32e42d3d",
+  "event_type": "issue_created",
+  "occurred_at": "2026-07-27T18:37:45.229Z",
+  "actor_id": "ryan.porter",
+  "payload": {
+    "title": "Allow pull-request file filtering in extension CI",
+    "description": "The extension CI workflow invokes a pull-request file filter while its token lacks pull-request read permission. The check fails before tests with Resource not accessible by integration. Add the minimum pull-requests read permission and verify the hosted check completes.",
+    "issue_type": "bug",
+    "status": "open",
+    "priority": 1,
+    "assignee": null,
+    "parent": "tcts-cb2464fa-75fc-4ae2-b2d4-3146898fc2f0",
+    "labels": []
+  }
+}
