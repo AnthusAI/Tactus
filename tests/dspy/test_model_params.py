@@ -1,6 +1,6 @@
-"""Tests for tactus.dspy.model_params."""
+"""Tests for lightweight model parameter helpers."""
 
-from tactus.dspy.model_params import (
+from tactus.model_params import (
     default_temperature_for_model,
     is_openai_gpt5_family_model,
     lite_llm_model_id,

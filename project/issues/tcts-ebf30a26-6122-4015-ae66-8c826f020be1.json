@@ -1,0 +1,67 @@
+{
+  "id": "tcts-ebf30a26-6122-4015-ae66-8c826f020be1",
+  "title": "Split runtime dependencies from non-runtime tooling",
+  "description": "Move dependencies only needed for IDE serving, documentation rendering, testing/BDD, training, model registry backends, and optional file-format utilities out of the default Tactus install. Keep the execution runtime dependencies available through a runtime-focused install path for downstream scoring consumers.",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-3e56a87c-25b7-4fee-88ae-2757e578ca2d",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "b827cde9-2e71-4fd9-afa7-a014c97a5c7b",
+      "author": "derek.norrbom",
+      "text": "Confirmed downstream scoring uses both LangGraphScore and TactusScore. The dependency split must keep Tactus execution runtime support available, while moving IDE, docs, testing, training, registry backends, and optional file-format dependencies behind extras.",
+      "created_at": "2026-07-21T19:29:19.768120Z"
+    },
+    {
+      "id": "4387c1d1-e153-47b3-8a1e-75f6c23cd99d",
+      "author": "derek.norrbom",
+      "text": "Cold-path profiling shows TactusScore registration spends 4.2s locally importing TactusRuntime; runtime.py imports DSPy configuration at module load, which pulls DSPy/LiteLLM before execution. Expanding the dependency split work to make the core runtime import lightweight while preserving agent execution behavior.",
+      "created_at": "2026-07-21T20:32:19.241369Z"
+    },
+    {
+      "id": "cbb68116-8ead-4b0c-b609-cfa8d487df74",
+      "author": "derek.norrbom",
+      "text": "Split lightweight model validation/default helpers out of the DSPy package so importing the core runtime no longer initializes DSPy or LiteLLM. Exact runtime-image Tactus score registration improved from 4,218 ms to 625 ms before packaged bytecode; combined refactor plus bytecode measured 194 ms. Validation: python -m pytest tests/unit/test_runtime_import_boundaries.py tests/dspy/test_model_params.py tests/core/test_runtime*.py tests/dspy/test_config.py tests/dspy/test_config_utilities.py tests/dspy/test_config_adapter_fallback.py -q (325 passed).",
+      "created_at": "2026-07-21T20:45:05.334203Z"
+    },
+    {
+      "id": "5603643b-0353-437a-99fb-503ad1ae560a",
+      "author": "derek.norrbom",
+      "text": "Branch CI could not install dependencies because pyproject.toml had changed significantly since poetry.lock was generated. Reopening to regenerate and validate the lockfile so the optimized runtime branch remains installable.",
+      "created_at": "2026-07-21T20:48:24.609204Z"
+    },
+    {
+      "id": "535bebf8-6ad1-4f73-9f01-809ffa092e5a",
+      "author": "derek.norrbom",
+      "text": "Scoring import optimization remains fully validated. Release CI is blocked before tests by the pre-existing stale repository development lock from the earlier extras split; both Poetry 2.3 and CI-matched 2.4 entered multi-minute CPU-bound resolution, so no lock hash was forged. Recorded a dedicated follow-up bug for that repository tooling issue.",
+      "created_at": "2026-07-21T20:58:36.382917Z"
+    },
+    {
+      "id": "c3ef5759-772d-4af0-8a42-e428f14ecc2c",
+      "author": "derek.norrbom",
+      "text": "Reopened to reconcile the runtime dependency split with current develop, resolve dependency and lockfile integration conflicts, and rerun focused runtime/import/DSPy validation before preparing the feature branch for review.",
+      "created_at": "2026-07-27T19:24:54.009943Z"
+    },
+    {
+      "id": "d4afa63f-85bb-42ec-94d5-e4a92fc4c091",
+      "author": "derek.norrbom",
+      "text": "Reconciled the feature branch with current develop. Preserved lightweight core runtime imports while integrating current LM prewarming and request-timeout behavior; updated the optional CLI/dev Typer constraint and regenerated the lockfile. Validation: poetry check; python -m pytest tests/unit/test_runtime_import_boundaries.py tests/dspy/test_model_params.py tests/core/test_runtime*.py tests/dspy/test_config.py tests/dspy/test_config_utilities.py tests/dspy/test_config_adapter_fallback.py -q (328 passed); ruff check .; black --check .; ./test-ci.sh with isolated AWS test credentials (4187 passed, 73 skipped, 63 deselected); behave --tags=-skip (66 features and 449 scenarios passed).",
+      "created_at": "2026-07-27T19:47:17.760244Z"
+    },
+    {
+      "id": "c846e36c-4c64-4126-bc17-e09c9e93f72c",
+      "author": "derek.norrbom",
+      "text": "Completed after merging current develop, regenerating the dependency lockfile, passing all local quality gates, pushing commit 9877b7da, and verifying GitHub Release workflow 30299806427 succeeded across Python 3.10, 3.11, and 3.12.",
+      "created_at": "2026-07-27T19:58:40.574514Z"
+    }
+  ],
+  "created_at": "2026-07-21T19:28:50.505690Z",
+  "updated_at": "2026-07-27T19:58:40.598732Z",
+  "closed_at": "2026-07-27T19:58:40.598732Z",
+  "custom": {}
+}

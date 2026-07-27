@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "6dd17d61-1d54-4072-ad1a-c324cb6c09ae",
+  "issue_id": "tcts-ebf30a26-6122-4015-ae66-8c826f020be1",
+  "event_type": "issue_created",
+  "occurred_at": "2026-07-21T19:28:50.505Z",
+  "actor_id": "derek.norrbom",
+  "payload": {
+    "assignee": null,
+    "description": "Move dependencies only needed for IDE serving, documentation rendering, testing/BDD, training, model registry backends, and optional file-format utilities out of the default Tactus install. Keep the execution runtime dependencies available through a runtime-focused install path for downstream scoring consumers.",
+    "issue_type": "task",
+    "labels": [],
+    "parent": "tcts-3e56a87c-25b7-4fee-88ae-2757e578ca2d",
+    "priority": 1,
+    "status": "open",
+    "title": "Split runtime dependencies from non-runtime tooling"
+  }
+}
