@@ -2,6 +2,60 @@
 
 <!-- version list -->
 
+## v0.51.5 (2026-07-27)
+
+### Bug Fixes
+
+- **agent**: Avoid redundant interactive setup
+  ([`5b5c081`](https://github.com/AnthusAI/Tactus/commit/5b5c0817a5aef0841da15adebae144163d9c63ea))
+
+- **agent**: Expose supported runtime lifecycle APIs
+  ([`09df162`](https://github.com/AnthusAI/Tactus/commit/09df162ffe3fff82a7085cdda58679b97b758136))
+
+- **ci**: Allow pull request path filtering
+  ([`edbf992`](https://github.com/AnthusAI/Tactus/commit/edbf992399b4408f1fa11fdf1725036259859af8))
+
+- **release**: Pass automatic token
+  ([`8398bca`](https://github.com/AnthusAI/Tactus/commit/8398bca5f42ae592060443fc0bb76875107e9276))
+
+- **release**: Use configured GitHub token
+  ([`1ebcd63`](https://github.com/AnthusAI/Tactus/commit/1ebcd632535fd1c585755310968629983f9ffb9e))
+
+- **release**: Use workflow token
+  ([`26c9afc`](https://github.com/AnthusAI/Tactus/commit/26c9afc1a1699b25f504d8278f216846ca1d16cd))
+
+### Chores
+
+- Close runtime dependency task
+  ([`8cf2d96`](https://github.com/AnthusAI/Tactus/commit/8cf2d96482b03a7b74d1b1192797979e02a3b5a3))
+
+- Close runtime dependency task
+  ([`1cc725e`](https://github.com/AnthusAI/Tactus/commit/1cc725e37eab75914f762f7cc2887ae6849cabf1))
+
+- Record dependency lock validation
+  ([`ba390ec`](https://github.com/AnthusAI/Tactus/commit/ba390ec2b28e5c433674494a0a591c891cf87b74))
+
+- Split runtime dependency extras
+  ([`1d3f31b`](https://github.com/AnthusAI/Tactus/commit/1d3f31b6fb4620712db88532f5b0f24ab3e041e0))
+
+- Update runtime dependency task
+  ([`9a2cd24`](https://github.com/AnthusAI/Tactus/commit/9a2cd24ffe964088f24f4741204019c49aec011e))
+
+- **deps**: Refresh lock after extras split
+  ([`e846121`](https://github.com/AnthusAI/Tactus/commit/e846121dda0c6fad31a715153e5d8fb3d3bdf0ae))
+
+- **deps**: Refresh poetry.lock for kanbus 0.18 constraints
+  ([`59ef043`](https://github.com/AnthusAI/Tactus/commit/59ef0436dc420c627930326da7b9291bf151bb60))
+
+- **project**: Record hosted verification
+  ([`3a44cb6`](https://github.com/AnthusAI/Tactus/commit/3a44cb6bb44603dda8b80c3156801e901034033f))
+
+### Performance Improvements
+
+- Keep core runtime imports lightweight
+  ([`f350fef`](https://github.com/AnthusAI/Tactus/commit/f350fef359881f16558f00ad81fba0cd31300e75))
+
+
 ## v0.51.4 (2026-06-12)
 
 
