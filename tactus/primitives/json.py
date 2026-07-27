@@ -60,7 +60,12 @@ class JsonPrimitive:
             # Convert Lua tables to Python dicts recursively if needed
             python_data = self._lua_to_python(data)
 
-            json_payload = json.dumps(python_data, ensure_ascii=False, indent=None)
+            json_payload = json.dumps(
+                python_data,
+                ensure_ascii=False,
+                indent=None,
+                default=self._json_default,
+            )
             logger.debug("Encoded data to JSON (%s bytes)", len(json_payload))
             return json_payload
 
@@ -153,6 +158,18 @@ class JsonPrimitive:
         except ImportError:
             # If lupa not available, just return as-is
             return value
+
+    @staticmethod
+    def _json_default(value: Any) -> Any:
+        """Serialize supported runtime-native values for the JSON encoder."""
+        try:
+            from pydantic import BaseModel
+
+            if isinstance(value, BaseModel):
+                return value.model_dump(mode="json")
+        except ImportError:  # pragma: no cover - Pydantic is a runtime dependency
+            pass
+        raise TypeError(f"Object of type {value.__class__.__name__} is not JSON serializable")
 
     def _python_to_lua(self, value: Any):
         """

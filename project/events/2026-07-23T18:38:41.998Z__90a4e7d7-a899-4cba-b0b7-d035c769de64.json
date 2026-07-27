@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "90a4e7d7-a899-4cba-b0b7-d035c769de64",
+  "issue_id": "tcts-49b8a0a5-ede7-4f4b-b489-6e3d9f44d9bf",
+  "event_type": "issue_created",
+  "occurred_at": "2026-07-23T18:38:41.998Z",
+  "actor_id": "ryan.porter",
+  "payload": {
+    "title": "Implement and release supported agent lifecycle APIs",
+    "description": "Implement the approved behavior specifications, update documentation, run all Tactus quality gates, and publish the next patch release for Plexus consumption.",
+    "issue_type": "task",
+    "status": "open",
+    "priority": 1,
+    "assignee": null,
+    "parent": "tcts-d9498f3c-22ef-45b3-b6cd-5012b994764a",
+    "labels": []
+  }
+}

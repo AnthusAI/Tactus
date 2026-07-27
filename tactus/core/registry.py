@@ -66,6 +66,7 @@ class AgentDeclaration(BaseModel):
     temperature: Optional[float] = None
     max_tokens: Optional[int] = None
     model_type: Optional[str] = None  # e.g., "chat", "responses" for reasoning models
+    steering_enabled: bool = True
 
     model_config = ConfigDict(extra="allow")
 

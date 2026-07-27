@@ -1,0 +1,31 @@
+{
+  "id": "tcts-25fbc89d-d706-4526-bf70-568f0d028e45",
+  "title": "Eliminate repeated agent preparation on interactive turns",
+  "description": "As a runtime integrator, I want prewarmed agent configuration and optional steering behavior to be honored exactly, so that short interactive turns do not repeat avoidable preparation.\n\nFeature: Reusable interactive agent preparation\n\nScenario: Agent-level model controls match prewarming\nGiven an agent declares reasoning effort and verbosity\nAnd the same model stack was prewarmed\nWhen the agent begins a turn\nThen it reuses the prewarmed model and adapter\nAnd does not initialize the LM during the request\n\nScenario: Steering is disabled for a directly driven interactive agent\nGiven an agent is configured with steering disabled\nWhen it begins a turn\nThen it does not query the chat recorder for mid-run steering messages\nAnd it still responds to the directly supplied user message.",
+  "type": "bug",
+  "status": "in_progress",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-d9498f3c-22ef-45b3-b6cd-5012b994764a",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "4146c24f-1f0b-4312-9032-14327718d480",
+      "author": "ryan.porter",
+      "text": "Implemented supported steering_enabled Agent configuration and corrected agent-level reasoning/verbosity precedence so prewarm and request-time model keys remain identical. This removes the Console consumer's repeated remote steering lookup without a monkeypatch. Verification: 120 focused tests passed; full unit gate 4,186 passed, 73 skipped, 63 deselected; Behave 449 scenarios passed, 5 skipped; Black and Ruff pass. Sandbox visible benchmark improved from 15.155s before the fixes to 7.596s fresh and 7.268s mean over ten warm turns; LM initialization is absent during requests and provider first chunk is normally 1.65-2.1s. Remaining latency is runtime construction plus sandbox claim/poll overhead, not lazy LM setup.",
+      "created_at": "2026-07-23T20:27:18.809333Z"
+    },
+    {
+      "id": "1badb8dc-6676-4ef8-8c2b-fc655a6e22d9",
+      "author": "ryan.porter",
+      "text": "Hosted PR checks are also green on Python 3.10, 3.11, and 3.12 for commit 5b5c0817. PR #93 is clean and mergeable; normal reviewer approval remains the only gate before landing and release.",
+      "created_at": "2026-07-23T20:47:19.586037Z"
+    }
+  ],
+  "created_at": "2026-07-23T20:11:07.244978Z",
+  "updated_at": "2026-07-23T20:47:19.586037Z",
+  "closed_at": null,
+  "custom": {}
+}
