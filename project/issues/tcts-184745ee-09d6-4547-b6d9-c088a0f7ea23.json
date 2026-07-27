@@ -52,10 +52,28 @@
       "author": "ryan.porter",
       "text": "Completed workflow-scoped release authentication. Publication will be proven by the next main run after the normal develop-to-main promotion.",
       "created_at": "2026-07-27T20:47:08.294190Z"
+    },
+    {
+      "id": "8ae9031f-3a8f-426a-b487-82585cb1e081",
+      "author": "ryan.porter",
+      "text": "Main release run 30307479827 passed all quality checks, then failed because github.token evaluated to an empty value when mapped as a reusable-workflow secret. Updating the caller to pass the automatic secrets.GITHUB_TOKEN value explicitly, which is the supported reusable-workflow secret context.",
+      "created_at": "2026-07-27T21:45:27.327290Z"
+    },
+    {
+      "id": "58b545ec-8acc-4c64-8234-08a8bc719b58",
+      "author": "ryan.porter",
+      "text": "Validated the corrected reusable-workflow mapping: YAML parses, the release job retains contents:write, anthusbot_gh_token now receives secrets.GITHUB_TOKEN, and git diff --check passes.",
+      "created_at": "2026-07-27T21:45:38.326183Z"
+    },
+    {
+      "id": "88041eab-eae7-4ef6-a1c4-9a861f30769d",
+      "author": "ryan.porter",
+      "text": "Completed the automatic-token mapping correction. The next main release run will prove checkout, semantic versioning, and PyPI publication.",
+      "created_at": "2026-07-27T21:45:38.812617Z"
     }
   ],
   "created_at": "2026-03-27T19:06:28.119280Z",
-  "updated_at": "2026-07-27T20:47:08.294190Z",
-  "closed_at": "2026-07-27T20:47:08.067056Z",
+  "updated_at": "2026-07-27T21:45:38.812617Z",
+  "closed_at": "2026-07-27T21:45:38.567229Z",
   "custom": {}
 }
