@@ -2,6 +2,7 @@ import sys
 from types import SimpleNamespace
 
 import pytest
+from pydantic import BaseModel
 
 from tactus.primitives.json import JsonPrimitive
 
@@ -41,6 +42,21 @@ def test_encode_invalid_value_raises():
 
     with pytest.raises(ValueError, match="Failed to encode to JSON"):
         primitive.encode(Unserializable())
+
+
+def test_encode_pydantic_model_as_native_json():
+    class RuntimeEvent(BaseModel):
+        phase: str
+        elapsed_ms: int
+
+    primitive = JsonPrimitive()
+
+    encoded = primitive.encode(RuntimeEvent(phase="provider_first_chunk", elapsed_ms=17))
+
+    assert primitive.decode(encoded) == {
+        "phase": "provider_first_chunk",
+        "elapsed_ms": 17,
+    }
 
 
 def test_lua_to_python_array(monkeypatch):

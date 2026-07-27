@@ -32,7 +32,7 @@ if os.environ.get("DSPY_DISABLE_DISK_CACHE", "").lower() in ("1", "true", "yes")
 
     configure_cache(enable_disk_cache=False)
 
-from tactus.dspy.agent import DSPyAgentHandle, create_dspy_agent
+from tactus.dspy.agent import DSPyAgentHandle, create_dspy_agent, prewarm_agent_runtime
 from tactus.dspy.config import configure_lm, get_current_lm, reset_lm_configuration
 from tactus.dspy.history import TactusHistory, create_history
 from tactus.dspy.module import TactusModule, create_module
@@ -59,4 +59,5 @@ __all__ = [
     "wrap_prediction",
     "DSPyAgentHandle",
     "create_dspy_agent",
+    "prewarm_agent_runtime",
 ]

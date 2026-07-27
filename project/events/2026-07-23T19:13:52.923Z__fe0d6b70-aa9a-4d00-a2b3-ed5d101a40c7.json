@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "fe0d6b70-aa9a-4d00-a2b3-ed5d101a40c7",
+  "issue_id": "tcts-40a64a85-a209-455b-8e0e-c6a2bce472e0",
+  "event_type": "issue_created",
+  "occurred_at": "2026-07-23T19:13:52.923Z",
+  "actor_id": "ryan.porter",
+  "payload": {
+    "title": "Restore CLI compatibility with Kanbus Click requirement",
+    "description": "As a Tactus CLI user, I want the locked Typer and Click versions to be compatible, so that CLI commands and the full release gate execute successfully.\n\nFeature: Compatible CLI dependency stack\nScenario: Invoke a Typer CLI command\nGiven Kanbus requires Click 8.3.1\nWhen the Tactus CLI parses a command\nThen Typer accepts Click's current metavar calling convention\nAnd existing CLI tests pass.",
+    "issue_type": "bug",
+    "status": "open",
+    "priority": 1,
+    "assignee": null,
+    "parent": "tcts-d9498f3c-22ef-45b3-b6cd-5012b994764a",
+    "labels": []
+  }
+}

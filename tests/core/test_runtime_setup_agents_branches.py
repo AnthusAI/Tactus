@@ -154,6 +154,48 @@ async def test_setup_agents_model_settings_override_runtime_gpt5_controls(monkey
 
 
 @pytest.mark.asyncio
+async def test_setup_agents_agent_controls_override_runtime_gpt5_controls(monkeypatch):
+    runtime = runtime_module.TactusRuntime(
+        procedure_id="proc",
+        hitl_handler=object(),
+        reasoning_effort="medium",
+        verbosity="medium",
+    )
+    runtime.lua_sandbox = DummyLuaSandbox()
+    runtime.toolset_registry = {}
+    runtime.config = {}
+    runtime.registry = SimpleNamespace(agents={})
+    runtime.agents = {}
+
+    captured = {}
+
+    def _create_agent(_name, config, **_kwargs):
+        captured["config"] = config
+        return SimpleNamespace()
+
+    runtime.registry.agents = {
+        "agent": {
+            "system_prompt": "system",
+            "provider": "openai",
+            "model": "gpt-5-mini",
+            "reasoning_effort": "low",
+            "verbosity": "low",
+        }
+    }
+
+    async def _noop_dependencies():
+        return None
+
+    monkeypatch.setattr(runtime, "_initialize_dependencies", _noop_dependencies)
+    monkeypatch.setattr("tactus.dspy.agent.create_dspy_agent", _create_agent)
+
+    await runtime._setup_agents(context={})
+
+    assert captured["config"]["reasoning_effort"] == "low"
+    assert captured["config"]["verbosity"] == "low"
+
+
+@pytest.mark.asyncio
 async def test_setup_agents_requires_provider(monkeypatch):
     runtime = runtime_module.TactusRuntime(procedure_id="proc", hitl_handler=object())
     runtime.lua_sandbox = DummyLuaSandbox()

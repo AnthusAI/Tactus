@@ -9,7 +9,7 @@ from typing import List
 
 from tactus.dspy.agent import DSPyAgentHandle, create_dspy_agent
 from tactus.dspy.config import reset_lm_configuration
-from tactus.protocols.models import AgentStreamChunkEvent, AgentTurnEvent
+from tactus.protocols.models import AgentLifecycleEvent, AgentStreamChunkEvent, AgentTurnEvent
 
 
 class MockLogHandler:
@@ -179,6 +179,19 @@ class TestStreamingEventsFormat:
         assert event.event_type == "agent_turn"
         assert event.agent_name == "test_agent"
         assert event.stage == "started"
+
+    def test_agent_lifecycle_event_has_supported_phase_and_context(self):
+        event = AgentLifecycleEvent(
+            agent_name="test_agent",
+            phase="provider_request_started",
+            request_id="test_agent:1",
+            prompt_context={"user_message": "hello"},
+        )
+
+        assert event.event_type == "agent_lifecycle"
+        assert event.phase == "provider_request_started"
+        assert event.prompt_context == {"user_message": "hello"}
+        assert event.message == "Agent test_agent: provider_request_started"
 
 
 class TestMockLogHandler:

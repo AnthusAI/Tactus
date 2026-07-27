@@ -178,6 +178,22 @@ def test_create_lm_passes_kwargs(monkeypatch):
     assert captured["kwargs"]["extra"] == "value"
 
 
+def test_create_lm_maps_request_timeout_to_provider_timeout(monkeypatch):
+    captured = {}
+
+    class FakeLM:
+        def __init__(self, model, **kwargs):
+            captured["model"] = model
+            captured["kwargs"] = kwargs
+
+    monkeypatch.setattr(dspy_config.dspy, "LM", FakeLM)
+
+    dspy_config.create_lm("openai/gpt-4o", request_timeout=19)
+
+    assert captured["kwargs"]["timeout"] == 19
+    assert "request_timeout" not in captured["kwargs"]
+
+
 def test_create_lm_uses_brokered_lm(monkeypatch):
     captured = {}
 
@@ -218,6 +234,42 @@ def test_create_lm_omits_optional_fields_when_none(monkeypatch):
     assert "reasoning_effort" not in captured["kwargs"]
     assert "verbosity" not in captured["kwargs"]
     assert "text" not in captured["kwargs"]
+
+
+def test_prewarm_lm_initializes_client_and_adapter_without_provider_request(monkeypatch):
+    created = []
+    adapter = object()
+
+    class FakeLM:
+        def __init__(self, model, **kwargs):
+            created.append((model, kwargs))
+
+        def __call__(self, *_args, **_kwargs):  # pragma: no cover - must not run
+            raise AssertionError("prewarm must not make a provider request")
+
+    monkeypatch.setattr(dspy_config.dspy, "LM", FakeLM)
+    monkeypatch.setattr(dspy_config, "create_adapter", lambda: adapter)
+    dspy_config.reset_prewarmed_lms()
+
+    warmed = dspy_config.prewarm_lm(
+        "openai/gpt-5-mini",
+        request_timeout=42,
+        model_type="responses",
+    )
+
+    assert created == [
+        (
+            "openai/gpt-5-mini",
+            {"cache": False, "timeout": 42, "model_type": "responses"},
+        )
+    ]
+    assert warmed.lm is dspy_config.get_prewarmed_lm(
+        "openai/gpt-5-mini",
+        request_timeout=42,
+        model_type="responses",
+    )
+    assert warmed.adapter is adapter
+    dspy_config.reset_prewarmed_lms()
 
 
 @pytest.mark.parametrize("reasoning_effort", ["", "max", "extreme"])

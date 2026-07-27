@@ -83,6 +83,27 @@ def test_inject_pending_steering_updates_empty_watermark_without_history(monkeyp
     )
 
 
+def test_agent_with_steering_disabled_does_not_query_chat_recorder(monkeypatch):
+    calls = []
+
+    class FakeChatRecorder:
+        def get_steering_messages(self, **kwargs):
+            calls.append(kwargs)
+            return {"watermark": "", "messages": []}
+
+    agent = _make_agent(
+        monkeypatch,
+        chat_recorder=FakeChatRecorder(),
+        steering_enabled=False,
+    )
+    agent._state_primitive = FakeStatePrimitive()
+
+    agent._inject_pending_steering()
+
+    assert calls == []
+    assert agent.get_history() == []
+
+
 def test_add_usage_and_cost_accumulates(monkeypatch):
     agent = _make_agent(monkeypatch)
     usage = UsageStats(prompt_tokens=1, completion_tokens=2, total_tokens=3)
@@ -201,3 +222,50 @@ def test_module_to_strategy(monkeypatch):
 
     with pytest.raises(ValueError, match="Unknown module"):
         agent._module_to_strategy("weird")
+
+
+def test_agent_request_timeout_is_part_of_scoped_lm_configuration(monkeypatch):
+    agent = _make_agent(monkeypatch, request_timeout=37)
+
+    model, kwargs = agent._agent_lm_config()
+
+    assert model == "openai/gpt-4o"
+    assert kwargs["request_timeout"] == 37
+
+
+def test_agent_uses_prewarmed_lm_and_adapter(monkeypatch):
+    agent = _make_agent(monkeypatch, request_timeout=37)
+    warmed_lm = object()
+    warmed_adapter = object()
+
+    monkeypatch.setattr(
+        "tactus.dspy.config.prewarm_lm",
+        lambda model, **kwargs: types.SimpleNamespace(lm=warmed_lm, adapter=warmed_adapter),
+    )
+
+    assert agent.prewarm().lm is warmed_lm
+    context = agent._dspy_lm_context()
+    assert context is not None
+
+
+def test_non_streaming_turn_emits_supported_lifecycle_events(monkeypatch):
+    events = []
+    agent = _make_agent(
+        monkeypatch,
+        disable_streaming=True,
+        lifecycle_hooks=[events.append],
+    )
+
+    agent({"message": "hello"})
+
+    phases = [event.phase for event in events]
+    assert phases == [
+        "agent_preparation_started",
+        "agent_preparation_completed",
+        "lm_initialization_started",
+        "lm_initialization_completed",
+        "provider_request_started",
+        "provider_request_completed",
+    ]
+    request_started = next(event for event in events if event.phase == "provider_request_started")
+    assert request_started.prompt_context["user_message"] == "hello"
