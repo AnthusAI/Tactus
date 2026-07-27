@@ -1,0 +1,18 @@
+{
+  "id": "tcts-3e56a87c-25b7-4fee-88ae-2757e578ca2d",
+  "title": "Optimize published runtime dependency footprint",
+  "description": "Reduce the default dependency footprint for consumers that need the Tactus execution runtime without IDE, training, testing, documentation, or optional file-format tooling. Keep the core runtime usable for workflow execution while moving non-runtime dependencies behind explicit extras.",
+  "type": "epic",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-07-21T19:28:42.712643Z",
+  "updated_at": "2026-07-21T19:28:42.712643Z",
+  "closed_at": null,
+  "custom": {}
+}

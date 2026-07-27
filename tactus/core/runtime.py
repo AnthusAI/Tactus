@@ -20,8 +20,7 @@ from typing import Any, Dict, List, Optional, TYPE_CHECKING
 from tactus.core.registry import ProcedureRegistry, RegistryBuilder, TaskDeclaration
 from tactus.core.dsl_stubs import create_dsl_stubs, lua_table_to_dict
 from tactus.core.template_resolver import TemplateResolver
-from tactus.dspy.config import validate_gpt5_controls
-from tactus.dspy.model_params import default_temperature_for_model
+from tactus.model_params import default_temperature_for_model, validate_gpt5_controls
 from tactus.core.message_history_manager import MessageHistoryManager
 from tactus.core.lua_sandbox import LuaSandbox, LuaSandboxError, validate_python_module_name
 from tactus.core.output_validator import OutputValidator, OutputValidationError

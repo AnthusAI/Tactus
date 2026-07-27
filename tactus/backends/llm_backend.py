@@ -10,7 +10,7 @@ import logging
 from typing import Any, Dict, Optional
 
 from tactus.dspy.agent import DSPyAgentHandle
-from tactus.dspy.model_params import default_temperature_for_model
+from tactus.model_params import default_temperature_for_model
 from tactus.protocols.cost import CostStats, UsageStats
 
 logger = logging.getLogger(__name__)
