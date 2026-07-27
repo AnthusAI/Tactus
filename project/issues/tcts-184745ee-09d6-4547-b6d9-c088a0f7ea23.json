@@ -34,10 +34,28 @@
       "author": "derek.norrbom",
       "text": "Closing as complete: CI release workflow now successfully publishes to PyPI. Prior publish regression has been resolved and deployment is currently healthy.",
       "created_at": "2026-04-22T22:55:54.707936Z"
+    },
+    {
+      "id": "6d731ecd-df43-469e-a401-6229cc4ceb44",
+      "author": "ryan.porter",
+      "text": "Main release run 30303129830 reproduced the publication failure after all quality checks passed. The repository GH_TOKEN secret was passed to actions/checkout but GitHub rejected it. This branch will use the job-scoped GitHub token, whose contents:write permission is already declared, removing reliance on a stale external credential.",
+      "created_at": "2026-07-27T20:46:01.661998Z"
+    },
+    {
+      "id": "25475d27-aa78-43d7-8b34-b032c2053e54",
+      "author": "ryan.porter",
+      "text": "Validated the workflow contract locally: the release job retains contents:write, passes github.token into the reusable workflow, YAML parses, and git diff --check passes. This removes the stale repository-secret dependency while preserving the reusable workflow's existing checkout, push, release, and PyPI behavior.",
+      "created_at": "2026-07-27T20:47:01.458179Z"
+    },
+    {
+      "id": "dea75dd2-deca-4759-94cb-29da44f8f88c",
+      "author": "ryan.porter",
+      "text": "Completed workflow-scoped release authentication. Publication will be proven by the next main run after the normal develop-to-main promotion.",
+      "created_at": "2026-07-27T20:47:08.294190Z"
     }
   ],
   "created_at": "2026-03-27T19:06:28.119280Z",
-  "updated_at": "2026-04-22T22:55:54.719156Z",
-  "closed_at": "2026-04-22T22:55:54.719156Z",
+  "updated_at": "2026-07-27T20:47:08.294190Z",
+  "closed_at": "2026-07-27T20:47:08.067056Z",
   "custom": {}
 }
