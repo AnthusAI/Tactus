@@ -135,6 +135,36 @@ class AgentTurnEvent(BaseModel):
     model_config = {"arbitrary_types_allowed": True}
 
 
+class AgentLifecycleEvent(BaseModel):
+    """Supported telemetry event for agent and provider lifecycle phases."""
+
+    event_type: str = Field(default="agent_lifecycle", description="Event type")
+    agent_name: str = Field(..., description="Agent name")
+    phase: str = Field(
+        ...,
+        description=(
+            "Lifecycle phase: agent_preparation_started, agent_preparation_completed, "
+            "lm_initialization_started, lm_initialization_completed, "
+            "provider_request_started, provider_first_chunk, or provider_request_completed"
+        ),
+    )
+    request_id: Optional[str] = Field(None, description="Per-agent provider request identifier")
+    prompt_context: Optional[Dict[str, Any]] = Field(
+        None,
+        description="Rendered provider context, included only when provider dispatch begins",
+    )
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Phase metadata")
+    timestamp: datetime = Field(default_factory=utc_now, description="Event timestamp")
+    procedure_id: Optional[str] = Field(None, description="Procedure identifier")
+
+    model_config = {"arbitrary_types_allowed": True}
+
+    @property
+    def message(self) -> str:
+        """Human-readable compatibility text for generic log handlers."""
+        return f"Agent {self.agent_name}: {self.phase}"
+
+
 class AgentStreamChunkEvent(BaseModel):
     """Event emitted for each chunk of streamed agent response."""
 

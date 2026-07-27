@@ -1,0 +1,31 @@
+{
+  "id": "tcts-fc1d7cb4-063f-41d3-b9bf-480a32e42d3d",
+  "title": "Allow pull-request file filtering in extension CI",
+  "description": "The extension CI workflow invokes a pull-request file filter while its token lacks pull-request read permission. The check fails before tests with Resource not accessible by integration. Add the minimum pull-requests read permission and verify the hosted check completes.",
+  "type": "bug",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-cb2464fa-75fc-4ae2-b2d4-3146898fc2f0",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "11598689-1d99-46e3-86b6-8f9bf53f9d0a",
+      "author": "ryan.porter",
+      "text": "Hosted failure confirmed on the release PR: dorny/paths-filter could not list pull-request files because the workflow token omitted pull-requests read permission. Scope is the minimum permission addition plus hosted rerun.",
+      "created_at": "2026-07-27T18:37:51.472983Z"
+    },
+    {
+      "id": "f051a2b7-e053-4feb-91e6-43e3fce3ee15",
+      "author": "ryan.porter",
+      "text": "Applied the minimum job-level pull-requests read permission. YAML parsing and git diff checks pass; the hosted PR check will provide final verification.",
+      "created_at": "2026-07-27T18:38:36.365325Z"
+    }
+  ],
+  "created_at": "2026-07-27T18:37:45.229182Z",
+  "updated_at": "2026-07-27T18:38:45.486734Z",
+  "closed_at": "2026-07-27T18:38:45.486734Z",
+  "custom": {}
+}

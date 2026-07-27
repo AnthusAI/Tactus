@@ -2285,8 +2285,8 @@ class TactusRuntime:
             else:
                 resolved_temperature = default_temperature_for_model(model_name)
 
-            resolved_reasoning_effort = self.reasoning_effort
-            resolved_verbosity = self.verbosity
+            resolved_reasoning_effort = agent_config.get("reasoning_effort", self.reasoning_effort)
+            resolved_verbosity = agent_config.get("verbosity", self.verbosity)
             resolved_max_tokens = self.max_tokens
             if model_settings is not None:
                 if (
@@ -2324,6 +2324,7 @@ class TactusRuntime:
                 "initial_message": initial_message,
                 "log_handler": self.log_handler,
                 "chat_recorder": self.chat_recorder,
+                "steering_enabled": agent_config.get("steering_enabled", True),
                 "tool_choice": tool_choice,  # Pass through tool_choice
                 "prepare": agent_config.get("prepare"),
                 "message_history_filter": message_history_filter,

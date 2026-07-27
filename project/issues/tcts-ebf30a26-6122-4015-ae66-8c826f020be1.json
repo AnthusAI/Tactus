@@ -3,7 +3,7 @@
   "title": "Split runtime dependencies from non-runtime tooling",
   "description": "Move dependencies only needed for IDE serving, documentation rendering, testing/BDD, training, model registry backends, and optional file-format utilities out of the default Tactus install. Keep the execution runtime dependencies available through a runtime-focused install path for downstream scoring consumers.",
   "type": "task",
-  "status": "closed",
+  "status": "in_progress",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -40,10 +40,22 @@
       "author": "derek.norrbom",
       "text": "Scoring import optimization remains fully validated. Release CI is blocked before tests by the pre-existing stale repository development lock from the earlier extras split; both Poetry 2.3 and CI-matched 2.4 entered multi-minute CPU-bound resolution, so no lock hash was forged. Recorded a dedicated follow-up bug for that repository tooling issue.",
       "created_at": "2026-07-21T20:58:36.382917Z"
+    },
+    {
+      "id": "c3ef5759-772d-4af0-8a42-e428f14ecc2c",
+      "author": "derek.norrbom",
+      "text": "Reopened to reconcile the runtime dependency split with current develop, resolve dependency and lockfile integration conflicts, and rerun focused runtime/import/DSPy validation before preparing the feature branch for review.",
+      "created_at": "2026-07-27T19:24:54.009943Z"
+    },
+    {
+      "id": "d4afa63f-85bb-42ec-94d5-e4a92fc4c091",
+      "author": "derek.norrbom",
+      "text": "Reconciled the feature branch with current develop. Preserved lightweight core runtime imports while integrating current LM prewarming and request-timeout behavior; updated the optional CLI/dev Typer constraint and regenerated the lockfile. Validation: poetry check; python -m pytest tests/unit/test_runtime_import_boundaries.py tests/dspy/test_model_params.py tests/core/test_runtime*.py tests/dspy/test_config.py tests/dspy/test_config_utilities.py tests/dspy/test_config_adapter_fallback.py -q (328 passed); ruff check .; black --check .; ./test-ci.sh with isolated AWS test credentials (4187 passed, 73 skipped, 63 deselected); behave --tags=-skip (66 features and 449 scenarios passed).",
+      "created_at": "2026-07-27T19:47:17.760244Z"
     }
   ],
   "created_at": "2026-07-21T19:28:50.505690Z",
-  "updated_at": "2026-07-21T20:58:36.406826Z",
-  "closed_at": "2026-07-21T20:58:36.406826Z",
+  "updated_at": "2026-07-27T19:47:17.760244Z",
+  "closed_at": null,
   "custom": {}
 }

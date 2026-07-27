@@ -5,6 +5,8 @@ This module handles Language Model configuration using DSPy's LM abstraction,
 which uses LiteLLM under the hood for provider-agnostic LLM access.
 """
 
+from dataclasses import dataclass
+from threading import RLock
 from typing import Optional, Any
 
 import dspy
@@ -13,6 +15,34 @@ from tactus.model_params import default_temperature_for_model, validate_gpt5_con
 
 # Global reference to the current LM configuration
 _current_lm: Optional[dspy.BaseLM] = None
+_prewarmed_lms: dict[tuple[Any, ...], "PrewarmedLM"] = {}
+_prewarmed_lms_lock = RLock()
+
+
+@dataclass(frozen=True)
+class PrewarmedLM:
+    """Provider client and adapter initialized without making an inference request."""
+
+    lm: Any
+    adapter: Any
+
+
+def _freeze_config(value: Any) -> Any:
+    if isinstance(value, dict):
+        return tuple(sorted((str(key), _freeze_config(item)) for key, item in value.items()))
+    if isinstance(value, (list, tuple)):
+        return tuple(_freeze_config(item) for item in value)
+    if isinstance(value, set):
+        return tuple(sorted(_freeze_config(item) for item in value))
+    try:
+        hash(value)
+    except TypeError:
+        return repr(value)
+    return value
+
+
+def _prewarm_key(model: str, config: dict[str, Any]) -> tuple[Any, ...]:
+    return model, _freeze_config(config)
 
 
 def _apply_gpt5_controls(
@@ -55,6 +85,7 @@ def configure_lm(
     model_type: Optional[str] = None,
     reasoning_effort: Optional[str] = None,
     verbosity: Optional[str] = None,
+    request_timeout: Optional[float] = None,
     **kwargs: Any,
 ) -> dspy.BaseLM:
     """
@@ -76,6 +107,7 @@ def configure_lm(
         model_type: Model type (e.g., "chat", "responses" for reasoning models)
         reasoning_effort: Optional GPT-5-family reasoning effort control
         verbosity: Optional GPT-5-family response verbosity control
+        request_timeout: Provider request timeout in seconds
         **kwargs: Additional LiteLLM parameters
 
     Returns:
@@ -134,6 +166,8 @@ def configure_lm(
         lm_kwargs["max_tokens"] = max_tokens
     if model_type:
         lm_kwargs["model_type"] = model_type
+    if request_timeout is not None:
+        lm_kwargs["timeout"] = request_timeout
     _apply_gpt5_controls(
         lm_kwargs,
         reasoning_effort=reasoning_effort,
@@ -221,6 +255,7 @@ def create_lm(
     model_type: Optional[str] = None,
     reasoning_effort: Optional[str] = None,
     verbosity: Optional[str] = None,
+    request_timeout: Optional[float] = None,
     **kwargs: Any,
 ) -> dspy.LM:
     """
@@ -243,6 +278,7 @@ def create_lm(
         model_type: Model type (e.g., "chat", "responses" for reasoning models)
         reasoning_effort: Optional GPT-5-family reasoning effort control
         verbosity: Optional GPT-5-family response verbosity control
+        request_timeout: Provider request timeout in seconds
         **kwargs: Additional LiteLLM parameters
 
     Returns:
@@ -293,6 +329,8 @@ def create_lm(
         lm_kwargs["max_tokens"] = max_tokens
     if model_type:
         lm_kwargs["model_type"] = model_type
+    if request_timeout is not None:
+        lm_kwargs["timeout"] = request_timeout
     _apply_gpt5_controls(
         lm_kwargs,
         reasoning_effort=reasoning_effort,
@@ -311,3 +349,63 @@ def create_lm(
 
     # Create LM without setting as global default
     return dspy.LM(model, **lm_kwargs)
+
+
+def prewarm_lm(
+    model: str,
+    api_key: Optional[str] = None,
+    api_base: Optional[str] = None,
+    temperature: Optional[float] = None,
+    max_tokens: Optional[int] = None,
+    model_type: Optional[str] = None,
+    reasoning_effort: Optional[str] = None,
+    verbosity: Optional[str] = None,
+    request_timeout: Optional[float] = None,
+    **kwargs: Any,
+) -> PrewarmedLM:
+    """Initialize and cache the configured LM stack without provider inference.
+
+    Construction imports DSPy and LiteLLM, creates the DSPy adapter, and creates
+    the configured provider client. It deliberately does not call the LM.
+    Agents with the same effective configuration reuse this prewarmed stack.
+    """
+    config = {
+        "api_key": api_key,
+        "api_base": api_base,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "model_type": model_type,
+        "reasoning_effort": reasoning_effort,
+        "verbosity": verbosity,
+        "request_timeout": request_timeout,
+        **kwargs,
+    }
+    config = {key: value for key, value in config.items() if value is not None}
+    key = _prewarm_key(model, config)
+    with _prewarmed_lms_lock:
+        warmed = _prewarmed_lms.get(key)
+        if warmed is None:
+            lm = create_lm(model, **config)
+            warmed = PrewarmedLM(lm=lm, adapter=create_adapter())
+            _prewarmed_lms[key] = warmed
+        return warmed
+
+
+def get_prewarmed_lm(model: str, **config: Any) -> Optional[Any]:
+    """Return a matching prewarmed LM, if one was prepared."""
+    with _prewarmed_lms_lock:
+        warmed = _prewarmed_lms.get(_prewarm_key(model, config))
+    return warmed.lm if warmed is not None else None
+
+
+def get_prewarmed_adapter(model: str, **config: Any) -> Optional[Any]:
+    """Return the adapter paired with a matching prewarmed LM."""
+    with _prewarmed_lms_lock:
+        warmed = _prewarmed_lms.get(_prewarm_key(model, config))
+    return warmed.adapter if warmed is not None else None
+
+
+def reset_prewarmed_lms() -> None:
+    """Clear prewarmed LM state (primarily for tests and process reconfiguration)."""
+    with _prewarmed_lms_lock:
+        _prewarmed_lms.clear()

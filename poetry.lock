@@ -8112,15 +8112,15 @@ tutorials = ["matplotlib", "pandas", "tabulate"]
 
 [[package]]
 name = "typer"
-version = "0.12.5"
+version = "0.20.1"
 description = "Typer, build great CLIs. Easy to code. Based on Python type hints."
 optional = true
-python-versions = ">=3.7"
+python-versions = ">=3.8"
 groups = ["main"]
 markers = "extra == \"cli\" or extra == \"dev\""
 files = [
-    {file = "typer-0.12.5-py3-none-any.whl", hash = "sha256:62fe4e471711b147e3365034133904df3e235698399bc4de2b36c8579298d52b"},
-    {file = "typer-0.12.5.tar.gz", hash = "sha256:f592f089bedcc8ec1b974125d64851029c3b1af145f04aca64d69410f0c9b722"},
+    {file = "typer-0.20.1-py3-none-any.whl", hash = "sha256:4b3bde918a67c8e03d861aa02deca90a95bbac572e71b1b9be56ff49affdb5a8"},
+    {file = "typer-0.20.1.tar.gz", hash = "sha256:68585eb1b01203689c4199bc440d6be616f0851e9f0eb41e4a778845c5a0fd5b"},
 ]
 
 [package.dependencies]
@@ -8724,7 +8724,7 @@ type = ["pytest-mypy"]
 [extras]
 aws = ["boto3"]
 cli = ["click", "dotyaml", "typer"]
-dev = ["aiohttp", "antlr4-tools", "behave", "black", "black", "boto3", "click", "click-option-group", "coverage", "dotyaml", "flask", "flask-cors", "gherkin-official", "h5py", "kanbus", "logfire", "markdown", "mlflow", "moto", "nanoid", "openpyxl", "opentelemetry-api", "opentelemetry-sdk", "pyarrow", "pydantic-evals", "pypdf", "pytest", "pytest-asyncio", "pytest-xdist", "python-semantic-release", "ruff", "typer", "typer"]
+dev = ["aiohttp", "antlr4-tools", "behave", "black", "black", "boto3", "click", "click-option-group", "coverage", "dotyaml", "flask", "flask-cors", "gherkin-official", "h5py", "kanbus", "logfire", "markdown", "mlflow", "moto", "nanoid", "openpyxl", "opentelemetry-api", "opentelemetry-sdk", "pyarrow", "pydantic-evals", "pypdf", "pytest", "pytest-asyncio", "pytest-xdist", "python-semantic-release", "ruff", "typer"]
 discord = ["discord.py"]
 docs = ["markdown"]
 email = ["aiosmtplib"]
@@ -8740,4 +8740,4 @@ slack = ["slack-sdk"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.14"
-content-hash = "84a95f2e99097ca7b0c5c24dd21d3d9ef873578f351cb2075f28e9dcee816fc1"
+content-hash = "15754e790c481bc96bf090b155f4aecd2a69ae28f3622655a51d5ccefb1b8669"
