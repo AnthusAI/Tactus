@@ -78,7 +78,7 @@ jobs:
       semantic_release_requirement: "python-semantic-release~=10.0"
       run_publish: true
     secrets:
-      anthusbot_gh_token: ${{ secrets.GH_TOKEN }}
+      anthusbot_gh_token: ${{ github.token }}
       semantic_release_pypi_token: ${{ secrets.PYPI_TOKEN }}
 
   desktop-builds:
