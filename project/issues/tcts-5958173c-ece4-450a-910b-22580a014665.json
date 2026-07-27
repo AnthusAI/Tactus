@@ -37,10 +37,16 @@
       "author": "derek.norrbom",
       "text": "Validation complete: release workflow YAML parsed successfully; assertions confirmed main-only push/PR triggers, the Python 3.11 matrix, and the semantic-release guard. Ruff, Black, ./test-ci.sh, and behave --tags=-skip all passed locally.",
       "created_at": "2026-07-27T21:59:07.170444Z"
+    },
+    {
+      "id": "c5a0906c-44fd-4420-92fe-d96590761025",
+      "author": "derek.norrbom",
+      "text": "Committed and pushed 4c09350 (chore(ci): limit quality checks to main PRs) to chore/limit-ci-python-311. No GitHub Actions run was triggered by this feature-branch push, which confirms the new trigger scope conserves private-repository minutes. The task remains in progress until a user-approved PR is merged and its GitHub Actions checks pass.",
+      "created_at": "2026-07-27T21:59:29.733549Z"
     }
   ],
   "created_at": "2026-07-27T21:56:17.553113Z",
-  "updated_at": "2026-07-27T21:59:07.170444Z",
+  "updated_at": "2026-07-27T21:59:29.733549Z",
   "closed_at": null,
   "custom": {}
 }
