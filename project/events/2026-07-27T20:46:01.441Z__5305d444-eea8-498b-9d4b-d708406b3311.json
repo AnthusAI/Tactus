@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "event_id": "5305d444-eea8-498b-9d4b-d708406b3311",
+  "issue_id": "tcts-184745ee-09d6-4547-b6d9-c088a0f7ea23",
+  "event_type": "state_transition",
+  "occurred_at": "2026-07-27T20:46:01.441Z",
+  "actor_id": "ryan.porter",
+  "payload": {
+    "from_status": "open",
+    "to_status": "in_progress"
+  }
+}
