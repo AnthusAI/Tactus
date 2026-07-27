@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "a31f31c1-51a7-4f46-b63b-1bf0d923b50f",
+  "issue_id": "tcts-da8f9c24-5ac2-4f13-9b88-031c5a9a9f03",
+  "event_type": "issue_created",
+  "occurred_at": "2026-07-27T20:08:23.365Z",
+  "actor_id": "ryan.porter",
+  "payload": {
+    "title": "Fix semantic release authentication",
+    "description": "The main-branch semantic release must authenticate with an existing repository secret so tested runtime API changes can be versioned and published. Acceptance: the release workflow passes a nonempty token to the reusable release job, all quality checks pass, and a new package version is published from main.",
+    "issue_type": "bug",
+    "status": "open",
+    "priority": 0,
+    "assignee": null,
+    "parent": "tcts-d9498f3c-22ef-45b3-b6cd-5012b994764a",
+    "labels": []
+  }
+}
