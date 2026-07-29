@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "d8c2da9b-b8e3-494c-b4e3-407b353d1c48",
+  "issue_id": "tcts-3f120334-b5fa-4e17-834c-3a91f81691cd",
+  "event_type": "issue_created",
+  "occurred_at": "2026-07-29T18:31:58.488Z",
+  "actor_id": "ryan.porter",
+  "payload": {
+    "title": "Allow agentless orchestration procedures",
+    "description": "As a procedure author, I want a workflow that only composes host tools, state, stages, and human review to execute without a fake LLM agent, so that orchestration-only procedures remain honest and minimal.\n\nFeature: Agentless procedure orchestration\n\nScenario: Run a procedure with no agent declarations\n  Given a valid procedure uses only host tools, state, stages, and human interactions\n  And it declares no agents\n  When Tactus validates and executes the procedure\n  Then validation succeeds\n  And the procedure advances through its orchestration steps\n\nScenario: Reject an undeclared agent reference\n  Given a procedure declares no agents\n  But its code invokes an agent primitive by name\n  When Tactus validates the procedure\n  Then validation fails with an undeclared-agent error\n\nOut of scope: creating implicit agents or changing model configuration.",
+    "issue_type": "bug",
+    "status": "open",
+    "priority": 1,
+    "assignee": null,
+    "parent": "tcts-4668192e-6bad-4c94-b3ca-c240c8b0ed5f",
+    "labels": []
+  }
+}

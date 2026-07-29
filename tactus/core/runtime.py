@@ -380,32 +380,7 @@ class TactusRuntime:
                 placeholder_params = {}  # Empty params dict
                 self.lua_sandbox.inject_primitive("Log", placeholder_log)
                 # Inject _state_primitive for metatable to use
-                self.lua_sandbox.inject_primitive("_state_primitive", placeholder_state)
-
-                # Create State object with special methods and lowercase state proxy with metatable
-                self.lua_sandbox.lua.execute("""
-                    State = {
-                        increment = function(key, amount)
-                            return _state_primitive.increment(key, amount or 1)
-                        end,
-                        append = function(key, value)
-                            return _state_primitive.append(key, value)
-                        end,
-                        all = function()
-                            return _state_primitive.all()
-                        end
-                    }
-
-                    -- Create lowercase 'state' proxy with metatable
-                    state = setmetatable({}, {
-                        __index = function(_, key)
-                            return _state_primitive.get(key)
-                        end,
-                        __newindex = function(_, key, value)
-                            _state_primitive.set(key, value)
-                        end
-                    })
-                """)
+                self._ensure_lua_state_proxy(placeholder_state)
                 self.lua_sandbox.inject_primitive("Tool", placeholder_tool_primitive)
                 self.lua_sandbox.inject_primitive("params", placeholder_params)
                 placeholder_system = LuaSystemPrimitive(
@@ -914,6 +889,47 @@ class TactusRuntime:
             strict_determinism=strict_determinism,
             log_handler=self.log_handler,
         )
+
+    def _ensure_lua_state_proxy(self, state_primitive: StatePrimitive) -> None:
+        """Expose the public State API for both Lua DSL and legacy YAML procedures."""
+        if self.lua_sandbox is None:
+            return
+        self.lua_sandbox.inject_primitive("_state_primitive", state_primitive)
+        self.lua_sandbox.lua.execute("""
+            if State == nil then
+                State = {
+                    get = function(key, default)
+                        return _state_primitive.get(key, default)
+                    end,
+                    set = function(key, value)
+                        return _state_primitive.set(key, value)
+                    end,
+                    increment = function(key, amount)
+                        return _state_primitive.increment(key, amount or 1)
+                    end,
+                    append = function(key, value)
+                        return _state_primitive.append(key, value)
+                    end,
+                    all = function()
+                        return _state_primitive.all()
+                    end,
+                    clear = function()
+                        return _state_primitive.clear()
+                    end
+                }
+            end
+
+            if state == nil then
+                state = setmetatable({}, {
+                    __index = function(_, key)
+                        return _state_primitive.get(key)
+                    end,
+                    __newindex = function(_, key, value)
+                        _state_primitive.set(key, value)
+                    end
+                })
+            end
+        """)
 
     async def _initialize_primitives(
         self,
@@ -2761,12 +2777,9 @@ class TactusRuntime:
 
         # Re-inject state primitive (may have been updated with schema)
         if self.state_primitive:
-            # Replace the placeholder _state_primitive with the real one
-            # (The metatable was already set up during parsing, so it will use this new primitive)
-            self.lua_sandbox.inject_primitive("_state_primitive", self.state_primitive)
-            logger.debug(
-                "State primitive re-injected (metatable already configured during parsing)"
-            )
+            # Lua DSL has a placeholder proxy from parsing; legacy YAML first creates it here.
+            self._ensure_lua_state_proxy(self.state_primitive)
+            logger.debug("State primitive and public proxy injected")
         if self.iterations_primitive:
             self.lua_sandbox.inject_primitive("Iterations", self.iterations_primitive)
         if self.stop_primitive:

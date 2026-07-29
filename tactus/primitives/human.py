@@ -75,6 +75,69 @@ class HumanPrimitive:
             # Primitive type, return as-is
             return lua_value
 
+    _ACTION_METADATA_KEYS = (
+        "action_key",
+        "resource_refs",
+        "preconditions",
+        "expires_at",
+        "response_schema",
+        "ui_schema",
+    )
+
+    def _with_action_metadata(
+        self,
+        options: dict[str, Any],
+        metadata: Optional[dict[str, Any]] = None,
+        primitive_name: Optional[str] = None,
+    ) -> dict[str, Any]:
+        """Add the host-neutral action contract without rewriting opaque values."""
+        result = dict(metadata or {})
+        for key in self._ACTION_METADATA_KEYS:
+            if key in options:
+                result[key] = self._convert_lua_to_python(options[key])
+        if primitive_name and "response_schema" in result:
+            try:
+                import jsonschema
+
+                jsonschema.validators.validator_for(result["response_schema"]).check_schema(
+                    result["response_schema"]
+                )
+            except jsonschema.SchemaError as exc:
+                raise ValueError(
+                    f"Human.{primitive_name} response_schema is invalid: {exc.message}"
+                ) from exc
+        return result
+
+    def _validated_response_value(
+        self,
+        value: Any,
+        options: dict[str, Any],
+        primitive_name: str,
+    ) -> Any:
+        """Validate a response when the procedure declared a JSON Schema."""
+        response_schema = options.get("response_schema")
+        if response_schema is None:
+            return value
+
+        schema = self._convert_lua_to_python(response_schema)
+        try:
+            import jsonschema
+
+            jsonschema.validators.validator_for(schema).check_schema(schema)
+            jsonschema.validate(instance=value, schema=schema)
+        except jsonschema.SchemaError as exc:
+            raise ValueError(
+                f"Human.{primitive_name} response_schema is invalid: {exc.message}"
+            ) from exc
+        except jsonschema.ValidationError as exc:
+            path = ".".join(str(part) for part in exc.absolute_path)
+            location = f" at {path}" if path else ""
+            raise ValueError(
+                f"Human.{primitive_name} response does not match response_schema{location}: "
+                f"{exc.message}"
+            ) from exc
+        return value
+
     def approve(self, options: Optional[dict[str, Any]] = None) -> bool:
         """
         Request yes/no approval from human (BLOCKING).
@@ -139,7 +202,7 @@ class HumanPrimitive:
                 timeout_seconds=timeout,
                 default_value=default,
                 options=None,
-                metadata=context,
+                metadata=self._with_action_metadata(options_dict, context, "approve"),
             )
 
         response = self.execution_context.checkpoint(checkpoint_fn, "hitl_approval")
@@ -148,7 +211,7 @@ class HumanPrimitive:
             response,
         )
 
-        return response.value
+        return self._validated_response_value(response.value, options_dict, "approve")
 
     def input(self, options: Optional[dict[str, Any]] = None) -> Optional[str]:
         """
@@ -201,12 +264,14 @@ class HumanPrimitive:
                 timeout_seconds=timeout,
                 default_value=default,
                 options=None,
-                metadata={"placeholder": placeholder},
+                metadata=self._with_action_metadata(
+                    options_dict, {"placeholder": placeholder}, "input"
+                ),
             )
 
         response = self.execution_context.checkpoint(checkpoint_fn, "hitl_input")
 
-        return response.value
+        return self._validated_response_value(response.value, options_dict, "input")
 
     def review(self, options: Optional[dict[str, Any]] = None) -> Optional[dict[str, Any]]:
         """
@@ -282,12 +347,16 @@ class HumanPrimitive:
                     "feedback": "",
                 },
                 options=formatted_options,
-                metadata={"artifact": artifact_python, "artifact_type": artifact_type},
+                metadata=self._with_action_metadata(
+                    options_dict,
+                    {"artifact": artifact_python, "artifact_type": artifact_type},
+                    "review",
+                ),
             )
 
         response = self.execution_context.checkpoint(checkpoint_fn, "hitl_review")
 
-        return response.value
+        return self._validated_response_value(response.value, options_dict, "review")
 
     def notify(self, options: Optional[dict[str, Any]] = None) -> None:
         """
@@ -315,6 +384,10 @@ class HumanPrimitive:
         level = options_dict.get("level", "info")
 
         logger.info("Human notification: [%s] %s", level, message)
+
+        # Accept the common action metadata even though base Tactus notifications
+        # remain log-only. Host notification adapters can consume the same keys.
+        self._with_action_metadata(options_dict, {"level": level})
 
         # In base Tactus, notifications are just logged
         # Implementations can override this to send actual notifications
@@ -365,7 +438,9 @@ class HumanPrimitive:
         logger.warning("Human escalation: %s... (severity: %s)", message[:50], severity)
 
         # Prepare metadata with severity and context
-        metadata = {"severity": severity, "context": context}
+        metadata = self._with_action_metadata(
+            options_dict, {"severity": severity, "context": context}, "escalate"
+        )
 
         # CRITICAL: Wrap HITL call in checkpoint for transparent durability
         def checkpoint_fn():
@@ -378,7 +453,9 @@ class HumanPrimitive:
                 metadata=metadata,
             )
 
-        self.execution_context.checkpoint(checkpoint_fn, "hitl_escalation")
+        response = self.execution_context.checkpoint(checkpoint_fn, "hitl_escalation")
+
+        self._validated_response_value(response.value, options_dict, "escalate")
 
         logger.info("Human escalation resolved - resuming workflow")
 
@@ -466,6 +543,7 @@ class HumanPrimitive:
         }
         if style:
             metadata["style"] = style
+        metadata = self._with_action_metadata(options_dict, metadata, "select")
 
         # CRITICAL: Wrap HITL call in checkpoint for transparent durability
         def checkpoint_fn():
@@ -480,7 +558,7 @@ class HumanPrimitive:
 
         response = self.execution_context.checkpoint(checkpoint_fn, "hitl_select")
 
-        return response.value
+        return self._validated_response_value(response.value, options_dict, "select")
 
     def upload(self, options: Optional[dict[str, Any]] = None) -> Optional[dict[str, Any]]:
         """
@@ -565,6 +643,7 @@ class HumanPrimitive:
             "max_size": max_size,
             "multiple": multiple,
         }
+        metadata = self._with_action_metadata(options_dict, metadata, "upload")
 
         # CRITICAL: Wrap HITL call in checkpoint for transparent durability
         def checkpoint_fn():
@@ -579,7 +658,7 @@ class HumanPrimitive:
 
         response = self.execution_context.checkpoint(checkpoint_fn, "hitl_upload")
 
-        return response.value
+        return self._validated_response_value(response.value, options_dict, "upload")
 
     def _parse_size(self, size_str: str) -> int:
         """Parse human-readable size string to bytes."""
@@ -908,6 +987,7 @@ class HumanPrimitive:
             "data": data,
             "actions": actions,
         }
+        metadata = self._with_action_metadata(options, metadata, "custom")
 
         logger.info("Human custom component requested: %s", component_type)
 
@@ -925,7 +1005,7 @@ class HumanPrimitive:
 
         response = self.execution_context.checkpoint(checkpoint_fn, "hitl_custom")
 
-        return response.value
+        return self._validated_response_value(response.value, options, "custom")
 
     def __repr__(self) -> str:
         return f"HumanPrimitive(config_keys={list(self.hitl_config.keys())})"

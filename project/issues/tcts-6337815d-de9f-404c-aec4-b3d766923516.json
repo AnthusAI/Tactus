@@ -1,0 +1,31 @@
+{
+  "id": "tcts-6337815d-de9f-404c-aec4-b3d766923516",
+  "title": "Carry structured metadata through Human primitives",
+  "description": "As a procedure author, I want human interactions to carry generic resource and response contracts, so that a host can present and validate durable actions without runtime-specific patches.\n\nFeature: Structured human interaction metadata\n\nScenario: Preserve optional action context\n  Given a Human interaction has an action key, resource references, preconditions, expiry, response schema, and UI hints\n  When Tactus emits the interaction through a host adapter\n  Then every field is preserved unchanged\n  And opaque values are not reconstructed\n\nScenario: Validate a structured review response\n  Given a review declares a JSON response schema\n  When the host returns a response\n  Then a conforming response resumes the procedure\n  And a nonconforming response fails without advancing\n  And replay returns the same accepted response\n\nScenario: Preserve compatibility\n  Given an existing procedure uses Human approve, input, review, notify, or escalate without structured metadata\n  When it executes\n  Then its observable behavior remains unchanged",
+  "type": "story",
+  "status": "in_progress",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-4668192e-6bad-4c94-b3ca-c240c8b0ed5f",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "a6b4d66d-465e-42bd-9830-408d6bbae648",
+      "author": "ryan.porter",
+      "text": "Validation update: full isolated Tactus suite passed with 4,203 tests; 449 Behave scenarios and 24 stdlib tests also passed. After formatting the one new runtime test, Black and Ruff pass across the repository and the 153 focused structured-HITL/runtime tests pass.",
+      "created_at": "2026-07-29T19:47:10.874139Z"
+    },
+    {
+      "id": "7afdf8f5-71bc-43f4-9cb5-24ac19206267",
+      "author": "ryan.porter",
+      "text": "Model-backed sandbox acceptance exercised this worktree through a persisted structured review, child response, atomic parent claim, and procedure replay with no operational mutation. Plexus currently resolves released Tactus 0.51.5, which lacks these new runtime capabilities; Tactus must be released before the Plexus workflow can be deployed without a local source override.",
+      "created_at": "2026-07-29T19:54:58.016266Z"
+    }
+  ],
+  "created_at": "2026-07-29T16:49:13.973475Z",
+  "updated_at": "2026-07-29T19:54:58.016266Z",
+  "closed_at": null,
+  "custom": {}
+}

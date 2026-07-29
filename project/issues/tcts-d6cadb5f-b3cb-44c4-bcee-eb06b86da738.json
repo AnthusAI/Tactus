@@ -1,0 +1,25 @@
+{
+  "id": "tcts-d6cadb5f-b3cb-44c4-bcee-eb06b86da738",
+  "title": "Preserve sequential Lua tables as host arrays",
+  "description": "As a host integration author, I want sequential Lua tables to cross registered Python module calls as ordered lists, so typed host contracts receive their documented values.\n\nFeature: Host module table conversion\n\n  Scenario: Convert a sequential Lua table\n    Given a registered host function receives a Lua table with keys one through N\n    When Tactus invokes the Python function\n    Then the argument is an ordered Python list\n    And nested sequential tables are also lists\n\n  Scenario: Preserve mapping tables\n    Given a Lua table contains named or sparse keys\n    When Tactus invokes the Python function\n    Then the argument remains a mapping with every entry\n\nOut of scope: host-specific validation or product-specific behavior.",
+  "type": "bug",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-4668192e-6bad-4c94-b3ca-c240c8b0ed5f",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "9c108067-1ebb-435e-8d30-d49aecd0a22a",
+      "author": "ryan.porter",
+      "text": "Direct runtime reproduction proved registered host modules already convert sequential and nested Lua tables to ordered Python lists while preserving sparse mappings. The observed failure occurs earlier in the caller CLI, which passes JSON array text as a string. No Tactus implementation change is required.",
+      "created_at": "2026-07-29T19:12:42.756259Z"
+    }
+  ],
+  "created_at": "2026-07-29T19:10:15.543432Z",
+  "updated_at": "2026-07-29T19:12:48.080126Z",
+  "closed_at": "2026-07-29T19:12:48.080126Z",
+  "custom": {}
+}

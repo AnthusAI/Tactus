@@ -1,0 +1,31 @@
+{
+  "id": "tcts-4668192e-6bad-4c94-b3ca-c240c8b0ed5f",
+  "title": "Structured human interaction contracts",
+  "description": "Purpose: Let host applications attach stable action identity, typed resource references, freshness preconditions, expiry, and structured response schemas to Tactus human interactions without coupling the runtime to any host product.\n\nExclusions:\n- Host authorization and persistence.\n- External notification delivery.\n- Product-specific resource routing.\n\nDefinition of Done:\n- Existing Human primitives accept and preserve the optional generic metadata.\n- Structured review responses are validated deterministically.\n- Replay and callback behavior remain compatible.\n- Outside-in specifications and quality gates pass.",
+  "type": "epic",
+  "status": "in_progress",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "921519b6-efae-4701-b137-526ac01ec67d",
+      "author": "ryan.porter",
+      "text": "Started the structured HITL contract increment on a clean feature worktree from develop. The runtime will remain host-neutral: it transports optional action metadata and validates structured responses, while authorization, persistence, routing, and external delivery stay with the host application.",
+      "created_at": "2026-07-29T16:49:14.526820Z"
+    },
+    {
+      "id": "57d90b90-0e29-49c0-90f3-f56b5d2659f8",
+      "author": "ryan.porter",
+      "text": "Final local validation is green: 4,203 tests, 449 behavior scenarios, 24 stdlib tests, repository-wide Black and Ruff, and 153 focused structured-HITL/runtime tests. Sandbox acceptance exercised a persisted review and replay successfully. Plexus consumption must wait for these changes to receive a new released Tactus version.",
+      "created_at": "2026-07-29T20:06:54.958197Z"
+    }
+  ],
+  "created_at": "2026-07-29T16:49:05.634885Z",
+  "updated_at": "2026-07-29T20:06:54.958197Z",
+  "closed_at": null,
+  "custom": {}
+}

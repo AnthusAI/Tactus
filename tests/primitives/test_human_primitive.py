@@ -142,6 +142,148 @@ def test_review_merges_config():
     assert ctx.calls[0]["message"] == "Override"
 
 
+def test_review_preserves_structured_action_contract():
+    class ResponseContext(FakeExecutionContext):
+        def wait_for_human(self, *args, **kwargs):
+            super().wait_for_human(*args, **kwargs)
+            return FakeResponse(
+                {"decisions": [{"target": "awkward-id::01", "decision": "approve", "comment": ""}]}
+            )
+
+    ctx = ResponseContext()
+    primitive = HumanPrimitive(ctx)
+    resource_refs = [
+        {
+            "system": "example",
+            "kind": "record",
+            "id": "awkward-id::01",
+            "relation": "subject",
+        }
+    ]
+    preconditions = [{"resource_id": "awkward-id::01", "fingerprint": "sha256:abc"}]
+    response_schema = {
+        "type": "object",
+        "required": ["decisions"],
+        "properties": {
+            "decisions": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "required": ["target", "decision"],
+                    "properties": {
+                        "target": {"type": "string"},
+                        "decision": {"enum": ["approve", "reject"]},
+                        "comment": {"type": "string"},
+                    },
+                },
+            }
+        },
+    }
+    ui_schema = {"layout": "table", "decision_field": "decision"}
+
+    result = primitive.review(
+        {
+            "message": "Review targets",
+            "action_key": "run::approval::01",
+            "resource_refs": resource_refs,
+            "preconditions": preconditions,
+            "expires_at": "2030-01-02T03:04:05Z",
+            "response_schema": response_schema,
+            "ui_schema": ui_schema,
+        }
+    )
+
+    assert result["decisions"][0]["target"] == "awkward-id::01"
+    metadata = ctx.calls[0]["metadata"]
+    assert metadata["action_key"] == "run::approval::01"
+    assert metadata["resource_refs"] == resource_refs
+    assert metadata["preconditions"] == preconditions
+    assert metadata["expires_at"] == "2030-01-02T03:04:05Z"
+    assert metadata["response_schema"] == response_schema
+    assert metadata["ui_schema"] == ui_schema
+
+
+def test_review_rejects_response_that_violates_declared_schema():
+    class InvalidResponseContext(FakeExecutionContext):
+        def wait_for_human(self, *args, **kwargs):
+            super().wait_for_human(*args, **kwargs)
+            return FakeResponse({"decisions": [{"decision": "maybe"}]})
+
+    primitive = HumanPrimitive(InvalidResponseContext())
+
+    with pytest.raises(ValueError, match="Human.review response does not match response_schema"):
+        primitive.review(
+            {
+                "response_schema": {
+                    "type": "object",
+                    "required": ["decisions"],
+                    "properties": {
+                        "decisions": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "required": ["target", "decision"],
+                                "properties": {
+                                    "target": {"type": "string"},
+                                    "decision": {"enum": ["approve", "reject"]},
+                                },
+                            },
+                        }
+                    },
+                }
+            }
+        )
+
+
+def test_review_rejects_invalid_response_schema_before_requesting_human_input():
+    ctx = FakeExecutionContext()
+    primitive = HumanPrimitive(ctx)
+
+    with pytest.raises(ValueError, match="Human.review response_schema is invalid"):
+        primitive.review(
+            {
+                "message": "Review",
+                "response_schema": {"type": "not-a-json-schema-type"},
+            }
+        )
+
+    assert ctx.calls == []
+
+
+@pytest.mark.parametrize(
+    ("method_name", "options"),
+    [
+        ("approve", {"message": "Approve?"}),
+        ("input", {"message": "Input?"}),
+        ("review", {"message": "Review?"}),
+        ("escalate", {"message": "Escalate?"}),
+        ("select", {"message": "Select?", "options": ["one"]}),
+        ("upload", {"message": "Upload?"}),
+    ],
+)
+def test_blocking_human_primitives_preserve_common_action_metadata(method_name, options):
+    ctx = FakeExecutionContext()
+    primitive = HumanPrimitive(ctx)
+    options.update(
+        {
+            "action_key": "stable-action-key",
+            "resource_refs": [{"system": "example", "kind": "thing", "id": "opaque::id"}],
+            "preconditions": [{"fingerprint": "sha256:def"}],
+            "expires_at": "2030-01-02T03:04:05Z",
+            "ui_schema": {"layout": "compact"},
+        }
+    )
+
+    getattr(primitive, method_name)(options)
+
+    metadata = ctx.calls[0]["metadata"]
+    assert metadata["action_key"] == "stable-action-key"
+    assert metadata["resource_refs"][0]["id"] == "opaque::id"
+    assert metadata["preconditions"] == [{"fingerprint": "sha256:def"}]
+    assert metadata["expires_at"] == "2030-01-02T03:04:05Z"
+    assert metadata["ui_schema"] == {"layout": "compact"}
+
+
 def test_notify_does_not_block():
     ctx = FakeExecutionContext()
     primitive = HumanPrimitive(ctx)
