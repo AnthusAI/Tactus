@@ -1,0 +1,49 @@
+{
+  "id": "tcts-5bdd8fdc-091b-4c09-9a16-32020cdc1dde",
+  "title": "Implement scheduled procedure continuation primitive",
+  "description": "Implement the host-neutral scheduled-continuation exception, execution-context contract, Procedure primitive, runtime result mapping, documentation, and outside-in behavior coverage for story tcts-b872be. Preserve existing human and child wait semantics; do not add product-specific persistence or blocking sleeps.",
+  "type": "task",
+  "status": "in_progress",
+  "priority": 0,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-d9498f3c-22ef-45b3-b6cd-5012b994764a",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "34f26f2c-f219-4236-9d57-388c24c03be7",
+      "author": "ryan.porter",
+      "text": "Production consumer dogfooding exposed a false-success boundary after a retryable durable-publication interruption. Implementing a generic scheduled continuation so callers can release workers and resume without returning success or using blocking sleep.",
+      "created_at": "2026-07-31T14:35:27.549291Z"
+    },
+    {
+      "id": "57e6ff17-49b2-4c61-b27b-e1253724c4b0",
+      "author": "ryan.porter",
+      "text": "Started outside-in implementation: will add BDD and unit coverage for durable, host-neutral Procedure.defer, verify red before production code, then integrate runtime mapping and documentation. No product-specific persistence or scheduling is planned.",
+      "created_at": "2026-07-31T14:36:14.033465Z"
+    },
+    {
+      "id": "acdf9787-36e2-4284-8693-67b6ec7276ff",
+      "author": "ryan.porter",
+      "text": "Outside-in scheduled-continuation implementation is green locally. Added , checkpoint/replay semantics, explicit runtime and sandbox  transport mapping, CLI pause display, documentation, and fail-closed conflict validation. Red proof recorded before implementation (missing exception/primitive). Focused verification: 4 BDD scenarios/16 steps; 81 primitive/context/runtime tests; 23 continuation transport/CLI tests; targeted Ruff and Black checks. Continuing broader regressions; no commit/push per instruction.",
+      "created_at": "2026-07-31T14:44:20.313308Z"
+    },
+    {
+      "id": "6e9f7e5f-8510-4ea3-bfcc-babfac885cf5",
+      "author": "ryan.porter",
+      "text": "Broader continuation compatibility checks passed: both durable wait BDD features are green with 7 scenarios and 29 steps, and the scheduled-continuation unit plus direct CLI and sandbox transport suites are green. A broad primitives/core/sandbox/CLI run reached 1275 passing and 14 failing tests. The failures are isolated to current dirty DSL handle-binding and runtime handle-enhancement areas, unrelated to scheduled continuation; no unrelated repair was attempted.",
+      "created_at": "2026-07-31T14:47:06.616840Z"
+    },
+    {
+      "id": "877b6452-51f5-4505-91a3-1e81f18f094d",
+      "author": "ryan.porter",
+      "text": "Consumer replay exposed that MemoryStorage implemented the state_set protocol incompletely and retained Lua tables tied to an expired runtime. Added red adapter coverage, then detached persisted Lua values into ordinary Python structures. The checked-in portfolio YAML now proves two consecutive scheduled retries: early replays remain WAITING_FOR_TIME, each due replay advances once, and terminal work runs only after both continuations. Focused Tactus validation: 156 passed; cross-repository Plexus runtime validation: 114 passed. No product-specific scheduling or blocking sleep added.",
+      "created_at": "2026-07-31T15:15:55.992173Z"
+    }
+  ],
+  "created_at": "2026-07-31T14:35:22.371311Z",
+  "updated_at": "2026-07-31T15:15:55.992173Z",
+  "closed_at": null,
+  "custom": {}
+}

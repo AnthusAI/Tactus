@@ -1,0 +1,55 @@
+{
+  "id": "tcts-0beb7fcf-217d-47f3-b4b6-4aabc256f7cc",
+  "title": "Implement host-neutral external-child wait checkpoint",
+  "description": "Add the supported host-neutral wait request, serializable child references and terminal results, checkpoint replay behavior, and distinct waiting exception/outcome required by the durable external-child story. Keep host persistence, authorization, polling schedules, and resource resolution outside Tactus. Do not alter process-local Procedure.spawn or add infrastructure.",
+  "type": "task",
+  "status": "in_progress",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-d9498f3c-22ef-45b3-b6cd-5012b994764a",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "059c4258-ca28-4064-a760-0c20019fff4b",
+      "author": "ryan.porter",
+      "text": "Coding started: loaded repository and delivery guidance. Will add executable outside-in specs and capture their intended red failure before runtime changes; scope is host-neutral only.",
+      "created_at": "2026-07-30T22:46:49.791595Z"
+    },
+    {
+      "id": "7298b563-d904-4cc0-b15a-f0920313ab90",
+      "author": "ryan.porter",
+      "text": "Implementation validated: added durable host-neutral external-child wait with request validation, pending checkpoint replay, distinct suspension outcome, all/any terminal semantics, and documentation. Focused unit, BDD, ruff, and black checks are green. No host polling, persistence, scheduling, cancellation, or process-local spawn changes added.",
+      "created_at": "2026-07-30T22:51:30.016286Z"
+    },
+    {
+      "id": "222b6ed6-fafe-46bf-aba4-35f7013e7950",
+      "author": "ryan.porter",
+      "text": "Full local CI on Python 3.11 found 20 existing runtime branch tests failing because the test DummyExecutionContext does not accept the new child_wait_resolver constructor dependency. Direct external-child pytest (15), Behave scenarios, standard-library tests, lint, formatting, wheel build, and import checks pass. A minimal fixture compatibility repair and full-suite rerun are required before acceptance. Two separate SageMaker tests are environment-blocked by missing botocore CRT support and are not attributed to this feature.",
+      "created_at": "2026-07-31T01:30:22.023446Z"
+    },
+    {
+      "id": "e4f2594f-c167-4607-8f67-63a17415ff6b",
+      "author": "ryan.porter",
+      "text": "Taking the recorded fixture-only follow-up: reproduce the runtime-branch failures, preserve production construction behavior, and validate focused, BDD, and full non-integration tests. No production, dependency, version, or deployment changes.",
+      "created_at": "2026-07-31T01:30:45.200066Z"
+    },
+    {
+      "id": "a2ca1a70-d1ac-46b0-a3cd-2f917e40d7ef",
+      "author": "ryan.porter",
+      "text": "Fixture compatibility repair is complete and remains limited to the runtime-branch test dummies. Evidence: runtime branches 24 passed; direct external-child tests 15 passed; external-child Behave feature 3 scenarios passed; lint and formatting passed. Full non-integration pytest: 4216 passed, 73 skipped, 63 deselected, with 2 unrelated SageMaker tests blocked by the local AWS login credential provider requiring botocore CRT support. No production, dependency, version, or deployment changes were made. Task remains in_progress pending authorized integration and landing.",
+      "created_at": "2026-07-31T01:33:49.228395Z"
+    },
+    {
+      "id": "85a33d57-e6f4-4bd3-a30a-c1d5748117fd",
+      "author": "ryan.porter",
+      "text": "Independent review accepted the minimal fixture-only constructor compatibility change with no findings. Focused runtime and external-child tests pass. A full non-integration pytest rerun with inert test AWS credentials now passes 4,218 tests with 73 skipped and 63 deselected in 138 seconds; the prior two SageMaker failures were local login credential-provider setup, not source regressions. Task remains in progress pending commit/release integration.",
+      "created_at": "2026-07-31T01:39:56.112312Z"
+    }
+  ],
+  "created_at": "2026-07-30T22:45:32.854154Z",
+  "updated_at": "2026-07-31T01:39:56.112312Z",
+  "closed_at": null,
+  "custom": {}
+}

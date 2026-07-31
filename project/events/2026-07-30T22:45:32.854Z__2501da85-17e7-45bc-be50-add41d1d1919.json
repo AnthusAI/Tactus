@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "2501da85-17e7-45bc-be50-add41d1d1919",
+  "issue_id": "tcts-0beb7fcf-217d-47f3-b4b6-4aabc256f7cc",
+  "event_type": "issue_created",
+  "occurred_at": "2026-07-30T22:45:32.854Z",
+  "actor_id": "ryan.porter",
+  "payload": {
+    "title": "Implement host-neutral external-child wait checkpoint",
+    "description": "Add the supported host-neutral wait request, serializable child references and terminal results, checkpoint replay behavior, and distinct waiting exception/outcome required by the durable external-child story. Keep host persistence, authorization, polling schedules, and resource resolution outside Tactus. Do not alter process-local Procedure.spawn or add infrastructure.",
+    "issue_type": "task",
+    "status": "open",
+    "priority": 1,
+    "assignee": null,
+    "parent": "tcts-d9498f3c-22ef-45b3-b6cd-5012b994764a",
+    "labels": []
+  }
+}

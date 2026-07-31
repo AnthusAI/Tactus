@@ -1,0 +1,18 @@
+{
+  "id": "tcts-1bfc71d1-72b5-4ba7-a2b7-4f2490d47534",
+  "title": "Add budget-authorized model call hooks",
+  "description": "Provide a supported provider-attempt lifecycle so host applications can authorize, settle, and recover bounded model calls without monkeypatching. No pricing policy is owned here; the host supplies the authority.\n\nDefinition of done: every opted-in agent attempt calls the host authority before provider contact, reports actual usage or an ambiguous outcome afterward, exposes bounded retry identity, and replays without duplicate provider contact.",
+  "type": "epic",
+  "status": "in_progress",
+  "priority": 0,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-07-31T02:37:17.905265Z",
+  "updated_at": "2026-07-31T02:37:26.227872Z",
+  "closed_at": null,
+  "custom": {}
+}

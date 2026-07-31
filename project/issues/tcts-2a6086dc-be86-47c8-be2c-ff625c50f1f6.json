@@ -1,0 +1,97 @@
+{
+  "id": "tcts-2a6086dc-be86-47c8-be2c-ff625c50f1f6",
+  "title": "Implement model-attempt authority contract",
+  "description": "Harden the supported optional model-attempt authority contract: terminal unknown outcomes, replay-stable logical-call identity, post-contact non-retryable settlement behavior, and physical provider request input-token enforcement. Add outside-in regression coverage and focused validation. Policy, pricing, persistence, and product integrations are out of scope.",
+  "type": "task",
+  "status": "in_progress",
+  "priority": 0,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-1bfc71d1-72b5-4ba7-a2b7-4f2490d47534",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "572e13d4-5f0c-4607-b4e7-38e0a09750d4",
+      "author": "ryan.porter",
+      "text": "Started test-first implementation. Scope is an optional host model-attempt authority with durable identity/envelopes and runtime-to-agent propagation; pricing, GraphQL, and Plexus persistence remain out of scope. I will add outside-in no-contact/replay/unknown-outcome coverage before production changes.",
+      "created_at": "2026-07-31T02:38:14.635703Z"
+    },
+    {
+      "id": "bf8e3975-988b-4b68-9dfa-bc8e378dc87b",
+      "author": "ryan.porter",
+      "text": "Red/green evidence: new outside-in authority suite first failed at collection because the contract module was absent; it now passes. Focused regression run is green: 134 tests across DSPy execution/hooks/handle and runtime agent setup/enhancement. Contract now sends immutable plan/reservation/outcome/usage envelopes to an optional host authority before every Agent physical dispatch, rejects before contact, replays stored results, settles real usage/provider response IDs when available, and treats post-contact failures as outcome_unknown without automatic retry. Direct LiteLLM retries are disabled while authority is active. Remaining validation: inspect final diff and run the selected focused suite once more.",
+      "created_at": "2026-07-31T02:45:16.457284Z"
+    },
+    {
+      "id": "1ce24679-68bf-4634-8d6e-833d5fdfe5d4",
+      "author": "ryan.porter",
+      "text": "Continuing implementation: completed the local authority envelopes and runtime-to-agent propagation; now hardening broker retry forwarding so authority mode suppresses lower-layer retries across all transports. No provider calls, persistence, pricing, or commits planned.",
+      "created_at": "2026-07-31T02:46:31.707174Z"
+    },
+    {
+      "id": "93b65691-dcb1-4d74-9aaf-7bfe92cf1d04",
+      "author": "ryan.porter",
+      "text": "Implementation and focused verification complete. Added optional host model-attempt authority envelopes and runtime-to-agent propagation, provider-attempt reservation/settlement, no-contact reject/replay behavior, outcome-unknown protection after provider contact, local caps, and broker num_retries=0 forwarding across asyncio, AnyIO, and UDS handlers. Verification: poetry run pytest [authority, agent/runtime, broker focused targets] -q => 245 passed in 1.73s; ruff, black --check, and git diff --check passed. No provider/cloud calls, pricing policy, GraphQL or persistence work, commit, push, or task closure.",
+      "created_at": "2026-07-31T02:47:33.429201Z"
+    },
+    {
+      "id": "e651f3ee-85b1-451a-8d48-73d289b0a1d8",
+      "author": "ryan.porter",
+      "text": "Started P1 hardening with test-first coverage. Scope is runtime/agent authority behavior only; no client data, provider calls, pricing, persistence, commits, or deployment. The tracker hierarchy rejects a task parented directly to a story, so I retained the existing valid parent.",
+      "created_at": "2026-07-31T02:53:11.940453Z"
+    },
+    {
+      "id": "59127131-707b-4890-87d9-ad24c8527178",
+      "author": "ryan.porter",
+      "text": "P1 hardening implemented and verified locally (not closed: caller prohibited commit/push). Red first: 5 authority regressions failed for streaming fallback, settlement retry, replay identity, configured-ID collision, and input overflow. Green: focused authority suite 12 passed; focused authority/streaming/agent/runtime/retry/broker suite 320 passed. Added replay-stable identity derived from procedure/run/checkpoint state with configured ID only as namespace; reject unmeasurable or collision cases before contact. Raw provider payload is measured with LiteLLM token_counter before reserve/contact; overflow and unavailable exact payload fail closed. After contact, event/settlement failures produce non-retryable outcome_unknown with best-effort conservative settlement. Ruff, Black check, and git diff --check passed. No provider calls, pricing/persistence/product imports, commits, pushes, releases, or deployments.",
+      "created_at": "2026-07-31T02:56:55.429491Z"
+    },
+    {
+      "id": "fd272d0a-8440-48fa-bc99-0b296c71b975",
+      "author": "ryan.porter",
+      "text": "Follow-up validation caught the normal Raw agent wrapper shape (LuaCallableModule -> TactusModule -> RawModule) during preflight. Fixed the supported unwrapping so the authority measures RawModule.build_provider_request, not the wrapper; the overflow regression now exercises the real Raw serialized request. Re-ran the full focused set: 320 passed; Ruff, Black check, and diff check remain green.",
+      "created_at": "2026-07-31T02:57:34.776244Z"
+    },
+    {
+      "id": "518f8434-2830-48f4-9f22-fba2afe17bcd",
+      "author": "ryan.porter",
+      "text": "Independent re-review found three remaining P1 blockers. Starting test-first fixes for host-visible same-scope replay, distinct stable agent identities, exact provider-payload request hashing/reuse, and terminal unknown handling for first-chunk observer failures. No client data, external-child-wait work, provider calls, commits, pushes, releases, or deployments.",
+      "created_at": "2026-07-31T03:02:25.017574Z"
+    },
+    {
+      "id": "9dafcf21-fd0c-46eb-82ed-c3dc56e31e01",
+      "author": "ryan.porter",
+      "text": "Second P1 re-review fixes complete locally; task remains in_progress because commit/push were prohibited. Red evidence: 4 new reproductions failed while the previous 12 passed (same-handle replay blocked, cross-agent ID collision, tool_choice-insensitive request hash, first-chunk observer RuntimeError). Green: authority suite 18 passed after adding exact-request reuse and real Raw dispatch proofs; full authority/streaming/module/runtime/retry/broker/execution-context set 750 passed. Identity is SHA-256 of procedure/run/checkpoint + stable agent name + optional configured namespace + first exact provider-request hash; local seen-ID suppression was removed so host replay is authoritative. Each attempt builds one exact Raw request used for token counting, request_hash, and contact; repair attempts retain call_id but carry their own request_hash. Any post-contact stream observer/log/lifecycle failure is terminal ModelAttemptOutcomeUnknown with conservative settlement. Ruff, Black check, and diff check pass. No provider/cloud calls, pricing/product imports, commits, pushes, releases, deployments, or external-child-wait edits.",
+      "created_at": "2026-07-31T03:07:43.864374Z"
+    },
+    {
+      "id": "3f1bd348-f71c-4aed-91e2-2ef0c3bd6963",
+      "author": "ryan.porter",
+      "text": "Cross-repo audit found a durable replay gap: succeeded outcomes do not expose persistence-safe provider results. Starting test-first support for a versioned host-neutral JSON replay envelope, exact internal result restoration, corrupted/type-mismatched fail-closed behavior, and post-contact serialization/settlement unknown handling across streaming and non-streaming. No client data, pricing/persistence/product policy, provider calls, commits, pushes, releases, deployments, or unrelated edits.",
+      "created_at": "2026-07-31T03:12:34.608102Z"
+    },
+    {
+      "id": "dcb00ccc-ad9f-417d-b57c-ca8734184bff",
+      "author": "ryan.porter",
+      "text": "Durable replay contract gap fixed locally; task remains in_progress because commit/push were prohibited. Red: 8 new replay-contract failures while prior 18 authority tests passed. Green: authority suite 28 passed; full prior focused authority/streaming/module/runtime/retry/broker/execution-context set plus new tests 760 passed. Added ModelAttemptReplayPayload v1 as a plain JSON-compatible host-neutral envelope on succeeded outcomes and replay reservations. Agent serializes the actual DSPy Prediction, preserves typed ToolCalls, usage, provider request ID, plan/request hash, and restores a fresh Prediction without provider contact. Invalid version/kind/shape/type fails closed before contact; non-serializable provider results or settlement failure after contact become nonretryable outcome_unknown. Streaming and non-streaming persistence round trips pass. Ruff, Black check, and diff check pass. No pricing/persistence/Plexus imports, provider/cloud calls, commits, pushes, releases, deployments, or unrelated edits.",
+      "created_at": "2026-07-31T03:17:35.417273Z"
+    },
+    {
+      "id": "4fe89e31-a248-4cb4-885e-44b7e15afd42",
+      "author": "ryan.porter",
+      "text": "Starting bounded documentation work for the supported ModelAttemptAuthority contract and release ordering. Documentation only: lifecycle, exact request/token/hash boundary, durable identity/replay envelope, outcomes/retry suppression, host responsibilities, and release-before-host-pin guidance. No runtime semantics, version, provider/cloud, commit, push, release, deployment, or unrelated edits.",
+      "created_at": "2026-07-31T03:45:57.522946Z"
+    },
+    {
+      "id": "2baa6d08-f276-46f8-a56a-7efe19a5823a",
+      "author": "ryan.porter",
+      "text": "Bounded ModelAttemptAuthority documentation complete; task remains in_progress because commit/push/release were prohibited. Added a dedicated host contract covering required bounds, exact one-time Raw request build/hash/token enforcement, reserve-before-contact lifecycle, replay-stable identity, decisions/outcomes, JSON replay payload v1, post-contact unknown handling, lower-layer retry suppression, and host persistence/reconciliation responsibilities. Added explicit release order: release Tactus first, then hosts pin that release; no production monkeypatches or local-path dependencies. Linked from docs index, Agent reference, and durability guide. Existing repo has no Markdown content-contract test convention, so no new brittle contract test was added. Evidence: docs plus focused authority suite 55 passed; Markdown render, link-target checks, and git diff --check passed. No code semantics/version/provider/cloud/commit/push/release/deployment/unrelated edits.",
+      "created_at": "2026-07-31T03:47:39.359536Z"
+    }
+  ],
+  "created_at": "2026-07-31T02:37:26.612401Z",
+  "updated_at": "2026-07-31T03:47:39.359536Z",
+  "closed_at": null,
+  "custom": {}
+}
