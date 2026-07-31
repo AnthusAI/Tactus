@@ -52,6 +52,7 @@ async def test_llm_chat_passes_tools_and_tool_choice():
         messages=[{"role": "user", "content": "hi"}],
         temperature=0.5,
         max_tokens=10,
+        num_retries=0,
         stream=False,
         tools=[{"name": "tool"}],
         tool_choice="auto",
@@ -60,6 +61,7 @@ async def test_llm_chat_passes_tools_and_tool_choice():
 
     assert client.params["tools"] == [{"name": "tool"}]
     assert client.params["tool_choice"] == "auto"
+    assert client.params["num_retries"] == 0
 
 
 @pytest.mark.asyncio

@@ -135,6 +135,8 @@ async def test_llm_chat_asyncio_rejects_messages_not_list():
 
 @pytest.mark.asyncio
 async def test_llm_chat_asyncio_success():
+    received_kwargs = {}
+
     class DummyMessage:
         content = "hello"
         tool_calls = []
@@ -146,6 +148,7 @@ async def test_llm_chat_asyncio_success():
         choices = [DummyChoice()]
 
     async def fake_chat(self, **kwargs):
+        received_kwargs.update(kwargs)
         return DummyResult()
 
     server = broker_server._BaseBrokerServer()
@@ -153,11 +156,14 @@ async def test_llm_chat_asyncio_success():
 
     writer = DummyWriter()
     await server._handle_llm_chat_asyncio(
-        "req", {"provider": "openai", "model": "gpt", "messages": []}, writer
+        "req",
+        {"provider": "openai", "model": "gpt", "messages": [], "num_retries": 0},
+        writer,
     )
     messages = decode_messages(writer.buffer)
     assert messages[0]["event"] == "done"
     assert messages[0]["data"]["text"] == "hello"
+    assert received_kwargs["num_retries"] == 0
 
 
 @pytest.mark.asyncio

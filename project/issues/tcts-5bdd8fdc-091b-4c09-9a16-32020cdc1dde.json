@@ -3,7 +3,7 @@
   "title": "Implement scheduled procedure continuation primitive",
   "description": "Implement the host-neutral scheduled-continuation exception, execution-context contract, Procedure primitive, runtime result mapping, documentation, and outside-in behavior coverage for story tcts-b872be. Preserve existing human and child wait semantics; do not add product-specific persistence or blocking sleeps.",
   "type": "task",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 0,
   "assignee": null,
   "creator": null,
@@ -40,10 +40,16 @@
       "author": "ryan.porter",
       "text": "Consumer replay exposed that MemoryStorage implemented the state_set protocol incompletely and retained Lua tables tied to an expired runtime. Added red adapter coverage, then detached persisted Lua values into ordinary Python structures. The checked-in portfolio YAML now proves two consecutive scheduled retries: early replays remain WAITING_FOR_TIME, each due replay advances once, and terminal work runs only after both continuations. Focused Tactus validation: 156 passed; cross-repository Plexus runtime validation: 114 passed. No product-specific scheduling or blocking sleep added.",
       "created_at": "2026-07-31T15:15:55.992173Z"
+    },
+    {
+      "id": "ae50ce7c-3d0c-4ab3-9862-b89fc01d2c19",
+      "author": "ryan.porter",
+      "text": "Combined release validation complete: full non-integration suite 4,278 passed; Behave scheduled-continuation scenarios included in 68 features/456 scenarios/2,297 steps; clean wheel exports ProcedureWaitingForTime; isolated Python 3.11 Plexus continuation and optimization consumers passed within 487 tests. No blocking sleep or product-specific scheduler added.",
+      "created_at": "2026-07-31T19:05:01.291996Z"
     }
   ],
   "created_at": "2026-07-31T14:35:22.371311Z",
-  "updated_at": "2026-07-31T15:15:55.992173Z",
-  "closed_at": null,
+  "updated_at": "2026-07-31T19:05:09.396271Z",
+  "closed_at": "2026-07-31T19:05:09.396271Z",
   "custom": {}
 }

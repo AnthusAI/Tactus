@@ -126,6 +126,8 @@ async def test_anyio_llm_chat_rejects_provider():
 
 @pytest.mark.asyncio
 async def test_anyio_llm_chat_success():
+    received_kwargs = {}
+
     class DummyMessage:
         content = "hello"
         tool_calls = []
@@ -137,6 +139,7 @@ async def test_anyio_llm_chat_success():
         choices = [DummyChoice()]
 
     async def fake_chat(self, **kwargs):
+        received_kwargs.update(kwargs)
         return DummyResult()
 
     server = broker_server._BaseBrokerServer()
@@ -144,12 +147,15 @@ async def test_anyio_llm_chat_success():
     stream = DummyByteStream()
 
     await server._handle_llm_chat(
-        "req", {"provider": "openai", "model": "gpt", "messages": []}, stream
+        "req",
+        {"provider": "openai", "model": "gpt", "messages": [], "num_retries": 0},
+        stream,
     )
 
     messages = decode_messages(stream.buffer)
     assert messages[0]["event"] == "done"
     assert messages[0]["data"]["text"] == "hello"
+    assert received_kwargs["num_retries"] == 0
 
 
 @pytest.mark.asyncio

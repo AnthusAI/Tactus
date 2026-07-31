@@ -3,7 +3,7 @@
   "title": "Implement model-attempt authority contract",
   "description": "Harden the supported optional model-attempt authority contract: terminal unknown outcomes, replay-stable logical-call identity, post-contact non-retryable settlement behavior, and physical provider request input-token enforcement. Add outside-in regression coverage and focused validation. Policy, pricing, persistence, and product integrations are out of scope.",
   "type": "task",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 0,
   "assignee": null,
   "creator": null,
@@ -88,10 +88,22 @@
       "author": "ryan.porter",
       "text": "Bounded ModelAttemptAuthority documentation complete; task remains in_progress because commit/push/release were prohibited. Added a dedicated host contract covering required bounds, exact one-time Raw request build/hash/token enforcement, reserve-before-contact lifecycle, replay-stable identity, decisions/outcomes, JSON replay payload v1, post-contact unknown handling, lower-layer retry suppression, and host persistence/reconciliation responsibilities. Added explicit release order: release Tactus first, then hosts pin that release; no production monkeypatches or local-path dependencies. Linked from docs index, Agent reference, and durability guide. Existing repo has no Markdown content-contract test convention, so no new brittle contract test was added. Evidence: docs plus focused authority suite 55 passed; Markdown render, link-target checks, and git diff --check passed. No code semantics/version/provider/cloud/commit/push/release/deployment/unrelated edits.",
       "created_at": "2026-07-31T03:47:39.359536Z"
+    },
+    {
+      "id": "2ff2536e-aa46-4028-88e9-30db0240f75a",
+      "author": "ryan.porter",
+      "text": "Direct review found a remaining retry-boundary edge: after a provider attempt is durably settled as succeeded, the handle leaves its contacted/active markers set. A later output-validation or tool-processing failure can therefore attempt to reclassify the already-settled attempt as outcome_unknown instead of either ending cleanly or making a separately authorized bounded retry. Also reviewing malformed reservation decisions for fail-closed behavior. Requesting test-first correction before acceptance.",
+      "created_at": "2026-07-31T18:54:42.479816Z"
+    },
+    {
+      "id": "efd62d0a-f766-4799-a8b1-0e292cc95c80",
+      "author": "ryan.porter",
+      "text": "Direct review accepted the model-attempt authority after one test-first revision: successfully settled attempts now clear per-attempt contact state, validation retries receive a separately authorized attempt, exhausted bounds block before contact, and malformed reservations fail closed. Independent evidence: 374 focused tests passed; full non-integration suite 4,278 passed with 73 skipped and 63 deselected; Behave 68 features/456 scenarios/2,297 steps passed; Ruff, Black, and diff checks passed. A clean wheel installed into isolated Python 3.11 with no PYTHONPATH or editable Tactus path, and 487 Plexus consumer tests passed.",
+      "created_at": "2026-07-31T19:05:00.822469Z"
     }
   ],
   "created_at": "2026-07-31T02:37:26.612401Z",
-  "updated_at": "2026-07-31T03:47:39.359536Z",
-  "closed_at": null,
+  "updated_at": "2026-07-31T19:05:08.420311Z",
+  "closed_at": "2026-07-31T19:05:08.420311Z",
   "custom": {}
 }

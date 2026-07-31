@@ -3,7 +3,7 @@
   "title": "Authorize each bounded model attempt before provider contact",
   "description": "As a host application, I want a supported model-attempt authority hook, so that every provider call can be durably budgeted and audited.\n\nFeature: Budget-authorized model attempts\n\nScenario: Authorized attempt reports usage\n  Given a host supplies a stable call identity, bounded tokens and retries, and an authorization hook\n  When an agent attempts a provider call\n  Then authorization occurs before provider contact\n  And the completed attempt reports provider identity, resolved model, request identity, usage, and outcome\n\nScenario: Rejected attempt makes no call\n  Given the host rejects an attempt before contact\n  When the agent runs\n  Then the provider is not contacted\n  And a typed budget rejection is returned\n\nScenario: Ambiguous contact blocks retry\n  Given provider contact may have occurred but completion cannot be proved\n  When the attempt fails\n  Then the host receives an outcome-unknown event\n  And Tactus does not automatically retry that attempt\n\nScenario: Replay is idempotent\n  Given the host already settled a stable attempt identity\n  When the procedure replays\n  Then the settled result is reused\n  And the provider is not contacted again",
   "type": "story",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 0,
   "assignee": null,
   "creator": null,
@@ -12,7 +12,7 @@
   "dependencies": [],
   "comments": [],
   "created_at": "2026-07-31T02:37:26.431289Z",
-  "updated_at": "2026-07-31T02:37:40.625471Z",
-  "closed_at": null,
+  "updated_at": "2026-07-31T19:05:08.667579Z",
+  "closed_at": "2026-07-31T19:05:08.667579Z",
   "custom": {}
 }

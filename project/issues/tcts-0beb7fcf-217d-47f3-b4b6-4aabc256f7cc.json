@@ -3,7 +3,7 @@
   "title": "Implement host-neutral external-child wait checkpoint",
   "description": "Add the supported host-neutral wait request, serializable child references and terminal results, checkpoint replay behavior, and distinct waiting exception/outcome required by the durable external-child story. Keep host persistence, authorization, polling schedules, and resource resolution outside Tactus. Do not alter process-local Procedure.spawn or add infrastructure.",
   "type": "task",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -46,10 +46,16 @@
       "author": "ryan.porter",
       "text": "Independent review accepted the minimal fixture-only constructor compatibility change with no findings. Focused runtime and external-child tests pass. A full non-integration pytest rerun with inert test AWS credentials now passes 4,218 tests with 73 skipped and 63 deselected in 138 seconds; the prior two SageMaker failures were local login credential-provider setup, not source regressions. Task remains in progress pending commit/release integration.",
       "created_at": "2026-07-31T01:39:56.112312Z"
+    },
+    {
+      "id": "f71d59da-0632-4c7f-96c5-386c88b26f01",
+      "author": "ryan.porter",
+      "text": "Combined release validation complete: full non-integration suite 4,278 passed; Behave external-child scenarios included in 68 features/456 scenarios/2,297 steps; clean wheel exports ProcedureWaitingForChildren; isolated Python 3.11 Plexus child-lifecycle and optimization consumers passed within 487 tests. No host polling, persistence, or product-specific behavior added.",
+      "created_at": "2026-07-31T19:05:01.059938Z"
     }
   ],
   "created_at": "2026-07-30T22:45:32.854154Z",
-  "updated_at": "2026-07-31T01:39:56.112312Z",
-  "closed_at": null,
+  "updated_at": "2026-07-31T19:05:08.912484Z",
+  "closed_at": "2026-07-31T19:05:08.912484Z",
   "custom": {}
 }

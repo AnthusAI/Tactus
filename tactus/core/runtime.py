@@ -98,6 +98,7 @@ class TactusRuntime:
         temperature: Optional[float] = None,
         reset_state_on_execute: bool = False,
         child_wait_resolver=None,
+        model_attempt_authority=None,
     ):
         """
         Initialize the Tactus runtime.
@@ -106,6 +107,7 @@ class TactusRuntime:
             procedure_id: Unique procedure identifier
             storage_backend: Storage backend for checkpoints and state
             hitl_handler: Handler for human-in-the-loop interactions
+            child_wait_resolver: Host callback resolving durable external-child snapshots
             chat_recorder: Optional chat recorder for conversation logging
             mcp_server: DEPRECATED - use mcp_servers instead
             mcp_servers: Optional dict of MCP server configs {name: {command, args, env}}
@@ -123,6 +125,8 @@ class TactusRuntime:
             reset_state_on_execute: When true, clear persisted procedure state
                 at the start of each execute() call.
             child_wait_resolver: Host callback resolving durable external-child snapshots.
+            model_attempt_authority: Optional host authority invoked around each
+                physical provider attempt made by runtime-created agents.
         """
         validate_gpt5_controls(reasoning_effort=reasoning_effort, verbosity=verbosity)
         if max_tokens is not None and (
@@ -140,6 +144,7 @@ class TactusRuntime:
         self.procedure_id = procedure_id
         self.storage_backend = storage_backend
         self.child_wait_resolver = child_wait_resolver
+        self.model_attempt_authority = model_attempt_authority
 
         # Initialize HITL handler - use new ControlLoopHandler by default
         if hitl_handler is None:
@@ -2380,6 +2385,11 @@ class TactusRuntime:
                 "prepare": agent_config.get("prepare"),
                 "message_history_filter": message_history_filter,
                 "response": agent_config.get("response"),
+                "max_input_tokens": agent_config.get("max_input_tokens"),
+                "model_attempt_max_attempts": agent_config.get(
+                    "model_attempt_max_attempts", agent_config.get("max_attempts")
+                ),
+                "model_attempt_call_id": agent_config.get("model_attempt_call_id"),
             }
             if resolved_reasoning_effort is not None:
                 dspy_config["reasoning_effort"] = resolved_reasoning_effort
@@ -2430,6 +2440,7 @@ class TactusRuntime:
                 registry=self.registry,
                 mock_manager=self.mock_manager,
                 execution_context=self.execution_context,
+                model_attempt_authority=self.model_attempt_authority,
             )
 
             # Store additional context for compatibility
@@ -2521,6 +2532,8 @@ class TactusRuntime:
             existing_agent._tool_primitive = self.tool_primitive
         if hasattr(existing_agent, "execution_context"):
             existing_agent.execution_context = self.execution_context
+        if hasattr(existing_agent, "model_attempt_authority"):
+            existing_agent.model_attempt_authority = self.model_attempt_authority
         if hasattr(existing_agent, "clear_history"):
             try:
                 existing_agent.clear_history()
@@ -4188,6 +4201,7 @@ class TactusRuntime:
             storage_backend=self.storage_backend,
             hitl_handler=self.hitl_handler,
             child_wait_resolver=self.child_wait_resolver,
+            model_attempt_authority=self.model_attempt_authority,
             chat_recorder=self.chat_recorder,
             mcp_server=self.mcp_server,
             openai_api_key=self.openai_api_key,

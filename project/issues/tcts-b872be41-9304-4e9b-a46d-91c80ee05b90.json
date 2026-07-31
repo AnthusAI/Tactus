@@ -3,7 +3,7 @@
   "title": "Durably defer a procedure until a scheduled continuation",
   "description": "As a procedure author, I want to durably defer a procedure until a host-scheduled time, so that transient external conditions release the worker and resume without being mistaken for completion.\n\nFeature: Durable scheduled continuation\nScenario: A procedure defers without blocking a worker\n  Given a running procedure requests a stable continuation key and a future resume time\n  When Procedure.defer is called\n  Then Tactus checkpoints the normalized request\n  And exits with WAITING_FOR_TIME rather than success\n  And does not sleep the worker thread\n\nScenario: Replay before the due time remains deferred\n  Given a checkpointed scheduled continuation is not yet due\n  When the procedure replays\n  Then the same request remains authoritative\n  And Tactus returns WAITING_FOR_TIME again\n\nScenario: Replay after the due time continues exactly once\n  Given a checkpointed scheduled continuation is due\n  When the host resumes the procedure\n  Then Procedure.defer returns a completed continuation result\n  And later replay does not create a second continuation boundary\n\nScenario: A changed request fails closed\n  Given a scheduled continuation is already checkpointed\n  When replay supplies a conflicting key or time\n  Then Tactus rejects the conflict rather than silently replacing durable state\n\nThe primitive is host-neutral. Host persistence, scheduling, authorization, and product status mapping are out of scope.",
   "type": "story",
-  "status": "in_progress",
+  "status": "closed",
   "priority": 0,
   "assignee": null,
   "creator": null,
@@ -12,7 +12,7 @@
   "dependencies": [],
   "comments": [],
   "created_at": "2026-07-31T14:35:16.676698Z",
-  "updated_at": "2026-07-31T14:35:27.135854Z",
-  "closed_at": null,
+  "updated_at": "2026-07-31T19:05:09.636280Z",
+  "closed_at": "2026-07-31T19:05:09.636280Z",
   "custom": {}
 }

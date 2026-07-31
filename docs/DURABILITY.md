@@ -10,6 +10,13 @@ canonical, current syntax (including the Model primitive call pattern), see:
 
 Tactus provides durable execution for agentic workflows through automatic checkpointing and replay. Unlike graph-based systems that require explicit node definitions, Tactus allows developers to write natural imperative Lua code while automatically handling persistence, interruption, and resumption.
 
+Hosts that need durable authorization and replay at the finer-grained physical
+model-attempt boundary should use the supported
+[`ModelAttemptAuthority`](MODEL_ATTEMPT_AUTHORITY.md) contract. Checkpoint
+replay and model-attempt replay are complementary: the execution context owns
+procedure positions, while the host authority owns idempotent reservation and
+terminal evidence for each provider contact.
+
 ## Waiting for host-managed external children
 
 `Procedure.await_children(request)` is the durable, host-neutral primitive for
