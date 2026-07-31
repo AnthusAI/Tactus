@@ -68,6 +68,59 @@ def test_cli_run_sandbox_task_selection_required(monkeypatch, tmp_path) -> None:
     )
 
 
+def test_cli_run_sandbox_waiting_for_time(monkeypatch, tmp_path) -> None:
+    workflow_file = tmp_path / "workflow.tac"
+    _write_minimal_workflow(workflow_file)
+
+    monkeypatch.setattr(tactus.sandbox, "is_docker_available", lambda: (True, None))
+    output = io.StringIO()
+    monkeypatch.setattr(
+        cli_app,
+        "console",
+        Console(file=output, force_terminal=False, color_system=None),
+    )
+
+    result = ExecutionResult(
+        status=ExecutionStatus.CANCELLED,
+        result=None,
+        error="waiting",
+        error_type="ProcedureWaitingForTime",
+        metadata={
+            "waiting_for_time": True,
+            "resume_at": "2026-08-01T14:30:00Z",
+            "reason": "retry transient publication failure",
+        },
+        exit_code=0,
+    )
+    monkeypatch.setattr(
+        tactus.sandbox, "ContainerRunner", lambda cfg, **_kwargs: _FakeRunner(cfg, result=result)
+    )
+
+    cli_app.run(
+        workflow_file=workflow_file,
+        task=None,
+        storage="memory",
+        storage_path=None,
+        openai_api_key=None,
+        verbose=False,
+        debug=False,
+        log_level=None,
+        log_format="rich",
+        param=None,
+        interactive=False,
+        mock_all=False,
+        real_all=False,
+        mock=None,
+        real=None,
+        sandbox=True,
+        sandbox_broker="tcp",
+        sandbox_network=None,
+        sandbox_broker_host=None,
+    )
+
+    assert "Procedure is waiting until 2026-08-01T14:30:00Z" in output.getvalue()
+
+
 def test_cli_run_sandbox_task_selection_required_empty_task_list(monkeypatch, tmp_path) -> None:
     workflow_file = tmp_path / "workflow.tac"
     _write_minimal_workflow(workflow_file)

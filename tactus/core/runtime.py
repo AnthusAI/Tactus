@@ -25,7 +25,12 @@ from tactus.core.message_history_manager import MessageHistoryManager
 from tactus.core.lua_sandbox import LuaSandbox, LuaSandboxError, validate_python_module_name
 from tactus.core.output_validator import OutputValidator, OutputValidationError
 from tactus.core.execution_context import BaseExecutionContext
-from tactus.core.exceptions import ProcedureWaitingForHuman, TactusRuntimeError
+from tactus.core.exceptions import (
+    ProcedureWaitingForChildren,
+    ProcedureWaitingForHuman,
+    ProcedureWaitingForTime,
+    TactusRuntimeError,
+)
 from tactus.protocols.storage import StorageBackend
 from tactus.protocols.hitl import HITLHandler
 from tactus.protocols.chat_recorder import ChatRecorder
@@ -92,6 +97,7 @@ class TactusRuntime:
         max_tokens: Optional[int] = None,
         temperature: Optional[float] = None,
         reset_state_on_execute: bool = False,
+        child_wait_resolver=None,
     ):
         """
         Initialize the Tactus runtime.
@@ -116,6 +122,7 @@ class TactusRuntime:
             temperature: Optional runtime-level sampling temperature control
             reset_state_on_execute: When true, clear persisted procedure state
                 at the start of each execute() call.
+            child_wait_resolver: Host callback resolving durable external-child snapshots.
         """
         validate_gpt5_controls(reasoning_effort=reasoning_effort, verbosity=verbosity)
         if max_tokens is not None and (
@@ -132,6 +139,7 @@ class TactusRuntime:
 
         self.procedure_id = procedure_id
         self.storage_backend = storage_backend
+        self.child_wait_resolver = child_wait_resolver
 
         # Initialize HITL handler - use new ControlLoopHandler by default
         if hitl_handler is None:
@@ -727,6 +735,32 @@ class TactusRuntime:
                 "session_id": chat_session_id,
             }
 
+        except ProcedureWaitingForChildren as e:
+            logger.info("Procedure waiting for external children: %s", e)
+            return {
+                "success": False,
+                "status": "WAITING_FOR_CHILDREN",
+                "procedure_id": self.procedure_id,
+                "request": e.request,
+                "children": e.children,
+                "message": str(e),
+                "session_id": chat_session_id,
+            }
+
+        except ProcedureWaitingForTime as e:
+            logger.info("Procedure waiting for scheduled continuation: %s", e)
+            return {
+                "success": False,
+                "status": "WAITING_FOR_TIME",
+                "procedure_id": self.procedure_id,
+                "request": e.request,
+                "resume_at": e.request["resume_at"],
+                "reason": e.request["reason"],
+                "continuation_key": e.request["key"],
+                "message": str(e),
+                "session_id": chat_session_id,
+            }
+
         except ProcedureConfigError as e:
             logger.error("Configuration error: %s", e)
             # Flush recordings even on error
@@ -886,6 +920,7 @@ class TactusRuntime:
             procedure_id=self.procedure_id,
             storage_backend=self.storage_backend,
             hitl_handler=self.hitl_handler,
+            child_wait_resolver=self.child_wait_resolver,
             strict_determinism=strict_determinism,
             log_handler=self.log_handler,
         )
@@ -3006,7 +3041,11 @@ class TactusRuntime:
 
                     logger.info("Named 'main' procedure execution completed successfully")
                     return result
-                except ProcedureWaitingForHuman:
+                except (
+                    ProcedureWaitingForHuman,
+                    ProcedureWaitingForChildren,
+                    ProcedureWaitingForTime,
+                ):
                     # Re-raise without wrapping - this is expected behavior
                     raise
                 except Exception as e:
@@ -4148,6 +4187,7 @@ class TactusRuntime:
             procedure_id=sub_procedure_id,
             storage_backend=self.storage_backend,
             hitl_handler=self.hitl_handler,
+            child_wait_resolver=self.child_wait_resolver,
             chat_recorder=self.chat_recorder,
             mcp_server=self.mcp_server,
             openai_api_key=self.openai_api_key,

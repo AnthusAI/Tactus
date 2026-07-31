@@ -197,6 +197,71 @@ def test_run_waiting_for_human(tmp_path, monkeypatch):
     )
 
 
+def test_run_waiting_for_time_is_a_pause_not_a_failure(tmp_path, monkeypatch):
+    workflow = tmp_path / "workflow.tac"
+    workflow.write_text("print('hi')")
+
+    _patch_runtime_dependencies(monkeypatch)
+    printed = []
+    monkeypatch.setattr(cli_app.console, "print", lambda *args, **_kwargs: printed.extend(args))
+    DummyRuntime.next_exception = None
+    DummyRuntime.next_result = {
+        "success": False,
+        "status": "WAITING_FOR_TIME",
+        "resume_at": "2026-08-01T14:30:00Z",
+        "reason": "retry transient publication failure",
+    }
+
+    cli_app.run(
+        workflow,
+        sandbox=False,
+        storage="memory",
+        param=None,
+        mock_all=False,
+        real_all=False,
+        mock=None,
+        real=None,
+        log_level=None,
+        log_format="rich",
+        auto_deps=False,
+        no_deps=False,
+    )
+
+    assert any("waiting until 2026-08-01T14:30:00Z" in str(line) for line in printed)
+
+
+def test_run_waiting_for_children_is_a_pause_not_a_failure(tmp_path, monkeypatch):
+    workflow = tmp_path / "workflow.tac"
+    workflow.write_text("print('hi')")
+
+    _patch_runtime_dependencies(monkeypatch)
+    printed = []
+    monkeypatch.setattr(cli_app.console, "print", lambda *args, **_kwargs: printed.extend(args))
+    DummyRuntime.next_exception = None
+    DummyRuntime.next_result = {
+        "success": False,
+        "status": "WAITING_FOR_CHILDREN",
+        "children": [{"id": "child-1", "terminal": False}],
+    }
+
+    cli_app.run(
+        workflow,
+        sandbox=False,
+        storage="memory",
+        param=None,
+        mock_all=False,
+        real_all=False,
+        mock=None,
+        real=None,
+        log_level=None,
+        log_format="rich",
+        auto_deps=False,
+        no_deps=False,
+    )
+
+    assert any("waiting for external children (1 child)" in str(line) for line in printed)
+
+
 def test_run_missing_required_prompts(tmp_path, monkeypatch):
     workflow = tmp_path / "workflow.tac"
     workflow.write_text("print('hi')")

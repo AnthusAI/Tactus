@@ -56,7 +56,8 @@ class StorageBackend(Protocol):
 
         Args:
             procedure_id: Unique procedure identifier
-            status: New status (RUNNING, WAITING_FOR_HUMAN, COMPLETED, FAILED)
+            status: New status (RUNNING, WAITING_FOR_HUMAN, WAITING_FOR_CHILDREN,
+                WAITING_FOR_TIME, COMPLETED, FAILED)
             waiting_on_message_id: Optional message ID if waiting for human
 
         Raises:

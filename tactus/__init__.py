@@ -11,7 +11,9 @@ __version__ = "0.51.4"
 from tactus.core.runtime import TactusRuntime
 from tactus.core.exceptions import (
     TactusRuntimeError,
+    ProcedureWaitingForChildren,
     ProcedureWaitingForHuman,
+    ProcedureWaitingForTime,
     ProcedureConfigError,
     LuaSandboxError,
     OutputValidationError,
@@ -31,7 +33,9 @@ __all__ = [
     "TactusRuntime",
     # Exceptions
     "TactusRuntimeError",
+    "ProcedureWaitingForChildren",
     "ProcedureWaitingForHuman",
+    "ProcedureWaitingForTime",
     "ProcedureConfigError",
     "LuaSandboxError",
     "OutputValidationError",

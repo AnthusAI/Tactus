@@ -665,14 +665,31 @@ class LuaSandbox:
             logger.debug("Lua execution completed successfully")
             return result
 
-        except lupa.LuaError as exception:
-            # Lua runtime error
-            error_message = str(exception)
-            logger.error("Lua execution error: %s", error_message)
-            raise LuaSandboxError(f"Lua runtime error: {error_message}")
-
         except Exception as exception:
-            # Other Python exceptions
+            # Host-managed suspension signals cross the Python/Lua boundary as
+            # their original Python exceptions. They are runtime outcomes, not
+            # sandbox failures, and must reach TactusRuntime unchanged in both
+            # direct Lua and legacy YAML execution modes.
+            from tactus.core.exceptions import (
+                ProcedureWaitingForChildren,
+                ProcedureWaitingForHuman,
+                ProcedureWaitingForTime,
+            )
+
+            if isinstance(
+                exception,
+                (
+                    ProcedureWaitingForHuman,
+                    ProcedureWaitingForChildren,
+                    ProcedureWaitingForTime,
+                ),
+            ):
+                raise
+            if isinstance(exception, lupa.LuaError):
+                error_message = str(exception)
+                logger.error("Lua execution error: %s", error_message)
+                raise LuaSandboxError(f"Lua runtime error: {error_message}")
+
             logger.error("Sandbox execution error: %s", exception)
             raise LuaSandboxError(f"Sandbox error: {exception}")
 
