@@ -196,7 +196,7 @@ def test_default_provider_validation():
         ProcedureYAMLParser.parse(yaml_content)
 
 
-def test_agents_must_be_dict_and_not_empty():
+def test_agents_must_be_dict():
     config = _base_config()
     config["agents"] = []
     yaml_content = yaml.safe_dump(config)
@@ -204,10 +204,19 @@ def test_agents_must_be_dict_and_not_empty():
     with pytest.raises(ProcedureConfigError):
         ProcedureYAMLParser.parse(yaml_content)
 
-    config["agents"] = {}
+
+@pytest.mark.parametrize("agents", [{}, None])
+def test_agentless_orchestration_config_is_valid(agents):
+    config = _base_config()
+    if agents is None:
+        del config["agents"]
+    else:
+        config["agents"] = agents
     yaml_content = yaml.safe_dump(config)
-    with pytest.raises(ProcedureConfigError):
-        ProcedureYAMLParser.parse(yaml_content)
+
+    parsed = ProcedureYAMLParser.parse(yaml_content)
+
+    assert parsed.get("agents", {}) == {}
 
 
 def test_agent_definition_must_be_dict():

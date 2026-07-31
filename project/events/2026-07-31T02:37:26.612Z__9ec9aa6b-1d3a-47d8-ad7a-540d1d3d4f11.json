@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "9ec9aa6b-1d3a-47d8-ad7a-540d1d3d4f11",
+  "issue_id": "tcts-2a6086dc-be86-47c8-be2c-ff625c50f1f6",
+  "event_type": "issue_created",
+  "occurred_at": "2026-07-31T02:37:26.612Z",
+  "actor_id": "ryan.porter",
+  "payload": {
+    "title": "Implement model-attempt authority contract",
+    "description": "Add the supported runtime and agent hook, typed envelopes, retry handling, usage propagation, and outside-in tests.",
+    "issue_type": "task",
+    "status": "open",
+    "priority": 0,
+    "assignee": null,
+    "parent": "tcts-1bfc71d1-72b5-4ba7-a2b7-4f2490d47534",
+    "labels": []
+  }
+}

@@ -1289,6 +1289,48 @@ elseif review.decision == "Revise" then
 end
 ```
 
+**Attach a durable host action contract to any blocking interaction:**
+
+```lua
+local review = Human.review({
+  message = "Review the proposed changes",
+  action_key = "run-42:approval-1",
+  resource_refs = {
+    {system = "example", kind = "record", id = record.id, relation = "subject"}
+  },
+  preconditions = {
+    {resource_id = record.id, fingerprint = record.fingerprint}
+  },
+  expires_at = "2030-01-02T03:04:05Z",
+  response_schema = {
+    type = "object",
+    required = {"decisions"},
+    properties = {
+      decisions = {
+        type = "array",
+        items = {
+          type = "object",
+          required = {"target", "decision"},
+          properties = {
+            target = {type = "string"},
+            decision = {enum = {"approve", "reject"}},
+            comment = {type = "string"}
+          }
+        }
+      }
+    }
+  },
+  ui_schema = {layout = "table"}
+})
+```
+
+Tactus preserves `action_key`, `resource_refs`, `preconditions`, `expires_at`,
+`response_schema`, and `ui_schema` unchanged for the host adapter. It validates
+the accepted response against `response_schema` before the procedure advances.
+The host application remains responsible for persistence, authorization,
+freshness checks, routing, and delivery. These fields are optional; existing
+procedures keep their previous behavior.
+
 **Declare HITL points for reusable workflows:**
 
 ```lua

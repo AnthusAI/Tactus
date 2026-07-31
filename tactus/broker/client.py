@@ -223,6 +223,7 @@ class BrokerClient:
         messages: list[dict[str, Any]],
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
+        num_retries: Optional[int] = None,
         stream: bool,
         tools: Optional[list[dict[str, Any]]] = None,
         tool_choice: Optional[str] = None,
@@ -237,6 +238,8 @@ class BrokerClient:
             request_params["temperature"] = temperature
         if max_tokens is not None:
             request_params["max_tokens"] = max_tokens
+        if num_retries is not None:
+            request_params["num_retries"] = num_retries
         if tools is not None:
             request_params["tools"] = tools
             logger.info("[BROKER_CLIENT] Adding %s tools to params", len(tools))

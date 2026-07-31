@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "event_id": "09a99f19-e50f-4eee-88fa-719a4bf7dd42",
+  "issue_id": "tcts-2a6086dc-be86-47c8-be2c-ff625c50f1f6",
+  "event_type": "field_updated",
+  "occurred_at": "2026-07-31T02:53:11.738Z",
+  "actor_id": "ryan.porter",
+  "payload": {
+    "changes": {
+      "description": {
+        "from": "Add the supported runtime and agent hook, typed envelopes, retry handling, usage propagation, and outside-in tests.",
+        "to": "Harden the supported optional model-attempt authority contract: terminal unknown outcomes, replay-stable logical-call identity, post-contact non-retryable settlement behavior, and physical provider request input-token enforcement. Add outside-in regression coverage and focused validation. Policy, pricing, persistence, and product integrations are out of scope."
+      }
+    }
+  }
+}

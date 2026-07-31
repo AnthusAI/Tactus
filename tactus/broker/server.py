@@ -97,6 +97,7 @@ class OpenAIChatBackend:
         messages: list[dict[str, Any]],
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
+        num_retries: Optional[int] = None,
         stream: bool,
         tools: Optional[list[dict[str, Any]]] = None,
         tool_choice: Optional[str] = None,
@@ -114,6 +115,8 @@ class OpenAIChatBackend:
             kwargs["temperature"] = temperature
         if max_tokens is not None:
             kwargs["max_tokens"] = max_tokens
+        if num_retries is not None:
+            kwargs["num_retries"] = num_retries
         if tools is not None:
             kwargs["tools"] = tools
             logger.info("[LITELLM_BACKEND] Sending %s tools to LiteLLM", len(tools))
@@ -568,6 +571,7 @@ class _BaseBrokerServer:
         stream = bool(params.get("stream", False))
         temperature = params.get("temperature")
         max_tokens = params.get("max_tokens")
+        num_retries = params.get("num_retries")
         tools = params.get("tools")
         tool_choice = params.get("tool_choice")
 
@@ -599,6 +603,7 @@ class _BaseBrokerServer:
                     messages=messages,
                     temperature=temperature,
                     max_tokens=max_tokens,
+                    num_retries=num_retries,
                     stream=True,
                     tools=tools,
                     tool_choice=tool_choice,
@@ -694,6 +699,7 @@ class _BaseBrokerServer:
                 messages=messages,
                 temperature=temperature,
                 max_tokens=max_tokens,
+                num_retries=num_retries,
                 stream=False,
                 tools=tools,
                 tool_choice=tool_choice,
@@ -966,6 +972,7 @@ class _BaseBrokerServer:
         stream = bool(params.get("stream", False))
         temperature = params.get("temperature")
         max_tokens = params.get("max_tokens")
+        num_retries = params.get("num_retries")
         tools = params.get("tools")
         tool_choice = params.get("tool_choice")
 
@@ -997,6 +1004,7 @@ class _BaseBrokerServer:
                     messages=messages,
                     temperature=temperature,
                     max_tokens=max_tokens,
+                    num_retries=num_retries,
                     stream=True,
                     tools=tools,
                     tool_choice=tool_choice,
@@ -1092,6 +1100,7 @@ class _BaseBrokerServer:
                 messages=messages,
                 temperature=temperature,
                 max_tokens=max_tokens,
+                num_retries=num_retries,
                 stream=False,
                 tools=tools,
                 tool_choice=tool_choice,
@@ -1681,6 +1690,7 @@ class BrokerServer(_BaseBrokerServer):
         stream = bool(params.get("stream", False))
         temperature = params.get("temperature")
         max_tokens = params.get("max_tokens")
+        num_retries = params.get("num_retries")
         tools = params.get("tools")
         tool_choice = params.get("tool_choice")
 
@@ -1715,6 +1725,8 @@ class BrokerServer(_BaseBrokerServer):
                     chat_kwargs["temperature"] = temperature
                 if max_tokens is not None:
                     chat_kwargs["max_tokens"] = max_tokens
+                if num_retries is not None:
+                    chat_kwargs["num_retries"] = num_retries
                 if tools is not None:
                     chat_kwargs["tools"] = tools
                     logger.info("[BROKER_SERVER] Added %s tools to chat_kwargs", len(tools))
@@ -1829,6 +1841,8 @@ class BrokerServer(_BaseBrokerServer):
                 chat_kwargs["temperature"] = temperature
             if max_tokens is not None:
                 chat_kwargs["max_tokens"] = max_tokens
+            if num_retries is not None:
+                chat_kwargs["num_retries"] = num_retries
             if tools is not None:
                 chat_kwargs["tools"] = tools
             if tool_choice is not None:

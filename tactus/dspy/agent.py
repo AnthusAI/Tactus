@@ -16,12 +16,14 @@ import asyncio
 import inspect
 import json
 import logging
+import math
 import os
 import queue
 import random
 import threading
 import time
 import uuid
+import hashlib
 from contextlib import nullcontext
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
@@ -40,6 +42,16 @@ from tactus.protocols.cost import CostStats, UsageStats
 from tactus.protocols.result import TactusResult
 from tactus.core.template_resolver import TemplateResolver
 from tactus.core.message_history_manager import MessageHistoryManager
+from tactus.protocols.model_attempt import (
+    ModelAttemptAuthority,
+    ModelAttemptOutcome,
+    ModelAttemptOutcomeUnknown,
+    ModelAttemptPlan,
+    ModelAttemptRejected,
+    ModelAttemptReplayPayload,
+    ModelAttemptReservation,
+    ModelAttemptUsage,
+)
 from tactus.utils.asyncio_helpers import clear_closed_event_loop
 
 logger = logging.getLogger(__name__)
@@ -235,6 +247,17 @@ class DSPyAgentHandle:
         self.tools = tools or []
         self.toolsets = toolsets or []
         self.execution_context = execution_context
+        self.model_attempt_authority: Optional[ModelAttemptAuthority] = kwargs.get(
+            "model_attempt_authority"
+        )
+        self.max_input_tokens = kwargs.get("max_input_tokens")
+        self.model_attempt_max_attempts = kwargs.get("model_attempt_max_attempts")
+        self.model_attempt_call_id = kwargs.get("model_attempt_call_id")
+        self._active_model_attempt_call_id: Optional[str] = None
+        self._active_model_attempt_count = 0
+        self._active_model_attempt_contacted = False
+        self._active_model_attempt = None
+        self._active_model_attempt_scope = None
         self.context_name = context_name
         self._dspy_tools_cache = None  # Cache for converted DSPy tools
         # Default input schema: {message: string}
@@ -1130,6 +1153,8 @@ class DSPyAgentHandle:
         from tactus.protocols.models import AgentTurnEvent, AgentStreamChunkEvent
 
         def _stream_once(current_prompt_context: Dict[str, Any]) -> Any:
+            created_scope = self._begin_model_attempt_turn()
+            attempted = None
             # Queue for passing chunks from streaming thread to main thread
             chunk_queue = queue.Queue()
             result_holder = {"result": None, "error": None}
@@ -1138,7 +1163,26 @@ class DSPyAgentHandle:
             # exercised directly by a host or focused test.
             if self.model:
                 self._get_agent_lm(opts)
+            try:
+                attempted = self._reserve_model_attempt(opts, current_prompt_context)
+                if attempted is not None and attempted[1].status == "replay":
+                    reservation = attempted[1]
+                    replayed_result = self._restore_model_attempt_replay_payload(
+                        reservation.replay_payload
+                    )
+                    self._settle_model_attempt(attempted, status="replayed")
+                    self._clear_settled_model_attempt(attempted)
+                    return replayed_result
+            except Exception:
+                self._end_model_attempt_turn(created_scope)
+                raise
             request_id = self._provider_request_started(current_prompt_context)
+            request_marker = object()
+            previous_request = current_prompt_context.get(
+                "_tactus_provider_request", request_marker
+            )
+            if attempted is not None:
+                current_prompt_context["_tactus_provider_request"] = attempted[2]
             first_chunk_emitted = False
 
             def run_streaming_in_thread():
@@ -1166,8 +1210,10 @@ class DSPyAgentHandle:
                     asyncio.run(async_streaming())
 
             streaming_thread = threading.Thread(target=run_streaming_in_thread, daemon=True)
+            self._active_model_attempt_contacted = attempted is not None
             streaming_thread.start()
             accumulated_text = ""
+            observer_error = None
             while True:
                 try:
                     msg_type, msg_data = chunk_queue.get(timeout=120.0)
@@ -1190,15 +1236,27 @@ class DSPyAgentHandle:
                         )
                 except queue.Empty:
                     break
+                except Exception as error:
+                    observer_error = error
+                    break
             streaming_thread.join(timeout=5.0)
+            if attempted is not None:
+                if previous_request is request_marker:
+                    current_prompt_context.pop("_tactus_provider_request", None)
+                else:
+                    current_prompt_context["_tactus_provider_request"] = previous_request
+
+            if observer_error is not None:
+                self._emit_provider_request_completion_safely(request_id, "failed")
+                self._settle_outcome_unknown_after_contact(attempted, observer_error)
+                if attempted is not None:
+                    raise ModelAttemptOutcomeUnknown(str(observer_error)) from observer_error
+                raise observer_error
 
             if result_holder["error"] is not None:
-                self._emit_lifecycle_event(
-                    "provider_request_completed",
-                    request_id=request_id,
-                    metadata={"status": "failed"},
-                )
                 error = result_holder["error"]
+                self._emit_provider_request_completion_safely(request_id, "failed")
+                self._settle_outcome_unknown_after_contact(attempted, error)
                 original_error = error
                 if hasattr(error, "__class__") and error.__class__.__name__.endswith(
                     "ExceptionGroup"
@@ -1210,6 +1268,8 @@ class DSPyAgentHandle:
                 if "authenticationerror" in error_type.lower() or "api_key" in error_str:
                     from tactus.core.exceptions import TactusRuntimeError
 
+                    if attempted is not None:
+                        raise ModelAttemptOutcomeUnknown(str(error)) from error
                     raise TactusRuntimeError(
                         f"API authentication failed for agent '{self.name}': "
                         f"Missing or invalid API key. Please configure your API key in Settings (Cmd+,)."
@@ -1219,23 +1279,33 @@ class DSPyAgentHandle:
                         f"Agent '{self.name}' ExceptionGroup sub-exception: "
                         f"{type(original_error).__name__}: {original_error}"
                     )
+                    if attempted is not None:
+                        raise ModelAttemptOutcomeUnknown(str(original_error)) from original_error
                     raise RuntimeError(
                         f"Agent '{self.name}' failed: {type(original_error).__name__}: {original_error}"
                     ) from original_error
+                if attempted is not None:
+                    raise ModelAttemptOutcomeUnknown(str(error)) from error
                 raise result_holder["error"]
 
             if result_holder["result"] is None:
-                self._emit_lifecycle_event(
-                    "provider_request_completed",
-                    request_id=request_id,
-                    metadata={"status": "failed"},
+                error = RuntimeError("Streaming produced no result")
+                self._emit_provider_request_completion_safely(request_id, "failed")
+                self._settle_outcome_unknown_after_contact(attempted, error)
+                if attempted is not None:
+                    raise ModelAttemptOutcomeUnknown(str(error))
+                raise error
+            self._emit_provider_request_completion_safely(request_id, "completed")
+            try:
+                self._settle_model_attempt(
+                    attempted, status="succeeded", result=result_holder["result"]
                 )
-                raise RuntimeError("Streaming produced no result")
-            self._emit_lifecycle_event(
-                "provider_request_completed",
-                request_id=request_id,
-                metadata={"status": "completed"},
-            )
+                self._clear_settled_model_attempt(attempted)
+            except Exception as error:
+                self._settle_outcome_unknown_after_contact(attempted, error)
+                if attempted is not None:
+                    raise ModelAttemptOutcomeUnknown(str(error)) from error
+                raise
             return result_holder["result"]
 
         if os.environ.get("PLEXUS_DEBUG_LLM"):
@@ -1258,6 +1328,8 @@ class DSPyAgentHandle:
         while True:
             try:
                 dspy_result = _stream_once(current_prompt_context)
+            except ModelAttemptOutcomeUnknown:
+                raise
             except RuntimeError as error:
                 if str(error) == "Streaming produced no result":
                     logger.warning(
@@ -1381,20 +1453,10 @@ class DSPyAgentHandle:
         forced_synthesis = False
         tool_followup_rounds = 0
         while True:
-            request_id = self._provider_request_started(current_prompt_context)
-            try:
-                dspy_result = self._module.module(**current_prompt_context)
-            except Exception:
-                self._emit_lifecycle_event(
-                    "provider_request_completed",
-                    request_id=request_id,
-                    metadata={"status": "failed"},
-                )
-                raise
-            self._emit_lifecycle_event(
-                "provider_request_completed",
-                request_id=request_id,
-                metadata={"status": "completed"},
+            dspy_result = self._run_provider_attempt(
+                opts,
+                current_prompt_context,
+                lambda: self._module.module(**current_prompt_context),
             )
             if os.environ.get("PLEXUS_DEBUG_LLM"):
                 self._log_llm_debug_output(dspy_result)
@@ -1718,6 +1780,533 @@ class DSPyAgentHandle:
         )
         return request_id
 
+    def _begin_model_attempt_turn(self, initial_request_hash: Optional[str] = None) -> bool:
+        """Start a stable logical call scope; nested helpers reuse it."""
+        if self._active_model_attempt_call_id is not None:
+            if self._active_model_attempt_call_id == "" and initial_request_hash:
+                self._active_model_attempt_call_id = self._model_attempt_call_id(
+                    initial_request_hash
+                )
+            return False
+
+        if self.model_attempt_authority is None:
+            self._active_model_attempt_call_id = f"unscoped-{uuid.uuid4().hex}"
+            self._active_model_attempt_count = 0
+            return True
+
+        if self.model_attempt_authority is not None and self.execution_context is None:
+            raise ModelAttemptRejected(
+                "model-attempt authority requires replay-stable execution checkpoint state"
+            )
+
+        # Validate that all durable scope inputs exist now. The exact first
+        # request hash may arrive lazily from _reserve_model_attempt().
+        try:
+            position = self.execution_context.next_position()
+        except Exception as error:
+            raise ModelAttemptRejected(
+                "model-attempt authority requires a replay-stable checkpoint position"
+            ) from error
+
+        procedure_id = getattr(self.execution_context, "procedure_id", None)
+        run_id = getattr(self.execution_context, "current_run_id", None)
+        if (
+            not procedure_id
+            or not run_id
+            or not isinstance(position, int)
+            or isinstance(position, bool)
+        ):
+            raise ModelAttemptRejected(
+                "model-attempt authority requires procedure, run, and checkpoint identity"
+            )
+
+        if initial_request_hash is None:
+            self._active_model_attempt_scope = {
+                "configured_namespace": (
+                    str(self.model_attempt_call_id)
+                    if self.model_attempt_call_id is not None
+                    else None
+                ),
+                "procedure_id": str(procedure_id),
+                "run_id": str(run_id),
+                "checkpoint_position": position,
+                "agent": self.name,
+            }
+            self._active_model_attempt_call_id = ""
+            self._active_model_attempt_count = 0
+            self._active_model_attempt_contacted = False
+            self._active_model_attempt = None
+            return True
+
+        self._active_model_attempt_scope = {
+            "configured_namespace": (
+                str(self.model_attempt_call_id) if self.model_attempt_call_id is not None else None
+            ),
+            "procedure_id": str(procedure_id),
+            "run_id": str(run_id),
+            "checkpoint_position": position,
+            "agent": self.name,
+        }
+        self._active_model_attempt_call_id = self._model_attempt_call_id(initial_request_hash)
+        self._active_model_attempt_count = 0
+        self._active_model_attempt_contacted = False
+        self._active_model_attempt = None
+        return True
+
+    def _model_attempt_call_id(self, initial_request_hash: str) -> str:
+        """Derive replay-stable logical identity from durable scope and first request."""
+        assert self._active_model_attempt_scope is not None
+        scope = dict(self._active_model_attempt_scope)
+        scope["initial_request_hash"] = initial_request_hash
+        call_id = (
+            "model-attempt-"
+            + hashlib.sha256(
+                json.dumps(scope, sort_keys=True, separators=(",", ":")).encode("utf-8")
+            ).hexdigest()[:32]
+        )
+
+        return call_id
+
+    def _end_model_attempt_turn(self, created: bool) -> None:
+        if created:
+            self._active_model_attempt_call_id = None
+            self._active_model_attempt_count = 0
+            self._active_model_attempt_contacted = False
+            self._active_model_attempt = None
+            self._active_model_attempt_scope = None
+
+    @staticmethod
+    def _canonical_attempt_value(value: Any) -> Any:
+        if value is None or isinstance(value, (str, int, float, bool)):
+            return value
+        if isinstance(value, dict):
+            return {
+                str(key): DSPyAgentHandle._canonical_attempt_value(item)
+                for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))
+            }
+        if isinstance(value, (list, tuple)):
+            return [DSPyAgentHandle._canonical_attempt_value(item) for item in value]
+        model_dump = getattr(value, "model_dump", None)
+        if callable(model_dump):
+            return DSPyAgentHandle._canonical_attempt_value(model_dump(mode="json"))
+        to_dict = getattr(value, "to_dict", None)
+        if callable(to_dict):
+            return DSPyAgentHandle._canonical_attempt_value(to_dict())
+        return {"type": f"{type(value).__module__}.{type(value).__qualname__}"}
+
+    def _reserve_model_attempt(
+        self, opts: Dict[str, Any], prompt_context: Dict[str, Any]
+    ) -> tuple[ModelAttemptPlan, ModelAttemptReservation, Dict[str, Any]] | None:
+        authority = self.model_attempt_authority
+        if authority is None:
+            return None
+
+        model_for_litellm, _ = self._agent_lm_config(opts)
+        if not model_for_litellm or "/" not in model_for_litellm:
+            raise ValueError("model-attempt authority requires an exact provider/model identifier")
+        provider, model = model_for_litellm.split("/", 1)
+        max_input_tokens = self.max_input_tokens
+        max_output_tokens = opts.get("max_tokens", self.max_tokens)
+        max_attempts = self.model_attempt_max_attempts
+        if (
+            not isinstance(max_input_tokens, int)
+            or isinstance(max_input_tokens, bool)
+            or max_input_tokens <= 0
+        ):
+            raise ValueError("model-attempt authority requires a positive max_input_tokens")
+        if (
+            not isinstance(max_output_tokens, int)
+            or isinstance(max_output_tokens, bool)
+            or max_output_tokens <= 0
+        ):
+            raise ValueError("model-attempt authority requires a positive max_tokens")
+        if not isinstance(max_attempts, int) or isinstance(max_attempts, bool) or max_attempts <= 0:
+            raise ValueError(
+                "model-attempt authority requires a positive model_attempt_max_attempts"
+            )
+
+        provider_request, request_hash = self._prepare_model_attempt_request(
+            opts=opts,
+            model_for_litellm=model_for_litellm,
+            prompt_context=prompt_context,
+            max_input_tokens=max_input_tokens,
+        )
+
+        created = self._begin_model_attempt_turn(request_hash)
+        try:
+            self._active_model_attempt_count += 1
+            if self._active_model_attempt_count > max_attempts:
+                raise ModelAttemptRejected(
+                    "model-attempt maximum was exhausted before provider contact"
+                )
+            call_id = self._active_model_attempt_call_id
+            assert call_id is not None
+            plan = ModelAttemptPlan(
+                call_id=call_id,
+                attempt_id=f"{call_id}:{self._active_model_attempt_count}",
+                attempt_number=self._active_model_attempt_count,
+                max_attempts=max_attempts,
+                provider=provider,
+                model=model,
+                max_input_tokens=max_input_tokens,
+                max_output_tokens=max_output_tokens,
+                request_hash=request_hash,
+            )
+            reservation = authority.reserve(plan)
+            if not isinstance(reservation, ModelAttemptReservation):
+                raise TypeError(
+                    "model-attempt authority reserve() must return ModelAttemptReservation"
+                )
+            self._validate_model_attempt_reservation(reservation)
+            if reservation.status == "rejected":
+                authority.settle(
+                    ModelAttemptOutcome(
+                        plan=plan,
+                        reservation_id=reservation.reservation_id,
+                        status="rejected",
+                        error=reservation.reason,
+                    )
+                )
+                raise ModelAttemptRejected(
+                    reservation.reason or "model attempt rejected by authority"
+                )
+            attempted = (plan, reservation, provider_request)
+            self._active_model_attempt = attempted
+            return attempted
+        except Exception:
+            if created:
+                self._end_model_attempt_turn(True)
+            raise
+
+    def _validate_model_attempt_reservation(self, reservation: ModelAttemptReservation) -> None:
+        """Reject malformed host decisions before a provider can be contacted."""
+        if not isinstance(reservation.status, str) or reservation.status not in {
+            "approved",
+            "rejected",
+            "replay",
+        }:
+            raise ModelAttemptRejected(
+                "model-attempt authority returned an unsupported reservation status"
+            )
+        if reservation.status in {"approved", "replay"} and (
+            not isinstance(reservation.reservation_id, str)
+            or not reservation.reservation_id.strip()
+        ):
+            raise ModelAttemptRejected(
+                "model-attempt authority returned a reservation without a nonempty reservation ID"
+            )
+        if reservation.status == "replay":
+            # Validate now rather than treating replay as permission to contact
+            # if restoration fails later. This remains a no-contact decision.
+            self._restore_model_attempt_replay_payload(reservation.replay_payload)
+
+    def _clear_settled_model_attempt(
+        self,
+        attempted: tuple[ModelAttemptPlan, ModelAttemptReservation, Dict[str, Any]] | None,
+    ) -> None:
+        """Forget a physical attempt only after durable terminal settlement."""
+        if attempted is not None:
+            self._active_model_attempt_contacted = False
+            self._active_model_attempt = None
+
+    def _prepare_model_attempt_request(
+        self,
+        *,
+        opts: Dict[str, Any],
+        model_for_litellm: str,
+        prompt_context: Dict[str, Any],
+        max_input_tokens: int,
+    ) -> tuple[Dict[str, Any], str]:
+        """Build, hash, and bound the one exact Raw payload used for dispatch."""
+        module = getattr(self._module, "module", None)
+        build_request = getattr(module, "build_provider_request", None)
+        if not callable(build_request):
+            module = getattr(module, "module", None)
+            build_request = getattr(module, "build_provider_request", None)
+        if not callable(build_request):
+            raise ModelAttemptRejected(
+                "model-attempt provider request cannot be bounded before contact"
+            )
+
+        _, config_kwargs = self._agent_lm_config(opts)
+        request_context = dict(prompt_context)
+        for key in (
+            "temperature",
+            "max_tokens",
+            "reasoning_effort",
+            "verbosity",
+            "tool_choice",
+        ):
+            if key in config_kwargs:
+                request_context[key] = config_kwargs[key]
+        try:
+            request = build_request(**request_context)
+            messages = request["messages"]
+            request_kwargs = request["kwargs"]
+            canonical_request = self._canonical_attempt_value(request)
+            request_hash = hashlib.sha256(
+                json.dumps(canonical_request, sort_keys=True, separators=(",", ":")).encode("utf-8")
+            ).hexdigest()
+            import litellm
+
+            input_tokens = litellm.token_counter(
+                model=model_for_litellm,
+                messages=messages,
+                tools=request_kwargs.get("tools"),
+                tool_choice=request_kwargs.get("tool_choice"),
+            )
+        except ModelAttemptRejected:
+            raise
+        except Exception as error:
+            raise ModelAttemptRejected(
+                "model-attempt provider request cannot be bounded before contact"
+            ) from error
+
+        if not isinstance(input_tokens, int) or isinstance(input_tokens, bool) or input_tokens < 0:
+            raise ModelAttemptRejected(
+                "model-attempt provider request cannot be bounded before contact"
+            )
+        if input_tokens > max_input_tokens:
+            raise ModelAttemptRejected(
+                "model-attempt max_input_tokens exceeded before provider contact"
+            )
+        return request, request_hash
+
+    def _attempt_usage(self) -> ModelAttemptUsage | None:
+        lm = dspy.settings.lm
+        if lm is None or not getattr(lm, "history", None):
+            return None
+        usage = lm.history[-1].get("usage") or {}
+        if not isinstance(usage, dict):
+            return None
+        details = usage.get("prompt_tokens_details") or usage.get("input_tokens_details") or {}
+        completion_details = (
+            usage.get("completion_tokens_details") or usage.get("output_tokens_details") or {}
+        )
+        return ModelAttemptUsage(
+            input_tokens=int(usage.get("prompt_tokens", usage.get("input_tokens", 0)) or 0),
+            output_tokens=int(usage.get("completion_tokens", usage.get("output_tokens", 0)) or 0),
+            total_tokens=int(usage.get("total_tokens", 0) or 0),
+            cached_tokens=(
+                int(details.get("cached_tokens", 0) or 0)
+                if isinstance(details, dict) and "cached_tokens" in details
+                else None
+            ),
+            reasoning_tokens=(
+                int(completion_details.get("reasoning_tokens", 0) or 0)
+                if isinstance(completion_details, dict) and "reasoning_tokens" in completion_details
+                else None
+            ),
+        )
+
+    def _provider_request_id(self) -> Optional[str]:
+        lm = dspy.settings.lm
+        if lm is None or not getattr(lm, "history", None):
+            return None
+        response = lm.history[-1].get("response")
+        value = getattr(response, "id", None)
+        return str(value) if value else None
+
+    @staticmethod
+    def _replay_json_value(value: Any, *, path: str) -> Any:
+        """Return strict JSON data or reject values that cannot be restored exactly."""
+        if value is None or isinstance(value, (str, bool, int)):
+            return value
+        if isinstance(value, float):
+            if not math.isfinite(value):
+                raise TypeError(f"model-attempt replay payload contains non-finite {path}")
+            return value
+        if isinstance(value, list):
+            return [
+                DSPyAgentHandle._replay_json_value(item, path=f"{path}[{index}]")
+                for index, item in enumerate(value)
+            ]
+        if isinstance(value, dict):
+            result = {}
+            for key, item in value.items():
+                if not isinstance(key, str):
+                    raise TypeError(
+                        f"model-attempt replay payload contains non-string key at {path}"
+                    )
+                result[key] = DSPyAgentHandle._replay_json_value(item, path=f"{path}.{key}")
+            return result
+        raise TypeError(
+            f"model-attempt replay payload cannot encode {path} ({type(value).__name__})"
+        )
+
+    def _model_attempt_replay_payload(self, result: Any) -> ModelAttemptReplayPayload:
+        """Encode the actual DSPy provider result as a versioned JSON envelope."""
+        if not isinstance(result, dspy.Prediction):
+            raise TypeError(
+                "model-attempt replay payload requires a DSPy Prediction provider result"
+            )
+
+        from dspy.adapters.types.tool import ToolCalls
+
+        fields = {}
+        typed_fields = {}
+        for name, value in result.items():
+            if not isinstance(name, str):
+                raise TypeError("model-attempt replay payload field names must be strings")
+            if isinstance(value, ToolCalls):
+                typed_fields[name] = "tool_calls"
+                value = {
+                    "tool_calls": [
+                        {"name": tool_call.name, "args": tool_call.args}
+                        for tool_call in value.tool_calls
+                    ]
+                }
+            fields[name] = self._replay_json_value(value, path=f"fields.{name}")
+
+        payload: ModelAttemptReplayPayload = {
+            "version": 1,
+            "kind": "prediction",
+            "fields": fields,
+            "typed_fields": typed_fields,
+        }
+        # Exercise the same strict persistence boundary a host will use.
+        json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False)
+        return payload
+
+    def _restore_model_attempt_replay_payload(self, payload: Any) -> dspy.Prediction:
+        """Validate a persisted envelope and restore the exact DSPy result shape."""
+        try:
+            if not isinstance(payload, dict):
+                raise TypeError("envelope must be an object")
+            if set(payload) != {"version", "kind", "fields", "typed_fields"}:
+                raise ValueError("envelope fields do not match version 1")
+            if payload["version"] != 1 or isinstance(payload["version"], bool):
+                raise ValueError("unsupported version")
+            if payload["kind"] != "prediction":
+                raise ValueError("unsupported result kind")
+            fields = payload["fields"]
+            typed_fields = payload["typed_fields"]
+            if not isinstance(fields, dict) or not isinstance(typed_fields, dict):
+                raise TypeError("fields and typed_fields must be objects")
+
+            restored_fields = self._replay_json_value(fields, path="fields")
+            from dspy.adapters.types.tool import ToolCalls
+
+            for field_name, field_type in typed_fields.items():
+                if not isinstance(field_name, str) or field_name not in restored_fields:
+                    raise ValueError("typed field is missing from fields")
+                if field_type != "tool_calls":
+                    raise ValueError("unsupported typed field")
+                typed_value = restored_fields[field_name]
+                if (
+                    not isinstance(typed_value, dict)
+                    or set(typed_value) != {"tool_calls"}
+                    or not isinstance(typed_value["tool_calls"], list)
+                ):
+                    raise TypeError("tool_calls field has an invalid shape")
+                restored_fields[field_name] = ToolCalls.from_dict_list(typed_value["tool_calls"])
+            return dspy.Prediction(**restored_fields)
+        except (KeyError, TypeError, ValueError) as error:
+            raise ModelAttemptRejected(
+                f"model-attempt replay payload is invalid: {error}"
+            ) from error
+
+    def _settle_model_attempt(
+        self,
+        attempted: tuple[ModelAttemptPlan, ModelAttemptReservation, Dict[str, Any]] | None,
+        *,
+        status: str,
+        error: Optional[str] = None,
+        result: Any = None,
+    ) -> None:
+        if attempted is None:
+            return
+        plan, reservation, _ = attempted
+        authority = self.model_attempt_authority
+        assert authority is not None
+        replay_payload = (
+            self._model_attempt_replay_payload(result) if status == "succeeded" else None
+        )
+        authority.settle(
+            ModelAttemptOutcome(
+                plan=plan,
+                reservation_id=reservation.reservation_id,
+                status=status,  # type: ignore[arg-type]
+                usage=self._attempt_usage() if status == "succeeded" else None,
+                provider_request_id=self._provider_request_id() if status == "succeeded" else None,
+                replay_payload=replay_payload,
+                error=error,
+            )
+        )
+
+    def _settle_outcome_unknown_after_contact(
+        self,
+        attempted: tuple[ModelAttemptPlan, ModelAttemptReservation, Dict[str, Any]] | None,
+        error: Exception,
+    ) -> None:
+        """Best-effort conservative evidence; failures here must not enable retries."""
+        try:
+            self._settle_model_attempt(attempted, status="outcome_unknown", error=str(error))
+        except Exception:
+            logger.exception(
+                "Unable to settle model attempt as outcome_unknown after provider contact"
+            )
+
+    def _emit_provider_request_completion_safely(self, request_id: str, status: str) -> None:
+        """Do not let observer failures turn a contacted attempt into a retry."""
+        try:
+            self._emit_lifecycle_event(
+                "provider_request_completed",
+                request_id=request_id,
+                metadata={"status": status},
+            )
+        except Exception:
+            logger.exception("Unable to emit provider completion after provider contact")
+
+    def _run_provider_attempt(
+        self,
+        opts: Dict[str, Any],
+        prompt_context: Dict[str, Any],
+        invoke: Any,
+    ) -> Any:
+        created_scope = self._begin_model_attempt_turn()
+        try:
+            attempted = self._reserve_model_attempt(opts, prompt_context)
+            if attempted is not None and attempted[1].status == "replay":
+                reservation = attempted[1]
+                replayed_result = self._restore_model_attempt_replay_payload(
+                    reservation.replay_payload
+                )
+                self._settle_model_attempt(attempted, status="replayed")
+                self._clear_settled_model_attempt(attempted)
+                return replayed_result
+
+            request_id = self._provider_request_started(prompt_context)
+            marker = object()
+            previous_request = prompt_context.get("_tactus_provider_request", marker)
+            if attempted is not None:
+                prompt_context["_tactus_provider_request"] = attempted[2]
+            try:
+                self._active_model_attempt_contacted = attempted is not None
+                result = invoke()
+                self._emit_provider_request_completion_safely(request_id, "completed")
+                self._settle_model_attempt(attempted, status="succeeded", result=result)
+                self._clear_settled_model_attempt(attempted)
+                return result
+            except ModelAttemptOutcomeUnknown:
+                raise
+            except Exception as error:
+                self._emit_provider_request_completion_safely(request_id, "failed")
+                if attempted is not None:
+                    self._settle_outcome_unknown_after_contact(attempted, error)
+                    # A provider invocation began. Without provider-side reconciliation,
+                    # retrying could duplicate a billable request.
+                    raise ModelAttemptOutcomeUnknown(str(error)) from error
+                raise
+            finally:
+                if attempted is not None:
+                    if previous_request is marker:
+                        prompt_context.pop("_tactus_provider_request", None)
+                    else:
+                        prompt_context["_tactus_provider_request"] = previous_request
+        finally:
+            self._end_model_attempt_turn(created_scope)
+
     def _run_prepare_hook(
         self, context: Dict[str, Any], user_message: Optional[str]
     ) -> dict[str, Any]:
@@ -1846,67 +2435,89 @@ class DSPyAgentHandle:
         opts: Dict[str, Any],
         prompt_context: Dict[str, Any],
     ) -> TactusResult:
-        attempts = max(self.response_retries, 0) + 1
-        if getattr(self, "retry_enabled", False):
-            attempts = max(1, int(getattr(self, "retry_attempts", 1) or 1))
-        history_length = len(self._history)
+        created_scope = self._begin_model_attempt_turn()
+        try:
+            attempts = max(self.response_retries, 0) + 1
+            if getattr(self, "retry_enabled", False):
+                attempts = max(1, int(getattr(self, "retry_attempts", 1) or 1))
+            history_length = len(self._history)
 
-        for attempt in range(attempts):
-            try:
-                with self._dspy_lm_context(opts):
-                    if self._should_stream():
-                        logger.debug(f"Agent '{self.name}' using streaming mode")
-                        result = self._turn_with_streaming(opts, prompt_context)
-                    else:
-                        logger.debug(f"Agent '{self.name}' using non-streaming mode")
-                        result = self._turn_without_streaming(opts, prompt_context)
-
-                self._validate_output(result)
-                return result
-            except Exception as error:
-                # Never retry cancellation / shutdown signals.
-                if isinstance(error, (KeyboardInterrupt, SystemExit, asyncio.CancelledError)):
-                    raise
-
-                if getattr(self, "retry_enabled", False):
-                    # Decide if this exception is eligible for retry.
-                    retry_on = getattr(self, "retry_on", "infra_plus_validation")
-                    is_validation = isinstance(error, ValueError)
-                    if retry_on == "infra_only" and is_validation:
-                        raise
-                    if retry_on == "validation_only" and not is_validation:
-                        raise
-
-                    # Authentication/config errors are not helped by retry.
-                    err_l = str(error).lower()
-                    if "api key" in err_l or "api_key" in err_l or "authentication" in err_l:
-                        raise
-
-                if attempt >= attempts - 1:
-                    logger.debug("Agent '%s' turn failed: %s", self.name, error, exc_info=True)
-                    raise
-                self._history.truncate(history_length)
-
-                delay = 0.0
-                if getattr(self, "retry_enabled", False):
-                    base = float(getattr(self, "retry_delay_seconds", 0.0) or 0.0)
-                    if base > 0:
-                        if getattr(self, "retry_backoff", "constant") == "exponential":
-                            delay = base * (2**attempt)
+            for attempt in range(attempts):
+                try:
+                    with self._dspy_lm_context(opts):
+                        if self._should_stream():
+                            logger.debug(f"Agent '{self.name}' using streaming mode")
+                            result = self._turn_with_streaming(opts, prompt_context)
                         else:
-                            delay = base
-                        max_d = float(getattr(self, "retry_max_delay_seconds", 0.0) or 0.0)
-                        if max_d and delay > max_d:
-                            delay = max_d
-                        if getattr(self, "retry_jitter", False) and delay > 0:
-                            delay = random.random() * delay
-                else:
-                    delay = float(self.response_retry_delay or 0.0)
+                            logger.debug(f"Agent '{self.name}' using non-streaming mode")
+                            result = self._turn_without_streaming(opts, prompt_context)
 
-                if delay > 0:
-                    time.sleep(delay)
+                    self._validate_output(result)
+                    return result
+                except Exception as error:
+                    if (
+                        self.model_attempt_authority is not None
+                        and self._active_model_attempt_contacted
+                        and not isinstance(error, ModelAttemptOutcomeUnknown)
+                    ):
+                        self._settle_outcome_unknown_after_contact(
+                            self._active_model_attempt, error
+                        )
+                        raise ModelAttemptOutcomeUnknown(str(error)) from error
+                    # Never retry cancellation / shutdown signals.
+                    if isinstance(
+                        error,
+                        (
+                            KeyboardInterrupt,
+                            SystemExit,
+                            asyncio.CancelledError,
+                            ModelAttemptRejected,
+                            ModelAttemptOutcomeUnknown,
+                        ),
+                    ):
+                        raise
 
-        raise RuntimeError("Unexpected retry loop exit")  # pragma: no cover
+                    if getattr(self, "retry_enabled", False):
+                        # Decide if this exception is eligible for retry.
+                        retry_on = getattr(self, "retry_on", "infra_plus_validation")
+                        is_validation = isinstance(error, ValueError)
+                        if retry_on == "infra_only" and is_validation:
+                            raise
+                        if retry_on == "validation_only" and not is_validation:
+                            raise
+
+                        # Authentication/config errors are not helped by retry.
+                        err_l = str(error).lower()
+                        if "api key" in err_l or "api_key" in err_l or "authentication" in err_l:
+                            raise
+
+                    if attempt >= attempts - 1:
+                        logger.debug("Agent '%s' turn failed: %s", self.name, error, exc_info=True)
+                        raise
+                    self._history.truncate(history_length)
+
+                    delay = 0.0
+                    if getattr(self, "retry_enabled", False):
+                        base = float(getattr(self, "retry_delay_seconds", 0.0) or 0.0)
+                        if base > 0:
+                            if getattr(self, "retry_backoff", "constant") == "exponential":
+                                delay = base * (2**attempt)
+                            else:
+                                delay = base
+                            max_d = float(getattr(self, "retry_max_delay_seconds", 0.0) or 0.0)
+                            if max_d and delay > max_d:
+                                delay = max_d
+                            if getattr(self, "retry_jitter", False) and delay > 0:
+                                delay = random.random() * delay
+                    else:
+                        delay = float(self.response_retry_delay or 0.0)
+
+                    if delay > 0:
+                        time.sleep(delay)
+
+            raise RuntimeError("Unexpected retry loop exit")  # pragma: no cover
+        finally:
+            self._end_model_attempt_turn(created_scope)
 
     def _agent_lm_config(self, opts: Optional[Dict[str, Any]] = None) -> tuple[str, Dict[str, Any]]:
         """Return the normalized model and LM kwargs for this agent turn."""
@@ -1932,6 +2543,10 @@ class DSPyAgentHandle:
             config_kwargs["request_timeout"] = request_timeout
         if self.tool_choice is not None and (self.tools or self.toolsets):
             config_kwargs["tool_choice"] = self.tool_choice
+        if self.model_attempt_authority is not None:
+            # Authority observes and bounds physical retries itself.  Do not
+            # permit an unreported retry below the Agent boundary.
+            config_kwargs["num_retries"] = 0
 
         return model_for_litellm, config_kwargs
 
@@ -2212,6 +2827,7 @@ def create_dspy_agent(
     registry: Any = None,
     mock_manager: Any = None,
     execution_context: Any = None,
+    model_attempt_authority: Optional[ModelAttemptAuthority] = None,
 ) -> DSPyAgentHandle:
     """
     Create a DSPy-based Agent from configuration.
@@ -2266,6 +2882,7 @@ def create_dspy_agent(
         log_handler=config.get("log_handler"),
         disable_streaming=config.get("disable_streaming", False),
         execution_context=execution_context,
+        model_attempt_authority=model_attempt_authority,
         **{
             k: v
             for k, v in config.items()

@@ -32,6 +32,14 @@ from tactus.protocols.control import (
 from tactus.protocols.storage import StorageBackend
 from tactus.protocols.hitl import HITLHandler
 from tactus.protocols.chat_recorder import ChatRecorder
+from tactus.protocols.model_attempt import (
+    ModelAttemptAuthority,
+    ModelAttemptOutcome,
+    ModelAttemptPlan,
+    ModelAttemptReplayPayload,
+    ModelAttemptReservation,
+    ModelAttemptUsage,
+)
 
 # Configuration
 from tactus.protocols.config import TactusConfig, ProcedureConfig
@@ -59,6 +67,12 @@ __all__ = [
     "StorageBackend",
     "HITLHandler",
     "ChatRecorder",
+    "ModelAttemptAuthority",
+    "ModelAttemptOutcome",
+    "ModelAttemptPlan",
+    "ModelAttemptReplayPayload",
+    "ModelAttemptReservation",
+    "ModelAttemptUsage",
     # Config
     "TactusConfig",
     "ProcedureConfig",

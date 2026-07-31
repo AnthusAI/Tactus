@@ -197,11 +197,7 @@ async def execute_procedure(
 
 async def main_async() -> int:
     """Main async entrypoint."""
-    from tactus.sandbox.protocol import (
-        ExecutionRequest,
-        ExecutionResult,
-        ExecutionStatus,
-    )
+    from tactus.sandbox.protocol import ExecutionRequest, ExecutionResult, ExecutionStatus
 
     start_time = time.time()
 
@@ -270,8 +266,59 @@ async def main_async() -> int:
 
             raise
 
-        # Create success result
         duration = time.time() - start_time
+        if isinstance(proc_result, dict) and proc_result.get("status") == "WAITING_FOR_CHILDREN":
+            request = proc_result.get("request")
+            children = proc_result.get("children")
+            if not isinstance(request, dict):
+                request = {}
+            if not isinstance(children, list):
+                children = []
+            result = ExecutionResult(
+                status=ExecutionStatus.CANCELLED,
+                result=None,
+                error=proc_result.get("message", "Procedure waiting for external children"),
+                error_type="ProcedureWaitingForChildren",
+                traceback=None,
+                duration_seconds=duration,
+                exit_code=0,
+                logs=[],
+                metadata={
+                    "waiting_for_children": True,
+                    "procedure_id": proc_result.get("procedure_id"),
+                    "request": request,
+                    "children": children,
+                },
+            )
+            write_result_to_stdout(result)
+            return 0
+
+        if isinstance(proc_result, dict) and proc_result.get("status") == "WAITING_FOR_TIME":
+            request = proc_result.get("request")
+            if not isinstance(request, dict):
+                request = {}
+            result = ExecutionResult(
+                status=ExecutionStatus.CANCELLED,
+                result=None,
+                error=proc_result.get("message", "Procedure waiting for scheduled continuation"),
+                error_type="ProcedureWaitingForTime",
+                traceback=None,
+                duration_seconds=duration,
+                exit_code=0,
+                logs=[],
+                metadata={
+                    "waiting_for_time": True,
+                    "procedure_id": proc_result.get("procedure_id"),
+                    "request": request,
+                    "resume_at": proc_result.get("resume_at"),
+                    "reason": proc_result.get("reason"),
+                    "continuation_key": proc_result.get("continuation_key"),
+                },
+            )
+            write_result_to_stdout(result)
+            return 0
+
+        # Create success result
         result = ExecutionResult.success(
             result=proc_result,
             duration_seconds=duration,

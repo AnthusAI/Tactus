@@ -106,6 +106,12 @@ assistant = Agent {
 }
 ```
 
+Python runtime hosts that must durably authorize every physical provider call
+should use the supported [`ModelAttemptAuthority`](MODEL_ATTEMPT_AUTHORITY.md)
+contract. It reserves before contact, enforces exact request bounds, suppresses
+hidden retries, and returns versioned replay evidence without changing the Lua
+Agent calling pattern.
+
 ## Per-turn capability control (important)
 
 Tactus supports per-call overrides so you can change an agent's capabilities on a specific turn.

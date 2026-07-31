@@ -839,6 +839,40 @@ async def test_broker_server_llm_chat_asyncio_streaming_with_tools(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_broker_server_llm_chat_asyncio_forwards_num_retries(tmp_path):
+    class DummyMessage:
+        content = "hello"
+        tool_calls = []
+
+    class DummyResult:
+        choices = [SimpleNamespace(message=DummyMessage())]
+
+    class FakeBackend:
+        def __init__(self):
+            self.kwargs = None
+
+        async def chat(self, **kwargs):
+            self.kwargs = kwargs
+            return DummyResult()
+
+    backend = FakeBackend()
+    server = broker_server.BrokerServer(tmp_path / "broker.sock", openai_backend=backend)
+    events = []
+
+    async def write_event(event):
+        events.append(event)
+
+    await server._handle_llm_chat_asyncio(
+        "req",
+        {"provider": "openai", "model": "gpt", "messages": [], "num_retries": 0},
+        write_event,
+    )
+
+    assert events[-1]["event"] == "done"
+    assert backend.kwargs["num_retries"] == 0
+
+
+@pytest.mark.asyncio
 async def test_broker_server_llm_chat_asyncio_streaming_tool_call_missing_name_and_args(tmp_path):
     class DummyFunction:
         name = None

@@ -148,9 +148,6 @@ class ProcedureYAMLParser:
         if not isinstance(agents, dict):
             raise ProcedureConfigError("'agents' must be a dictionary")
 
-        if not agents:
-            raise ProcedureConfigError("At least one agent must be defined")
-
         valid_providers = ["openai", "bedrock"]
         for agent_name, agent_def in agents.items():
             if not isinstance(agent_def, dict):

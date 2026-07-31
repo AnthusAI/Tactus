@@ -68,7 +68,10 @@ class ProcedureMetadata(BaseModel):
     )
     status: str = Field(
         default="RUNNING",
-        description="Current procedure status (RUNNING, WAITING_FOR_HUMAN, COMPLETED, FAILED)",
+        description=(
+            "Current procedure status (RUNNING, WAITING_FOR_HUMAN, WAITING_FOR_CHILDREN, "
+            "WAITING_FOR_TIME, COMPLETED, FAILED)"
+        ),
     )
     waiting_on_message_id: Optional[str] = Field(
         default=None, description="Message ID if procedure is waiting for human response"

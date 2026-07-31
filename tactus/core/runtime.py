@@ -25,7 +25,12 @@ from tactus.core.message_history_manager import MessageHistoryManager
 from tactus.core.lua_sandbox import LuaSandbox, LuaSandboxError, validate_python_module_name
 from tactus.core.output_validator import OutputValidator, OutputValidationError
 from tactus.core.execution_context import BaseExecutionContext
-from tactus.core.exceptions import ProcedureWaitingForHuman, TactusRuntimeError
+from tactus.core.exceptions import (
+    ProcedureWaitingForChildren,
+    ProcedureWaitingForHuman,
+    ProcedureWaitingForTime,
+    TactusRuntimeError,
+)
 from tactus.protocols.storage import StorageBackend
 from tactus.protocols.hitl import HITLHandler
 from tactus.protocols.chat_recorder import ChatRecorder
@@ -92,6 +97,8 @@ class TactusRuntime:
         max_tokens: Optional[int] = None,
         temperature: Optional[float] = None,
         reset_state_on_execute: bool = False,
+        child_wait_resolver=None,
+        model_attempt_authority=None,
     ):
         """
         Initialize the Tactus runtime.
@@ -100,6 +107,7 @@ class TactusRuntime:
             procedure_id: Unique procedure identifier
             storage_backend: Storage backend for checkpoints and state
             hitl_handler: Handler for human-in-the-loop interactions
+            child_wait_resolver: Host callback resolving durable external-child snapshots
             chat_recorder: Optional chat recorder for conversation logging
             mcp_server: DEPRECATED - use mcp_servers instead
             mcp_servers: Optional dict of MCP server configs {name: {command, args, env}}
@@ -116,6 +124,9 @@ class TactusRuntime:
             temperature: Optional runtime-level sampling temperature control
             reset_state_on_execute: When true, clear persisted procedure state
                 at the start of each execute() call.
+            child_wait_resolver: Host callback resolving durable external-child snapshots.
+            model_attempt_authority: Optional host authority invoked around each
+                physical provider attempt made by runtime-created agents.
         """
         validate_gpt5_controls(reasoning_effort=reasoning_effort, verbosity=verbosity)
         if max_tokens is not None and (
@@ -132,6 +143,8 @@ class TactusRuntime:
 
         self.procedure_id = procedure_id
         self.storage_backend = storage_backend
+        self.child_wait_resolver = child_wait_resolver
+        self.model_attempt_authority = model_attempt_authority
 
         # Initialize HITL handler - use new ControlLoopHandler by default
         if hitl_handler is None:
@@ -380,32 +393,7 @@ class TactusRuntime:
                 placeholder_params = {}  # Empty params dict
                 self.lua_sandbox.inject_primitive("Log", placeholder_log)
                 # Inject _state_primitive for metatable to use
-                self.lua_sandbox.inject_primitive("_state_primitive", placeholder_state)
-
-                # Create State object with special methods and lowercase state proxy with metatable
-                self.lua_sandbox.lua.execute("""
-                    State = {
-                        increment = function(key, amount)
-                            return _state_primitive.increment(key, amount or 1)
-                        end,
-                        append = function(key, value)
-                            return _state_primitive.append(key, value)
-                        end,
-                        all = function()
-                            return _state_primitive.all()
-                        end
-                    }
-
-                    -- Create lowercase 'state' proxy with metatable
-                    state = setmetatable({}, {
-                        __index = function(_, key)
-                            return _state_primitive.get(key)
-                        end,
-                        __newindex = function(_, key, value)
-                            _state_primitive.set(key, value)
-                        end
-                    })
-                """)
+                self._ensure_lua_state_proxy(placeholder_state)
                 self.lua_sandbox.inject_primitive("Tool", placeholder_tool_primitive)
                 self.lua_sandbox.inject_primitive("params", placeholder_params)
                 placeholder_system = LuaSystemPrimitive(
@@ -752,6 +740,32 @@ class TactusRuntime:
                 "session_id": chat_session_id,
             }
 
+        except ProcedureWaitingForChildren as e:
+            logger.info("Procedure waiting for external children: %s", e)
+            return {
+                "success": False,
+                "status": "WAITING_FOR_CHILDREN",
+                "procedure_id": self.procedure_id,
+                "request": e.request,
+                "children": e.children,
+                "message": str(e),
+                "session_id": chat_session_id,
+            }
+
+        except ProcedureWaitingForTime as e:
+            logger.info("Procedure waiting for scheduled continuation: %s", e)
+            return {
+                "success": False,
+                "status": "WAITING_FOR_TIME",
+                "procedure_id": self.procedure_id,
+                "request": e.request,
+                "resume_at": e.request["resume_at"],
+                "reason": e.request["reason"],
+                "continuation_key": e.request["key"],
+                "message": str(e),
+                "session_id": chat_session_id,
+            }
+
         except ProcedureConfigError as e:
             logger.error("Configuration error: %s", e)
             # Flush recordings even on error
@@ -911,9 +925,51 @@ class TactusRuntime:
             procedure_id=self.procedure_id,
             storage_backend=self.storage_backend,
             hitl_handler=self.hitl_handler,
+            child_wait_resolver=self.child_wait_resolver,
             strict_determinism=strict_determinism,
             log_handler=self.log_handler,
         )
+
+    def _ensure_lua_state_proxy(self, state_primitive: StatePrimitive) -> None:
+        """Expose the public State API for both Lua DSL and legacy YAML procedures."""
+        if self.lua_sandbox is None:
+            return
+        self.lua_sandbox.inject_primitive("_state_primitive", state_primitive)
+        self.lua_sandbox.lua.execute("""
+            if State == nil then
+                State = {
+                    get = function(key, default)
+                        return _state_primitive.get(key, default)
+                    end,
+                    set = function(key, value)
+                        return _state_primitive.set(key, value)
+                    end,
+                    increment = function(key, amount)
+                        return _state_primitive.increment(key, amount or 1)
+                    end,
+                    append = function(key, value)
+                        return _state_primitive.append(key, value)
+                    end,
+                    all = function()
+                        return _state_primitive.all()
+                    end,
+                    clear = function()
+                        return _state_primitive.clear()
+                    end
+                }
+            end
+
+            if state == nil then
+                state = setmetatable({}, {
+                    __index = function(_, key)
+                        return _state_primitive.get(key)
+                    end,
+                    __newindex = function(_, key, value)
+                        _state_primitive.set(key, value)
+                    end
+                })
+            end
+        """)
 
     async def _initialize_primitives(
         self,
@@ -2329,6 +2385,11 @@ class TactusRuntime:
                 "prepare": agent_config.get("prepare"),
                 "message_history_filter": message_history_filter,
                 "response": agent_config.get("response"),
+                "max_input_tokens": agent_config.get("max_input_tokens"),
+                "model_attempt_max_attempts": agent_config.get(
+                    "model_attempt_max_attempts", agent_config.get("max_attempts")
+                ),
+                "model_attempt_call_id": agent_config.get("model_attempt_call_id"),
             }
             if resolved_reasoning_effort is not None:
                 dspy_config["reasoning_effort"] = resolved_reasoning_effort
@@ -2379,6 +2440,7 @@ class TactusRuntime:
                 registry=self.registry,
                 mock_manager=self.mock_manager,
                 execution_context=self.execution_context,
+                model_attempt_authority=self.model_attempt_authority,
             )
 
             # Store additional context for compatibility
@@ -2470,6 +2532,8 @@ class TactusRuntime:
             existing_agent._tool_primitive = self.tool_primitive
         if hasattr(existing_agent, "execution_context"):
             existing_agent.execution_context = self.execution_context
+        if hasattr(existing_agent, "model_attempt_authority"):
+            existing_agent.model_attempt_authority = self.model_attempt_authority
         if hasattr(existing_agent, "clear_history"):
             try:
                 existing_agent.clear_history()
@@ -2761,12 +2825,9 @@ class TactusRuntime:
 
         # Re-inject state primitive (may have been updated with schema)
         if self.state_primitive:
-            # Replace the placeholder _state_primitive with the real one
-            # (The metatable was already set up during parsing, so it will use this new primitive)
-            self.lua_sandbox.inject_primitive("_state_primitive", self.state_primitive)
-            logger.debug(
-                "State primitive re-injected (metatable already configured during parsing)"
-            )
+            # Lua DSL has a placeholder proxy from parsing; legacy YAML first creates it here.
+            self._ensure_lua_state_proxy(self.state_primitive)
+            logger.debug("State primitive and public proxy injected")
         if self.iterations_primitive:
             self.lua_sandbox.inject_primitive("Iterations", self.iterations_primitive)
         if self.stop_primitive:
@@ -2993,7 +3054,11 @@ class TactusRuntime:
 
                     logger.info("Named 'main' procedure execution completed successfully")
                     return result
-                except ProcedureWaitingForHuman:
+                except (
+                    ProcedureWaitingForHuman,
+                    ProcedureWaitingForChildren,
+                    ProcedureWaitingForTime,
+                ):
                     # Re-raise without wrapping - this is expected behavior
                     raise
                 except Exception as e:
@@ -4135,6 +4200,8 @@ class TactusRuntime:
             procedure_id=sub_procedure_id,
             storage_backend=self.storage_backend,
             hitl_handler=self.hitl_handler,
+            child_wait_resolver=self.child_wait_resolver,
+            model_attempt_authority=self.model_attempt_authority,
             chat_recorder=self.chat_recorder,
             mcp_server=self.mcp_server,
             openai_api_key=self.openai_api_key,

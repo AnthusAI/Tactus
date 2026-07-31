@@ -47,6 +47,40 @@ class ProcedureWaitingForHuman(Exception):
         )
 
 
+class ProcedureWaitingForChildren(Exception):
+    """Raised to suspend a procedure until host-managed children make progress."""
+
+    message_template = "Procedure {procedure_id} waiting for external children"
+
+    def __init__(self, procedure_id: str, request: dict, children: list[dict]):
+        self.procedure_id = procedure_id
+        self.request = request
+        self.children = children
+        super().__init__(self.message_template.format(procedure_id=procedure_id))
+
+
+class ProcedureWaitingForTime(Exception):
+    """Raised to release a procedure until its durable continuation is due.
+
+    This is intentionally only a Tactus execution outcome. The host remains
+    responsible for persisting the outcome, scheduling a resume, and applying
+    any product-specific status or authorization policy.
+    """
+
+    message_template = "Procedure {procedure_id} waiting until {resume_at}"
+
+    def __init__(self, procedure_id: str, request: dict, resume_at):
+        self.procedure_id = procedure_id
+        self.request = request
+        self.resume_at = resume_at
+        super().__init__(
+            self.message_template.format(
+                procedure_id=procedure_id,
+                resume_at=request["resume_at"],
+            )
+        )
+
+
 class ProcedureConfigError(Exception):
     """Raised when procedure configuration is invalid."""
 

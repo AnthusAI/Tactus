@@ -54,6 +54,15 @@ class _FakeSendStream:
         self.items.append(item)
 
 
+class _RecordingBrokerClient(_FakeBrokerClient):
+    def __init__(self):
+        self.calls: list[dict] = []
+
+    def llm_chat(self, **kwargs):
+        self.calls.append(kwargs)
+        return super().llm_chat(**kwargs)
+
+
 @pytest.mark.asyncio
 async def test_brokered_lm_non_streaming_uses_broker_events():
     lm = BrokeredLM("openai/gpt-4o-mini", socket_path="unused.sock")
@@ -61,6 +70,18 @@ async def test_brokered_lm_non_streaming_uses_broker_events():
 
     resp = await lm.aforward(messages=[{"role": "user", "content": "hi"}])
     assert resp.choices[0].message.content == "hello"
+
+
+@pytest.mark.asyncio
+async def test_brokered_lm_forwards_num_retries_to_broker():
+    lm = BrokeredLM("openai/gpt-4o-mini", socket_path="unused.sock", num_retries=0)
+    client = _RecordingBrokerClient()
+    lm._client = client  # type: ignore[assignment]
+
+    await lm.aforward(messages=[{"role": "user", "content": "hi"}])
+
+    assert len(client.calls) == 1
+    assert client.calls[0]["num_retries"] == 0
 
 
 @pytest.mark.asyncio

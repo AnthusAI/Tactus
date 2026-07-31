@@ -52,12 +52,14 @@ class DummyExecutionContext:
         procedure_id,
         storage_backend,
         hitl_handler=None,
+        child_wait_resolver=None,
         strict_determinism=False,
         log_handler=None,
     ):
         self.procedure_id = procedure_id
         self.storage = storage_backend
         self.hitl = hitl_handler
+        self.child_wait_resolver = child_wait_resolver
         self.strict_determinism = strict_determinism
         self.log_handler = log_handler
         self.metadata = DummyMetadata()
@@ -84,12 +86,14 @@ class DummyExecutionContextNoMetadata:
         procedure_id,
         storage_backend,
         hitl_handler=None,
+        child_wait_resolver=None,
         strict_determinism=False,
         log_handler=None,
     ):
         self.procedure_id = procedure_id
         self.storage = storage_backend
         self.hitl = hitl_handler
+        self.child_wait_resolver = child_wait_resolver
         self.strict_determinism = strict_determinism
         self.log_handler = log_handler
         self.current_tac_file = None

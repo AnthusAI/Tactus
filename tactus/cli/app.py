@@ -542,6 +542,25 @@ def _print_waiting_for_human(console: Console, *, pending_message_id: str | None
     )
 
 
+def _print_waiting_for_children(console: Console, *, children: object) -> None:
+    count = len(children) if isinstance(children, list) else None
+    suffix = f" ({count} child{'ren' if count != 1 else ''})" if count is not None else ""
+    console.print(f"\n[yellow]Procedure is waiting for external children{suffix}[/yellow]")
+    console.print("[cyan]The host should resume this procedure after child state changes.[/cyan]\n")
+
+
+def _print_waiting_for_time(console: Console, *, resume_at: str | None, reason: str | None) -> None:
+    if resume_at:
+        console.print(f"\n[yellow]Procedure is waiting until {resume_at}[/yellow]")
+    else:
+        console.print("\n[yellow]Procedure is waiting for a scheduled continuation[/yellow]")
+    if reason:
+        console.print(f"[dim]Reason: {reason}[/dim]")
+    console.print(
+        "[cyan]The host should resume this procedure at or after its scheduled time.[/cyan]\n"
+    )
+
+
 @app.command()
 def run(
     workflow_file: Path = typer.Argument(..., help="Path to workflow file (.tac)"),
@@ -1083,6 +1102,21 @@ def run(
                     )
                     return
 
+                if sandbox_result.metadata.get("waiting_for_children"):
+                    _print_waiting_for_children(
+                        console,
+                        children=sandbox_result.metadata.get("children"),
+                    )
+                    return
+
+                if sandbox_result.metadata.get("waiting_for_time"):
+                    _print_waiting_for_time(
+                        console,
+                        resume_at=sandbox_result.metadata.get("resume_at"),
+                        reason=sandbox_result.metadata.get("reason"),
+                    )
+                    return
+
                 result = {
                     "success": False,
                     "error": sandbox_result.error,
@@ -1120,6 +1154,18 @@ def run(
                 else:
                     # Re-raise other exceptions
                     raise
+
+        if result.get("status") == "WAITING_FOR_TIME":
+            _print_waiting_for_time(
+                console,
+                resume_at=result.get("resume_at"),
+                reason=result.get("reason"),
+            )
+            return
+
+        if result.get("status") == "WAITING_FOR_CHILDREN":
+            _print_waiting_for_children(console, children=result.get("children"))
+            return
 
         if result["success"]:
             console.print("\n[green]✓ Procedure completed successfully[/green]\n")

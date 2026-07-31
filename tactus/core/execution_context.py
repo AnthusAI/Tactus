@@ -21,7 +21,11 @@ from tactus.protocols.models import (
     SourceLocation,
     ExecutionRun,
 )
-from tactus.core.exceptions import ProcedureWaitingForHuman
+from tactus.core.exceptions import (
+    ProcedureWaitingForChildren,
+    ProcedureWaitingForHuman,
+    ProcedureWaitingForTime,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -84,6 +88,16 @@ class ExecutionContext(ABC):
         pass
 
     @abstractmethod
+    def await_children(self, request: dict) -> dict:
+        """Resolve host-managed external children or suspend for a later replay."""
+        pass
+
+    @abstractmethod
+    def defer(self, request: dict) -> dict:
+        """Suspend until a durable, host-scheduled continuation is due."""
+        pass
+
+    @abstractmethod
     def sleep(self, seconds: int) -> None:
         """
         Sleep without consuming resources.
@@ -122,6 +136,8 @@ class BaseExecutionContext(ExecutionContext):
         procedure_id: str,
         storage_backend: StorageBackend,
         hitl_handler: Optional[HITLHandler] = None,
+        child_wait_resolver: Optional[Callable[[dict], dict]] = None,
+        clock: Optional[Callable[[], datetime]] = None,
         strict_determinism: bool = False,
         log_handler=None,
     ):
@@ -138,6 +154,8 @@ class BaseExecutionContext(ExecutionContext):
         self.procedure_id = procedure_id
         self.storage = storage_backend
         self.hitl = hitl_handler
+        self.child_wait_resolver = child_wait_resolver
+        self._clock = clock or (lambda: datetime.now(timezone.utc))
         self.strict_determinism = strict_determinism
         self.log_handler = log_handler
 
@@ -251,8 +269,20 @@ class BaseExecutionContext(ExecutionContext):
                     self.current_run_id,
                 )
                 # Fall through to execute mode - this is a new run
-            # Special case: HITL checkpoints may have result=None if saved before response arrived
-            # In this case, re-execute to check for cached response from control loop
+            # Suspend checkpoints re-execute on replay so their host integration can
+            # observe new state instead of returning the pending marker as a result.
+            elif (
+                checkpoint_type in {"external_children_wait", "scheduled_continuation"}
+                and isinstance(checkpoint_entry.result, dict)
+                and checkpoint_entry.result.get("pending") is True
+            ):
+                logger.debug(
+                    "[CHECKPOINT] External-child wait checkpoint at position %s is pending; "
+                    "re-executing to resolve current host state",
+                    checkpoint_position,
+                )
+            # Special case: HITL checkpoints may have result=None if saved before response arrived.
+            # In this case, re-execute to check for cached response from control loop.
             elif checkpoint_entry.result is None and checkpoint_type.startswith("hitl_"):
                 logger.debug(
                     "[CHECKPOINT] HITL checkpoint at position %s has no result, re-executing "
@@ -319,15 +349,22 @@ class BaseExecutionContext(ExecutionContext):
                     self.metadata.state.copy() if hasattr(self.metadata, "state") else None
                 ),
             )
-        except ProcedureWaitingForHuman:
-            # CRITICAL: For HITL checkpoints, we need to save the checkpoint BEFORE exiting
-            # This enables transparent resume - on restart, we'll have a checkpoint at this position
-            # with result=None, and the control loop will check for cached responses
+        except (
+            ProcedureWaitingForHuman,
+            ProcedureWaitingForChildren,
+            ProcedureWaitingForTime,
+        ) as exception:
+            # Suspend checkpoints must be persisted before exiting so replay can
+            # re-resolve host state without retaining a process-local waiter.
             execution_duration_ms = (time.time() - execution_start_time) * 1000
             checkpoint_entry = CheckpointEntry(
                 position=checkpoint_position,
                 type=checkpoint_type,
-                result=None,  # Will be filled in when response arrives
+                result=(
+                    {"pending": True, "request": exception.request}
+                    if isinstance(exception, (ProcedureWaitingForChildren, ProcedureWaitingForTime))
+                    else None
+                ),
                 timestamp=datetime.now(timezone.utc),
                 duration_ms=execution_duration_ms,
                 run_id=self.current_run_id,
@@ -463,6 +500,223 @@ class BaseExecutionContext(ExecutionContext):
         return self.hitl.request_interaction(
             self.procedure_id, hitl_request, execution_context=self
         )
+
+    def await_children(self, request: dict) -> dict:
+        """Resolve external child snapshots through the injected host callback.
+
+        Tactus validates and checkpoints the durable request, while the host owns
+        child creation, polling, persistence, authorization, and resume scheduling.
+        """
+        # A resumed procedure re-executes its source. Inputs used to construct a
+        # wait request may therefore have changed since the first attempt. The
+        # checkpointed request is the durable boundary: it contains the exact
+        # opaque child identities the host was asked to await, and must remain
+        # authoritative until the wait reaches a terminal result.
+        normalized_request = self._pending_external_children_request()
+        if normalized_request is None:
+            normalized_request = self._normalize_child_wait_request(request)
+
+        def resolve_children() -> dict:
+            if self.child_wait_resolver is None:
+                raise RuntimeError("No external child wait resolver is configured")
+
+            resolution = self.child_wait_resolver(normalized_request)
+            children = self._normalize_child_wait_resolution(normalized_request, resolution)
+            mode = normalized_request["mode"]
+            complete = (
+                all(child["terminal"] for child in children)
+                if mode == "all"
+                else any(child["terminal"] for child in children)
+            )
+            if not complete:
+                raise ProcedureWaitingForChildren(self.procedure_id, normalized_request, children)
+            return {"children": children, "complete": True}
+
+        return self.checkpoint(resolve_children, "external_children_wait")
+
+    def defer(self, request: dict) -> dict:
+        """Checkpoint a host-neutral scheduled continuation.
+
+        Tactus never sleeps or schedules a timer here. A host simply receives
+        :class:`ProcedureWaitingForTime` from the runtime, releases the worker,
+        and invokes a normal replay at or after ``resume_at``. The first
+        request becomes durable; a replay with different stable inputs fails
+        closed instead of silently retargeting the continuation.
+        """
+        supplied_request = self._normalize_scheduled_continuation_request(request)
+        durable_request = self._scheduled_continuation_request_at_current_position()
+        if durable_request is not None:
+            if supplied_request != durable_request:
+                raise ValueError(
+                    "Scheduled continuation request conflicts with the durable checkpoint"
+                )
+            normalized_request = durable_request
+        else:
+            normalized_request = supplied_request
+
+        resume_at = self._parse_scheduled_continuation_time(normalized_request["resume_at"])
+
+        def resolve_continuation() -> dict:
+            if self._now() < resume_at:
+                raise ProcedureWaitingForTime(self.procedure_id, normalized_request, resume_at)
+            return {"completed": True, **normalized_request}
+
+        return self.checkpoint(resolve_continuation, "scheduled_continuation")
+
+    def _pending_external_children_request(self) -> Optional[dict]:
+        """Return the durable pending request at the current replay position.
+
+        This deliberately mirrors :meth:`checkpoint`'s current-run boundary.
+        A checkpoint from another run is not replayed, so it cannot supply a
+        request to a new run. A malformed persisted request is a storage
+        integrity problem and fails closed rather than allowing a changed input
+        to redirect the host lookup to different children.
+        """
+        checkpoint_position = self.metadata.replay_index
+        if checkpoint_position >= len(self.metadata.execution_log):
+            return None
+
+        checkpoint_entry = self.metadata.execution_log[checkpoint_position]
+        if (
+            checkpoint_entry.run_id != self.current_run_id
+            or checkpoint_entry.type != "external_children_wait"
+            or not isinstance(checkpoint_entry.result, dict)
+            or checkpoint_entry.result.get("pending") is not True
+        ):
+            return None
+
+        if "request" not in checkpoint_entry.result:
+            raise ValueError("Pending external-child wait checkpoint has no request")
+        return self._normalize_child_wait_request(checkpoint_entry.result["request"])
+
+    def _scheduled_continuation_request_at_current_position(self) -> Optional[dict]:
+        """Return the durable continuation request at the current replay position.
+
+        The request remains authoritative after the continuation is completed,
+        not merely while it is pending. Otherwise a changed call site could
+        receive a cached completion result for a different continuation.
+        """
+        checkpoint_position = self.metadata.replay_index
+        if checkpoint_position >= len(self.metadata.execution_log):
+            return None
+
+        checkpoint_entry = self.metadata.execution_log[checkpoint_position]
+        if (
+            checkpoint_entry.run_id != self.current_run_id
+            or checkpoint_entry.type != "scheduled_continuation"
+            or not isinstance(checkpoint_entry.result, dict)
+        ):
+            return None
+        if checkpoint_entry.result.get("pending") is True:
+            if "request" not in checkpoint_entry.result:
+                raise ValueError("Pending scheduled continuation checkpoint has no request")
+            return self._normalize_scheduled_continuation_request(
+                checkpoint_entry.result["request"]
+            )
+        if checkpoint_entry.result.get("completed") is True:
+            return self._normalize_scheduled_continuation_request(
+                {key: checkpoint_entry.result.get(key) for key in ("key", "resume_at", "reason")}
+            )
+        raise ValueError("Scheduled continuation checkpoint has an invalid result")
+
+    @staticmethod
+    def _normalize_scheduled_continuation_request(request: Any) -> dict:
+        if not isinstance(request, dict):
+            raise ValueError("Scheduled continuation request must be a table")
+        allowed_keys = {"key", "resume_at", "reason"}
+        unexpected = set(request) - allowed_keys
+        if unexpected:
+            raise ValueError(
+                "Scheduled continuation request has unsupported fields: " f"{sorted(unexpected)}"
+            )
+        key = request.get("key")
+        if not isinstance(key, str) or not key.strip():
+            raise ValueError("Scheduled continuation request requires a nonempty string key")
+        reason = request.get("reason")
+        if not isinstance(reason, str) or not reason.strip():
+            raise ValueError("Scheduled continuation request requires a nonempty string reason")
+        resume_at = request.get("resume_at")
+        if not isinstance(resume_at, str) or not resume_at.strip():
+            raise ValueError("Scheduled continuation request requires an ISO-8601 resume_at")
+        parsed_resume_at = BaseExecutionContext._parse_scheduled_continuation_time(resume_at)
+        return {
+            "key": key.strip(),
+            "resume_at": parsed_resume_at.isoformat().replace("+00:00", "Z"),
+            "reason": reason.strip(),
+        }
+
+    @staticmethod
+    def _parse_scheduled_continuation_time(resume_at: str) -> datetime:
+        try:
+            parsed = datetime.fromisoformat(resume_at.replace("Z", "+00:00"))
+        except (TypeError, ValueError) as exc:
+            raise ValueError("Scheduled continuation resume_at must be ISO-8601") from exc
+        if parsed.tzinfo is None or parsed.utcoffset() is None:
+            raise ValueError("Scheduled continuation resume_at must include a timezone")
+        return parsed.astimezone(timezone.utc)
+
+    def _now(self) -> datetime:
+        """Return a timezone-aware UTC clock value, failing closed on bad hosts."""
+        now = self._clock()
+        if not isinstance(now, datetime) or now.tzinfo is None or now.utcoffset() is None:
+            raise ValueError("Scheduled continuation clock must return a timezone-aware datetime")
+        return now.astimezone(timezone.utc)
+
+    @staticmethod
+    def _normalize_child_wait_request(request: Any) -> dict:
+        if not isinstance(request, dict):
+            raise ValueError("External child wait request must be a table")
+        allowed_keys = {"children", "mode"}
+        unexpected = set(request) - allowed_keys
+        if unexpected:
+            raise ValueError(
+                f"External child wait request has unsupported fields: {sorted(unexpected)}"
+            )
+        children = request.get("children")
+        if not isinstance(children, list) or not children:
+            raise ValueError("External child wait request requires at least one child")
+        mode = request.get("mode", "all")
+        if mode not in {"all", "any"}:
+            raise ValueError("External child wait mode must be 'all' or 'any'")
+
+        normalized_children = []
+        child_ids = set()
+        for child in children:
+            if not isinstance(child, dict):
+                raise ValueError("Each external child reference must be a table")
+            child_id = child.get("id")
+            if not isinstance(child_id, str) or not child_id.strip():
+                raise ValueError("Each external child reference requires a nonempty string id")
+            if child_id in child_ids:
+                raise ValueError(f"External child reference id '{child_id}' is duplicated")
+            child_ids.add(child_id)
+            normalized_children.append(dict(child))
+        return {"children": normalized_children, "mode": mode}
+
+    @staticmethod
+    def _normalize_child_wait_resolution(request: dict, resolution: Any) -> list[dict]:
+        if not isinstance(resolution, dict) or not isinstance(resolution.get("complete"), bool):
+            raise ValueError("External child resolver must return children and boolean complete")
+        children = resolution.get("children")
+        if not isinstance(children, list):
+            raise ValueError("External child resolver must return a children list")
+        expected_ids = [child["id"] for child in request["children"]]
+        results_by_id = {}
+        for child in children:
+            if not isinstance(child, dict):
+                raise ValueError("Each external child result must be a table")
+            child_id = child.get("id")
+            if child_id not in expected_ids:
+                raise ValueError(f"External child result id '{child_id}' was not requested")
+            if child_id in results_by_id:
+                raise ValueError(f"External child result id '{child_id}' is duplicated")
+            if not isinstance(child.get("terminal"), bool):
+                raise ValueError(f"External child result '{child_id}' requires boolean terminal")
+            results_by_id[child_id] = dict(child)
+        missing_ids = set(expected_ids) - set(results_by_id)
+        if missing_ids:
+            raise ValueError(f"External child resolver omitted results for: {sorted(missing_ids)}")
+        return [results_by_id[child_id] for child_id in expected_ids]
 
     def sleep(self, seconds: int) -> None:
         """

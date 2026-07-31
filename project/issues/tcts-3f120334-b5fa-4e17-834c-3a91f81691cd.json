@@ -1,0 +1,31 @@
+{
+  "id": "tcts-3f120334-b5fa-4e17-834c-3a91f81691cd",
+  "title": "Allow agentless orchestration procedures",
+  "description": "As a procedure author, I want a workflow that only composes host tools, state, stages, and human review to execute without a fake LLM agent, so that orchestration-only procedures remain honest and minimal.\n\nFeature: Agentless procedure orchestration\n\nScenario: Run a procedure with no agent declarations\n  Given a valid procedure uses only host tools, state, stages, and human interactions\n  And it declares no agents\n  When Tactus validates and executes the procedure\n  Then validation succeeds\n  And the procedure advances through its orchestration steps\n\nScenario: Reject an undeclared agent reference\n  Given a procedure declares no agents\n  But its code invokes an agent primitive by name\n  When Tactus validates the procedure\n  Then validation fails with an undeclared-agent error\n\nOut of scope: creating implicit agents or changing model configuration.",
+  "type": "bug",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-4668192e-6bad-4c94-b3ca-c240c8b0ed5f",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "a51f8ca8-3cfc-4a2e-8a66-bf199c4754c3",
+      "author": "ryan.porter",
+      "text": "Validation update: agentless orchestration behavior passes the full 4,203-test Tactus suite, 449 Behave scenarios, 24 stdlib tests, repository-wide Black/Ruff, and the focused runtime/structured-HITL suite.",
+      "created_at": "2026-07-29T19:47:11.123299Z"
+    },
+    {
+      "id": "58049e8f-af43-4932-b476-51c8a3a0e509",
+      "author": "ryan.porter",
+      "text": "Combined release validation confirms agentless orchestration remains green: 4,278 non-integration tests, 456 Behave scenarios, and 487 isolated Python 3.11 Plexus consumer tests passed from a clean wheel.",
+      "created_at": "2026-07-31T19:05:01.764637Z"
+    }
+  ],
+  "created_at": "2026-07-29T18:31:58.487948Z",
+  "updated_at": "2026-07-31T19:05:10.124897Z",
+  "closed_at": "2026-07-31T19:05:10.124897Z",
+  "custom": {}
+}

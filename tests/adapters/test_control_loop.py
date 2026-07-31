@@ -167,6 +167,34 @@ def test_build_request_with_context_and_options():
     assert request.application_context[0].name == "Customer"
 
 
+def test_build_request_promotes_structured_action_metadata_without_removing_metadata():
+    handler = ControlLoopHandler(channels=[])
+    metadata = {
+        "action_key": "stable-key",
+        "resource_refs": [{"system": "example", "kind": "record", "id": "opaque::id"}],
+        "preconditions": [{"fingerprint": "sha256:abc"}],
+        "expires_at": "2030-01-02T03:04:05Z",
+        "response_schema": {"type": "object"},
+        "ui_schema": {"layout": "table"},
+        "host_specific": "preserved",
+    }
+
+    request = handler._build_request(
+        procedure_id="proc-structured",
+        request_type="review",
+        message="Review",
+        metadata=metadata,
+    )
+
+    assert request.action_key == "stable-key"
+    assert request.resource_refs[0]["id"] == "opaque::id"
+    assert request.preconditions == [{"fingerprint": "sha256:abc"}]
+    assert request.expires_at == "2030-01-02T03:04:05Z"
+    assert request.response_schema == {"type": "object"}
+    assert request.ui_schema == {"layout": "table"}
+    assert request.metadata == metadata
+
+
 def test_build_request_without_execution_context_uses_uuid_and_defaults(monkeypatch):
     handler = ControlLoopHandler(channels=[])
 
