@@ -1,0 +1,18 @@
+{
+  "id": "tcts-393fe989-4833-4324-90a4-ad824a81168d",
+  "title": "Suspend procedures while external children run",
+  "description": "As a workflow author, I want a procedure to checkpoint while durable external children run, so that it can resume without holding compute or losing child identity.\n\nFeature: Durable external-child wait\n\nScenario: Suspend on nonterminal children\n  Given a procedure has stable external child references\n  When it waits for all children and at least one remains nonterminal\n  Then Tactus checkpoints the wait request\n  And exposes a distinct waiting-for-children outcome\n  And does not use an in-memory thread or fixed completion timeout\n\nScenario: Replay after external progress\n  Given a waiting procedure is resumed\n  When the host reports terminal states for every requested child\n  Then the wait checkpoint returns the terminal child results\n  And execution continues exactly once after the wait\n\nScenario: Preserve partial failures\n  Given several external children complete with mixed terminal states\n  When the wait resolves\n  Then each child result remains independently visible\n  And successful siblings are not discarded or cancelled",
+  "type": "story",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-d9498f3c-22ef-45b3-b6cd-5012b994764a",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-07-30T22:45:32.556499Z",
+  "updated_at": "2026-07-31T19:05:09.152438Z",
+  "closed_at": "2026-07-31T19:05:09.152438Z",
+  "custom": {}
+}

@@ -19,6 +19,7 @@ If you are new, start with the quick references and runnable examples first.
   - `docs/TOOLS.md` (tooling + MCP integration)
 - Durability:
   - `docs/DURABILITY.md` (checkpoint/replay design; includes historical snippets, but links to canonical patterns)
+  - `docs/MODEL_ATTEMPT_AUTHORITY.md` (host authorization and durable replay for physical model attempts)
 - Configuration:
   - `docs/CONFIGURATION.md` (config cascade, sandbox config, registry env vars)
 
@@ -34,4 +35,3 @@ If you are new, start with the quick references and runnable examples first.
 - `docs/SANDBOXING.md`: threat model and sandbox design
 - `docs/MODEL_PRIMITIVE_STATUS.md`: implementation status and milestones
 - `docs/MODEL_PRIMITIVE_PLAN.md`: roadmap notes (contains historical sketches; canonical syntax lives elsewhere)
-

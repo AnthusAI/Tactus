@@ -10,6 +10,23 @@ from typing import Optional, Any, Dict
 from tactus.protocols.models import ProcedureMetadata
 
 
+def _detach_lua_value(value: Any) -> Any:
+    """Convert Lua table-like values into runtime-independent Python values."""
+    if hasattr(value, "items") and not isinstance(value, dict):
+        items = list(value.items())
+        keys = [key for key, _ in items]
+        if keys and all(isinstance(key, (int, float)) for key in keys):
+            integer_keys = sorted(int(key) for key in keys)
+            if integer_keys == list(range(1, len(integer_keys) + 1)):
+                return [_detach_lua_value(value[key]) for key in integer_keys]
+        return {key: _detach_lua_value(item) for key, item in items}
+    if isinstance(value, dict):
+        return {key: _detach_lua_value(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_detach_lua_value(item) for item in value]
+    return value
+
+
 class MemoryStorage:
     """
     In-memory storage backend.
@@ -50,4 +67,10 @@ class MemoryStorage:
         """Set mutable state dictionary."""
         procedure_metadata = self.load_procedure_metadata(procedure_id)
         procedure_metadata.state = state
+        self.save_procedure_metadata(procedure_id, procedure_metadata)
+
+    def state_set(self, procedure_id: str, key: str, value: Any) -> None:
+        """Set one state key while preserving the procedure's other state."""
+        procedure_metadata = self.load_procedure_metadata(procedure_id)
+        procedure_metadata.state[key] = _detach_lua_value(value)
         self.save_procedure_metadata(procedure_id, procedure_metadata)

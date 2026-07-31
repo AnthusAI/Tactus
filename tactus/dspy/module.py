@@ -102,6 +102,7 @@ class RawModule(dspy.Module):
         user_message: str,
         available_tools: str = "",
         tools=None,
+        _tactus_provider_request=None,
         **kwargs,
     ):
         """
@@ -118,9 +119,42 @@ class RawModule(dspy.Module):
         Returns:
             dspy.Prediction with response field (and tool_calls if signature includes it)
         """
-        # Use provided system_prompt or fall back to init value
-        sys_prompt = system_prompt or self.system_prompt
+        lm = dspy.settings.lm
+        if lm is None:
+            raise RuntimeError("No LM configured. Call dspy.configure(lm=...) first.")
+        if _tactus_provider_request is None:
+            if tools and "tool_choice" not in kwargs and getattr(lm, "kwargs", None):
+                if "tool_choice" in lm.kwargs:
+                    kwargs["tool_choice"] = lm.kwargs["tool_choice"]
+            request = self.build_provider_request(
+                system_prompt=system_prompt,
+                history=history,
+                user_message=user_message,
+                available_tools=available_tools,
+                tools=tools,
+                **kwargs,
+            )
+        else:
+            request = _tactus_provider_request
+        return self._provider_response(lm, request)
 
+    def build_provider_request(
+        self,
+        system_prompt: str,
+        history,
+        user_message: str,
+        available_tools: str = "",
+        tools=None,
+        **kwargs,
+    ) -> dict[str, Any]:
+        """Build the exact message and option payload passed to the provider.
+
+        The authority boundary uses this supported payload to count input tokens
+        before an LM is invoked.  Keeping construction here ensures the count
+        covers the same serialized messages, tools, and tool choice as forward().
+        """
+        kwargs = dict(kwargs)
+        sys_prompt = system_prompt or self.system_prompt
         # Build messages array for direct LM call
         messages = []
 
@@ -194,11 +228,6 @@ class RawModule(dspy.Module):
             else:
                 messages.append({"role": "user", "content": user_message})
 
-        # Get the configured LM
-        lm = dspy.settings.lm
-        if lm is None:
-            raise RuntimeError("No LM configured. Call dspy.configure(lm=...) first.")
-
         # Convert DSPy Tool objects to LiteLLM format for native function calling
         if tools and isinstance(tools, list) and len(tools) > 0:
             litellm_tools = []
@@ -207,13 +236,7 @@ class RawModule(dspy.Module):
                     litellm_tools.append(tool.format_as_litellm_function_call())
             if litellm_tools:
                 kwargs["tools"] = litellm_tools
-                # Ensure tool_choice is passed if set on the LM
-                if (
-                    hasattr(lm, "kwargs")
-                    and "tool_choice" in lm.kwargs
-                    and "tool_choice" not in kwargs
-                ):
-                    kwargs["tool_choice"] = lm.kwargs["tool_choice"]
+                # Ensure tool_choice is retained when supplied by the caller.
                 logger.debug(
                     f"[RAWMODULE] Passing {len(litellm_tools)} tools to LM with tool_choice={kwargs.get('tool_choice')}"
                 )
@@ -232,6 +255,13 @@ class RawModule(dspy.Module):
                 )
 
         kwargs.pop("context", None)
+
+        return {"messages": messages, "kwargs": kwargs}
+
+    def _provider_response(self, lm: Any, request: dict[str, Any]) -> dspy.Prediction:
+        """Call the configured provider using a payload from build_provider_request()."""
+        messages = request["messages"]
+        kwargs = request["kwargs"]
 
         # Call LM directly - streamify() will intercept this call if streaming is enabled
         response = lm(messages=messages, **kwargs)

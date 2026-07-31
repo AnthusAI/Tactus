@@ -1,4 +1,6 @@
-from datetime import timezone
+from datetime import datetime, timezone
+
+from tactus.protocols.control import ControlRequest, ControlRequestType
 
 from tactus.protocols.models import (
     HITLRequest,
@@ -103,6 +105,56 @@ def test_chat_message_maps_legacy_human_interaction():
 
     assert message.classification == MessageClassification.PENDING_APPROVAL
     assert message.human_interaction == "approval"
+
+
+def test_control_request_exposes_structured_action_contract_without_changing_opaque_values():
+    resource_refs = [{"system": "example", "kind": "thing", "id": "opaque::id/with spaces"}]
+    preconditions = [{"fingerprint": "sha256:abc", "resource_id": "opaque::id/with spaces"}]
+    response_schema = {"type": "object", "required": ["decision"]}
+    ui_schema = {"layout": "table"}
+
+    request = ControlRequest(
+        request_id="request-1",
+        procedure_id="procedure-1",
+        procedure_name="Procedure",
+        invocation_id="invocation-1",
+        started_at=datetime.now(timezone.utc),
+        request_type=ControlRequestType.REVIEW,
+        message="Review",
+        action_key="stable-key",
+        resource_refs=resource_refs,
+        preconditions=preconditions,
+        expires_at="2030-01-02T03:04:05Z",
+        response_schema=response_schema,
+        ui_schema=ui_schema,
+    )
+
+    assert request.action_key == "stable-key"
+    assert request.resource_refs == resource_refs
+    assert request.preconditions == preconditions
+    assert request.expires_at == "2030-01-02T03:04:05Z"
+    assert request.response_schema == response_schema
+    assert request.ui_schema == ui_schema
+
+
+def test_control_request_preserves_host_defined_object_preconditions():
+    preconditions = {
+        "champion_version": "opaque::version",
+        "feedback_watermark": "2026-07-29T00:00:00Z",
+    }
+
+    request = ControlRequest(
+        request_id="request-2",
+        procedure_id="procedure-1",
+        procedure_name="Procedure",
+        invocation_id="invocation-1",
+        started_at=datetime.now(timezone.utc),
+        request_type=ControlRequestType.REVIEW,
+        message="Review",
+        preconditions=preconditions,
+    )
+
+    assert request.preconditions == preconditions
 
 
 def test_chat_message_respects_explicit_classification():

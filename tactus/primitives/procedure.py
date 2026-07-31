@@ -281,6 +281,36 @@ class ProcedurePrimitive:
             execute_procedure, "procedure_call", source_info=source_info
         )
 
+    def await_children(self, request: Any) -> dict:
+        """Checkpoint a host-neutral wait for durable external children.
+
+        Unlike :meth:`spawn` and :meth:`wait`, this method creates no local
+        thread and never polls, sleeps, times out, or cancels children. The
+        execution context delegates one state lookup to the injected host
+        resolver and raises ``ProcedureWaitingForChildren`` until the requested
+        all/any completion condition is satisfied.
+        """
+        if hasattr(request, "items") and not isinstance(request, dict):
+            from tactus.core.dsl_stubs import lua_table_to_dict
+
+            request = lua_table_to_dict(request)
+        return self.execution_context.await_children(request)
+
+    def defer(self, request: Any) -> dict:
+        """Durably suspend until a host-scheduled continuation is due.
+
+        ``request`` must provide a stable nonempty ``key``, an ISO-8601 UTC
+        ``resume_at`` time, and a nonempty human-readable ``reason``. It does
+        not create a timer, sleep a worker, or make a product-specific status
+        update. A replay before the time is due exits again; one at or after it
+        returns the checkpointed completion result.
+        """
+        if hasattr(request, "items") and not isinstance(request, dict):
+            from tactus.core.dsl_stubs import lua_table_to_dict
+
+            request = lua_table_to_dict(request)
+        return self.execution_context.defer(request)
+
     def spawn(self, name: str, params: Optional[dict[str, Any]] = None) -> ProcedureHandle:
         """
         Async procedure invocation.

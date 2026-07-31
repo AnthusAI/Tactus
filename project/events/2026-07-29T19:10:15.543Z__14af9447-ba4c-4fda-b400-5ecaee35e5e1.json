@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "14af9447-ba4c-4fda-b400-5ecaee35e5e1",
+  "issue_id": "tcts-d6cadb5f-b3cb-44c4-bcee-eb06b86da738",
+  "event_type": "issue_created",
+  "occurred_at": "2026-07-29T19:10:15.543Z",
+  "actor_id": "ryan.porter",
+  "payload": {
+    "title": "Preserve sequential Lua tables as host arrays",
+    "description": "As a host integration author, I want sequential Lua tables to cross registered Python module calls as ordered lists, so typed host contracts receive their documented values.\n\nFeature: Host module table conversion\n\n  Scenario: Convert a sequential Lua table\n    Given a registered host function receives a Lua table with keys one through N\n    When Tactus invokes the Python function\n    Then the argument is an ordered Python list\n    And nested sequential tables are also lists\n\n  Scenario: Preserve mapping tables\n    Given a Lua table contains named or sparse keys\n    When Tactus invokes the Python function\n    Then the argument remains a mapping with every entry\n\nOut of scope: host-specific validation or product-specific behavior.",
+    "issue_type": "bug",
+    "status": "open",
+    "priority": 1,
+    "assignee": null,
+    "parent": "tcts-4668192e-6bad-4c94-b3ca-c240c8b0ed5f",
+    "labels": []
+  }
+}

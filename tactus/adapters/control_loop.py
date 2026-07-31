@@ -679,6 +679,12 @@ class ControlLoopHandler:
             options=control_options,
             timeout_seconds=timeout_seconds,
             default_value=default_value,
+            action_key=(metadata or {}).get("action_key"),
+            resource_refs=(metadata or {}).get("resource_refs", []),
+            preconditions=(metadata or {}).get("preconditions", []),
+            expires_at=(metadata or {}).get("expires_at"),
+            response_schema=(metadata or {}).get("response_schema"),
+            ui_schema=(metadata or {}).get("ui_schema"),
             items=items,
             input_summary=input_summary or {},
             conversation=[],  # TODO: Convert conversation dicts

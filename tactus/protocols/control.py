@@ -205,6 +205,34 @@ class ControlRequest(BaseModel):
     )
     default_value: Any = Field(default=None, description="Default value on timeout")
 
+    # Optional host-neutral action contract. Tactus transports these values
+    # unchanged; host applications own persistence, authorization, routing,
+    # freshness checks, and delivery.
+    action_key: Optional[str] = Field(
+        default=None,
+        description="Stable producer key used by a host to deduplicate an action",
+    )
+    resource_refs: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description="Typed opaque resource references associated with the interaction",
+    )
+    preconditions: Any = Field(
+        default_factory=dict,
+        description="Host-defined freshness preconditions for accepting a response",
+    )
+    expires_at: Optional[str] = Field(
+        default=None,
+        description="Optional ISO-8601 expiration timestamp supplied by the procedure",
+    )
+    response_schema: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="JSON Schema used to validate the controller response",
+    )
+    ui_schema: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Host-neutral presentation hints for a structured response",
+    )
+
     # For batched inputs (request_type='inputs')
     items: List[ControlRequestItem] = Field(
         default_factory=list,

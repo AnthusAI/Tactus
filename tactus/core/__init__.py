@@ -13,7 +13,9 @@ from tactus.core.yaml_parser import ProcedureYAMLParser, ProcedureConfigError
 from tactus.core.output_validator import OutputValidator, OutputValidationError
 from tactus.core.exceptions import (
     TactusRuntimeError,
+    ProcedureWaitingForChildren,
     ProcedureWaitingForHuman,
+    ProcedureWaitingForTime,
 )
 
 __all__ = [
@@ -29,4 +31,6 @@ __all__ = [
     "OutputValidator",
     "OutputValidationError",
     "ProcedureWaitingForHuman",
+    "ProcedureWaitingForChildren",
+    "ProcedureWaitingForTime",
 ]

@@ -10,6 +10,76 @@ canonical, current syntax (including the Model primitive call pattern), see:
 
 Tactus provides durable execution for agentic workflows through automatic checkpointing and replay. Unlike graph-based systems that require explicit node definitions, Tactus allows developers to write natural imperative Lua code while automatically handling persistence, interruption, and resumption.
 
+Hosts that need durable authorization and replay at the finer-grained physical
+model-attempt boundary should use the supported
+[`ModelAttemptAuthority`](MODEL_ATTEMPT_AUTHORITY.md) contract. Checkpoint
+replay and model-attempt replay are complementary: the execution context owns
+procedure positions, while the host authority owns idempotent reservation and
+terminal evidence for each provider contact.
+
+## Waiting for host-managed external children
+
+`Procedure.await_children(request)` is the durable, host-neutral primitive for
+children that were created and are monitored outside this Tactus process. Pass
+at least one opaque reference with a unique nonempty `id`; any additional
+reference fields are preserved for the host. `mode` defaults to `"all"` and
+may be `"any"`.
+
+```lua
+local outcome = Procedure.await_children({
+    children = {
+        { id = "child-a", host_reference = "opaque-token-a" },
+        { id = "child-b", host_reference = "opaque-token-b" },
+    },
+    mode = "all",
+})
+```
+
+The runtime host injects a resolver that receives the normalized request and
+returns `{ children = [...], complete = boolean }`. Every returned child must
+have the requested `id` and a boolean `terminal`; product-specific fields such
+as `status`, `result`, `error`, and `resource` remain host-defined. Tactus
+computes completion from the terminal flags (`all` requires every child;
+`any` requires one) and returns every current child result unchanged.
+
+If not complete, Tactus checkpoints the normalized request and raises the
+public `ProcedureWaitingForChildren` outcome. A later replay invokes the
+resolver again; it does not poll, sleep, apply a timeout, cancel a child, or
+retain a thread. The resolved terminal result is checkpointed and returned only
+once on subsequent replay.
+
+This is deliberately different from `Procedure.spawn()` and `Procedure.wait()`,
+which are existing process-local APIs implemented with local threads. Hosts own
+external child creation, authorization, persistence, polling, and scheduling
+the next resume.
+
+## Deferring to a host-scheduled continuation
+
+`Procedure.defer(request)` creates one durable time boundary without keeping a
+worker alive. The request has exactly three fields: a stable nonempty `key`, a
+timezone-aware ISO-8601 `resume_at`, and a nonempty `reason` suitable for an
+operator or host log.
+
+```lua
+Procedure.defer({
+    key = "retry-artifact-publication",
+    resume_at = "2026-08-01T14:30:00Z",
+    reason = "retry transient artifact publication failure",
+})
+```
+
+Before `resume_at`, the runtime returns `success = false` and
+`status = "WAITING_FOR_TIME"`; it never calls `Sleep`, creates a timer, polls,
+or otherwise blocks a worker. The runtime result includes the normalized
+`request`, `resume_at`, `reason`, and `continuation_key`. The host owns durable
+scheduling, authorization, persistence, and resumption.
+
+On replay, the initial request remains authoritative. A conflicting key, time,
+or reason fails closed. At or after the due time, `Procedure.defer` returns
+`{completed = true, key = ..., resume_at = ..., reason = ...}` exactly once;
+later replay returns that checkpointed result without creating another
+continuation boundary.
+
 Runnable examples (canonical syntax):
 
 - `examples/10-feature-state.tac` (durable state)

@@ -115,6 +115,7 @@ class BrokeredLM(dspy.BaseLM):
         # Extract tools and tool_choice from kwargs
         tools = merged_kwargs.get("tools")
         tool_choice = merged_kwargs.get("tool_choice")
+        num_retries = merged_kwargs.get("num_retries")
 
         logger.debug(
             f"[BROKER_LM] Calling LM with streaming={send_stream is not None}, tools={len(tools) if tools else 0}"
@@ -128,6 +129,7 @@ class BrokeredLM(dspy.BaseLM):
                 messages=messages,
                 temperature=temperature,
                 max_tokens=max_tokens,
+                num_retries=num_retries,
                 stream=True,
                 tools=tools,
                 tool_choice=tool_choice,
@@ -208,6 +210,7 @@ class BrokeredLM(dspy.BaseLM):
             messages=messages,
             temperature=temperature,
             max_tokens=max_tokens,
+            num_retries=num_retries,
             stream=False,
             tools=tools,
             tool_choice=tool_choice,

@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "907acb81-bc16-45d8-9cd8-3896aafb7c31",
+  "issue_id": "tcts-4668192e-6bad-4c94-b3ca-c240c8b0ed5f",
+  "event_type": "issue_created",
+  "occurred_at": "2026-07-29T16:49:05.635Z",
+  "actor_id": "ryan.porter",
+  "payload": {
+    "title": "Structured human interaction contracts",
+    "description": "Purpose: Let host applications attach stable action identity, typed resource references, freshness preconditions, expiry, and structured response schemas to Tactus human interactions without coupling the runtime to any host product.\n\nExclusions:\n- Host authorization and persistence.\n- External notification delivery.\n- Product-specific resource routing.\n\nDefinition of Done:\n- Existing Human primitives accept and preserve the optional generic metadata.\n- Structured review responses are validated deterministically.\n- Replay and callback behavior remain compatible.\n- Outside-in specifications and quality gates pass.",
+    "issue_type": "epic",
+    "status": "open",
+    "priority": 1,
+    "assignee": null,
+    "parent": null,
+    "labels": []
+  }
+}

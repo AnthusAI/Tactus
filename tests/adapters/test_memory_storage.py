@@ -1,4 +1,5 @@
 from tactus.adapters.memory import MemoryStorage
+from lupa import LuaRuntime
 
 
 def test_load_creates_metadata_once():
@@ -29,3 +30,30 @@ def test_get_and_set_state():
     assert storage.get_state("proc") == {}
     storage.set_state("proc", {"x": 1})
     assert storage.get_state("proc") == {"x": 1}
+
+
+def test_set_single_state_key_preserves_existing_state():
+    storage = MemoryStorage()
+    storage.set_state("proc", {"existing": "value"})
+
+    storage.state_set("proc", "scheduled_retries", [{"key": "retry-1"}])
+
+    assert storage.get_state("proc") == {
+        "existing": "value",
+        "scheduled_retries": [{"key": "retry-1"}],
+    }
+
+
+def test_set_single_state_key_detaches_lua_tables_from_the_runtime():
+    storage = MemoryStorage()
+    lua = LuaRuntime(unpack_returned_tuples=True)
+
+    storage.state_set(
+        "proc",
+        "scheduled_retries",
+        lua.eval('{{key = "retry-1", nested = {1, 2}}}'),
+    )
+
+    assert storage.get_state("proc") == {
+        "scheduled_retries": [{"key": "retry-1", "nested": [1, 2]}],
+    }
