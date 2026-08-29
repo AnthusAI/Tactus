@@ -14,7 +14,7 @@
 
 Tactus is a Lua-based DSL for building agent programs: you define tools, agents, and procedures that orchestrate their work. It’s designed for **bounded autonomy**—use imperative code for the steps that must be deterministic, and agent turns for the steps that benefit from intelligence. The runtime handles durability, human-in-the-loop, tool/context control, and testing so that workflows can run for hours or days and still be shippable.
 
-> **Status:** Alpha. APIs and syntax may change; not production-ready.
+> **Status:** Production. We run Tactus on long-lived agent programs; APIs may still evolve.
 
 ## The Problem: Agent Scripts Don’t Scale
 
@@ -1813,6 +1813,14 @@ See `tactus/validation/README.md` for detailed documentation.
 ## License
 
 MIT License - see LICENSE file for details.
+
+---
+
+Built by [Anthus AI Solutions](https://anth.us). We run this class of system in production.
+
+We use Tactus when an agent has to last longer than a demo.
+
+If you need this operated, not just cloned, [talk to us](https://anth.us).
 
 [continuous-integration-badge]: https://github.com/AnthusAI/Tactus/actions/workflows/release.yml/badge.svg?branch=main
 [coverage-badge]: https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FAnthusAI%2FTactus%2Fmain%2Fcoverage_badge.json
