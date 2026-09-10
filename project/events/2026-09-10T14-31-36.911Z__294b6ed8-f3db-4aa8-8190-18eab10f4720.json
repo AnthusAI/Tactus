@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "event_id": "294b6ed8-f3db-4aa8-8190-18eab10f4720",
+  "issue_id": "tcts-761378f7-6d7e-42bf-bda0-bd446f1c8153",
+  "event_type": "field_updated",
+  "occurred_at": "2026-09-10T14:31:36.911Z",
+  "actor_id": "ubuntu",
+  "payload": {
+    "changes": {
+      "assignee": {
+        "from": null,
+        "to": "agent"
+      }
+    }
+  }
+}
