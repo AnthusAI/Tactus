@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "event_id": "258ae862-0312-4753-b561-ba5c31f28ba7",
+  "issue_id": "tcts-761378f7-6d7e-42bf-bda0-bd446f1c8153",
+  "event_type": "comment_added",
+  "occurred_at": "2026-09-10T14:31:57.921Z",
+  "actor_id": "ubuntu",
+  "payload": {
+    "comment_id": "94f2def0-0010-4715-9384-ab83e85f46c6",
+    "comment_author": "ubuntu",
+    "agent": {
+      "platform": "cursor",
+      "model": "composer-2.5"
+    }
+  }
+}

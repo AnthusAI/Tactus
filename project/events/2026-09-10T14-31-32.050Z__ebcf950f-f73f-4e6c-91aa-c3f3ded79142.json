@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "event_id": "ebcf950f-f73f-4e6c-91aa-c3f3ded79142",
+  "issue_id": "tcts-761378f7-6d7e-42bf-bda0-bd446f1c8153",
+  "event_type": "issue_created",
+  "occurred_at": "2026-09-10T14:31:32.050Z",
+  "actor_id": "ubuntu",
+  "payload": {
+    "title": "Roll out Kanbus #264 agent provenance and CONTRIBUTING_AGENT refresh",
+    "description": "Sync CONTRIBUTING_AGENT.template.md from Kanbus develop d44e9a05 (#264); regenerate CONTRIBUTING_AGENT.md; refresh AGENTS.md Kanbus section while preserving Tactus git-flow PR gate and artifact sync for project/events.",
+    "issue_type": "chore",
+    "status": "open",
+    "priority": 2,
+    "assignee": null,
+    "parent": "tcts-cb2464fa-75fc-4ae2-b2d4-3146898fc2f0",
+    "labels": [],
+    "agent": {
+      "platform": "cursor",
+      "model": "composer-2.5"
+    }
+  }
+}

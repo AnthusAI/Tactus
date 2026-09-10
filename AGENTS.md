@@ -3,10 +3,11 @@
 Use Kanbus for task management.
 Why: Kanbus task management is MANDATORY here; every task must live in Kanbus.
 When: Create/update the Kanbus task before coding; close it only after the change lands.
-How: See CONTRIBUTING_AGENT.md for the Kanbus workflow, hierarchy, status rules, priorities, command examples, and the sins to avoid. Never inspect project/ or issue JSON directly (including with cat or jq); use Kanbus commands only.
-Performance: Prefer kanbusr (Rust) when available; kanbus (Python) is equivalent but slower.
-Warning: Editing project/ directly is a sin against The Way. Do not read or write anything in project/; work only through Kanbus.
-Artifact sync rule: If Kanbus operations create or update files under `project/issues/` or `project/events/`, stage and commit those artifact files in the same branch before opening a PR.
+How: See CONTRIBUTING_AGENT.md for the Kanbus workflow, hierarchy, status rules, priorities, command examples, and the mistakes to avoid. Never inspect project/ or issue JSON directly (including with cat or jq); use Kanbus commands only.
+Performance: Prefer kbs (Rust) when available; kanbus (Python) is equivalent but slower.
+Warning: Editing project/ directly violates The Way. Do not read or write anything in project/; work only through Kanbus.
+Git / PR policy: Rules for product-code commits, branch names, pull requests, and human approval live in this repository's AGENTS.md (outside this Kanbus section). CONTRIBUTING_AGENT.md covers Kanbus board mechanics such as `kbs commit`; follow AGENTS.md for product code and git workflow.
+Artifact sync rule: If Kanbus operations create or update files under `project/issues/` or `project/events/`, stage and commit those artifact files in the same branch before opening a PR. Shared `kbs commit` persists `project/issues/` only; commit `project/events/` manually when your branch changes event logs.
 
 ## SOP compliance
 
