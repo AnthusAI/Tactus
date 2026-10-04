@@ -1,5 +1,5 @@
--- MCP Plexus Documentation Smoke Test
--- Validates Tactus MCP wiring using Plexus get_plexus_documentation tool
+-- MCP Primus Documentation Smoke Test
+-- Validates Tactus MCP wiring using Primus get_primus_documentation tool
 
 local done = require("tactus.tools.done")
 
@@ -10,12 +10,12 @@ mcp_docs_tester = Agent {
     system_prompt = [[
 You are a test agent for MCP tool wiring.
 You must do exactly two tool calls in this order:
-1) Call the tool "plexus_get_plexus_documentation" with filename "score-yaml-format".
+1) Call the tool "primus_get_primus_documentation" with filename "score-yaml-format".
 2) Call the done tool with a short summary. Include the doc length and any error.
 Do not call any other tools. Do not retry even if an error occurs.
 ]],
     initial_message = "Run the MCP docs tool test now.",
-    tools = {"plexus", done},
+    tools = {"primus", done},
 }
 
 Procedure {
@@ -37,8 +37,8 @@ Procedure {
         until done.called() or turn_count >= max_turns
 
         local doc = nil
-        if Tool.called("plexus_get_plexus_documentation") then
-            doc = Tool.last_result("plexus_get_plexus_documentation")
+        if Tool.called("primus_get_primus_documentation") then
+            doc = Tool.last_result("primus_get_primus_documentation")
         end
 
         local doc_length = 0
@@ -54,7 +54,7 @@ Procedure {
             end
         end
 
-        if done.called() and Tool.called("plexus_get_plexus_documentation") and doc_length > 0 then
+        if done.called() and Tool.called("primus_get_primus_documentation") and doc_length > 0 then
             return {
                 success = true,
                 doc_length = doc_length,

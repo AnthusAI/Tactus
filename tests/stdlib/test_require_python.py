@@ -94,7 +94,7 @@ class TestRequirePythonModule:
     def test_host_module_preferred_over_local_tac_file(self, tmp_path):
         """Test explicit host capabilities cannot be shadowed by local .tac files."""
 
-        (tmp_path / "plexus.tac").write_text("""
+        (tmp_path / "primus.tac").write_text("""
             return {
                 source = "local_tac"
             }
@@ -102,12 +102,12 @@ class TestRequirePythonModule:
 
         sandbox = LuaSandbox(
             base_path=str(tmp_path),
-            python_modules={"plexus": {"source": lambda: "host_module"}},
+            python_modules={"primus": {"source": lambda: "host_module"}},
         )
 
         result = sandbox.execute("""
-            local plexus = require("plexus")
-            return plexus.source()
+            local primus = require("primus")
+            return primus.source()
         """)
 
         assert result == "host_module"
@@ -225,7 +225,7 @@ class TestRequirePythonModule:
         assert data["items"] == ["apple", "banana", "cherry"]
 
     def test_require_host_registered_python_module(self, tmp_path):
-        """Test require('plexus') can resolve an explicit host module."""
+        """Test require('primus') can resolve an explicit host module."""
 
         class Scores:
             def info(self, args):
@@ -235,20 +235,20 @@ class TestRequirePythonModule:
                     "versions": ["v1", "v2"],
                 }
 
-        class Plexus:
+        class Primus:
             def __init__(self):
                 self.score = Scores()
 
             def ping(self):
                 return "pong"
 
-        sandbox = LuaSandbox(base_path=str(tmp_path), python_modules={"plexus": Plexus()})
+        sandbox = LuaSandbox(base_path=str(tmp_path), python_modules={"primus": Primus()})
 
         result = sandbox.execute("""
-            local plexus = require("plexus")
-            local score = plexus.score.info({id = "score_1"})
+            local primus = require("primus")
+            local score = primus.score.info({id = "score_1"})
             return {
-                ping = plexus.ping(),
+                ping = primus.ping(),
                 score_id = score.id,
                 score_name = score.name,
                 first_version = score.versions[1],
@@ -336,7 +336,7 @@ class TestRequirePythonModule:
 
         sandbox = LuaSandbox(base_path=str(tmp_path))
 
-        for name in ["", "plexus/tools", "plexus-tools", "1plexus"]:
+        for name in ["", "primus/tools", "primus-tools", "1plexus"]:
             with pytest.raises(Exception) as exc_info:
                 sandbox.register_python_module(name, {"value": lambda: 1})
             assert "module name" in str(exc_info.value).lower()
