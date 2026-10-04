@@ -126,7 +126,7 @@ agent("analyst", {
         "financial",
 
         -- Filter to specific tools (include)
-        {name = "plexus", include = {"score_info", "evaluation_run"}},
+        {name = "primus", include = {"score_info", "evaluation_run"}},
 
         -- Exclude specific tools
         {name = "web", exclude = {"admin_panel"}},
@@ -464,7 +464,7 @@ agent("worker", {
     provider = "openai",
     model = "gpt-4o",
     tools = {
-        "plexus_score_info",      -- From plexus MCP server
+        "primus_score_info",      -- From primus MCP server
         "filesystem_read_file",   -- From filesystem MCP server
         "done"
     }
@@ -474,7 +474,7 @@ agent("worker", {
 **Implementation**:
 - Uses Pydantic AI's native `MCPServerStdio` for stdio transport
 - `MCPServerManager` handles multiple server connections
-- Automatic tool prefixing with server name (e.g., `plexus_score_info`)
+- Automatic tool prefixing with server name (e.g., `primus_score_info`)
 - Environment variable substitution (`${VAR}` syntax)
 - Tool call tracking via `process_tool_call` middleware
 - Clean lifecycle management with `AsyncExitStack`
@@ -482,12 +482,12 @@ agent("worker", {
 **Configuration** (`.tactus/config.yml`):
 ```yaml
 mcp_servers:
-  plexus:
+  primus:
     command: "python"
-    args: ["-m", "plexus.mcp"]
+    args: ["-m", "primus.mcp"]
     env:
-      PLEXUS_ACCOUNT_KEY: "${PLEXUS_ACCOUNT_KEY}"
-      PLEXUS_API_KEY: "${PLEXUS_API_KEY}"
+      PRIMUS_ACCOUNT_KEY: "${PRIMUS_ACCOUNT_KEY}"
+      PRIMUS_API_KEY: "${PRIMUS_API_KEY}"
 ```
 
 **Features**:
@@ -506,17 +506,17 @@ mcp_servers:
 - ✅ Connection lifecycle management verified
 
 **Critical Critical: Real-World Validation Needed**:
-- ❌ **NOT YET TESTED** with real Plexus MCP server
+- ❌ **NOT YET TESTED** with real Primus MCP server
 - ❌ **NOT YET TESTED** with other production MCP servers (filesystem, github, etc.)
 - ❌ **NOT YET TESTED** with multiple real MCP servers simultaneously
 - ❌ **NOT YET VALIDATED** by users in real workflows
 - ❌ **NOT YET TESTED** with complex tool signatures, large responses, or error cases
 
 **What Needs Real Testing**:
-1. **Plexus MCP Server** (Primary Use Case)
-   - Connect to actual Plexus MCP server
-   - Test all Plexus tools (score_info, evaluation_run, feedback_analysis, etc.)
-   - Verify tool namespacing works correctly (`plexus_score_info`)
+1. **Primus MCP Server** (Primary Use Case)
+   - Connect to actual Primus MCP server
+   - Test all Primus tools (score_info, evaluation_run, feedback_analysis, etc.)
+   - Verify tool namespacing works correctly (`primus_score_info`)
    - Test with real API keys and authentication
    - Validate tool call results and error handling
 
@@ -553,13 +553,13 @@ The following features have automated unit tests but require **real-world valida
 
 1. **Local Python Plugin Tools** - Test with real LLM calls, complex tool signatures, async functions
 2. **Configuration Cascade** - Validate merge behavior, sidecar discovery, priority ordering
-3. **MCP Server Integration** - **CRITICAL**: Test with real MCP servers (Plexus, filesystem, etc.)
+3. **MCP Server Integration** - **CRITICAL**: Test with real MCP servers (Primus, filesystem, etc.)
 
 **MCP Server Testing Checklist** (Highest Priority):
-- [ ] **Connect to real Plexus MCP server** with actual credentials
-- [ ] **Test all Plexus tools** in real workflows (score_info, evaluation_run, feedback_analysis, etc.)
-- [ ] **Verify tool namespacing** works correctly (`plexus_score_info` vs `test_server_greet`)
-- [ ] **Test multiple real MCP servers** simultaneously (Plexus + filesystem, etc.)
+- [ ] **Connect to real Primus MCP server** with actual credentials
+- [ ] **Test all Primus tools** in real workflows (score_info, evaluation_run, feedback_analysis, etc.)
+- [ ] **Verify tool namespacing** works correctly (`primus_score_info` vs `test_server_greet`)
+- [ ] **Test multiple real MCP servers** simultaneously (Primus + filesystem, etc.)
 - [ ] **Validate error handling** with real API errors, connection failures, timeouts
 - [ ] **Test with complex tool signatures** (nested objects, arrays, optional params)
 - [ ] **Performance testing** with high-volume tool calls
@@ -597,7 +597,7 @@ Complete manual testing and user validation of implemented features before addin
    - Error handling for invalid configs
 
 3. MCP Server Integration (**CRITICAL PRIORITY**)
-   - **Real Plexus MCP server** with actual credentials and tools
+   - **Real Primus MCP server** with actual credentials and tools
    - Other production MCP servers (filesystem, github, etc.)
    - Multiple servers simultaneously
    - Tool namespacing and conflict resolution
@@ -627,10 +627,10 @@ Complete manual testing and user validation of implemented features before addin
 - ✅ Multiple server support (in tests)
 
 **What Needs Real-World Testing**:
-1. **Plexus MCP Server** (Primary Priority)
-   - Connect to actual Plexus MCP server with real credentials
-   - Test all Plexus tools in real workflows
-   - Verify tool names work correctly (`plexus_score_info`, `plexus_evaluation_run`, etc.)
+1. **Primus MCP Server** (Primary Priority)
+   - Connect to actual Primus MCP server with real credentials
+   - Test all Primus tools in real workflows
+   - Verify tool names work correctly (`primus_score_info`, `primus_evaluation_run`, etc.)
    - Test with real API responses and data
    - Validate error handling with real API errors
 
@@ -646,7 +646,7 @@ Complete manual testing and user validation of implemented features before addin
    - Network issues and retries
 
 **Deliverables**:
-- [ ] Working example with real Plexus MCP server
+- [ ] Working example with real Primus MCP server
 - [ ] User validation and feedback
 - [ ] Bug reports and fixes for real-world issues
 - [ ] Performance benchmarks
@@ -793,10 +793,10 @@ Support multiple MCP servers per procedure.
 ```lua
 -- Define MCP servers at procedure level
 mcp_servers = {
-    plexus = {
+    primus = {
         command = "python",
-        args = {"-m", "plexus.mcp"},
-        env = {PLEXUS_ACCOUNT_KEY = env.PLEXUS_KEY}
+        args = {"-m", "primus.mcp"},
+        env = {PRIMUS_ACCOUNT_KEY = env.PRIMUS_KEY}
     },
     filesystem = {
         command = "npx",
@@ -809,7 +809,7 @@ agent("worker", {
     model = "gpt-4o",
     -- Tools from different MCP servers
     tools = {
-        "plexus_score_info",      -- From plexus server
+        "primus_score_info",      -- From primus server
         "filesystem_read_file",   -- From filesystem server
         "done"
     }
@@ -819,7 +819,7 @@ agent("worker", {
 **Implementation Plan**:
 1. Add `mcp_servers` section to procedure config
 2. Initialize multiple MCP clients in runtime
-3. Namespace tools by server (e.g., `plexus_*`, `filesystem_*`)
+3. Namespace tools by server (e.g., `primus_*`, `filesystem_*`)
 4. Load tools from all servers and merge
 5. Route tool calls to correct server
 
@@ -1148,7 +1148,7 @@ sequenceDiagram
 
 ### Tool Naming Convention
 
-**MCP Tools**: Use original names from MCP server (e.g., `plexus_score_info`)
+**MCP Tools**: Use original names from MCP server (e.g., `primus_score_info`)
 
 **Built-in Tools**: Use snake_case type names (e.g., `web_search`, `code_execution`)
 
@@ -1200,7 +1200,7 @@ sequenceDiagram
 **Question**: How do we handle tool name conflicts between MCP servers?
 
 **Options**:
-- **A**: Automatic prefixing (e.g., `plexus_score_info`, `filesystem_read_file`)
+- **A**: Automatic prefixing (e.g., `primus_score_info`, `filesystem_read_file`)
 - **B**: Manual aliasing in config
 - **C**: First-come-first-served (later tools override)
 

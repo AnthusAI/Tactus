@@ -38,7 +38,7 @@ def validate_python_module_name(name: str) -> None:
         raise ValueError("Host modules cannot use the reserved 'tactus.' namespace")
     if not HOST_MODULE_NAME_PATTERN.match(name):
         raise ValueError(
-            "Host module names must be dotted identifiers, e.g. 'plexus' or " "'vendor.module'"
+            "Host module names must be dotted identifiers, e.g. 'primus' or " "'vendor.module'"
         )
 
 
@@ -254,7 +254,7 @@ class LuaSandbox:
                 if loaders then
                     -- Host modules are explicit capabilities provided by the
                     -- embedding application. They run before .tac searchers so a
-                    -- local file cannot shadow require("plexus").
+                    -- local file cannot shadow require("primus").
                     local function host_python_searcher(modname)
                         local result = _tactus_host_python_loader(modname)
                         if result then
