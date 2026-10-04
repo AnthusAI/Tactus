@@ -17,5 +17,7 @@
   "created_at": "2026-04-14T17:12:28.809253Z",
   "updated_at": "2026-04-14T17:12:28.809253Z",
   "closed_at": null,
+  "right_now_summary": "The team is tracking and fixing vulnerabilities found by Snyk.",
+  "right_now_updated_at": "2026-09-09T13:44:19.901273Z",
   "custom": {}
 }

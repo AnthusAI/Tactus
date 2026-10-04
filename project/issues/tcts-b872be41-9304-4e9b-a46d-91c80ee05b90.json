@@ -14,5 +14,7 @@
   "created_at": "2026-07-31T14:35:16.676698Z",
   "updated_at": "2026-07-31T19:05:09.636280Z",
   "closed_at": "2026-07-31T19:05:09.636280Z",
+  "right_now_summary": "The scheduled continuation feature is defined, but no implementation activity is recorded.",
+  "right_now_updated_at": "2026-09-09T13:44:59.319421Z",
   "custom": {}
 }

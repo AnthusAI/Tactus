@@ -15,17 +15,21 @@
       "id": "6b53a7e7-5ced-4c29-980a-509fca120527",
       "author": "derek.norrbom",
       "text": "Implementing dependency-domain split: move fastmcp out of root dev extras into a separate locked tooling project, then upgrade root litellm to fixed version and verify with Snyk. Aim is to remove resolver conflict while preserving CI behavior.",
-      "created_at": "2026-04-24T16:14:24.402841Z"
+      "created_at": "2026-04-24T16:14:24.402841Z",
+      "comment_type": "default"
     },
     {
       "id": "130d60b8-9af1-46dc-99d0-1baee0101387",
       "author": "derek.norrbom",
       "text": "Completed: fastmcp is now isolated in tools/mcp-fixtures with its own Poetry lock, removed from root dev extras, and CI gets a dedicated isolated validation step. Root litellm successfully upgraded to 1.83.7 after split. Validation: make mcp-fixtures-smoke, snyk test (high), pytest tests/dspy/test_config.py -q.",
-      "created_at": "2026-04-24T16:16:25.765107Z"
+      "created_at": "2026-04-24T16:16:25.765107Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-04-24T16:14:16.002334Z",
   "updated_at": "2026-04-24T16:16:25.776395Z",
   "closed_at": "2026-04-24T16:16:25.776395Z",
+  "right_now_summary": "fastmcp now runs in a locked tooling environment, allowing litellm to upgrade to 1.83.7.",
+  "right_now_updated_at": "2026-09-09T13:43:16.829877Z",
   "custom": {}
 }

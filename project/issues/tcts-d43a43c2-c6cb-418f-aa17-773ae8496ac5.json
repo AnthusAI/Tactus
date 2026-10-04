@@ -18,12 +18,15 @@
       "id": "d7a10236-ad10-46ae-b838-518a5aae1efb",
       "author": "derek.norrbom",
       "text": "Closing as remediated: fresh Snyk Code high-threshold scan now reports zero open issues in this repository.",
-      "created_at": "2026-04-24T15:56:07.833493Z"
+      "created_at": "2026-04-24T15:56:07.833493Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-04-14T17:12:28.831574Z",
   "updated_at": "2026-04-24T15:56:07.844873Z",
   "closed_at": "2026-04-24T15:56:07.844873Z",
+  "right_now_summary": "The hardcoded test API key was removed, and a fresh scan finds no remaining issues.",
+  "right_now_updated_at": "2026-09-09T13:41:31.563385Z",
   "custom": {
     "snyk_column": 38,
     "snyk_end_column": 45,

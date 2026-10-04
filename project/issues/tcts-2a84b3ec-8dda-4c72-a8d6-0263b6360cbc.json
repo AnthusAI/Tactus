@@ -19,12 +19,15 @@
       "id": "acfab151-1707-4727-9e3f-5167f34f5cd2",
       "author": "derek.norrbom",
       "text": "Closing epic as complete for this branch scope: Snyk Code high-severity findings under child task tcts-a8688d have been remediated and verified clean by Snyk Code scan.",
-      "created_at": "2026-04-24T15:56:07.933925Z"
+      "created_at": "2026-04-24T15:56:07.933925Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-04-14T17:12:28.828700Z",
   "updated_at": "2026-04-24T15:56:07.944127Z",
   "closed_at": "2026-04-24T15:56:07.944127Z",
+  "right_now_summary": "Snyk Code high-severity findings were fixed and verified clean by a follow-up scan.",
+  "right_now_updated_at": "2026-09-09T13:41:50.924861Z",
   "custom": {
     "snyk_category": "code"
   }

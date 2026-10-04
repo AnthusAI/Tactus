@@ -15,23 +15,28 @@
       "id": "3d5733eb-14b5-45bf-aa33-25b28082cfa5",
       "author": "ryan.porter",
       "text": "Full release gate reproduced 35 CLI failures on current develop with Typer 0.12.5 and Click 8.3.1. The failure is TyperArgument.make_metavar receiving Click's new context argument. Click cannot be downgraded because Kanbus 0.18.3 requires 8.3.1; the narrow repair is to move Tactus to a Typer release supporting Click 8.3 and rerun the CLI and full gates.",
-      "created_at": "2026-07-23T19:13:58.006919Z"
+      "created_at": "2026-07-23T19:13:58.006919Z",
+      "comment_type": "default"
     },
     {
       "id": "8598ef30-080e-4850-a0a1-716abc06a180",
       "author": "ryan.porter",
       "text": "Upgraded Typer to the Click 8.3-compatible 0.20 series. All 337 CLI tests and the complete Tactus unit and BDD gates pass.",
-      "created_at": "2026-07-23T19:24:55.816929Z"
+      "created_at": "2026-07-23T19:24:55.816929Z",
+      "comment_type": "default"
     },
     {
       "id": "a3c1d715-3190-4b5b-950b-643aa3fd6c6b",
       "author": "ryan.porter",
       "text": "Compatibility restored and fully verified.",
-      "created_at": "2026-07-23T19:25:58.973072Z"
+      "created_at": "2026-07-23T19:25:58.973072Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-07-23T19:13:52.923699Z",
   "updated_at": "2026-07-23T19:25:58.973072Z",
   "closed_at": "2026-07-23T19:25:58.775003Z",
+  "right_now_summary": "Typer was upgraded for Click 8.3.1, and all CLI and release tests now pass.",
+  "right_now_updated_at": "2026-09-09T13:44:36.586067Z",
   "custom": {}
 }

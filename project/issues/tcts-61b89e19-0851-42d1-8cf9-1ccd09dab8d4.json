@@ -18,12 +18,15 @@
       "id": "111437cf-f2f2-4a58-a9e9-e1e1555a5b38",
       "author": "derek.norrbom",
       "text": "Resolved in this change: pydantic-ai-slim upgraded to 1.56.0 in pyproject.toml, pydantic-evals aligned to 1.56.0, poetry.lock regenerated, and Snyk critical scan now reports no vulnerable paths.",
-      "created_at": "2026-04-14T17:23:56.463852Z"
+      "created_at": "2026-04-14T17:23:56.463852Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-04-14T17:12:28.832724Z",
   "updated_at": "2026-04-14T17:23:58.011974Z",
   "closed_at": "2026-04-14T17:23:58.011974Z",
+  "right_now_summary": "pydantic-ai-slim was upgraded to 1.56.0, and Snyk reports no vulnerable paths.",
+  "right_now_updated_at": "2026-09-09T13:43:01.607945Z",
   "custom": {
     "snyk_key": "SNYK-PYTHON-PYDANTICAISLIM-15248301",
     "snyk_severity": "critical",

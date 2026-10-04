@@ -18,12 +18,15 @@
       "id": "eaadb0ae-0cc3-436c-8295-c43bb1d8402e",
       "author": "derek.norrbom",
       "text": "Resolved by prior critical remediation: litellm pinned to 1.83.0 and lock regenerated. Confirmed absent in current high-threshold Snyk scan.",
-      "created_at": "2026-04-14T18:28:25.884844Z"
+      "created_at": "2026-04-14T18:28:25.884844Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-04-14T17:12:28.833400Z",
   "updated_at": "2026-04-14T18:28:31.831706Z",
   "closed_at": "2026-04-14T18:28:31.831706Z",
+  "right_now_summary": "litellm was upgraded to 1.83.0, and the vulnerability is absent from the latest Snyk scan.",
+  "right_now_updated_at": "2026-09-09T13:42:56.788917Z",
   "custom": {
     "snyk_key": "SNYK-PYTHON-LITELLM-15928842",
     "snyk_severity": "high",

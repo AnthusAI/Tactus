@@ -18,12 +18,15 @@
       "id": "00674525-a633-499d-ab6e-e5cbe872b021",
       "author": "derek.norrbom",
       "text": "Closing as remediated: fresh Snyk Code high-threshold scan now reports zero open issues in this repository.",
-      "created_at": "2026-04-24T15:56:07.587111Z"
+      "created_at": "2026-04-24T15:56:07.587111Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-04-14T17:12:28.831173Z",
   "updated_at": "2026-04-24T15:56:07.597406Z",
   "closed_at": "2026-04-24T15:56:07.597406Z",
+  "right_now_summary": "The path traversal flaw was remediated, and a new scan found no remaining issues.",
+  "right_now_updated_at": "2026-09-09T13:40:40.903594Z",
   "custom": {
     "snyk_column": 18,
     "snyk_end_column": 22,

@@ -18,12 +18,15 @@
       "id": "b8dfed56-6d4f-41a7-b83f-9a3223a779a8",
       "author": "derek.norrbom",
       "text": "Closing as remediated: fresh Snyk Code high-threshold scan now reports zero open issues in this repository.",
-      "created_at": "2026-04-24T15:56:07.492512Z"
+      "created_at": "2026-04-24T15:56:07.492512Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-04-14T17:12:28.830042Z",
   "updated_at": "2026-04-24T15:56:07.512838Z",
   "closed_at": "2026-04-24T15:56:07.512838Z",
+  "right_now_summary": "The hardcoded test key was remediated, and a fresh scan found no remaining issues.",
+  "right_now_updated_at": "2026-09-09T13:40:25.566441Z",
   "custom": {
     "snyk_column": 57,
     "snyk_end_column": 64,

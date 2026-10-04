@@ -14,5 +14,7 @@
   "created_at": "2026-07-30T22:45:32.556499Z",
   "updated_at": "2026-07-31T19:05:09.152438Z",
   "closed_at": "2026-07-31T19:05:09.152438Z",
+  "right_now_summary": "The procedure checkpoints while external children run, then resumes with all individual results once they finish.",
+  "right_now_updated_at": "2026-09-09T13:44:31.403732Z",
   "custom": {}
 }

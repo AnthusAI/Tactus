@@ -15,11 +15,14 @@
       "id": "4c0349c1-b522-475a-9fdd-3ded319a0913",
       "author": "derek.norrbom",
       "text": "Implemented ClassifyProcedure max_tokens support in Tactus stdlib: LLMClassifier now stores config.max_tokens and passes it to LLMModel. Added BDD coverage in classify.spec.tac. Validated with poetry run pytest -q tests/stdlib/test_stdlib_specs.py -k classify tests/testing/test_test_runner_additional.py.",
-      "created_at": "2026-05-18T15:53:54.232254Z"
+      "created_at": "2026-05-18T15:53:54.232254Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-05-18T15:48:03.021793Z",
   "updated_at": "2026-05-18T15:53:54.242391Z",
   "closed_at": "2026-05-18T15:53:54.242391Z",
+  "right_now_summary": "ClassifyProcedure now passes configured max_tokens to LLMModel while preserving default behavior when omitted.",
+  "right_now_updated_at": "2026-09-09T13:39:43.127329Z",
   "custom": {}
 }

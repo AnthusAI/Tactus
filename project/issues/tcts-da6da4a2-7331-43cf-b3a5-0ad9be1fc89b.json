@@ -15,17 +15,21 @@
       "id": "1081f527-d24b-47eb-b0b8-38f502dc3033",
       "author": "ryan",
       "text": "Starting release readiness pass: verify changed files, run CI-equivalent gates locally, then commit with semantic feat message and push branch for CI validation.",
-      "created_at": "2026-05-18T19:18:59.102200Z"
+      "created_at": "2026-05-18T19:18:59.102200Z",
+      "comment_type": "default"
     },
     {
       "id": "59256d06-4ab1-4669-ade8-c1d8a000d478",
       "author": "ryan",
       "text": "Completed implementation and release readiness: semantic feat commit pushed on feature/tactus-web-stdlib, local gates passed (ruff, black --check, ./test-ci.sh, behave --tags=-skip), and GitHub Actions run 26055675123 is green.",
-      "created_at": "2026-05-18T19:46:11.067074Z"
+      "created_at": "2026-05-18T19:46:11.067074Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-04-29T22:21:36.722540Z",
   "updated_at": "2026-05-18T19:46:11.746975Z",
   "closed_at": "2026-05-18T19:46:11.746975Z",
+  "right_now_summary": "Release readiness checks passed, and the feature branch is pushed for review and CI validation.",
+  "right_now_updated_at": "2026-09-09T13:39:58.165974Z",
   "custom": {}
 }

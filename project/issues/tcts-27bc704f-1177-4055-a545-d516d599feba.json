@@ -15,17 +15,21 @@
       "id": "c6e0f71f-bef7-4e57-b429-56ec9292da8e",
       "author": "derek.norrbom",
       "text": "Starting remediation from root pyproject.toml. Goal: resolve open critical/high Snyk Python dependency issues by upgrading direct/source dependencies where possible, avoiding transitive-only pinning unless no source upgrade path exists. Will validate with lock update and targeted checks.",
-      "created_at": "2026-04-22T23:05:18.108868Z"
+      "created_at": "2026-04-22T23:05:18.108868Z",
+      "comment_type": "default"
     },
     {
       "id": "ffe61fe7-a2db-4eff-916f-86b613185d86",
       "author": "derek.norrbom",
       "text": "Closing as duplicate of existing task tcts-b82842, which already tracks pyproject.toml Snyk dependency remediation.",
-      "created_at": "2026-04-22T23:05:49.864207Z"
+      "created_at": "2026-04-22T23:05:49.864207Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-04-22T23:05:15.804994Z",
   "updated_at": "2026-04-22T23:05:49.875500Z",
   "closed_at": "2026-04-22T23:05:49.875500Z",
+  "right_now_summary": "The remediation work is tracked in existing task tcts-b82842.",
+  "right_now_updated_at": "2026-09-09T13:41:57.040117Z",
   "custom": {}
 }

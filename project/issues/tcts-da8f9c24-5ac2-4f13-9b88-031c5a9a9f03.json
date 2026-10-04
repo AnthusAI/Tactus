@@ -15,17 +15,21 @@
       "id": "9d9445ff-40b2-4e8a-8a31-7cd09422d614",
       "author": "ryan.porter",
       "text": "Live diagnosis: main release run 30298522347 failed before checkout because the workflow passed nonexistent repository secret ANTHUSBOT_GH_TOKEN. The repository exposes GH_TOKEN and PYPI_TOKEN. Implementing the minimal secret-name correction, then validating workflow syntax and hosted checks.",
-      "created_at": "2026-07-27T20:08:27.833029Z"
+      "created_at": "2026-07-27T20:08:27.833029Z",
+      "comment_type": "default"
     },
     {
       "id": "448a83bd-0f56-4189-ae7f-13b3ef4c5684",
       "author": "ryan.porter",
       "text": "Implemented the minimal correction from ANTHUSBOT_GH_TOKEN to the existing GH_TOKEN repository secret. Verified the workflow parses as YAML and the diff is clean. Hosted release execution after merge will provide the end-to-end publication proof.",
-      "created_at": "2026-07-27T20:08:48.564730Z"
+      "created_at": "2026-07-27T20:08:48.564730Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-07-27T20:08:23.365103Z",
   "updated_at": "2026-07-27T20:08:48.784287Z",
   "closed_at": "2026-07-27T20:08:48.784287Z",
+  "right_now_summary": "The workflow now uses the existing GH_TOKEN secret and awaits hosted validation and package publication.",
+  "right_now_updated_at": "2026-09-09T13:45:04.468977Z",
   "custom": {}
 }

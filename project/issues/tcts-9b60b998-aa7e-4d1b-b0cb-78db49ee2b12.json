@@ -15,11 +15,14 @@
       "id": "1dff0caa-ca98-4af1-ab56-3ae89a812cea",
       "author": "derek.norrbom",
       "text": "Fixed validation blocker found while running the new stdlib BDD spec in the Poetry Python 3.11 environment: TactusTestRunner.cleanup now clears Behave registries that expose steps but no clear() method. Added focused cleanup coverage.",
-      "created_at": "2026-05-18T15:53:54.298669Z"
+      "created_at": "2026-05-18T15:53:54.298669Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-05-18T15:50:07.644185Z",
   "updated_at": "2026-05-18T15:53:54.312969Z",
   "closed_at": "2026-05-18T15:53:54.312969Z",
+  "right_now_summary": "Cleanup now supports current Behave registries and reports the actual stdlib spec result.",
+  "right_now_updated_at": "2026-09-09T13:39:48.676598Z",
   "custom": {}
 }

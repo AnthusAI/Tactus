@@ -15,11 +15,14 @@
       "id": "ee0fa859-0785-4408-81d8-b9f567512376",
       "author": "ryan",
       "text": "Landing runtime state-preload change from local workspace: preload persisted procedure state into State primitive during runtime setup to support continuation detection and State.get-based branching in Lua procedures. Will validate with focused runtime tests and full CI via PR.",
-      "created_at": "2026-04-20T17:11:20.616538Z"
+      "created_at": "2026-04-20T17:11:20.616538Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-04-20T17:11:15.714659Z",
   "updated_at": "2026-04-20T17:11:20.616538Z",
   "closed_at": null,
+  "right_now_summary": "The runtime is being updated to preload persisted state for continuation detection and Lua branching.",
+  "right_now_updated_at": "2026-09-08T17:50:00.468113Z",
   "custom": {}
 }

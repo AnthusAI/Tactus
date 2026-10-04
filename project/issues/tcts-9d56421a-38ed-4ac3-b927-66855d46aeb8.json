@@ -18,12 +18,15 @@
       "id": "dccd8ac1-2f7d-4ca8-aec4-ece58488cae3",
       "author": "derek.norrbom",
       "text": "Closing as remediated/obsolete: fresh Snyk verification on tactus-ide/backend/requirements.txt (full dependency resolution in isolated venv) reports no high/critical findings and no vulnerable paths.",
-      "created_at": "2026-04-23T22:26:51.458200Z"
+      "created_at": "2026-04-23T22:26:51.458200Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-04-14T17:12:28.833935Z",
   "updated_at": "2026-04-23T22:26:51.470053Z",
   "closed_at": "2026-04-23T22:26:51.470053Z",
+  "right_now_summary": "Snyk’s fresh verification found no high or critical findings in the dependency file.",
+  "right_now_updated_at": "2026-09-09T13:43:47.200234Z",
   "custom": {
     "snyk_key": "SNYK-PYTHON-FLASKCORS-9668954",
     "snyk_severity": "high",

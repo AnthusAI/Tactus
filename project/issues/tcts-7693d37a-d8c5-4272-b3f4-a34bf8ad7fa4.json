@@ -18,12 +18,15 @@
       "id": "315f5af8-ad50-43e0-b6ef-2b609498ab22",
       "author": "derek.norrbom",
       "text": "Closed via parent dependency upgrade: tactus-vscode/client now uses vscode-languageclient^9.0.2-next.1, which pulls minimatch from fixed major lines. Fresh Snyk scan for tactus-vscode/client/package.json reports no vulnerable paths.",
-      "created_at": "2026-04-23T22:42:00.293728Z"
+      "created_at": "2026-04-23T22:42:00.293728Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-04-14T17:12:28.834550Z",
   "updated_at": "2026-04-23T22:42:00.304736Z",
   "closed_at": "2026-04-23T22:42:00.304736Z",
+  "right_now_summary": "The dependency upgrade pulls a fixed minimatch version, and a fresh Snyk scan finds no vulnerable paths.",
+  "right_now_updated_at": "2026-09-09T13:42:07.709025Z",
   "custom": {
     "snyk_key": "SNYK-JS-MINIMATCH-15353389",
     "snyk_severity": "high",

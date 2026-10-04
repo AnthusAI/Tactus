@@ -15,11 +15,14 @@
       "id": "ad3cea90-2d5a-4fe0-addf-d5db3c38e091",
       "author": "ryan.porter",
       "text": "All specified runtime lifecycle behaviors are implemented and verified.",
-      "created_at": "2026-07-23T19:25:59.356749Z"
+      "created_at": "2026-07-23T19:25:59.356749Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-07-23T18:38:41.731563Z",
   "updated_at": "2026-07-23T19:25:59.356749Z",
   "closed_at": "2026-07-23T19:25:59.160216Z",
+  "right_now_summary": "Runtime lifecycle APIs are implemented and verified, including prewarming, events, timeouts, and serialization.",
+  "right_now_updated_at": "2026-09-09T13:44:53.416220Z",
   "custom": {}
 }

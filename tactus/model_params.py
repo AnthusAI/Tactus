@@ -34,8 +34,19 @@ def is_openai_gpt5_family_model(model: str) -> bool:
     return lite_llm_model_id(model).startswith("gpt-5")
 
 
+def rejects_temperature(model: str) -> bool:
+    """Return whether the model's API refuses any ``temperature`` field.
+
+    Bedrock's Moonshot Kimi models answer every request that carries one with
+    "This model doesn't support the temperature field. Remove temperature and
+    try again." (observed 2026-09-22), so the field has to be left out entirely.
+    """
+    model_id = lite_llm_model_id(model).lower()
+    return "moonshotai" in model_id or model_id.startswith("kimi")
+
+
 def default_temperature_for_model(model: str) -> Optional[float]:
-    """Return ``None`` for GPT-5 models and deterministic zero otherwise."""
-    if is_openai_gpt5_family_model(model):
+    """Return ``None`` for models that reject the field, deterministic zero otherwise."""
+    if is_openai_gpt5_family_model(model) or rejects_temperature(model):
         return None
     return 0.0

@@ -18,12 +18,15 @@
       "id": "1095ac64-74f6-4e5b-b277-423524487168",
       "author": "derek.norrbom",
       "text": "Resolved: upgraded dspy constraint to >=3.1.2 (with python_version < 3.15 marker to satisfy resolver), regenerated poetry.lock, and verified this advisory is no longer present in high-threshold Snyk scan.",
-      "created_at": "2026-04-14T18:28:25.888342Z"
+      "created_at": "2026-04-14T18:28:25.888342Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-04-14T17:12:28.832885Z",
   "updated_at": "2026-04-14T18:28:31.827405Z",
   "closed_at": "2026-04-14T18:28:31.827405Z",
+  "right_now_summary": "dspy was upgraded to 3.1.2+, the lockfile regenerated, and Snyk no longer reports the flaw.",
+  "right_now_updated_at": "2026-09-09T13:43:10.188853Z",
   "custom": {
     "snyk_key": "SNYK-PYTHON-DSPY-13832222",
     "snyk_severity": "high",

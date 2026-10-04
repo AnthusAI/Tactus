@@ -22,3 +22,12 @@ def test_default_temperature_for_model():
     assert default_temperature_for_model("openai/gpt-5.4-mini") is None
     assert default_temperature_for_model("openai/gpt-4o-mini") == 0.0
     assert default_temperature_for_model("anthropic/claude-3-5-sonnet-20241022") == 0.0
+
+
+def test_kimi_on_bedrock_gets_no_temperature():
+    from tactus.model_params import rejects_temperature
+
+    assert rejects_temperature("bedrock/us.moonshotai.kimi-k3") is True
+    assert rejects_temperature("us.moonshotai.kimi-k3") is True
+    assert rejects_temperature("openai/gpt-4o-mini") is False
+    assert default_temperature_for_model("bedrock/us.moonshotai.kimi-k3") is None

@@ -18,12 +18,15 @@
       "id": "7d90f7c7-1e95-4138-a479-0adabcf17af8",
       "author": "derek.norrbom",
       "text": "Resolved: enforced aiohttp>=3.13.4 via pyproject dependency constraints and regenerated poetry.lock; high-threshold Snyk scan no longer reports this advisory.",
-      "created_at": "2026-04-14T18:28:20.529953Z"
+      "created_at": "2026-04-14T18:28:20.529953Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-04-14T17:12:28.833228Z",
   "updated_at": "2026-04-14T18:28:28.891216Z",
   "closed_at": "2026-04-14T18:28:28.891216Z",
+  "right_now_summary": "aiohttp is pinned to 3.13.4 or later, and the vulnerability no longer appears in Snyk scans.",
+  "right_now_updated_at": "2026-09-09T13:42:28.452125Z",
   "custom": {
     "snyk_key": "SNYK-PYTHON-AIOHTTP-15873738",
     "snyk_severity": "high",

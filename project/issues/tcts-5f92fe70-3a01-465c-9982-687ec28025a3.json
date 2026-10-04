@@ -14,5 +14,7 @@
   "created_at": "2026-04-29T22:09:04.273139Z",
   "updated_at": "2026-05-18T15:47:59.241378Z",
   "closed_at": null,
+  "right_now_summary": "Runtime support for reasoning effort and verbosity is being added and tested across agents and model integrations.",
+  "right_now_updated_at": "2026-09-09T13:40:03.660563Z",
   "custom": {}
 }
