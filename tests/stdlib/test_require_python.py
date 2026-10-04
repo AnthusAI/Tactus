@@ -336,7 +336,7 @@ class TestRequirePythonModule:
 
         sandbox = LuaSandbox(base_path=str(tmp_path))
 
-        for name in ["", "primus/tools", "primus-tools", "1plexus"]:
+        for name in ["", "primus/tools", "primus-tools", "1primus"]:
             with pytest.raises(Exception) as exc_info:
                 sandbox.register_python_module(name, {"value": lambda: 1})
             assert "module name" in str(exc_info.value).lower()
