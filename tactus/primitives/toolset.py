@@ -53,11 +53,11 @@ class ToolsetPrimitive:
             }
             {
                 "type": "mcp",
-                "server": "plexus"
+                "server": "primus"
             }
             {
                 "type": "combined",
-                "sources": ["financial", "plexus"]
+                "sources": ["financial", "primus"]
             }
         """
         self.definitions[name] = config

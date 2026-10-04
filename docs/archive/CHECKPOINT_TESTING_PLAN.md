@@ -1,7 +1,7 @@
 # Checkpoint/Resume Rigorous Testing Plan
 
 ## Goal
-Validate that transparent durability works for all checkpoint types and edge cases before proceeding with IDE/Plexus integration.
+Validate that transparent durability works for all checkpoint types and edge cases before proceeding with IDE/Primus integration.
 
 ## Phase 1: Core Testing
 
@@ -313,4 +313,4 @@ Once all tests pass:
 1. Document checkpoint/resume behavior in user guide
 2. Create integration guide for embedding Tactus
 3. Proceed with IDE integration (reference implementation)
-4. Apply pattern to Plexus integration (custom control channel)
+4. Apply pattern to Primus integration (custom control channel)

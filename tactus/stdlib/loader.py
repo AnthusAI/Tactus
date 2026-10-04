@@ -110,8 +110,8 @@ class StdlibModuleLoader:
         """Create a loader for explicit host modules.
 
         This loader is intended to run before filesystem `.tac` searchers so a
-        host capability such as `require("plexus")` cannot be shadowed by a
-        local `plexus.tac` file.
+        host capability such as `require("primus")` cannot be shadowed by a
+        local `primus.tac` file.
         """
 
         def host_module_loader(module_name: str):

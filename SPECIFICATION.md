@@ -2296,11 +2296,11 @@ Step.checkpoint(fn)
 
 -- Examples:
 local champion = Step.checkpoint(function()
-  return Tools.plexus_get_score({score_id = input.score_id})
+  return Tools.primus_get_score({score_id = input.score_id})
 end)
 
 local metrics = Step.checkpoint(function()
-  return Tools.plexus_run_evaluation({
+  return Tools.primus_run_evaluation({
     score_id = input.score_id,
     version = "champion"
   })
@@ -2880,7 +2880,7 @@ Score ID: {input.score_id}
 Champion metrics: {state.champion_metrics}
 Error patterns: {state.error_analysis}
     ]],
-    tools = {"plexus_get_score", "plexus_get_evaluation_metrics", "plexus_analyze_errors", "done"},
+    tools = {"primus_get_score", "primus_get_evaluation_metrics", "primus_analyze_errors", "done"},
     max_turns = 20
 }
 
@@ -2894,7 +2894,7 @@ Human feedback (if any): {state.human_feedback}
 
 Be conservative - small targeted improvements are better than sweeping changes.
     ]],
-    tools = {"plexus_draft_score_config", "plexus_validate_config", "done"},
+    tools = {"primus_draft_score_config", "primus_validate_config", "done"},
     max_turns = 15
 }
 
@@ -2934,12 +2934,12 @@ Procedure {
         -- Evaluate champion FIRST (checkpointed, runs once)
 
         state.champion_config = Step.checkpoint(function()
-            return plexus_get_score.run({score_id = input.score_id})
+            return primus_get_score.run({score_id = input.score_id})
         end)
 
         -- Run fresh evaluation on champion (checkpointed)
         state.champion_metrics = Step.checkpoint(function()
-            return plexus_run_evaluation.run({
+            return primus_run_evaluation.run({
                 score_id = input.score_id,
                 version = "champion",
                 test_set = "validation"
@@ -2947,7 +2947,7 @@ Procedure {
         end)
 
         state.error_analysis = Step.checkpoint(function()
-            return plexus_analyze_errors.run({
+            return primus_analyze_errors.run({
                 score_id = input.score_id,
                 limit = 100
             })
@@ -2969,7 +2969,7 @@ Procedure {
                 drafter()
             until done.called() or Iterations.exceeded(15)
 
-            local candidate_config = plexus_draft_score_config.last_result()
+            local candidate_config = primus_draft_score_config.last_result()
             if not candidate_config then
                 return {promoted = false, rejection_reason = "drafting_failed"}
             end
@@ -2979,7 +2979,7 @@ Procedure {
             -- Evaluate candidate (checkpointed per attempt)
 
             local eval_result = Step.checkpoint(function()
-                return plexus_run_evaluation.run({
+                return primus_run_evaluation.run({
                     score_id = input.score_id,
                     config = candidate_config,
                     test_set = "validation"
@@ -2989,7 +2989,7 @@ Procedure {
             state.candidate_metrics = eval_result.metrics
 
             local comparison = Step.checkpoint(function()
-                return plexus_compare_metrics.run({
+                return primus_compare_metrics.run({
                     champion = state.champion_metrics,
                     candidate = eval_result.metrics
                 })
@@ -3025,7 +3025,7 @@ Procedure {
 
                 if review.decision == "Approve" then
                     local result = Step.checkpoint(function()
-                        return plexus_promote_score_version.run({
+                        return primus_promote_score_version.run({
                             score_id = input.score_id,
                             config = candidate_config
                         })
@@ -3152,13 +3152,13 @@ All checkpoints are stored in the `Procedure.metadata` field as JSON:
 
 ```bash
 # Clear all checkpoints (restart from beginning)
-plexus procedure reset <procedure_id>
+primus procedure reset <procedure_id>
 
 # Clear checkpoints after a specific position
-plexus procedure reset <procedure_id> --after 3
+primus procedure reset <procedure_id> --after 3
 
 # Clear and rerun
-plexus procedure reset <procedure_id> && plexus procedure run <procedure_id>
+primus procedure reset <procedure_id> && primus procedure run <procedure_id>
 ```
 
 ```lua
@@ -3216,13 +3216,13 @@ end
 
 ```bash
 # Manual single procedure
-plexus procedure resume <procedure_id>
+primus procedure resume <procedure_id>
 
 # Resume all with pending responses
-plexus procedure resume-all
+primus procedure resume-all
 
 # Polling daemon
-plexus procedure watch --interval 10s
+primus procedure watch --interval 10s
 ```
 
 **Lambda Durable Context:**

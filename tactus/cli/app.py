@@ -246,7 +246,7 @@ def setup_logging(
     """Setup CLI logging (level + format).
 
     Configures the ``tactus`` named logger (not the root logger) so that
-    libraries loaded by procedures (e.g. Plexus) cannot accidentally strip
+    libraries loaded by procedures (e.g. Primus) cannot accidentally strip
     Tactus's handlers.  All Tactus modules already use
     ``logging.getLogger(__name__)`` which produces child loggers like
     ``tactus.core.runtime`` — these propagate to the ``tactus`` logger and

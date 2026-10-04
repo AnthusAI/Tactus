@@ -1928,7 +1928,7 @@ class TactusRuntime:
 
         Supports:
         - Simple string: "financial" -> entire toolset
-        - Filter dict: {name = "plexus", include = ["score_info"]}
+        - Filter dict: {name = "primus", include = ["score_info"]}
         - Exclude dict: {name = "web", exclude = ["admin"]}
         - Prefix dict: {name = "web", prefix = "search_"}
         - Rename dict: {name = "tools", rename = {old = "new"}}
