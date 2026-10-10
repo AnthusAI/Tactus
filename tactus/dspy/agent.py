@@ -1308,7 +1308,7 @@ class DSPyAgentHandle:
                 raise
             return result_holder["result"]
 
-        if os.environ.get("PLEXUS_DEBUG_LLM"):
+        if os.environ.get("PRIMUS_DEBUG_LLM"):
             self._log_llm_debug_input(prompt_context)
 
         self.log_handler.log(AgentTurnEvent(agent_name=self.name, stage="started"))
@@ -1338,7 +1338,7 @@ class DSPyAgentHandle:
                     return self._turn_without_streaming(opts, prompt_context)
                 raise
 
-            if os.environ.get("PLEXUS_DEBUG_LLM"):
+            if os.environ.get("PRIMUS_DEBUG_LLM"):
                 self._log_llm_debug_output(dspy_result)
 
             assistant_text = getattr(dspy_result, "response", "")
@@ -1437,7 +1437,7 @@ class DSPyAgentHandle:
         Returns:
             TactusResult with value, usage, and cost_stats
         """
-        if os.environ.get("PLEXUS_DEBUG_LLM"):
+        if os.environ.get("PRIMUS_DEBUG_LLM"):
             self._log_llm_debug_input(prompt_context)
 
         new_messages: List[Dict[str, Any]] = []
@@ -1458,7 +1458,7 @@ class DSPyAgentHandle:
                 current_prompt_context,
                 lambda: self._module.module(**current_prompt_context),
             )
-            if os.environ.get("PLEXUS_DEBUG_LLM"):
+            if os.environ.get("PRIMUS_DEBUG_LLM"):
                 self._log_llm_debug_output(dspy_result)
 
             assistant_text = getattr(dspy_result, "response", "")

@@ -306,11 +306,11 @@ Connect to [Model Context Protocol](https://modelcontextprotocol.io/) servers to
 ```yaml
 # .tactus/config.yml
 mcp_servers:
-  plexus:
+  primus:
     command: "python"
-    args: ["-m", "plexus.mcp"]
+    args: ["-m", "primus.mcp"]
     env:
-      PLEXUS_API_KEY: "${PLEXUS_API_KEY}"
+      PRIMUS_API_KEY: "${PRIMUS_API_KEY}"
 
   filesystem:
     command: "npx"
@@ -321,7 +321,7 @@ Tools from MCP servers are accessed via the `mcp` namespace:
 
 ```lua
 done = tactus.done
-score_info = mcp.plexus.score_info
+score_info = mcp.primus.score_info
 read_file = mcp.filesystem.read_file
 
 worker = Agent {
