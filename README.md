@@ -14,7 +14,7 @@
 
 Tactus is a Lua-based DSL for building agent programs: you define tools, agents, and procedures that orchestrate their work. It’s designed for **bounded autonomy**—use imperative code for the steps that must be deterministic, and agent turns for the steps that benefit from intelligence. The runtime handles durability, human-in-the-loop, tool/context control, and testing so that workflows can run for hours or days and still be shippable.
 
-> **Status:** Alpha. APIs and syntax may change; not production-ready.
+> **Status:** Production. Tactus has been running production workloads for over a year.
 
 ## The Problem: Agent Scripts Don’t Scale
 
