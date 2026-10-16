@@ -494,6 +494,7 @@ class RegistryBuilder:
         input_schema: dict[str, Any],
         output_schema: dict[str, Any],
         state_schema: dict[str, Any],
+        run_spend_budget: Optional[Any] = None,
     ) -> None:
         """
         Register a named procedure for in-file calling.
@@ -504,12 +505,14 @@ class RegistryBuilder:
             input_schema: Input validation schema
             output_schema: Output validation schema
             state_schema: State initialization schema
+            run_spend_budget: Optional RunSpendBudget (main procedure only)
         """
         self.registry.named_procedures[name] = {
             "function": lua_function,
             "input_schema": input_schema,
             "output_schema": output_schema,
             "state_schema": state_schema,
+            "run_spend_budget": run_spend_budget,
         }
 
         # If this is the main entry point, also populate the top-level schemas so

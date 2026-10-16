@@ -930,6 +930,18 @@ class TactusRuntime:
             log_handler=self.log_handler,
         )
 
+    def _apply_run_spend_budget(self, run_spend_budget: Optional[Any]) -> None:
+        if run_spend_budget is None:
+            return
+        set_run_spend_budget = getattr(self.execution_context, "set_run_spend_budget", None)
+        if set_run_spend_budget is None:
+            logger.warning(
+                "Procedure declares a budget, but execution context %s does not enforce budgets",
+                type(self.execution_context).__name__,
+            )
+            return
+        set_run_spend_budget(run_spend_budget)
+
     def _ensure_lua_state_proxy(self, state_primitive: StatePrimitive) -> None:
         """Expose the public State API for both Lua DSL and legacy YAML procedures."""
         if self.lua_sandbox is None:
@@ -3039,6 +3051,7 @@ class TactusRuntime:
                         self.execution_context.set_procedure_metadata(
                             procedure_name=main_proc.get("name", "main"), input_data=input_params
                         )
+                        self._apply_run_spend_budget(main_proc.get("run_spend_budget"))
 
                     # Execute main procedure
                     result = main_callable(input_params)

@@ -26,6 +26,13 @@ from tactus.core.exceptions import (
     ProcedureWaitingForHuman,
     ProcedureWaitingForTime,
 )
+from tactus.core.run_spend_budget import (
+    RunSpendBudget,
+    RunSpendTotals,
+    is_agent_turn_checkpoint_type,
+    raise_if_run_spend_budget_exhausted,
+    summarize_run_spend,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -172,6 +179,8 @@ class BaseExecutionContext(ExecutionContext):
         # Lua sandbox reference for debug.getinfo access
         self.lua_sandbox: Optional[Any] = None
 
+        self.run_spend_budget: Optional[RunSpendBudget] = None
+
         # Rich metadata for HITL notifications
         self._initialize_run_metadata(procedure_id)
         self._load_and_reset_metadata(procedure_id)
@@ -205,6 +214,12 @@ class BaseExecutionContext(ExecutionContext):
         """
         self.current_tac_file = file_path
         self.current_tac_content = content
+
+    def set_run_spend_budget(self, run_spend_budget: Optional[RunSpendBudget]) -> None:
+        self.run_spend_budget = run_spend_budget
+
+    def current_run_spend(self) -> RunSpendTotals:
+        return summarize_run_spend(self.metadata.execution_log, self.current_run_id)
 
     def set_lua_sandbox(self, lua_sandbox: Any) -> None:
         """Store reference to Lua sandbox for debug.getinfo access."""
@@ -308,6 +323,9 @@ class BaseExecutionContext(ExecutionContext):
                 checkpoint_position,
                 len(self.metadata.execution_log),
             )
+
+        if self.run_spend_budget is not None and is_agent_turn_checkpoint_type(checkpoint_type):
+            raise_if_run_spend_budget_exhausted(self.run_spend_budget, self.current_run_spend())
 
         # Execute mode: run function with checkpoint scope tracking
         previous_checkpoint_state = self._inside_checkpoint
