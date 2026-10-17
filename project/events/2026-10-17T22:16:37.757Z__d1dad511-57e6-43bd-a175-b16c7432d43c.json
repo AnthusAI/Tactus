@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "d1dad511-57e6-43bd-a175-b16c7432d43c",
+  "issue_id": "tcts-616f6753-0bcd-4078-bcbe-7411cb91ff3d",
+  "event_type": "issue_created",
+  "occurred_at": "2026-10-17T22:16:37.757Z",
+  "actor_id": "unknown",
+  "payload": {
+    "title": "Release a version that no longer says alpha",
+    "description": "As a user on PyPI, I want the package metadata to say production/stable, so that the project signals its real maturity. Done when: a release including the 5 - Production/Stable classifier (PR 110) is published and the budgets feature is noted in the changelog.",
+    "issue_type": "task",
+    "status": "open",
+    "priority": 2,
+    "assignee": null,
+    "parent": "tcts-3ecc8b14-88f1-4179-9a53-d84f9972f2ee",
+    "labels": []
+  }
+}

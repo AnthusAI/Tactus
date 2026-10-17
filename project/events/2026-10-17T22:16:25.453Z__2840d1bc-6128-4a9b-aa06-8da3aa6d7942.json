@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "2840d1bc-6128-4a9b-aa06-8da3aa6d7942",
+  "issue_id": "tcts-3ecc8b14-88f1-4179-9a53-d84f9972f2ee",
+  "event_type": "issue_created",
+  "occurred_at": "2026-10-17T22:16:25.453Z",
+  "actor_id": "unknown",
+  "payload": {
+    "title": "Competitive gaps from Hankweave comparison",
+    "description": "As a Tactus maintainer, I want to close the gaps found in the Hankweave comparison (research/hankweave-vs-tactus.md), so that Tactus is clearly ahead for long-running production agent work. Definition of done: run spend budgets shipped, a coding-agent step available to procedures, a Why Tactus page published, and a release cut that no longer says alpha. Not included: copying Hankweave's fixed JSON plan model.",
+    "issue_type": "epic",
+    "status": "open",
+    "priority": 1,
+    "assignee": null,
+    "parent": null,
+    "labels": []
+  }
+}

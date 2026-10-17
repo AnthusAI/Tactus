@@ -1,0 +1,18 @@
+{
+  "id": "tcts-40134501-1588-4359-8796-1bda8f342851",
+  "title": "Publish a Why Tactus page on Tactus-web",
+  "description": "As an evaluator, I want a page that explains where Tactus fits against LangGraph and Hankweave and shows its production track record, so that I can choose it with confidence. Done when: the page is live on Tactus-web, leads with over a year in production, and includes one production example. Needs an example Ryan approves for public use.",
+  "type": "task",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-3ecc8b14-88f1-4179-9a53-d84f9972f2ee",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-17T22:16:36.945429Z",
+  "updated_at": "2026-10-17T22:16:36.945429Z",
+  "closed_at": null,
+  "custom": {}
+}

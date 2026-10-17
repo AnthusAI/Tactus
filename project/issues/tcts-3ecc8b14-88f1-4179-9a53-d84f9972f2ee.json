@@ -1,0 +1,25 @@
+{
+  "id": "tcts-3ecc8b14-88f1-4179-9a53-d84f9972f2ee",
+  "title": "Competitive gaps from Hankweave comparison",
+  "description": "As a Tactus maintainer, I want to close the gaps found in the Hankweave comparison (research/hankweave-vs-tactus.md), so that Tactus is clearly ahead for long-running production agent work. Definition of done: run spend budgets shipped, a coding-agent step available to procedures, a Why Tactus page published, and a release cut that no longer says alpha. Not included: copying Hankweave's fixed JSON plan model.",
+  "type": "epic",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "17d74996-2a04-413a-93c1-42a4a77e937a",
+      "author": "unknown",
+      "text": "Source: research/hankweave-vs-tactus.md. Related prior art: tcts-1bfc71 (host-supplied budget authorization hooks, closed) covers host-side per-attempt authorization; this epic adds declarative in-language caps.",
+      "created_at": "2026-10-17T22:16:46.731475Z"
+    }
+  ],
+  "created_at": "2026-10-17T22:16:25.452648Z",
+  "updated_at": "2026-10-17T22:16:46.731475Z",
+  "closed_at": null,
+  "custom": {}
+}

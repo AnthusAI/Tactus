@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_id": "705101f7-62a4-4f0e-b692-5ef2046bc6b2",
+  "issue_id": "tcts-75586d6a-4c97-4730-b75d-356855692df5",
+  "event_type": "issue_created",
+  "occurred_at": "2026-10-17T22:16:35.010Z",
+  "actor_id": "unknown",
+  "payload": {
+    "title": "Add run-level spend budgets to Procedure",
+    "description": "As an operator running unattended agents, I want Procedure { budget = { max_cost_usd, max_total_tokens } } enforced across suspend and resume, so that a runaway agent cannot overspend. Done when: enforced before each agent turn from the checkpointed log, never double-counted on replay, documented in SPECIFICATION.md and DURABILITY.md, full suite green. Implementation is on branch claude/project-thread-4m64pi-spend-budgets. Not included: wall-clock caps, per-agent budgets, hooks (see ModelAttemptAuthority).",
+    "issue_type": "task",
+    "status": "open",
+    "priority": 1,
+    "assignee": null,
+    "parent": "tcts-3ecc8b14-88f1-4179-9a53-d84f9972f2ee",
+    "labels": []
+  }
+}
