@@ -3,7 +3,7 @@
   "title": "Preload persisted state into runtime State primitive for continuation detection",
   "description": "",
   "type": "bug",
-  "status": "in_progress",
+  "status": "open",
   "priority": 1,
   "assignee": null,
   "creator": null,
@@ -15,11 +15,22 @@
       "id": "ee0fa859-0785-4408-81d8-b9f567512376",
       "author": "ryan",
       "text": "Landing runtime state-preload change from local workspace: preload persisted procedure state into State primitive during runtime setup to support continuation detection and State.get-based branching in Lua procedures. Will validate with focused runtime tests and full CI via PR.",
-      "created_at": "2026-04-20T17:11:20.616538Z"
+      "created_at": "2026-04-20T17:11:20.616538Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-04-20T17:11:15.714659Z",
-  "updated_at": "2026-04-20T17:11:20.616538Z",
+  "updated_at": "2026-10-17T13:24:20.840277Z",
   "closed_at": null,
-  "custom": {}
+  "agent": {
+    "platform": "claude-code",
+    "model": "claude-opus-5-5",
+    "name": "cross-project-wip-reset"
+  },
+  "right_now_summary": "The runtime change is being landed and will be validated with focused tests and full CI.",
+  "right_now_updated_at": "2026-10-17T13:24:22.416354Z",
+  "custom": {
+    "project_label": "tcts",
+    "source": "shared"
+  }
 }
