@@ -39,9 +39,11 @@ class PluginLoader:
         self.loaded_modules = {}  # Cache loaded modules
         logger.debug("PluginLoader initialized")
 
-    def create_toolset(self, paths: List[str], name: str = "plugin") -> FunctionToolset:
+    def create_toolset(
+        self, paths: List[str], name: str = "plugin", modules: Optional[List[str]] = None
+    ) -> FunctionToolset:
         """
-        Create a FunctionToolset from specified paths.
+        Create a FunctionToolset from specified paths and importable modules.
 
         This is the preferred method for loading plugin tools - it returns a composable
         toolset that can be combined with other toolsets.
@@ -49,12 +51,16 @@ class PluginLoader:
         Args:
             paths: List of directory paths or file paths to scan
             name: Name for the toolset (used in logging)
+            modules: Importable module names (for example a package installed with pip)
+                whose public functions become tools, so tools can ship inside a package
+                instead of at a filesystem path
 
         Returns:
             FunctionToolset instance containing all loaded tools
         """
-        # Load all functions from paths
         functions = self._load_all_functions(paths)
+        for module_name in modules or []:
+            functions.extend(self._load_functions_from_module(module_name))
 
         if not functions:
             logger.warning(f"No functions found in paths: {paths}")
@@ -141,6 +147,32 @@ class PluginLoader:
 
         logger.debug(f"Loaded {len(all_functions)} function(s) from {len(paths)} path(s)")
         return all_functions
+
+    def _load_functions_from_module(self, module_name: str) -> List[Callable]:
+        """
+        Import a module by name and return its public functions.
+
+        Args:
+            module_name: Dotted name of an importable module
+
+        Returns:
+            List of callable functions defined in that module
+        """
+        try:
+            module = importlib.import_module(module_name)
+        except ImportError as error:
+            raise ValueError(
+                f"Plugin tool module '{module_name}' could not be imported: {error}"
+            ) from error
+        self.loaded_modules[module_name] = module
+        functions = [
+            obj
+            for name, obj in inspect.getmembers(module)
+            if self._is_valid_tool_function(name, obj, module)
+        ]
+        if not functions:
+            logger.warning(f"No public functions found in module: {module_name}")
+        return functions
 
     def _load_functions_from_directory(self, directory: Path) -> List[Callable]:
         """

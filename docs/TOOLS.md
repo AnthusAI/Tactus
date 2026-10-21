@@ -748,6 +748,17 @@ content_editor = Agent {
 - Shared across projects
 - Complex algorithms
 
+A plugin toolset loads tools from files or directories (`paths`), from importable Python modules (`modules`), or both. Use `modules` when the tools ship inside an installed package, so a procedure does not depend on where that package's source sits on disk:
+
+```lua
+Toolset "papyrus" {
+    type = "plugin",
+    modules = {"papyrus_newsroom.tactus_tools"}
+}
+```
+
+Every public function defined in the module (not imported into it) becomes a tool.
+
 ### Brokered Host Tools (via Host.call)
 
 **Pros:**

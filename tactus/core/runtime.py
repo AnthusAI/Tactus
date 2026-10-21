@@ -1699,15 +1699,20 @@ class TactusRuntime:
                 return None
 
         if toolset_type == "plugin":
-            # Load from local paths
+            # Load from local paths and/or importable modules
             paths = definition.get("paths", [])
-            if not paths:
-                logger.warning(f"Plugin toolset '{name}' has no paths configured")
+            modules = definition.get("modules", [])
+            if not paths and not modules:
+                logger.warning(f"Plugin toolset '{name}' has no paths or modules configured")
                 return None
 
             from tactus.adapters.plugins import PluginLoader
 
             plugin_loader = PluginLoader(tool_primitive=self.tool_primitive)
+            if modules:
+                return plugin_loader.create_toolset(
+                    list(paths or []), name=name, modules=list(modules)
+                )
             return plugin_loader.create_toolset(paths, name=name)
 
         elif toolset_type == "mcp":
