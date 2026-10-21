@@ -2,6 +2,34 @@
 
 <!-- version list -->
 
+## v0.52.0 (2026-08-03)
+
+### Chores
+
+- Close CI trigger task
+  ([`8a6dcc8`](https://github.com/AnthusAI/Tactus/commit/8a6dcc896273aa9195b0a72fd7deb7d2b3bd53ef))
+
+- Record CI trigger change handoff
+  ([`587f46c`](https://github.com/AnthusAI/Tactus/commit/587f46c562a60f688fefa9bf6141942cf60feafd))
+
+- **ci**: Limit quality checks to main PRs
+  ([`4c09350`](https://github.com/AnthusAI/Tactus/commit/4c093501bdd0835b381f3e9b1cf5b3915145ac01))
+
+- **project**: Record runtime delivery work
+  ([`10bed3e`](https://github.com/AnthusAI/Tactus/commit/10bed3ea7bf0802ea0d31ca46c7f2bf4f5c88f52))
+
+### Features
+
+- **hitl**: Support structured agentless reviews
+  ([`6e84354`](https://github.com/AnthusAI/Tactus/commit/6e843540ca7420a2a6f785b8b88fea19ee076ac9))
+
+- **runtime**: Add durable external waits
+  ([`3857c24`](https://github.com/AnthusAI/Tactus/commit/3857c24a931b9703f50895f0954fbfeaac9e8d05))
+
+- **runtime**: Authorize bounded model attempts
+  ([`ec25582`](https://github.com/AnthusAI/Tactus/commit/ec25582471c7624e0ca822d00e9f952bea6564de))
+
+
 ## v0.51.5 (2026-07-27)
 
 ### Bug Fixes

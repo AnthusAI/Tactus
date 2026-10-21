@@ -6,6 +6,7 @@ import pytest
 from tactus.dspy.agent import DSPyAgentHandle
 from tactus.dspy.prediction import TactusPrediction
 from tactus.protocols.cost import CostStats, UsageStats
+from tactus.protocols.result import TactusResult
 
 
 @pytest.fixture
@@ -145,3 +146,73 @@ def test_get_mock_response_with_temporal_turns():
     result = agent._get_mock_response({"message": "first"})
 
     assert result.output == "one"
+
+
+def test_structured_output_instructions_name_every_declared_field():
+    agent = DSPyAgentHandle(
+        name="analyst",
+        output_schema={
+            "story": {"type": "string", "required": True, "description": "Story lineage id"},
+            "notes": {"type": "array"},
+        },
+    )
+
+    instructions = agent._structured_output_instructions()
+
+    assert "only a JSON object with exactly these fields" in instructions
+    assert "- story (string, required): Story lineage id" in instructions
+    assert "- notes (array, optional)" in instructions
+
+
+def test_structured_output_instructions_read_the_serialized_agent_output_schema():
+    agent = DSPyAgentHandle(
+        name="analyst",
+        output_schema={
+            "fields": {
+                "story": {
+                    "name": "story",
+                    "field_type": "string",
+                    "required": True,
+                    "description": "A story id",
+                },
+                "notability": {
+                    "name": "notability",
+                    "field_type": "number",
+                    "required": True,
+                    "description": None,
+                },
+            }
+        },
+    )
+
+    instructions = agent._structured_output_instructions()
+
+    assert "- story (string, required): A story id" in instructions
+    assert "- notability (number, required)" in instructions
+    assert "- fields" not in instructions
+
+
+def test_validate_output_reports_missing_fields_of_a_serialized_schema():
+    agent = DSPyAgentHandle(
+        name="analyst",
+        output_schema={
+            "fields": {"story": {"name": "story", "field_type": "string", "required": True}}
+        },
+    )
+    result = TactusResult(
+        output={"storyLineage": "item-1"}, usage=UsageStats(), cost_stats=CostStats()
+    )
+
+    with pytest.raises(ValueError, match="missing required fields: story"):
+        agent._validate_output(result)
+
+
+def test_structured_output_instructions_absent_without_an_explicit_schema(agent):
+    assert agent._structured_output_instructions() == ""
+
+
+def test_prediction_to_value_accepts_json_in_a_code_fence():
+    agent = DSPyAgentHandle(name="analyst", output_schema={"story": {"type": "string"}})
+    prediction = TactusPrediction(dspy.Prediction(response='```json\n{"story": "item-1"}\n```'))
+
+    assert agent._prediction_to_value(prediction) == {"story": "item-1"}
