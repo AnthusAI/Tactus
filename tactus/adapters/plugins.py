@@ -161,9 +161,15 @@ class PluginLoader:
         try:
             module = importlib.import_module(module_name)
         except ImportError as error:
-            raise ValueError(f"Plugin tool module '{module_name}' could not be imported: {error}") from error
+            raise ValueError(
+                f"Plugin tool module '{module_name}' could not be imported: {error}"
+            ) from error
         self.loaded_modules[module_name] = module
-        functions = [obj for name, obj in inspect.getmembers(module) if self._is_valid_tool_function(name, obj, module)]
+        functions = [
+            obj
+            for name, obj in inspect.getmembers(module)
+            if self._is_valid_tool_function(name, obj, module)
+        ]
         if not functions:
             logger.warning(f"No public functions found in module: {module_name}")
         return functions

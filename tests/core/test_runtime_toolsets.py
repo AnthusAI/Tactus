@@ -913,7 +913,11 @@ def test_create_toolset_from_config_plugin_modules(monkeypatch):
     )
 
     assert toolset.name == "papyrus"
-    assert received == {"paths": [], "name": "papyrus", "modules": ["papyrus_newsroom.tactus_tools"]}
+    assert received == {
+        "paths": [],
+        "name": "papyrus",
+        "modules": ["papyrus_newsroom.tactus_tools"],
+    }
 
 
 def test_create_toolset_from_config_plugin_without_paths_or_modules_returns_none():

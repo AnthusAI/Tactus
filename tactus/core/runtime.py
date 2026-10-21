@@ -1710,7 +1710,9 @@ class TactusRuntime:
 
             plugin_loader = PluginLoader(tool_primitive=self.tool_primitive)
             if modules:
-                return plugin_loader.create_toolset(list(paths or []), name=name, modules=list(modules))
+                return plugin_loader.create_toolset(
+                    list(paths or []), name=name, modules=list(modules)
+                )
             return plugin_loader.create_toolset(paths, name=name)
 
         elif toolset_type == "mcp":
