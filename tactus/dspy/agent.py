@@ -2604,38 +2604,52 @@ class DSPyAgentHandle:
         lm = self._get_agent_lm(opts)
         return dspy.context(lm=lm, adapter=self._agent_adapter)
 
+    def _declared_output_fields(self) -> Dict[str, Dict[str, Any]]:
+        """The agent's declared output fields as {name: {type, required, description}}.
+
+        Accepts an AgentOutputSchema, its serialized form {"fields": {name: {field_type, ...}}},
+        or a plain {name: {type, ...}} mapping.
+        """
+        if not self._explicit_output_schema:
+            return {}
+        output_schema = self.output_schema
+        if hasattr(output_schema, "fields"):
+            raw_fields = output_schema.fields
+        elif isinstance(output_schema, dict) and isinstance(output_schema.get("fields"), dict):
+            raw_fields = output_schema["fields"]
+        else:
+            raw_fields = output_schema or {}
+        if not isinstance(raw_fields, dict):
+            return {}
+        declared: Dict[str, Dict[str, Any]] = {}
+        for field_name, field_def in raw_fields.items():
+            if isinstance(field_def, dict):
+                field_type = field_def.get("type") or field_def.get("field_type") or "string"
+                required = bool(field_def.get("required", False))
+                description = field_def.get("description") or ""
+            else:
+                field_type = getattr(field_def, "type", None) or getattr(field_def, "field_type", None) or "string"
+                required = bool(getattr(field_def, "required", False))
+                description = getattr(field_def, "description", None) or ""
+            declared[str(field_name)] = {"type": str(field_type), "required": required, "description": str(description)}
+        return declared
+
     def _structured_output_instructions(self) -> str:
         """Tell the model the declared output fields, which the turn signature (-> response) does not carry."""
-        if not self._explicit_output_schema:
-            return ""
-        output_schema = self.output_schema
-        schema_fields = output_schema.fields if hasattr(output_schema, "fields") else (output_schema or {})
-        if not isinstance(schema_fields, dict) or not schema_fields:
+        declared = self._declared_output_fields()
+        if not declared:
             return ""
         lines = [
             "When you give your final answer (not a tool call), reply with only a JSON object with exactly these fields:"
         ]
-        for field_name, field_def in schema_fields.items():
-            if hasattr(field_def, "type"):
-                field_type, required, description = field_def.type, bool(getattr(field_def, "required", False)), getattr(field_def, "description", "")
-            elif isinstance(field_def, dict):
-                field_type, required, description = field_def.get("type", "string"), bool(field_def.get("required", False)), field_def.get("description", "")
-            else:
-                field_type, required, description = "string", False, ""
-            detail = f"- {field_name} ({field_type}, {'required' if required else 'optional'})"
-            lines.append(f"{detail}: {description}" if description else detail)
+        for field_name, field in declared.items():
+            detail = f"- {field_name} ({field['type']}, {'required' if field['required'] else 'optional'})"
+            lines.append(f"{detail}: {field['description']}" if field["description"] else detail)
         return "\n".join(lines)
 
     def _validate_output(self, result: TactusResult) -> None:
-        if not self._explicit_output_schema:
-            return
-        output_schema = self.output_schema
-        if hasattr(output_schema, "fields"):
-            schema_fields = output_schema.fields
-        else:
-            schema_fields = output_schema or {}
-
-        if not isinstance(schema_fields, dict) or not schema_fields:
+        schema_fields = self._declared_output_fields()
+        if not schema_fields:
             return
 
         if not isinstance(result.output, dict):
@@ -2648,15 +2662,7 @@ class DSPyAgentHandle:
                 return
             raise ValueError("Agent output is not structured as expected")
 
-        missing = []
-        for field_name, field_def in schema_fields.items():
-            required = False
-            if hasattr(field_def, "required"):
-                required = bool(field_def.required)
-            elif isinstance(field_def, dict):
-                required = bool(field_def.get("required", False))
-            if required and field_name not in result.output:
-                missing.append(field_name)
+        missing = [field_name for field_name, field in schema_fields.items() if field["required"] and field_name not in result.output]
 
         if missing:
             raise ValueError(f"Agent output missing required fields: {', '.join(missing)}")
