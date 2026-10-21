@@ -509,8 +509,12 @@ class DSPyAgentHandle:
 
         # If output schema is configured, prefer structured JSON when possible
         if self.output_schema and isinstance(text, str) and text.strip():
+            candidate = text.strip()
+            if candidate.startswith("```"):
+                candidate = candidate.split("\n", 1)[1] if "\n" in candidate else ""
+                candidate = candidate.rsplit("```", 1)[0].strip()
             try:
-                parsed = json.loads(text)
+                parsed = json.loads(candidate)
                 return parsed
             except Exception:
                 pass
@@ -1308,7 +1312,7 @@ class DSPyAgentHandle:
                 raise
             return result_holder["result"]
 
-        if os.environ.get("PLEXUS_DEBUG_LLM"):
+        if os.environ.get("PRIMUS_DEBUG_LLM"):
             self._log_llm_debug_input(prompt_context)
 
         self.log_handler.log(AgentTurnEvent(agent_name=self.name, stage="started"))
@@ -1338,7 +1342,7 @@ class DSPyAgentHandle:
                     return self._turn_without_streaming(opts, prompt_context)
                 raise
 
-            if os.environ.get("PLEXUS_DEBUG_LLM"):
+            if os.environ.get("PRIMUS_DEBUG_LLM"):
                 self._log_llm_debug_output(dspy_result)
 
             assistant_text = getattr(dspy_result, "response", "")
@@ -1437,7 +1441,7 @@ class DSPyAgentHandle:
         Returns:
             TactusResult with value, usage, and cost_stats
         """
-        if os.environ.get("PLEXUS_DEBUG_LLM"):
+        if os.environ.get("PRIMUS_DEBUG_LLM"):
             self._log_llm_debug_input(prompt_context)
 
         new_messages: List[Dict[str, Any]] = []
@@ -1458,7 +1462,7 @@ class DSPyAgentHandle:
                 current_prompt_context,
                 lambda: self._module.module(**current_prompt_context),
             )
-            if os.environ.get("PLEXUS_DEBUG_LLM"):
+            if os.environ.get("PRIMUS_DEBUG_LLM"):
                 self._log_llm_debug_output(dspy_result)
 
             assistant_text = getattr(dspy_result, "response", "")
@@ -1687,6 +1691,13 @@ class DSPyAgentHandle:
                 user_message=user_message,
             )
             system_prompt = f"{system_prompt}\n\n{suffix_rendered}"
+        output_instructions = self._structured_output_instructions()
+        if output_instructions:
+            system_prompt = (
+                f"{system_prompt}\n\n{output_instructions}"
+                if system_prompt
+                else output_instructions
+            )
 
         if self.context_name:
             if not self.registry or not hasattr(self.registry, "contexts"):
@@ -2597,16 +2608,60 @@ class DSPyAgentHandle:
         lm = self._get_agent_lm(opts)
         return dspy.context(lm=lm, adapter=self._agent_adapter)
 
-    def _validate_output(self, result: TactusResult) -> None:
+    def _declared_output_fields(self) -> Dict[str, Dict[str, Any]]:
+        """The agent's declared output fields as {name: {type, required, description}}.
+
+        Accepts an AgentOutputSchema, its serialized form {"fields": {name: {field_type, ...}}},
+        or a plain {name: {type, ...}} mapping.
+        """
         if not self._explicit_output_schema:
-            return
+            return {}
         output_schema = self.output_schema
         if hasattr(output_schema, "fields"):
-            schema_fields = output_schema.fields
+            raw_fields = output_schema.fields
+        elif isinstance(output_schema, dict) and isinstance(output_schema.get("fields"), dict):
+            raw_fields = output_schema["fields"]
         else:
-            schema_fields = output_schema or {}
+            raw_fields = output_schema or {}
+        if not isinstance(raw_fields, dict):
+            return {}
+        declared: Dict[str, Dict[str, Any]] = {}
+        for field_name, field_def in raw_fields.items():
+            if isinstance(field_def, dict):
+                field_type = field_def.get("type") or field_def.get("field_type") or "string"
+                required = bool(field_def.get("required", False))
+                description = field_def.get("description") or ""
+            else:
+                field_type = (
+                    getattr(field_def, "type", None)
+                    or getattr(field_def, "field_type", None)
+                    or "string"
+                )
+                required = bool(getattr(field_def, "required", False))
+                description = getattr(field_def, "description", None) or ""
+            declared[str(field_name)] = {
+                "type": str(field_type),
+                "required": required,
+                "description": str(description),
+            }
+        return declared
 
-        if not isinstance(schema_fields, dict) or not schema_fields:
+    def _structured_output_instructions(self) -> str:
+        """Tell the model the declared output fields, which the turn signature (-> response) does not carry."""
+        declared = self._declared_output_fields()
+        if not declared:
+            return ""
+        lines = [
+            "When you give your final answer (not a tool call), reply with only a JSON object with exactly these fields:"
+        ]
+        for field_name, field in declared.items():
+            detail = f"- {field_name} ({field['type']}, {'required' if field['required'] else 'optional'})"
+            lines.append(f"{detail}: {field['description']}" if field["description"] else detail)
+        return "\n".join(lines)
+
+    def _validate_output(self, result: TactusResult) -> None:
+        schema_fields = self._declared_output_fields()
+        if not schema_fields:
             return
 
         if not isinstance(result.output, dict):
@@ -2619,15 +2674,11 @@ class DSPyAgentHandle:
                 return
             raise ValueError("Agent output is not structured as expected")
 
-        missing = []
-        for field_name, field_def in schema_fields.items():
-            required = False
-            if hasattr(field_def, "required"):
-                required = bool(field_def.required)
-            elif isinstance(field_def, dict):
-                required = bool(field_def.get("required", False))
-            if required and field_name not in result.output:
-                missing.append(field_name)
+        missing = [
+            field_name
+            for field_name, field in schema_fields.items()
+            if field["required"] and field_name not in result.output
+        ]
 
         if missing:
             raise ValueError(f"Agent output missing required fields: {', '.join(missing)}")

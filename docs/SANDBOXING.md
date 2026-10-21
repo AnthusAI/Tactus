@@ -92,12 +92,12 @@ module on a runtime before execution:
 from tactus import TactusRuntime
 
 runtime = TactusRuntime(procedure_id="example")
-runtime.register_python_module("plexus", plexus_module)
+runtime.register_python_module("primus", primus_module)
 
 result = await runtime.execute(
     """
-    local plexus = require("plexus")
-    local score = plexus.score.info({ id = "score_123" })
+    local primus = require("primus")
+    local score = primus.score.info({ id = "score_123" })
     return { name = score.name }
     """,
     format="lua",
@@ -106,11 +106,11 @@ result = await runtime.execute(
 
 Host modules are explicit capabilities:
 
-- Names must be dotted identifiers such as `plexus` or `vendor.analytics`.
+- Names must be dotted identifiers such as `primus` or `vendor.analytics`.
 - The `tactus.*` namespace is reserved for the Tactus standard library.
 - Host modules are per-runtime and are not arbitrary Python imports.
 - Host modules resolve before local `.tac` files, so a local file cannot shadow
-  an explicit capability such as `require("plexus")`.
+  an explicit capability such as `require("primus")`.
 - Tactus stdlib Python modules remain fallback behavior after `.tac` searchers,
   preserving the existing Tactus-first loading order for `tactus.*`.
 - Re-registering a host module clears Lua's `require` cache for that name.

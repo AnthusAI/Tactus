@@ -1,0 +1,25 @@
+{
+  "id": "tcts-cca6e1b0-bf39-450e-bf5c-51c340288dbc",
+  "title": "Audit cleanup (low priority): Tactus",
+  "description": "**Problem**\nLow-priority findings from the Tactus repo audit.\n\n**Evidence / Fix** (checklist)\n- [ ] README CLI commands section is incomplete; list all current `tactus` subcommands.\n- [ ] Stray files committed at repo root: SPECIFICATION.md.bak, docs_output/, project_backup_pre_migrate/, test_run_inputs.sh (also .kanbus.yml.pre_migrate_old); remove or move.\n- [ ] Broken relative links to docs/IMPLEMENTATION.md, CONTROL_LOOP_PHASE1_COMPLETE.md, OMNICHANNEL_HITL_PLAN.md and TOOL_ROADMAP.md; restore the files or remove the links.\n\n**How to verify**\n`ls SPECIFICATION.md.bak docs_output project_backup_pre_migrate test_run_inputs.sh` finds nothing; a markdown link checker over README.md and docs/ reports no broken relative links.\n\nSource: Anthus repo audit, 2026-10-20.",
+  "type": "bug",
+  "status": "open",
+  "priority": 3,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-20T04:33:01.989816Z",
+  "updated_at": "2026-10-20T04:33:01.989867Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "claude-code",
+    "model": "claude-sonnet-5-5",
+    "name": "audit-filer"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

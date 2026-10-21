@@ -887,3 +887,40 @@ async def test_initialize_toolsets_lua_tool_source_missing(monkeypatch):
     monkeypatch.setitem(sys.modules, "tactus.adapters.lua_tools", module)
 
     await runtime._initialize_toolsets()
+
+
+def test_create_toolset_from_config_plugin_modules(monkeypatch):
+    runtime = _runtime()
+    runtime.tool_primitive = object()
+    received = {}
+
+    class DummyPluginLoader:
+        def __init__(self, tool_primitive=None):
+            pass
+
+        def create_toolset(self, paths, name=None, modules=None):
+            received.update(paths=paths, name=name, modules=modules)
+            return DummyToolset(name)
+
+    module = ModuleType("tactus.adapters.plugins")
+    module.PluginLoader = DummyPluginLoader
+    monkeypatch.setitem(sys.modules, "tactus.adapters.plugins", module)
+
+    toolset = _run(
+        runtime._create_toolset_from_config(
+            "papyrus", {"type": "plugin", "modules": ["papyrus_newsroom.tactus_tools"]}
+        )
+    )
+
+    assert toolset.name == "papyrus"
+    assert received == {
+        "paths": [],
+        "name": "papyrus",
+        "modules": ["papyrus_newsroom.tactus_tools"],
+    }
+
+
+def test_create_toolset_from_config_plugin_without_paths_or_modules_returns_none():
+    runtime = _runtime()
+
+    assert _run(runtime._create_toolset_from_config("empty", {"type": "plugin"})) is None

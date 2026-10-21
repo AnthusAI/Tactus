@@ -22,7 +22,7 @@ class RetryWithFeedback:
     2. Gives the LLM feedback about why the previous attempt failed
     3. Enables "self-healing" where the LLM learns from mistakes
 
-    This is the core pattern used by Plexus LangGraphScore nodes
+    This is the core pattern used by Primus LangGraphScore nodes
     for reliable classification.
     """
 

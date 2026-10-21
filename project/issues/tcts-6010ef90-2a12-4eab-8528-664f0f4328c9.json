@@ -1,0 +1,25 @@
+{
+  "id": "tcts-6010ef90-2a12-4eab-8528-664f0f4328c9",
+  "title": "README says every agent must specify a provider, but the docs say it is optional",
+  "description": "**Problem**\nThe Tactus README and the published docs contradict each other on whether an agent's `provider:` is required.\n\n**Evidence**\nREADME.md (origin/develop) line 976: \"**Every agent must specify a `provider:`** (either directly or via `default_provider:` at the procedure level).\" The docs site treats the provider as optional (per the audit; confirm which is true against the runtime).\n\n**Fix**\nCheck runtime behaviour, then make the README and the docs agree.\n\n**How to verify**\n`git show origin/develop:README.md | grep -n 'provider'` and the matching docs page state the same rule, and a minimal agent without `provider:` behaves as documented.\n\nSource: Anthus repo audit, 2026-10-20.",
+  "type": "bug",
+  "status": "open",
+  "priority": 2,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-20T04:32:59.770740Z",
+  "updated_at": "2026-10-20T04:32:59.770812Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "claude-code",
+    "model": "claude-sonnet-5-5",
+    "name": "audit-filer"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

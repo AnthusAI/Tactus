@@ -1,5 +1,5 @@
--- Plexus Scorecard Inventory
--- Lists scorecards via Plexus MCP and returns a short summary
+-- Primus Scorecard Inventory
+-- Lists scorecards via Primus MCP and returns a short summary
 
 local done = require("tactus.tools.done")
 
@@ -9,15 +9,15 @@ scorecard_inventory_agent = Agent {
     system_prompt = [[
 You are a reporting agent.
 You must do exactly two tool calls in this order:
-1) Call "plexus_plexus_scorecards_list" with arguments:
+1) Call "primus_primus_scorecards_list" with arguments:
    - identifier: "{input.identifier}"
    - limit: "{input.limit}"
 2) Call "done" with a reason string of the form: "Returned N scorecards"
    where N is the count of items in the tool response. Do not omit the reason.
 Do not call any other tools. Do not retry.
 ]],
-    initial_message = "List Plexus scorecards and report the count.",
-    tools = {"plexus", done},
+    initial_message = "List Primus scorecards and report the count.",
+    tools = {"primus", done},
 }
 
 Procedure {
@@ -32,7 +32,7 @@ Procedure {
         error = field.string{required = false},
     },
     function(input)
-        Log.info("Starting Plexus scorecard inventory", {identifier = input.identifier, limit = input.limit})
+        Log.info("Starting Primus scorecard inventory", {identifier = input.identifier, limit = input.limit})
 
         local max_turns = 3
         local turn_count = 0
@@ -44,11 +44,11 @@ Procedure {
 
         local message = "Scorecard inventory completed"
         local scorecards = nil
-        if Tool.called("plexus_plexus_scorecards_list") then
-            scorecards = Tool.last_result("plexus_plexus_scorecards_list")
+        if Tool.called("primus_primus_scorecards_list") then
+            scorecards = Tool.last_result("primus_primus_scorecards_list")
         end
-        if scorecards == nil and Tool.called("plexus_scorecards_list") then
-            scorecards = Tool.last_result("plexus_scorecards_list")
+        if scorecards == nil and Tool.called("primus_scorecards_list") then
+            scorecards = Tool.last_result("primus_scorecards_list")
         end
 
         if type(scorecards) == "table" then
@@ -60,7 +60,7 @@ Procedure {
             end
         end
 
-        if Tool.called("plexus_plexus_scorecards_list") and done.called() then
+        if Tool.called("primus_primus_scorecards_list") and done.called() then
             return {
                 success = true,
                 message = message,

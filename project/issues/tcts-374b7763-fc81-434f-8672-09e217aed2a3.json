@@ -3,7 +3,7 @@
   "title": "Fix DSPy tool loop terminal done handling",
   "description": "Release CI is hanging in pytest because the DSPy agent tool loop keeps re-invoking terminal done tool calls. Fix terminal done detection for done/agent_done, add a loop cap for repeated non-terminal tools, and add regression tests.",
   "type": "bug",
-  "status": "in_progress",
+  "status": "open",
   "priority": 0,
   "assignee": null,
   "creator": null,
@@ -15,17 +15,29 @@
       "id": "ad1d2bb9-7441-4fc3-bb93-3aeb617f4309",
       "author": "ryan",
       "text": "Reproduced CI hang locally against origin/develop using the existing test tests/dspy/test_agent_execution.py::TestTurns::test_turn_without_streaming_records_done_tool wrapped in an 8s subprocess timeout; it timed out. Implemented terminal done handling and loop cap. On fixed branch the same test passes in ~3s. Validation: tests/dspy/test_agent_execution.py passes (89 tests), ruff check touched files passes, black --check touched files passes, direct pytest suite with only local missing-moto collection blocker ignored passes: 4203 passed, 71 skipped.",
-      "created_at": "2026-04-29T04:26:30.339474Z"
+      "created_at": "2026-04-29T04:26:30.339474Z",
+      "comment_type": "default"
     },
     {
       "id": "e8e04acb-ee37-435d-b8e7-0e28487237b4",
       "author": "ryan",
       "text": "Opened PR #66 into develop with terminal done handling fix: https://github.com/AnthusAI/Tactus/pull/66",
-      "created_at": "2026-04-29T04:29:20.105468Z"
+      "created_at": "2026-04-29T04:29:20.105468Z",
+      "comment_type": "default"
     }
   ],
   "created_at": "2026-04-29T04:18:14.502105Z",
-  "updated_at": "2026-04-29T04:29:20.105468Z",
+  "updated_at": "2026-10-17T13:24:17.158113Z",
   "closed_at": null,
-  "custom": {}
+  "agent": {
+    "platform": "claude-code",
+    "model": "claude-opus-5-5",
+    "name": "cross-project-wip-reset"
+  },
+  "right_now_summary": "A fix is in PR #66, with terminal handling and loop caps tested against the CI hang.",
+  "right_now_updated_at": "2026-10-17T13:24:18.605221Z",
+  "custom": {
+    "project_label": "tcts",
+    "source": "shared"
+  }
 }

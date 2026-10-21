@@ -159,7 +159,7 @@ Edge case tests (4-8) have procedures ready for manual or automated validation.
 
 Once rigorous testing is complete:
 - **IDE Integration** - VSCode extension as reference implementation
-- **Plexus Integration** - Apply IDE pattern to Plexus (custom control channel)
+- **Primus Integration** - Apply IDE pattern to Primus (custom control channel)
 - **Integration Guide** - Document pattern for embedding Tactus in other apps
 
 ## Future Documentation

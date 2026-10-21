@@ -61,11 +61,11 @@ def test_toolset_dsl_function_with_mcp_type():
     builder = RegistryBuilder()
     stubs = create_dsl_stubs(builder)
 
-    stubs["Toolset"]("mcp_toolset")({"type": "mcp", "server": "plexus"})
+    stubs["Toolset"]("mcp_toolset")({"type": "mcp", "server": "primus"})
 
     assert "mcp_toolset" in builder.registry.toolsets
     assert builder.registry.toolsets["mcp_toolset"]["type"] == "mcp"
-    assert builder.registry.toolsets["mcp_toolset"]["server"] == "plexus"
+    assert builder.registry.toolsets["mcp_toolset"]["server"] == "primus"
 
 
 def test_multiple_toolset_registrations():
