@@ -161,16 +161,18 @@ class ToolsetPrimitive:
         raise ValueError(f"Unknown toolset type: {toolset_type}")
 
     def _create_plugin_toolset(self, name: str, config: dict[str, Any]) -> AbstractToolset:
-        """Create a plugin toolset from paths."""
+        """Create a plugin toolset from file paths and/or importable module names."""
         from tactus.adapters.plugins import PluginLoader
 
-        paths = config.get("paths", [])
-        if not paths:
-            raise ValueError(f"Plugin toolset '{name}' must specify 'paths'")
+        paths = list(config.get("paths") or [])
+        modules = list(config.get("modules") or [])
+        if not paths and not modules:
+            raise ValueError(f"Plugin toolset '{name}' must specify 'paths' or 'modules'")
 
         loader = PluginLoader(tool_primitive=self.runtime.tool_primitive)
-        toolset = loader.create_toolset(paths, name=name)
-        return toolset
+        if modules:
+            return loader.create_toolset(paths, name=name, modules=modules)
+        return loader.create_toolset(paths, name=name)
 
     def _create_mcp_toolset_reference(self, name: str, config: dict[str, Any]) -> AbstractToolset:
         """Get reference to an MCP toolset."""

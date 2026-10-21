@@ -471,3 +471,27 @@ def test_create_tool_from_function_handles_signature_error(monkeypatch):
 
     tool = loader._create_tool_from_function(greet, "greet")
     assert tool is None
+
+
+def test_create_toolset_from_importable_module(plugin_loader, tmp_path, monkeypatch):
+    """Tools can ship inside an installed package and be loaded by module name."""
+    package = tmp_path / "shipped_tools_package"
+    package.mkdir()
+    (package / "__init__.py").write_text(
+        "from os import path as imported_name\n"
+        "def lookup_ruling(proceeding: str) -> str:\n"
+        "    '''Look up a ruling by proceeding number.'''\n"
+        "    return proceeding\n"
+        "def _private_helper():\n"
+        "    return None\n"
+    )
+    monkeypatch.syspath_prepend(str(tmp_path))
+
+    toolset = plugin_loader.create_toolset([], name="shipped", modules=["shipped_tools_package"])
+
+    assert sorted(toolset.tools) == ["lookup_ruling"]
+
+
+def test_create_toolset_from_missing_module_raises(plugin_loader):
+    with pytest.raises(ValueError, match="could not be imported"):
+        plugin_loader.create_toolset([], name="missing", modules=["no_such_tools_module_anywhere"])

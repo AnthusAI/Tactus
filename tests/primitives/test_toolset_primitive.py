@@ -52,6 +52,27 @@ def test_define_and_get_from_definition(monkeypatch):
     assert toolset.get("plugins") is fake_toolset
 
 
+def test_plugin_toolset_from_modules_only(monkeypatch):
+    runtime = FakeRuntime()
+    toolset = ToolsetPrimitive(runtime)
+    fake_toolset = FakeToolset()
+    received = {}
+
+    class FakeLoader:
+        def __init__(self, tool_primitive=None):
+            self.tool_primitive = tool_primitive
+
+        def create_toolset(self, paths, name=None, modules=None):
+            received.update(paths=paths, modules=modules)
+            return fake_toolset
+
+    monkeypatch.setattr("tactus.adapters.plugins.PluginLoader", FakeLoader, raising=False)
+
+    toolset.define("plugins", {"type": "plugin", "modules": ["installed_package.tools"]})
+    assert toolset.get("plugins") is fake_toolset
+    assert received == {"paths": [], "modules": ["installed_package.tools"]}
+
+
 def test_get_unknown_raises():
     toolset = ToolsetPrimitive(FakeRuntime())
     with pytest.raises(ValueError, match="not found"):
