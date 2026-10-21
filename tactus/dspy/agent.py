@@ -1693,7 +1693,11 @@ class DSPyAgentHandle:
             system_prompt = f"{system_prompt}\n\n{suffix_rendered}"
         output_instructions = self._structured_output_instructions()
         if output_instructions:
-            system_prompt = f"{system_prompt}\n\n{output_instructions}" if system_prompt else output_instructions
+            system_prompt = (
+                f"{system_prompt}\n\n{output_instructions}"
+                if system_prompt
+                else output_instructions
+            )
 
         if self.context_name:
             if not self.registry or not hasattr(self.registry, "contexts"):
@@ -2628,10 +2632,18 @@ class DSPyAgentHandle:
                 required = bool(field_def.get("required", False))
                 description = field_def.get("description") or ""
             else:
-                field_type = getattr(field_def, "type", None) or getattr(field_def, "field_type", None) or "string"
+                field_type = (
+                    getattr(field_def, "type", None)
+                    or getattr(field_def, "field_type", None)
+                    or "string"
+                )
                 required = bool(getattr(field_def, "required", False))
                 description = getattr(field_def, "description", None) or ""
-            declared[str(field_name)] = {"type": str(field_type), "required": required, "description": str(description)}
+            declared[str(field_name)] = {
+                "type": str(field_type),
+                "required": required,
+                "description": str(description),
+            }
         return declared
 
     def _structured_output_instructions(self) -> str:
@@ -2662,7 +2674,11 @@ class DSPyAgentHandle:
                 return
             raise ValueError("Agent output is not structured as expected")
 
-        missing = [field_name for field_name, field in schema_fields.items() if field["required"] and field_name not in result.output]
+        missing = [
+            field_name
+            for field_name, field in schema_fields.items()
+            if field["required"] and field_name not in result.output
+        ]
 
         if missing:
             raise ValueError(f"Agent output missing required fields: {', '.join(missing)}")

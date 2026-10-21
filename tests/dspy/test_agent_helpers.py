@@ -169,8 +169,18 @@ def test_structured_output_instructions_read_the_serialized_agent_output_schema(
         name="analyst",
         output_schema={
             "fields": {
-                "story": {"name": "story", "field_type": "string", "required": True, "description": "A story id"},
-                "notability": {"name": "notability", "field_type": "number", "required": True, "description": None},
+                "story": {
+                    "name": "story",
+                    "field_type": "string",
+                    "required": True,
+                    "description": "A story id",
+                },
+                "notability": {
+                    "name": "notability",
+                    "field_type": "number",
+                    "required": True,
+                    "description": None,
+                },
             }
         },
     )
@@ -185,9 +195,13 @@ def test_structured_output_instructions_read_the_serialized_agent_output_schema(
 def test_validate_output_reports_missing_fields_of_a_serialized_schema():
     agent = DSPyAgentHandle(
         name="analyst",
-        output_schema={"fields": {"story": {"name": "story", "field_type": "string", "required": True}}},
+        output_schema={
+            "fields": {"story": {"name": "story", "field_type": "string", "required": True}}
+        },
     )
-    result = TactusResult(output={"storyLineage": "item-1"}, usage=UsageStats(), cost_stats=CostStats())
+    result = TactusResult(
+        output={"storyLineage": "item-1"}, usage=UsageStats(), cost_stats=CostStats()
+    )
 
     with pytest.raises(ValueError, match="missing required fields: story"):
         agent._validate_output(result)
