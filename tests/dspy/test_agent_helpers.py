@@ -145,3 +145,30 @@ def test_get_mock_response_with_temporal_turns():
     result = agent._get_mock_response({"message": "first"})
 
     assert result.output == "one"
+
+
+def test_structured_output_instructions_name_every_declared_field():
+    agent = DSPyAgentHandle(
+        name="analyst",
+        output_schema={
+            "story": {"type": "string", "required": True, "description": "Story lineage id"},
+            "notes": {"type": "array"},
+        },
+    )
+
+    instructions = agent._structured_output_instructions()
+
+    assert "only a JSON object with exactly these fields" in instructions
+    assert "- story (string, required): Story lineage id" in instructions
+    assert "- notes (array, optional)" in instructions
+
+
+def test_structured_output_instructions_absent_without_an_explicit_schema(agent):
+    assert agent._structured_output_instructions() == ""
+
+
+def test_prediction_to_value_accepts_json_in_a_code_fence():
+    agent = DSPyAgentHandle(name="analyst", output_schema={"story": {"type": "string"}})
+    prediction = TactusPrediction(dspy.Prediction(response='```json\n{"story": "item-1"}\n```'))
+
+    assert agent._prediction_to_value(prediction) == {"story": "item-1"}

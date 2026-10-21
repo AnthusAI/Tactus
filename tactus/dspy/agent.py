@@ -509,8 +509,12 @@ class DSPyAgentHandle:
 
         # If output schema is configured, prefer structured JSON when possible
         if self.output_schema and isinstance(text, str) and text.strip():
+            candidate = text.strip()
+            if candidate.startswith("```"):
+                candidate = candidate.split("\n", 1)[1] if "\n" in candidate else ""
+                candidate = candidate.rsplit("```", 1)[0].strip()
             try:
-                parsed = json.loads(text)
+                parsed = json.loads(candidate)
                 return parsed
             except Exception:
                 pass
@@ -1687,6 +1691,9 @@ class DSPyAgentHandle:
                 user_message=user_message,
             )
             system_prompt = f"{system_prompt}\n\n{suffix_rendered}"
+        output_instructions = self._structured_output_instructions()
+        if output_instructions:
+            system_prompt = f"{system_prompt}\n\n{output_instructions}" if system_prompt else output_instructions
 
         if self.context_name:
             if not self.registry or not hasattr(self.registry, "contexts"):
@@ -2596,6 +2603,28 @@ class DSPyAgentHandle:
 
         lm = self._get_agent_lm(opts)
         return dspy.context(lm=lm, adapter=self._agent_adapter)
+
+    def _structured_output_instructions(self) -> str:
+        """Tell the model the declared output fields, which the turn signature (-> response) does not carry."""
+        if not self._explicit_output_schema:
+            return ""
+        output_schema = self.output_schema
+        schema_fields = output_schema.fields if hasattr(output_schema, "fields") else (output_schema or {})
+        if not isinstance(schema_fields, dict) or not schema_fields:
+            return ""
+        lines = [
+            "When you give your final answer (not a tool call), reply with only a JSON object with exactly these fields:"
+        ]
+        for field_name, field_def in schema_fields.items():
+            if hasattr(field_def, "type"):
+                field_type, required, description = field_def.type, bool(getattr(field_def, "required", False)), getattr(field_def, "description", "")
+            elif isinstance(field_def, dict):
+                field_type, required, description = field_def.get("type", "string"), bool(field_def.get("required", False)), field_def.get("description", "")
+            else:
+                field_type, required, description = "string", False, ""
+            detail = f"- {field_name} ({field_type}, {'required' if required else 'optional'})"
+            lines.append(f"{detail}: {description}" if description else detail)
+        return "\n".join(lines)
 
     def _validate_output(self, result: TactusResult) -> None:
         if not self._explicit_output_schema:
