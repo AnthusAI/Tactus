@@ -2,6 +2,41 @@
 
 <!-- version list -->
 
+## v0.53.0 (2026-10-21)
+
+### Bug Fixes
+
+- **agents**: Read the serialized output schema for instructions and validation
+  ([`11dec5b`](https://github.com/AnthusAI/Tactus/commit/11dec5b917c49a85f80e06d10ea2cc66eab4e463))
+
+- **agents**: Tell the model an agent's declared output fields
+  ([`9aedea7`](https://github.com/AnthusAI/Tactus/commit/9aedea7dc524b7c8b8db1c84c9bc89df8a834fa9))
+
+- **ci**: Push release commits as anthusbot so the main ruleset allows them
+  ([`ddb6d1d`](https://github.com/AnthusAI/Tactus/commit/ddb6d1d0f81018e5284c90119d8e191c7a2bfe5e))
+
+- **tools**: Accept plugin modules in .tac toolset definitions too
+  ([`3fdd30e`](https://github.com/AnthusAI/Tactus/commit/3fdd30e10e3c8001f05c2c01a956567fbd951d4b))
+
+### Code Style
+
+- Black
+  ([`80e4463`](https://github.com/AnthusAI/Tactus/commit/80e44636c16a47c3b4f5afe0ce341e2f8cc2544a))
+
+- Black
+  ([`355ed80`](https://github.com/AnthusAI/Tactus/commit/355ed80e28a78e3b95f79f51112345d15e3003d9))
+
+### Continuous Integration
+
+- Restore the Python 3.10-3.12 test matrix now that the repository is public
+  ([`da95377`](https://github.com/AnthusAI/Tactus/commit/da953771f2b6218f610726653cf7a347718a993b))
+
+### Features
+
+- **tools**: Plugin toolsets can load tools from importable modules
+  ([`707adc4`](https://github.com/AnthusAI/Tactus/commit/707adc4ccd33d811be29fc5ddeec2111408d7329))
+
+
 ## v0.52.0 (2026-08-03)
 
 ### Chores
