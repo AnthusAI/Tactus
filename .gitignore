@@ -52,3 +52,4 @@ mlruns/
 *storybook.log
 storybook-static
 *.bak
+_site/
