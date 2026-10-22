@@ -171,6 +171,7 @@ def test_forward_sends_one_responses_call(monkeypatch):
         and calls[0]["tools"][0]["name"] == "fetch_pdf_text"
     )
     assert result.choices[0].message.content == "hi"
+    assert result._hidden_params["_response_ms"] >= 0
 
 
 @pytest.mark.asyncio
