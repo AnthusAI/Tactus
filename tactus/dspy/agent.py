@@ -564,6 +564,42 @@ class DSPyAgentHandle:
             raise ValueError(f"Unknown module '{module}'. Supported: {list(mapping.keys())}")
         return strategy
 
+    @staticmethod
+    def _requested_tool_names(value: Any) -> Optional[list[str]]:
+        """The tool names a turn's `tools` override asks for; None when the turn has no override."""
+        if value is None:
+            return None
+        if isinstance(value, dict) or (
+            hasattr(value, "values") and not isinstance(value, (list, tuple))
+        ):
+            items = list(value.values())
+        else:
+            items = list(value)
+        return [
+            item if isinstance(item, str) else str(getattr(item, "name", item)) for item in items
+        ]
+
+    def _tools_for_turn(self, opts: Dict[str, Any]) -> list:
+        """The agent's tools for one turn. `tools = {}` gives a turn no tools (for example a final
+        structured report); a list of tool names keeps only those tools. A name that is not one of the
+        agent's tools (such as a toolset's name) keeps every tool, with a warning."""
+        requested = self._requested_tool_names(opts.get("tools")) if "tools" in opts else None
+        if requested is not None and not requested:
+            return []
+        dspy_tools = self._convert_toolsets_to_dspy_tools_sync()
+        if not requested:
+            return dspy_tools
+        known = {getattr(tool, "name", None) for tool in dspy_tools}
+        unknown = [name for name in requested if name not in known]
+        if unknown:
+            logger.warning(
+                "Agent '%s' turn asked for tools %s that are not tool names; using all tools",
+                self.name,
+                unknown,
+            )
+            return dspy_tools
+        return [tool for tool in dspy_tools if getattr(tool, "name", None) in requested]
+
     def _convert_toolsets_to_dspy_tools_sync(self) -> list:
         """
         Convert Pydantic AI toolsets to DSPy Tool objects (synchronous version).
@@ -1746,8 +1782,9 @@ class DSPyAgentHandle:
         # Add tools as structured DSPy Tool objects if agent has them
         # DSPy's adapter will convert these to OpenAI function call format
         if self.tools or self.toolsets:
-            dspy_tools = self._convert_toolsets_to_dspy_tools_sync()
-            prompt_context["tools"] = dspy_tools
+            dspy_tools = self._tools_for_turn(opts)
+            if dspy_tools:
+                prompt_context["tools"] = dspy_tools
             logger.debug(f"Agent '{self.name}' passing {len(dspy_tools)} DSPy tools to module")
 
         # Add any injected context (user_message is already in prompt_context)
