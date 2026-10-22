@@ -1,0 +1,18 @@
+{
+  "id": "tcts-d3334e66-ee41-490e-8c18-b05b89ad7d1a",
+  "title": "Let a procedure delegate one step to a coding-agent session",
+  "description": "As a Tactus author, I want to hand one bounded step to a Claude Agent SDK coding session from inside a procedure, so that I get Hankweave-style autonomous coding steps while keeping Lua control flow, Human.approve, budgets and tests. Done when: a documented primitive runs a coding-agent session in a sandboxed workspace, checkpoints its result, counts its spend toward the run budget, and is mockable in specs. Needs a design pass first.",
+  "type": "task",
+  "status": "open",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-3ecc8b14-88f1-4179-9a53-d84f9972f2ee",
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-10-17T22:16:36.068387Z",
+  "updated_at": "2026-10-17T22:16:36.068387Z",
+  "closed_at": null,
+  "custom": {}
+}

@@ -1,0 +1,31 @@
+{
+  "id": "tcts-75586d6a-4c97-4730-b75d-356855692df5",
+  "title": "Add run-level spend budgets to Procedure",
+  "description": "As an operator running unattended agents, I want Procedure { budget = { max_cost_usd, max_total_tokens } } enforced across suspend and resume, so that a runaway agent cannot overspend. Done when: enforced before each agent turn from the checkpointed log, never double-counted on replay, documented in SPECIFICATION.md and DURABILITY.md, full suite green. Implementation is on branch claude/project-thread-4m64pi-spend-budgets. Not included: wall-clock caps, per-agent budgets, hooks (see ModelAttemptAuthority).",
+  "type": "task",
+  "status": "closed",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": "tcts-3ecc8b14-88f1-4179-9a53-d84f9972f2ee",
+  "labels": [],
+  "dependencies": [],
+  "comments": [
+    {
+      "id": "7df493bd-ced9-4cf4-ac36-6bac61040632",
+      "author": "unknown",
+      "text": "Implementation written and tested before this issue was filed (out of order vs the Outside-In Ritual). Branch claude/project-thread-4m64pi-spend-budgets, rebased on develop. 7 new tests in tests/core/test_run_spend_budget.py, full suite 4285 passed, black and ruff clean. Next: push branch and open PR after user confirms.",
+      "created_at": "2026-10-17T22:16:45.876142Z"
+    },
+    {
+      "id": "3c469dc2-8f40-4135-8c73-4d1a7c70d3be",
+      "author": "unknown",
+      "text": "Implemented, documented and tested; draft PR opened.",
+      "created_at": "2026-10-17T22:17:05.406619Z"
+    }
+  ],
+  "created_at": "2026-10-17T22:16:35.009826Z",
+  "updated_at": "2026-10-17T22:17:06.326797Z",
+  "closed_at": "2026-10-17T22:17:06.326797Z",
+  "custom": {}
+}

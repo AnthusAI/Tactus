@@ -569,6 +569,34 @@ Procedure {
 
 ---
 
+## Spend Budgets
+
+The main procedure can cap what a single run spends on model calls:
+
+```lua
+Procedure {
+    budget = {
+        max_cost_usd = 5.00,        -- total model spend in US dollars
+        max_total_tokens = 500000   -- total prompt + completion tokens
+    },
+
+    function(input)
+        repeat
+            researcher()
+        until Tool.called("done")
+    end
+}
+```
+
+- Both limits are optional; set either or both.
+- The budget is checked before each new agent turn. The turn that crosses a limit finishes, and the next turn fails the run with a `RunSpendBudgetExceeded` error naming the limit.
+- Spend is computed from the run's checkpointed agent turns, so it carries across suspend and resume (for example, while waiting days on `Human.approve`) and replayed turns are never counted twice.
+- A new run starts with a fresh budget.
+- Budgets apply to a whole run, so only the main procedure may declare one. Sub-procedures share the run's budget.
+- Mocked agent turns report zero spend.
+
+---
+
 ## Execution Contexts
 
 Procedures run identically in two execution contexts:

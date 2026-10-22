@@ -120,6 +120,35 @@ def _normalize_schema(schema):
     return schema
 
 
+def _parse_run_spend_budget_config(procedure_name: str, config_dict: dict) -> Optional[Any]:
+    from pydantic import ValidationError
+
+    from tactus.core.exceptions import ProcedureConfigError
+    from tactus.core.run_spend_budget import RunSpendBudget
+
+    budget_config = config_dict.get("budget")
+    if budget_config is None:
+        return None
+    if procedure_name != "main":
+        raise ProcedureConfigError(
+            f"Procedure '{procedure_name}' declares a budget, but budgets apply to a whole run "
+            f"and are only supported on the main procedure."
+        )
+    if isinstance(budget_config, list) and len(budget_config) == 0:
+        budget_config = {}
+    if not isinstance(budget_config, dict):
+        raise ProcedureConfigError(
+            f"Procedure '{procedure_name}' budget must be a table, "
+            f"e.g. budget = {{ max_cost_usd = 5 }}"
+        )
+    try:
+        return RunSpendBudget.model_validate(budget_config)
+    except ValidationError as validation_error:
+        raise ProcedureConfigError(
+            f"Procedure '{procedure_name}' has an invalid budget: {validation_error}"
+        ) from validation_error
+
+
 def _normalize_handle_name(value: Any) -> Any:
     """Normalize handle references to their names when possible."""
     if hasattr(value, "name"):
@@ -260,7 +289,12 @@ def create_dsl_stubs(
             state_schema["_dependencies"] = dependencies_schema
 
         builder.register_named_procedure(
-            name, run_function, input_schema, output_schema, state_schema
+            name,
+            run_function,
+            input_schema,
+            output_schema,
+            state_schema,
+            run_spend_budget=_parse_run_spend_budget_config(name, config_dict),
         )
 
         # Return a stub that will delegate to the registry at call time
@@ -368,7 +402,12 @@ def create_dsl_stubs(
 
             # Register named procedure
             builder.register_named_procedure(
-                name, run_fn, input_schema, output_schema, state_schema
+                name,
+                run_fn,
+                input_schema,
+                output_schema,
+                state_schema,
+                run_spend_budget=_parse_run_spend_budget_config(name, config_dict),
             )
 
             # Return a stub that will delegate to the registry at call time

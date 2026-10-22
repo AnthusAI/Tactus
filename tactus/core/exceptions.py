@@ -11,6 +11,19 @@ class TactusRuntimeError(Exception):
     pass
 
 
+class RunSpendBudgetExceeded(TactusRuntimeError):
+    """Raised before an agent turn when the run has used up its spend budget."""
+
+    def __init__(self, exhausted_limit_name: str, limit_value: float, spent_value: float):
+        self.exhausted_limit_name = exhausted_limit_name
+        self.limit_value = limit_value
+        self.spent_value = spent_value
+        super().__init__(
+            f"Run spend budget exhausted: {exhausted_limit_name} is {limit_value} "
+            f"and this run has spent {spent_value}."
+        )
+
+
 class TaskSelectionRequired(TactusRuntimeError):
     """Raised when multiple tasks are available and no default can be chosen."""
 

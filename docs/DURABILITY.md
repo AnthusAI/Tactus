@@ -17,6 +17,15 @@ replay and model-attempt replay are complementary: the execution context owns
 procedure positions, while the host authority owns idempotent reservation and
 terminal evidence for each provider contact.
 
+## Spend budgets across suspend and resume
+
+`Procedure { budget = { max_cost_usd = ..., max_total_tokens = ... } }` caps
+model spend for a run. The running total is derived from the checkpointed agent
+turns of the current run, not kept in a separate counter, so it survives
+suspension and resumption on any storage backend and replay never counts a
+turn twice. The check happens before each new agent turn in
+`BaseExecutionContext.checkpoint`. See `SPECIFICATION.md` (Spend Budgets).
+
 ## Waiting for host-managed external children
 
 `Procedure.await_children(request)` is the durable, host-neutral primitive for
