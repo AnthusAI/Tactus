@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.53.1 (2026-10-22)
+
+### Bug Fixes
+
+- Agents with tools run on GPT-6 models through the Responses API
+  ([`56a2952`](https://github.com/AnthusAI/Tactus/commit/56a2952c8305bb97c26155511e30757c02b75428))
+
+
 ## v0.53.0 (2026-10-21)
 
 ### Bug Fixes
