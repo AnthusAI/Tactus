@@ -29,13 +29,22 @@ def lite_llm_model_id(model: str) -> str:
     return model.split("/", 1)[-1] if "/" in model else model
 
 
+REASONING_FAMILY_PREFIXES = ("gpt-5", "gpt-6")
+RESPONSES_API_FAMILY_PREFIXES = ("gpt-6",)
+
+
 def is_openai_gpt5_family_model(model: str) -> bool:
-    """Return whether an OpenAI model belongs to the GPT-5 family."""
-    return lite_llm_model_id(model).startswith("gpt-5")
+    """Return whether an OpenAI model is a GPT-5-or-later reasoning model (no temperature; effort and verbosity)."""
+    return lite_llm_model_id(model).startswith(REASONING_FAMILY_PREFIXES)
+
+
+def uses_responses_api_by_default(model: str) -> bool:
+    """Return whether a model accepts function tools only on the Responses API (the GPT-6 family)."""
+    return lite_llm_model_id(model).startswith(RESPONSES_API_FAMILY_PREFIXES)
 
 
 def default_temperature_for_model(model: str) -> Optional[float]:
-    """Return ``None`` for GPT-5 models and deterministic zero otherwise."""
+    """Return ``None`` for GPT-5-or-later models and deterministic zero otherwise."""
     if is_openai_gpt5_family_model(model):
         return None
     return 0.0
