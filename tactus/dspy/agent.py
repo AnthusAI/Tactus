@@ -528,12 +528,53 @@ class DSPyAgentHandle:
 
         return text
 
+    @staticmethod
+    def _typed_field_value(value: Any, field_type: str) -> Any:
+        """A declared output field's value in its declared type, when the model returned it as text."""
+        if not isinstance(value, str):
+            return value
+        text = value.strip()
+        try:
+            if field_type in ("number", "float"):
+                number = float(text)
+                return int(number) if number.is_integer() and "." not in text else number
+            if field_type == "integer":
+                return int(float(text))
+            if field_type == "boolean":
+                if text.lower() in ("true", "false"):
+                    return text.lower() == "true"
+                return value
+            if field_type in ("array", "object"):
+                expected = list if field_type == "array" else dict
+                try:
+                    parsed = json.loads(text)
+                except ValueError:
+                    import ast
+
+                    parsed = ast.literal_eval(text)
+                return parsed if isinstance(parsed, expected) else value
+        except (ValueError, SyntaxError):
+            return value
+        return value
+
+    def _typed_output(self, output: Any) -> Any:
+        """Declared number, integer, boolean, array and object fields arrive from DSPy as strings."""
+        declared = self._declared_output_fields()
+        if not declared or not isinstance(output, dict):
+            return output
+        return {
+            key: (
+                self._typed_field_value(value, declared[key]["type"]) if key in declared else value
+            )
+            for key, value in output.items()
+        }
+
     def _wrap_as_result(
         self, prediction: TactusPrediction, usage_stats: UsageStats, cost_stats: CostStats
     ) -> TactusResult:
         """Wrap a Prediction into the standard TactusResult."""
         return TactusResult(
-            output=self._prediction_to_value(prediction),
+            output=self._typed_output(self._prediction_to_value(prediction)),
             usage=usage_stats,
             cost_stats=cost_stats,
         )
