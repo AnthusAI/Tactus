@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.53.4 (2026-10-22)
+
+### Bug Fixes
+
+- An agent's declared output fields come back in their declared types
+  ([`03802db`](https://github.com/AnthusAI/Tactus/commit/03802dbb9003c7f2a8ac300010dc77e91ccc0fa2))
+
+
 ## v0.53.3 (2026-10-22)
 
 
