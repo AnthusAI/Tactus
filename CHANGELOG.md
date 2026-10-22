@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.53.2 (2026-10-22)
+
+### Bug Fixes
+
+- Responses API calls record their duration
+  ([`b473f12`](https://github.com/AnthusAI/Tactus/commit/b473f120a6793f95b8612d2b10d4ed93cee89b86))
+
+
 ## v0.53.1 (2026-10-22)
 
 ### Bug Fixes
