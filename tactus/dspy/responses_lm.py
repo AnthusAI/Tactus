@@ -11,6 +11,7 @@ chat completion, so the ChatAdapter's native function calling and the rest of Ta
 from __future__ import annotations
 
 import json
+import time
 from typing import Any, Optional
 
 import dspy
@@ -230,10 +231,12 @@ class ResponsesChatLM(dspy.LM):
     ):
         import litellm
 
+        started = time.monotonic()
         response = litellm.responses(
             **self._request(prompt, messages, kwargs), num_retries=self.num_retries
         )
         result = chat_completion_from_response(response, self.model)
+        result._hidden_params["_response_ms"] = (time.monotonic() - started) * 1000
         self._check_truncation(result)
         self._record_usage(result)
         return result
@@ -246,10 +249,12 @@ class ResponsesChatLM(dspy.LM):
     ):
         import litellm
 
+        started = time.monotonic()
         response = await litellm.aresponses(
             **self._request(prompt, messages, kwargs), num_retries=self.num_retries
         )
         result = chat_completion_from_response(response, self.model)
+        result._hidden_params["_response_ms"] = (time.monotonic() - started) * 1000
         self._check_truncation(result)
         self._record_usage(result)
         return result
