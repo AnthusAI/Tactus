@@ -3,6 +3,7 @@
 import pytest
 
 from tactus.dspy import config as dspy_config
+from tactus.dspy import responses_lm
 
 
 def test_configure_lm_invalid_model():
@@ -32,6 +33,8 @@ def test_get_current_lm_after_config(monkeypatch):
         return None
 
     monkeypatch.setattr(dspy_config.dspy, "LM", lambda *args, **kwargs: FakeLM())
+
+    monkeypatch.setattr(responses_lm, "ResponsesChatLM", lambda *args, **kwargs: FakeLM())
     monkeypatch.setattr(dspy_config.dspy, "configure", fake_configure)
 
     lm = dspy_config.configure_lm("openai/gpt-4o")
@@ -71,6 +74,7 @@ def test_configure_lm_passes_lm_kwargs(monkeypatch):
 
     monkeypatch.delenv("TACTUS_BROKER_SOCKET", raising=False)
     monkeypatch.setattr(dspy_config.dspy, "LM", FakeLM)
+    monkeypatch.setattr(responses_lm, "ResponsesChatLM", FakeLM)
     monkeypatch.setattr(dspy_config.dspy, "configure", lambda **_kwargs: None)
 
     dspy_config.configure_lm(
@@ -106,6 +110,7 @@ def test_configure_lm_passes_chat_mode_gpt5_controls(monkeypatch):
 
     monkeypatch.delenv("TACTUS_BROKER_SOCKET", raising=False)
     monkeypatch.setattr(dspy_config.dspy, "LM", FakeLM)
+    monkeypatch.setattr(responses_lm, "ResponsesChatLM", FakeLM)
     monkeypatch.setattr(dspy_config.dspy, "configure", lambda **_kwargs: None)
 
     dspy_config.configure_lm(
@@ -151,6 +156,8 @@ def test_create_lm_passes_kwargs(monkeypatch):
 
     monkeypatch.setattr(dspy_config.dspy, "LM", FakeLM)
 
+    monkeypatch.setattr(responses_lm, "ResponsesChatLM", FakeLM)
+
     lm = dspy_config.create_lm(
         "openai/gpt-4o",
         api_key="key",
@@ -188,6 +195,8 @@ def test_create_lm_maps_request_timeout_to_provider_timeout(monkeypatch):
 
     monkeypatch.setattr(dspy_config.dspy, "LM", FakeLM)
 
+    monkeypatch.setattr(responses_lm, "ResponsesChatLM", FakeLM)
+
     dspy_config.create_lm("openai/gpt-4o", request_timeout=19)
 
     assert captured["kwargs"]["timeout"] == 19
@@ -223,6 +232,8 @@ def test_create_lm_omits_optional_fields_when_none(monkeypatch):
 
     monkeypatch.setattr(dspy_config.dspy, "LM", FakeLM)
 
+    monkeypatch.setattr(responses_lm, "ResponsesChatLM", FakeLM)
+
     dspy_config.create_lm("openai/gpt-4o", temperature=0.3, max_tokens=None)
 
     assert captured["model"] == "openai/gpt-4o"
@@ -248,6 +259,8 @@ def test_prewarm_lm_initializes_client_and_adapter_without_provider_request(monk
             raise AssertionError("prewarm must not make a provider request")
 
     monkeypatch.setattr(dspy_config.dspy, "LM", FakeLM)
+
+    monkeypatch.setattr(responses_lm, "ResponsesChatLM", FakeLM)
     monkeypatch.setattr(dspy_config, "create_adapter", lambda: adapter)
     dspy_config.reset_prewarmed_lms()
 

@@ -7,11 +7,15 @@ which uses LiteLLM under the hood for provider-agnostic LLM access.
 
 from dataclasses import dataclass
 from threading import RLock
-from typing import Optional, Any
+from typing import Any, Optional
 
 import dspy
 
-from tactus.model_params import default_temperature_for_model, validate_gpt5_controls
+from tactus.model_params import (
+    default_temperature_for_model,
+    uses_responses_api_by_default,
+    validate_gpt5_controls,
+)
 
 # Global reference to the current LM configuration
 _current_lm: Optional[dspy.BaseLM] = None
@@ -64,6 +68,16 @@ def _apply_gpt5_controls(
             lm_kwargs["text"] = text_config
         else:
             lm_kwargs["verbosity"] = verbosity
+
+
+def language_model(model: str, lm_kwargs: dict[str, Any]) -> dspy.BaseLM:
+    """The LiteLLM-backed LM: Responses API for ``model_type="responses"`` and, by default, the GPT-6 family."""
+    model_type = lm_kwargs.get("model_type")
+    if model_type == "responses" or (model_type is None and uses_responses_api_by_default(model)):
+        from tactus.dspy.responses_lm import ResponsesChatLM
+
+        return ResponsesChatLM(model, **lm_kwargs)
+    return dspy.LM(model, **lm_kwargs)
 
 
 def create_adapter() -> Any:
@@ -187,7 +201,7 @@ def configure_lm(
         lm = BrokeredLM(model, **lm_kwargs)
     else:
         # Create and configure the standard DSPy LM (LiteLLM-backed)
-        lm = dspy.LM(model, **lm_kwargs)
+        lm = language_model(model, lm_kwargs)
 
     import logging
 
@@ -348,7 +362,7 @@ def create_lm(
         return BrokeredLM(model, **lm_kwargs)
 
     # Create LM without setting as global default
-    return dspy.LM(model, **lm_kwargs)
+    return language_model(model, lm_kwargs)
 
 
 def prewarm_lm(
