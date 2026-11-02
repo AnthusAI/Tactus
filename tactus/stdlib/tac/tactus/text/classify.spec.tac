@@ -23,7 +23,7 @@ local LLMClassifier = require("tactus.text.classify.llm")
 local classifier = LLMClassifier:new {
     classes = {"Yes", "No"},
     prompt = "Is this a question?",
-    model = "openai/gpt-4o-mini"
+    model = "openai/gpt-6-luna"
 }
 local result = classifier:classify("How are you?")
 
@@ -39,7 +39,7 @@ local result = fuzzy:classify("helo")
 
 - `classes` (required): List of valid classification values
 - `prompt` (required): Classification instruction
-- `model`: Model identifier (e.g., "openai/gpt-4o-mini")
+- `model`: Model identifier (e.g., "openai/gpt-6-luna")
 - `temperature`: LLM temperature (default: 0.3)
 - `max_tokens`: Maximum output tokens (optional)
 - `reasoning_effort`: GPT-5-family reasoning effort override (optional)
@@ -78,7 +78,7 @@ Step("an LLM classifier with classes (.+)", function(ctx, classes_str)
     test_state.classifier_config = {
         name = "stdlib_classify_llm",
         classes = classes,
-        model = "openai/gpt-4o-mini"
+        model = "openai/gpt-6-luna"
     }
     test_state.classifier_type = "llm"
     test_state.classifier = nil

@@ -14,6 +14,7 @@ class OpenAIProvider:
 
     # Known OpenAI models
     KNOWN_MODELS = {
+        "gpt-6-luna",
         "gpt-4o",
         "gpt-4o-mini",
         "gpt-4-turbo",

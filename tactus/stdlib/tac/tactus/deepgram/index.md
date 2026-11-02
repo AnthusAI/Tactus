@@ -53,7 +53,7 @@ local quote = deepgram.quote(data, {
 local llm_quote = deepgram.quote(data, {
     quote = "Hello world",
     method = "llm",
-    client = {provider = "openai", model = "gpt-4o-mini"},
+    client = {provider = "openai", model = "gpt-6-luna"},
 })
 ```
 

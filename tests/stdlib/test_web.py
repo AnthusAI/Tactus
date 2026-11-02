@@ -6,7 +6,7 @@ def test_openai_payload_maps_web_search_filters_reasoning_and_token_budget():
     payload = impl._build_openai_payload(
         {
             "query": "automated publication systems",
-            "model": "gpt-5.4-mini",
+            "model": "gpt-6-luna",
             "allowed_domains": ["https://openai.com/docs"],
             "blocked_domains": ["reddit.com"],
             "reasoning_effort": "low",
@@ -14,7 +14,7 @@ def test_openai_payload_maps_web_search_filters_reasoning_and_token_budget():
         }
     )
 
-    assert payload["model"] == "gpt-5.4-mini"
+    assert payload["model"] == "gpt-6-luna"
     assert payload["reasoning"] == {"effort": "low"}
     assert payload["include"] == ["web_search_call.action.sources"]
     assert payload["tools"] == [
@@ -27,6 +27,14 @@ def test_openai_payload_maps_web_search_filters_reasoning_and_token_budget():
             "return_token_budget": "unlimited",
         }
     ]
+
+
+def test_openai_payload_without_a_model_asks_gpt_6_luna():
+    payload = impl._build_openai_payload({"query": "automated publication systems"})
+
+    assert impl.DEFAULT_OPENAI_MODEL == "gpt-6-luna"
+    assert payload["model"] == "gpt-6-luna"
+    assert impl.providers()["providers"]["openai"]["default_model"] == "gpt-6-luna"
 
 
 def test_openai_payload_accepts_generic_search_domain_aliases():
@@ -64,7 +72,7 @@ def test_openai_normalization_extracts_sources_recursively():
     result = impl._normalize_openai_response(
         {
             "id": "resp-id",
-            "model": "gpt-5.4-mini",
+            "model": "gpt-6-luna",
             "output_text": "Answer",
             "output": [
                 {
@@ -79,7 +87,7 @@ def test_openai_normalization_extracts_sources_recursively():
             "usage": {"input_tokens": 12},
         },
         query="query",
-        request={"model": "gpt-5.4-mini"},
+        request={"model": "gpt-6-luna"},
     )
 
     assert result["ok"] is True
@@ -93,7 +101,7 @@ def test_openai_search_normalization_returns_results_from_sources():
     result = impl._normalize_openai_search_response(
         {
             "id": "resp-id",
-            "model": "gpt-5.4-mini",
+            "model": "gpt-6-luna",
             "output_text": "Answer",
             "output": [
                 {
@@ -111,7 +119,7 @@ def test_openai_search_normalization_returns_results_from_sources():
             "usage": {"input_tokens": 12},
         },
         query="query",
-        request={"model": "gpt-5.4-mini"},
+        request={"model": "gpt-6-luna"},
     )
 
     assert result["ok"] is True
@@ -190,7 +198,7 @@ def test_synthesize_uses_openai_without_provider_fallback(monkeypatch):
         {
             "provider": "openai",
             "query": "newsroom",
-            "model": "gpt-5.4-mini",
+            "model": "gpt-6-luna",
             "allowed_domains": ["example.com"],
         }
     )

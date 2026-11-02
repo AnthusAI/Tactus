@@ -22,3 +22,8 @@ def test_default_temperature_for_model():
     assert default_temperature_for_model("openai/gpt-5.4-mini") is None
     assert default_temperature_for_model("openai/gpt-4o-mini") == 0.0
     assert default_temperature_for_model("anthropic/claude-3-5-sonnet-20241022") == 0.0
+
+
+def test_gpt_6_luna_takes_the_gpt_5_family_controls_and_omits_temperature():
+    assert is_openai_gpt5_family_model("openai/gpt-6-luna") is True
+    assert default_temperature_for_model("gpt-6-luna") is None

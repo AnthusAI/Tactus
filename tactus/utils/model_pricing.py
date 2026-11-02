@@ -10,6 +10,7 @@ from typing import Dict, Optional
 # Pricing per million tokens (USD)
 MODEL_PRICING: Dict[str, Dict[str, Dict[str, float]]] = {
     "openai": {
+        "gpt-6-luna": {"input": 0.10, "output": 0.50},
         "gpt-4o": {"input": 2.50, "output": 10.00},
         "gpt-4o-mini": {"input": 0.15, "output": 0.60},
         "gpt-4o-2024-11-20": {"input": 2.50, "output": 10.00},

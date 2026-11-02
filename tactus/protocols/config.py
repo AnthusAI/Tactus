@@ -42,7 +42,7 @@ class TactusConfig(BaseModel):
 
     # LLM settings
     openai_api_key: Optional[str] = Field(default=None, description="OpenAI API key for LLM calls")
-    default_model: str = Field(default="gpt-4o", description="Default LLM model to use")
+    default_model: str = Field(default="gpt-6-luna", description="Default LLM model to use")
     llm_temperature: float = Field(default=0.7, description="Temperature for LLM calls")
 
     # Execution settings

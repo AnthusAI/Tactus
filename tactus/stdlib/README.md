@@ -92,7 +92,7 @@ local sentiment = models.LLMModel{
     name = "sentiment",
     classes = {"positive", "negative", "neutral"},
     prompt = "Classify sentiment",
-    model = "openai/gpt-4o-mini",
+    model = "openai/gpt-6-luna",
 }
 local prediction = sentiment({text = "great!"})
 
@@ -114,14 +114,14 @@ local web = require("tactus.web")
 local search = web.search{
     provider = "openai",
     query = "automated publication systems",
-    model = "gpt-5.4-mini",
+    model = "gpt-6-luna",
     allowed_domains = {"openai.com"},
     return_token_budget = "unlimited",
 }
 local synthesis = web.synthesize{
     provider = "openai",
     query = "Summarize recent evidence about automated publication QA systems.",
-    model = "gpt-5.4-mini",
+    model = "gpt-6-luna",
     reasoning_effort = "low",
 }
 

@@ -25,7 +25,7 @@ __tactus_exports__ = [
 
 
 OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
-DEFAULT_OPENAI_MODEL = "gpt-5.4-mini"
+DEFAULT_OPENAI_MODEL = "gpt-6-luna"
 
 
 def providers(args: dict[str, Any] | None = None) -> dict[str, Any]:

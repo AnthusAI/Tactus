@@ -18,13 +18,13 @@ local LLMGenerator = require("tactus.generate.llm")
 
 -- Basic generation
 local generator = LLMGenerator:new {
-    model = "openai/gpt-4o-mini"
+    model = "openai/gpt-6-luna"
 }
 local result = generator:generate("Write a haiku about coding")
 
 -- With chain-of-thought reasoning (DSPy-inspired)
 local reasoning_generator = LLMGenerator:new {
-    model = "openai/gpt-4o-mini",
+    model = "openai/gpt-6-luna",
     reasoning = true
 }
 local result = reasoning_generator:generate("Solve: What is 15% of 80?")
@@ -33,14 +33,14 @@ local result = reasoning_generator:generate("Solve: What is 15% of 80?")
 
 -- JSON output format
 local json_generator = LLMGenerator:new {
-    model = "openai/gpt-4o-mini",
+    model = "openai/gpt-6-luna",
     output_format = "json"
 }
 ```
 
 ## LLMGenerator Parameters
 
-- `model`: Model identifier (e.g., "openai/gpt-4o-mini")
+- `model`: Model identifier (e.g., "openai/gpt-6-luna")
 - `temperature`: Generation randomness (default: 0.7)
 - `max_tokens`: Maximum output tokens (optional)
 - `reasoning`: Enable chain-of-thought mode (default: false)
@@ -62,14 +62,14 @@ local test_state = {}
 Step("an LLM generator", function(ctx)
     test_state.generator_config = {
         name = "stdlib_generate_llm",
-        model = "openai/gpt-4o-mini"
+        model = "openai/gpt-6-luna"
     }
 end)
 
 Step("an LLM generator with reasoning enabled", function(ctx)
     test_state.generator_config = {
         name = "stdlib_generate_llm",
-        model = "openai/gpt-4o-mini",
+        model = "openai/gpt-6-luna",
         reasoning = true
     }
 end)
@@ -77,7 +77,7 @@ end)
 Step("an LLM generator with JSON output format", function(ctx)
     test_state.generator_config = {
         name = "stdlib_generate_llm",
-        model = "openai/gpt-4o-mini",
+        model = "openai/gpt-6-luna",
         output_format = "json"
     }
 end)
@@ -85,7 +85,7 @@ end)
 Step("an LLM generator with markdown output format", function(ctx)
     test_state.generator_config = {
         name = "stdlib_generate_llm",
-        model = "openai/gpt-4o-mini",
+        model = "openai/gpt-6-luna",
         output_format = "markdown"
     }
 end)

@@ -78,7 +78,7 @@ By default, your prompt goes directly to the LLM without modification:
 
 ```lua
 local generator = LLMGenerator:new {
-    model = "openai/gpt-4o-mini"
+    model = "openai/gpt-6-luna"
 }
 local result = generator:generate("Write a haiku about programming")
 print(result.output)
@@ -90,7 +90,7 @@ Enable `reasoning = true` to use DSPy's `ChainOfThought` module. The reasoning i
 
 ```lua
 local generator = LLMGenerator:new {
-    model = "openai/gpt-4o-mini",
+    model = "openai/gpt-6-luna",
     reasoning = true
 }
 local result = generator:generate("What is 15% of 240?")
@@ -104,7 +104,7 @@ print("Answer:", result.output)        -- "36"
 
 ```lua
 local generator = LLMGenerator:new {
-    model = "openai/gpt-4o-mini",
+    model = "openai/gpt-6-luna",
     output_format = "json"
 }
 local result = generator:generate("Return a JSON object with name, age, and city for a fictional person")
@@ -117,7 +117,7 @@ Your system prompt is passed directly to the LLM (no DSPy modifications):
 
 ```lua
 local generator = LLMGenerator:new {
-    model = "openai/gpt-4o-mini",
+    model = "openai/gpt-6-luna",
     system_prompt = "You are a helpful coding assistant specializing in Lua.",
     temperature = 0.3
 }
@@ -128,7 +128,7 @@ local result = generator:generate("How do I iterate over a table in Lua?")
 
 ```lua
 local generator = LLMGenerator:new {
-    model = "openai/gpt-4o-mini",
+    model = "openai/gpt-6-luna",
     constraints = {"Keep response under 50 words", "Use simple language"}
 }
 local result = generator:generate("Explain quantum computing")
@@ -138,7 +138,7 @@ local result = generator:generate("Explain quantum computing")
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `model` | `string` | required | Model identifier (e.g., "openai/gpt-4o-mini") |
+| `model` | `string` | required | Model identifier (e.g., "openai/gpt-6-luna") |
 | `temperature` | `number` | 0.7 | Generation randomness (0.0-1.0) |
 | `max_tokens` | `number` | nil | Maximum output tokens |
 | `reasoning` | `boolean` | false | Enable ChainOfThought mode (captures reasoning separately) |

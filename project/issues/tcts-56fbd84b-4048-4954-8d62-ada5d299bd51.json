@@ -1,0 +1,25 @@
+{
+  "id": "tcts-56fbd84b-4048-4954-8d62-ada5d299bd51",
+  "title": "Default every OpenAI model to gpt-6-luna",
+  "description": "Ryan 2026-11-02: all LLM calls use GPT 6 Luna. The stdlib web provider default (gpt-5.4-mini), the runtime, registry, procedure-config, IDE and evaluator fallbacks (gpt-4o), the stdlib generate/classify defaults (gpt-4o-mini), docs and spec examples all name gpt-6-luna. Adds Luna to the pricing table and the OpenAI known models, and treats gpt-6 models like the GPT-5 family (no default temperature).",
+  "type": "task",
+  "status": "in_progress",
+  "priority": 1,
+  "assignee": null,
+  "creator": null,
+  "parent": null,
+  "labels": [],
+  "dependencies": [],
+  "comments": [],
+  "created_at": "2026-11-02T23:22:50.715208Z",
+  "updated_at": "2026-11-02T23:22:57.577034Z",
+  "closed_at": null,
+  "agent": {
+    "platform": "claude_code",
+    "model": "claude-sonnet-5-5",
+    "name": "Claude Code"
+  },
+  "right_now_summary": null,
+  "right_now_updated_at": null,
+  "custom": {}
+}

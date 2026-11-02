@@ -30,8 +30,8 @@ def lite_llm_model_id(model: str) -> str:
 
 
 def is_openai_gpt5_family_model(model: str) -> bool:
-    """Return whether an OpenAI model belongs to the GPT-5 family."""
-    return lite_llm_model_id(model).startswith("gpt-5")
+    """Return whether an OpenAI model takes the GPT-5-family controls (GPT-5 and GPT-6, including gpt-6-luna)."""
+    return lite_llm_model_id(model).startswith(("gpt-5", "gpt-6"))
 
 
 def default_temperature_for_model(model: str) -> Optional[float]:

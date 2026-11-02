@@ -9,7 +9,7 @@ local web = require("tactus.web")
 local results = web.search{
     provider = "openai",
     query = "automated publication systems newsroom architecture",
-    model = "gpt-5.4-mini",
+    model = "gpt-6-luna",
     allowed_domains = {"openai.com"},
     return_token_budget = "unlimited", -- or "default"
 }
@@ -17,7 +17,7 @@ local results = web.search{
 local synthesis = web.synthesize{
     provider = "openai",
     query = "Summarize recent evidence about automated publication QA systems.",
-    model = "gpt-5.4-mini",
+    model = "gpt-6-luna",
     allowed_domains = {"openai.com"},
     reasoning_effort = "low",
 }
