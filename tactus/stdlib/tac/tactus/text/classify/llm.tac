@@ -33,7 +33,7 @@ function LLMClassifier:init(config)
     self.max_tokens = config.max_tokens
     self.reasoning_effort = config.reasoning_effort
     self.verbosity = config.verbosity
-    self.model_id = config.model or "openai/gpt-4o-mini"
+    self.model_id = config.model or "openai/gpt-6-luna"
     self.confidence_mode = config.confidence_mode or "heuristic"
     self.parse_direction = config.parse_direction or "end"
 

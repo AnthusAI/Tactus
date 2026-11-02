@@ -26,7 +26,7 @@ Step("I run a mocked OpenAI synthesis", function(ctx)
     test_state.result = web.synthesize{
         provider = "openai",
         query = "What evidence matters for automated publication systems?",
-        model = "gpt-5.4-mini",
+        model = "gpt-6-luna",
         allowed_domains = {"example.com"},
         reasoning_effort = "low",
         mock = true,

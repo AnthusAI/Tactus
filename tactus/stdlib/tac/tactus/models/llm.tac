@@ -6,7 +6,7 @@
 --       name = "sentiment",
 --       classes = {"positive", "negative", "neutral"},
 --       prompt = "Classify sentiment",
---       model = "openai/gpt-4o-mini",
+--       model = "openai/gpt-6-luna",
 --       temperature = 0.0,
 --   }
 --   local result = sentiment({text = "great!"})

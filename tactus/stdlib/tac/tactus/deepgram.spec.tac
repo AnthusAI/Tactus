@@ -107,7 +107,7 @@ Step("I LLM match quote \"(.+)\" with markup \"(.+)\"", function(ctx, quote, mar
     test_state.quote = deepgram.quote(test_state.data, {
         quote = quote,
         method = "llm",
-        client = {provider = "openai", model = "gpt-4o-mini"},
+        client = {provider = "openai", model = "gpt-6-luna"},
         mock_marked_up_text = markup,
     })
 end)

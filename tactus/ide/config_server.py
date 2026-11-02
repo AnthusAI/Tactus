@@ -337,7 +337,7 @@ def save_config_by_source():
         {
             "changes": {
                 "aws.region": "us-west-2",
-                "default_model": "gpt-4o"
+                "default_model": "gpt-6-luna"
             },
             "target_strategy": "source_aware" | "force_user" | "force_project"
         }

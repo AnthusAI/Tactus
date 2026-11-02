@@ -2321,7 +2321,7 @@ def create_app(initial_workspace: Optional[str] = None, frontend_dist_dir: Optio
             user_message = data.get("message")
             config = data.get(
                 "config",
-                {"provider": "openai", "model": "gpt-4o", "temperature": 0.7, "max_tokens": 4000},
+                {"provider": "openai", "model": "gpt-6-luna", "temperature": 0.7, "max_tokens": 4000},
             )
 
             if not workspace_root or not user_message:

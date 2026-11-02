@@ -135,9 +135,9 @@ def _normalize_model_for_litellm(model: Optional[str], provider: Optional[str]) 
     Normalize Agent model/provider configuration to LiteLLM's expected format.
 
     Supported inputs:
-    - model="openai/gpt-4o-mini" (already normalized)
-    - model="openai:gpt-4o-mini" (colon provider separator -> slash)
-    - provider="openai", model="gpt-4o-mini" (combine to "openai/gpt-4o-mini")
+    - model="openai/gpt-6-luna" (already normalized)
+    - model="openai:gpt-6-luna" (colon provider separator -> slash)
+    - provider="openai", model="gpt-6-luna" (combine to "openai/gpt-6-luna")
 
     Note: Some provider model IDs (e.g., Bedrock) may contain ':' as part of the model ID
     (version suffix). If provider is provided and the model does not start with
@@ -214,7 +214,7 @@ class DSPyAgentHandle:
         Args:
             name: Agent name (used for tracking/logging)
             system_prompt: System prompt for the agent
-            model: Model name (in LiteLLM format, e.g., "openai/gpt-4o")
+            model: Model name (in LiteLLM format, e.g., "openai/gpt-6-luna")
             provider: Provider name (deprecated, use model instead)
             tools: List of tools available to the agent
             toolsets: List of toolset names to include
@@ -950,7 +950,7 @@ class DSPyAgentHandle:
         # Extract model info
         model = last_call.get("model", self.model or "unknown")
 
-        # Parse provider from model string (e.g., "openai/gpt-4o" -> "openai")
+        # Parse provider from model string (e.g., "openai/gpt-6-luna" -> "openai")
         provider = "unknown"
         if "/" in str(model):
             provider = str(model).split("/")[0]

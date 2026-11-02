@@ -24,7 +24,7 @@ version("1.0.0")
 
 agent("worker", {
   provider = "openai",
-  model = "gpt-4o-mini",
+  model = "gpt-6-luna",
   system_prompt = "Do the work",
   tools = {"search", "done"}
 })

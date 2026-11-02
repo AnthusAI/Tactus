@@ -11,7 +11,7 @@ local test_state = {}
 local function build_request(text_value)
     local client = {
         provider = "openai",
-        model = "gpt-4o-mini"
+        model = "gpt-6-luna"
     }
     return {
         text = text_value,

@@ -53,3 +53,9 @@ def test_get_model_pricing_unknown_model_uses_default():
 def test_get_model_pricing_single_token_name_uses_default():
     pricing = get_model_pricing("unknown", provider="openai")
     assert pricing == DEFAULT_PRICING
+
+
+def test_gpt_6_luna_is_priced_at_its_list_rates():
+    from tactus.utils.model_pricing import MODEL_PRICING
+
+    assert MODEL_PRICING["openai"]["gpt-6-luna"] == {"input": 0.10, "output": 0.50}

@@ -1074,7 +1074,7 @@ def create_dsl_stubs(
         Configure Language Model for DSPy operations.
 
         Uses LiteLLM's model naming convention:
-        - OpenAI: "openai/gpt-4o", "openai/gpt-4o-mini"
+        - OpenAI: "openai/gpt-6-luna", "openai/gpt-6-luna"
         - Anthropic: "anthropic/claude-3-5-sonnet-20241022"
         - AWS Bedrock: "bedrock/anthropic.claude-3-5-sonnet-20240620-v1:0"
         - Google: "gemini/gemini-pro"
@@ -1087,8 +1087,8 @@ def create_dsl_stubs(
             Configured LM instance
 
         Example (Lua):
-            LM("openai/gpt-4o")
-            LM("openai/gpt-4o", { temperature = 0.7 })
+            LM("openai/gpt-6-luna")
+            LM("openai/gpt-6-luna", { temperature = 0.7 })
             LM "anthropic/claude-3-5-sonnet-20241022" { temperature = 0.3 }
         """
         from tactus.dspy import configure_lm
@@ -1104,7 +1104,7 @@ def create_dsl_stubs(
                 return configure_lm(model, **config_dict)
 
             # Also allow immediate call without config
-            # This handles: LM("openai/gpt-4o") with no second arg
+            # This handles: LM("openai/gpt-6-luna") with no second arg
             return accept_config
 
         # Direct call with config: LM("model", {config})
@@ -2350,7 +2350,7 @@ def create_dsl_stubs(
         Recommended syntax:
             ClassifyProcedure {
                 classes = {"Yes", "No"},
-                model = "openai/gpt-5.4-nano",
+                model = "openai/gpt-6-luna",
                 system_message = [[
             Classification instructions...
             ]],
@@ -2362,7 +2362,7 @@ def create_dsl_stubs(
         Legacy syntax (backward compatible):
             ClassifyProcedure {
                 classes = {"Yes", "No"},
-                model = "openai/gpt-5.4-nano",
+                model = "openai/gpt-6-luna",
                 prompt = [[
             Did the agent greet the customer?
             ]]
@@ -2370,7 +2370,7 @@ def create_dsl_stubs(
 
         Params:
             classes        -- (required) list of valid classification values
-            model          -- (required) model identifier e.g. "openai/gpt-5.4-nano"
+            model          -- (required) model identifier e.g. "openai/gpt-6-luna"
             system_message -- classification instructions (LLM system prompt);
                               string or list of strings (joined with double newlines)
             user_message   -- Jinja2 template for user message;

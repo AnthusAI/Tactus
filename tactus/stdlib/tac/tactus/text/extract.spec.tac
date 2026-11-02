@@ -20,7 +20,7 @@ local LLMExtractor = require("tactus.text.extract.llm")
 local extractor = LLMExtractor:new {
     fields = {name = "string", age = "number", email = "string"},
     prompt = "Extract customer information from this text",
-    model = "openai/gpt-4o-mini"
+    model = "openai/gpt-6-luna"
 }
 local result = extractor:extract("John Smith is 34 years old. Contact: john@example.com")
 -- result.fields = {name = "John Smith", age = 34, email = "john@example.com"}
@@ -30,7 +30,7 @@ local result = extractor:extract("John Smith is 34 years old. Contact: john@exam
 
 - `fields` (required): Table mapping field names to types
 - `prompt` (required): Extraction instruction
-- `model`: Model identifier (e.g., "openai/gpt-4o-mini")
+- `model`: Model identifier (e.g., "openai/gpt-6-luna")
 - `temperature`: LLM temperature (default: 0.3)
 - `max_retries`: Maximum retry attempts (default: 3)
 - `strict`: Require all fields (default: true)
@@ -66,7 +66,7 @@ Step("an LLM extractor with fields (.+)", function(ctx, fields_str)
     test_state.extractor_config = {
         name = "stdlib_extract_llm",
         fields = fields,
-        model = "openai/gpt-4o-mini"
+        model = "openai/gpt-6-luna"
     }
     test_state.extractor = nil
 end)

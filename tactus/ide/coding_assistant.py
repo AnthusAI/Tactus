@@ -99,7 +99,7 @@ class CodingAssistantAgent:
         provider = assistant_config.get(
             "provider", os.environ.get("TACTUS_DEFAULT_PROVIDER", "openai")
         )
-        model = assistant_config.get("model", os.environ.get("TACTUS_DEFAULT_MODEL", "gpt-4"))
+        model = assistant_config.get("model", os.environ.get("TACTUS_DEFAULT_MODEL", "gpt-6-luna"))
 
         logger.info(f"Setting up DSPy with provider={provider}, model={model}")
 

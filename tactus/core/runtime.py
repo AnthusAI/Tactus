@@ -2123,7 +2123,7 @@ class TactusRuntime:
             )
 
             # Handle model - can be string or dict with settings
-            model_config = agent_config.get("model") or self.config.get("default_model") or "gpt-4o"
+            model_config = agent_config.get("model") or self.config.get("default_model") or "gpt-6-luna"
             model_settings = None
 
             if isinstance(model_config, dict):
@@ -2164,7 +2164,7 @@ class TactusRuntime:
 
             if not provider_name:
                 raise ValueError(
-                    f"Agent '{agent_name}' must specify a 'provider' (either on the agent or as 'default_provider' in the procedure, or by using a provider-prefixed model like 'openai/gpt-4o-mini')"
+                    f"Agent '{agent_name}' must specify a 'provider' (either on the agent or as 'default_provider' in the procedure, or by using a provider-prefixed model like 'openai/gpt-6-luna')"
                 )
 
             # Construct the full model string for DSPy/LiteLLM.

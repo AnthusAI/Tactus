@@ -287,7 +287,7 @@ def _create_llm_judge_evaluator(config: EvaluatorConfig) -> Evaluator:
     # The rubric itself should specify if comparison is needed
     return LLMJudge(
         rubric=config.rubric,
-        model=config.model or "openai:gpt-4o",
+        model=config.model or "openai:gpt-6-luna",
         include_input=True,
     )
 

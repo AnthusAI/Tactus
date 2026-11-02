@@ -37,7 +37,7 @@ class LLMModelBackend:
         Initialize LLM model backend.
 
         Args:
-            model: Model name (in LiteLLM format, e.g., "openai/gpt-4o")
+            model: Model name (in LiteLLM format, e.g., "openai/gpt-6-luna")
             system_prompt: System prompt for the classification task
             provider: Provider name (deprecated, use model instead)
             temperature: Model temperature. None applies a model-specific default:

@@ -52,7 +52,7 @@ class AgentDeclaration(BaseModel):
 
     name: str
     provider: Optional[str] = None
-    model: Union[str, Dict[str, Any]] = "gpt-4o"
+    model: Union[str, Dict[str, Any]] = "gpt-6-luna"
     system_prompt: Union[str, Any]  # String with {markers} or Lua function
     initial_message: Optional[str] = None
     tools: list[Any] = Field(default_factory=list)  # Tool/toolset references and expressions

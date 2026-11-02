@@ -38,7 +38,7 @@ function LLMGenerator:init(config)
         agent_config.module = "ChainOfThought"
     end
 
-    -- Parse model string (e.g., "openai/gpt-4o-mini")
+    -- Parse model string (e.g., "openai/gpt-6-luna")
     if self.model then
         local provider, model_id = self.model:match("([^/]+)/(.+)")
         if provider and model_id then

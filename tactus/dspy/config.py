@@ -92,13 +92,13 @@ def configure_lm(
     Configure the default Language Model for DSPy operations.
 
     This uses LiteLLM's model naming convention:
-    - OpenAI: "openai/gpt-4o", "openai/gpt-4o-mini"
+    - OpenAI: "openai/gpt-6-luna", "openai/gpt-6-luna"
     - Anthropic: "anthropic/claude-3-5-sonnet-20241022"
     - AWS Bedrock: "bedrock/anthropic.claude-3-5-sonnet-20240620-v1:0"
     - Google: "gemini/gemini-pro"
 
     Args:
-        model: Model identifier in LiteLLM format (e.g., "openai/gpt-4o")
+        model: Model identifier in LiteLLM format (e.g., "openai/gpt-6-luna")
         api_key: API key (optional, can use environment variables)
         api_base: Custom API base URL (optional)
         temperature: Sampling temperature. If omitted, GPT-5 family omits the
@@ -114,7 +114,7 @@ def configure_lm(
         Configured dspy.LM instance
 
     Example:
-        >>> configure_lm("openai/gpt-4o", temperature=0.3)
+        >>> configure_lm("openai/gpt-6-luna", temperature=0.3)
         >>> configure_lm("anthropic/claude-3-5-sonnet-20241022")
         >>> configure_lm("openai/gpt-5-mini", model_type="responses")
     """
@@ -265,12 +265,12 @@ def create_lm(
     cannot be called (e.g., in different event loops or async tasks).
 
     Use with dspy.context(lm=...) to set the LM for a specific scope:
-        lm = create_lm("openai/gpt-4o")
+        lm = create_lm("openai/gpt-6-luna")
         with dspy.context(lm=lm):
             # Use DSPy operations here
 
     Args:
-        model: Model identifier in LiteLLM format (e.g., "openai/gpt-4o")
+        model: Model identifier in LiteLLM format (e.g., "openai/gpt-6-luna")
         api_key: API key (optional, can use environment variables)
         api_base: Custom API base URL (optional)
         temperature: Sampling temperature; if omitted, same defaults as configure_lm.
